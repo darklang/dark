@@ -74,25 +74,45 @@ let addOp (ctx : HttpContext) : Task<T> =
     let c = c |> C.addOps [] ops |> C.verify |> Result.unwrapUnsafe
     t "3-add-ops"
 
-    let ocamlToplevels = c |> C.toplevels |> Convert.pt2ocamlToplevels
+    let toplevels = C.toplevels c
+    let deletedToplevels = C.deletedToplevels c
 
-    let ocamlDeletedToplevels = c |> C.deletedToplevels |> Convert.pt2ocamlToplevels
+    let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
+    let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
 
 
     let result : Op.AddOpResult =
-      { toplevels = Tuple3.first ocamlToplevels
-        deleted_toplevels = Tuple3.first ocamlDeletedToplevels
-        user_functions = Tuple3.second ocamlToplevels
-        deleted_user_functions = Tuple3.second ocamlDeletedToplevels
-        user_tipes = Tuple3.third ocamlToplevels
-        deleted_user_tipes = Tuple3.third ocamlDeletedToplevels }
+      { toplevels = tls
+        deleted_toplevels = dTLs
+        user_functions = fns
+        deleted_user_functions = dFns
+        user_tipes = types
+        deleted_user_tipes = dTypes }
 
     t "3-to-frontend"
 
     // work out the result before we save it, in case it has a
     // stackoverflow or other crashing bug
     // Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
-    if causesAnyChanges ops then do! C.saveTLIDs canvasInfo []
+    if causesAnyChanges ops then
+      do!
+        ops
+        |> Op.oplist2TLIDOplists
+        |> List.map
+             (fun (tlid, oplists) ->
+               let (tl, deleted) =
+                 match Map.get tlid toplevels with
+                 | Some tl -> tl, C.NotDeleted
+                 | None ->
+                   match Map.get tlid deletedToplevels with
+                   | Some tl -> tl, C.Deleted
+                   | None ->
+                     failwith "couldn't find the TL we supposedly just looked up"
+
+               (tlid, oplists, tl, deleted))
+        |> C.saveTLIDs canvasInfo
+
+
     t "4-save-to-disk"
 
     let event =
