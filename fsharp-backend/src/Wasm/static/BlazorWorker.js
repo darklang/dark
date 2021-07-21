@@ -15,14 +15,15 @@ window.BlazorWorker = (function () {
     hashReplacements = JSON.parse(hashReplacements);
     const nonExistingDlls = [];
     let blazorBootManifest;
-    const hashFile = file => {
+    const fileToUrl = file => {
       let hashed = hashReplacements["/" + file];
       if (hashed) {
         // Remove the starting slash
-        return hashed.substring(1);
+        hashed = hashed.substring(1);
       } else {
-        return file;
+        hashed = file;
       }
+      return appRoot + "/" + hashed;
     };
 
     const onReady = () => {
@@ -77,11 +78,9 @@ window.BlazorWorker = (function () {
     Module.locateFile = fileName => {
       switch (fileName) {
         case "dotnet.wasm":
-          let hashed = hashFile("blazor/dotnet.wasm");
-          return `${appRoot}/${hashed}`;
+          return fileToUrl("blazor/dotnet.wasm");
         default:
-          console.log("file wanted", file, hash);
-          return hashFile(fileName);
+          return fileToUrl(fileName);
       }
     };
 
@@ -110,7 +109,7 @@ window.BlazorWorker = (function () {
         const runDependencyId = `blazor:${url}`;
         addRunDependency(runDependencyId);
 
-        asyncLoad(`${appRoot}/blazor/${url}`).then(
+        asyncLoad(fileToUrl(`blazor/${url}`)).then(
           data => {
             const heapAddress = Module._malloc(data.length);
             const heapMemory = new Uint8Array(
@@ -158,8 +157,7 @@ window.BlazorWorker = (function () {
 
     //TODO: This call could/should be session cached. But will the built-in blazor fetch service worker override
     // (PWA et al) do this already if configured ?
-    let hashed = hashFile("blazor/blazor.boot.json");
-    asyncLoad(`${appRoot}/${hashed}`, "json").then(
+    asyncLoad(fileToUrl("blazor/blazor.boot.json"), "json").then(
       blazorboot => {
         // Save this for loading other scripts later
         blazorBootManifest = blazorboot;
@@ -172,7 +170,7 @@ window.BlazorWorker = (function () {
         if (dotnetjsfilename === "") {
           throw "BlazorWorker: Unable to locate dotnetjs file in blazor boot config.";
         }
-        self.importScripts(`${appRoot}/blazor/${dotnetjsfilename}`);
+        self.importScripts(fileToUrl(`blazor/${dotnetjsfilename}`));
       },
       errorInfo => onError(errorInfo),
     );
