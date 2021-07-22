@@ -371,7 +371,12 @@ let empty (meta : Meta) : T =
     secrets = Map.empty }
 
 // DOES NOT LOAD OPS FROM DB
-let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : Result<T, List<string>> = empty meta |> addOps oldOps newOps |> verify
+let fromOplist
+  (meta : Meta)
+  (oldOps : PT.Oplist)
+  (newOps : PT.Oplist)
+  : Result<T, List<string>> =
+  empty meta |> addOps oldOps newOps |> verify
 
 
 // let load_without_tls host : (canvas ref, string list) Result.t =
@@ -409,16 +414,20 @@ type LoadAmount =
 //  b) they are deleted, because the cache query filters out deleted items
 //  c) the deserializers for the cache version are broken (due to a binary version
 //  change!)
-let loadOplists (loadAmount : LoadAmount) (canvasID : CanvasID) (tlids : List<tlid>) : Task<List<tlid * PT.Oplist>> =
+let loadOplists
+  (loadAmount : LoadAmount)
+  (canvasID : CanvasID)
+  (tlids : List<tlid>)
+  : Task<List<tlid * PT.Oplist>> =
   let query =
     match loadAmount with
     | LiveToplevels ->
-      "SELECT tlid, data FROM toplevel_oplists
+        "SELECT tlid, data FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
             AND deleted IS NOT TRUE"
     | IncludeDeletedToplevels ->
-      "SELECT tlid, data FROM toplevel_oplists
+        "SELECT tlid, data FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)"
 
@@ -437,16 +446,22 @@ let loadOplists (loadAmount : LoadAmount) (canvasID : CanvasID) (tlids : List<tl
          |> Task.flatten)
 
 
-let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task<Result<T, string list>> =
+let loadFrom
+  (loadAmount : LoadAmount)
+  (meta : Meta)
+  (tlids : List<tlid>)
+  : Task<Result<T, string list>> =
   task {
     // CLEANUP: rename "rendered" and "cached" to be consistent
 
     // load
     let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
 
-    let fastLoadedTLIDs = List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
+    let fastLoadedTLIDs =
+      List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
 
-    let notLoadedTLIDs = List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
+    let notLoadedTLIDs =
+      List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
 
     // canvas initialized via the normal loading path with the non-fast loaded tlids
     // loaded traditionally via the oplist
@@ -464,16 +479,24 @@ let loadAll (meta : Meta) : Task<Result<T, List<string>>> =
     return! loadFrom IncludeDeletedToplevels meta tlids
   }
 
-let loadHttpHandlers (meta : Meta) (path : string) (method : string) : Task<Result<T, List<string>>> =
+let loadHttpHandlers
+  (meta : Meta)
+  (path : string)
+  (method : string)
+  : Task<Result<T, List<string>>> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP meta.id path method
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<Result<T, List<string>>> = loadFrom LiveToplevels meta tlids
+let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<Result<T, List<string>>> =
+  loadFrom LiveToplevels meta tlids
 
 
-let loadTLIDsWithContext (meta : Meta) (tlids : List<tlid>) : Task<Result<T, List<string>>> =
+let loadTLIDsWithContext
+  (meta : Meta)
+  (tlids : List<tlid>)
+  : Task<Result<T, List<string>>> =
   task {
     let! context = Serialize.fetchRelevantTLIDsForExecution meta.id
     let tlids = tlids @ context
@@ -493,7 +516,10 @@ let loadAllDBs (meta : Meta) : Task<Result<T, List<string>>> =
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<Result<T, List<string>>> =
+let loadTLIDsWithDBs
+  (meta : Meta)
+  (tlids : List<tlid>)
+  : Task<Result<T, List<string>>> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id
     return! loadFrom LiveToplevels meta (tlids @ dbTLIDs)
