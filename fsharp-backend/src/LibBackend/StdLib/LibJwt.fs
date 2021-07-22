@@ -207,12 +207,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
-          let rsa = RSA.Create()
-          rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
+          try
+            let rsa = RSA.Create()
+            rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
 
-          let payload = DvalRepr.toPrettyMachineJsonStringV1 payload
+            let payload = DvalRepr.toPrettyMachineJsonStringV1 payload
 
-          signAndEncode rsa headers payload |> DStr |> Value
+            signAndEncode rsa headers payload |> DStr |> Value
+          with
+          | e -> Value(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
