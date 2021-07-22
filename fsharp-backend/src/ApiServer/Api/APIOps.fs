@@ -53,33 +53,32 @@ let addOp (ctx : HttpContext) : Task<T> =
 
     let! isLatest = Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
 
-    let ops = Convert.ocamlOplist2PT p.ops
-    let ops = if isLatest then ops else Op.filterOpsReceivedOutOfOrder ops
+    let newOps = Convert.ocamlOplist2PT p.ops
+    let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
     t "read-api"
 
-    let opTLIDs = List.map Op.tlidOf ops
+    let! dbTLIDs =
+      match Op.requiredContextToValidateOplist newOps with
+      | Op.NoContext -> Task.FromResult []
+      // NOTE: Because we run canvas-wide validation logic, it's important that
+      // we load _at least_ the context (ie. datastores, functions, types, etc)
+      // and not just the tlids in the API payload.
+      | Op.AllDatastores -> Serialize.fetchTLIDsForAllDBs canvasInfo.id
 
-    // NOTE: Because we run canvas-wide validation logic, it's important
-    // that we load _at least_ the context (ie. datastores, functions, types, etc)
-    // and not just the tlids in the API payload.
-    let! c =
-      match Op.requiredContextToValidateOplist ops with
-      | Op.NoContext -> C.loadTLIDs canvasInfo opTLIDs
-      | Op.AllDatastores -> C.loadWithDBs canvasInfo opTLIDs
+    let allTLIDs = (List.map Op.tlidOf newOps) @ dbTLIDs
+    // We're going to save this, so we need all the ops
+    let! oldOps = C.loadOplists C.IncludeDeletedToplevels canvasInfo.id allTLIDs
+    let oldOps = oldOps |> List.map Tuple2.second |> List.concat
 
-    let c = Result.unwrapUnsafe c
+    let c = C.fromOplist canvasInfo oldOps newOps |> Result.unwrapUnsafe
+
     t "2-load-saved-ops"
-
-    // Actually add the ops
-    let c = c |> C.addOps [] ops |> C.verify |> Result.unwrapUnsafe
-    t "3-add-ops"
 
     let toplevels = C.toplevels c
     let deletedToplevels = C.deletedToplevels c
 
     let (tls, fns, types) = Convert.pt2ocamlToplevels toplevels
     let (dTLs, dFns, dTypes) = Convert.pt2ocamlToplevels deletedToplevels
-
 
     let result : Op.AddOpResult =
       { toplevels = tls
@@ -93,10 +92,9 @@ let addOp (ctx : HttpContext) : Task<T> =
 
     // work out the result before we save it, in case it has a
     // stackoverflow or other crashing bug
-    // Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
-    if causesAnyChanges ops then
+    if causesAnyChanges newOps then
       do!
-        ops
+        (oldOps @ newOps)
         |> Op.oplist2TLIDOplists
         |> List.map
              (fun (tlid, oplists) ->
@@ -104,10 +102,10 @@ let addOp (ctx : HttpContext) : Task<T> =
                  match Map.get tlid toplevels with
                  | Some tl -> tl, C.NotDeleted
                  | None ->
-                     match Map.get tlid deletedToplevels with
-                     | Some tl -> tl, C.Deleted
-                     | None ->
-                         failwith "couldn't find the TL we supposedly just looked up"
+                   match Map.get tlid deletedToplevels with
+                   | Some tl -> tl, C.Deleted
+                   | None ->
+                     failwith "couldn't find the TL we supposedly just looked up"
 
                (tlid, oplists, tl, deleted))
         |> C.saveTLIDs canvasInfo
@@ -118,7 +116,7 @@ let addOp (ctx : HttpContext) : Task<T> =
     let event =
       // To make this work with prodclone, we might want to have it specify
       // more ... else people's prodclones will stomp on each other ...
-      if causesAnyChanges ops then
+      if causesAnyChanges newOps then
         let event : Op.AddOpEvent = { result = result; ``params`` = p }
         LibBackend.Pusher.pushAddOpEvent executionID canvasID event
         event
@@ -128,7 +126,7 @@ let addOp (ctx : HttpContext) : Task<T> =
     t "5-send-ops-to-pusher"
 
     // NB: I believe we only send one op at a time, but the type is op list
-    ops
+    newOps
     // MoveTL and TLSavepoint make for noisy data, so exclude it from heapio
     |> List.filter
          (function

@@ -308,7 +308,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let searchMethod = if method = "HEAD" then "GET" else method
 
         let! c =
-          Canvas.loadHttpHandlersFromCache meta requestPath searchMethod
+          Canvas.loadHttpHandlers meta requestPath searchMethod
           |> Task.map Result.unwrapUnsafe
 
         let pages =
