@@ -165,13 +165,11 @@ let base64Decode (encoded : string) : byte [] =
 
 let base64DecodeOpt (encoded : string) : byte [] option =
   try
-    encoded
-    |> System.Convert.FromBase64String
-    |> Some
-  with e -> None
+    encoded |> System.Convert.FromBase64String |> Some
+  with _ -> None
 
 let sha1digest (input : string) : byte [] =
-  use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
+  use sha1 = System.Security.Cryptography.SHA1.Create()
   input |> toBytes |> sha1.ComputeHash
 
 let toString (v : 'a) : string = v.ToString()
