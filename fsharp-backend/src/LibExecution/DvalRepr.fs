@@ -225,7 +225,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   and reprfn dv =
     match dv with
-    | DInt i -> i.ToString()
+    | DInt i -> string i
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
@@ -234,7 +234,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DChar c -> c
     | DNull -> "null"
     | DDate d -> d.toIsoString ()
-    | DUuid uuid -> uuid.ToString()
+    | DUuid uuid -> string uuid
     | DDB dbname -> $"<DB: {dbname}>"
     | DError (_, msg) ->
       // FSTODO make this a string again
