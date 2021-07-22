@@ -31,9 +31,9 @@
     <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="StaticAssets.fs" />
     <Compile Include="Cron.fs" />
+    <Compile Include="Op.fs" />
     <Compile Include="Pusher.fs" />
     <Compile Include="Secret.fs" />
-    <Compile Include="Op.fs" />
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="Traces.fs" />
