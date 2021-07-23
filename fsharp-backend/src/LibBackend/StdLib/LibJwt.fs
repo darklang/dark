@@ -208,7 +208,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
             try
-              signAndEncode key headers payload |> DStr |> Value
+              signAndEncode key headers payload |> DStr |> Ok |> DResult |> Value
             with e -> Value(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
