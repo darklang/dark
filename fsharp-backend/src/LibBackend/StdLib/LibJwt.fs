@@ -201,24 +201,19 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> Map.add "type" (DStr "JWT")
     |> Map.map (fun k v -> Legacy.toYojson v)
     |> Map.toList
-    |> debug "headers"
     |> Legacy.Assoc
     |> Legacy.toString
-    |> debug "headers json string"
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
-    |> debug "headers b64"
 
   let payload =
     payload
     |> Legacy.toYojson
     |> Legacy.toString
-    |> debug "payload"
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
-    |> debug "payload b64"
 
   let body = header + "." + payload
 
@@ -230,13 +225,11 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     let sha256 = SHA256.Create()
 
     body
-    |> debug "body"
     |> toBytes
     |> sha256.ComputeHash
     |> RSAFormatter.CreateSignature
     |> base64Encode
     |> base64ToUrlEncoded
-    |> debug "sig base64"
 
   body + "." + signature
 
