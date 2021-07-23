@@ -52,11 +52,11 @@ module Legacy =
   // The way the OCaml functions worked:
   // - convert the payload to YoJson using to_pretty_machine_yojson_v1
   // - foreach element of the header, convert to to YoJson using to_pretty_machine_yojson_v1
-  // - convert both the payload and header YoJsons to strings using YoJson.Safe.to_string
+  // - convert both the payload and header YoJsons to strings using YoJson.Safe.to_string, version 1.7.0
 
   // This is the subset of Yojson.Safe that we used
   type Yojson =
-    | Int of int64
+    | Int of bigint
     | Float of float
     | String of string
     | Bool of bool
@@ -67,7 +67,7 @@ module Legacy =
   // Direct clone of OCaml Dval.to_pretty_machine_yojson_v1
   let rec toYojson (dval : Dval) : Yojson =
     match dval with
-    | DInt i -> Int(int64 i) // FSTODO larger put in a string
+    | DInt i -> Int i // FSTODO larger put in a string
     | DFloat f -> Float f
     | DBool b -> Bool b
     | DNull -> Null
@@ -104,18 +104,13 @@ module Legacy =
     v.Capacity <- v.Capacity + bytes.Length // avoid resizing multiple times
     Array.iter (fun b -> v.Add b) bytes
 
-  // This is pretty printed using yojson 1.7.0
-  // (https://github.com/ocaml-community/yojson/blob/1.7.0/lib/pretty.ml)
-  // which uses easy-format
-  // (https://github.com/ocaml-community/easy-format/blob/master/src/easy_format.ml)
-  // to pretty print.
   let rec listToStringList (v : Vector) (l : List<'a>) (f : 'a -> unit) : unit =
     match l with
     | [] -> ()
     | [ h ] -> f h
     | h :: tail ->
         f h
-        append v ", "
+        append v ","
         listToStringList v tail f
 
   and appendString (v : Vector) (s : string) : unit =
@@ -140,8 +135,8 @@ module Legacy =
            | 0x09uy -> append v "\\t"
            // write_control_char
            | b when b >= 0uy && b <= 0x1fuy ->
-               append v "\\u00"
-               append v (b.ToString("x"))
+               append v "\\u"
+               append v (b.ToString("x4"))
            | 0x7fuy -> append v "\\u007f"
            | b -> v.Add b)
 
@@ -162,12 +157,12 @@ module Legacy =
           if System.Double.Parse s = f then s else (sprintf "%.17g" f)
 
         append v s
-        let mutable needsZero = false
+        let mutable needsZero = true
 
         String.toArray s
         |> Array.iter
              (fun d ->
-               if d >= '0' && d <= '9' || d = '-' then () else needsZero <- true)
+               if d >= '0' && d <= '9' || d = '-' then () else needsZero <- false)
 
         if needsZero then append v ".0"
 
@@ -176,24 +171,22 @@ module Legacy =
         append v "\""
         appendString v s
         append v "\""
-    | List [] -> append v "[]"
     | List l ->
-        append v "[ "
+        append v "["
         listToStringList v l (toString' v)
-        append v " ]"
-    | Assoc [] -> append v "{}"
+        append v "]"
     | Assoc l ->
-        append v "{ "
+        append v "{"
 
         let f ((k, j) : string * Yojson) =
           append v "\""
           appendString v k
-          append v "\": "
+          append v "\":"
           toString' v j
 
         listToStringList v l f
 
-        append v " }"
+        append v "}"
 
   let toString (j : Yojson) : string =
     let v = Vector 10
@@ -205,22 +198,27 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
   let header =
     extraHeaders
     |> Map.add "alg" (DStr "RS256")
-    |> Map.add "typ" (DStr "JWT")
+    |> Map.add "type" (DStr "JWT")
     |> Map.map (fun k v -> Legacy.toYojson v)
     |> Map.toList
+    |> debug "headers"
     |> Legacy.Assoc
     |> Legacy.toString
+    |> debug "headers json string"
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
+    |> debug "headers b64"
 
   let payload =
     payload
     |> Legacy.toYojson
     |> Legacy.toString
+    |> debug "payload"
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
+    |> debug "payload b64"
 
   let body = header + "." + payload
 
@@ -232,11 +230,13 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     let sha256 = SHA256.Create()
 
     body
+    |> debug "body"
     |> toBytes
     |> sha256.ComputeHash
     |> RSAFormatter.CreateSignature
     |> base64Encode
     |> base64ToUrlEncoded
+    |> debug "sig base64"
 
   body + "." + signature
 

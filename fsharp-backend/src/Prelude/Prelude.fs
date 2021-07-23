@@ -52,6 +52,16 @@ let debugString (msg : string) (s : string) : string =
   printfn $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
+let debugByteArray (msg : string) (a : byte array) : byte array =
+  let bytes = a |> System.BitConverter.ToString
+  printfn $"DEBUG: {msg} (len {a.Length}, {bytes}"
+  a
+
+let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
+  printfn $"DEBUG: {msg} {f v}"
+  v
+
+
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
 // of operations.
