@@ -118,6 +118,33 @@ module Legacy =
         append v ", "
         listToStringList v tail f
 
+  and appendString (v : Vector) (s : string) : unit =
+    s
+    |> toBytes
+    |> Array.iter
+         (fun b ->
+           match b with
+           // " - quote
+           | 0x22uy -> append v "\\\""
+           // \ - backslash
+           | 0x5cuy -> append v "\\\\"
+           // \b - backspace
+           | 0x08uy -> append v "\\b"
+           // \f - form feed
+           | 0x0cuy -> append v "\\f"
+           // \n - new line
+           | 0x0auy -> append v "\\n"
+           // \r  - carriage return
+           | 0x0duy -> append v "\\r"
+           // \t - tab
+           | 0x09uy -> append v "\\t"
+           // write_control_char
+           | b when b >= 0uy && b <= 0x1fuy ->
+               append v "\\u00"
+               append v (b.ToString("X"))
+           | 0x7fuy -> append v "\\u007f"
+           | b -> v.Add b)
+
   and toString' (v : Vector) (j : Yojson) : unit =
     match j with
     | Null -> append v "null"
@@ -144,33 +171,7 @@ module Legacy =
     // write_string
     | String s ->
         append v "\""
-
-        s
-        |> toBytes
-        |> Array.iter
-             (fun b ->
-               match b with
-               // " - quote
-               | 0x22uy -> append v "\\\""
-               // \ - backslash
-               | 0x5cuy -> append v "\\\\"
-               // \b - backspace
-               | 0x08uy -> append v "\\b"
-               // \f - form feed
-               | 0x0cuy -> append v "\\f"
-               // \n - new line
-               | 0x0auy -> append v "\\n"
-               // \r  - carriage return
-               | 0x0duy -> append v "\\r"
-               // \t - tab
-               | 0x09uy -> append v "\\t"
-               // write_control_char
-               | c when b >= 0uy && b <= 0x1fuy ->
-                   append v "\\u00"
-                   append v (c.ToString("X"))
-               | 0x7fuy -> append v "\\u007F"
-               | b -> v.Add b)
-
+        appendString v s
         append v "\""
     | List [] -> append v "[]"
     | List l ->
@@ -183,7 +184,7 @@ module Legacy =
 
         let f ((k, j) : string * Yojson) =
           append v "\""
-          append v k
+          appendString v k
           append v "\": "
           toString' v j
 
