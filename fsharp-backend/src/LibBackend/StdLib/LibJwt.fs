@@ -20,6 +20,8 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 let varErr = TVariable "err"
 
+// CLEANUP: fix the typos in "unecnrypted"
+
 // Here's how JWT with RS256, and this library, work:
 //
 //   Users provide a private key, some headers, and a payload.
@@ -302,7 +304,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TStr
       description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unencrypted RSA private key in PEM format."
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
       fn =
         (function
         | _, [ DStr key; payload ] ->
@@ -318,7 +320,7 @@ let fns : List<BuiltInFn> =
           Param.make "payload" varA "" ]
       returnType = TStr
       description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unencrypted RSA private key in PEM format."
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
       fn =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
@@ -331,7 +333,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TResult(varB, varErr)
       description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unencrypted RSA private key in PEM format."
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
       fn =
         (function
         | _, [ DStr key; payload ] ->
@@ -364,7 +366,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TOption varA
       description =
-        "Verify and extract the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
+        // CLEANUP: the docstring should say "extract"
+        "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
@@ -393,7 +396,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TResult(varA, varErr)
       description =
-        "Verify and extract the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
+        // CLEANUP: the docstring should say "extract"
+        "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
