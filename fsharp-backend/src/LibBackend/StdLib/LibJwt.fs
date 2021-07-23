@@ -44,180 +44,27 @@ let varErr = TVariable "err"
 //
 //   https://jwt.io/ is helpful for validating this!
 
-module Legacy =
-  // The LibJWT functions use signitures based off the exact string encoding of
-  // Dvals. This was defined in the original OCaml version. We need to keep
-  // this exactly the same or the signatures won't match.
-
-  // The way the OCaml functions worked:
-  // - convert the payload to YoJson using to_pretty_machine_yojson_v1
-  // - foreach element of the header, convert to to YoJson using to_pretty_machine_yojson_v1
-  // - convert both the payload and header YoJsons to strings using YoJson.Safe.to_string
-
-  // This is the subset of Yojson.Safe that we used
-  type Yojson =
-    | Int of int64
-    | Float of float
-    | String of string
-    | Bool of bool
-    | List of List<Yojson>
-    | Assoc of List<string * Yojson>
-    | Null
-
-  // Direct clone of OCaml Dval.to_pretty_machine_yojson_v1
-  let rec toYojson (dval : Dval) : Yojson =
-    match dval with
-    | DInt i -> Int(int64 i) // FSTODO larger put in a string
-    | DFloat f -> Float f
-    | DBool b -> Bool b
-    | DNull -> Null
-    | DStr s -> String s
-    | DList l -> List(List.map toYojson l)
-    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, toYojson v)) |> Assoc
-    // See docs/dblock-serialization.ml
-    | DFnVal _ -> Null
-    | DIncomplete _ -> Null
-    | DChar c -> String c
-    | DError (_, msg) -> Assoc [ "Error", String msg ]
-    | DHttpResponse (Redirect _) -> Null
-    | DHttpResponse (Response (_, _, hdv)) -> toYojson hdv
-    | DDB name -> String name
-    | DDate date -> String(date.toIsoString ())
-    | DPassword _ -> Assoc [ "Error", String "Password is redacted" ]
-    | DUuid uuid -> String(string uuid)
-    | DOption None -> Null
-    | DOption (Some dv) -> toYojson dv
-    | DErrorRail dv -> toYojson dv
-    | DResult (Ok dv) -> toYojson dv
-    | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
-    | DBytes bytes -> bytes |> base64Encode |> String
-
-  // We are adding bytes to match the OCaml implementation. Don't use strings
-  // or characters as those are different sizes: OCaml strings are literally
-  // just byte arrays.
-  // A SCG.List is a growing vector (unlike an F# List, which is a linked
-  // list). This should have not-awful performance
-  type Vector = System.Collections.Generic.List<byte>
-
-  let append (v : Vector) (s : string) : unit =
-    let bytes = toBytes s
-    v.Capacity <- v.Capacity + bytes.Length // avoid resizing multiple times
-    Array.iter (fun b -> v.Add b) bytes
-
-  // This is pretty printed using yojson 1.7.0
-  // (https://github.com/ocaml-community/yojson/blob/1.7.0/lib/pretty.ml)
-  // which uses easy-format
-  // (https://github.com/ocaml-community/easy-format/blob/master/src/easy_format.ml)
-  // to pretty print.
-  let rec listToStringList (v : Vector) (l : List<'a>) (f : 'a -> unit) : unit =
-    match l with
-    | [] -> ()
-    | [ h ] -> f h
-    | h :: tail ->
-        f h
-        append v ", "
-        listToStringList v tail f
-
-  and appendString (v : Vector) (s : string) : unit =
-    s
-    |> toBytes
-    |> Array.iter
-         (fun b ->
-           match b with
-           // " - quote
-           | 0x22uy -> append v "\\\""
-           // \ - backslash
-           | 0x5cuy -> append v "\\\\"
-           // \b - backspace
-           | 0x08uy -> append v "\\b"
-           // \f - form feed
-           | 0x0cuy -> append v "\\f"
-           // \n - new line
-           | 0x0auy -> append v "\\n"
-           // \r  - carriage return
-           | 0x0duy -> append v "\\r"
-           // \t - tab
-           | 0x09uy -> append v "\\t"
-           // write_control_char
-           | b when b >= 0uy && b <= 0x1fuy ->
-               append v "\\u00"
-               append v (b.ToString("x"))
-           | 0x7fuy -> append v "\\u007f"
-           | b -> v.Add b)
-
-  and toString' (v : Vector) (j : Yojson) : unit =
-    match j with
-    | Null -> append v "null"
-    | Bool true -> append v "true"
-    | Bool false -> append v "false"
-    | Int i -> append v (string i)
-    // write_float
-    | Float f when System.Double.IsNaN f -> append v "NaN"
-    | Float f when System.Double.IsPositiveInfinity f -> append v "Infinity"
-    | Float f when System.Double.IsNegativeInfinity f -> append v "-Infinity"
-    | Float f ->
-        let s =
-          // based  on yojson code
-          let s = sprintf "%.16g" f
-          if System.Double.Parse s = f then s else (sprintf "%.17g" f)
-
-        append v s
-        let mutable needsZero = false
-
-        String.toArray s
-        |> Array.iter
-             (fun d ->
-               if d >= '0' && d <= '9' || d = '-' then () else needsZero <- true)
-
-        if needsZero then append v ".0"
-
-    // write_string
-    | String s ->
-        append v "\""
-        appendString v s
-        append v "\""
-    | List [] -> append v "[]"
-    | List l ->
-        append v "[ "
-        listToStringList v l (toString' v)
-        append v " ]"
-    | Assoc [] -> append v "{}"
-    | Assoc l ->
-        append v "{ "
-
-        let f ((k, j) : string * Yojson) =
-          append v "\""
-          appendString v k
-          append v "\": "
-          toString' v j
-
-        listToStringList v l f
-
-        append v " }"
-
-  let toString (j : Yojson) : string =
-    let v = Vector 10
-    toString' v j
-    v.ToArray() |> ofBytes
-
+// When porting from OCaml, the format used to create the payload and headers
+// strings were different, meaning the base64 will be different and the
+// signatures will be different. That's OK - it won't exactly match the old
+// JWT, but it will still be a valid signature for that data, and still be
+// verifyable/extractable.
+// The old version of
 
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
   let header =
     extraHeaders
     |> Map.add "alg" (DStr "RS256")
-    |> Map.add "typ" (DStr "JWT")
-    |> Map.map (fun k v -> Legacy.toYojson v)
-    |> Map.toList
-    |> Legacy.Assoc
-    |> Legacy.toString
+    |> Map.add "type" (DStr "JWT")
+    |> DObj
+    |> DvalRepr.toPrettyMachineJsonStringV1
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
 
   let payload =
     payload
-    |> Legacy.toYojson
-    |> Legacy.toString
+    |> DvalRepr.toPrettyMachineJsonStringV1
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
