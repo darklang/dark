@@ -104,11 +104,11 @@ module Legacy =
     v.Capacity <- v.Capacity + bytes.Length // avoid resizing multiple times
     Array.iter (fun b -> v.Add b) bytes
 
-  // Intended to exactly match
-  // https://github.com/ocaml-community/yojson/blob/1.7.0/lib/write.ml#L294.
-  // That said, when I copied over the code, it seemed to have pretty
-  // significant differences esp around spacing, so I'm not sure this is
-  // actually the function.
+  // This is pretty printed using yojson 1.7.0
+  // (https://github.com/ocaml-community/yojson/blob/1.7.0/lib/pretty.ml)
+  // which uses easy-format
+  // (https://github.com/ocaml-community/easy-format/blob/master/src/easy_format.ml)
+  // to pretty print.
   let rec listToStringList (v : Vector) (l : List<'a>) (f : 'a -> unit) : unit =
     match l with
     | [] -> ()
@@ -141,7 +141,7 @@ module Legacy =
            // write_control_char
            | b when b >= 0uy && b <= 0x1fuy ->
                append v "\\u00"
-               append v (b.ToString("X"))
+               append v (b.ToString("x"))
            | 0x7fuy -> append v "\\u007f"
            | b -> v.Add b)
 
@@ -156,18 +156,21 @@ module Legacy =
     | Float f when System.Double.IsPositiveInfinity f -> append v "Infinity"
     | Float f when System.Double.IsNegativeInfinity f -> append v "-Infinity"
     | Float f ->
-        if System.Math.Round(f) = f then
-          let asString = (sprintf "%.16g" f)
-          append v asString
-          if not (String.contains '.' asString) then append v ".0"
-        else
+        let s =
           // based  on yojson code
           let s = sprintf "%.16g" f
+          if System.Double.Parse s = f then s else (sprintf "%.17g" f)
 
-          if System.Double.Parse s = f then
-            append v s
-          else
-            append v (sprintf "%.17g" f)
+        append v s
+        let mutable needsZero = false
+
+        String.toArray s
+        |> Array.iter
+             (fun d ->
+               if d >= '0' && d <= '9' || d = '-' then () else needsZero <- true)
+
+        if needsZero then append v ".0"
+
     // write_string
     | String s ->
         append v "\""
@@ -206,7 +209,6 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> Map.map (fun k v -> Legacy.toYojson v)
     |> Map.toList
     |> Legacy.Assoc
-    |> debug "header values"
     |> Legacy.toString
     |> toBytes
     |> base64Encode
@@ -215,7 +217,6 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
   let payload =
     payload
     |> Legacy.toYojson
-    |> debug "payload values"
     |> Legacy.toString
     |> toBytes
     |> base64Encode

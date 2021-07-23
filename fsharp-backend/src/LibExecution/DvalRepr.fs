@@ -833,7 +833,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DPassword _ -> "<password>"
     | DStr s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
-    | DInt i -> i.ToString()
+    | DInt i -> string i
     | DBool true -> "true"
     | DBool false -> "false"
     | DFloat f -> ocamlStringOfFloat f
@@ -845,7 +845,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DError (_, msg) -> wrap msg
     | DDate d -> wrap (d.toIsoString ())
     | DDB name -> wrap name
-    | DUuid uuid -> wrap (uuid.ToString())
+    | DUuid uuid -> wrap (string uuid)
     | DHttpResponse h ->
       match h with
       | Redirect url -> $"302 {url}" + nl + toRepr_ indent DNull

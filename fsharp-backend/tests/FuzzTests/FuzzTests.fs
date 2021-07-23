@@ -510,7 +510,13 @@ module LibJwtJson =
   type Generator =
     static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
-    static member Dval() : Arbitrary<RT.Dval> = Arb.Default.Derive()
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           // They're all printed as blocks, but the OCamlInterop doesn't work great - no point in fixing though
+           | RT.DFnVal _ -> false
+           | _ -> true)
 
   // This should produce absolutely identical JSON to the OCaml function or customers will have an unexpected change
   let equalsOCaml (dv : RT.Dval) : bool =

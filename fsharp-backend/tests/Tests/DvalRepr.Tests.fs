@@ -366,20 +366,27 @@ module LibJwt =
       ([ RT.DObj(
            Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                         ("a", RT.DErrorRail(RT.DFloat nan)) ]
-         ),
-         true
-         RT.DDate(System.DateTime.Parse "7/29/2028 12:00:00 AM"), true
-         RT.DStr "痃", true
-         RT.DObj Map.empty, true
-         RT.DBool false, true
-         RT.DError(RT.SourceNone, "ܱ"), true
-         RT.DList [], true
-         RT.DDB "ϴ", true
-         RT.DFloat 0.0, true
-         RT.DFloat 1.0, true
-         RT.DFloat(-0.0), true
-         RT.DNull, true ]
-       @ (TestUtils.sampleDvals |> List.map (fun (_, v) -> (v, true))))
+         )
+         RT.DDate(System.DateTime.Parse "7/29/2028 12:00:00 AM")
+         RT.DStr "痃"
+         RT.DObj Map.empty
+         RT.DBool false
+         RT.DError(RT.SourceNone, "ܱ")
+         RT.DList []
+         RT.DDB "ϴ"
+         RT.DFloat 0.0
+         RT.DFloat 1.0
+         RT.DFloat(-0.0)
+         RT.DFloat 1.7976931348623157e+308
+         RT.DObj(Map [ ("鳉", RT.DChar "\u001e") ])
+         RT.DObj(
+           Map [ ("", RT.DPassword(Password [||]))
+                 ("伯",
+                  RT.DUuid(System.Guid.Parse "1cfb3de5-4350-2a1c-3e03-7945672ca26e")) ]
+         )
+         RT.DNull ]
+       @ (TestUtils.sampleDvals |> List.map Tuple2.second)
+       |> List.map (fun x -> x, true))
 
 
 
