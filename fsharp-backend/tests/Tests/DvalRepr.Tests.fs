@@ -363,15 +363,23 @@ module LibJwt =
     testMany
       "LibJwt json toString works same on both"
       FuzzTests.All.LibJwtJson.equalsOCaml
-      [ RT.DObj(
-          Map.ofList [ ("", RT.DFloat 1.797693135e+308)
-                       ("a", RT.DErrorRail(RT.DFloat nan)) ]
-        ),
-        true
-        RT.DDate(System.DateTime.Parse "7/29/2028 12:00:00 AM"), true
-        RT.DStr "痃", true
-        RT.DDB "ϴ", true
-        RT.DNull, true ]
+      ([ RT.DObj(
+           Map.ofList [ ("", RT.DFloat 1.797693135e+308)
+                        ("a", RT.DErrorRail(RT.DFloat nan)) ]
+         ),
+         true
+         RT.DDate(System.DateTime.Parse "7/29/2028 12:00:00 AM"), true
+         RT.DStr "痃", true
+         RT.DObj Map.empty, true
+         RT.DBool false, true
+         RT.DError(RT.SourceNone, "ܱ"), true
+         RT.DList [], true
+         RT.DDB "ϴ", true
+         RT.DFloat 0.0, true
+         RT.DFloat 1.0, true
+         RT.DFloat(-0.0), true
+         RT.DNull, true ]
+       @ (TestUtils.sampleDvals |> List.map (fun (_, v) -> (v, true))))
 
 
 

@@ -64,7 +64,7 @@ module Legacy =
     | Assoc of List<string * Yojson>
     | Null
 
-  // Direct clone of OCaml Dval.to_pretty_machie_yojson_v1
+  // Direct clone of OCaml Dval.to_pretty_machine_yojson_v1
   let rec toYojson (dval : Dval) : Yojson =
     match dval with
     | DInt i -> Int(int64 i) // FSTODO larger put in a string
@@ -92,86 +92,109 @@ module Legacy =
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
     | DBytes bytes -> bytes |> base64Encode |> String
 
-  let append (sb : StringBuilder) (s : string) : unit =
-    sb.Append s |> ignore<StringBuilder>
+  // We are adding bytes to match the OCaml implementation. Don't use strings
+  // or characters as those are different sizes: OCaml strings are literally
+  // just byte arrays.
+  // A SCG.List is a growing vector (unlike an F# List, which is a linked
+  // list). This should have not-awful performance
+  type Vector = System.Collections.Generic.List<byte>
 
-  // Intended to exactly match https://github.com/ocaml-community/yojson/blob/1.7.0/lib/write.ml#L294
-  let rec listToStringList
-    (sb : StringBuilder)
-    (l : List<'a>)
-    (f : 'a -> unit)
-    : unit =
+  let append (v : Vector) (s : string) : unit =
+    let bytes = toBytes s
+    v.Capacity <- v.Capacity + bytes.Length // avoid resizing multiple times
+    Array.iter (fun b -> v.Add b) bytes
+
+  // Intended to exactly match
+  // https://github.com/ocaml-community/yojson/blob/1.7.0/lib/write.ml#L294.
+  // That said, when I copied over the code, it seemed to have pretty
+  // significant differences esp around spacing, so I'm not sure this is
+  // actually the function.
+  let rec listToStringList (v : Vector) (l : List<'a>) (f : 'a -> unit) : unit =
     match l with
     | [] -> ()
     | [ h ] -> f h
     | h :: tail ->
         f h
-        sb.Append(", ") |> ignore<StringBuilder>
-        listToStringList sb tail f
+        append v ", "
+        listToStringList v tail f
 
-  and toString' (sb : StringBuilder) (j : Yojson) : unit =
+  and toString' (v : Vector) (j : Yojson) : unit =
     match j with
-    | Null -> append sb "null"
-    | Bool true -> append sb "true"
-    | Bool false -> append sb "true"
-    | Int i -> sb.Append i |> ignore<StringBuilder>
+    | Null -> append v "null"
+    | Bool true -> append v "true"
+    | Bool false -> append v "false"
+    | Int i -> append v (string i)
     // write_float
-    | Float f when System.Double.IsNaN f -> append sb "NaN"
-    | Float f when System.Double.IsPositiveInfinity f -> append sb "Infinity"
-    | Float f when System.Double.IsNegativeInfinity f -> append sb "-Infinity"
+    | Float f when System.Double.IsNaN f -> append v "NaN"
+    | Float f when System.Double.IsPositiveInfinity f -> append v "Infinity"
+    | Float f when System.Double.IsNegativeInfinity f -> append v "-Infinity"
     | Float f ->
-        // write_float
-        let s1 = f.ToString "%.16g"
-
-        if System.Double.Parse s1 = f then
-          sb.AppendFormat("%.16g", f) |> ignore<StringBuilder>
+        if System.Math.Round(f) = f then
+          let asString = (sprintf "%.16g" f)
+          append v asString
+          if not (String.contains '.' asString) then append v ".0"
         else
-          sb.AppendFormat("%.17g", f) |> ignore<StringBuilder>
+          // based  on yojson code
+          let s = sprintf "%.16g" f
+
+          if System.Double.Parse s = f then
+            append v s
+          else
+            append v (sprintf "%.17g" f)
     // write_string
     | String s ->
-        append sb "\""
+        append v "\""
 
         s
         |> toBytes
         |> Array.iter
              (fun b ->
-               match char b with
-               | '"' -> append sb "\\\""
-               | '\\' -> append sb "\\\\"
-               | '\b' -> append sb "\\b"
-               | '\012' -> append sb "\\f"
-               | '\n' -> append sb "\\n"
-               | '\r' -> append sb "\\r"
-               | '\t' -> append sb "\\t"
+               match b with
+               // " - quote
+               | 0x22uy -> append v "\\\""
+               // \ - backslash
+               | 0x5cuy -> append v "\\\\"
+               // \b - backspace
+               | 0x08uy -> append v "\\b"
+               // \f - form feed
+               | 0x0cuy -> append v "\\f"
+               // \n - new line
+               | 0x0auy -> append v "\\n"
+               // \r  - carriage return
+               | 0x0duy -> append v "\\r"
+               // \t - tab
+               | 0x09uy -> append v "\\t"
                // write_control_char
-               | c when c >= '\x00' && c <= '\x1F' ->
-                   sb.Append("\\u00").AppendFormat("X", c) |> ignore<StringBuilder>
-               | '\x7F' -> append sb "\\u007F"
-               | _ -> ())
+               | c when b >= 0uy && b <= 0x1fuy ->
+                   append v "\\u00"
+                   append v (c.ToString("X"))
+               | 0x7fuy -> append v "\\u007F"
+               | b -> v.Add b)
 
-        append sb "\""
+        append v "\""
+    | List [] -> append v "[]"
     | List l ->
-        append sb "[ "
-        listToStringList sb l (toString' sb)
-        append sb " ]"
+        append v "[ "
+        listToStringList v l (toString' v)
+        append v " ]"
+    | Assoc [] -> append v "{}"
     | Assoc l ->
-        sb.Append("{ ") |> ignore<StringBuilder>
+        append v "{ "
 
-        let f ((k, v) : string * Yojson) =
-          append sb "\""
-          append sb k
-          append sb "\": "
-          toString' sb v
+        let f ((k, j) : string * Yojson) =
+          append v "\""
+          append v k
+          append v "\": "
+          toString' v j
 
-        listToStringList sb l f
+        listToStringList v l f
 
-
-        append sb " }"
+        append v " }"
 
   let toString (j : Yojson) : string =
-    let sb = StringBuilder()
-    toString' sb j
-    sb.ToString()
+    let v = Vector 10
+    toString' v j
+    v.ToArray() |> ofBytes
 
 
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
@@ -182,6 +205,7 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> Map.map (fun k v -> Legacy.toYojson v)
     |> Map.toList
     |> Legacy.Assoc
+    |> debug "header values"
     |> Legacy.toString
     |> toBytes
     |> base64Encode
@@ -190,6 +214,7 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
   let payload =
     payload
     |> Legacy.toYojson
+    |> debug "payload values"
     |> Legacy.toString
     |> toBytes
     |> base64Encode
