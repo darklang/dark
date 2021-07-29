@@ -27,7 +27,7 @@ result=$?
 
 set -e
 if [[ "$error" == 1 ]]; then
-  echo "Ran into a weird bsb bug: $errorline"
+  echo "Ran into a weird rescript bug: $errorline"
   echo "Cleaning"
   ./scripts/clear-bs-cache
   ./scripts/clear-node-modules
