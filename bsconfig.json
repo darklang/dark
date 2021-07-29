@@ -7,10 +7,6 @@
       "subdirs": true
     },
     {
-      "dir": "libshared",
-      "subdirs": true
-    },
-    {
       "dir": "client/test",
       "type": "dev"
     },
