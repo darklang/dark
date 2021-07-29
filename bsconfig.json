@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "sources": [
     {
-      "dir" : "client/src",
-      "subdirs" : true
+      "dir": "client/src",
+      "subdirs": true
     },
     {
       "dir": "libshared",
-      "subdirs" : true
+      "subdirs": true
     },
     {
       "dir": "client/test",
@@ -23,9 +23,7 @@
     "module": "commonjs",
     "in-source": false
   },
-  "ppx-flags": [
-    "ppx-deriving/ppx.js"
-  ],
+  "ppx-flags": ["ppx-deriving/ppx.js"],
   "suffix": ".bs.js",
   "bs-dependencies": [
     "bucklescript-tea",
@@ -36,9 +34,15 @@
     "bs-uuid",
     "bs-deriving"
   ],
-  "bs-dev-dependencies": [
+  "bs-dev-dependencies": [],
+  "bsc-flags": [
+    "-bs-g",
+    "-bs-super-errors",
+    "-warn-error",
+    "@A",
+    "-w",
+    "-4-30-40-41-42-102"
   ],
-  "bsc-flags": ["-bs-g", "-bs-super-errors", "-warn-error", "@A", "-w", "-4-30-40-41-42-102"],
   "warnings": {
     "error": "+101"
   },
