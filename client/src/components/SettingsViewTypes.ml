@@ -8,7 +8,7 @@ let opaque msg fmt _ =
 type formField =
   { value : string
   ; error : string option }
-[@@deriving show]
+[@@ppx.deriving show]
 
 type inviteFields = {email : formField}
 
@@ -17,15 +17,15 @@ and settingsTab =
   | UserSettings
   | InviteUser of inviteFields
   | Privacy
-[@@deriving show]
+[@@ppx.deriving show]
 
 type inviteFormMessage =
   { email : string
   ; inviterUsername : string
   ; inviterName : string }
-[@@deriving show]
+[@@ppx.deriving show]
 
-type privacySettings = {recordConsent : bool option} [@@deriving show]
+type privacySettings = {recordConsent : bool option} [@@ppx.deriving show]
 
 type settingsViewState =
   { opened : bool
@@ -36,7 +36,7 @@ type settingsViewState =
   ; orgCanvasList : string list (* This is org canvases, not orgs themselves *)
   ; loading : bool
   ; privacy : privacySettings }
-[@@deriving show]
+[@@ppx.deriving show]
 
 type settingsMsg =
   | CloseSettingsView of settingsTab
@@ -51,7 +51,7 @@ type settingsMsg =
       [@printer opaque "TriggerSendInviteCallback"]
   | InitRecordConsent of bool option
   | SetRecordConsent of bool
-[@@deriving show]
+[@@ppx.deriving show]
 
 let settingsTabToText (tab : settingsTab) : string =
   match tab with

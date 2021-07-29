@@ -4,7 +4,7 @@ open Shared
 type sendToRail =
   | Rail
   | NoRail
-[@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
 (* See .mli for comments/descriptions of fields *)
 type t =
@@ -31,12 +31,12 @@ type t =
   | EMatch of id * t * (FluidPattern.t * t) list
   | EPipeTarget of id
   | EFeatureFlag of id * string * t * t * t
-[@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
 type fluidPatOrExpr =
   | Expr of t
   | Pat of FluidPattern.t
-[@@deriving show {with_path = false}, eq]
+[@@ppx.deriving show {with_path = false}, eq]
 
 let newB () = EBlank (gid ())
 

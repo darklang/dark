@@ -1,4 +1,4 @@
-type t [@@deriving show]
+type t [@@ppx.deriving show]
 
 val clear : t -> t
 

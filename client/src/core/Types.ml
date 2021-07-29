@@ -4,9 +4,9 @@ open Tc
 module TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
 
-type analysisID = ID.t [@@deriving show]
+type analysisID = ID.t [@@ppx.deriving show]
 
-type parentBlockID = ID.t [@@deriving show]
+type parentBlockID = ID.t [@@ppx.deriving show]
 
 (* == end legacy aliases == *)
 
@@ -24,7 +24,7 @@ module PageVisibility = struct
   type visibility =
     | Hidden
     | Visible
-  [@@deriving show]
+  [@@ppx.deriving show]
 end
 
 type exception_ =
@@ -45,7 +45,7 @@ type exception_ =
 and 'a blankOr =
   | Blank of ID.t
   | F of ID.t * 'a
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 (* There are two coordinate systems. Pos is an absolute position in the *)
 (* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
@@ -87,14 +87,14 @@ and tipe =
   | TDbList of tipe
   | TUserType of string * int
   | TBytes
-[@@deriving show]
+[@@ppx.deriving show]
 
 module TypeInformation = struct
   type t =
     { fnName : string
     ; paramName : string
     ; returnType : tipe }
-  [@@deriving show]
+  [@@ppx.deriving show]
 
   let default : t =
     {fnName = "Unknown"; paramName = "Unknown"; returnType = TAny}
@@ -141,7 +141,7 @@ and blankOrType =
   | TypeName
   | TypeFieldName
   | TypeFieldTipe
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 (* ---------------------- *)
 (* Toplevels *)
@@ -321,7 +321,7 @@ and dval =
   | DOption of optionT
   | DResult of resultT
   | DBytes of bytes
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 (* ----------------------------- *)
 (* Referencing parts of an AST *)
@@ -335,51 +335,51 @@ type astFloatPart =
   | FPWhole
   | FPPoint
   | FPFractional
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
-type astStringPart = SPOpenQuote [@@deriving show {with_path = false}]
+type astStringPart = SPOpenQuote [@@ppx.deriving show {with_path = false}]
 
 type astLetPart =
   | LPKeyword
   | LPVarName
   | LPAssignment
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astIfPart =
   | IPIfKeyword
   | IPThenKeyword
   | IPElseKeyword
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astLambdaPart =
   | LBPSymbol
   | LBPVarName of (* index of the var *) int
   | LBPComma of (* index of the var *) int
   | LBPArrow
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astFieldAccessPart =
   | FAPFieldname
   | FAPFieldOp
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astRecordPart =
   | RPOpen
   | RPFieldname of (* index of the <fieldname,value> pair *) int
   | RPFieldSep of (* index of the <fieldname,value> pair *) int
   | RPClose
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astListPart =
   | LPOpen
   | LPClose
   | LPComma of int
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astMatchPart =
   | MPKeyword
   | MPBranchArrow of (* index of the branch *) int
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astPatternPart =
   | PPVariable
@@ -390,12 +390,12 @@ type astPatternPart =
   | PPFloat of astFloatPart
   | PPNull
   | PPBlank
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 type astFlagPart =
   | FPWhenKeyword
   | FPEnabledKeyword
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 (* An astRef represents a reference to a specific part of an AST node,
    such as a specific Record Fieldname rather than just the record.
@@ -440,7 +440,7 @@ type astRef =
   | ARFlag of ID.t * astFlagPart
   (* for use if something that should never happen happened *)
   | ARInvalid
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 (* A caretTarget represents a distinct caret location within the AST.
    By combining a reference to part of the AST and a caret offset
@@ -450,12 +450,12 @@ type astRef =
 type caretTarget =
   { astRef : astRef
   ; offset : int }
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 (* ----------------------------- *)
 (* Scroll *)
 (* ----------------------------- *)
-type scrollEvent = {timeStamp : float} [@@deriving show {with_path = false}]
+type scrollEvent = {timeStamp : float} [@@ppx.deriving show {with_path = false}]
 
 (* ----------------------------- *)
 (* Mouse *)
@@ -1607,7 +1607,7 @@ and fluidEditor =
   | NoEditor
   | MainEditor of TLID.t
   | FeatureFlagEditor of TLID.t * ID.t
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 and fluidProps =
   { functions : functionsType
@@ -1779,9 +1779,9 @@ and savedSettings =
   ; firstVisitToThisCanvas : bool
   ; userTutorial : tutorialStep option
   ; userTutorialTLID : TLID.t option }
-[@@deriving show {with_path = false}]
+[@@ppx.deriving show {with_path = false}]
 
 and permission =
   | Read
   | ReadWrite
-[@@deriving show eq ord]
+[@@ppx.deriving show eq ord]

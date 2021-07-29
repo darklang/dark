@@ -96,7 +96,7 @@ type key =
 and side =
   | LeftHand
   | RightHand
-[@@deriving show]
+[@@ppx.deriving show]
 
 let fromCode (keyCode : int) : key =
   match keyCode with
@@ -477,7 +477,7 @@ type keyEvent =
   ; metaKey : bool
   ; targetSelectionStart : int option
   ; targetSelectionEnd : int option }
-[@@deriving show]
+[@@ppx.deriving show]
 
 let keyEvent j =
   let open Json.Decode in

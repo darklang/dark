@@ -1,12 +1,12 @@
 val focusItem : int -> Types.msg Tea.Cmd.t
 
-type t = Types.fluidAutocompleteState [@@deriving show]
+type t = Types.fluidAutocompleteState [@@ppx.deriving show]
 
-type item = Types.fluidAutocompleteItem [@@deriving show]
+type item = Types.fluidAutocompleteItem [@@ppx.deriving show]
 
-type data = Types.fluidAutocompleteData [@@deriving show]
+type data = Types.fluidAutocompleteData [@@ppx.deriving show]
 
-type query = TLID.t * Types.fluidTokenInfo [@@deriving show]
+type query = TLID.t * Types.fluidTokenInfo [@@ppx.deriving show]
 
 type props = {functions : Types.functionsType}
 

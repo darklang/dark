@@ -1,5 +1,5 @@
 module T = struct
-  type t = UnsharedTypes.id [@@deriving show]
+  type t = UnsharedTypes.id [@@ppx.deriving show]
 
   let toString (UnsharedTypes.ID str) = str
 

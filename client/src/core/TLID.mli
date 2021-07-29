@@ -1,5 +1,5 @@
 module T : sig
-  type t [@@deriving show]
+  type t [@@ppx.deriving show]
 
   val toString : t -> string
 

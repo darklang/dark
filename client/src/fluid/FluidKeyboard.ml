@@ -25,7 +25,7 @@ let getBrowserPlatform () : browserPlatform =
 type shortcutHeritage =
   | LegacyShortcut
   | CurrentShortcut
-[@@deriving show]
+[@@ppx.deriving show]
 
 type key =
   | Space
@@ -54,17 +54,17 @@ type key =
   | CommandPalette of shortcutHeritage
   | Omnibox
   | Unhandled of string
-[@@deriving show]
+[@@ppx.deriving show]
 
 and side =
   | LeftHand
   | RightHand
-[@@deriving show]
+[@@ppx.deriving show]
 
 and maintainSelection =
   | KeepSelection
   | DropSelection
-[@@deriving show]
+[@@ppx.deriving show]
 
 let toName = show_key
 
@@ -165,7 +165,7 @@ let fromKeyboardEvent
    *
    * Since Alt-something is unreliable on different keyboard layouts, We
    * check for Alt-X, Ctrl-s and Ctrl-\ when opening the command palette.
-   * 
+   *
    *
    * On macOS, is key = '≈', which we have to hack in with bucklescript JS
    * literals because OCaml is terrible.
@@ -203,7 +203,7 @@ type keyEvent =
   ; ctrlKey : bool
   ; altKey : bool
   ; metaKey : bool }
-[@@deriving show]
+[@@ppx.deriving show]
 
 (** eventToKeyEvent converts the JS KeyboardEvent [evt] into a [keyEvent].
  * Returns (Some keyEvent) or None if a decoding error occurs. *)

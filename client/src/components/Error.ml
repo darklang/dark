@@ -1,4 +1,4 @@
-type t = string option [@@deriving show]
+type t = string option [@@ppx.deriving show]
 
 let clear _ = None
 

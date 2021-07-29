@@ -1,7 +1,7 @@
 type t =
   { secretName : string
   ; secretValue : string }
-[@@deriving show]
+[@@ppx.deriving show]
 
 type msg =
   | OpenCreateModal
@@ -9,7 +9,7 @@ type msg =
   | OnUpdateName of string
   | OnUpdateValue of string
   | SaveNewSecret
-[@@deriving show]
+[@@ppx.deriving show]
 
 type insertModal =
   { newSecretName : string
@@ -19,7 +19,7 @@ type insertModal =
   ; error : string option
   ; visible : bool
   ; usedNames : string list }
-[@@deriving show]
+[@@ppx.deriving show]
 
 let defaultInsertModal =
   { newSecretName = ""

@@ -1,5 +1,5 @@
 module T = struct
-  type t = TLID of string [@@deriving show {with_path = false}]
+  type t = TLID of string [@@ppx.deriving show {with_path = false}]
 
   let toString (TLID str) = str
 
