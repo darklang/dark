@@ -28,9 +28,9 @@ let defaultTraceIDForTL ~(tlid : TLID.t) =
 
 
 let getTraces (m : model) (tlid : TLID.t) : trace list =
-  StrDict.get ~key:(TLID.toString tlid) m.traces
-  |> Option.withDefaultLazy ~default:(fun () ->
-         [(defaultTraceIDForTL ~tlid, Result.fail NoneYet)])
+  Map.get ~key:(TLID.toString tlid) m.traces
+  |> Option.unwrapLazy ~default:(fun () ->
+         [(defaultTraceIDForTL ~tlid, Error NoneYet)])
 
 
 let getTrace (m : model) (tlid : TLID.t) (traceID : traceID) : trace option =
@@ -41,12 +41,12 @@ let getStoredAnalysis (m : model) (traceID : traceID) : analysisStore =
   (* only handlers have analysis results, but lots of stuff expect this *)
   (* data to exist. It may be better to not do that, but this is fine *)
   (* for now. *)
-  StrDict.get ~key:traceID m.analyses
-  |> Option.withDefault ~default:LoadableNotInitialized
+  Map.get ~key:traceID m.analyses
+  |> Option.unwrap ~default:LoadableNotInitialized
 
 
 let record (old : analyses) (id : traceID) (result : analysisStore) : analyses =
-  StrDict.insert ~key:id ~value:result old
+  Map.add ~key:id ~value:result old
 
 
 let replaceFunctionResult
@@ -67,13 +67,13 @@ let replaceFunctionResult
   in
   let traces =
     m.traces
-    |> StrDict.update ~key:(TLID.toString tlid) ~f:(fun ml ->
+    |> Map.update ~key:(TLID.toString tlid) ~f:(fun ml ->
            ml
-           |> Option.withDefault
+           |> Option.unwrap
                 ~default:
                   [ ( traceID
-                    , Result.succeed
-                        { input = StrDict.empty
+                    , Ok
+                        { input = Map.String.empty
                         ; timestamp = ""
                         ; functionResults = [newResult] } ) ]
            |> List.map ~f:(fun ((tid, tdata) as t) ->
@@ -96,16 +96,16 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : ID.t) :
     executionResult loadable =
   match analysisStore with
   | LoadableSuccess dvals ->
-      StrDict.get dvals ~key:id
+      Map.get ~key:id dvals
       |> Option.map ~f:(fun dv -> LoadableSuccess dv)
-      |> Option.withDefault ~default:LoadableNotInitialized
+      |> Option.unwrap ~default:LoadableNotInitialized
   | LoadableNotInitialized ->
       LoadableNotInitialized
   | LoadableLoading oldDvals ->
       oldDvals
-      |> Option.andThen ~f:(StrDict.get ~key:id)
+      |> Option.andThen ~f:(Map.get ~key:id)
       |> Option.map ~f:(fun dv -> LoadableSuccess dv)
-      |> Option.withDefault ~default:(LoadableLoading None)
+      |> Option.unwrap ~default:(LoadableLoading None)
   | LoadableError error ->
       LoadableError error
 
@@ -113,7 +113,7 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : ID.t) :
 let getLiveValue' (analysisStore : analysisStore) (ID id : ID.t) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
-    ( match StrDict.get dvals ~key:id with
+    ( match Map.get dvals ~key:id with
     | Some (ExecutedResult dval) | Some (NonExecutedResult dval) ->
         Some dval
     | _ ->
@@ -161,15 +161,15 @@ let getAvailableVarnames
     getTrace m tlid traceID
     |> Option.andThen ~f:(fun (_tid, td) -> td |> Result.toOption)
     |> Option.andThen ~f:(fun t -> Some t.input)
-    |> Option.withDefault ~default:StrDict.empty
+    |> Option.unwrap ~default:Map.String.empty
   in
   let varsFor (ast : FluidAST.t) =
     ast
     |> FluidAST.toExpr
     |> AST.variablesIn
-    |> StrDict.get ~key:(ID.toString id)
-    |> Option.withDefault ~default:StrDict.empty
-    |> StrDict.toList
+    |> Map.get ~key:(ID.toString id)
+    |> Option.unwrap ~default:Map.String.empty
+    |> Map.toList
     |> List.map ~f:(fun (varname, id) -> (varname, getLiveValue m id traceID))
   in
   let glob =
@@ -178,8 +178,7 @@ let getAvailableVarnames
   in
   let inputVariables =
     RT.inputVariables tl
-    |> List.map ~f:(fun varname ->
-           (varname, traceDict |> StrDict.get ~key:varname))
+    |> List.map ~f:(fun varname -> (varname, traceDict |> Map.get ~key:varname))
   in
   match tl with
   | TLHandler h ->
@@ -199,7 +198,7 @@ let selectedTraceID
     traceID option =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
-  match TLIDDict.get ~tlid tlTraceIDs with
+  match Map.get ~key:tlid tlTraceIDs with
   | Some c ->
       Some c
   | None ->
@@ -216,7 +215,7 @@ let selectedTrace
 
 
 let setSelectedTraceID (m : model) (tlid : TLID.t) (traceID : traceID) : model =
-  let newCursors = TLIDDict.insert ~tlid ~value:traceID m.tlTraceIDs in
+  let newCursors = Map.add ~key:tlid ~value:traceID m.tlTraceIDs in
   {m with tlTraceIDs = newCursors}
 
 
@@ -362,7 +361,7 @@ let mergeTraces
     ~(oldTraces : traces)
     ~(newTraces : traces) : traces =
   let maxTracesPerHandler = 10 (* shared with stored_event.load_events *) + 1 in
-  StrDict.merge oldTraces newTraces ~f:(fun tlid oldList newList ->
+  Map.merge oldTraces newTraces ~f:(fun tlid oldList newList ->
       match (oldList, newList) with
       | None, None ->
           None
@@ -395,7 +394,10 @@ let mergeTraces
            *)
           (* Pass 1: merge the lists, using foldr to preserve the order of n *)
           let merged =
-            List.foldr n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
+            List.foldRight
+              n
+              ~initial:o
+              ~f:(fun acc ((newID, newData) as new_) ->
                 let found = ref false in
                 let updated =
                   List.map acc ~f:(fun ((oldID, oldData) as old) ->
@@ -415,14 +417,14 @@ let mergeTraces
            *)
           let selectedTraceID =
             let tlid = TLID.fromString tlid in
-            TLIDDict.get ~tlid selectedTraceIDs
+            Map.get ~key:tlid selectedTraceIDs
           in
           let maxNonSelectedTraces = maxTracesPerHandler - 1 in
           let preserved, _ =
-            List.foldl
+            List.fold
               merged
-              ~init:([], 0)
-              ~f:(fun ((id, _) as currTrace) (acc, nonSelectedCount) ->
+              ~initial:([], 0)
+              ~f:(fun (acc, nonSelectedCount) ((id, _) as currTrace) ->
                 if selectedTraceID = Some id
                 then (currTrace :: acc, nonSelectedCount)
                 else if nonSelectedCount < maxNonSelectedTraces
@@ -438,7 +440,7 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
     (* DBs + Types dont have traces *)
     TL.get m tlid
     |> Option.map ~f:(fun tl -> not (TL.isDB tl || TL.isUserTipe tl))
-    |> Option.withDefault ~default:false
+    |> Option.unwrap ~default:false
   in
   if should
   then
@@ -454,9 +456,9 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
 
 
 let requestAnalysis m tlid traceID : msg Cmd.t =
-  let dbs = TD.values m.dbs in
-  let userFns = TD.values m.userFunctions in
-  let userTipes = TD.values m.userTipes in
+  let dbs = Map.values m.dbs in
+  let userFns = Map.values m.userFunctions in
+  let userTipes = Map.values m.userTipes in
   let trace = getTrace m tlid traceID in
   let tl = TL.get m tlid in
   let secrets = m.secrets in

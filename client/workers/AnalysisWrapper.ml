@@ -91,7 +91,7 @@ let () =
               let msg =
                 err
                 |> Js.Exn.message
-                |> Tc.Option.withDefault ~default:"Unknown parse error"
+                |> Tc.Option.unwrap ~default:"Unknown parse error"
               in
               reportError "Parse error in analysisWrapper" msg ;
               Belt.Result.Error (Types.AnalysisParseError msg))

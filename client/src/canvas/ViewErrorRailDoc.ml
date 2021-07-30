@@ -23,7 +23,7 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
       ; Html.target "_blank" ]
       [Html.text "error rail"]
   in
-  Option.withDefault
+  Option.unwrap
     ~default:Html.noNode
     ( match sendToRail with
     | None ->

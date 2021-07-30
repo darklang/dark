@@ -30,7 +30,7 @@ let update (m : model) (msg : fnpMsg) : modification =
         (Defaults.defaultFnSpace, [])
     | ParamDropIntoSpace newPos ->
         Page.tlidOf m.currentPage
-        |> Option.andThen ~f:(fun tlid -> TLIDDict.get ~tlid m.userFunctions)
+        |> Option.andThen ~f:(fun tlid -> Map.get ~key:tlid m.userFunctions)
         |> Option.pair m.currentUserFn.draggingParamIndex
         |> Option.map ~f:(fun (oldPos, fn) ->
                let newFn = moveParams fn oldPos newPos in
@@ -51,7 +51,7 @@ let update (m : model) (msg : fnpMsg) : modification =
                  ; dragOverSpaceIndex = None }
                in
                (fnM, AddOps ([SetFunction newFn], FocusNoChange) :: updateArgs))
-        |> Option.withDefault ~default:(m.currentUserFn, [])
+        |> Option.unwrap ~default:(m.currentUserFn, [])
   in
   if List.isEmpty mods
   then
@@ -226,12 +226,12 @@ let view (fn : functionTypes) (vp : viewProps) : msg Html.html list =
     match fn with
     | UserFunction f ->
         f.ufMetadata.ufmParameters
-        |> List.indexedMap ~f:(viewParam fn vp)
+        |> List.mapWithIndex ~f:(viewParam fn vp)
         |> List.flatten
     | PackageFn f ->
         f.parameters
         |> List.map ~f:PackageManager.pmParamsToUserFnParams
-        |> List.indexedMap ~f:(viewParam fn vp)
+        |> List.mapWithIndex ~f:(viewParam fn vp)
         |> List.flatten
   in
   let lastSpace = viewParamSpace (List.length params) vp.fnProps in

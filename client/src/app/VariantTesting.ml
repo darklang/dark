@@ -10,7 +10,7 @@ let variantIsActive' (vs : variantTest list) (t : variantTest) : bool =
 
 let toVariantTest (s : string) : variantTest option =
   (* names in toVariantTest and nameOf should match *)
-  match String.toLower s with
+  match String.toLowercase s with
   | "stub" ->
       Some StubVariant
   | "localhost-assets" ->
@@ -42,13 +42,13 @@ let activeCSSClasses (m : model) : string =
 
 let enabledVariantTests (isAdmin : bool) : variantTest list =
   (* admins have these enabled by default, but can opt-out via query param *)
-  let init = if isAdmin then [] else [] in
+  let initial = if isAdmin then [] else [] in
   Url.queryParams ()
   (* convert a (string * bool) list to a (variantTest * bool) list,
    * ignoring any unknown query params *)
   |> List.filterMap ~f:(fun (k, enabled) ->
          toVariantTest k |> Option.map ~f:(fun vt -> (vt, enabled)))
   (* starting with the defaults above, either add or remove each variantTest *)
-  |> List.foldl ~init ~f:(fun (vt, enabled) acc ->
+  |> List.fold ~initial ~f:(fun acc (vt, enabled) ->
          if enabled then vt :: acc else List.filter ~f:(fun x -> x <> vt) acc)
   |> List.uniqueBy ~f:show_variantTest

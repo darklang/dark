@@ -18,7 +18,7 @@ let empty : t =
   { builtinFunctions = []
   ; packageFunctions = TLIDDict.empty
   ; allowedFunctions = []
-  ; previewUnsafeFunctions = StrSet.empty }
+  ; previewUnsafeFunctions = Set.String.empty }
 
 
 let globalRef = ref empty
@@ -40,12 +40,12 @@ let global () = !globalRef
  * bottom of the callgraph, from the unsafe builtins. Then we go up the tree,
  * and mark any callers of those functions as unsafe. And that's the whole
  * algorithm. *)
-let calculateUnsafeUserFunctions (props : props) (t : t) : StrSet.t =
+let calculateUnsafeUserFunctions (props : props) (t : t) : Set.String.t =
   (* Construct a dependency tree (which is a reverse callgraph) so that we get
    * from a callee to a caller *)
   let dependencyTree =
     props.userFunctions
-    |> TLIDDict.mapValues ~f:(fun uf ->
+    |> Map.mapValues ~f:(fun uf ->
            uf.ufMetadata.ufmName
            |> B.toOption
            |> Option.map ~f:(fun caller ->
@@ -56,10 +56,10 @@ let calculateUnsafeUserFunctions (props : props) (t : t) : StrSet.t =
                           Some (callee, caller)
                       | _ ->
                           None))
-           |> Option.withDefault ~default:[])
-    |> List.concat
-    |> List.foldl ~init:StrDict.empty ~f:(fun (callee, caller) dict ->
-           StrDict.update ~key:callee dict ~f:(function
+           |> Option.unwrap ~default:[])
+    |> List.flatten
+    |> List.fold ~initial:Map.String.empty ~f:(fun dict (callee, caller) ->
+           Map.update ~key:callee dict ~f:(function
                | Some callers ->
                    Some (caller :: callers)
                | None ->
@@ -74,7 +74,7 @@ let calculateUnsafeUserFunctions (props : props) (t : t) : StrSet.t =
   in
   let worklist = ref unsafeBuiltins in
   (* The result set *)
-  let unsafeFns = ref StrSet.empty in
+  let unsafeFns = ref Set.String.empty in
   (* The worklist algorithm:
    *
    * Go through worklist of unsafe functions, starting with known-unsafe builtins:
@@ -85,20 +85,19 @@ let calculateUnsafeUserFunctions (props : props) (t : t) : StrSet.t =
     match !worklist with
     | callee :: rest ->
         (* already processed *)
-        if StrSet.has ~value:callee !unsafeFns
+        if Set.member ~value:callee !unsafeFns
         then worklist := rest
         else (
-          unsafeFns := StrSet.add ~value:callee !unsafeFns ;
+          unsafeFns := Set.add ~value:callee !unsafeFns ;
           (* add callers to be processed *)
           let callers =
-            StrDict.get ~key:callee dependencyTree
-            |> Option.withDefault ~default:[]
+            Map.get ~key:callee dependencyTree |> Option.unwrap ~default:[]
           in
           worklist := rest @ callers )
     | _ ->
         ()
   done ;
-  StrSet.removeMany ~values:unsafeBuiltins !unsafeFns
+  Set.removeMany ~values:unsafeBuiltins !unsafeFns
 
 
 let testCalculateUnsafeUserFunctions = calculateUnsafeUserFunctions
@@ -113,24 +112,24 @@ let calculateAllowedFunctionsList (props : props) (t : t) : function_ list =
     let isUsedOrIsNotDeprecated (f : function_) : bool =
       if f.fnDeprecated
       then
-        StrDict.get props.usedFns ~key:f.fnName
-        |> Option.withDefault ~default:0
+        Map.get ~key:f.fnName props.usedFns
+        |> Option.unwrap ~default:0
         |> fun count -> count > 0
       else true
     in
     let fnNameWithoutVersion (f : function_) : string =
       f.fnName
-      |> String.to_lower
+      |> String.toLowercase
       |> String.split ~on:"_v"
       |> List.getAt ~index:0
-      |> Option.withDefault ~default:f.fnName
+      |> Option.unwrap ~default:f.fnName
     in
     fns
     |> List.filter ~f:isUsedOrIsNotDeprecated
     |> List.sortBy ~f:(fun f ->
            (* don't call List.head here - if we have DB::getAll_v1 and
             * DB::getAll_v2, we want those to sort accordingly! *)
-           f.fnName |> String.to_lower |> String.split ~on:"_v")
+           f.fnName |> String.toLowercase |> String.split ~on:"_v")
     |> List.groupWhile ~f:(fun f1 f2 ->
            fnNameWithoutVersion f1 = fnNameWithoutVersion f2)
     |> List.map ~f:List.reverse
@@ -138,18 +137,18 @@ let calculateAllowedFunctionsList (props : props) (t : t) : function_ list =
   in
   let userFunctionMetadata =
     props.userFunctions
-    |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
+    |> Map.mapValues ~f:(fun x -> x.ufMetadata)
     |> List.filterMap ~f:UserFunctions.ufmToF
     |> List.map ~f:(fun f ->
            { f with
              fnPreviewSafety =
-               ( if StrSet.has t.previewUnsafeFunctions ~value:f.fnName
+               ( if Set.member t.previewUnsafeFunctions ~value:f.fnName
                then Unsafe
                else Safe ) })
   in
   let packageFunctions =
     t.packageFunctions
-    |> TLIDDict.values
+    |> Map.values
     |> List.map ~f:PackageManager.fn_of_packageFn
   in
   t.builtinFunctions @ userFunctionMetadata @ packageFunctions |> filterAndSort

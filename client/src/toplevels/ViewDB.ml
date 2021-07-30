@@ -43,7 +43,7 @@ let viewDbLatestEntry (stats : dbStats) : msg Html.html =
 
 
 let viewDBData (vp : viewProps) (db : db) : msg Html.html =
-  match StrDict.get ~key:(TLID.toString db.dbTLID) vp.dbStats with
+  match Map.get ~key:(TLID.toString db.dbTLID) vp.dbStats with
   | Some stats when CursorState.tlidOf vp.cursorState = Some db.dbTLID ->
       let liveVal = viewDbLatestEntry stats in
       let count = viewDbCount stats in

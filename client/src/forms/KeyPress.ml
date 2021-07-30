@@ -190,9 +190,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               then AutocompleteMod (ACSetQuery (m.complete.value ^ " "))
               else NoChange
           | Key.Enter ->
-              let pos =
-                Option.withDefault ~default:(Viewport.findNewPos m) pos
-              in
+              let pos = Option.unwrap ~default:(Viewport.findNewPos m) pos in
               ( match AC.highlighted m.complete with
               | Some (ACOmniAction act) ->
                   Entry.submitOmniAction m pos act
@@ -270,8 +268,8 @@ let optionDefaultHandler (event : Keyboard.keyEvent) (m : model) :
    you could.) *)
 let handler (event : Keyboard.keyEvent) (m : model) : modification =
   [optionDefaultHandler]
-  |> List.foldl
-       ~f:(fun h (acc : modification option) ->
+  |> List.fold
+       ~f:(fun (acc : modification option) h ->
          match acc with None -> h event m | Some _ -> acc)
-       ~init:None
-  |> Option.withDefault ~default:NoChange
+       ~initial:None
+  |> Option.unwrap ~default:NoChange

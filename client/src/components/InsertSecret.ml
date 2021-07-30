@@ -1,9 +1,9 @@
-open Tc
+open Prelude
 module Attr = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module Html = Tea_html_extended
 module Cmd = Tea.Cmd
-open SecretTypes
+module ST = SecretTypes
 
 let fontAwesome = ViewUtils.fontAwesome
 
@@ -13,13 +13,13 @@ let validateName (s : string) : bool = Util.Regex.exactly ~re:nameValidator s
 
 let validateValue (s : string) : bool = s <> ""
 
-let isNameAlreadyUsed (m : insertModal) (value : string) : bool =
+let isNameAlreadyUsed (m : ST.insertModal) (value : string) : bool =
   List.member ~value m.usedNames
 
 
 let secretNameInputID = "new-secret-name-input"
 
-let update (msg : msg) : Types.modification =
+let update (msg : ST.msg) : Types.modification =
   match msg with
   | OpenCreateModal ->
       Types.ReplaceAllModificationsWithThisOne
@@ -100,7 +100,7 @@ let onKeydown (evt : Web.Node.event) : Types.msg option =
       None
 
 
-let view (m : insertModal) : Types.msg Html.html =
+let view (m : ST.insertModal) : Types.msg Html.html =
   if m.visible
   then
     let inside =
@@ -129,7 +129,8 @@ let view (m : insertModal) : Types.msg Html.html =
                 ; Html.classList
                     [("modal-form-input", true); ("error", not m.isNameValid)]
                 ; Events.onInput (fun str ->
-                      Types.SecretMsg (OnUpdateName (Tc.String.toUpper str))) ]
+                      Types.SecretMsg (OnUpdateName (Tc.String.toUppercase str)))
+                ]
                 []
             ; Html.input'
                 [ Attr.placeholder "secret value"

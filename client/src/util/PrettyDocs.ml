@@ -100,7 +100,7 @@ let rec convert_ (s : string) : parseResult =
     |> Option.orElse (tryParseAsLink s)
     |> Option.orElse (tryParseAsTag s)
     (* If it has no richtext markup, just render as plain text: *)
-    |> Option.withDefault ~default:(ParseSuccess [txt s])
+    |> Option.unwrap ~default:(ParseSuccess [txt s])
 
 
 let convert (s : string) : msg Html.html list =

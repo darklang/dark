@@ -28,4 +28,4 @@ val setPackages : Types.packageFns -> props -> t -> t
 val update : props -> t -> t
 
 (* For testing *)
-val testCalculateUnsafeUserFunctions : props -> t -> Prelude.StrSet.t
+val testCalculateUnsafeUserFunctions : props -> t -> Tc.Set.String.t

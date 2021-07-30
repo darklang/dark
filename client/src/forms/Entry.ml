@@ -62,13 +62,13 @@ let preorderWalkUntil ~(f : Dom.Node.t -> bool) (node : Dom.Node.t) : unit =
       let continue =
         Node.firstChild n
         |> Option.map ~f:(walk ~f)
-        |> Option.withDefault ~default:true
+        |> Option.unwrap ~default:true
       in
       if continue
       then
         Node.nextSibling n
         |> Option.map ~f:(walk ~f)
-        |> Option.withDefault ~default:true
+        |> Option.unwrap ~default:true
       else false
     else false
   in
@@ -183,7 +183,7 @@ let setFluidSelectionRange (beginIdx : int) (endIdx : int) : unit =
                     |> Node.firstChild
                     |> Option.map ~f:Node.textContent
                     |> Option.map ~f:String.length
-                    |> Option.withDefault ~default:0
+                    |> Option.unwrap ~default:0
                   in
                   if !offset <= nodeLen
                   then true
@@ -227,7 +227,7 @@ external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
 let getBrowserPlatform () : browserPlatform =
   jsGetBrowserPlatform ()
   |> Js.Nullable.toOption
-  |> Option.withDefault ~default:UnknownPlatform
+  |> Option.unwrap ~default:UnknownPlatform
 
 
 external jsSendHeapioMessage : string -> unit = "sendHeapioMessage"
@@ -258,7 +258,7 @@ external jsUnsupportedBrowser : unit -> bool Js.Nullable.t
 let unsupportedBrowser () : bool =
   jsUnsupportedBrowser ()
   |> Js.Nullable.toOption
-  |> Option.withDefault ~default:false
+  |> Option.unwrap ~default:false
 
 
 let newHandler m space name modifier pos =
@@ -279,7 +279,7 @@ let newHandler m space name modifier pos =
      * here, we're setting an ID to focus before the model is updated, so we
      * generate our list of blankOrDatas here *)
     (* Fallback to ast if spec has no blanks *)
-    handler.spec |> SpecHeaders.firstBlank |> Option.withDefault ~default:astID
+    handler.spec |> SpecHeaders.firstBlank |> Option.unwrap ~default:astID
   in
   let tooltipState =
     Tooltips.assignTutorialToHTTPHandler m.tooltipState (TLHandler handler) tlid
@@ -322,7 +322,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
   | NewReplHandler name ->
       (* When creating a repl, dont ask the user for a name *)
       let name =
-        Option.withDefault
+        Option.unwrap
           name
           ~default:(Util.Namer.generateAnimalWithPersonality ~space:"REPL" ())
       in
@@ -547,8 +547,9 @@ let submitACItem
                * If from a REPL, drop repl_ prefix and lowercase *)
               | F (_, newSpace), F (_, name)
                 when newSpace <> "REPL"
-                     && String.startsWith ~prefix:"repl_" (String.toLower name)
-                ->
+                     && String.startsWith
+                          ~prefix:"repl_"
+                          (String.toLowercase name) ->
                   SpecHeaders.replaceEventName
                     (B.toID h.spec.name)
                     (B.new_ ())

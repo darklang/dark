@@ -2,7 +2,7 @@ open Prelude
 open Tester
 module APIError = APIError
 module Http = Tea.Http
-module StringMap = Map.Make (Caml.String)
+module StringMap = Caml.Map.Make (Caml.String)
 
 let addOpsError =
   { context = "AddOps"

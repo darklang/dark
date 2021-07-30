@@ -55,5 +55,5 @@ let reportError (msg : string) (msgVal : 'm) : unit =
     ( msgVal
     |> Js.Json.stringifyAny
     |> Tc.Option.map ~f:Js.Json.parseExn
-    |> Tc.Option.withDefault ~default:Js.Json.null ) ;
+    |> Tc.Option.unwrap ~default:Js.Json.null ) ;
   ()

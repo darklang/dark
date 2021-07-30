@@ -182,7 +182,7 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
   match String.uncons needle with
   | Some (c, newneedle) ->
       let char = String.fromChar c in
-      String.contains ~substring:char haystack
+      String.includes ~substring:char haystack
       && containsOrdered
            newneedle
            ( haystack
@@ -413,14 +413,14 @@ let handlerDisplayName (h : handler) : string =
     h.spec.space
     |> B.toOption
     |> Option.map ~f:(fun x -> x ^ "::")
-    |> Option.withDefault ~default:""
+    |> Option.unwrap ~default:""
   in
-  let name = h.spec.name |> B.toOption |> Option.withDefault ~default:"" in
+  let name = h.spec.name |> B.toOption |> Option.unwrap ~default:"" in
   let modi =
     h.spec.modifier
     |> B.toOption
     |> Option.map ~f:(fun x -> if x = "_" then "" else " - " ^ x)
-    |> Option.withDefault ~default:""
+    |> Option.unwrap ~default:""
   in
   space ^ name ^ modi
 
@@ -428,7 +428,7 @@ let handlerDisplayName (h : handler) : string =
 let fnDisplayName (f : userFunction) : string =
   f.ufMetadata.ufmName
   |> B.toOption
-  |> Option.withDefault ~default:"undefinedFunction"
+  |> Option.unwrap ~default:"undefinedFunction"
 
 
 let foundHandlerOmniAction (h : handler) : omniAction =
@@ -446,14 +446,14 @@ let qSearch (m : model) (s : string) : omniAction list =
   then
     let maxResults = 20 in
     let results =
-      TLIDDict.toList m.searchCache
+      Map.toList m.searchCache
       |> List.filterMap ~f:(fun (tlid, code) ->
-             if String.contains ~substring:s code
+             if String.includes ~substring:s code
              then
-               TLIDDict.get ~tlid m.handlers
+               Map.get ~key:tlid m.handlers
                |> Option.map ~f:foundHandlerOmniAction
                |> Option.orElse
-                    ( TLIDDict.get ~tlid m.userFunctions
+                    ( Map.get ~key:tlid m.userFunctions
                     |> Option.map ~f:foundFnOmniAction )
              else None)
     in
@@ -539,7 +539,7 @@ let tlGotoName (tl : toplevel) : string =
       "Jump to handler: " ^ handlerDisplayName h
   | TLDB db ->
       "Jump to DB: "
-      ^ (db.dbName |> B.toOption |> Option.withDefault ~default:"Unnamed DB")
+      ^ (db.dbName |> B.toOption |> Option.unwrap ~default:"Unnamed DB")
   | TLPmFunc _ | TLFunc _ ->
       recover "can't goto function" ~debug:tl "<invalid state>"
   | TLTipe _ ->
@@ -550,14 +550,14 @@ let tlDestinations (m : model) : autocompleteItem list =
   let tls =
     m
     |> TL.structural
-    |> TD.values
+    |> Map.values
     |> List.sortBy ~f:tlGotoName
     |> List.map ~f:(fun tl ->
            Goto (TL.asPage tl true, TL.id tl, tlGotoName tl, false))
   in
   let ufs =
     m.userFunctions
-    |> TD.filterMapValues ~f:(fun fn ->
+    |> Map.filterMapValues ~f:(fun fn ->
            let name = "Jump to function: " ^ fnDisplayName fn in
            Some (Goto (FocusedFn (fn.ufTLID, None), fn.ufTLID, name, false)))
   in
@@ -667,14 +667,14 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           List.map ~f:(fun x -> ACDBColType x) allowedDBColTipes
       | ParamTipe ->
           let userTypes =
-            m.userTipes |> TD.filterMapValues ~f:UserTypes.toTUserType
+            m.userTipes |> Map.filterMapValues ~f:UserTypes.toTUserType
           in
           allowedParamTipes @ userTypes |> List.map ~f:(fun t -> ACParamTipe t)
       | TypeFieldTipe ->
           allowedUserTypeFieldTipes |> List.map ~f:(fun t -> ACTypeFieldTipe t)
       | FnReturnTipe ->
           let userTypes =
-            m.userTipes |> TD.filterMapValues ~f:UserTypes.toTUserType
+            m.userTipes |> Map.filterMapValues ~f:UserTypes.toTUserType
           in
           allowedReturnTipes @ userTypes
           |> List.map ~f:(fun t -> ACReturnTipe t)
@@ -689,7 +689,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
 
 let filter (list : autocompleteItem list) (query : string) :
     autocompleteItem list =
-  let lcq = query |> String.toLower in
+  let lcq = query |> String.toLowercase in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
@@ -706,7 +706,7 @@ let filter (list : autocompleteItem list) (query : string) :
   let dynamic, candidates0 = List.partition ~f:isDynamicItem list in
   let candidates1, notSubstring =
     List.partition
-      ~f:(stringify >> String.toLower >> String.contains ~substring:lcq)
+      ~f:(stringify >> String.toLowercase >> String.includes ~substring:lcq)
       candidates0
   in
   let startsWith, candidates2 =
@@ -714,22 +714,22 @@ let filter (list : autocompleteItem list) (query : string) :
   in
   let startsWithCI, candidates3 =
     List.partition
-      ~f:(stringify >> String.toLower >> String.startsWith ~prefix:lcq)
+      ~f:(stringify >> String.toLowercase >> String.startsWith ~prefix:lcq)
       candidates2
   in
   let substring, substringCI =
     List.partition
-      ~f:(stringify >> String.contains ~substring:query)
+      ~f:(stringify >> String.includes ~substring:query)
       candidates3
   in
   let stringMatch, _notMatched =
     List.partition
-      ~f:(asName >> String.toLower >> containsOrdered lcq)
+      ~f:(asName >> String.toLowercase >> containsOrdered lcq)
       notSubstring
   in
   let allMatches =
     [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
-    |> List.concat
+    |> List.flatten
   in
   allMatches
 

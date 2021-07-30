@@ -1,11 +1,13 @@
 module T : sig
-  type t [@@ppx.deriving show]
+  type t [@@ppx.deriving show, ord]
 
-  val toString : t -> string
+  type identity
 
   val fromString : string -> t
 
-  val empty : t
+  val toString : t -> string
+
+  val comparator : (t, identity) Tablecloth.Comparator.t
 end
 
 include module type of struct
@@ -13,24 +15,30 @@ include module type of struct
 end
 
 module Set : sig
-  include module type of Tc.Set (T)
+  include module type of Tc.Set.Of (T)
+
+  val pp : Format.formatter -> t -> unit
+
+  val empty : t
+
+  val singleton : T.t -> t
+
+  val fromArray : T.t array -> t
+
+  val fromList : T.t list -> t
 end
 
 module Dict : sig
-  include module type of Tc.Dict (T)
+  include module type of Tc.Map.Of (T)
 
-  (* TODO: convert the tlid key back to being called key *)
-  val get : tlid:T.t -> 'a t -> 'a option
+  val pp :
+    (Format.formatter -> 'value -> unit) -> Format.formatter -> 'value t -> unit
 
-  val insert : tlid:T.t -> value:'a -> 'a t -> 'a t
+  val empty : 'value t
 
-  val tlids : 'a t -> T.t list
+  val singleton : key:T.t -> value:'value -> 'value t
 
-  val updateIfPresent : tlid:T.t -> f:('a -> 'a) -> 'a t -> 'a t
+  val fromArray : (T.t * 'value) array -> 'value t
 
-  val update : tlid:T.t -> f:('a option -> 'a option) -> 'a t -> 'a t
-
-  val remove : tlid:T.t -> 'a t -> 'a t
-
-  val removeMany : tlids:T.t list -> 'a t -> 'a t
+  val fromList : (T.t * 'value) list -> 'value t
 end

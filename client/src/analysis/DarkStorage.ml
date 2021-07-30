@@ -42,7 +42,7 @@ let appendDeploy
    * hash (eg a Deployed and a Deploying), we pick the deployed one. If there
    * are multiple deploys at the same time, these might overlap. Also this
    * reverses the list into the correct order. *)
-  List.foldl ~init:[] deploys ~f:(fun d accum ->
+  List.fold ~initial:[] deploys ~f:(fun accum d ->
       match accum with
       | prev :: rest ->
           if prev.deployHash = d.deployHash

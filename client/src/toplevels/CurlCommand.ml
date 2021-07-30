@@ -69,7 +69,7 @@ let strAsBodyCurl (dv : dval) : string option =
 let objAsHeaderCurl (dv : dval) : string option =
   match dv with
   | DObj o ->
-      StrDict.toList o
+      Map.toList o
       (* curl will add content-length automatically, and having it specified
        * explicitly causes weird errors if the user, say, changes the body of
        * the request without changing the value of this header *)
@@ -115,7 +115,7 @@ let curlFromSpec (m : model) (tlid : TLID.t) : string option =
 *)
 let curlFromCurrentTrace (m : model) (tlid : TLID.t) : string option =
   let wrapInList o =
-    o |> Option.andThen ~f:(fun v -> Some [v]) |> Option.withDefault ~default:[]
+    o |> Option.andThen ~f:(fun v -> Some [v]) |> Option.unwrap ~default:[]
   in
   let trace =
     Analysis.getSelectedTraceID m tlid
@@ -123,19 +123,19 @@ let curlFromCurrentTrace (m : model) (tlid : TLID.t) : string option =
   in
   match trace with
   | Some (_, Ok td) ->
-      StrDict.get ~key:"request" td.input
+      Map.get ~key:"request" td.input
       |> Option.andThen ~f:(fun obj ->
              match obj with DObj r -> Some r | _ -> None)
       |> Option.andThen ~f:(fun r ->
-             match StrDict.get ~key:"url" r with
+             match Map.get ~key:"url" r with
              | Some (DStr url) ->
                  let headers =
-                   StrDict.get ~key:"headers" r
+                   Map.get ~key:"headers" r
                    |> Option.andThen ~f:objAsHeaderCurl
                    |> wrapInList
                  in
                  let body =
-                   StrDict.get ~key:"fullBody" r
+                   Map.get ~key:"fullBody" r
                    |> Option.andThen ~f:strAsBodyCurl
                    |> wrapInList
                  in
@@ -158,7 +158,7 @@ let curlFromCurrentTrace (m : model) (tlid : TLID.t) : string option =
 let curlFromHttpClientCall
     (m : model) (tlid : TLID.t) (id : ID.t) (name : string) : string option =
   let traces =
-    StrDict.get ~key:(TLID.toString tlid) m.traces
+    Map.get ~key:(TLID.toString tlid) m.traces
     |> recoverOption
          ~debug:(TLID.toString tlid)
          "TLID not found in m.traces in curlFromHttpClientCall"
@@ -207,20 +207,17 @@ let curlFromHttpClientCall
                    "args in curlFromHttpClientCall espected 3 or 4, failed"
                    (DNull, None, DNull, DNull)
            in
-           let headers =
-             objAsHeaderCurl headers |> Option.withDefault ~default:""
-           in
+           let headers = objAsHeaderCurl headers |> Option.unwrap ~default:"" in
            let body =
-             strAsBodyCurl (body |> Option.withDefault ~default:DNull)
-             |> Option.withDefault ~default:""
+             strAsBodyCurl (body |> Option.unwrap ~default:DNull)
+             |> Option.unwrap ~default:""
            in
            let meth =
              name
              |> Util.Regex.matches ~re:(Util.Regex.regex "HttpClient::([^_]*)")
              |> Option.map ~f:Js.Re.captures
              |> Option.andThen ~f:(fun captures ->
-                    captures
-                    |. Array.get 1
+                    Array.getAt captures ~index:1
                     |> Option.andThen ~f:Js.Nullable.toOption)
              |> Option.map ~f:(fun meth -> "-X " ^ meth)
              |> recoverOpt
@@ -243,7 +240,7 @@ let curlFromHttpClientCall
              ( match query with
              | DObj map ->
                  map
-                 |> StrDict.toList
+                 |> Map.toList
                  |> List.filterMap ~f:(fun (k, v) ->
                         to_url_string v |> Option.map ~f:(fun v -> k ^ "=" ^ v))
                  |> String.join ~sep:"&"

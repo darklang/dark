@@ -14,8 +14,8 @@ let http ~(path : string) ?(meth = "GET") () : handler =
 
 
 (* Sets the model with the appropriate toplevels *)
-let makeModel ?(handlers = []) ?(traces = StrDict.empty) ~cursorState () : model
-    =
+let makeModel ?(handlers = []) ?(traces = Map.String.empty) ~cursorState () :
+    model =
   let default = Defaults.defaultModel in
   { default with
     handlers = Handlers.fromList handlers
@@ -34,11 +34,9 @@ let run () =
   describe "objAsHeaderCurl" (fun () ->
       test "returns header curl flag string" (fun () ->
           let dict =
-            StrDict.empty
-            |> StrDict.insert
-                 ~key:"Content-Type"
-                 ~value:(DStr "application/json")
-            |> StrDict.insert ~key:"Authorization" ~value:(DStr "Bearer abc123")
+            Map.String.empty
+            |> Map.add ~key:"Content-Type" ~value:(DStr "application/json")
+            |> Map.add ~key:"Authorization" ~value:(DStr "Bearer abc123")
           in
           expect (objAsHeaderCurl (DObj dict))
           |> toEqual
@@ -77,8 +75,8 @@ let run () =
           expect (curlFromSpec m1 cronTLID) |> toEqual None)) ;
   describe "curlFromCurrentTrace" (fun () ->
       let traces input =
-        StrDict.empty
-        |> StrDict.insert
+        Map.String.empty
+        |> Map.add
              ~key:"7"
              ~value:
                [ ( "123"
@@ -89,22 +87,20 @@ let run () =
       in
       test "returns command for /test GET with headers" (fun () ->
           let headers =
-            StrDict.empty
-            |> StrDict.insert
-                 ~key:"Content-Type"
-                 ~value:(DStr "application/json")
-            |> StrDict.insert ~key:"Authorization" ~value:(DStr "Bearer abc123")
+            Map.String.empty
+            |> Map.add ~key:"Content-Type" ~value:(DStr "application/json")
+            |> Map.add ~key:"Authorization" ~value:(DStr "Bearer abc123")
           in
           let input =
-            StrDict.empty
-            |> StrDict.insert
+            Map.String.empty
+            |> Map.add
                  ~key:"request"
                  ~value:
                    (DObj
-                      ( StrDict.empty
-                      |> StrDict.insert ~key:"body" ~value:DNull
-                      |> StrDict.insert ~key:"headers" ~value:(DObj headers)
-                      |> StrDict.insert
+                      ( Map.String.empty
+                      |> Map.add ~key:"body" ~value:DNull
+                      |> Map.add ~key:"headers" ~value:(DObj headers)
+                      |> Map.add
                            ~key:"url"
                            ~value:
                              (DStr "http://test-curl.builtwithdark.com/test") ))
@@ -122,17 +118,17 @@ let run () =
                   "curl -H 'Authorization:Bearer abc123' -H 'Content-Type:application/json' -X GET 'http://test-curl.builtwithdark.com/test'")) ;
       test "returns command for /test POST with body" (fun () ->
           let input =
-            StrDict.empty
-            |> StrDict.insert
+            Map.String.empty
+            |> Map.add
                  ~key:"request"
                  ~value:
                    (DObj
-                      ( StrDict.empty
-                      |> StrDict.insert
+                      ( Map.String.empty
+                      |> Map.add
                            ~key:"fullBody"
                            ~value:(DStr "{\"a\":1,\"b\":false}")
-                      |> StrDict.insert ~key:"headers" ~value:DNull
-                      |> StrDict.insert
+                      |> Map.add ~key:"headers" ~value:DNull
+                      |> Map.add
                            ~key:"url"
                            ~value:
                              (DStr "http://test-curl.builtwithdark.com/test") ))

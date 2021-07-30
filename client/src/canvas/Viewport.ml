@@ -54,7 +54,7 @@ let centerCanvasOn (tl : toplevel) : pos =
   let sidebarWidth =
     Native.Ext.querySelector "#sidebar-left"
     |> Option.map ~f:Native.Ext.clientWidth
-    |> Option.withDefault ~default:320
+    |> Option.unwrap ~default:320
   in
   let tlWidth =
     let tle =

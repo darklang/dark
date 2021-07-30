@@ -45,27 +45,27 @@ let rec uses (var : string) (expr : E.t) : E.t list =
     | EVariable (_, potential) ->
         if potential = var then [expr] else []
     | ELet (_, _, rhs, body) ->
-        List.concat [u rhs; u body]
+        List.flatten [u rhs; u body]
     | EIf (_, cond, ifbody, elsebody) ->
-        List.concat [u cond; u ifbody; u elsebody]
+        List.flatten [u cond; u ifbody; u elsebody]
     | EFnCall (_, _, exprs, _) ->
-        exprs |> List.map ~f:u |> List.concat
+        exprs |> List.map ~f:u |> List.flatten
     | EBinOp (_, _, lhs, rhs, _) ->
         u lhs @ u rhs
     | EConstructor (_, _, exprs) ->
-        exprs |> List.map ~f:u |> List.concat
+        exprs |> List.map ~f:u |> List.flatten
     | ELambda (_, _, lexpr) ->
         u lexpr
     | EPipe (_, exprs) ->
-        exprs |> List.map ~f:u |> List.concat
+        exprs |> List.map ~f:u |> List.flatten
     | EFieldAccess (_, obj, _) ->
         u obj
     | EList (_, exprs) ->
-        exprs |> List.map ~f:u |> List.concat
+        exprs |> List.map ~f:u |> List.flatten
     | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple2.second |> List.map ~f:u |> List.concat
+        pairs |> List.map ~f:Tuple2.second |> List.map ~f:u |> List.flatten
     | EFeatureFlag (_, _, cond, a, b) ->
-        List.concat [u cond; u a; u b]
+        List.flatten [u cond; u a; u b]
     | EMatch (_, matchExpr, cases) ->
         let exprs = cases |> List.map ~f:Tuple2.second in
         u matchExpr @ exprs
@@ -142,8 +142,8 @@ let getParamIndex (id : ID.t) (ast : FluidAST.t) : (string * int) option =
   match parent with
   | Some (EFnCall (fnID, name, _, _)) | Some (EBinOp (fnID, name, _, _, _)) ->
       getArguments fnID ast
-      |> List.findIndex ~f:(fun e -> E.toID e = id)
-      |> Option.map ~f:(fun index -> (name, index))
+      |> List.findIndex ~f:(fun _ e -> E.toID e = id)
+      |> Option.map ~f:(fun (index, _) -> (name, index))
   | _ ->
       None
 
@@ -168,7 +168,7 @@ let freeVariables (ast : E.t) : (ID.t * string) list =
                |> List.map ~f:Tuple2.second
                |> List.filter ~f:(( <> ) "")
                |> List.map ~f:(fun v -> uses v body)
-               |> List.concat
+               |> List.flatten
                |> fun x -> Some x
            | EMatch (_, _, cases) ->
                cases
@@ -177,21 +177,21 @@ let freeVariables (ast : E.t) : (ID.t * string) list =
                |> List.map ~f:(fun (pattern, body) ->
                       let vars = FluidPattern.variableNames pattern in
                       List.map ~f:(fun v -> uses v body) vars)
-               |> List.concat
-               |> List.concat
+               |> List.flatten
+               |> List.flatten
                |> fun x -> Some x
            | _ ->
                None)
-    |> List.concat
+    |> List.flatten
     |> List.map ~f:(E.toID >> ID.toString)
-    |> StrSet.fromList
+    |> Set.String.fromList
   in
   ast
   |> E.filterMap ~f:(function
          | EVariable (id, name) ->
              (* Don't include EVariable lookups that we know are looking
               * up a variable bound in this expression *)
-             if StrSet.member ~value:(ID.toString id) definedAndUsed
+             if Set.member ~value:(ID.toString id) definedAndUsed
              then None
              else Some (id, name)
          | _ ->
@@ -199,7 +199,7 @@ let freeVariables (ast : E.t) : (ID.t * string) list =
   |> List.uniqueBy ~f:(fun (_, name) -> name)
 
 
-module VarDict = StrDict
+module VarDict = Map.String
 module IDTable = Belt.MutableMap.String
 
 type sym_set = ID.t VarDict.t
@@ -225,14 +225,14 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
         sexe st rhs ;
         let bound =
           if lhs <> ""
-          then VarDict.update ~key:lhs ~f:(fun _v -> Some (E.toID rhs)) st
+          then Map.update ~key:lhs ~f:(fun _v -> Some (E.toID rhs)) st
           else st
         in
         sexe bound body
     | EFnCall (_, _, exprs, _) ->
-        List.iter ~f:(sexe st) exprs
+        List.forEach ~f:(sexe st) exprs
     | EBinOp (_, _, lhs, rhs, _) ->
-        List.iter ~f:(sexe st) [lhs; rhs]
+        List.forEach ~f:(sexe st) [lhs; rhs]
     | EIf (_, cond, ifbody, elsebody)
     | EFeatureFlag (_, _, cond, elsebody, ifbody) ->
         sexe st cond ;
@@ -241,16 +241,16 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
     | ELambda (_, vars, body) ->
         let new_st =
           vars
-          |> List.foldl ~init:st ~f:(fun (id, varname) d ->
-                 VarDict.update ~key:varname ~f:(fun _v -> Some id) d)
+          |> List.fold ~initial:st ~f:(fun d (id, varname) ->
+                 Map.update ~key:varname ~f:(fun _v -> Some id) d)
         in
         sexe new_st body
     | EPipe (_, exprs) ->
-        List.iter ~f:(sexe st) exprs
+        List.forEach ~f:(sexe st) exprs
     | EFieldAccess (_, obj, _) ->
         sexe st obj
     | EList (_, exprs) ->
-        List.iter ~f:(sexe st) exprs
+        List.forEach ~f:(sexe st) exprs
     | EMatch (_, matchExpr, cases) ->
         let rec variablesInPattern p =
           match p with
@@ -264,21 +264,21 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
           | FPVariable (_, patternID, v) ->
               [(patternID, v)]
           | FPConstructor (_, _, _, inner) ->
-              inner |> List.map ~f:variablesInPattern |> List.concat
+              inner |> List.map ~f:variablesInPattern |> List.flatten
         in
         sexe st matchExpr ;
-        List.iter cases ~f:(fun (p, caseExpr) ->
+        List.forEach cases ~f:(fun (p, caseExpr) ->
             let new_st =
               p
               |> variablesInPattern
-              |> List.foldl ~init:st ~f:(fun (id, varname) d ->
-                     VarDict.update ~key:varname ~f:(fun _v -> Some id) d)
+              |> List.fold ~initial:st ~f:(fun d (id, varname) ->
+                     Map.update ~key:varname ~f:(fun _v -> Some id) d)
             in
             sexe new_st caseExpr)
     | ERecord (_, exprs) ->
-        exprs |> List.map ~f:Tuple2.second |> List.iter ~f:(sexe st)
+        exprs |> List.map ~f:Tuple2.second |> List.forEach ~f:(sexe st)
     | EConstructor (_, _, args) ->
-        List.iter ~f:(sexe st) args
+        List.forEach ~f:(sexe st) args
     | EPartial (_, _, oldExpr) ->
         sexe st oldExpr
     | ERightPartial (_, _, oldExpr) ->
@@ -294,7 +294,7 @@ let variablesIn (ast : E.t) : avDict =
   let sym_store = IDTable.make () in
   let trace expr st = IDTable.set sym_store (ID.toString (E.toID expr)) st in
   sym_exec ~trace VarDict.empty ast ;
-  sym_store |> IDTable.toList |> StrDict.fromList
+  sym_store |> IDTable.toList |> Map.String.fromList
 
 
 let removePartials (expr : E.t) : E.t =

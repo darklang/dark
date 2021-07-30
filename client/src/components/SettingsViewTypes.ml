@@ -68,7 +68,7 @@ let settingsTabToText (tab : settingsTab) : string =
 let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
 
 let settingsTabFromText (tab : string) : settingsTab =
-  match String.toLower tab with
+  match String.toLowercase tab with
   | "new-canvas" ->
       NewCanvas
   | "canvases" ->

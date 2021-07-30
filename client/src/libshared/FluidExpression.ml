@@ -442,7 +442,7 @@ let replace ~(replacement : t) (target : id) (ast : t) : t =
         let before, elemAndAfter =
           List.splitWhen ~f:(fun nested -> toID nested = target) oldExprs
         in
-        let after = List.tail elemAndAfter |> Option.withDefault ~default:[] in
+        let after = List.tail elemAndAfter |> Option.unwrap ~default:[] in
         (parentID, EPipe (newID, before @ newExprs @ after))
     | _ ->
         (target, replacement)
@@ -555,7 +555,7 @@ let ancestors (id : id) (expr : t) : t list =
   let rec rec_ancestors (tofind : id) (walk : t list) (exp : t) =
     let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
     let reclist id_ e_ walk_ exprs =
-      exprs |> List.map ~f:(rec_ id_ e_ walk_) |> List.concat
+      exprs |> List.map ~f:(rec_ id_ e_ walk_) |> List.flatten
     in
     if toID exp = tofind
     then walk

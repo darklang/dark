@@ -13,7 +13,7 @@ let run () =
       test "obj uses list" (fun () ->
           expect "[\"DObj\",{\"foo\":[\"DInt\",5]}]"
           |> toEqual
-               ( DObj (StrDict.fromList [("foo", DInt 5)])
+               ( DObj (Map.String.fromList [("foo", DInt 5)])
                |> Encoders.dval
                |> Js.Json.stringify )) ;
       test "dresp shape" (fun () ->
@@ -24,7 +24,7 @@ let run () =
                |> Js.Json.stringify )) ;
       describe "roundtrips" (fun () ->
           rtDval "int" (DInt 5) ;
-          rtDval "obj" (DObj (StrDict.fromList [("foo", DInt 5)])) ;
+          rtDval "obj" (DObj (Map.String.fromList [("foo", DInt 5)])) ;
           rtDval "date" (DDate "can be anything atm") ;
           rtDval "incomplete" (DIncomplete SourceNone) ;
           rtDval "float" (DFloat 7.2) ;

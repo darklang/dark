@@ -137,7 +137,10 @@ let report (e : string) (astInfo : ASTInfo.t) =
 (* -------------------- *)
 
 let length (tokens : token list) : int =
-  tokens |> List.map ~f:T.toText |> List.map ~f:String.length |> List.sum
+  tokens
+  |> List.map ~f:T.toText
+  |> List.map ~f:String.length
+  |. List.sum (module Int)
 
 
 (* Returns the token to the left and to the right. Ignores indent tokens *)
@@ -252,7 +255,7 @@ let getStartOfLineCaretPos (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
              | _ ->
                  true
            else false)
-    |> Option.withDefault ~default:ti
+    |> Option.unwrap ~default:ti
   in
   token.startPos
 
@@ -304,7 +307,7 @@ let getEndOfLineCaretPos (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
     |> ASTInfo.activeTokenInfos
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow = ti.startRow)
-    |> Option.withDefault ~default:ti
+    |> Option.unwrap ~default:ti
   in
   let pos =
     match token.token with
@@ -344,7 +347,7 @@ let getStartOfWordPos (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int
     |> List.find ~f:(fun (t : T.tokenInfo) ->
            T.isTextToken t.token && pos > t.startPos)
   in
-  let tokenInfo = previousToken |> Option.withDefault ~default:ti in
+  let tokenInfo = previousToken |> Option.unwrap ~default:ti in
   if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
   then getBegOfWordInStrCaretPos ~pos tokenInfo
   else tokenInfo.startPos
@@ -366,7 +369,7 @@ let getEndOfWordPos (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
     |> ASTInfo.activeTokenInfos
     |> List.find ~f:(fun (t : T.tokenInfo) ->
            T.isTextToken t.token && pos < t.endPos)
-    |> Option.withDefault ~default:ti
+    |> Option.unwrap ~default:ti
   in
   if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
   then getEndOfWordInStrCaretPos ~pos tokenInfo
@@ -452,7 +455,7 @@ let getNextBlankPos (pos : int) (astInfo : ASTInfo.t) : int =
   astInfo
   |> getNextBlank pos
   |> Option.map ~f:(fun ti -> ti.startPos)
-  |> Option.withDefault ~default:pos
+  |> Option.unwrap ~default:pos
 
 
 let moveToNextBlank (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
@@ -486,7 +489,7 @@ let getNextEditablePos (pos : int) (astInfo : ASTInfo.t) : int =
   astInfo
   |> getNextEditable pos
   |> Option.map ~f:(fun ti -> ti.startPos)
-  |> Option.withDefault ~default:pos
+  |> Option.unwrap ~default:pos
 
 
 let moveToNextEditable (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
@@ -527,7 +530,7 @@ let getPrevEditablePos (pos : int) (astInfo : ASTInfo.t) : int =
   |> getPrevEditable pos
   |> Option.map ~f:(fun ti ->
          if T.isBlank ti.token then ti.startPos else ti.endPos)
-  |> Option.withDefault ~default:pos
+  |> Option.unwrap ~default:pos
 
 
 let moveToPrevEditable (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
@@ -548,7 +551,7 @@ let rec getPrevBlank (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
            |> ASTInfo.activeTokenInfos
            |> List.last
            |> Option.map ~f:(fun ti -> ti.endPos)
-           |> Option.withDefault ~default:0
+           |> Option.unwrap ~default:0
          in
          if pos = lastPos then None else getPrevBlank lastPos astInfo)
 
@@ -557,7 +560,7 @@ let getPrevBlankPos (pos : int) (astInfo : ASTInfo.t) : int =
   astInfo
   |> getPrevBlank pos
   |> Option.map ~f:(fun ti -> ti.startPos)
-  |> Option.withDefault ~default:pos
+  |> Option.unwrap ~default:pos
 
 
 let moveToPrevBlank (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
@@ -1094,7 +1097,7 @@ let rec caretTargetForEndOfExpr' : fluidExpr -> caretTarget = function
              match e with E.EPipeTarget _ -> false | _ -> true)
       |> Option.map ~f:(fun lastNonPipeTarget ->
              caretTargetForEndOfExpr' lastNonPipeTarget)
-      |> Option.withDefault
+      |> Option.unwrap
            ~default:
              { astRef = ARFnCall id
              ; offset =
@@ -1469,7 +1472,7 @@ let maybeInsertInBlankExpr (ins : string) : (E.t * caretTarget) option =
  *)
 let insertInBlankExpr (ins : string) : E.t * caretTarget =
   maybeInsertInBlankExpr ins
-  |> Option.withDefault
+  |> Option.unwrap
        ~default:
          (let newID = gid () in
           (E.EBlank newID, {astRef = ARBlank newID; offset = 0}))
@@ -1506,7 +1509,7 @@ let insertInPlaceholderExpr
              ~f:(fun {paramName; _} -> paramName = placeholder.name)
              fn.fnParameters)
     |> Option.map ~f:(fun p -> p.paramBlock_args)
-    |> Option.withDefault ~default:[""]
+    |> Option.unwrap ~default:[""]
     |> List.map ~f:(fun str -> (gid (), str))
   in
   let newExpr, newTarget =
@@ -1518,7 +1521,7 @@ let insertInPlaceholderExpr
     else
       insBlankOrPlaceholderHelper' ins
       (* Just replace with a new blank -- we were creating eg a new list item *)
-      |> Option.withDefault
+      |> Option.unwrap
            ~default:(E.EBlank newID, {astRef = ARBlank newID; offset = 0})
   in
   (newExpr, newTarget)
@@ -1571,7 +1574,7 @@ let maybeCommitStringPartial
   let origExpr = FluidAST.find id astInfo.ast in
   let processStr (str : string) : string =
     valid_escape_chars_alist
-    |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
+    |> List.fold ~initial:str ~f:(fun acc (from, repl) ->
            (* workaround for how "\\" gets escaped *)
            let from = if from == "\\" then "\\\\" else from in
            Regex.replace ~re:(Regex.regex ("\\\\" ^ from)) ~repl acc)
@@ -1626,7 +1629,7 @@ let maybeCommitStringPartial
   (* If origExpr wasn't an EPartial (_, _, EString _), then we didn't
    * change the AST in the updateExpr call, so leave the newState as it
    * was *)
-  |> Option.withDefault ~default:astInfo
+  |> Option.unwrap ~default:astInfo
 
 
 let startEscapingString (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
@@ -1794,7 +1797,8 @@ let replacePartialWithArguments
     (props : props) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) :
     FluidAST.t * caretTarget =
   let open FluidExpression in
-  let getFunctionParams fnname count varExprs =
+  let getFunctionParams fnname count varExprs :
+      (string * string * E.t * int) option list =
     List.map (List.range 0 count) ~f:(fun index ->
         props.functions
         |> Functions.find fnname
@@ -1803,7 +1807,7 @@ let replacePartialWithArguments
                ( p.paramName
                , Runtime.tipe2str p.paramTipe
                , List.getAt ~index varExprs
-                 |> Option.withDefault ~default:(EBlank (gid ()))
+                 |> Option.unwrap ~default:(EBlank (gid ()))
                , index )))
   in
   let rec wrapWithLets ~expr vars =
@@ -1844,7 +1848,7 @@ let replacePartialWithArguments
              if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
              then Rail
              else NoRail)
-      |> Option.withDefault ~default:NoRail
+      |> Option.unwrap ~default:NoRail
     in
     (* The new function should be on the error rail if it was on the error rail
      * and the new function allows it, or if it wasn't on the error rail, but
@@ -1855,7 +1859,9 @@ let replacePartialWithArguments
   in
   (* Compare two parameters, params are aligned if both name
     * and type are the same, or if both type and position are the same *)
-  let compareParams p1 p2 =
+  let compareParams
+      (p1 : (string * string * E.t * int) option)
+      (p2 : (string * string * E.t * int) option) : compareParamsResult =
     match (p1, p2) with
     | Some (name, tipe, _, index), Some (name', tipe', _, index') ->
         if name = name' && tipe = tipe'
@@ -1874,7 +1880,7 @@ let replacePartialWithArguments
         argExprs
         |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
         |> Option.map ~f:(fun arg -> caretTargetForStartOfExpr' arg)
-        |> Option.withDefault
+        |> Option.unwrap
              ~default:
                { astRef = ARFnCall id
                ; offset = fnName |> FluidUtil.ghostPartialName |> String.length
@@ -1883,7 +1889,7 @@ let replacePartialWithArguments
         argExprs
         |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
         |> Option.map ~f:(fun arg -> caretTargetForStartOfExpr' arg)
-        |> Option.withDefault
+        |> Option.unwrap
              ~default:{astRef = ARConstructor id; offset = String.length cName}
     | ELet (id, _, _, _) ->
         {astRef = ARLet (id, LPVarName); offset = 0}
@@ -1920,12 +1926,14 @@ let replacePartialWithArguments
                        List.map newParams ~f:(compareParams p)
                      in
                      let alignedIndex =
-                       List.findIndex comparedResults ~f:(fun r ->
+                       List.findIndex comparedResults ~f:(fun _ r ->
                            r = CPAligned)
+                       |> Option.map ~f:Tuple2.first
                      in
                      let typeAndPositionMatchedIndex =
-                       List.findIndex comparedResults ~f:(fun r ->
+                       List.findIndex comparedResults ~f:(fun _ r ->
                            r = CPTypeAndPositionMatched)
+                       |> Option.map ~f:Tuple2.first
                      in
                      match (alignedIndex, typeAndPositionMatchedIndex) with
                      | Some index, _ | None, Some index ->
@@ -1943,10 +1951,10 @@ let replacePartialWithArguments
                in
                (* Update new params with old matched params with their new position index *)
                let newParams =
-                 List.foldl
+                 List.fold
                    matchedParams
-                   ~init:placeholderExprs
-                   ~f:(fun (_, _, expr, index) exprs ->
+                   ~initial:placeholderExprs
+                   ~f:(fun exprs (_, _, expr, index) ->
                      List.updateAt ~index ~f:(fun _ -> expr) exprs)
                in
                (newParams, mismatchedParams)
@@ -1978,7 +1986,7 @@ let replacePartialWithArguments
              | EConstructor _ ->
                  let oldParams =
                    existingExprs
-                   |> List.indexedMap ~f:(fun i p ->
+                   |> List.mapWithIndex ~f:(fun i p ->
                           (* create ugly automatic variable name *)
                           let name = "var_" ^ string_of_int (DUtil.random ()) in
                           (name, Runtime.tipe2str TAny, p, i))
@@ -2156,7 +2164,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : (E.t * caretTarget) option
         then Rail
         else NoRail
       in
-      let args = List.initialize count (fun _ -> EBlank (gid ())) in
+      let args = List.initialize count ~f:(fun _ -> EBlank (gid ())) in
       if fn.fnInfix
       then
         match args with
@@ -2175,7 +2183,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : (E.t * caretTarget) option
           args
           |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
           |> Option.map ~f:(fun arg -> caretTargetForStartOfExpr' arg)
-          |> Option.withDefault
+          |> Option.unwrap
                ~default:
                  { astRef = ARFnCall fID
                  ; offset = fn.fnName |> FluidUtil.partialName |> String.length
@@ -2219,7 +2227,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : (E.t * caretTarget) option
       let nID = gid () in
       Some (ENull nID, {astRef = ARNull nID; offset = String.length "null"})
   | FACConstructorName (name, argCount) ->
-      let args = List.initialize argCount (fun _ -> EBlank (gid ())) in
+      let args = List.initialize argCount ~f:(fun _ -> EBlank (gid ())) in
       let expr = EConstructor (gid (), name, args) in
       Some (expr, caretTargetForEndOfExpr' expr)
   | FACField fieldname ->
@@ -2336,7 +2344,7 @@ let updatePosAndAC (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> ASTInfo.getToken
   |> Option.map ~f:(fun ti -> acMaybeShow ti astInfo)
-  |> Option.withDefault ~default:astInfo
+  |> Option.unwrap ~default:astInfo
 
 
 (* acMoveBasedOnKey produces a new state with the caret placed in a position that
@@ -2358,12 +2366,12 @@ let acMoveBasedOnKey
         getNextBlank astInfo.state.newPos astInfo
         |> Option.andThen ~f:(fun nextBlankTi ->
                caretTargetFromTokenInfo nextBlankTi.startPos nextBlankTi)
-        |> Option.withDefault ~default:currCaretTarget
+        |> Option.unwrap ~default:currCaretTarget
     | K.ShiftTab ->
         getPrevBlank astInfo.state.newPos astInfo
         |> Option.andThen ~f:(fun prevBlankTi ->
                caretTargetFromTokenInfo prevBlankTi.startPos prevBlankTi)
-        |> Option.withDefault ~default:currCaretTarget
+        |> Option.unwrap ~default:currCaretTarget
     | K.Enter ->
         currCaretTarget
     | K.Space ->
@@ -2385,7 +2393,7 @@ let acMoveBasedOnKey
             caretTargetForNextNonWhitespaceToken
               ~pos:startPos
               (ASTInfo.activeTokenInfos astInfo)
-            |> Option.withDefault ~default:currCaretTarget )
+            |> Option.unwrap ~default:currCaretTarget )
     | _ ->
         currCaretTarget
   in
@@ -2544,7 +2552,7 @@ let acEnter (ti : T.tokenInfo) (key : K.key) (astInfo : ASTInfo.t) : ASTInfo.t =
                let replacement = E.EFieldAccess (gid (), expr, fieldname) in
                FluidAST.replace ~replacement partialID astInfo.ast)
         |> Option.map ~f:(fun ast -> ASTInfo.setAST ast astInfo)
-        |> Option.withDefault ~default:astInfo
+        |> Option.unwrap ~default:astInfo
     | _ ->
         astInfo )
   | Some (FACCreateFunction _) ->
@@ -2811,7 +2819,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
           itemsAtCurrAndNextIndex exprs elemAndSepIdx
           |> Option.map ~f:(fun (beforeComma, afterComma) ->
                  mergeExprs beforeComma afterComma)
-          |> Option.withDefault
+          |> Option.unwrap
                ~default:(E.newB (), {astRef = ARList (id, LPOpen); offset = 1})
         in
         let newExprs =
@@ -3058,8 +3066,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
               patterns
               (* FIXME: This is super broken because the pattern id could be anywhere
                  but we only check at the pattern root *)
-              |> List.findIndex ~f:(fun (p, _) -> P.toID p = pID)
-              |> Option.map ~f:(fun remIdx ->
+              |> List.findIndex ~f:(fun _ (p, _) -> P.toID p = pID)
+              |> Option.map ~f:(fun (remIdx, _) ->
                      let newPatterns =
                        if List.length patterns = 1
                        then patterns
@@ -3069,7 +3077,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
                        patterns
                        |> List.getAt ~index:(remIdx - 1)
                        |> Option.map ~f:(fun (_, e) -> e)
-                       |> Option.withDefault ~default:cond
+                       |> Option.unwrap ~default:cond
                      in
                      let target = caretTargetForEndOfExpr' targetExpr in
                      (E.Expr (EMatch (mID, cond, newPatterns)), target))
@@ -3245,7 +3253,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
              Some (newAST, AtTarget target)
          | None ->
              None)
-  |> Option.withDefault ~default:(ast, SamePlace)
+  |> Option.unwrap ~default:(ast, SamePlace)
 
 
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
@@ -3312,10 +3320,10 @@ let doExplicitInsert
   let currCTPlusLen = {astRef = currAstRef; offset = currOffset + caretDelta} in
   let mutation : string -> string =
    fun str ->
-    str |> String.insertAt ~index:currOffset ~insert:extendedGraphemeCluster
+    str |> String.insertAt ~index:currOffset ~value:extendedGraphemeCluster
   in
   let mutationAt (str : string) ~(index : int) : string =
-    str |> String.insertAt ~index ~insert:extendedGraphemeCluster
+    str |> String.insertAt ~index ~value:extendedGraphemeCluster
   in
   let doExprInsert (currAstRef : astRef) (currExpr : FluidExpression.t) :
       (FluidExpression.t * caretTarget) option =
@@ -3811,7 +3819,7 @@ let doExplicitInsert
              Some (newAST, AtTarget target)
          | None ->
              None)
-  |> Option.withDefault ~default:(ast, SamePlace)
+  |> Option.unwrap ~default:(ast, SamePlace)
 
 
 let doInsert
@@ -3980,7 +3988,7 @@ let updateSelectionRange (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
       { s with
         newPos
       ; selectionStart =
-          Some (s.selectionStart |> Option.withDefault ~default:s.newPos) })
+          Some (s.selectionStart |> Option.unwrap ~default:s.newPos) })
 
 
 let getOptionalSelectionRange (s : fluidState) : (int * int) option =
@@ -4014,7 +4022,7 @@ let getTopmostSelectionID (startPos : int) (endPos : int) (astInfo : ASTInfo.t)
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange startPos endPos astInfo
   |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
-  |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
+  |> List.fold ~initial:(None, 0) ~f:(fun (topmostID, topmostDepth) ti ->
          let curID = T.parentExprID ti.token in
          let curDepth = FluidAST.ancestors curID astInfo.ast |> List.length in
          if (* check if current token is higher in the AST than the last token,
@@ -4057,7 +4065,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
     | None ->
         None
   in
-  Option.withDefault mod' ~default:NoChange
+  Option.unwrap mod' ~default:NoChange
 
 
 let rec updateKey
@@ -4154,7 +4162,7 @@ let rec updateKey
           astInfo.state.newPos
           (astInfo |> ASTInfo.activeTokenInfos |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos txt ti astInfo)
-        |> Option.withDefault ~default:astInfo
+        |> Option.unwrap ~default:astInfo
     (*
      * Special autocomplete entries
      *)
@@ -4196,7 +4204,7 @@ let rec updateKey
                   astInfo
               | Some id ->
                   moveToAstRef (ARBlank id) astInfo)
-          |> Option.withDefault ~default:astInfo
+          |> Option.unwrap ~default:astInfo
         in
         ( match left with
         | (L (TPartial _, ti) | L (TFieldPartial _, ti))
@@ -4604,7 +4612,7 @@ let rec updateKey
         if mNext
            |> Option.map ~f:(fun n ->
                   match n.token with TBlank _ -> true | _ -> false)
-           |> Option.withDefault ~default:false
+           |> Option.unwrap ~default:false
         then doRight ~pos ~next:mNext ti astInfo
         else
           let astInfo, letId = makeIntoLetBody id astInfo in
@@ -4702,7 +4710,7 @@ let rec updateKey
           |> Option.andThen ~f:(fun directExpr ->
                  findAppropriateParentToWrap directExpr astInfo.ast)
           |> Option.map ~f:(fun expr -> E.toID expr)
-          |> Option.withDefault ~default:id
+          |> Option.unwrap ~default:id
         in
         let astInfo, _ = makeIntoLetBody topID astInfo in
         astInfo
@@ -4786,7 +4794,7 @@ let rec updateKey
               let newQueryString = str ^ txt in
               astInfo.state.ac.completions
               |> List.filter ~f:(fun {item; _} ->
-                     String.contains ~substring:newQueryString (AC.asName item))
+                     String.includes ~substring:newQueryString (AC.asName item))
               |> ( == ) []
           | _ ->
               (* unreachable due to when condition on enclosing match branch *)
@@ -4864,7 +4872,7 @@ let updateMouseClick (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
     |> ASTInfo.activeTokenInfos
     |> List.last
     |> Option.map ~f:(fun ti -> ti.endPos)
-    |> Option.withDefault ~default:0
+    |> Option.unwrap ~default:0
   in
   let newPos = if newPos > lastPos then lastPos else newPos in
   let newPos =
@@ -4919,7 +4927,7 @@ let expressionRange (exprID : ID.t) (astInfo : ASTInfo.t) : (int * int) option =
     FluidAST.find exprID astInfo.ast
     |> Option.map ~f:(fun expr ->
            FluidTokenizer.tokenizeForEditor astInfo.state.activeEditor expr)
-    |> Option.withDefault ~default:[]
+    |> Option.unwrap ~default:[]
   in
   let exprStartToken, exprEndToken =
     (List.head exprTokens, List.last exprTokens)
@@ -4981,7 +4989,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
     let topmostExpr =
       topmostID
       |> Option.andThen ~f:(fun id -> FluidAST.find id astInfo.ast)
-      |> Option.withDefault ~default:(EBlank (gid ()))
+      |> Option.unwrap ~default:(EBlank (gid ()))
     in
     let tokens =
       (* simplify tokens to make them homogenous, easier to parse *)
@@ -5022,7 +5030,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
           |> Option.andThen ~f:(reconstruct ~topmostID:(Some exprID))
     in
     let orDefaultExpr : E.t option -> E.t =
-      Option.withDefault ~default:(EBlank (gid ()))
+      Option.unwrap ~default:(EBlank (gid ()))
     in
     let id = gid () in
     match topmostExpr with
@@ -5085,8 +5093,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
           findTokenValue tokens eID "let-keyword" <> None
         in
         let newLhs =
-          findTokenValue tokens eID "let-var-name"
-          |> Option.withDefault ~default:""
+          findTokenValue tokens eID "let-var-name" |> Option.unwrap ~default:""
         in
         ( match (reconstructExpr rhs, reconstructExpr body) with
         | None, None when newLhs <> "" ->
@@ -5131,7 +5138,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
             None )
     | EBinOp (eID, name, expr1, expr2, ster) ->
         let newName =
-          findTokenValue tokens eID "binop" |> Option.withDefault ~default:""
+          findTokenValue tokens eID "binop" |> Option.unwrap ~default:""
         in
         ( match (reconstructExpr expr1, reconstructExpr expr2) with
         | Some newExpr1, Some newExpr2 when newName = "" ->
@@ -5193,8 +5200,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
         Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
     | EFieldAccess (eID, e, _) ->
         let newFieldName =
-          findTokenValue tokens eID "field-name"
-          |> Option.withDefault ~default:""
+          findTokenValue tokens eID "field-name" |> Option.unwrap ~default:""
         in
         let fieldOpSelected = findTokenValue tokens eID "field-op" <> None in
         let e = reconstructExpr e in
@@ -5210,7 +5216,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
             e )
     | EVariable (eID, value) ->
         let newValue =
-          findTokenValue tokens eID "variable" |> Option.withDefault ~default:""
+          findTokenValue tokens eID "variable" |> Option.unwrap ~default:""
         in
         let e = EVariable (id, value) in
         if newValue = ""
@@ -5228,11 +5234,10 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
               List.map args ~f:(reconstructExpr >> orDefaultExpr)
         in
         let newFnName =
-          findTokenValue tokens eID "fn-name" |> Option.withDefault ~default:""
+          findTokenValue tokens eID "fn-name" |> Option.unwrap ~default:""
         in
         let newFnVersion =
-          findTokenValue tokens eID "fn-version"
-          |> Option.withDefault ~default:""
+          findTokenValue tokens eID "fn-version" |> Option.unwrap ~default:""
         in
         let newFnName =
           if newFnVersion = ""
@@ -5252,21 +5257,19 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
          * concept of a partial. So it makes more sense to copy the whole
          * thing. *)
         let newName =
-          findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
+          findTokenValue tokens eID "partial" |> Option.unwrap ~default:""
         in
         Some (EPartial (id, newName, expr))
     | ERightPartial (eID, _, expr) ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
-          findTokenValue tokens eID "partial-right"
-          |> Option.withDefault ~default:""
+          findTokenValue tokens eID "partial-right" |> Option.unwrap ~default:""
         in
         Some (ERightPartial (id, newName, expr))
     | ELeftPartial (eID, _, expr) ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
-          findTokenValue tokens eID "partial-left"
-          |> Option.withDefault ~default:""
+          findTokenValue tokens eID "partial-left" |> Option.unwrap ~default:""
         in
         Some (ELeftPartial (id, newName, expr))
     | EList (_, exprs) ->
@@ -5314,7 +5317,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
     | EConstructor (eID, name, exprs) ->
         let newName =
           findTokenValue tokens eID "constructor-name"
-          |> Option.withDefault ~default:""
+          |> Option.unwrap ~default:""
         in
         let newExprs = List.map exprs ~f:(reconstructExpr >> orDefaultExpr) in
         let e = EConstructor (id, name, newExprs) in
@@ -5491,7 +5494,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
       | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset}
         ->
           let replacement =
-            E.EString (id, String.insertAt ~insert:text ~index:(offset - 1) str)
+            E.EString (id, String.insertAt ~value:text ~index:(offset - 1) str)
           in
           let newAST = FluidAST.replace ~replacement id ast in
           let caretTarget =
@@ -5517,7 +5520,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
                 ( List.take oldKVs ~count:(index + 1)
                 , List.drop oldKVs ~count:(index + 1) )
           in
-          let newKVs = List.concat [first; pastedKVs; last] in
+          let newKVs = List.flatten [first; pastedKVs; last] in
           let replacement = E.ERecord (id, newKVs) in
           List.last pastedKVs
           |> Option.map ~f:(fun (_, valueExpr) ->
@@ -5526,7 +5529,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
                  astInfo
                  |> ASTInfo.setAST newAST
                  |> moveToCaretTarget caretTarget)
-          |> Option.withDefault ~default:astInfo
+          |> Option.unwrap ~default:astInfo
       | ERecord _, Some _, Some {astRef = ARRecord (_, RPFieldname _); _} ->
           (* Block pasting arbitrary expr into a record fieldname
            * since keys can't contain exprs *)
@@ -5534,7 +5537,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
       | _ ->
           text
           |> String.split ~on:""
-          |> List.foldl ~init:astInfo ~f:(fun str astInfo ->
+          |> List.fold ~initial:astInfo ~f:(fun astInfo str ->
                  let space : FluidKeyboard.keyEvent =
                    { key = K.Space
                    ; shiftKey = false
@@ -5569,7 +5572,7 @@ let getCopySelection (m : model) : clipboardContents =
            |> Option.map ~f:Clipboard.exprToClipboardContents
          in
          Some (text, json))
-  |> Option.withDefault ~default:("", None)
+  |> Option.unwrap ~default:("", None)
 
 
 let buildFeatureFlagEditors (tlid : TLID.t) (ast : FluidAST.t) :
@@ -5747,7 +5750,7 @@ let updateMsg'
     | FluidAutocompleteClick entry ->
         ASTInfo.getToken astInfo
         |> Option.map ~f:(fun ti -> acClick entry ti astInfo)
-        |> Option.withDefault ~default:astInfo
+        |> Option.unwrap ~default:astInfo
     | FluidClearErrorDvSrc
     | FluidMouseDown _
     | FluidCommandsFilter _
@@ -5849,7 +5852,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              if moveMod = NoChange && pageMod = NoChange
              then FluidSetState fluidState
              else Many [pageMod; moveMod; FluidSetState fluidState])
-      |> Option.withDefault ~default:NoChange
+      |> Option.unwrap ~default:NoChange
   | FluidCloseCmdPalette ->
       FluidCommandsClose
   | FluidAutocompleteClick (FACCreateFunction (name, tlid, id)) ->
@@ -5859,7 +5862,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidInputEvent (Keypress {key = K.Tab; _})
     when AC.highlighted s.ac
          |> Option.map ~f:FluidAutocomplete.isCreateFn
-         |> Option.withDefault ~default:false ->
+         |> Option.unwrap ~default:false ->
     ( match AC.highlighted s.ac with
     | Some (FACCreateFunction (name, tlid, id)) ->
         Refactor.createAndInsertNewFunction m tlid id name
@@ -6018,7 +6021,7 @@ let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
            let newAstInfo = acMaybeCommit 0 astInfo in
            let newAST = newAstInfo.ast |> FluidAST.map ~f:AST.removePartials in
            if newAST <> astInfo.ast then Some (TL.setASTMod tl newAST) else None)
-    |> Option.withDefault ~default:NoChange
+    |> Option.unwrap ~default:NoChange
   in
   let acVisibilityModel =
     if AC.isOpened m.fluidState.ac

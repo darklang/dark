@@ -34,7 +34,7 @@ let transformFnCalls
   in
   let newHandlers =
     m.handlers
-    |> TD.filterMapValues ~f:(fun h ->
+    |> Map.filterMapValues ~f:(fun h ->
            let newAst = h.ast |> transformCallsInAst in
            if newAst <> h.ast
            then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
@@ -42,7 +42,7 @@ let transformFnCalls
   in
   let newFunctions =
     m.userFunctions
-    |> TD.filterMapValues ~f:(fun uf_ ->
+    |> Map.filterMapValues ~f:(fun uf_ ->
            let newAst = uf_.ufAST |> transformCallsInAst in
            if newAst <> uf_.ufAST
            then Some (SetFunction {uf_ with ufAST = newAst})
@@ -97,7 +97,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
   in
   TL.getAST tl
   |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  |> Option.unwrap ~default:NoChange
 
 
 let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
@@ -110,7 +110,7 @@ let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
                 | e ->
                     recover "incorrect id in takeoffRail" e)
          |> TL.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  |> Option.unwrap ~default:NoChange
 
 
 let isRailable (m : model) (name : string) =
@@ -118,7 +118,7 @@ let isRailable (m : model) (name : string) =
   |> Functions.find name
   |> Option.map ~f:(fun fn ->
          fn.fnReturnTipe = TOption || fn.fnReturnTipe = TResult)
-  |> Option.withDefault ~default:false
+  |> Option.unwrap ~default:false
 
 
 let putOnRail (m : model) (tl : toplevel) (id : ID.t) : modification =
@@ -143,23 +143,25 @@ let extractVarInAst
       let lastPlaceWithSameVarsAndValues =
         let ancestors = FluidAST.ancestors id ast in
         let freeVariables =
-          AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
+          AST.freeVariables e
+          |> List.map ~f:Tuple2.second
+          |> Set.String.fromList
         in
         e :: ancestors
         |> List.takeWhile ~f:(fun elem ->
                let id = E.toID elem in
                let availableVars =
                  Option.map traceID ~f:(Analysis.getAvailableVarnames m tl id)
-                 |> Option.withDefault ~default:[]
+                 |> Option.unwrap ~default:[]
                  |> List.map ~f:(fun (varname, _) -> varname)
-                 |> StrSet.fromList
+                 |> Set.String.fromList
                in
                let allRequiredVariablesAvailable =
-                 StrSet.diff freeVariables availableVars |> StrSet.isEmpty
+                 Set.difference freeVariables availableVars |> Set.isEmpty
                in
                let noVariablesAreRedefined =
                  freeVariables
-                 |> StrSet.toList
+                 |> Set.toList
                  |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
                in
                allRequiredVariablesAvailable && noVariablesAreRedefined)
@@ -206,7 +208,7 @@ let extractFunction (m : model) (tl : toplevel) (id : ID.t) : modification =
             let tipe =
               Analysis.getSelectedTraceID m tlid
               |> Option.andThen ~f:(Analysis.getTipeOf m id)
-              |> Option.withDefault ~default:TAny
+              |> Option.unwrap ~default:TAny
               |> convertTipe
             in
             { ufpName = F (gid (), name_)
@@ -268,17 +270,17 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
     in
     match (origName, newName) with
     | Some _, Some newName ->
-        List.foldr
-          ~f:(fun use accfn ->
+        List.foldRight
+          ~f:(fun accfn use ->
             UserFunctions.replaceParamTipe use (transformUse newName use) accfn)
-          ~init:fn
+          ~initial:fn
           uses
     | _ ->
         fn
   in
   let newFunctions =
     m.userFunctions
-    |> TD.filterMapValues ~f:(fun uf ->
+    |> Map.filterMapValues ~f:(fun uf ->
            let newFn = renameUserTipeInFnParameters uf old new_ in
            if newFn <> uf then Some (SetFunction newFn) else None)
   in
@@ -286,26 +288,26 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
 
 
 let fnUseCount (m : model) (name : string) : int =
-  StrDict.get m.usedFns ~key:name |> Option.withDefault ~default:0
+  Map.get m.usedFns ~key:name |> Option.unwrap ~default:0
 
 
 let usedFn (m : model) (name : string) : bool = fnUseCount m name <> 0
 
 let tipeUseCount (m : model) (name : string) : int =
-  StrDict.get m.usedTipes ~key:name |> Option.withDefault ~default:0
+  Map.get m.usedTipes ~key:name |> Option.unwrap ~default:0
 
 
 let usedTipe (m : model) (name : string) : bool = tipeUseCount m name <> 0
 
 let dbUseCount (m : model) (name : string) : int =
-  StrDict.get m.usedDBs ~key:name |> Option.withDefault ~default:0
+  Map.get m.usedDBs ~key:name |> Option.unwrap ~default:0
 
 
 let updateUsageCounts (m : model) : model =
   let open FluidExpression in
   let countFromList names =
-    List.foldl names ~init:StrDict.empty ~f:(fun name dict ->
-        StrDict.update dict ~key:name ~f:(function
+    List.fold names ~initial:Map.String.empty ~f:(fun dict name ->
+        Map.update dict ~key:name ~f:(function
             | Some count ->
                 Some (count + 1)
             | None ->
@@ -314,7 +316,7 @@ let updateUsageCounts (m : model) : model =
   let asts =
     m
     |> TL.all
-    |> TD.mapValues ~f:TL.getAST
+    |> Map.mapValues ~f:TL.getAST
     |> List.filterMap ~f:(Option.map ~f:FluidAST.toExpr)
   in
   (* Pretend it's one big AST *)
@@ -339,8 +341,8 @@ let updateUsageCounts (m : model) : model =
   in
   let usedTipes =
     m.userFunctions
-    |> TD.mapValues ~f:UserFunctions.allParamData
-    |> List.concat
+    |> Map.mapValues ~f:UserFunctions.allParamData
+    |> List.flatten
     |> List.filterMap ~f:(function
            (* Note: this does _not_ currently handle multiple versions *)
            | PParamTipe (F (_, TUserType (name, _))) ->
@@ -356,7 +358,8 @@ let removeFunctionParameter
     (m : model) (uf : userFunction) (ufp : userFunctionParameter) : op list =
   let open FluidExpression in
   let indexInList =
-    List.findIndex ~f:(fun p -> p = ufp) uf.ufMetadata.ufmParameters
+    List.findIndex ~f:(fun _ p -> p = ufp) uf.ufMetadata.ufmParameters
+    |> Option.map ~f:Tuple2.first
     |> recoverOpt "removing invalid fnparam" ~default:(-1)
   in
   let fn e =
@@ -414,12 +417,12 @@ let generateEmptyUserType () : userTipe =
   ; utDefinition = definition }
 
 
-let generateUserType (dv : dval option) : (string, userTipe) Result.t =
+let generateUserType (dv : dval option) : (userTipe, string) Result.t =
   match dv with
   | Some (DObj dvalmap) ->
       let userTipeDefinition =
         dvalmap
-        |> StrDict.toList
+        |> Map.toList
         |> List.map ~f:(fun (k, v) ->
                let tipe = v |> Runtime.typeOf in
                (*
@@ -444,7 +447,7 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
     op list =
   m
   |> TL.all
-  |> TD.filterMapValues ~f:(fun tl ->
+  |> Map.filterMapValues ~f:(fun tl ->
          match tl with
          | TLHandler h ->
              let newAST =
@@ -483,12 +486,12 @@ let reorderFnCallArgs
 
 let hasExistingFunctionNamed (m : model) (name : string) : bool =
   let fns = Introspect.functionsByName m.userFunctions in
-  StrDict.has fns ~key:name
+  Map.has fns ~key:name
 
 
 let createNewDB (m : model) (maybeName : dbName option) (pos : pos) :
     modification =
-  let name = maybeName |> Option.withDefault ~default:(DB.generateDBName ()) in
+  let name = maybeName |> Option.unwrap ~default:(DB.generateDBName ()) in
   if Autocomplete.assertValid Autocomplete.dbNameValidator name <> name
   then
     Model.updateErrorMod
@@ -505,7 +508,7 @@ let createNewDB (m : model) (maybeName : dbName option) (pos : pos) :
       ; AddDBCol (tlid, next, Prelude.gid ()) ]
     in
     Many
-      ( AppendUnlockedDBs (StrSet.fromList [TLID.toString tlid])
+      ( AppendUnlockedDBs (Set.String.fromList [TLID.toString tlid])
       :: AddOps (rpcCalls, FocusExact (tlid, next))
       :: pageChanges )
 

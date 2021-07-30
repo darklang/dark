@@ -66,17 +66,13 @@ let div
 let placeHolderFor (vp : ViewUtils.viewProps) (pt : blankOrType) : string =
   match pt with
   | EventName ->
-    ( match
-        TL.spaceOf vp.tl |> Option.withDefault ~default:HSDeprecatedOther
-      with
+    ( match TL.spaceOf vp.tl |> Option.unwrap ~default:HSDeprecatedOther with
     | HSHTTP ->
         "route"
     | HSWorker | HSDeprecatedOther | HSRepl | HSCron ->
         "name" )
   | EventModifier ->
-    ( match
-        TL.spaceOf vp.tl |> Option.withDefault ~default:HSDeprecatedOther
-      with
+    ( match TL.spaceOf vp.tl |> Option.unwrap ~default:HSDeprecatedOther with
     | HSHTTP ->
         "verb"
     | HSCron ->

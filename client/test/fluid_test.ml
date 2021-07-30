@@ -240,11 +240,11 @@ module TestCase = struct
              "(sel, pos) fixed from (%s, %d) to (%s, %d)"
              ( origSel
              |> Option.map ~f:string_of_int
-             |> Option.withDefault ~default:"None" )
+             |> Option.unwrap ~default:"None" )
              origPos
              ( selectionStart
              |> Option.map ~f:string_of_int
-             |> Option.withDefault ~default:"None" )
+             |> Option.unwrap ~default:"None" )
              pos) ;
       { defaultTestState with
         activeEditor
@@ -290,7 +290,7 @@ module TestResult = struct
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
     let tokens = tokenizeResult res in
-    List.iter tokens ~f:(fun ti ->
+    List.forEach tokens ~f:(fun ti ->
         match ti.token with
         | TNewline _ when !endPos > ti.endPos ->
             endPos := !endPos - 2
@@ -353,16 +353,16 @@ module TestResult = struct
     let s = toString res in
     match selection res with
     | None ->
-        String.insertAt ~insert:"~" ~index:(pos res) s
+        String.insertAt ~value:"~" ~index:(pos res) s
     | Some startPos ->
-        let s = String.insertAt ~insert:"»" ~index:startPos s in
+        let s = String.insertAt ~value:"»" ~index:startPos s in
         let endPos = pos res in
         (* if a LTR selection, then we'll have already inserted an extra
          * character, so need to bump the position more to account for that
          * since we use a 2-byte character, this is 2 not 1 *)
         if endPos > startPos
-        then String.insertAt ~insert:"«" ~index:(endPos + 2) s
-        else String.insertAt ~insert:"«" ~index:endPos s
+        then String.insertAt ~value:"«" ~index:(endPos + 2) s
+        else String.insertAt ~value:"«" ~index:endPos s
 end
 
 type modifierKeys =
@@ -376,7 +376,7 @@ let processMsg (inputs : fluidInputEvent list) (astInfo : ASTInfo.t) : ASTInfo.t
   let h = Fluid_utils.h (FluidAST.toExpr astInfo.ast) in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
   let astInfo = Fluid.updateAutocomplete m (TLID.fromString "7") astInfo in
-  List.foldl inputs ~init:astInfo ~f:(fun input (astInfo : ASTInfo.t) ->
+  List.fold inputs ~initial:astInfo ~f:(fun (astInfo : ASTInfo.t) input ->
       Fluid.updateMsg' m h.hTLID astInfo (FluidInputEvent input))
 
 

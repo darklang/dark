@@ -280,7 +280,7 @@ let filterOpsAndResult
   let newOpCtrs =
     (* if the opCtr in params is greater than the one in the map, we'll create
      * an updated map *)
-    StrDict.update m.opCtrs ~key:params.clientOpCtrId ~f:(fun oldCtr ->
+    Map.update m.opCtrs ~key:params.clientOpCtrId ~f:(fun oldCtr ->
         match (oldCtr, params.opCtr) with
         | Some oldCtr, paramsOpCtr ->
             Some (max oldCtr paramsOpCtr)
@@ -291,7 +291,7 @@ let filterOpsAndResult
   (* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params *)
   (* temporarily _don't_ filter ops *)
-  if StrDict.get m2.opCtrs ~key:params.clientOpCtrId = Some params.opCtr
+  if Map.get ~key:params.clientOpCtrId m2.opCtrs = Some params.opCtr
   then (m2, params.ops, result)
   else
     (* filter down to only those ops which can be applied out of order without

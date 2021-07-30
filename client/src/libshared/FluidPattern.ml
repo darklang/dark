@@ -34,7 +34,7 @@ let toID (p : t) : id =
 let rec ids (p : t) : id list =
   match p with
   | FPConstructor (_, id, _, list) ->
-      list |> List.map ~f:ids |> List.concat |> fun l -> id :: l
+      list |> List.map ~f:ids |> List.flatten |> fun l -> id :: l
   | FPVariable _
   | FPInteger _
   | FPBool _
@@ -84,7 +84,7 @@ let rec variableNames (p : t) : string list =
   | FPVariable (_, _, name) ->
       [name]
   | FPConstructor (_, _, _, patterns) ->
-      patterns |> List.map ~f:variableNames |> List.concat
+      patterns |> List.map ~f:variableNames |> List.flatten
   | FPInteger _ | FPBool _ | FPString _ | FPBlank _ | FPNull _ | FPFloat _ ->
       []
 

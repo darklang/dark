@@ -5,6 +5,8 @@ include module type of Json.Encode
 
 val variant : string -> Js.Json.t list -> Js.Json.t
 
-val tcStrSet : Tc.StrSet.t -> Js.Json.t
+(* CLEANUP : change name of function *)
+val tcStrSet : Tc.Set.String.t -> Js.Json.t
 
-val tcStrDict : ('a -> Js.Json.t) -> 'a Tc.StrDict.t -> Js.Json.t
+(* CLEANUP : change name of function *)
+val tcStrDict : ('a -> Js.Json.t) -> 'a Tc.Map.String.t -> Js.Json.t

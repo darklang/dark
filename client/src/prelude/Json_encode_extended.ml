@@ -6,14 +6,11 @@ let variant constructor vals =
 
 let tcStrSet set =
   set
-  |> Tc.StrSet.toList
+  |> Tc.Set.toList
   |> Tc.List.map ~f:Js.Json.string
   |> Belt.List.toArray
   |> jsonArray
 
 
 let tcStrDict f dict =
-  dict
-  |> Tc.StrDict.toList
-  |> Tc.List.map ~f:(fun (k, v) -> (k, f v))
-  |> object_
+  dict |> Tc.Map.toList |> Tc.List.map ~f:(fun (k, v) -> (k, f v)) |> object_

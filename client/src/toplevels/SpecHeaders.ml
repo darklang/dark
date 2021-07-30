@@ -6,7 +6,7 @@ module P = Pointer
 
 let spaceOf (hs : handlerSpec) : handlerSpace =
   let spaceOfStr s =
-    let lwr = String.toUpper s in
+    let lwr = String.toUppercase s in
     match lwr with
     | "HTTP" ->
         HSHTTP

@@ -273,12 +273,12 @@ let run () =
               ( [ ("str", DStr "foo")
                 ; ("int", DInt 1)
                 ; ("float", DFloat 1.0)
-                ; ("obj", DObj StrDict.empty)
+                ; ("obj", DObj Map.String.empty)
                 ; ("date", DDate "2019-07-10T20:42:11Z")
                 ; ("datestr", DStr "2019-07-10T20:42:11Z")
                 ; ("uuid", DUuid "0a18ca77-9bae-4dfb-816f-0d12cb81c17b")
                 ; ("uuidstr", DStr "0a18ca77-9bae-4dfb-816f-0d12cb81c17b") ]
-              |> StrDict.fromList )
+              |> Map.String.fromList )
           in
           let expectedFields =
             (* Note: datestr and uuidstr are TDate and TUuid respectively, _not_ TStr *)
@@ -481,12 +481,12 @@ let run () =
         |> TLIDDict.fromList
       in
       test "simple example" (fun () ->
-          let props = {userFunctions; usedFns = StrDict.empty} in
+          let props = {userFunctions; usedFns = Map.String.empty} in
           expect
             ( Functions.empty
             |> Functions.setBuiltins sampleFunctions props
             |> Functions.testCalculateUnsafeUserFunctions props
-            |> StrSet.toList
+            |> Set.toList
             |> List.sortWith compare )
           |> toEqual ["callsUnsafeBuiltin"; "callsUnsafeUserfn"]) ;
       ()) ;

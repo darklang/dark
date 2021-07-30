@@ -640,7 +640,7 @@ let defaultTestState =
 
 
 let defaultFunctionsProps =
-  {usedFns = StrDict.empty; userFunctions = TLIDDict.empty}
+  {usedFns = Map.String.empty; userFunctions = TLIDDict.empty}
 
 
 let defaultTestProps : Types.fluidProps =
@@ -655,22 +655,22 @@ let defaultTestModel =
     tests = defaultTestProps.variants
   ; functions = defaultTestProps.functions
   ; analyses =
-      StrDict.singleton (* The default traceID for TLID 7 *)
+      Map.String.singleton (* The default traceID for TLID 7 *)
         ~key:"94167980-f909-527e-a4af-bc3155f586d3"
         ~value:
           (LoadableSuccess
-             (StrDict.fromList
+             (Map.String.fromList
                 [ ( "fake-acdata1"
                   , ExecutedResult
                       (DObj
-                         (StrDict.fromList
+                         (Map.String.fromList
                             [("body", DNull); ("formBody", DNull)])) )
                 ; ( "fake-acdata2"
                   , ExecutedResult
                       (DObj
-                         (StrDict.fromList
+                         (Map.String.fromList
                             [("title", DNull); ("author", DNull)])) )
                 ; ( "fake-acdata3"
-                  , ExecutedResult (DObj (StrDict.fromList [("body", DInt 5)]))
-                  ) ]))
+                  , ExecutedResult
+                      (DObj (Map.String.fromList [("body", DInt 5)])) ) ]))
   ; fluidState = defaultTestState }

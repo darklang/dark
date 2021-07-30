@@ -20,7 +20,7 @@ let run () =
       test "moveInto moves element to end of the list" (fun () ->
           expect ([0; 1; 2; 3; 4] |> List.moveInto ~oldPos:3 ~newPos:5)
           |> toEqual [0; 1; 2; 4; 3]) ;
-      test "moveTo caps overflow" (fun () ->
+      test "moveInto caps overflow" (fun () ->
           expect ([0; 1; 2; 3; 4] |> List.moveInto ~oldPos:2 ~newPos:7)
           |> toEqual [0; 1; 3; 4; 2])) ;
   ()

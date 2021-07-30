@@ -1,17 +1,17 @@
 open Prelude
 
 let markRequestInModel ~(key : string) (m : model) : model =
-  let syncState = StrSet.add m.syncState ~value:key in
+  let syncState = Set.add m.syncState ~value:key in
   {m with syncState}
 
 
 let markResponseInModel ~(key : string) (m : model) : model =
-  let syncState = StrSet.remove m.syncState ~value:key in
+  let syncState = Set.remove m.syncState ~value:key in
   {m with syncState}
 
 
 let inFlight ~(key : string) (m : model) : bool =
-  StrSet.has m.syncState ~value:key
+  Set.member m.syncState ~value:key
 
 
 let attempt ?(force = false) ~(key : string) (m : model) (cmd : msg Tea.Cmd.t) :

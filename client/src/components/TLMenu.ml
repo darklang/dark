@@ -13,14 +13,14 @@ type menuItem =
 
 let isOpen (m : model) (tlid : TLID.t) : bool =
   m.tlMenus
-  |> TLIDDict.get ~tlid
+  |> Map.get ~key:tlid
   |> Option.map ~f:(fun o -> o.isOpen)
-  |> Option.withDefault ~default:false
+  |> Option.unwrap ~default:false
 
 
 let resetMenu (tlid : TLID.t) (m : model) : model =
   let tlMenus =
-    m.tlMenus |> TLIDDict.update ~tlid ~f:(fun _ -> Some Defaults.defaultMenu)
+    m.tlMenus |> Map.update ~key:tlid ~f:(fun _ -> Some Defaults.defaultMenu)
   in
   {m with tlMenus}
 
@@ -28,7 +28,7 @@ let resetMenu (tlid : TLID.t) (m : model) : model =
 let update (m : model) (tlid : TLID.t) (msg : menuMsg) : model =
   let tlMenus =
     m.tlMenus
-    |> TLIDDict.update ~tlid ~f:(fun _s ->
+    |> Map.update ~key:tlid ~f:(fun _s ->
            let newS =
              match msg with
              | OpenMenu ->

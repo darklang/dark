@@ -1,5 +1,4 @@
-open SettingsViewTypes
-open Tc
+open Prelude
 
 (* Dark *)
 module Cmd = Tea.Cmd
@@ -7,12 +6,17 @@ module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
 module Html = Tea_html_extended
+module T = SettingsViewTypes
+
+type settingsViewState = T.settingsViewState
+
+type settingsTab = T.settingsTab
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs = [UserSettings; Privacy; InviteUser defaultInviteFields]
+let allTabs = [T.UserSettings; T.Privacy; T.InviteUser T.defaultInviteFields]
 
-let validateEmail (email : formField) : formField =
+let validateEmail (email : T.formField) : T.formField =
   let error =
     let emailVal = email.value in
     if String.length emailVal = 0
@@ -24,11 +28,11 @@ let validateEmail (email : formField) : formField =
   {email with error}
 
 
-let validateForm (tab : settingsTab) : bool * settingsTab =
+let validateForm (tab : T.settingsTab) : bool * T.settingsTab =
   match tab with
   | InviteUser form ->
       let text = validateEmail form.email in
-      let email = {email = text} in
+      let email = {T.email = text} in
       let isInvalid = Option.is_some text.error in
       (isInvalid, InviteUser email)
   | _ ->
@@ -42,7 +46,7 @@ let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
   | InviteUser info ->
       let sendInviteMsg =
         { email = info.email.value
-        ; inviterUsername = m.username
+        ; T.inviterUsername = m.username
         ; inviterName = m.account.name }
       in
       ( {m with settingsView = {m.settingsView with loading = true}}
@@ -51,8 +55,8 @@ let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
       (m, Cmd.none)
 
 
-let update (settingsView : settingsViewState) (msg : settingsMsg) :
-    settingsViewState =
+let update (settingsView : T.settingsViewState) (msg : T.settingsMsg) :
+    T.settingsViewState =
   match msg with
   | SetSettingsView (canvasList, username, orgs, orgCanvasList) ->
       {settingsView with canvasList; username; orgs; orgCanvasList}
@@ -63,12 +67,12 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
   | SwitchSettingsTabs tab ->
       {settingsView with tab; loading = false}
   | UpdateInviteForm value ->
-      let form = {email = {value; error = None}} in
+      let form = {T.email = {value; error = None}} in
       {settingsView with tab = InviteUser form}
   | TriggerSendInviteCallback (Ok _) ->
-      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
+      {settingsView with tab = InviteUser T.defaultInviteFields; loading = false}
   | TriggerSendInviteCallback (Error _) ->
-      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
+      {settingsView with tab = InviteUser T.defaultInviteFields; loading = false}
   | SubmitForm ->
       settingsView
   | InitRecordConsent recordConsent ->
@@ -77,7 +81,7 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
       {settingsView with privacy = {recordConsent = Some allow}}
 
 
-let getModifications (m : Types.model) (msg : settingsMsg) :
+let getModifications (m : Types.model) (msg : T.settingsMsg) :
     Types.modification list =
   match msg with
   | TriggerSendInviteCallback (Error err) ->
@@ -136,7 +140,7 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
 
 (* View functions *)
 
-let settingsTabToText (tab : settingsTab) : string =
+let settingsTabToText (tab : T.settingsTab) : string =
   match tab with
   | NewCanvas ->
       "NewCanvas"
@@ -150,7 +154,7 @@ let settingsTabToText (tab : settingsTab) : string =
 
 (* View code *)
 
-let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
+let viewUserCanvases (acc : T.settingsViewState) : Types.msg Html.html list =
   let canvasLink c =
     let url = "/a/" ^ c in
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
@@ -176,7 +180,8 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
   orgView @ canvasView
 
 
-let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
+let viewInviteUserToDark (svs : T.settingsViewState) : Types.msg Html.html list
+    =
   let introText =
     [ Html.h2 [] [Html.text "Share Dark with a friend or colleague"]
     ; Html.p
@@ -193,7 +198,7 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   let error, inputVal =
     match svs.tab with
     | InviteUser x ->
-        (x.email.error |> Option.withDefault ~default:"", x.email.value)
+        (x.email.error |> Option.unwrap ~default:"", x.email.value)
     | _ ->
         ("", "")
   in
@@ -253,7 +258,7 @@ let viewNewCanvas (svs : settingsViewState) : Types.msg Html.html list =
   introText
 
 
-let viewPrivacy (s : privacySettings) : Types.msg Html.html list =
+let viewPrivacy (s : T.privacySettings) : Types.msg Html.html list =
   [FullstoryView.consentRow s.recordConsent ~longLabels:false]
 
 

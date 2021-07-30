@@ -28,7 +28,7 @@ let defaultPasteHandler =
 
 let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =
   let toList acis class' index =
-    List.indexedMap
+    List.mapWithIndex
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = Autocomplete.asName item in

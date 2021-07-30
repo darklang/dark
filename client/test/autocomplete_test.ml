@@ -553,16 +553,16 @@ let run () =
           in
           let searchCache =
             m.searchCache
-            |> TLIDDict.insert
-                 ~tlid:http.hTLID
+            |> Map.add
+                 ~key:http.hTLID
                  ~value:
                    (http.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
-            |> TLIDDict.insert
-                 ~tlid:repl.hTLID
+            |> Map.add
+                 ~key:repl.hTLID
                  ~value:
                    (repl.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
-            |> TLIDDict.insert
-                 ~tlid:fn.ufTLID
+            |> Map.add
+                 ~key:fn.ufTLID
                  ~value:
                    (fn.ufAST |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
           in

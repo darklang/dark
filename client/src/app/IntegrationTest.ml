@@ -43,11 +43,11 @@ let testInt ~(errMsg : string) ~(expected : int) ~(actual : int) : testResult =
       ^ ")" )
 
 
-let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
+let showToplevels tls = tls |> Map.values |> show_list ~f:show_toplevel
 
 let onlyTL (m : model) : toplevel option =
   let tls = TL.structural m in
-  match StrDict.values tls with [a] -> Some a | _ -> None
+  match Map.values tls with [a] -> Some a | _ -> None
 
 
 let onlyHandler (m : model) : handler option =
@@ -240,7 +240,7 @@ let tabbing_through_let (m : model) : testResult =
 
 let rename_db_fields (m : model) : testResult =
   m.dbs
-  |> TD.mapValues ~f:(fun {cols; _} ->
+  |> Map.mapValues ~f:(fun {cols; _} ->
          match cols with
          | [ (F (_, "field6"), F (_, "String"))
            ; (F (_, "field2"), F (_, "String"))
@@ -258,7 +258,7 @@ let rename_db_fields (m : model) : testResult =
 
 let rename_db_type (m : model) : testResult =
   m.dbs
-  |> TD.mapValues ~f:(fun {cols; dbTLID; _} ->
+  |> Map.mapValues ~f:(fun {cols; dbTLID; _} ->
          match cols with
          (* this was previously an Int *)
          | [ (F (_, "field1"), F (_, "String"))
@@ -318,7 +318,7 @@ let feature_flag_works (m : model) : testResult =
 
 
 let feature_flag_in_function (m : model) : testResult =
-  let fun_ = m.userFunctions |> TD.values |> List.head in
+  let fun_ = m.userFunctions |> Map.values |> List.head in
   match fun_ with
   | Some f ->
     ( match f.ufAST |> FluidAST.toExpr with
@@ -348,7 +348,7 @@ let feature_flag_in_function (m : model) : testResult =
 let rename_function (m : model) : testResult =
   match
     m.handlers
-    |> TD.values
+    |> Map.values
     |> List.head
     |> Option.map ~f:(fun h -> h.ast |> FluidAST.toExpr)
   with
@@ -398,9 +398,9 @@ let cant_delete_locked_col (m : model) : testResult =
   let db =
     m.dbs
     |> fun dbs ->
-    if TD.count dbs > 1
+    if Map.length dbs > 1
     then None
-    else TD.values dbs |> List.head |> Option.map ~f:(fun x -> x.cols)
+    else Map.values dbs |> List.head |> Option.map ~f:(fun x -> x.cols)
   in
   match db with
   | Some [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
@@ -492,7 +492,7 @@ let load_with_unnamed_function (_m : model) : testResult = pass
 
 let create_new_function_from_autocomplete (m : model) : testResult =
   let module TD = TLIDDict in
-  match (TD.toList m.userFunctions, TD.toList m.handlers) with
+  match (Map.toList m.userFunctions, Map.toList m.handlers) with
   | ( [ ( _
         , { ufAST
           ; ufMetadata =
@@ -515,7 +515,7 @@ let create_new_function_from_autocomplete (m : model) : testResult =
 let extract_from_function (m : model) : testResult =
   match m.cursorState with
   | FluidEntering tlid when tlid = TLID.fromString "123" ->
-      if TD.count m.userFunctions = 2 then pass else fail m.userFunctions
+      if Map.length m.userFunctions = 2 then pass else fail m.userFunctions
   | _ ->
       fail (show_cursorState m.cursorState)
 
@@ -697,9 +697,8 @@ let fluid_ctrl_left_on_string (_m : model) : testResult =
       ( "incorrect browser cursor position, expected: "
       ^ (expectedPos |> string_of_int)
       ^ ", current: "
-      ^ ( Entry.getFluidCaretPos ()
-        |> Option.withDefault ~default:0
-        |> string_of_int ) )
+      ^ (Entry.getFluidCaretPos () |> Option.unwrap ~default:0 |> string_of_int)
+      )
     ~expected:expectedPos
     ~actual:(Entry.getFluidCaretPos ())
 
@@ -711,9 +710,8 @@ let fluid_ctrl_right_on_string (_m : model) : testResult =
       ( "incorrect browser cursor position, expected: "
       ^ (expectedPos |> string_of_int)
       ^ ", current: "
-      ^ ( Entry.getFluidCaretPos ()
-        |> Option.withDefault ~default:0
-        |> string_of_int ) )
+      ^ (Entry.getFluidCaretPos () |> Option.unwrap ~default:0 |> string_of_int)
+      )
     ~expected:expectedPos
     ~actual:(Entry.getFluidCaretPos ())
 
@@ -725,9 +723,8 @@ let fluid_ctrl_left_on_empty_match (_m : model) : testResult =
       ( "incorrect browser cursor position, expected: "
       ^ (expectedPos |> string_of_int)
       ^ ", current: "
-      ^ ( Entry.getFluidCaretPos ()
-        |> Option.withDefault ~default:0
-        |> string_of_int ) )
+      ^ (Entry.getFluidCaretPos () |> Option.unwrap ~default:0 |> string_of_int)
+      )
     ~expected:expectedPos
     ~actual:(Entry.getFluidCaretPos ())
 

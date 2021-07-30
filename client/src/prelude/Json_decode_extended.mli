@@ -58,8 +58,8 @@ val index : int -> 'a decoder -> 'a decoder
 
 val tryDecode2 : 'a decoder -> 'a decoder -> 'a decoder
 
-val strDict : 'a decoder -> 'a Tc.StrDict.t decoder
+val strDict : 'a decoder -> 'a Tc.Map.String.t decoder
 
-val strSet : Tc.StrSet.t decoder
+val strSet : Tc.Set.String.t decoder
 
-val decodeString : 'a decoder -> string -> (string, 'a) Tc.Result.t
+val decodeString : 'a decoder -> string -> ('a, string) Tc.Result.t

@@ -69,7 +69,7 @@ module Builder = struct
           | TNewline _ ->
               None
           | _ ->
-              let old = Option.withDefault b.xPos ~default:b.indent in
+              let old = Option.unwrap b.xPos ~default:b.indent in
               Some (old + tokenLength)
         in
         (token :: b.tokens, newXPos)
@@ -84,12 +84,12 @@ module Builder = struct
   (* Take a list of 'a, and iterate through them, adding them to `b` by
    * calling `f` on them *)
   let addIter (xs : 'a list) ~(f : int -> 'a -> t -> t) (b : t) : t =
-    List.foldl xs ~init:(b, 0) ~f:(fun x (b, i) -> (f i x b, i + 1))
+    List.fold xs ~initial:(b, 0) ~f:(fun (b, i) x -> (f i x b, i + 1))
     |> Tuple2.first
 
 
   let addMany (tokens : fluidToken list) (b : t) : t =
-    List.foldl tokens ~init:b ~f:add
+    List.fold tokens ~initial:b ~f:(fun acc t -> add t acc)
 
 
   (** [indentBy ~ident ~f b] calls [f] with a modified [b] having additional
@@ -105,7 +105,7 @@ module Builder = struct
 
   let addNested ~(f : t -> t) (b : t) : t =
     let oldIndent = b.indent in
-    let newIndent = Option.withDefault ~default:b.indent b.xPos in
+    let newIndent = Option.unwrap ~default:b.indent b.xPos in
     {b with indent = newIndent} |> f |> fun b -> {b with indent = oldIndent}
 
 
@@ -127,7 +127,7 @@ let rec patternToToken (p : FluidPattern.t) ~(idx : int) : fluidToken list =
       let args =
         List.map args ~f:(fun a -> TSep (id, None) :: patternToToken a ~idx)
       in
-      List.concat ([TPatternConstructorName (mid, id, name, idx)] :: args)
+      List.flatten ([TPatternConstructorName (mid, id, name, idx)] :: args)
   | FPInteger (mid, id, i) ->
       [TPatternInteger (mid, id, i, idx)]
   | FPBool (mid, id, b) ->
@@ -200,24 +200,24 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
         args
         |> List.map ~f:(fun a -> toTokens' a Builder.empty)
         |> List.map ~f:Builder.asTokens
-        |> List.concat
+        |> List.flatten
       in
       let length =
         tokens
         |> List.map ~f:(T.toText >> String.length)
-        |> List.sum
+        |. List.sum (module Int)
         |> ( + ) (* separators, including at the front *) (List.length args)
-        |> ( + ) (Option.withDefault ~default:0 b.xPos)
+        |> ( + ) (Option.unwrap ~default:0 b.xPos)
       in
       let tooLong = length > lineLimit in
       let needsNewlineBreak =
         (* newlines aren't disruptive in the last argument *)
         args
-        |> List.init
-        |> Option.withDefault ~default:[]
+        |> List.initial
+        |> Option.unwrap ~default:[]
         |> List.map ~f:(fun a -> toTokens' a Builder.empty)
         |> List.map ~f:Builder.asTokens
-        |> List.concat
+        |> List.flatten
         |> List.any ~f:(function TNewline _ -> true | _ -> false)
       in
       tooLong || needsNewlineBreak
@@ -391,7 +391,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
          With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
       *)
       let lastIndex = List.length exprs - 1 in
-      let xOffset = b.xPos |> Option.withDefault ~default:0 in
+      let xOffset = b.xPos |> Option.unwrap ~default:0 in
       let pid = if lastIndex = -1 then None else Some id in
       b
       |> add (TListOpen (id, pid))
@@ -400,7 +400,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
                let commaWidth = if i <> lastIndex then 1 else 0 in
                (toTokens' e b').xPos
                |> Option.map ~f:(fun x -> x - xOffset + commaWidth)
-               |> Option.withDefault ~default:commaWidth
+               |> Option.unwrap ~default:commaWidth
              in
              (* Even if first element overflows, don't put it in a new line *)
              let isOverLimit = i > 0 && currentLineLength > listLimit in
@@ -522,7 +522,7 @@ let infoize tokens : tokenInfo list =
 
 
 let validateTokens (tokens : fluidToken list) : fluidToken list =
-  List.iter tokens ~f:(fun t ->
+  List.forEach tokens ~f:(fun t ->
       asserT "invalid token" (String.length (T.toText t) > 0) ~debug:t ;
       ()) ;
   tokens
@@ -724,7 +724,7 @@ module ASTInfo = struct
     | MainEditor _ ->
         astInfo.mainTokenInfos
     | FeatureFlagEditor (_, ffid) ->
-        ffTokenInfosFor ffid astInfo |> Option.withDefault ~default:[]
+        ffTokenInfosFor ffid astInfo |> Option.unwrap ~default:[]
 
 
   let modifyState ~(f : fluidState -> fluidState) (astInfo : t) : t =

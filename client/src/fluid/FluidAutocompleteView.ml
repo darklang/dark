@@ -31,7 +31,7 @@ let viewAutocompleteItemTypes ({item; validity} : fluidAutocompleteData) :
             :: List.map ~f:Html.text rest
           in
           args
-          |> List.intersperse (Html.text ", ")
+          |> List.intersperse ~sep:(Html.text ", ")
           |> fun args -> [Html.text "("] @ args @ [Html.text ") -> "]
     in
     argsHtml @ returnTypeHtml
@@ -40,9 +40,9 @@ let viewAutocompleteItemTypes ({item; validity} : fluidAutocompleteData) :
 
 
 let view (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
-  let index = ac.index |> Option.withDefault ~default:(-1) in
+  let index = ac.index |> Option.unwrap ~default:(-1) in
   let autocompleteList =
-    List.indexedMap ac.completions ~f:(fun i {item; validity} ->
+    List.mapWithIndex ac.completions ~f:(fun i {item; validity} ->
         let class' = if validity = FACItemValid then "valid" else "invalid" in
         let highlighted = index = i in
         let name = FluidAutocomplete.asName item in

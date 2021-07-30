@@ -61,7 +61,7 @@ let rec count (s : item) : int =
   | Entry _ ->
       1
   | Category c ->
-      c.entries |> List.map ~f:count |> List.sum
+      c.entries |> List.map ~f:count |. List.sum (module Int)
 
 
 let iconButton
@@ -75,7 +75,9 @@ let categoryIcon_ (name : string) : msg Html.html list =
   let darkIcon = ViewUtils.darkIcon in
   (* Deleted categories have a deleted- prefix, with which are not valid fontaweome icons *)
   match
-    name |> String.toLower |> Regex.replace ~re:(Regex.regex delPrefix) ~repl:""
+    name
+    |> String.toLowercase
+    |> Regex.replace ~re:(Regex.regex delPrefix) ~repl:""
   with
   | "http" ->
       [darkIcon "http"]
@@ -101,9 +103,9 @@ let categoryIcon_ (name : string) : msg Html.html list =
       [darkIcon "fof"]
   | "secrets" ->
       [fontAwesome "user-secret"]
-  | _ when String.contains ~substring:"pm-author" name ->
+  | _ when String.includes ~substring:"pm-author" name ->
       [fontAwesome "user"]
-  | _ when String.contains ~substring:"pm-package" name ->
+  | _ when String.includes ~substring:"pm-package" name ->
       [fontAwesome "cubes"]
   | _ ->
       [darkIcon "undefined"]
@@ -136,7 +138,7 @@ let handlerCategory
   { count = List.length handlers
   ; name
   ; plusButton = Some (CreateRouteHandler action)
-  ; classname = String.toLower name
+  ; classname = String.toLowercase name
   ; iconAction
   ; tooltip = setTooltips tooltip handlers
   ; entries =
@@ -146,7 +148,7 @@ let handlerCategory
             { name =
                 h.spec.name
                 |> B.toOption
-                |> Option.withDefault ~default:missingEventRouteDesc
+                |> Option.unwrap ~default:missingEventRouteDesc
             ; uses = None
             ; identifier = Tlid tlid
             ; onClick = Destination (FocusedHandler (tlid, None, true))
@@ -237,7 +239,7 @@ let f404Category (m : model) : category =
     (* Generate set of deleted handler specs, stringified *)
     let deletedHandlerSpecs =
       m.deletedHandlers
-      |> TLIDDict.values
+      |> Map.values
       |> List.map ~f:(fun h ->
              let space = B.valueWithDefault "" h.spec.space in
              let name = B.valueWithDefault "" h.spec.name in
@@ -245,14 +247,14 @@ let f404Category (m : model) : category =
              (* Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
               * h.spec.name and f404.path are the same thing, with different names. Yes this is confusing.*)
              space ^ name ^ modifier)
-      |> StrSet.fromList
+      |> Set.String.fromList
     in
     m.f404s
     |> List.uniqueBy ~f:(fun f -> f.space ^ f.path ^ f.modifier)
     (* Don't show 404s for deleted handlers *)
     |> List.filter ~f:(fun f ->
            not
-             (StrSet.has
+             (Set.member
                 ~value:(f.space ^ f.path ^ f.modifier)
                 deletedHandlerSpecs))
   in
@@ -333,16 +335,16 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
 
 let standardCategories m hs dbs ufns tipes =
   let hs =
-    hs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
+    hs |> Map.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
   in
   let dbs =
-    dbs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLDB tl))
+    dbs |> Map.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLDB tl))
   in
   let ufns =
-    ufns |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLFunc tl))
+    ufns |> Map.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLFunc tl))
   in
   let tipes =
-    tipes |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
+    tipes |> Map.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
   in
   (* We want to hide user defined types for users who arent already using them
     since there is currently no way to use them other than as a function param.
@@ -404,7 +406,7 @@ let packageManagerCategory (pmfns : packageFns) : category =
   in
   let uniqueauthors =
     pmfns
-    |> TD.values
+    |> Map.values
     |> List.sortBy ~f:(fun f -> f.user)
     |> List.uniqueBy ~f:(fun fn -> fn.user)
   in
@@ -412,7 +414,7 @@ let packageManagerCategory (pmfns : packageFns) : category =
     uniqueauthors
     |> List.map ~f:(fun fn ->
            let authorList =
-             pmfns |> TD.values |> List.filter ~f:(fun f -> fn.user = f.user)
+             pmfns |> Map.values |> List.filter ~f:(fun f -> fn.user = f.user)
            in
            Category
              { count = List.length uniqueauthors
@@ -462,12 +464,13 @@ let deletedCategory (m : model) : category =
                          ; onClick =
                              actionOpt
                              |> Option.map ~f:(fun msg -> SendMsg msg)
-                             |> Option.withDefault ~default:DoNothing }
+                             |> Option.unwrap ~default:DoNothing }
                    | c ->
                        c) })
   in
   let showTooltip = List.filter ~f:(fun c -> c.entries <> []) cats in
-  { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
+  { count =
+      cats |> List.map ~f:(fun c -> count (Category c)) |. List.sum (module Int)
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
@@ -600,9 +603,9 @@ let categoryName (name : string) : msg Html.html =
 let categoryOpenCloseHelpers
     (s : sidebarState) (classname : string) (count : int) :
     msg Vdom.property * msg Vdom.property =
-  let isOpen = StrSet.has s.openedCategories ~value:classname in
+  let isOpen = Set.member s.openedCategories ~value:classname in
   let isDetailed = s.mode = DetailedMode in
-  let isSubCat = String.contains ~substring:delPrefix classname in
+  let isSubCat = String.includes ~substring:delPrefix classname in
   let openEventHandler =
     if isDetailed || isSubCat
     then
@@ -806,7 +809,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     then Vdom.attribute "" "open" ""
     else openAttr
   in
-  let isSubCat = String.contains ~substring:delPrefix c.classname in
+  let isSubCat = String.includes ~substring:delPrefix c.classname in
   let title = categoryName c.name in
   let summary =
     let plusButton =
@@ -1044,8 +1047,8 @@ let update (msg : sidebarMsg) : modification =
         (fun m ->
           let openedCategories =
             if shouldOpen
-            then StrSet.add ~value:key m.sidebarState.openedCategories
-            else StrSet.remove ~value:key m.sidebarState.openedCategories
+            then Set.add ~value:key m.sidebarState.openedCategories
+            else Set.remove ~value:key m.sidebarState.openedCategories
           in
           ( {m with sidebarState = {m.sidebarState with openedCategories}}
           , Cmd.none ))
@@ -1092,24 +1095,24 @@ let viewSidebar_ (m : model) : msg Html.html =
 
 let rtCacheKey m =
   ( m.handlers
-    |> TD.mapValues ~f:(fun (h : handler) -> (h.pos, TL.sortkey (TLHandler h)))
-  , m.dbs |> TD.mapValues ~f:(fun (db : db) -> (db.pos, TL.sortkey (TLDB db)))
-  , m.userFunctions |> TD.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
-  , m.userTipes |> TD.mapValues ~f:(fun t -> t.utName)
+    |> Map.mapValues ~f:(fun (h : handler) -> (h.pos, TL.sortkey (TLHandler h)))
+  , m.dbs |> Map.mapValues ~f:(fun (db : db) -> (db.pos, TL.sortkey (TLDB db)))
+  , m.userFunctions |> Map.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
+  , m.userTipes |> Map.mapValues ~f:(fun t -> t.utName)
   , m.f404s
   , m.sidebarState
   , m.deletedHandlers
-    |> TD.mapValues ~f:(fun (h : handler) -> TL.sortkey (TLHandler h))
+    |> Map.mapValues ~f:(fun (h : handler) -> TL.sortkey (TLHandler h))
   , m.deletedDBs
-    |> TD.mapValues ~f:(fun (db : db) -> (db.pos, TL.sortkey (TLDB db)))
-  , m.deletedUserFunctions |> TD.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
-  , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
+    |> Map.mapValues ~f:(fun (db : db) -> (db.pos, TL.sortkey (TLDB db)))
+  , m.deletedUserFunctions |> Map.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
+  , m.deletedUserTipes |> Map.mapValues ~f:(fun t -> t.utName)
   , m.staticDeploys
   , m.unlockedDBs
   , m.usedDBs
   , m.usedFns
-  , m.userTipes |> TD.mapValues ~f:(fun t -> t.utName)
-  , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
+  , m.userTipes |> Map.mapValues ~f:(fun t -> t.utName)
+  , m.deletedUserTipes |> Map.mapValues ~f:(fun t -> t.utName)
   , CursorState.tlidOf m.cursorState
   , m.environment
   , m.editorSettings
@@ -1117,7 +1120,7 @@ let rtCacheKey m =
   , m.currentPage
   , m.tooltipState.tooltipSource
   , m.secrets
-  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user) )
+  , m.functions.packageFunctions |> Map.mapValues ~f:(fun t -> t.user) )
   |> Option.some
 
 

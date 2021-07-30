@@ -11,32 +11,32 @@ module TD = TLIDDict
 let name (tl : toplevel) : string =
   match tl with
   | TLHandler h ->
-      "H: " ^ (h.spec.name |> B.toOption |> Option.withDefault ~default:"")
+      "H: " ^ (h.spec.name |> B.toOption |> Option.unwrap ~default:"")
   | TLDB db ->
-      "DB: " ^ (db.dbName |> B.toOption |> Option.withDefault ~default:"")
+      "DB: " ^ (db.dbName |> B.toOption |> Option.unwrap ~default:"")
   | TLPmFunc f ->
       "Package Manager Func: " ^ f.fnname
   | TLFunc f ->
       "Func: "
-      ^ (f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:"")
+      ^ (f.ufMetadata.ufmName |> B.toOption |> Option.unwrap ~default:"")
   | TLTipe t ->
-      "Type: " ^ (t.utName |> B.toOption |> Option.withDefault ~default:"")
+      "Type: " ^ (t.utName |> B.toOption |> Option.unwrap ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
   match tl with
   | TLHandler h ->
-      (h.spec.space |> B.toOption |> Option.withDefault ~default:"Undefined")
-      ^ (h.spec.name |> B.toOption |> Option.withDefault ~default:"Undefined")
-      ^ (h.spec.modifier |> B.toOption |> Option.withDefault ~default:"")
+      (h.spec.space |> B.toOption |> Option.unwrap ~default:"Undefined")
+      ^ (h.spec.name |> B.toOption |> Option.unwrap ~default:"Undefined")
+      ^ (h.spec.modifier |> B.toOption |> Option.unwrap ~default:"")
   | TLDB db ->
-      db.dbName |> B.toOption |> Option.withDefault ~default:"Undefined"
+      db.dbName |> B.toOption |> Option.unwrap ~default:"Undefined"
   | TLPmFunc f ->
       f.fnname
   | TLFunc f ->
-      f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:""
+      f.ufMetadata.ufmName |> B.toOption |> Option.unwrap ~default:""
   | TLTipe t ->
-      t.utName |> B.toOption |> Option.withDefault ~default:""
+      t.utName |> B.toOption |> Option.unwrap ~default:""
 
 
 let id tl =
@@ -91,10 +91,10 @@ let move (tlid : TLID.t) (xOffset : int) (yOffset : int) (m : model) : model =
   let newPos p = {x = p.x + xOffset; y = p.y + yOffset} in
   { m with
     handlers =
-      TD.updateIfPresent m.handlers ~tlid ~f:(fun (h : handler) ->
+      Map.updateIfPresent m.handlers ~key:tlid ~f:(fun (h : handler) ->
           {h with pos = newPos h.pos})
   ; dbs =
-      TD.updateIfPresent m.dbs ~tlid ~f:(fun (db : db) ->
+      Map.updateIfPresent m.dbs ~key:tlid ~f:(fun (db : db) ->
           {db with pos = newPos db.pos}) }
 
 
@@ -138,7 +138,7 @@ let handlers (tls : toplevel list) : handler list =
   List.filterMap ~f:asHandler tls
 
 
-let dbs (tls : toplevel TD.t) : db list = tls |> TD.filterMapValues ~f:asDB
+let dbs (tls : toplevel TD.t) : db list = tls |> Map.filterMapValues ~f:asDB
 
 let spaceOfHandler (h : handler) : handlerSpace = SpecHeaders.spaceOf h.spec
 
@@ -223,9 +223,10 @@ let setAST (tl : toplevel) (newAST : FluidAST.t) : toplevel =
 
 let withAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
   { m with
-    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
+    handlers =
+      Map.updateIfPresent m.handlers ~key:tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
-      TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
+      Map.updateIfPresent m.userFunctions ~key:tlid ~f:(fun uf ->
           {uf with ufAST = ast}) }
 
 
@@ -257,7 +258,7 @@ let modifyASTMod (tl : toplevel) ~(f : FluidAST.t -> FluidAST.t) : modification
     =
   getAST tl
   |> Option.map ~f:(f >> setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  |> Option.unwrap ~default:NoChange
 
 
 let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
@@ -296,11 +297,11 @@ let combine
     (userFunctions : userFunction TD.t)
     (packageFn : packageFn TD.t)
     (userTipes : userTipe TD.t) : toplevel TD.t =
-  TD.map ~f:(fun h -> TLHandler h) handlers
-  |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) dbs)
-  |> TD.mergeLeft (TD.map ~f:ufToTL userFunctions)
-  |> TD.mergeLeft (TD.map ~f:pmfToTL packageFn)
-  |> TD.mergeLeft (TD.map ~f:utToTL userTipes)
+  Map.map ~f:(fun h -> TLHandler h) handlers
+  |> Map.mergeLeft (Map.map ~f:(fun db -> TLDB db) dbs)
+  |> Map.mergeLeft (Map.map ~f:ufToTL userFunctions)
+  |> Map.mergeLeft (Map.map ~f:pmfToTL packageFn)
+  |> Map.mergeLeft (Map.map ~f:utToTL userTipes)
 
 
 let all (m : model) : toplevel TD.t =
@@ -313,11 +314,13 @@ let all (m : model) : toplevel TD.t =
 
 
 let structural (m : model) : toplevel TD.t =
-  TD.map ~f:(fun h -> TLHandler h) m.handlers
-  |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) m.dbs)
+  Map.map ~f:(fun h -> TLHandler h) m.handlers
+  |> Map.mergeLeft (Map.map ~f:(fun db -> TLDB db) m.dbs)
 
 
-let get (m : model) (tlid : TLID.t) : toplevel option = TD.get ~tlid (all m)
+let get (m : model) (tlid : TLID.t) : toplevel option =
+  Map.get ~key:tlid (all m)
+
 
 let find (tl : toplevel) (id_ : ID.t) : blankOrData option =
   blankOrData tl
@@ -341,7 +344,7 @@ let getTLAndPD (m : model) (tlid : TLID.t) (id : ID.t) :
 
 let allDBNames (dbs : db TD.t) : string list =
   dbs
-  |> TD.filterMapValues ~f:(fun db ->
+  |> Map.filterMapValues ~f:(fun db ->
          match db.dbName with F (_, name) -> Some name | Blank _ -> None)
 
 
@@ -384,16 +387,13 @@ let allBlanks (tl : toplevel) : ID.t list =
   @ ( tl
     |> getAST
     |> Option.map ~f:FluidAST.blanks
-    |> Option.withDefault ~default:[]
+    |> Option.unwrap ~default:[]
     |> List.map ~f:FluidExpression.toID )
 
 
 let allIDs (tl : toplevel) : ID.t list =
   (tl |> blankOrData |> List.map ~f:P.toID)
-  @ ( tl
-    |> getAST
-    |> Option.map ~f:FluidAST.ids
-    |> Option.withDefault ~default:[] )
+  @ (tl |> getAST |> Option.map ~f:FluidAST.ids |> Option.unwrap ~default:[])
 
 
 let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
@@ -402,25 +402,22 @@ let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
 
 let getNextBlank (tl : toplevel) (id : ID.t) : successor =
   let all = allIDs tl in
-  let index =
-    List.elemIndex ~value:id all |> Option.withDefault ~default:(-1)
-  in
-  let blanks = allBlanks tl |> List.map ~f:ID.toString |> StrSet.fromList in
+  let index = List.elemIndex ~value:id all |> Option.unwrap ~default:(-1) in
+  let blanks = allBlanks tl |> List.map ~f:ID.toString |> Set.String.fromList in
   all
   |> List.drop ~count:(index + 1)
-  |> List.find ~f:(fun id -> StrSet.has blanks ~value:(ID.toString id))
+  |> List.find ~f:(fun id -> Set.member blanks ~value:(ID.toString id))
   |> Option.orElse (firstBlank tl)
 
 
 let getPrevBlank (tl : toplevel) (id : ID.t) : predecessor =
   let all = allIDs tl in
   let index =
-    List.elemIndex ~value:id all
-    |> Option.withDefault ~default:(List.length all)
+    List.elemIndex ~value:id all |> Option.unwrap ~default:(List.length all)
   in
-  let blanks = allBlanks tl |> List.map ~f:ID.toString |> StrSet.fromList in
+  let blanks = allBlanks tl |> List.map ~f:ID.toString |> Set.String.fromList in
   all
   |> List.take ~count:index
   |> List.reverse
-  |> List.find ~f:(fun id -> StrSet.has blanks ~value:(ID.toString id))
+  |> List.find ~f:(fun id -> Set.member blanks ~value:(ID.toString id))
   |> Option.orElse (lastBlank tl)

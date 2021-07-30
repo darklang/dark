@@ -64,7 +64,7 @@ let processMsg (inputs : fluidInputEvent list) (s : fluidState) (ast : E.t) :
     E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) ->
+  List.fold inputs ~initial:(h.ast, s, []) ~f:(fun (ast, s, _) input ->
       updateMsg m h.hTLID ast s (FluidInputEvent input))
   |> fun (ast, s, _) -> (FluidAST.toExpr ast, s)
 

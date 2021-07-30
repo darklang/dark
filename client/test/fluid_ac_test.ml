@@ -95,11 +95,11 @@ let defaultFullQuery ?(tl = defaultToplevel) (ac : AC.t) (queryString : string)
         |> FluidAST.toExpr
         |> Printer.tokenize
         |> List.head
-        |> Option.withDefault ~default:defaultTokenInfo
+        |> Option.unwrap ~default:defaultTokenInfo
     | _ ->
         defaultTokenInfo
   in
-  let _, ti = ac.query |> Option.withDefault ~default:(TL.id tl, ti) in
+  let _, ti = ac.query |> Option.unwrap ~default:(TL.id tl, ti) in
   {tl; ti; fieldList = []; pipedDval = None; queryString}
 
 
@@ -147,7 +147,7 @@ let defaultModel
   let analyses =
     analyses
     |> List.map ~f:(fun (id, value) -> (ID.toString id, ExecutedResult value))
-    |> StrDict.fromList
+    |> Map.String.fromList
   in
   let default = Fluid_test_data.defaultTestModel in
   { default with
@@ -160,7 +160,8 @@ let defaultModel
       {Functions.empty with builtinFunctions = sampleFunctions}
       |> Functions.update defaultFunctionsProps
   ; analyses =
-      StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
+      Map.String.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses)
+  }
 
 
 (* AC targeting a tlid and pointer *)
@@ -174,7 +175,7 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.t =
              ast
              {m.fluidState with newPos = pos}
            |> Fluid.ASTInfo.getToken)
-    |> Option.withDefault ~default:defaultTokenInfo
+    |> Option.unwrap ~default:defaultTokenInfo
   in
   AC.regenerate m AC.init (tlid, ti)
 
@@ -210,7 +211,7 @@ let run () =
       describe "queryWhenEntering" (fun () ->
           let m = defaultModel () in
           let acForQueries (qs : string list) =
-            List.foldl qs ~init:(acFor m) ~f:setQuery
+            List.fold qs ~initial:(acFor m) ~f:(fun acc q -> setQuery q acc)
             |> filterValid
             |> List.map ~f:AC.asName
           in

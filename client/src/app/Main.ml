@@ -17,7 +17,7 @@ module TD = TLIDDict
 let incOpCtr (m : model) : model =
   { m with
     opCtrs =
-      StrDict.update m.opCtrs ~key:m.clientOpCtrId ~f:(function
+      Map.update m.opCtrs ~key:m.clientOpCtrId ~f:(function
           | Some v ->
               Some (v + 1)
           | None ->
@@ -25,11 +25,7 @@ let incOpCtr (m : model) : model =
 
 
 let opCtr (m : model) : int =
-  match StrDict.get ~key:m.clientOpCtrId m.opCtrs with
-  | Some ctr ->
-      ctr
-  | None ->
-      0
+  match Map.get ~key:m.clientOpCtrId m.opCtrs with Some ctr -> ctr | None -> 0
 
 
 let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
@@ -80,7 +76,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   in
   let page =
     Url.parseLocation location
-    |> Option.withDefault ~default:Defaults.defaultModel.currentPage
+    |> Option.unwrap ~default:Defaults.defaultModel.currentPage
   in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
@@ -141,7 +137,7 @@ let processFocus (m : model) (focus : focus) : modification =
         let next =
           pred
           |> Option.map ~f:(TL.getNextBlank tl)
-          |> Option.withDefault ~default:(TL.firstBlank tl)
+          |> Option.unwrap ~default:(TL.firstBlank tl)
         in
         ( match next with
         | Some id ->
@@ -223,9 +219,9 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   then
     Debug.loG "autocompletemod update" (show_list ~f:show_autocompleteMod mods) ;
   let complete =
-    List.foldl
-      ~f:(fun mod_ complete_ -> AC.update m mod_ complete_)
-      ~init:m.complete
+    List.fold
+      ~f:(fun complete_ mod_ -> AC.update m mod_ complete_)
+      ~initial:m.complete
       mods
   in
   let focus =
@@ -304,8 +300,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       then (m, API.addOp m focus params)
       else
         let localM =
-          List.foldl
-            ~f:(fun call m ->
+          List.fold
+            ~f:(fun m call ->
               match call with
               | SetHandler (_tlid, _pos, h) ->
                   Handlers.upsert m h
@@ -315,7 +311,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   UserTypes.upsert m t
               | _ ->
                   m)
-            ~init:m
+            ~initial:m
             params.ops
         in
         let withFocus, wfCmd =
@@ -334,7 +330,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let buildHashMismatch =
             APIError.serverVersionOf apiError
             |> Option.map ~f:(fun hash -> hash <> m.buildHash)
-            |> Option.withDefault ~default:false
+            |> Option.unwrap ~default:false
           in
           let reloadAllowed =
             match m.lastReload with
@@ -354,7 +350,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               * out, so just ignore for now *)
           Js.log "Already at latest redo - ignoring server error" ;
           let redoError =
-            String.contains
+            String.includes
               (APIError.msg apiError)
               ~substring:"(client): Already at latest redo"
           in
@@ -488,7 +484,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           { m with
             cursorState
           ; fluidState =
-              maybeNewFluidState |> Option.withDefault ~default:m.fluidState }
+              maybeNewFluidState |> Option.unwrap ~default:m.fluidState }
         in
         let m, acCmd =
           (* Note that we want to ensure that when we click out of an entry box that the AC is
@@ -575,8 +571,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let hTLIDs = List.map ~f:(fun h -> h.hTLID) handlers in
           let dbTLIDs = List.map ~f:(fun db -> db.dbTLID) dbs in
           { m with
-            deletedHandlers = TD.removeMany m.deletedHandlers ~tlids:hTLIDs
-          ; deletedDBs = TD.removeMany m.deletedDBs ~tlids:dbTLIDs }
+            deletedHandlers = Map.removeMany m.deletedHandlers ~keys:hTLIDs
+          ; deletedDBs = Map.removeMany m.deletedDBs ~keys:dbTLIDs }
         in
         let m = Refactor.updateUsageCounts m in
         processAutocompleteMods m [ACRegenerate]
@@ -584,23 +580,23 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let oldM = m in
         let m =
           { m with
-            handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
-          ; dbs = TD.mergeRight m.dbs (DB.fromList dbs) }
+            handlers = Map.mergeRight m.handlers (Handlers.fromList handlers)
+          ; dbs = Map.mergeRight m.dbs (DB.fromList dbs) }
         in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
         let m = if updateCurrent then m else bringBackCurrentTL oldM m in
         updateMod
-          (SetToplevels (TD.values m.handlers, TD.values m.dbs, updateCurrent))
+          (SetToplevels (Map.values m.handlers, Map.values m.dbs, updateCurrent))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
-          TD.mergeRight m.deletedHandlers (Handlers.fromList dhandlers)
+          Map.mergeRight m.deletedHandlers (Handlers.fromList dhandlers)
         in
-        let ddbs = TD.mergeRight m.deletedDBs (DB.fromList ddbs) in
+        let ddbs = Map.mergeRight m.deletedDBs (DB.fromList ddbs) in
         updateMod
-          (SetDeletedToplevels (TD.values dhandlers, TD.values ddbs))
+          (SetDeletedToplevels (Map.values dhandlers, Map.values ddbs))
           (m, cmd)
     | SetDeletedToplevels (dhandlers, ddbs) ->
         let hTLIDs = List.map ~f:(fun h -> h.hTLID) dhandlers in
@@ -609,8 +605,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           { m with
             deletedHandlers = Handlers.fromList dhandlers
           ; deletedDBs = DB.fromList ddbs
-          ; handlers = TD.removeMany m.handlers ~tlids:hTLIDs
-          ; dbs = TD.removeMany m.dbs ~tlids:dbTLIDs }
+          ; handlers = Map.removeMany m.handlers ~keys:hTLIDs
+          ; dbs = Map.removeMany m.dbs ~keys:dbTLIDs }
         in
         processAutocompleteMods m [ACRegenerate]
     | UpdateAnalysis (traceID, dvals) ->
@@ -680,15 +676,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let m =
             { m with
               userFunctions =
-                TD.mergeRight m.userFunctions (UserFunctions.fromList userFuncs)
-                |> TD.removeMany
-                     ~tlids:(List.map ~f:UserFunctions.toID deletedUserFuncs)
+                Map.mergeRight
+                  m.userFunctions
+                  (UserFunctions.fromList userFuncs)
+                |> Map.removeMany
+                     ~keys:(List.map ~f:UserFunctions.toID deletedUserFuncs)
             ; deletedUserFunctions =
-                TD.mergeRight
+                Map.mergeRight
                   m.deletedUserFunctions
                   (UserFunctions.fromList deletedUserFuncs)
-                |> TD.removeMany
-                     ~tlids:(List.map ~f:UserFunctions.toID userFuncs) }
+                |> Map.removeMany
+                     ~keys:(List.map ~f:UserFunctions.toID userFuncs) }
           in
           (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -701,14 +699,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m2 =
           { m with
             userTipes =
-              TD.mergeRight m.userTipes (UserTypes.fromList userTipes)
-              |> TD.removeMany
-                   ~tlids:(List.map ~f:UserTypes.toID deletedUserTipes)
+              Map.mergeRight m.userTipes (UserTypes.fromList userTipes)
+              |> Map.removeMany
+                   ~keys:(List.map ~f:UserTypes.toID deletedUserTipes)
           ; deletedUserTipes =
-              TD.mergeRight
+              Map.mergeRight
                 m.deletedUserTipes
                 (UserTypes.fromList deletedUserTipes)
-              |> TD.removeMany ~tlids:(List.map ~f:UserTypes.toID userTipes) }
+              |> Map.removeMany ~keys:(List.map ~f:UserTypes.toID userTipes) }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -721,7 +719,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 TL.get m tlid
                 |> Option.andThen ~f:TL.asUserTipe
                 |> Option.map ~f:(UserTypes.upsert m2)
-                |> Option.withDefault ~default:m2
+                |> Option.unwrap ~default:m2
           | None ->
               m2
         in
@@ -741,7 +739,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * operation regardless -- so as long as that interim period doesn't result
          * in the potential for dangerous operations, you should be fine.
          *)
-        ({m with unlockedDBs = StrSet.union m.unlockedDBs newDBs}, Cmd.none)
+        ({m with unlockedDBs = Set.union m.unlockedDBs newDBs}, Cmd.none)
     | Delete404 f404 ->
         ( { m with
             f404s =
@@ -898,25 +896,25 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.none)
     | UpdateASTCache (tlid, str) ->
         let searchCache =
-          m.searchCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
+          m.searchCache |> Map.update ~key:tlid ~f:(fun _ -> Some str)
         in
         ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
         let hcache =
           handlers
-          |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
+          |> List.fold ~initial:m.searchCache ~f:(fun cache h ->
                  let value =
                    FluidPrinter.eToHumanString (FluidAST.toExpr h.ast)
                  in
-                 cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
+                 cache |> Map.add ~key:h.hTLID ~value)
         in
         let searchCache =
           userFunctions
-          |> List.foldl ~init:hcache ~f:(fun f cache ->
+          |> List.fold ~initial:hcache ~f:(fun cache f ->
                  let value =
                    FluidPrinter.eToHumanString (FluidAST.toExpr f.ufAST)
                  in
-                 cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
+                 cache |> Map.add ~key:f.ufTLID ~value)
         in
         ({m with searchCache}, Cmd.none)
     | FluidSetState fluidState ->
@@ -928,7 +926,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with settingsView}, cmd)
     (* applied from left to right *)
     | Many mods ->
-        List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
+        List.fold
+          ~f:(fun model mod' -> updateMod mod' model)
+          ~initial:(m, Cmd.none)
+          mods
   in
   let cmds = Cmd.batch [cmd; newcmd] in
   let newm, modi =
@@ -1120,7 +1121,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (TD.values m2.handlers, TD.values m2.dbs, true)
+          [ SetToplevels (Map.values m2.handlers, Map.values m2.dbs, true)
           ; DragTL
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1310,15 +1311,15 @@ let update_ (msg : msg) (m : model) : modification =
                [ RemoveToplevel tl
                ; AddOps ([DeleteTL (TL.id tl)], FocusNothing)
                ; resetMenu ])
-      |> Option.withDefault ~default:NoChange
+      |> Option.unwrap ~default:NoChange
   | ToplevelDeleteForever tlid ->
       Many
         [ AddOps ([DeleteTLForever tlid], FocusSame)
         ; ReplaceAllModificationsWithThisOne
             (fun m ->
               ( { m with
-                  deletedHandlers = TD.remove ~tlid m.deletedHandlers
-                ; deletedDBs = TD.remove ~tlid m.deletedDBs }
+                  deletedHandlers = Map.remove ~key:tlid m.deletedHandlers
+                ; deletedDBs = Map.remove ~key:tlid m.deletedDBs }
               , Cmd.none )) ]
   | DeleteUserFunction tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
@@ -1332,8 +1333,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; ReplaceAllModificationsWithThisOne
             (fun m ->
               ( { m with
-                  deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions
-                }
+                  deletedUserFunctions =
+                    Map.remove ~key:tlid m.deletedUserFunctions }
               , Cmd.none )) ]
   | DeleteUserType tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
@@ -1350,7 +1351,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ AddOps ([DeleteTypeForever tlid], FocusSame)
         ; ReplaceAllModificationsWithThisOne
             (fun m ->
-              ( {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}
+              ( { m with
+                  deletedUserTipes = Map.remove ~key:tlid m.deletedUserTipes }
               , Cmd.none )) ]
   | AddOpsAPICallback (focus, params, Ok (r : addOpAPIResponse)) ->
       let m, newOps, _ = API.filterOpsAndResult m params None in
@@ -1365,19 +1367,16 @@ let update_ (msg : msg) (m : model) : modification =
           let m =
             { m with
               opCtrs =
-                StrDict.insert
-                  m.opCtrs
-                  ~key:params.clientOpCtrId
-                  ~value:params.opCtr
+                Map.add m.opCtrs ~key:params.clientOpCtrId ~value:params.opCtr
             ; handlers =
-                TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
-            ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
+                Map.mergeRight m.handlers (Handlers.fromList r.result.handlers)
+            ; dbs = Map.mergeRight m.dbs (DB.fromList r.result.dbs)
             ; userFunctions =
-                TD.mergeRight
+                Map.mergeRight
                   m.userFunctions
                   (UserFunctions.fromList r.result.userFunctions)
             ; userTipes =
-                TD.mergeRight
+                Map.mergeRight
                   m.userTipes
                   (UserTypes.fromList r.result.userTipes) }
           in
@@ -1402,9 +1401,12 @@ let update_ (msg : msg) (m : model) : modification =
         Many (initialMods @ [MakeCmd (CursorState.focusEntry m)])
   | FetchAllTracesAPICallback (Ok x) ->
       let traces =
-        List.foldl x.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
+        List.fold
+          x.traces
+          ~initial:Map.String.empty
+          ~f:(fun dict (tlid, traceid) ->
             let trace = (traceid, Error NoneYet) in
-            StrDict.update dict ~key:(TLID.toString tlid) ~f:(function
+            Map.update dict ~key:(TLID.toString tlid) ~f:(function
                 | Some existing ->
                     Some (existing @ [trace])
                 | None ->
@@ -1456,7 +1458,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; extraMod
         ; newState
         ; MakeCmd (API.fetchAllTraces m)
-        ; InitIntrospect (TD.values allTLs)
+        ; InitIntrospect (Map.values allTLs)
         ; InitASTCache (r.handlers, r.userFunctions) ]
   | SaveTestAPICallback (Ok msg) ->
       Model.updateErrorMod (Error.set ("Success! " ^ msg))
@@ -1478,7 +1480,7 @@ let update_ (msg : msg) (m : model) : modification =
             , hashVersion
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; OverrideTraces (StrDict.fromList traces)
+        ; OverrideTraces (Map.String.fromList traces)
         ; SetUnlockedDBs unlockedDBs ]
   | TriggerHandlerAPICallback (params, Ok tlids) ->
       let (traces : Prelude.traces) =
@@ -1486,7 +1488,7 @@ let update_ (msg : msg) (m : model) : modification =
           ~f:(fun tlid ->
             (TLID.toString tlid, [(params.thTraceID, Error NoneYet)]))
           tlids
-        |> StrDict.fromList
+        |> Map.String.fromList
       in
       Many
         [ OverrideTraces traces
@@ -1517,7 +1519,7 @@ let update_ (msg : msg) (m : model) : modification =
           in
           (* We need to update the list of usages due to package manager functions.
            * Ideally we would make this dependency more explicit. *)
-          let m = Introspect.refreshUsages m (TLID.Dict.tlids m.handlers) in
+          let m = Introspect.refreshUsages m (Map.keys m.handlers) in
           (m, Cmd.none))
   | InsertSecretCallback (Ok secrets) ->
       ReplaceAllModificationsWithThisOne (fun m -> ({m with secrets}, Cmd.none))
@@ -1527,7 +1529,7 @@ let update_ (msg : msg) (m : model) : modification =
           ~f:(fun tlid -> (TLID.toString tlid, [(traceID, Error NoneYet)]))
           tlids
       in
-      UpdateTraces (StrDict.fromList traces)
+      UpdateTraces (Map.String.fromList traces)
   | New404Push f404 ->
       Append404s [f404]
   | NewPresencePush avatarsList ->
@@ -1578,7 +1580,7 @@ let update_ (msg : msg) (m : model) : modification =
          = "Selected trace too large for the editor to load, maybe try another?"
     ->
       let traces =
-        StrDict.fromList
+        Map.String.fromList
           [ ( TLID.toString params.gtdrpTlid
             , [(params.gtdrpTraceID, Error MaximumCallStackError)] ) ]
       in
@@ -1605,7 +1607,7 @@ let update_ (msg : msg) (m : model) : modification =
             (Some error))
   | ReceiveFetch (TraceFetchSuccess (params, result)) ->
       let traces =
-        StrDict.fromList [(TLID.toString params.gtdrpTlid, [result.trace])]
+        Map.String.fromList [(TLID.toString params.gtdrpTlid, [result.trace])]
       in
       Many
         [ ReplaceAllModificationsWithThisOne
@@ -1658,7 +1660,7 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           let m = Sync.markResponseInModel m ~key:("update-db-stats-" ^ key) in
           let newStore =
-            StrDict.merge
+            Map.merge
               ~f:(fun _k v1 v2 ->
                 match (v1, v2) with
                 | None, None ->
@@ -1711,7 +1713,7 @@ let update_ (msg : msg) (m : model) : modification =
           in
           let m = Sync.markResponseInModel m ~key in
           let tlid = params.workerStatsTlid in
-          let workerStats = TLIDDict.insert ~tlid ~value:result m.workerStats in
+          let workerStats = Map.add ~key:tlid ~value:result m.workerStats in
           ({m with workerStats}, Cmd.none))
   | AddOpsAPICallback (_, params, Error err) ->
       HandleAPIError
@@ -1786,7 +1788,7 @@ let update_ (msg : msg) (m : model) : modification =
     | RefreshAnalysis ->
         let getUnlockedDBs =
           (* Small optimization *)
-          if StrDict.count m.dbs > 0 then GetUnlockedDBsAPICall else NoChange
+          if Map.count m.dbs > 0 then GetUnlockedDBsAPICall else NoChange
         in
         ( match Toplevel.selected m with
         | Some tl when Toplevel.isDB tl ->
@@ -1828,9 +1830,9 @@ let update_ (msg : msg) (m : model) : modification =
         ; pos }
       in
       let traces =
-        List.foldl
-          ~init:[]
-          ~f:(fun search acc ->
+        List.fold
+          ~initial:[]
+          ~f:(fun acc search ->
             if search.space = fof.space
                && search.path = fof.path
                && search.modifier = fof.modifier
@@ -1841,7 +1843,9 @@ let update_ (msg : msg) (m : model) : modification =
       let traceMods =
         match List.head traces with
         | Some (first, _) ->
-            let traceDict = StrDict.fromList [(TLID.toString tlid, traces)] in
+            let traceDict =
+              Map.String.fromList [(TLID.toString tlid, traces)]
+            in
             [UpdateTraces traceDict; SetTLTraceID (tlid, first)]
         | None ->
             []
@@ -1961,7 +1965,7 @@ let update_ (msg : msg) (m : model) : modification =
       |> Option.andThen ~f:TL.asUserFunction
       |> Option.map ~f:(fun uplFn -> API.uploadFn m {uplFn})
       |> Option.map ~f:(fun cmd -> MakeCmd cmd)
-      |> Option.withDefault
+      |> Option.unwrap
            ~default:(Model.updateErrorMod (Error.set "No function to upload"))
   | SetHandlerExeIdle tlid ->
       ReplaceAllModificationsWithThisOne
@@ -2073,7 +2077,7 @@ let maybeRequestAnalysis
         |> Option.map ~f:(fun traceID ->
                Cmd.batch
                  [otherCommands; Analysis.requestAnalysis newM tlid traceID])
-        |> Option.withDefault ~default:otherCommands
+        |> Option.unwrap ~default:otherCommands
     | _, _ ->
         otherCommands )
   | _, _ ->
@@ -2195,7 +2199,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           UpdateMinimap (Some s)) ]
   in
   Tea.Sub.batch
-    (List.concat
+    (List.flatten
        [ windowMouseSubs
        ; keySubs
        ; clipboardSubs

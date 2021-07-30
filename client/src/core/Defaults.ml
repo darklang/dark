@@ -23,7 +23,7 @@ let defaultUserSettings : savedUserSettings =
 
 
 let defaultSidebar : sidebarState =
-  {mode = DetailedMode; openedCategories = StrSet.empty}
+  {mode = DetailedMode; openedCategories = Set.String.empty}
 
 
 let defaultSavedSettings : savedSettings =
@@ -31,7 +31,7 @@ let defaultSavedSettings : savedSettings =
       {runTimers = true; showHandlerASTs = false; showFluidDebugger = false}
   ; cursorState = Deselected
   ; tlTraceIDs = TLIDDict.empty
-  ; featureFlags = StrDict.empty
+  ; featureFlags = Map.String.empty
   ; handlerProps = TLIDDict.empty
   ; canvasPos = origin
   ; lastReload = None
@@ -67,7 +67,7 @@ let defaultFunctionsType =
   { builtinFunctions = []
   ; packageFunctions = TLIDDict.empty
   ; allowedFunctions = []
-  ; previewUnsafeFunctions = StrSet.empty }
+  ; previewUnsafeFunctions = Set.String.empty }
 
 
 let defaultCanvasProps : canvasProps =
@@ -98,7 +98,7 @@ let defaultModel : model =
   { error = Error.default
   ; functions = defaultFunctionsType
   ; lastMsg = IgnoreMsg "default"
-  ; opCtrs = StrDict.empty
+  ; opCtrs = Map.String.empty
   ; clientOpCtrId = ""
   ; complete =
       (* this is awkward, but avoids circular deps *)
@@ -121,33 +121,33 @@ let defaultModel : model =
   ; deletedUserFunctions = TLIDDict.empty
   ; userTipes = TLIDDict.empty
   ; deletedUserTipes = TLIDDict.empty
-  ; analyses = StrDict.empty
-  ; traces = StrDict.empty
+  ; analyses = Map.String.empty (* CLEANUP: should be TLIDDict *)
+  ; traces = Map.String.empty (* CLEANUP: should be TLIDDict *)
   ; f404s = []
-  ; unlockedDBs = StrSet.empty
+  ; unlockedDBs = Set.String.empty
   ; integrationTestState = NoIntegrationTest
   ; visibility = PageVisibility.Visible (* partially saved in editor *)
-  ; syncState = StrSet.empty
+  ; syncState = Set.String.empty
   ; cursorState = Deselected
   ; executingFunctions = []
   ; tlTraceIDs = TLIDDict.empty
-  ; featureFlags = StrDict.empty
+  ; featureFlags = Map.String.empty
   ; canvasProps = defaultCanvasProps
   ; canvasName = "builtwithdark"
   ; userContentHost = "builtwithdark.com"
   ; origin = ""
   ; environment = "none"
   ; csrfToken = unsetCSRF
-  ; usedDBs = StrDict.empty
-  ; usedFns = StrDict.empty
-  ; usedTipes = TLIDDict.empty
+  ; usedDBs = Map.String.empty
+  ; usedFns = Map.String.empty
+  ; usedTipes = Map.String.empty
   ; handlerProps = TLIDDict.empty
   ; staticDeploys = []
   ; tlRefersTo = TLIDDict.empty
   ; tlUsedIn = TLIDDict.empty
   ; fluidState = defaultFluidState
-  ; dbStats = StrDict.empty
-  ; workerStats = StrDict.empty
+  ; dbStats = Map.String.empty
+  ; workerStats = TLIDDict.empty
   ; avatarsList = []
   ; browserId = ""
   ; sidebarState = defaultSidebar
@@ -159,7 +159,7 @@ let defaultModel : model =
   ; showTopbar = true
   ; toast = defaultToast
   ; account = defaultAccount
-  ; workerSchedules = StrDict.empty
+  ; workerSchedules = Map.String.empty
   ; searchCache = TLIDDict.empty
   ; editorSettings =
       {showFluidDebugger = false; showHandlerASTs = false; runTimers = true}

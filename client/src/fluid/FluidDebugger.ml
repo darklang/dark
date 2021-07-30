@@ -34,7 +34,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
         [ Html.text
             ( CursorState.tlidOf m.cursorState
             |> Option.map ~f:TLID.toString
-            |> Option.withDefault ~default:"None" ) ]
+            |> Option.unwrap ~default:"None" ) ]
     ; dtText "ast root"
     ; Html.dd [] [Html.text (FluidAST.toID ast |> ID.toString)]
     ; dtText "active editor"
@@ -45,7 +45,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
         [ Html.text
             ( s.ac.index
             |> Option.map ~f:string_of_int
-            |> Option.withDefault ~default:"None" ) ]
+            |> Option.unwrap ~default:"None" ) ]
     ; dtText "acEntryCount"
     ; Html.dd
         []
@@ -56,7 +56,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
         [ Html.text
             ( s.upDownCol
             |> Option.map ~f:string_of_int
-            |> Option.withDefault ~default:"None" ) ]
+            |> Option.unwrap ~default:"None" ) ]
     ; dtText "lastInput"
     ; Html.dd [] [Html.text (show_fluidInputEvent s.lastInput)]
     ; dtText "selection"
@@ -66,12 +66,12 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
             ( s.selectionStart
             |> Option.map ~f:(fun selStart ->
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos)
-            |> Option.withDefault ~default:"None" ) ]
+            |> Option.unwrap ~default:"None" ) ]
     ; dtText "midClick"
     ; Html.dd [] [Html.text (string_of_bool s.midClick)] ]
   in
   let error =
-    [dtText "error"; ddText (Option.withDefault s.error ~default:"None")]
+    [dtText "error"; ddText (Option.unwrap s.error ~default:"None")]
   in
   let tokenData =
     let left, right, next = FluidTokenizer.getNeighbours tokens ~pos:s.newPos in
@@ -113,5 +113,5 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
   let cursorState =
     [dtText "cursorState"; ddText (show_cursorState m.cursorState)]
   in
-  let status = List.concat [posData; error; tokenData; actions; cursorState] in
+  let status = List.flatten [posData; error; tokenData; actions; cursorState] in
   Html.div [Attrs.id "fluid-status"] [Html.dl [] status]

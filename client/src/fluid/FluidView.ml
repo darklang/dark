@@ -97,7 +97,7 @@ let rec lvResultForId ?(recurred = false) (vp : viewProps) (id : ID.t) :
     when Option.isSome fnLoading ->
       fnLoading
       |> Option.map ~f:(fun msg -> WithMessage msg)
-      |> Option.withDefault ~default:Loading
+      |> Option.unwrap ~default:Loading
   | LoadableSuccess
       (ExecutedResult (DIncomplete (SourceId (srcTlid, srcID)) as propValue))
   | LoadableSuccess
@@ -201,7 +201,7 @@ let viewLiveValue (vp : viewProps) : Types.msg Html.html =
            ; Vdom.attribute "" "spellcheck" "false" ]
            content)
   (* If there's a failure at any point, we don't render the live-value wrapper *)
-  |> Option.withDefault ~default:Vdom.noNode
+  |> Option.unwrap ~default:Vdom.noNode
 
 
 let viewReturnValue
@@ -273,7 +273,7 @@ let viewReturnValue
         let dvalString = Runtime.toRepr dval in
         let returnHtml =
           let newLine =
-            if String.contains ~substring:"\n" dvalString
+            if String.includes ~substring:"\n" dvalString
             then Html.br []
             else Vdom.noNode
           in
@@ -362,7 +362,7 @@ let viewAST (vp : ViewUtils.viewProps) (dragEvents : ViewUtils.domEventList) :
                let rowOffset =
                  flagID
                  |> findRowOffestOfMainTokenWithId
-                 |> Option.withDefault ~default:0
+                 |> Option.unwrap ~default:0
                in
                let tokens =
                  FluidTokenizer.ASTInfo.ffTokenInfosFor flagID vp.astInfo

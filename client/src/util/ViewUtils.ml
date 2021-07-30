@@ -50,15 +50,15 @@ type domEventList = domEvent list
 let createVS (m : model) (tl : toplevel) : viewProps =
   let tlid = TL.id tl in
   let hp =
-    match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
+    match tl with TLHandler _ -> Map.get ~key:tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
   let ast =
-    TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
+    TL.getAST tl |> Option.unwrap ~default:(FluidAST.ofExpr (E.newB ()))
   in
   let analysisStore =
     Option.map traceID ~f:(Analysis.getStoredAnalysis m)
-    |> Option.withDefault ~default:LoadableNotInitialized
+    |> Option.unwrap ~default:LoadableNotInitialized
   in
   let props = FluidUtil.propsFromModel m in
   let astInfo = ASTInfo.make props ast m.fluidState in
@@ -103,9 +103,9 @@ let createVS (m : model) (tl : toplevel) : viewProps =
       then Introspect.allUsedIn tlid m
       else [] )
   ; hoveringRefs =
-      TD.get ~tlid m.handlerProps
+      Map.get ~key:tlid m.handlerProps
       |> Option.map ~f:(fun x -> x.hoveringReferences)
-      |> Option.withDefault ~default:[]
+      |> Option.unwrap ~default:[]
   ; fluidState = m.fluidState
   ; avatarsList =
       ( match m.currentPage with
@@ -120,7 +120,7 @@ let createVS (m : model) (tl : toplevel) : viewProps =
   ; permission = m.permission
   ; workerStats =
       (* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. *)
-      (let count = TLIDDict.get ~tlid m.workerStats in
+      (let count = Map.get ~key:tlid m.workerStats in
        let asWorkerSchedule = Handlers.getWorkerSchedule m in
        let schedule =
          tl |> TL.asHandler |> Option.andThen ~f:asWorkerSchedule
@@ -135,8 +135,7 @@ let createVS (m : model) (tl : toplevel) : viewProps =
        | Some c, Some _ ->
            Some {c with schedule})
   ; menuState =
-      TLIDDict.get ~tlid m.tlMenus
-      |> Option.withDefault ~default:Defaults.defaultMenu
+      Map.get ~key:tlid m.tlMenus |> Option.unwrap ~default:Defaults.defaultMenu
   ; isExecuting =
       (* Converge can execute for functions & handlers *)
       ( match tl with

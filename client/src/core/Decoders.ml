@@ -160,6 +160,14 @@ let tlidOption (j : Js.Json.t) : TLID.t option =
       None
 
 
+let tlidDict (decoder : Js.Json.t -> 'value) (j : Js.Json.t) : 'value TLIDDict.t
+    =
+  dict decoder j
+  |> Js.Dict.entries
+  |> Array.map ~f:(fun (k, v) -> (TLID.fromString k, v))
+  |> TLID.Dict.fromArray
+
+
 let pos j : pos = {x = field "x" int j; y = field "y" int j}
 
 let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
@@ -452,7 +460,7 @@ and tutorialStep (j : Js.Json.t) : tutorialStep =
 and sidebarState (j : Js.Json.t) : sidebarState =
   { mode = field "mode" sidebarMode j
   ; openedCategories =
-      withDefault StrSet.empty (field "openedCategories" strSet) j }
+      withDefault Set.String.empty (field "openedCategories" strSet) j }
 
 
 and savedSettings (j : Js.Json.t) : savedSettings =
@@ -473,11 +481,11 @@ and savedSettings (j : Js.Json.t) : savedSettings =
             j }
   ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
   ; tlTraceIDs =
-      withDefault TLIDDict.empty (field "tlTraceIDs" (strDict traceID)) j
+      withDefault TLIDDict.empty (field "tlTraceIDs" (tlidDict traceID)) j
   ; featureFlags =
-      withDefault StrDict.empty (field "featureFlags" (strDict bool)) j
+      withDefault Map.String.empty (field "featureFlags" (strDict bool)) j
   ; handlerProps =
-      withDefault StrDict.empty (field "handlerProps" (strDict handlerProp)) j
+      withDefault TLIDDict.empty (field "handlerProps" (tlidDict handlerProp)) j
   ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j
   ; lastReload = optional (field "lastReload" jsDate) j
   ; sidebarState =
@@ -720,7 +728,7 @@ let presenceMsg j : avatar =
 
 
 let inputValueDict j : inputValueDict =
-  j |> list (tuple2 string dval) |> StrDict.fromList
+  j |> list (tuple2 string dval) |> Map.String.fromList
 
 
 let functionResult j : functionResult =
@@ -741,13 +749,13 @@ let trace j : trace =
   |> fun (id, traceData) ->
   match traceData with
   | None ->
-      (id, Result.fail NoneYet)
+      (id, Error NoneYet)
   | Some traceData ->
-      (id, Result.succeed traceData)
+      (id, Ok traceData)
 
 
 let traces j : traces =
-  j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList
+  j |> list (tuple2 wireIdentifier (list trace)) |> Map.String.fromList
 
 
 let userRecordField j =
@@ -795,7 +803,7 @@ let op j : op =
       )
     ; ("DeleteDBCol", variant2 (fun t i -> DeleteDBCol (t, i)) tlid id)
       (* deprecated, can't happen *)
-    ; ("DeprecatedInitDbm", variant1 (fun _ -> UndoTL TLID.empty) tlid)
+    ; ("DeprecatedInitDbm", variant1 (fun _ -> UndoTL (TLID.fromString "")) tlid)
     ; ( "CreateDBMigration"
       , variant4
           (fun t rbid rfid cols -> CreateDBMigration (t, rbid, rfid, cols))
@@ -879,7 +887,7 @@ let addOpAPIStrollerMsg (j : Js.Json.t) : addOpStrollerMsg =
 
 
 let getUnlockedDBsAPIResult j : getUnlockedDBsAPIResult =
-  j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
+  j |> field "unlocked_dbs" (list wireIdentifier) |> Set.String.fromList
 
 
 let get404sAPIResult j : get404sAPIResult = j |> field "f404s" (list fof)
@@ -913,7 +921,7 @@ let workerStats j : workerStats = {count = field "count" int j; schedule = None}
 
 let workerStatsAPIResult j = workerStats j
 
-let updateWorkerScheduleAPIResult j : string StrDict.t = (strDict string) j
+let updateWorkerScheduleAPIResult j : string Map.String.t = (strDict string) j
 
 let initialLoadAPIResult j : initialLoadAPIResult =
   let tls = field "toplevels" (list toplevel) j in
@@ -925,14 +933,14 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; unlockedDBs =
-      j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
+      j |> field "unlocked_dbs" (list wireIdentifier) |> Set.String.fromList
   ; staticDeploys = field "assets" (list sDeploy) j
   ; userTipes = field "user_tipes" (list userTipe) j
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
   ; opCtrs =
       j
       |> withDefault [] (field "op_ctrs" (list (tuple2 string int)))
-      |> StrDict.fromList
+      |> Map.String.fromList
   ; permission = field "permission" (optional permission) j
   ; account = field "account" account j
   ; canvasList = field "canvas_list" (list string) j
@@ -952,7 +960,7 @@ let executeFunctionAPIResult j : executeFunctionAPIResult =
   , field "hash" string j
   , field "hashVersion" int j
   , field "touched_tlids" (list tlid) j
-  , j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList )
+  , j |> field "unlocked_dbs" (list wireIdentifier) |> Set.String.fromList )
 
 
 let uploadFnAPIResult _ : uploadFnAPIResult = ()
@@ -987,8 +995,8 @@ let parseDvalLiteral (str : string) : dval option =
   | '"' :: rest ->
       if List.last rest = Some '"'
       then
-        List.init rest
-        |> Option.withDefault ~default:[]
+        List.initial rest
+        |> Option.unwrap ~default:[]
         |> String.fromList
         |> fun x -> Some (DStr x)
       else None

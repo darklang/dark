@@ -2,13 +2,6 @@ open Prelude
 open Tester
 
 let run () =
-  describe "toOption" (fun () ->
-      test "it returns None when the value equals a sentinel" (fun () ->
-          expect (Option.toOption ~sentinel:3 3) |> toEqual None) ;
-      test
-        "it returns (Some value) when the value does not equal the sentinel"
-        (fun () ->
-          expect (Option.toOption ~sentinel:(-1) 4) |> toEqual (Some 4))) ;
   describe "String.dropRight" (fun () ->
       test "it returns the empty string when passed the empty string" (fun () ->
           expect (String.dropRight ~count:50 "") |> toEqual "") ;

@@ -13,7 +13,7 @@ external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
 let getBrowserPlatform () : browserPlatform =
   jsGetBrowserPlatform ()
   |> Js.Nullable.toOption
-  |> Option.withDefault ~default:UnknownPlatform
+  |> Option.unwrap ~default:UnknownPlatform
 
 
 (* Character representation that's partially keyboard and partially ascii

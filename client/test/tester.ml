@@ -90,11 +90,11 @@ let print_test_end name (t : Private.t) : unit =
     Js.log
     @@ testIndent ()
     ^ "Expected: "
-    ^ Option.withDefault ~default:"None" t.expected ;
+    ^ Option.unwrap ~default:"None" t.expected ;
     Js.log
     @@ testIndent ()
     ^ "  Actual: "
-    ^ Option.withDefault ~default:"None" t.actual )
+    ^ Option.unwrap ~default:"None" t.actual )
   else print_test_skip name
 
 
@@ -155,7 +155,7 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
 let testAll (name : string) (items : 'a list) (testFn : 'a -> Private.t) : unit
     =
   items
-  |> List.iter ~f:(fun item ->
+  |> List.forEach ~f:(fun item ->
          let name' = {j|$name  - $item|j} in
          test name' (fun () -> testFn item))
 
@@ -266,7 +266,7 @@ let finish () =
   else (
     Js.log "Failures:" ;
     fails
-    |> List.iter ~f:(fun {name; _} ->
+    |> List.forEach ~f:(fun {name; _} ->
            Js.log @@ testIndent () ^ {j|❌|j} ^ " " ^ name) ;
     Js.log "" ;
     Js.log

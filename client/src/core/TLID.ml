@@ -1,38 +1,48 @@
 module T = struct
-  type t = TLID of string [@@ppx.deriving show {with_path = false}]
+  module Nested = struct
+    type t = TLID of string [@@ppx.deriving show {with_path = false}, ord]
+  end
 
-  let toString (TLID str) = str
+  include Nested
+  include Tablecloth.Comparator.Make (Nested)
 
-  let fromString str = TLID str
+  let fromString (tlid : string) = TLID tlid
 
-  let empty = TLID ""
+  let toString (TLID tlid : t) = tlid
 end
 
 include T
-module Set = Tc.Set (T)
 
+module Set = struct
+  include Tc.Set.Of (T)
+
+  let pp = Tc.Set.pp T.pp
+
+  let fromArray a = Tablecloth.Set.Poly.fromArray a |. Obj.magic
+
+  let empty = fromArray [||]
+
+  let singleton value = fromArray [|value|]
+
+  let fromList l = fromArray (Array.of_list l)
+end
+
+(* CLEANUP: rename to map *)
 module Dict = struct
-  include Tc.Dict (T)
+  include Tc.Map.Of (T)
 
-  (* TODO: convert the tlid key back to being called key *)
-  let get ~(tlid : T.t) (dict : 'a t) : 'a option = get ~key:tlid dict
-
-  let insert ~(tlid : T.t) ~(value : 'a) (dict : 'a t) : 'a t =
-    insert ~key:tlid ~value dict
-
-
-  let tlids (dict : 'a t) : T.t list = dict |> keys
-
-  let updateIfPresent ~(tlid : T.t) ~(f : 'v -> 'v) (dict : 'a t) : 'a t =
-    updateIfPresent ~key:tlid ~f dict
+  let pp
+      (valueFormatter : Format.formatter -> 'value -> unit)
+      (fmt : Format.formatter)
+      (map : 'value t) : unit =
+    Tc.Map.pp T.pp valueFormatter fmt map
 
 
-  let update ~(tlid : T.t) ~(f : 'v option -> 'v option) (dict : 'a t) : 'a t =
-    update ~key:tlid ~f dict
+  let fromArray a = Tablecloth.Map.Poly.fromArray a |. Obj.magic
 
+  let empty = fromArray [||]
 
-  let remove ~(tlid : T.t) (dict : 'a t) : 'a t = remove ~key:tlid dict
+  let singleton ~key ~value = fromArray [|(key, value)|]
 
-  let removeMany ~(tlids : T.t list) (dict : 'a t) : 'a t =
-    removeMany ~keys:tlids dict
+  let fromList l = fromArray (Array.of_list l)
 end

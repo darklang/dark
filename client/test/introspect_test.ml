@@ -49,17 +49,17 @@ let run () =
       in
       test "dbsByName" (fun () ->
           expect (dbsByName dbs)
-          |> toEqual (StrDict.insert ~key:"Books" ~value:dbtlid StrDict.empty)) ;
+          |> toEqual (Map.add ~key:"Books" ~value:dbtlid Map.String.empty)) ;
       test "handlersByName" (fun () ->
           let v =
-            handlers |> handlersByName |> StrDict.get ~key:"WORKER:processOrder"
+            handlers |> handlersByName |> Map.get ~key:"WORKER:processOrder"
           in
           expect v |> toEqual (Some h1tlid)) ;
       test "findUsagesInAST" (fun () ->
           let handlers = handlersByName handlers in
           let datastores = dbsByName dbs in
-          let functions = StrDict.empty in
-          let packageFunctions = StrDict.empty in
+          let functions = Map.String.empty in
+          let packageFunctions = Map.String.empty in
           let usages =
             match
               findUsagesInAST

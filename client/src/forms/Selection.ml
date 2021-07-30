@@ -21,7 +21,7 @@ let moveToOlderTrace (m : model) (tlid : TLID.t) : modification =
   in
   traceID
   |> Option.map ~f:(fun t -> SetTLTraceID (tlid, t))
-  |> Option.withDefault ~default:NoChange
+  |> Option.unwrap ~default:NoChange
 
 
 let moveToNewerTrace (m : model) (tlid : TLID.t) : modification =
@@ -35,7 +35,7 @@ let moveToNewerTrace (m : model) (tlid : TLID.t) : modification =
   in
   traceID
   |> Option.map ~f:(fun t -> SetTLTraceID (tlid, t))
-  |> Option.withDefault ~default:NoChange
+  |> Option.unwrap ~default:NoChange
 
 
 (* ------------------------------- *)
@@ -52,8 +52,7 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : ID.t) : modification =
       [ Enter (tlid, id)
       ; AutocompleteMod
           (ACSetQuery
-             (pd |> Option.map ~f:P.toContent |> Option.withDefault ~default:""))
-      ]
+             (pd |> Option.map ~f:P.toContent |> Option.unwrap ~default:"")) ]
   in
   match pd with
   | Some (PDBName _) ->
@@ -133,7 +132,7 @@ let enterNextBlank (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
       let target =
         nextBlank
         |> Option.map ~f:(fun id -> Enter (tlid, id))
-        |> Option.withDefault ~default:(fluidEnteringMod tlid)
+        |> Option.unwrap ~default:(fluidEnteringMod tlid)
       in
       maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
 
@@ -147,6 +146,6 @@ let enterPrevBlank (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
       let target =
         prevBlank
         |> Option.map ~f:(fun id -> Enter (tlid, id))
-        |> Option.withDefault ~default:(fluidEnteringMod tlid)
+        |> Option.unwrap ~default:(fluidEnteringMod tlid)
       in
       maybeEnterFluid ~nonFluidCursorMod:target tl prevBlank

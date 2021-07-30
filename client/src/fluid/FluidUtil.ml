@@ -68,7 +68,7 @@ let truncateStringTo63BitInt (s : string) : (string, string) Result.t =
  * (and probably support 64 bit integers) once fluid supports negative numbers.
  *)
 let coerceStringTo63BitInt (s : string) : string =
-  Result.withDefault (truncateStringTo63BitInt s) ~default:"0"
+  Result.unwrap (truncateStringTo63BitInt s) ~default:"0"
 
 
 (* Only supports positive numbers for now, but we should change this once fluid supports negative numbers *)

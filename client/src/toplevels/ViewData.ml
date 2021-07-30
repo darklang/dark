@@ -10,7 +10,7 @@ let pauseWorkerButton (vp : ViewUtils.viewProps) (name : string) : msg Html.html
   let schedule =
     vp.workerStats
     |> Option.andThen ~f:(fun (ws : Types.workerStats) -> ws.schedule)
-    |> Option.withDefault ~default:"run"
+    |> Option.unwrap ~default:"run"
   in
   match schedule with
   | "pause" ->
@@ -156,7 +156,7 @@ let viewData (vp : ViewUtils.viewProps) : msg Html.html list =
       let count =
         vp.workerStats
         |> Option.map ~f:(fun ws -> ws.count)
-        |> Option.withDefault ~default:0
+        |> Option.unwrap ~default:0
       in
       Html.div
         [Html.class' "worker-stats"]
@@ -173,7 +173,7 @@ let viewData (vp : ViewUtils.viewProps) : msg Html.html list =
       let height =
         Native.Ext.querySelector (".tl-" ^ TLID.toString vp.tlid ^ " .ast")
         |> Option.andThen ~f:(fun e -> Some (Native.Ext.clientHeight e + 20))
-        |> Option.withDefault ~default:100
+        |> Option.unwrap ~default:100
       in
       string_of_int height ^ "px"
   in
@@ -193,7 +193,7 @@ let viewData (vp : ViewUtils.viewProps) : msg Html.html list =
                Some (pauseWorkerButton vp name)
            | _ ->
                None)
-    |> Option.withDefault ~default:Vdom.noNode
+    |> Option.unwrap ~default:Vdom.noNode
   in
   [ Html.div
       [ Html.classList

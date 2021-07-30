@@ -58,7 +58,7 @@ let str2tipe (t : string) : tipe =
     | other ->
         recover ~debug:other "invalid type in str2tipe" TAny
   in
-  match String.toLower t with
+  match String.toLowercase t with
   | "any" ->
       TAny
   | "int" ->
@@ -246,18 +246,20 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
                  ^ maybe "expected" e.expected
                  ^ maybe "result" e.result
                  ^ maybe "result type" e.resultType
-                 ^ ( if e.info = StrDict.empty
+                 ^ ( if e.info = Map.String.empty
                    then ""
-                   else ", info: " ^ StrDict.toString e.info )
+                   else ", info: " ^ Map.toString e.info )
                  ^ ( if e.workarounds = []
                    then ""
-                   else ", workarounds: [" ^ String.concat e.workarounds ^ "]"
-                   )
+                   else
+                     ", workarounds: ["
+                     ^ String.join ~sep:"" e.workarounds
+                     ^ "]" )
                  ^
                  if e.exceptionTipe = "code"
                  then ""
                  else "\n  error type: " ^ e.exceptionTipe)
-          |> Option.withDefault ~default:(wrap s)
+          |> Option.unwrap ~default:(wrap s)
         with _ -> wrap s )
   | DPassword s ->
       wrap s
@@ -299,7 +301,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
     | l ->
         "[ " ^ String.join ~sep:", " (List.map ~f:(toRepr_ indent) l) ^ " ]" )
   | DObj o ->
-      objToString (StrDict.toList o)
+      objToString (Map.toList o)
   | DBytes s ->
       "<"
       ^ (dv |> typeOf |> tipe2str)
@@ -326,19 +328,19 @@ let inputVariables (tl : toplevel) : string list =
   match tl with
   | TLHandler h ->
     ( match h.spec.space with
-    | F (_, m) when String.toLower m = "http" ->
+    | F (_, m) when String.toLowercase m = "http" ->
         let fromRoute =
           h.spec.name
           |> BlankOr.toOption
           |> Option.map ~f:route_variables
-          |> Option.withDefault ~default:[]
+          |> Option.unwrap ~default:[]
         in
         ["request"] @ fromRoute
-    | F (_, m) when String.toLower m = "cron" ->
+    | F (_, m) when String.toLowercase m = "cron" ->
         []
-    | F (_, m) when String.toLower m = "repl" ->
+    | F (_, m) when String.toLowercase m = "repl" ->
         []
-    | F (_, m) when String.toLower m = "worker" ->
+    | F (_, m) when String.toLowercase m = "worker" ->
         ["event"]
     | F (_, _) ->
         (* workers, including old names *)
@@ -357,7 +359,7 @@ let sampleInputValue (tl : toplevel) : inputValueDict =
   tl
   |> inputVariables
   |> List.map ~f:(fun v -> (v, DIncomplete SourceNone))
-  |> StrDict.fromList
+  |> Map.String.fromList
 
 
 let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
@@ -366,7 +368,7 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
      *
      * This ensures newly added parameters show as incomplete.
      * *)
-    StrDict.merge
+    Map.merge
       ~f:(fun _key sampleVal traceVal ->
         match (sampleVal, traceVal) with
         | None, None ->
@@ -385,16 +387,16 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
   |> toRepr
   |> String.split ~on:"\n"
   |> List.drop ~count:1
-  |> List.init
-  |> Option.withDefault ~default:[]
+  |> List.initial
+  |> Option.unwrap ~default:[]
   |> List.map ~f:(String.dropLeft ~count:2)
   |> String.join ~sep:"\n"
 
 
 let pathFromInputVars (iv : inputValueDict) : string option =
-  StrDict.get ~key:"request" iv
+  Map.get ~key:"request" iv
   |> Option.andThen ~f:(fun obj ->
-         match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None)
+         match obj with DObj r -> r |> Map.get ~key:"url" | _ -> None)
   |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
   |> Option.andThen ~f:Native.Url.make
   |> Option.map ~f:(fun url -> url##pathname ^ url##search)
@@ -404,8 +406,6 @@ let setHandlerExeState
     (tlid : TLID.t) (state : exeState) (hp : handlerProp TLIDDict.t) :
     handlerProp TLIDDict.t =
   hp
-  |> TLIDDict.update ~tlid ~f:(fun old ->
-         let p =
-           old |> Option.withDefault ~default:Defaults.defaultHandlerProp
-         in
+  |> Map.update ~key:tlid ~f:(fun old ->
+         let p = old |> Option.unwrap ~default:Defaults.defaultHandlerProp in
          Some {p with execution = state})

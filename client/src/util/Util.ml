@@ -3,7 +3,7 @@ open Tc
 let random (a : unit) : int = Native.Random.random a
 
 let findIndex ~(f : 'a -> bool) (l : 'a list) : (int * 'a) option =
-  List.find ~f:(fun (_, a) -> f a) (List.indexedMap ~f:Tuple2.create l)
+  List.find ~f:(fun (_, a) -> f a) (List.mapWithIndex ~f:Tuple2.make l)
 
 
 let listPrevious ~(value : 'a) (l : 'a list) : 'a option =
@@ -287,7 +287,7 @@ let obscureString (s : string) : string =
 
 
 let hideSecrets (secretValues : string list) (s : string) : string =
-  List.foldl secretValues ~init:s ~f:(fun secretVal buildingStr ->
+  List.fold secretValues ~initial:s ~f:(fun buildingStr secretVal ->
       (* We are doing this instead of Regex.replace because it fails secretValues with regex characters
     And Js.String.replace only replaces the first found string. *)
       buildingStr

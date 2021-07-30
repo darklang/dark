@@ -71,12 +71,12 @@ let getTraceID (page : page) : traceID option =
 
 
 let updatePossibleTrace (m : model) (page : page) : model * msg Cmd.t =
-  let tlid = tlidOf page |> Option.withDefault ~default:(gtlid ()) in
+  let tlid = tlidOf page |> Option.unwrap ~default:(gtlid ()) in
   match getTraceID page with
   | Some tid ->
       let m =
         let trace =
-          StrDict.fromList [(TLID.toString tlid, [(tid, Error NoneYet)])]
+          Map.String.fromList [(TLID.toString tlid, [(tid, Error NoneYet)])]
         in
         Analysis.updateTraces m trace
       in
@@ -235,7 +235,7 @@ let maybeChangeFromPage (tlid : TLID.t) (page : page) : modification list =
 
 
 let getPageFromTLID (m : model) (tlid : TLID.t) : page =
-  let hasKey dict = List.any ~f:(fun key -> key = tlid) (TLIDDict.keys dict) in
+  let hasKey dict = List.any ~f:(fun key -> key = tlid) (Map.keys dict) in
   if hasKey m.deletedHandlers || hasKey m.handlers
   then FocusedHandler (tlid, None, true)
   else if hasKey m.dbs || hasKey m.deletedDBs

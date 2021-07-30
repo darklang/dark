@@ -85,7 +85,7 @@ let isBlank (pd : blankOrData) : bool =
 
 
 let toContent (pd : blankOrData) : string =
-  let bs2s s = s |> B.toOption |> Option.withDefault ~default:"" in
+  let bs2s s = s |> B.toOption |> Option.unwrap ~default:"" in
   match pd with
   | PEventModifier d
   | PEventName d
@@ -102,4 +102,4 @@ let toContent (pd : blankOrData) : string =
       d
       |> B.toOption
       |> Option.map ~f:Prelude.tipe2str
-      |> Option.withDefault ~default:""
+      |> Option.unwrap ~default:""

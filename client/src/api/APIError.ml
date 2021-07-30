@@ -9,10 +9,10 @@ let serverVersionOf (e : apiError) : string option =
   | BadUrl _ | Timeout | NetworkError | Aborted ->
       None
   | BadStatus response | BadPayload (_, response) ->
-      let module StringMap = Map.Make (Caml.String) in
+      let module StringMap = Caml.Map.Make (Tc.Caml.String) in
       response.headers
       |> StringMap.find_first_opt (fun key ->
-             String.toLower key = Header.server_version)
+             String.toLowercase key = Header.server_version)
       |> Option.map ~f:Tuple2.second
 
 
@@ -99,14 +99,14 @@ let parseResponse (body : Http.responseBody) : string =
          ^ maybe "result" result
          ^ maybe "result type" resultType
          ^ maybe "expected" expected
-         ^ ( if info = StrDict.empty
+         ^ ( if info = Map.String.empty
            then ""
-           else ", info: " ^ StrDict.toString info )
+           else ", info: " ^ Map.toString info )
          ^
          if workarounds = []
          then ""
-         else ", workarounds: [" ^ String.concat workarounds ^ "]")
-  |> Option.withDefault ~default:str
+         else ", workarounds: [" ^ String.join ~sep:"" workarounds ^ "]")
+  |> Option.unwrap ~default:str
 
 
 let isBadAuth (e : apiError) : bool =

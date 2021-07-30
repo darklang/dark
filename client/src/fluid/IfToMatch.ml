@@ -21,9 +21,9 @@ let refactor (_ : model) (tl : toplevel) (id : ID.t) : modification =
         ; (FPBool (ifID, gid (), false), else_) ] )
   in
   let makeBinOpMatch ifID binopID lhs rhs rail then_ else_ =
-    (* We need to make sure that whichever side we choose for the match condition, 
-     * we should be able to turn the other side into a pattern. So we try to make smart 
-     * decision whether to choose the lhs or rhs here. We default to the eft hand side, 
+    (* We need to make sure that whichever side we choose for the match condition,
+     * we should be able to turn the other side into a pattern. So we try to make smart
+     * decision whether to choose the lhs or rhs here. We default to the eft hand side,
      * except when there's something on the rhs which cannot be turned into a pattern.
      *)
     let matchCond, arm =
@@ -40,7 +40,7 @@ let refactor (_ : model) (tl : toplevel) (id : ID.t) : modification =
       | E.EList _
       | E.ERecord _
       | E.EPipe _
-      (* Constructor could be possible, but subexpressions would need to be 
+      (* Constructor could be possible, but subexpressions would need to be
        * converted to subpatterns.
        *)
       | E.EConstructor _
@@ -70,7 +70,7 @@ let refactor (_ : model) (tl : toplevel) (id : ID.t) : modification =
       | _ ->
           None
     in
-    (* If we were unable to convert the other side to a pattern, fall back to a 
+    (* If we were unable to convert the other side to a pattern, fall back to a
      * generic match expression with true and false arms.
      *)
     match pattern with
@@ -107,4 +107,4 @@ let refactor (_ : model) (tl : toplevel) (id : ID.t) : modification =
   |> Option.thenAlso ~f:(fun ast ->
          FluidAST.find id ast |> Option.andThen ~f:(findIf ast))
   |> Option.andThen ~f:replaceIf
-  |> Option.withDefault ~default:NoChange
+  |> Option.unwrap ~default:NoChange

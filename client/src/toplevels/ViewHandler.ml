@@ -38,7 +38,7 @@ let handlerIsExeFail (vp : viewProps) : bool =
                true
            | _ ->
                false)
-    |> Option.withDefault ~default:false
+    |> Option.unwrap ~default:false
 
 
 let triggerHandlerButton (vp : viewProps) (spec : handlerSpec) : msg Html.html =
@@ -101,7 +101,7 @@ let externalLink (vp : viewProps) (name : string) =
     in
     match currentTraceData with
     | Some data ->
-        Runtime.pathFromInputVars data.input |> Option.withDefault ~default:name
+        Runtime.pathFromInputVars data.input |> Option.unwrap ~default:name
     | None ->
         name
   in

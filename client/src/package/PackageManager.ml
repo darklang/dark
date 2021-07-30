@@ -15,7 +15,7 @@ let paramData (pfp : packageFnParameter) : blankOrData list =
 
 
 let allParamData (pmf : packageFn) : blankOrData list =
-  List.concat (List.map ~f:paramData pmf.parameters)
+  List.flatten (List.map ~f:paramData pmf.parameters)
 
 
 let blankOrData (pmf : packageFn) : blankOrData list =

@@ -99,7 +99,7 @@ let generateList ~(minSize : int) ~(f : unit -> 'a) () : 'a list =
   (* Lower the list lengths as we go so eventually the program converges *)
   itemSize := !itemSize - 1 ;
   let s = max minSize !itemSize in
-  let result = List.initialize (generateLength s) (fun _ -> f ()) in
+  let result = List.initialize (generateLength s) ~f:(fun _ -> f ()) in
   itemSize := !itemSize + 1 ;
   result
 
@@ -282,7 +282,7 @@ let unwrap (id : ID.t) (ast : E.t) : E.t =
         | _ ->
             None
       in
-      Option.withDefault ~default:e newExpr)
+      Option.unwrap ~default:e newExpr)
 
 
 let changeStrings (id : ID.t) ~(f : string -> string) (ast : E.t) : E.t =
@@ -393,11 +393,11 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
     let ids =
       tokenIDs @ eIDs
       |> List.uniqueBy ~f:ID.toString
-      |> List.indexedMap ~f:(fun i v -> (i, v))
+      |> List.mapWithIndex ~f:(fun i v -> (i, v))
     in
     let length = List.length ids in
     let latestAST = ref ast in
-    List.iter ids ~f:(fun (idx, id) ->
+    List.forEach ids ~f:(fun (idx, id) ->
         ( try
             Js.log2 msg (idx, length, id) ;
             let reducedAST = reducer id !latestAST in

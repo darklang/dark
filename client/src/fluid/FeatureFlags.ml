@@ -31,7 +31,7 @@ let wrap (s : Types.fluidState) (ast : FluidAST.t) (id : ID.t) :
         let tokenStart, tokenEnd =
           List.last tokenInfos
           |> Option.map ~f:(fun last -> (0, last.endPos))
-          |> Option.withDefault ~default:(-1, -1)
+          |> Option.unwrap ~default:(-1, -1)
         in
         let selectStart, selectEnd = FluidUtil.getSelectionRange s in
         (tokenStart, tokenEnd) = (selectStart, selectEnd)
@@ -145,7 +145,7 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
                        ; upDownCol = None
                        ; activeEditor = MainEditor (Toplevel.id tl) } }
                  , Tea.Cmd.none )) ])
-  |> Option.withDefault ~default:NoChange
+  |> Option.unwrap ~default:NoChange
 
 
 (** shouldShowAddFlagCmd shows the add flag command as long as there is no
@@ -153,7 +153,7 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
 let shouldShowAddFlagCmd (_ : model) (tl : toplevel) (_ : E.t) : bool =
   Toplevel.getAST tl
   |> Option.map ~f:(hasFlag >> not)
-  |> Option.withDefault ~default:false
+  |> Option.unwrap ~default:false
 
 
 (** shouldShowRemoveFlagCmds shows the flag removal commands when the
@@ -165,4 +165,4 @@ let shouldShowRemoveFlagCmds (_ : model) (tl : toplevel) (e : E.t) : bool =
   | _ ->
       Toplevel.getAST tl
       |> Option.map ~f:(fun ast -> ancestorFlag ast (E.toID e) |> Option.isSome)
-      |> Option.withDefault ~default:false
+      |> Option.unwrap ~default:false

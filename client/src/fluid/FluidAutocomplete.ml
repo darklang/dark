@@ -101,7 +101,7 @@ let asTypeStrings (item : item) : string list * string =
   | FACVariable (_, odv) ->
       odv
       |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
-      |> Option.withDefault ~default:"variable"
+      |> Option.unwrap ~default:"variable"
       |> fun r -> ([], r)
   | FACPattern (FPAVariable _) ->
       ([], "variable")
@@ -118,7 +118,7 @@ let asTypeStrings (item : item) : string list * string =
       let tipe =
         lit
         |> Decoders.parseDvalLiteral
-        |> Option.withDefault ~default:(DIncomplete SourceNone)
+        |> Option.unwrap ~default:(DIncomplete SourceNone)
         |> RT.typeOf
         |> RT.tipe2str
       in
@@ -182,7 +182,7 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
   match String.uncons needle with
   | Some (c, newneedle) ->
       let char = String.fromChar c in
-      String.contains ~substring:char haystack
+      String.includes ~substring:char haystack
       && containsOrdered
            newneedle
            ( haystack
@@ -226,8 +226,8 @@ let findFields (m : model) (tl : toplevel) (ti : tokenInfo) : string list =
   Analysis.getSelectedTraceID m tlid
   |> Option.andThen ~f:(Analysis.getLiveValue m id)
   |> Option.map ~f:(fun dv ->
-         match dv with DObj dict -> StrDict.keys dict | _ -> [])
-  |> Option.withDefault ~default:[]
+         match dv with DObj dict -> Map.keys dict | _ -> [])
+  |> Option.unwrap ~default:[]
 
 
 let findExpectedType
@@ -244,14 +244,14 @@ let findExpectedType
                 let param = List.getAt ~index fn.fnParameters in
                 let returnType =
                   Option.map param ~f:(fun p -> p.paramTipe)
-                  |> Option.withDefault ~default:default.returnType
+                  |> Option.unwrap ~default:default.returnType
                 in
                 let paramName =
                   Option.map param ~f:(fun p -> p.paramName)
-                  |> Option.withDefault ~default:default.paramName
+                  |> Option.unwrap ~default:default.paramName
                 in
                 ({fnName = fn.fnName; returnType; paramName} : TypeInformation.t)))
-  |> Option.withDefault ~default
+  |> Option.unwrap ~default
 
 
 (* Checks whether an autocomplete item matches the expected types *)
@@ -382,7 +382,7 @@ let generateExprs (m : model) (props : props) (tl : toplevel) ti =
   let varnames =
     Analysis.getSelectedTraceID m (TL.id tl)
     |> Option.map ~f:(Analysis.getAvailableVarnames m tl id)
-    |> Option.withDefault ~default:[]
+    |> Option.unwrap ~default:[]
     |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
   in
   let keywords =
@@ -471,7 +471,7 @@ let filter
     (functions : function_ list) (candidates0 : item list) (query : fullQuery) :
     data list =
   let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
-  let lcq = query.queryString |> String.toLower |> stripColons in
+  let lcq = query.queryString |> String.toLowercase |> stripColons in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asMatchingString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
@@ -480,7 +480,7 @@ let filter
   (* split into different lists *)
   let candidates1, notSubstring =
     List.partition
-      ~f:(stringify >> String.toLower >> String.contains ~substring:lcq)
+      ~f:(stringify >> String.toLowercase >> String.includes ~substring:lcq)
       candidates0
   in
   let startsWith, candidates2 =
@@ -490,22 +490,22 @@ let filter
   in
   let startsWithCI, candidates3 =
     List.partition
-      ~f:(stringify >> String.toLower >> String.startsWith ~prefix:lcq)
+      ~f:(stringify >> String.toLowercase >> String.startsWith ~prefix:lcq)
       candidates2
   in
   let substring, substringCI =
     List.partition
-      ~f:(stringify >> String.contains ~substring:query.queryString)
+      ~f:(stringify >> String.includes ~substring:query.queryString)
       candidates3
   in
   let stringMatch, _notMatched =
     List.partition
-      ~f:(asName >> String.toLower >> containsOrdered lcq)
+      ~f:(asName >> String.toLowercase >> containsOrdered lcq)
       notSubstring
   in
   let allMatches =
     [startsWith; startsWithCI; substring; substringCI; stringMatch]
-    |> List.concat
+    |> List.flatten
   in
   (* Now split list by type validity *)
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in

@@ -69,8 +69,8 @@ let run () =
           let testId = ID.fromString "testme" in
           let inner = ELet (gid (), "", EBlank testId, E.newB ()) in
           let outer = ELet (gid (), "variable", int 4, inner) in
-          let vars = variablesIn outer |> StrDict.get ~key:"testme" in
-          let varsFor = vars |> Option.map ~f:(fun d -> StrDict.keys d) in
+          let vars = variablesIn outer |. Map.get ~key:"testme" in
+          let varsFor = vars |> Option.map ~f:(fun d -> Map.keys d) in
           expect varsFor |> toEqual (Some ["variable"])) ;
       test
         "variablesIn correctly gets rhs id of latest let definition"
@@ -85,8 +85,8 @@ let run () =
           let ast = ELet (let1ID, "a", a1, ELet (let2ID, "a", a2, lastBlank)) in
           expect
             ( variablesIn ast
-            |> StrDict.get ~key:"lastBlankid"
-            |> Option.andThen ~f:(fun d -> StrDict.get ~key:"a" d) )
+            |> Map.get ~key:"lastBlankid"
+            |> Option.andThen ~f:(fun d -> Map.get ~key:"a" d) )
           |> toEqual (Some a2ID)) ;
       test "variablesIn correctly gets the id of a pattern variable" (fun () ->
           let id1 = gid () in
@@ -98,8 +98,8 @@ let run () =
           in
           expect
             ( variablesIn ast
-            |> StrDict.get ~key:(ID.toString targetID)
-            |> Option.andThen ~f:(fun d -> StrDict.get ~key:"myvar" d) )
+            |> Map.get ~key:(ID.toString targetID)
+            |> Option.andThen ~f:(fun d -> Map.get ~key:"myvar" d) )
           |> toEqual (Some id1)) ;
       ()) ;
   describe "removePartials" (fun () ->

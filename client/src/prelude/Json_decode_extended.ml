@@ -82,17 +82,18 @@ let result (decoderOk : 'ok decoder) (decoderError : 'error decoder) :
 
 let tryDecode2 try1 try2 json = try try1 json with DecodeError _ -> try2 json
 
-let strDict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) : 'a StrDict.t =
-  dict decoder json |> Js.Dict.entries |> Belt.Map.String.fromArray
+let strDict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) : 'a Map.String.t =
+  dict decoder json |> Js.Dict.entries |> Map.String.fromArray
 
 
-let strSet json = json |> array string |> Belt.Set.String.fromArray
+let strSet json = json |> array string |> Set.String.fromArray
 
-let decodeString decoder str =
-  try Belt.Result.Ok (decoder (Json.parseOrRaise str)) with
+let decodeString (decoder : 'a decoder) (str : string) :
+    ('a, string) Tc.Result.t =
+  try Ok (decoder (Json.parseOrRaise str)) with
   | DecodeError e ->
       (* Debug.loG ("json decoding error: '" ^ e ^ "'") str; *)
-      Belt.Result.Error e
+      Error e
   | Json.ParseError e ->
       (* Debug.loG ("json parse error: '" ^ e ^ "'") str; *)
       Error e

@@ -4,11 +4,14 @@ open Runtime
 
 let run () =
   describe "pathFromInputVars" (fun () ->
-      let noRequest = StrDict.empty in
-      let noURL = StrDict.fromList [("request", Types.DObj StrDict.empty)] in
+      let noRequest = Map.String.empty in
+      let noURL =
+        Map.String.fromList [("request", Types.DObj Map.String.empty)]
+      in
       let generate url =
-        StrDict.fromList
-          [("request", Types.DObj (StrDict.fromList [("url", Types.DStr url)]))]
+        Map.String.fromList
+          [ ( "request"
+            , Types.DObj (Map.String.fromList [("url", Types.DStr url)]) ) ]
       in
       test "returns None if no request object" (fun () ->
           expect (pathFromInputVars noRequest) |> toEqual None) ;

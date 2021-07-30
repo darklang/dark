@@ -11,47 +11,43 @@ let keyForTipe (name : string) (version : int) : string =
   name ^ ":" ^ Int.toString version
 
 
-let dbsByName (dbs : db TD.t) : TLID.t StrDict.t =
+let dbsByName (dbs : db TD.t) : TLID.t Map.String.t =
   dbs
-  |> TD.filterMapValues ~f:(fun db ->
+  |> Map.filterMapValues ~f:(fun db ->
          db.dbName
          |> B.toOption
          |> Option.map ~f:(fun name -> (name, db.dbTLID)))
-  |> StrDict.fromList
+  |> Map.String.fromList
 
 
-let handlersByName (hs : handler TD.t) : TLID.t StrDict.t =
+let handlersByName (hs : handler TD.t) : TLID.t Map.String.t =
   hs
-  |> TD.mapValues ~f:(fun h ->
-         let space =
-           h.spec.space |> B.toOption |> Option.withDefault ~default:"_"
-         in
-         let name =
-           h.spec.name |> B.toOption |> Option.withDefault ~default:"_"
-         in
+  |> Map.mapValues ~f:(fun h ->
+         let space = h.spec.space |> B.toOption |> Option.unwrap ~default:"_" in
+         let name = h.spec.name |> B.toOption |> Option.unwrap ~default:"_" in
          let key = keyForHandlerSpec space name in
          (key, h.hTLID))
-  |> StrDict.fromList
+  |> Map.String.fromList
 
 
-let functionsByName (fns : userFunction TD.t) : TLID.t StrDict.t =
+let functionsByName (fns : userFunction TD.t) : TLID.t Map.String.t =
   fns
-  |> TD.filterMapValues ~f:(fun fn ->
+  |> Map.filterMapValues ~f:(fun fn ->
          fn.ufMetadata.ufmName
          |> B.toOption
          |> Option.map ~f:(fun name -> (name, fn.ufTLID)))
-  |> StrDict.fromList
+  |> Map.String.fromList
 
 
-let packageFunctionsByName (fns : packageFn TD.t) : TLID.t StrDict.t =
+let packageFunctionsByName (fns : packageFn TD.t) : TLID.t Map.String.t =
   fns
-  |> TD.mapValues ~f:(fun fn -> (fn |> PackageManager.extendedName, fn.pfTLID))
-  |> StrDict.fromList
+  |> Map.mapValues ~f:(fun fn -> (fn |> PackageManager.extendedName, fn.pfTLID))
+  |> Map.String.fromList
 
 
-let tipesByName (uts : userTipe TD.t) : TLID.t StrDict.t =
+let tipesByName (uts : userTipe TD.t) : TLID.t Map.String.t =
   uts
-  |> TD.mapValues ~f:(fun ut ->
+  |> Map.mapValues ~f:(fun ut ->
          let name =
            ut.utName
            |> B.toOption
@@ -61,7 +57,7 @@ let tipesByName (uts : userTipe TD.t) : TLID.t StrDict.t =
          let version = ut.utVersion in
          let key = keyForTipe name version in
          (key, ut.utTLID))
-  |> StrDict.fromList
+  |> Map.String.fromList
 
 
 let tlidsToUpdateUsage (ops : op list) : TLID.t list =
@@ -117,9 +113,9 @@ let rec updateAssocList
 
 let allRefersTo (tlid : TLID.t) (m : model) : (toplevel * ID.t list) list =
   m.tlRefersTo
-  |> TLIDDict.get ~tlid
-  |> Option.withDefault ~default:[]
-  |> List.foldl ~init:[] ~f:(fun (tlid, id) assoc ->
+  |> Map.get ~key:tlid
+  |> Option.unwrap ~default:[]
+  |> List.fold ~initial:[] ~f:(fun assoc (tlid, id) ->
          ( updateAssocList ~key:tlid assoc ~f:(function
                | None ->
                    Some [id]
@@ -132,51 +128,49 @@ let allRefersTo (tlid : TLID.t) (m : model) : (toplevel * ID.t list) list =
 
 let allUsedIn (tlid : TLID.t) (m : model) : toplevel list =
   m.tlUsedIn
-  |> TLIDDict.get ~tlid
-  |> Option.withDefault ~default:TLIDSet.empty
-  |> TLIDSet.toList
+  |> Map.get ~key:tlid
+  |> Option.unwrap ~default:TLIDSet.empty
+  |> Set.toList
   |> List.filterMap ~f:(fun tlid -> TL.get m tlid)
 
 
 let findUsagesInAST
     (tlid : TLID.t)
-    ~(datastores : TLID.t StrDict.t)
-    ~(handlers : TLID.t StrDict.t)
-    ~(functions : TLID.t StrDict.t)
-    ~(packageFunctions : TLID.t StrDict.t)
+    ~(datastores : TLID.t Map.String.t)
+    ~(handlers : TLID.t Map.String.t)
+    ~(functions : TLID.t Map.String.t)
+    ~(packageFunctions : TLID.t Map.String.t)
     (ast : FluidAST.t) : usage list =
   FluidAST.toExpr ast
   |> FluidExpression.filterMap ~f:(fun e ->
          match e with
          | EVariable (id, name) ->
-             StrDict.get ~key:name datastores
+             Map.get ~key:name datastores
              |> Option.map ~f:(fun dbTLID -> (dbTLID, id))
          | EFnCall (id, "emit", [_; EString (_, space_); EString (_, name_)], _)
            ->
              let name = Util.removeQuotes name_ in
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
-             StrDict.get ~key handlers
-             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
+             Map.get ~key handlers |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | EFnCall (id, "emit_v1", [_; EString (_, name_)], _) ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
-             StrDict.get ~key handlers
-             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
+             Map.get ~key handlers |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | EFnCall (id, name, _, _) ->
              Option.orElse
-               ( StrDict.get ~key:name functions
+               ( Map.get ~key:name functions
                |> Option.map ~f:(fun fnTLID -> (fnTLID, id)) )
-               ( StrDict.get ~key:name packageFunctions
+               ( Map.get ~key:name packageFunctions
                |> Option.map ~f:(fun fnTLID -> (fnTLID, id)) )
          | _ ->
              None)
   |> List.map ~f:(fun (usedIn, id) -> {refersTo = tlid; usedIn; id})
 
 
-let findUsagesInFunctionParams (tipes : TLID.t StrDict.t) (fn : userFunction) :
-    usage list =
+let findUsagesInFunctionParams (tipes : TLID.t Map.String.t) (fn : userFunction)
+    : usage list =
   (* Versions are slightly aspirational, and we don't have them in most of
    * the places we use tipes, including here *)
   let version = 0 in
@@ -186,18 +180,18 @@ let findUsagesInFunctionParams (tipes : TLID.t StrDict.t) (fn : userFunction) :
          |> B.toOption
          |> Option.map ~f:Runtime.tipe2str
          |> Option.map ~f:(fun t -> keyForTipe t version)
-         |> Option.andThen ~f:(fun key -> StrDict.get ~key tipes)
+         |> Option.andThen ~f:(fun key -> Map.get ~key tipes)
          |> Option.thenAlso ~f:(fun _ -> Some (B.toID p.ufpTipe)))
   |> List.map ~f:(fun (usedIn, id) -> {refersTo = fn.ufTLID; usedIn; id})
 
 
 let getUsageFor
     (tl : toplevel)
-    ~(datastores : TLID.t StrDict.t)
-    ~(handlers : TLID.t StrDict.t)
-    ~(functions : TLID.t StrDict.t)
-    ~(packageFunctions : TLID.t StrDict.t)
-    ~(tipes : TLID.t StrDict.t) : usage list =
+    ~(datastores : TLID.t Map.String.t)
+    ~(handlers : TLID.t Map.String.t)
+    ~(functions : TLID.t Map.String.t)
+    ~(packageFunctions : TLID.t Map.String.t)
+    ~(tipes : TLID.t Map.String.t) : usage list =
   let astUsages =
     TL.getAST tl
     |> Option.map
@@ -208,12 +202,12 @@ let getUsageFor
               ~handlers
               ~functions
               ~packageFunctions)
-    |> Option.withDefault ~default:[]
+    |> Option.unwrap ~default:[]
   in
   let fnUsages =
     TL.asUserFunction tl
     |> Option.map ~f:(findUsagesInFunctionParams tipes)
-    |> Option.withDefault ~default:[]
+    |> Option.unwrap ~default:[]
   in
   (* TODO: tipes in other tipes *)
   astUsages @ fnUsages
@@ -228,10 +222,10 @@ let refreshUsages (m : model) (tlids : TLID.t list) : model =
   (* We need to overwrite the already-stored results for the passed-in TLIDs.
    * So we clear tlRefers for these tlids, and remove them from the inner set
    * of tlUsedIn. *)
-  let tlRefersToDict = TD.removeMany ~tlids m.tlRefersTo in
+  let tlRefersToDict = Map.removeMany ~keys:tlids m.tlRefersTo in
   let tlUsedInDict =
-    TD.map m.tlUsedIn ~f:(fun tlidsReferedTo ->
-        TLIDSet.removeMany tlidsReferedTo ~values:tlids)
+    Map.map m.tlUsedIn ~f:(fun tlidsReferedTo ->
+        Set.removeMany tlidsReferedTo ~values:tlids)
   in
   let newTlUsedIn, newTlRefersTo =
     tlids
@@ -245,24 +239,24 @@ let refreshUsages (m : model) (tlids : TLID.t list) : model =
                  ~functions
                  ~packageFunctions
                  ~tipes))
-    |> List.concat
-    |> List.foldl
-         ~init:(tlUsedInDict, tlRefersToDict)
-         ~f:(fun usage (usedIn, refersTo) ->
+    |> List.flatten
+    |> List.fold
+         ~initial:(tlUsedInDict, tlRefersToDict)
+         ~f:(fun (usedIn, refersTo) usage ->
            let newRefersTo =
-             TD.insert
-               ~tlid:usage.refersTo
+             Map.add
+               ~key:usage.refersTo
                ~value:
-                 ( ( TD.get ~tlid:usage.refersTo refersTo
-                   |> Option.withDefault ~default:[] )
+                 ( ( Map.get ~key:usage.refersTo refersTo
+                   |> Option.unwrap ~default:[] )
                  @ [(usage.usedIn, usage.id)] )
                refersTo
            in
            let newUsedIn =
-             TD.get ~tlid:usage.usedIn usedIn
-             |> Option.withDefault ~default:TLIDSet.empty
-             |> TLIDSet.add ~value:usage.refersTo
-             |> fun value -> TD.insert ~tlid:usage.usedIn ~value usedIn
+             Map.get ~key:usage.usedIn usedIn
+             |> Option.unwrap ~default:TLIDSet.empty
+             |> Set.add ~value:usage.refersTo
+             |> fun value -> Map.add ~key:usage.usedIn ~value usedIn
            in
            (newUsedIn, newRefersTo))
   in
@@ -279,5 +273,5 @@ let setHoveringReferences (tlid : TLID.t) (ids : ID.t list) : modification =
   in
   ReplaceAllModificationsWithThisOne
     (fun m ->
-      ( {m with handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps}
+      ( {m with handlerProps = Map.update ~key:tlid ~f:new_props m.handlerProps}
       , Tea.Cmd.none ))

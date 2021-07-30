@@ -182,7 +182,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         |> Option.orElse cmdDocString
         |> Option.orElse selectedParamDocString
         |> Option.orElse selectedFnDocString
-        |> Option.withDefault ~default:Vdom.noNode
+        |> Option.unwrap ~default:Vdom.noNode
     | _ ->
         Vdom.noNode
   in
@@ -250,7 +250,7 @@ let tlCacheKey (m : model) tl =
                  false)
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
-    let props = TLIDDict.get ~tlid m.handlerProps in
+    let props = Map.get ~key:tlid m.handlerProps in
     let menuIsOpen = TLMenu.isOpen m tlid in
     let workerSchedule =
       tl |> TL.asHandler |> Option.andThen ~f:(Handlers.getWorkerSchedule m)
@@ -324,7 +324,7 @@ let isAppScrollZero () : bool =
   |> Option.map ~f:(fun app ->
          Element.scrollLeft app = 0.0 && Element.scrollTop app = 0.0)
   (* Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet *)
-  |> Option.withDefault ~default:true
+  |> Option.unwrap ~default:true
 
 
 let viewCanvas (m : model) : msg Html.html =
@@ -333,7 +333,7 @@ let viewCanvas (m : model) : msg Html.html =
     | Architecture | FocusedHandler _ | FocusedDB _ | SettingsModal _ ->
         m
         |> TL.structural
-        |> TD.values
+        |> Map.values
         (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
@@ -341,19 +341,19 @@ let viewCanvas (m : model) : msg Html.html =
         |> List.sortBy ~f:(fun tl -> TLID.toString (TL.id tl))
         |> List.map ~f:(viewTL m)
     | FocusedPackageManagerFn tlid ->
-      ( match TD.get ~tlid m.functions.packageFunctions with
+      ( match Map.get ~key:tlid m.functions.packageFunctions with
       | Some func ->
           [viewTL m (TL.pmfToTL func)]
       | None ->
           [] )
     | FocusedFn (tlid, _) ->
-      ( match TD.get ~tlid m.userFunctions with
+      ( match Map.get ~key:tlid m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]
       | None ->
           [] )
     | FocusedType tlid ->
-      ( match TD.get ~tlid m.userTipes with
+      ( match Map.get ~key:tlid m.userTipes with
       | Some tipe ->
           [viewTL m (TL.utToTL tipe)]
       | None ->
@@ -476,7 +476,7 @@ let viewMinimap (data : string option) (currentPage : page) (showTooltip : bool)
 
 
 let viewToast (t : toast) : msg Html.html =
-  let msg = Option.withDefault ~default:"" t.toastMessage in
+  let msg = Option.unwrap ~default:"" t.toastMessage in
   let classes =
     if Option.isSome t.toastMessage then "toast show" else "toast"
   in
@@ -642,7 +642,7 @@ let view (m : model) : msg Html.html =
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
   let ast =
     TL.selectedAST m
-    |> Option.withDefault ~default:(FluidAST.ofExpr (E.EBlank (gid ())))
+    |> Option.unwrap ~default:(FluidAST.ofExpr (E.EBlank (gid ())))
   in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger

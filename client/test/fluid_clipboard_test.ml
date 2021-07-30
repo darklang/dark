@@ -59,7 +59,7 @@ let execute_roundtrip (ast : fluidExpr) =
   let mod_ = Main.update_ (ClipboardPasteEvent e) m2 in
   let newM, _cmd = Main.updateMod mod_ (m2, Tea.Cmd.none) in
   TL.selectedAST newM
-  |> Option.withDefault
+  |> Option.unwrap
        ~default:
          (FluidAST.ofExpr (EString (gid (), "fake result value for testing")))
   |> FluidAST.toExpr
@@ -100,7 +100,7 @@ let run () =
     let newState = newM.fluidState in
     let newAST =
       TL.selectedAST newM
-      |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
+      |> Option.unwrap ~default:(FluidAST.ofExpr (E.newB ()))
       |> FluidAST.toExpr
     in
     let finalPos = newState.newPos in
@@ -225,7 +225,7 @@ let run () =
         let finalPos = pastedModel.fluidState.newPos in
         let newAST =
           TL.selectedAST pastedModel
-          |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
+          |> Option.unwrap ~default:(FluidAST.ofExpr (E.newB ()))
         in
         let resultText =
           newAST

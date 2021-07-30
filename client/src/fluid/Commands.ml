@@ -36,7 +36,7 @@ let commands : command list =
         (fun _ tl e ->
           Toplevel.getAST tl
           |> Option.map ~f:(fun ast -> IfToMatch.findIf ast e |> Option.isSome)
-          |> Option.withDefault ~default:false)
+          |> Option.unwrap ~default:false)
     ; doc = "Convert the if expression into a match expression" }
   ; { commandName = "insert-let-above"
     ; action = Refactor.wrap Refactor.WLetBody
@@ -112,7 +112,7 @@ let commands : command list =
                        Some fluidName
                    | _ ->
                        None)
-            |> Option.withDefault ~default:""
+            |> Option.unwrap ~default:""
           in
           let tlid = Toplevel.id tl in
           let data = CurlCommand.curlFromHttpClientCall m tlid id name in

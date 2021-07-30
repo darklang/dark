@@ -6,7 +6,7 @@ module P = Pointer
 module TD = TLIDDict
 
 let allNames (fns : userFunction TLIDDict.t) : string list =
-  fns |> TD.filterMapValues ~f:(fun fn -> B.toOption fn.ufMetadata.ufmName)
+  fns |> Map.filterMapValues ~f:(fun fn -> B.toOption fn.ufMetadata.ufmName)
 
 
 let toID (uf : userFunction) : TLID.t = uf.ufTLID
@@ -14,16 +14,16 @@ let toID (uf : userFunction) : TLID.t = uf.ufTLID
 let upsert (m : model) (userFunction : userFunction) : model =
   { m with
     userFunctions =
-      TD.insert ~tlid:userFunction.ufTLID ~value:userFunction m.userFunctions }
+      Map.add ~key:userFunction.ufTLID ~value:userFunction m.userFunctions }
 
 
 let update (m : model) ~(tlid : TLID.t) ~(f : userFunction -> userFunction) :
     model =
-  {m with userFunctions = TD.updateIfPresent ~tlid ~f m.userFunctions}
+  {m with userFunctions = Map.updateIfPresent ~key:tlid ~f m.userFunctions}
 
 
 let remove (m : model) (userFunction : userFunction) : model =
-  {m with userFunctions = TD.remove ~tlid:userFunction.ufTLID m.userFunctions}
+  {m with userFunctions = Map.remove ~key:userFunction.ufTLID m.userFunctions}
 
 
 let fromList (ufs : userFunction list) : userFunction TLIDDict.t =
@@ -71,7 +71,7 @@ let paramData (ufp : userFunctionParameter) : blankOrData list =
 
 
 let allParamData (uf : userFunction) : blankOrData list =
-  List.concat (List.map ~f:paramData uf.ufMetadata.ufmParameters)
+  List.flatten (List.map ~f:paramData uf.ufMetadata.ufmParameters)
 
 
 let blankOrData (uf : userFunction) : blankOrData list =
@@ -233,7 +233,7 @@ let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
 let idOfLastBlankor (f : userFunction) : ID.t =
   List.last f.ufMetadata.ufmParameters
   |> Option.andThen ~f:(fun p -> Some (B.toID p.ufpTipe))
-  |> Option.withDefault ~default:(B.toID f.ufMetadata.ufmName)
+  |> Option.unwrap ~default:(B.toID f.ufMetadata.ufmName)
 
 
 (* Converts inputValueDict to executeFunctionAPIParams.efpArgs *)
@@ -243,7 +243,7 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
   |> List.map ~f:(fun p ->
          match p.ufpName with
          | F (_, name) ->
-             StrDict.get ~key:name input |> Option.withDefault ~default
+             Map.get ~key:name input |> Option.unwrap ~default
          | _ ->
              default)
 

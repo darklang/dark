@@ -1,3 +1,4 @@
+open Prelude
 open Tester
 open FluidShortcuts
 module E = FluidExpression
@@ -20,15 +21,13 @@ let run () =
         let generatedIDs = ref ID.Set.empty in
         let idGenerator () =
           let id = gid () in
-          generatedIDs := ID.Set.add !generatedIDs ~value:id ;
+          generatedIDs := Set.add !generatedIDs ~value:id ;
           id
         in
         let expr = f idGenerator in
         let decendantIDs = E.decendants expr |> ID.Set.fromList in
         test name (fun () ->
-            expect decendantIDs
-            |> withEquality ID.Set.eq
-            |> toEqual !generatedIDs)
+            expect decendantIDs |> withEquality (Belt.Set.eq) |> toEqual !generatedIDs)
       in
       t "simple expression" (fun gid -> int ~id:(gid ()) 5) ;
       t "complex expression" (fun gid ->

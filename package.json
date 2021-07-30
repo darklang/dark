@@ -34,7 +34,7 @@
     "pusher-js": "5.1.1",
     "rollbar": "2.24.0",
     "sha2": "1.0.2",
-    "tablecloth-bucklescript": "0.0.7",
+    "tablecloth": "0.0.8-alpha.1",
     "validator": "^13.6.0"
   },
   "scripts": {

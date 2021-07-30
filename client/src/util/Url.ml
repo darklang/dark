@@ -61,49 +61,49 @@ let parseLocation (loc : Web.Location.location) : page option =
     |> String.split ~on:"&"
     |> List.map ~f:(String.split ~on:"=")
     |> List.filterMap ~f:(fun arr ->
-           match arr with [a; b] -> Some (String.toLower a, b) | _ -> None)
-    |> StrDict.fromList
+           match arr with [a; b] -> Some (String.toLowercase a, b) | _ -> None)
+    |> Map.String.fromList
   in
   let architecture () = Some Architecture in
   let settingModal () =
-    match StrDict.get ~key:"settings" unstructured with
+    match Map.get ~key:"settings" unstructured with
     | Some tab ->
         Some (SettingsModal (SettingsViewTypes.settingsTabFromText tab))
     | _ ->
         None
   in
   let pmfn () =
-    match StrDict.get ~key:"packagemanagerfn" unstructured with
+    match Map.get ~key:"packagemanagerfn" unstructured with
     | Some sid ->
         Some (FocusedPackageManagerFn (TLID.fromString sid))
     | _ ->
         None
   in
   let fn () =
-    match StrDict.get ~key:"fn" unstructured with
+    match Map.get ~key:"fn" unstructured with
     | Some sid ->
-        let trace = StrDict.get ~key:"trace" unstructured in
+        let trace = Map.get ~key:"trace" unstructured in
         Some (FocusedFn (TLID.fromString sid, trace))
     | _ ->
         None
   in
   let handler () =
-    match StrDict.get ~key:"handler" unstructured with
+    match Map.get ~key:"handler" unstructured with
     | Some sid ->
-        let trace = StrDict.get ~key:"trace" unstructured in
+        let trace = Map.get ~key:"trace" unstructured in
         Some (FocusedHandler (TLID.fromString sid, trace, true))
     | _ ->
         None
   in
   let db () =
-    match StrDict.get ~key:"db" unstructured with
+    match Map.get ~key:"db" unstructured with
     | Some sid ->
         Some (FocusedDB (TLID.fromString sid, true))
     | _ ->
         None
   in
   let tipe () =
-    match StrDict.get ~key:"type" unstructured with
+    match Map.get ~key:"type" unstructured with
     | Some sid ->
         Some (FocusedType (TLID.fromString sid))
     | _ ->
@@ -120,8 +120,7 @@ let parseLocation (loc : Web.Location.location) : page option =
 
 let changeLocation (loc : Web.Location.location) : modification =
   let mPage = parseLocation loc in
-  Option.map ~f:(fun x -> SetPage x) mPage
-  |> Option.withDefault ~default:NoChange
+  Option.map ~f:(fun x -> SetPage x) mPage |> Option.unwrap ~default:NoChange
 
 
 let splitOnEquals (s : string) : (string * bool) option =
@@ -141,7 +140,7 @@ let queryParams () : (string * bool) list =
   match String.uncons search with
   | Some ('?', rest) ->
       rest
-      |> String.toLower
+      |> String.toLowercase
       |> String.split ~on:"&"
       |> List.filterMap ~f:splitOnEquals
   | _ ->
@@ -150,7 +149,7 @@ let queryParams () : (string * bool) list =
 
 let queryParamSet (name : string) : bool =
   List.find ~f:(fun (k, v) -> if k = name then v else false) (queryParams ())
-  |> Option.withDefault ~default:(name, false)
+  |> Option.unwrap ~default:(name, false)
   |> Tuple2.second
 
 

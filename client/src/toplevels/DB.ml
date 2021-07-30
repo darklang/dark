@@ -7,15 +7,15 @@ module TD = TLIDDict
 let toID (db : db) : TLID.t = db.dbTLID
 
 let upsert (m : model) (db : db) : model =
-  {m with dbs = TD.insert ~tlid:db.dbTLID ~value:db m.dbs}
+  {m with dbs = Map.add ~key:db.dbTLID ~value:db m.dbs}
 
 
 let update (m : model) ~(tlid : TLID.t) ~(f : db -> db) : model =
-  {m with dbs = TD.updateIfPresent ~tlid ~f m.dbs}
+  {m with dbs = Map.updateIfPresent ~key:tlid ~f m.dbs}
 
 
 let remove (m : model) (db : db) : model =
-  {m with dbs = TD.remove ~tlid:db.dbTLID m.dbs}
+  {m with dbs = Map.remove ~key:db.dbTLID m.dbs}
 
 
 let fromList (dbs : db list) : db TLIDDict.t =
@@ -33,7 +33,7 @@ let blankOrData (db : db) : blankOrData list =
   let colpointers =
     cols
     |> List.map ~f:(fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
-    |> List.concat
+    |> List.flatten
   in
   PDBName db.dbName :: colpointers
 
@@ -45,7 +45,7 @@ let hasCol (db : db) (name : string) : bool =
 
 
 let isLocked (m : model) (tlid : TLID.t) : bool =
-  not (StrSet.has ~value:(TLID.toString tlid) m.unlockedDBs)
+  not (Set.member ~value:(TLID.toString tlid) m.unlockedDBs)
 
 
 let isMigrationCol (db : db) (id : ID.t) : bool =

@@ -36,7 +36,7 @@ type exception_ =
   ; result : string option
   ; resultType : string option
   ; expected : string option
-  ; info : string StrDict.t
+  ; info : string Map.String.t
   ; workarounds : string list }
 
 (* ---------------------- *)
@@ -296,7 +296,7 @@ and dval_source =
   | SourceId of TLID.t * ID.t
 
 and dblock_args =
-  { symtable : dval StrDict.t
+  { symtable : dval Map.String.t
   ; params : (ID.t * string) list
   ; body : FluidExpression.t }
 
@@ -308,7 +308,7 @@ and dval =
   | DCharacter of string
   | DStr of string
   | DList of dval array
-  | DObj of dval StrDict.t
+  | DObj of dval Map.String.t
   | DIncomplete of dval_source
   | DError of (dval_source * string)
   | DBlock of dblock_args
@@ -524,23 +524,23 @@ and 'result loadable =
   | LoadableLoading of 'result option
   | LoadableError of string
 
-and dvalDict = dval StrDict.t
+and dvalDict = dval Map.String.t
 
 and executionResult =
   | ExecutedResult of dval
   | NonExecutedResult of dval
 
-and intermediateResultStore = executionResult StrDict.t
+and intermediateResultStore = executionResult Map.String.t
 
 (* map from expression ids to symbol table, which maps from varname strings to
  * the ids of the expressions that represent their values *)
-and avDict = ID.t StrDict.t StrDict.t
+and avDict = ID.t Map.String.t Map.String.t
 
 and inputValueDict = dvalDict
 
 and analysisStore = intermediateResultStore loadable
 
-and analyses = analysisStore (* indexed by traceID *) StrDict.t
+and analyses = analysisStore (* indexed by traceID *) Map.String.t
 
 and functionResult =
   { fnName : string
@@ -588,9 +588,9 @@ and traceError =
   (* MaximumCallStackError is unrecoverable - don't try again *)
   | MaximumCallStackError
 
-and trace = traceID * (traceError, traceData) Result.t
+and trace = traceID * (traceData, traceError) Result.t
 
-and traces = trace list (* indexed by TLID.t *) StrDict.t
+and traces = trace list (* indexed by TLID.t *) Map.String.t
 
 and fourOhFour =
   { space : string
@@ -613,7 +613,7 @@ and dbStats =
   { count : int
   ; example : (dval * string) option }
 
-and dbStatsStore = dbStats StrDict.t
+and dbStatsStore = dbStats Map.String.t
 
 and workerStats =
   { count : int
@@ -726,7 +726,7 @@ and analysisError =
   | AnalysisExecutionError of performAnalysisParams * string
   | AnalysisParseError of string
 
-and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
+and performAnalysisResult = (analysisEnvelope, analysisError) Tc.Result.t
 
 and delete404APIParams = fourOhFour
 
@@ -763,7 +763,7 @@ and loadPackagesAPIResult = packageFn list
 
 and triggerHandlerAPIResult = TLID.t list
 
-and unlockedDBs = StrSet.t
+and unlockedDBs = Set.String.t
 
 and getUnlockedDBsAPIResult = unlockedDBs
 
@@ -789,12 +789,12 @@ and initialLoadAPIResult =
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
   ; permission : permission option
-  ; opCtrs : int StrDict.t
+  ; opCtrs : int Map.String.t
   ; account : account
   ; canvasList : string list
   ; orgs : string list
   ; orgCanvasList : string list
-  ; workerSchedules : string StrDict.t
+  ; workerSchedules : string Map.String.t
   ; secrets : SecretTypes.t list
   ; creationDate : Js.Date.t [@opaque] }
 
@@ -930,11 +930,11 @@ and functionsType =
   ; previewUnsafeFunctions :
       (* We do analysis to determine which functions are safe and which are not.
        * This stores the result *)
-      StrSet.t
+      Set.String.t
   ; allowedFunctions : function_ list }
 
 and functionsProps =
-  { usedFns : int StrDict.t
+  { usedFns : int Map.String.t
   ; userFunctions : userFunction TLIDDict.t }
 
 (* ------------------- *)
@@ -1014,7 +1014,7 @@ and sidebarMode =
 
 and sidebarState =
   { mode : sidebarMode
-  ; openedCategories : StrSet.t }
+  ; openedCategories : Set.String.t }
 
 and sidebarMsg =
   | ToggleSidebarMode
@@ -1139,7 +1139,7 @@ and modification =
       (* Entering a blankOr with a desired caret offset *) of
       TLID.t * ID.t * int
   | OpenOmnibox (* Open the omnibox *) of pos option
-  | UpdateWorkerSchedules of string StrDict.t
+  | UpdateWorkerSchedules of string Map.String.t
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
@@ -1291,7 +1291,7 @@ and msg =
   | NewTracePush of (traceID * TLID.t list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
-  | WorkerStatePush of string StrDict.t
+  | WorkerStatePush of string Map.String.t
   | Delete404APICallback of delete404APIParams * (unit, httpError) Tea.Result.t
       [@printer opaque "Delete404APICallback"]
   | InitialLoadAPICallback of
@@ -1379,7 +1379,8 @@ and msg =
   | DismissErrorBar
   | PauseWorker of string
   | RunWorker of string
-  | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
+  | UpdateWorkerScheduleCallback of
+      (string Map.String.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * TLID.t
   | FnParamMsg of fnpMsg
@@ -1407,12 +1408,12 @@ and pick =
   | PickA
   | PickB
 
-and flagsVS = ffIsExpanded StrDict.t
+and flagsVS = ffIsExpanded Map.String.t
 
 (* ----------------------------- *)
 (* Model *)
 (* ----------------------------- *)
-and syncState = StrSet.t
+and syncState = Set.String.t
 
 and exeState =
   | Idle
@@ -1429,7 +1430,7 @@ and handlerProp =
 and tlTraceIDs = traceID TLIDDict.t
 
 (* Testing *)
-and testResult = (string, unit) Result.t
+and testResult = (unit, string) Result.t
 
 and integrationTestState =
   | IntegrationTestExpectation of (model -> testResult)
@@ -1710,9 +1711,9 @@ and model =
   ; origin : string
   ; environment : string
   ; csrfToken : string
-  ; usedDBs : int StrDict.t
-  ; usedFns : int StrDict.t
-  ; usedTipes : int StrDict.t
+  ; usedDBs : int Map.String.t
+  ; usedFns : int Map.String.t
+  ; usedTipes : int Map.String.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys : staticDeploy list
         (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
@@ -1739,14 +1740,14 @@ and model =
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; opCtrs : int StrDict.t
+  ; opCtrs : int Map.String.t
   ; clientOpCtrId : string
   ; permission : permission option
   ; showTopbar : bool
   ; toast : toast
   ; username : string
   ; account : account
-  ; workerSchedules : string StrDict.t
+  ; workerSchedules : string Map.String.t
   ; searchCache : string TLIDDict.t
   ; editorSettings : editorSettings
   ; teaDebuggerEnabled : bool

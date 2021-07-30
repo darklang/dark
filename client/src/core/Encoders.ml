@@ -113,8 +113,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DList" [array dval l]
   | DObj o ->
       o
-      |> StrDict.map ~f:dval
-      |> StrDict.toList
+      |> Map.map ~f:dval
+      |> Map.toList
       |> Js.Dict.fromList
       |> jsonDict
       |> fun x -> [x] |> ev "DObj"
@@ -330,7 +330,7 @@ and db (db : Types.db) : Js.Json.t =
     ; ("old_migrations", list dbMigration db.oldMigrations)
     ; ( "active_migration"
       , Option.map ~f:dbMigration db.activeMigration
-        |> Option.withDefault ~default:null ) ]
+        |> Option.unwrap ~default:null ) ]
 
 
 and op (call : Types.op) : Js.Json.t =
@@ -449,7 +449,7 @@ and triggerHandlerAPIParams (params : Types.triggerHandlerAPIParams) : Js.Json.t
   object_
     [ ("tlid", tlid params.thTLID)
     ; ("trace_id", string params.thTraceID)
-    ; ("input", list (tuple2 string dval) (StrDict.toList params.thInput)) ]
+    ; ("input", list (tuple2 string dval) (Map.toList params.thInput)) ]
 
 
 and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
@@ -764,16 +764,14 @@ and traceID = string
 
 and traceData (t : Types.traceData) : Js.Json.t =
   object_
-    [ ("input", list (tuple2 string dval) (StrDict.toList t.input))
+    [ ("input", list (tuple2 string dval) (Map.toList t.input))
     ; ("timestamp", string t.timestamp)
     ; ("function_results", list functionResult t.functionResults) ]
 
 
 and trace (t : Types.trace) : Js.Json.t =
   let data v =
-    Result.map ~f:traceData v
-    |> Result.toOption
-    |> Option.withDefault ~default:null
+    Result.map ~f:traceData v |> Result.toOption |> Option.unwrap ~default:null
   in
   pair traceID data t
 
@@ -806,17 +804,24 @@ let savedUserSettings (se : Types.savedUserSettings) : Js.Json.t =
     [ ("showUserWelcomeModal", bool se.firstVisitToDark)
     ; ("firstVisitToDark", bool se.firstVisitToDark)
     ; ( "recordConsent"
-      , Option.map ~f:bool se.recordConsent |> Option.withDefault ~default:null
-      ) ]
+      , Option.map ~f:bool se.recordConsent |> Option.unwrap ~default:null ) ]
+
+
+let tlidDict (valueEncoder : 'value -> Js.Json.t) (t : 'value TLIDDict.t) :
+    Js.Json.t =
+  t
+  |> Map.toList
+  |> List.map ~f:(fun (k, v) -> (TLID.toString k, valueEncoder v))
+  |> object_
 
 
 let savedSettings (se : Types.savedSettings) : Js.Json.t =
   object_
     [ ("editorSettings", editorSettings se.editorSettings)
     ; ("cursorState", cursorState se.cursorState)
-    ; ("tlTraceIDs", tcStrDict traceID se.tlTraceIDs)
+    ; ("tlTraceIDs", tlidDict traceID se.tlTraceIDs)
     ; ("featureFlags", tcStrDict bool se.featureFlags)
-    ; ("handlerProps", tcStrDict handlerProp se.handlerProps)
+    ; ("handlerProps", tlidDict handlerProp se.handlerProps)
     ; ("canvasPos", pos se.canvasPos)
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
@@ -825,7 +830,7 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ("firstVisitToThisCanvas", bool se.firstVisitToThisCanvas)
     ; ( "userTutorial"
       , Option.map ~f:userTutorial se.userTutorial
-        |> Option.withDefault ~default:null )
+        |> Option.unwrap ~default:null )
     ; ("userTutorialTLID", nullable tlid se.userTutorialTLID) ]
 
 
@@ -858,7 +863,7 @@ let httpError (e : string Tea.Http.error) : Js.Json.t =
         object_ [("rawResponse", string str)]
   in
   let response (r : Http.response) =
-    let module StringMap = Map.Make (Caml.String) in
+    let module StringMap = Caml.Map.Make (Tc.Caml.String) in
     object_
       [ ("url", string r.url)
       ; ( "status"

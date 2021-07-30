@@ -80,7 +80,7 @@ let run () =
         {Fluid_test_data.defaultTestModel with handlers = Handlers.fromList [h]}
       in
       let astInfo = Fluid.updateAutocomplete m (TLID.fromString "7") astInfo in
-      List.foldl inputs ~init:astInfo ~f:(fun input (astInfo : ASTInfo.t) ->
+      List.fold inputs ~initial:astInfo ~f:(fun (astInfo : ASTInfo.t) input ->
           Fluid.updateMsg' m h.hTLID astInfo (FluidInputEvent input))
     in
     let resultPat =

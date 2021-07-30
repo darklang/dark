@@ -62,7 +62,7 @@ let viewPlayIcon (p : props) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       Vdom.noNode
 
 
-let toHtml (p : props) (duplicatedRecordFields : (ID.t * StrSet.t) list) :
+let toHtml (p : props) (duplicatedRecordFields : (ID.t * Set.String.t) list) :
     Types.msg Html.html list =
   let exeFlow ti =
     let id = FluidToken.analysisID ti.token in
@@ -172,12 +172,10 @@ let toHtml (p : props) (duplicatedRecordFields : (ID.t * StrSet.t) list) :
                 true
             | _ ->
                 false)
-        |> List.foldl ~init:ID.Set.empty ~f:(fun e acc ->
+        |> List.fold ~initial:ID.Set.empty ~f:(fun acc e ->
                match e with
                | FluidExpression.EFeatureFlag (_, _, _, oldCode, _) ->
-                   ID.Set.addMany
-                     acc
-                     ~values:(FluidExpression.decendants oldCode)
+                   Set.addMany acc ~values:(FluidExpression.decendants oldCode)
                | _ ->
                    acc)
   in
@@ -198,11 +196,11 @@ let toHtml (p : props) (duplicatedRecordFields : (ID.t * StrSet.t) list) :
         let analysisId = FluidToken.analysisID ti.token in
         (* Toggle withinFlag if we've crossed a flag boundary.
          * See above comment where withinFlag is defined *)
-        if (not !withinFlag) && ID.Set.member idsInAFlag ~value:tokenId
+        if (not !withinFlag) && Set.member idsInAFlag ~value:tokenId
         then withinFlag := true
         else if FluidToken.validID tokenId
                 && !withinFlag
-                && not (ID.Set.member idsInAFlag ~value:tokenId)
+                && not (Set.member idsInAFlag ~value:tokenId)
         then withinFlag := false ;
         (* Apply CSS classes to token *)
         let tokenClasses = FluidToken.toCssClasses ti.token in
@@ -242,7 +240,7 @@ let toHtml (p : props) (duplicatedRecordFields : (ID.t * StrSet.t) list) :
           | TRecordFieldname {fieldName; recordID; _} ->
               duplicatedRecordFields
               |> List.find ~f:(fun (rID, fns) ->
-                     rID = recordID && StrSet.has ~value:fieldName fns)
+                     rID = recordID && Set.member ~value:fieldName fns)
               |> Option.isSome
           | _ ->
               false
@@ -378,16 +376,14 @@ let tokensView (p : props) : Types.msg Html.html =
                let _, duplicates =
                  fields
                  |> List.map ~f:(fun (name, _) -> name)
-                 |> List.foldl
-                      ~init:(StrSet.empty, StrSet.empty)
-                      ~f:(fun name (fns, duplicates) ->
-                        if StrSet.has ~value:name fns
-                        then (fns, StrSet.add ~value:name duplicates)
-                        else (StrSet.add ~value:name fns, duplicates))
+                 |> List.fold
+                      ~initial:(Set.String.empty, Set.String.empty)
+                      ~f:(fun (fns, duplicates) name ->
+                        if Set.member ~value:name fns
+                        then (fns, Set.add ~value:name duplicates)
+                        else (Set.add ~value:name fns, duplicates))
                in
-               if duplicates |> StrSet.isEmpty
-               then None
-               else Some (id, duplicates)
+               if duplicates |> Set.isEmpty then None else Some (id, duplicates)
            | _ ->
                None)
   in
@@ -409,7 +405,7 @@ let viewErrorIndicator (p : props) (ti : FluidToken.tokenInfo) :
   let returnTipe (name : string) =
     Functions.find name p.functions
     |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
-    |> Option.withDefault ~default:TAny
+    |> Option.unwrap ~default:TAny
   in
   let liveValue (id : ID.t) = Analysis.getLiveValue' p.analysisStore id in
   let isEvalSuccess dv =

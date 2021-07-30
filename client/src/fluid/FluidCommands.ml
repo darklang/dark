@@ -29,7 +29,7 @@ let show (m : model) (tlid : TLID.t) (id : ID.t) : model =
            ; filter = None }
          in
          {m with fluidState = {m.fluidState with cp}})
-  |> Option.withDefault ~default:m
+  |> Option.unwrap ~default:m
 
 
 let executeCommand (m : model) (tlid : TLID.t) (id : ID.t) (cmd : command) :
@@ -120,7 +120,7 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
   let filter, commands =
     if String.length query > 0
     then
-      let isMatched c = String.contains ~substring:query c.commandName in
+      let isMatched c = String.includes ~substring:query c.commandName in
       (Some query, List.filter ~f:isMatched allCmds)
     else (None, fluidCommands m)
   in
@@ -184,7 +184,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
   let cmdsView =
     Html.div
       [Attrs.id "fluid-dropdown"]
-      [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
+      [Html.ul [] (List.mapWithIndex ~f:viewCommands cp.commands)]
   in
   Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
 

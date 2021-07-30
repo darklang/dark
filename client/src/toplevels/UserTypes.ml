@@ -10,9 +10,9 @@ let blankOrData (t : userTipe) : blankOrData list =
   let definitionPointers =
     match t.utDefinition with
     | UTRecord fields ->
-        List.foldl
-          ~init:[]
-          ~f:(fun f acc ->
+        List.fold
+          ~initial:[]
+          ~f:(fun acc f ->
             acc @ [PTypeFieldName f.urfName; PTypeFieldTipe f.urfTipe])
           fields
   in
@@ -22,15 +22,15 @@ let blankOrData (t : userTipe) : blankOrData list =
 let toID (ut : userTipe) : TLID.t = ut.utTLID
 
 let upsert (m : model) (ut : userTipe) : model =
-  {m with userTipes = TD.insert ~tlid:ut.utTLID ~value:ut m.userTipes}
+  {m with userTipes = Map.add ~key:ut.utTLID ~value:ut m.userTipes}
 
 
 let update (m : model) ~(tlid : TLID.t) ~(f : userTipe -> userTipe) : model =
-  {m with userTipes = TD.updateIfPresent ~tlid ~f m.userTipes}
+  {m with userTipes = Map.updateIfPresent ~key:tlid ~f m.userTipes}
 
 
 let remove (m : model) (ut : userTipe) : model =
-  {m with userTipes = TD.remove ~tlid:ut.utTLID m.userTipes}
+  {m with userTipes = Map.remove ~key:ut.utTLID m.userTipes}
 
 
 let fromList (uts : userTipe list) : userTipe TLIDDict.t =
@@ -38,7 +38,7 @@ let fromList (uts : userTipe list) : userTipe TLIDDict.t =
 
 
 let allNames (tipes : userTipe TLIDDict.t) : string list =
-  tipes |> TLIDDict.filterMapValues ~f:(fun t -> B.toOption t.utName)
+  tipes |> Map.filterMapValues ~f:(fun t -> B.toOption t.utName)
 
 
 let toTUserType (tipe : userTipe) : tipe option =
