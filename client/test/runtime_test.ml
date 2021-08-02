@@ -5,14 +5,10 @@ open Runtime
 let run () =
   describe "pathFromInputVars" (fun () ->
       let noRequest = Belt.Map.String.empty in
-      let noURL =
-        Belt.Map.String.fromArray
-          [|("request", Dval.obj [])|]
-      in
+      let noURL = Belt.Map.String.fromArray [|("request", Dval.obj [])|] in
       let generate url =
         Belt.Map.String.fromArray
-          [| ( "request"
-             , Dval.obj ([("url", Types.DStr url)]) ) |]
+          [|("request", Dval.obj [("url", Types.DStr url)])|]
       in
       test "returns None if no request object" (fun () ->
           expect (pathFromInputVars noRequest) |> toEqual None) ;
