@@ -29,7 +29,7 @@ set -e
 if [[ "$error" == 1 ]]; then
   echo "Ran into a weird rescript bug: $errorline"
   echo "Cleaning"
-  ./scripts/clear-bs-cache
+  ./scripts/clear-rescript-cache
   ./scripts/clear-node-modules
   echo "Running again"
   ./scripts/npm-install-with-retry
