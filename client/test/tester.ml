@@ -166,7 +166,7 @@ let testAll (name : string) (items : 'a list) (testFn : 'a -> Private.t) : unit
 let expect (actual : 'a) =
   { Private.actual
   ; equalityFn = ( = )
-  ; printer = Js.Json.stringifyAny >> Option.valueExn }
+  ; printer = Js.Json.stringifyAny >> Option.unwrapUnsafe }
 
 
 let toEqual (expected : 'a) (e : 'a Private.expectation) =

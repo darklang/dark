@@ -11,7 +11,7 @@ module K = FluidKeyboard
 (* ------------------ *)
 let process_cmdline_args () =
   let command = ref None in
-  Tc.Array.iter Sys.argv ~f:(fun str ->
+  Tc.Array.forEach Sys.argv ~f:(fun str ->
       match (!command, str) with
       | None, "--pattern"
       | None, "--size"

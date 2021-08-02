@@ -171,7 +171,7 @@ module TestCase = struct
       let extraEditors = Fluid.buildFeatureFlagEditors tlid ast in
       let activeEditor =
         if ff
-        then List.head extraEditors |> Option.valueExn
+        then List.head extraEditors |> Option.unwrapUnsafe
         else MainEditor tlid
       in
       (* re-calculate selectionStart, pos taking into account either

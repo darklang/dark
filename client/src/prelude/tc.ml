@@ -34,15 +34,10 @@ let identity (value : 'a) : 'a = value
 
 module Array = struct
   include Tablecloth.Array
-
-  let iter ~(f : 'a -> unit) (arr : 'a array) : unit = Belt.Array.forEach arr f
 end
 
 module Option = struct
   include Tablecloth.Option
-
-  let exec ~(f : 'a -> unit) (v : 'a option) : unit =
-    match v with Some v -> f v | None -> ()
 
 
   let values (l : 'a option list) : 'a list =
@@ -50,11 +45,6 @@ module Option = struct
       match item with None -> l | Some v -> v :: l
     in
     Tablecloth.List.foldRight ~f:valuesHelper ~initial:[] l
-
-
-  (* TODO: remove *)
-  let valueExn (value : 'a option) : 'a =
-    match value with Some v -> v | None -> raise Not_found
 
 
   let orLazy (v : 'a option) (v2 : unit -> 'a option) : 'a option =
@@ -67,10 +57,6 @@ module Option = struct
 
   let pair (a : 'a option) (b : 'b option) : ('a * 'b) option =
     match (a, b) with Some a, Some b -> Some (a, b) | _ -> None
-
-
-  let map2 (a : 'a option) (b : 'b option) ~(f : 'a -> 'b -> 'c) : 'c option =
-    match (a, b) with Some a, Some b -> Some (f a b) | _ -> None
 
 
   let andThen2 (a : 'a option) (b : 'b option) ~(f : 'a -> 'b -> 'c option) :
@@ -100,12 +86,6 @@ end
 
 module List = struct
   include Tablecloth.List
-
-  (* CLEANUP: tablecloth version is wrong *)
-  let insertAt ~(index : int) ~(value : 'a) (l : 'a list) : 'a list =
-    let front, back = splitAt ~index l in
-    append front (value :: back)
-
 
   let getBy ~(f : 'a -> bool) (l : 'a list) : 'a option = Belt.List.getBy l f
 
@@ -158,10 +138,6 @@ module List = struct
     Tablecloth.List.includes ~equal:( = ) l value
 
 
-  let flatten = List.flatten
-
-  let fold ~initial ~f list = Tablecloth.List.fold ~initial ~f list
-
   let foldr ~init ~f list = Tablecloth.List.fold_right ~initial:init ~f list
 
   let findWithIndex ~(f : int -> 'a -> bool) (l : 'a list) : int option =
@@ -176,23 +152,6 @@ module List = struct
           else findIndexHelper ~i:(i + 1) ~predicate rest
     in
     findIndexHelper ~i:0 ~predicate:f l
-
-
-  let rec dropLeft ~(count : int) (l : 'a list) : 'a list =
-    if count <= 0
-    then l
-    else
-      match l with
-      | [] ->
-          []
-      | [_] ->
-          []
-      | _ :: rest ->
-          dropLeft ~count:(count - 1) rest
-
-
-  let dropRight ~(count : int) (l : 'a list) : 'a list =
-    l |> reverse |> dropLeft ~count |> reverse
 
 
   let range (start : int) (end_ : int) : 'a list =
@@ -253,8 +212,6 @@ end
 module Result = struct
   include Tablecloth.Result
 
-  let isOk (v : ('ok, 'err) t) : bool = match v with Ok _ -> true | _ -> false
-
   let combine (l : ('ok, 'err) t list) : ('ok list, 'err) t =
     List.foldRight ~f:(map2 ~f:(fun accum r -> r :: accum)) ~initial:(Ok []) l
 
@@ -277,14 +234,10 @@ end
 
 module Float = struct
   include Tablecloth.Float
-
-  let toString (f : float) : string = Js.Float.toString f
 end
 
 module Int = struct
   include Tablecloth.Int
-
-  let toString (i : int) : string = Js.Int.toString i
 end
 
 module String = struct
@@ -353,8 +306,6 @@ module Map = struct
       dict2
 
 
-  let count (dict : ('key, 'value, 'id) t) = Tablecloth.Map.length dict
-
   let mapValues (dict : ('key, 'value, 'id) t) ~(f : 'value -> 'x) : 'x list =
     dict |> Tablecloth.Map.values |> List.map ~f
 
@@ -362,11 +313,6 @@ module Map = struct
   let filterMapValues (dict : ('key, 'value, 'id) t) ~(f : 'value -> 'x option)
       : 'x list =
     dict |> Tablecloth.Map.values |> List.filterMap ~f
-
-
-  let mapWithKey (dict : ('key, 'value, 'id) t) ~(f : key:'key -> 'value -> 'x)
-      : ('key, 'x, 'id) t =
-    Tablecloth.Map.mapWithIndex ~f:(fun key v -> f ~key v) dict
 
 
   let remove (dict : ('key, 'value, 'id) t) ~(key : 'key) :
@@ -386,7 +332,7 @@ module Map = struct
   let get ~key (dict : ('key, 'value, 'id) t) : 'value option =
     Tablecloth.Map.get dict key
 
-
+  (* Js.String.make gives us "[object Object]", so we actually want our own toString. Not perfect, but slightly nicer (e.g., for App.ml's DisplayAndReportHttpError, info's values are all strings, which this handles) *)
   let toString (d : ('key, 'value, 'id) t) =
     d
     |> toList
@@ -426,7 +372,6 @@ module Map = struct
       Format.pp_print_string fmt "}" ;
       ()
 
-    (* Js.String.make gives us "[object Object]", so we actually want our own toString. Not perfect, but slightly nicer (e.g., for App.ml's DisplayAndReportHttpError, info's values are all strings, which this handles) *)
   end
 
   module Int = struct
@@ -503,11 +448,6 @@ module Set = struct
   let add ~(value : 'key) (set : ('key, 'id) t) : ('key, 'id) t =
     Tablecloth.Set.add set value
 
-
-  let set = add
-
-  let toList (set : ('key, 'id) t) : 'key list = set |> Tablecloth.Set.toList
-
   let member ~(value : 'key) (set : ('key, 'id) t) : bool =
     Tablecloth.Set.includes set value
 
@@ -516,10 +456,5 @@ module Set = struct
     Tablecloth.Set.remove set value
 
 
-  (* let removeMany ~(values : 'key list) (set :  ('key, 'id) t ) :  ('key, 'id) t = *)
-  (*   Belt.Set.removeMany set (List.toArray values) *)
-
   let empty = Tablecloth.Set.empty
-
-  let eq = Belt.Set.String.eq
 end

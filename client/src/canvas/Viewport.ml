@@ -90,7 +90,7 @@ let moveToToken (id : ID.t) (tl : toplevel) : int option * int option =
         Native.Ext.querySelector tlSelector
         |> Option.map ~f:(fun dom ->
                Native.Ext.getBoundingClient dom tlSelector)
-        |> Option.valueExn
+        |> Option.unwrapUnsafe
       in
       let tlPos = TL.pos tl in
       (* If the token's DOM element is out of viewport, we want to shift the canvas transform to bring it within view. To make the transition seem smooth, ideally we want only either move by y-axis or x-axis. Sometimes we might have to both by both axis. But since the only use case for this function at the moment is to find code from several statements before where you are currently looking at, the most likely case is the that the token we are looking for is above the top fold, therefore we are likely going to move by only the y-axis. *)

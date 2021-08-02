@@ -1396,7 +1396,7 @@ let update_ (msg : msg) (m : model) : modification =
         in
         let params = {msg.params with ops = newOps} in
         let initialMods =
-          applyOpsToClient false params (result |> Option.valueExn)
+          applyOpsToClient false params (result |> Option.unwrapUnsafe)
         in
         Many (initialMods @ [MakeCmd (CursorState.focusEntry m)])
   | FetchAllTracesAPICallback (Ok x) ->
@@ -1788,7 +1788,7 @@ let update_ (msg : msg) (m : model) : modification =
     | RefreshAnalysis ->
         let getUnlockedDBs =
           (* Small optimization *)
-          if Map.count m.dbs > 0 then GetUnlockedDBsAPICall else NoChange
+          if Map.length m.dbs > 0 then GetUnlockedDBsAPICall else NoChange
         in
         ( match Toplevel.selected m with
         | Some tl when Toplevel.isDB tl ->

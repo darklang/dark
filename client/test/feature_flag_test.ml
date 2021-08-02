@@ -43,12 +43,12 @@ let testUnwrap
   let id = Shared.gid () in
   let ast = FluidAST.ofExpr (exprFn id) in
   test (name ^ "- KeepOld") (fun () ->
-      let actualOld = FF.unwrap FF.KeepOld ast id |> Option.valueExn in
+      let actualOld = FF.unwrap FF.KeepOld ast id |> Option.unwrapUnsafe in
       expect (FluidAST.toExpr actualOld)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepOld) ;
   test (name ^ "- KeepNew") (fun () ->
-      let actualNew = FF.unwrap FF.KeepNew ast id |> Option.valueExn in
+      let actualNew = FF.unwrap FF.KeepNew ast id |> Option.unwrapUnsafe in
       expect (FluidAST.toExpr actualNew)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepNew)

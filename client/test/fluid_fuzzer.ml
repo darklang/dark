@@ -86,7 +86,7 @@ let random () : float =
 let range (max : int) : int = truncate (float_of_int max *. random ())
 
 let oneOf (l : 'a list) : 'a =
-  List.getAt ~index:(range (List.length l)) l |> Option.valueExn
+  List.getAt ~index:(range (List.length l)) l |> Option.unwrapUnsafe
 
 
 (* ------------------ *)
