@@ -147,7 +147,8 @@ let defaultModel
   let analyses =
     analyses
     |> List.map ~f:(fun (id, value) -> (ID.toString id, ExecutedResult value))
-    |> Map.String.fromList
+    |> List.toArray
+    |> Belt.Map.String.fromArray
   in
   let default = Fluid_test_data.defaultTestModel in
   { default with

@@ -10,3 +10,5 @@ val tcStrSet : Tc.Set.String.t -> Js.Json.t
 
 (* CLEANUP : change name of function *)
 val tcStrDict : ('a -> Js.Json.t) -> 'a Tc.Map.String.t -> Js.Json.t
+
+val beltStrDict : ('a -> Js.Json.t) -> 'a Belt.Map.String.t -> Js.Json.t

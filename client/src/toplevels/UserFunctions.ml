@@ -243,7 +243,7 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
   |> List.map ~f:(fun p ->
          match p.ufpName with
          | F (_, name) ->
-             Map.get ~key:name input |> Option.unwrap ~default
+             Belt.Map.String.get input name |> Option.unwrap ~default
          | _ ->
              default)
 

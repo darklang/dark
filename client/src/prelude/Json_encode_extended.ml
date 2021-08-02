@@ -14,3 +14,10 @@ let tcStrSet set =
 
 let tcStrDict f dict =
   dict |> Tc.Map.toList |> Tc.List.map ~f:(fun (k, v) -> (k, f v)) |> object_
+
+
+let beltStrDict f dict =
+  dict
+  |> Belt.Map.String.toList
+  |> Tc.List.map ~f:(fun (k, v) -> (k, f v))
+  |> object_

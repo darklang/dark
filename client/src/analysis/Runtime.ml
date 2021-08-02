@@ -301,7 +301,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
     | l ->
         "[ " ^ String.join ~sep:", " (List.map ~f:(toRepr_ indent) l) ^ " ]" )
   | DObj o ->
-      objToString (Map.toList o)
+      objToString (Belt.Map.String.toList o)
   | DBytes s ->
       "<"
       ^ (dv |> typeOf |> tipe2str)
@@ -358,8 +358,9 @@ let inputVariables (tl : toplevel) : string list =
 let sampleInputValue (tl : toplevel) : inputValueDict =
   tl
   |> inputVariables
-  |> List.map ~f:(fun v -> (v, DIncomplete SourceNone))
-  |> Map.String.fromList
+  |> List.toArray
+  |> Array.map ~f:(fun v -> (v, DIncomplete SourceNone))
+  |> Belt.Map.String.fromArray
 
 
 let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
@@ -368,8 +369,10 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
      *
      * This ensures newly added parameters show as incomplete.
      * *)
-    Map.merge
-      ~f:(fun _key sampleVal traceVal ->
+    Belt.Map.String.merge
+      (sampleInputValue tl)
+      iv
+      (fun _key sampleVal traceVal ->
         match (sampleVal, traceVal) with
         | None, None ->
             None
@@ -379,8 +382,6 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
             Some v
         | Some _sample, Some trace ->
             Some trace)
-      (sampleInputValue tl)
-      iv
     |> fun dict -> DObj dict
   in
   dval
@@ -394,9 +395,9 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
 
 
 let pathFromInputVars (iv : inputValueDict) : string option =
-  Map.get ~key:"request" iv
+  Belt.Map.String.get iv "request"
   |> Option.andThen ~f:(fun obj ->
-         match obj with DObj r -> r |> Map.get ~key:"url" | _ -> None)
+         match obj with DObj r -> Belt.Map.String.get r "url" | _ -> None)
   |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
   |> Option.andThen ~f:Native.Url.make
   |> Option.map ~f:(fun url -> url##pathname ^ url##search)

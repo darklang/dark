@@ -655,22 +655,16 @@ let defaultTestModel =
     tests = defaultTestProps.variants
   ; functions = defaultTestProps.functions
   ; analyses =
-      Map.String.singleton (* The default traceID for TLID 7 *)
-        ~key:"94167980-f909-527e-a4af-bc3155f586d3"
-        ~value:
-          (LoadableSuccess
-             (Map.String.fromList
-                [ ( "fake-acdata1"
-                  , ExecutedResult
-                      (DObj
-                         (Map.String.fromList
-                            [("body", DNull); ("formBody", DNull)])) )
-                ; ( "fake-acdata2"
-                  , ExecutedResult
-                      (DObj
-                         (Map.String.fromList
-                            [("title", DNull); ("author", DNull)])) )
-                ; ( "fake-acdata3"
-                  , ExecutedResult
-                      (DObj (Map.String.fromList [("body", DInt 5)])) ) ]))
+      Map.String.fromList (* The default traceID for TLID 7 *)
+        [ ( "94167980-f909-527e-a4af-bc3155f586d3"
+          , LoadableSuccess
+              (Belt.Map.String.fromArray
+                 [| ( "fake-acdata1"
+                    , ExecutedResult
+                        (Dval.obj [("body", DNull); ("formBody", DNull)]) )
+                  ; ( "fake-acdata2"
+                    , ExecutedResult
+                        (Dval.obj [("title", DNull); ("author", DNull)]) )
+                  ; ( "fake-acdata3"
+                    , ExecutedResult (Dval.obj [("body", DInt 5)]) ) |]) ) ]
   ; fluidState = defaultTestState }

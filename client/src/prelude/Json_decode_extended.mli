@@ -60,6 +60,8 @@ val tryDecode2 : 'a decoder -> 'a decoder -> 'a decoder
 
 val strDict : 'a decoder -> 'a Tc.Map.String.t decoder
 
+val beltStrDict : 'a decoder -> 'a Belt.Map.String.t decoder
+
 val strSet : Tc.Set.String.t decoder
 
 val decodeString : 'a decoder -> string -> ('a, string) Tc.Result.t

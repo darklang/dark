@@ -226,7 +226,11 @@ let findFields (m : model) (tl : toplevel) (ti : tokenInfo) : string list =
   Analysis.getSelectedTraceID m tlid
   |> Option.andThen ~f:(Analysis.getLiveValue m id)
   |> Option.map ~f:(fun dv ->
-         match dv with DObj dict -> Map.keys dict | _ -> [])
+         match dv with
+         | DObj dict ->
+             Belt.Map.String.keysToArray dict |> Array.toList
+         | _ ->
+             [])
   |> Option.unwrap ~default:[]
 
 

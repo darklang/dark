@@ -106,6 +106,7 @@ module List = struct
     let front, back = splitAt ~index l in
     append front (value :: back)
 
+
   let getBy ~(f : 'a -> bool) (l : 'a list) : 'a option = Belt.List.getBy l f
 
   let uniqueBy ~(f : 'a -> string) (l : 'a list) : 'a list =
@@ -256,6 +257,22 @@ module Result = struct
 
   let combine (l : ('ok, 'err) t list) : ('ok list, 'err) t =
     List.foldRight ~f:(map2 ~f:(fun accum r -> r :: accum)) ~initial:(Ok []) l
+
+
+  let pp
+      (okf : Format.formatter -> 'ok -> unit)
+      (errf : Format.formatter -> 'error -> unit)
+      (fmt : Format.formatter)
+      (r : ('ok, 'error) t) : unit =
+    match r with
+    | Ok ok ->
+        Format.pp_print_string fmt "<ok: " ;
+        okf fmt ok ;
+        Format.pp_print_string fmt ">"
+    | Error err ->
+        Format.pp_print_string fmt "<error: " ;
+        errf fmt err ;
+        Format.pp_print_string fmt ">"
 end
 
 module Float = struct
@@ -400,7 +417,14 @@ module Map = struct
         (valueFormatter : Format.formatter -> 'value -> unit)
         (fmt : Format.formatter)
         (map : 'value t) =
-      pp Format.pp_print_string valueFormatter fmt map
+      Format.pp_print_string fmt "{ " ;
+      Tablecloth.Map.forEachWithIndex map ~f:(fun ~key ~value ->
+          Format.pp_print_string fmt key ;
+          Format.pp_print_string fmt ": " ;
+          valueFormatter fmt value ;
+          Format.pp_print_string fmt ",  ") ;
+      Format.pp_print_string fmt "}" ;
+      ()
 
     (* Js.String.make gives us "[object Object]", so we actually want our own toString. Not perfect, but slightly nicer (e.g., for App.ml's DisplayAndReportHttpError, info's values are all strings, which this handles) *)
   end
@@ -412,7 +436,14 @@ module Map = struct
         (valueFormatter : Format.formatter -> 'value -> unit)
         (fmt : Format.formatter)
         (map : 'value t) =
-      pp Format.pp_print_int valueFormatter fmt map
+      Format.pp_print_string fmt "{ " ;
+      Tablecloth.Map.forEachWithIndex map ~f:(fun ~key ~value ->
+          Format.pp_print_int fmt key ;
+          Format.pp_print_string fmt ": " ;
+          valueFormatter fmt value ;
+          Format.pp_print_string fmt ",  ") ;
+      Format.pp_print_string fmt "}" ;
+      ()
   end
 end
 
@@ -440,13 +471,24 @@ module Set = struct
     include Tablecloth.Set.String
 
     let pp (fmt : Format.formatter) (set : t) =
-      pp Format.pp_print_string fmt set
+      Format.pp_print_string fmt "{ " ;
+      Tablecloth.Set.forEach set ~f:(fun v ->
+          Format.pp_print_string fmt v ;
+          Format.pp_print_string fmt ", ") ;
+      Format.pp_print_string fmt " }" ;
+      ()
   end
 
   module Int = struct
     include Tablecloth.Set.Int
 
-    let pp (fmt : Format.formatter) (set : t) = pp Format.pp_print_int fmt set
+    let pp (fmt : Format.formatter) (set : t) =
+      Format.pp_print_string fmt "{ " ;
+      Tablecloth.Set.forEach set ~f:(fun v ->
+          Format.pp_print_int fmt v ;
+          Format.pp_print_string fmt ", ") ;
+      Format.pp_print_string fmt " }" ;
+      ()
   end
 
   let removeMany ~(values : 'key list) (set : ('key, 'id) t) : ('key, 'id) t =

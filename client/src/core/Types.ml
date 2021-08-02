@@ -1,5 +1,31 @@
 open Tc
 
+module Belt = struct
+  include (Belt : module type of Belt with module Map := Belt.Map)
+
+  module Map = struct
+    include (
+      Belt.Map : module type of Belt.Map with module String := Belt.Map.String )
+
+    module String = struct
+      include Belt.Map.String
+
+      let pp
+          (valueFormatter : Format.formatter -> 'value -> unit)
+          (fmt : Format.formatter)
+          (map : 'value t) =
+        Format.pp_print_string fmt "{ " ;
+        Belt.Map.String.forEach map (fun key value ->
+            Format.pp_print_string fmt key ;
+            Format.pp_print_string fmt ": " ;
+            valueFormatter fmt value ;
+            Format.pp_print_string fmt ",  ") ;
+        Format.pp_print_string fmt "}" ;
+        ()
+    end
+  end
+end
+
 (* == legacy aliases == *)
 module TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
@@ -296,7 +322,9 @@ and dval_source =
   | SourceId of TLID.t * ID.t
 
 and dblock_args =
-  { symtable : dval Map.String.t
+  { (* We use Belt.Map.String as Map.String.t has a comparator that doesn't work
+     with the cloning algorithm of web workers *)
+    symtable : dval Belt.Map.String.t
   ; params : (ID.t * string) list
   ; body : FluidExpression.t }
 
@@ -308,7 +336,9 @@ and dval =
   | DCharacter of string
   | DStr of string
   | DList of dval array
-  | DObj of dval Map.String.t
+  (* We use Belt.Map.String as Map.String.t has a comparator that doesn't work
+     with the cloning algorithm of web workers *)
+  | DObj of dval Belt.Map.String.t
   | DIncomplete of dval_source
   | DError of (dval_source * string)
   | DBlock of dblock_args
@@ -530,13 +560,13 @@ and executionResult =
   | ExecutedResult of dval
   | NonExecutedResult of dval
 
-and intermediateResultStore = executionResult Map.String.t
+and intermediateResultStore = executionResult Belt.Map.String.t
 
 (* map from expression ids to symbol table, which maps from varname strings to
  * the ids of the expressions that represent their values *)
 and avDict = ID.t Map.String.t Map.String.t
 
-and inputValueDict = dvalDict
+and inputValueDict = dval Belt.Map.String.t
 
 and analysisStore = intermediateResultStore loadable
 

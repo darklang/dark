@@ -45,7 +45,7 @@ let fromString (json : string option) : savedSettings =
   | Some json ->
     ( try json |> Json.parseOrRaise |> Decoders.savedSettings
       with e ->
-        Debug.loG "error parsing serialized editor" e ;
+        Debug.loG "error parsing serialized editor" (e, json) ;
         Defaults.defaultSavedSettings )
 
 

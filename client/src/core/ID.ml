@@ -36,6 +36,7 @@ module Map = struct
       (map : 'value t) : unit =
     Tc.Map.pp T.pp valueFormatter fmt map
 
+
   let fromArray a = Tablecloth.Map.Poly.fromArray a |. Obj.magic
 
   let empty = fromArray [||]

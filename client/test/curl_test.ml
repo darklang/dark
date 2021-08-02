@@ -33,12 +33,12 @@ let run () =
           expect (strAsBodyCurl DNull) |> toEqual None)) ;
   describe "objAsHeaderCurl" (fun () ->
       test "returns header curl flag string" (fun () ->
-          let dict =
-            Map.String.empty
-            |> Map.add ~key:"Content-Type" ~value:(DStr "application/json")
-            |> Map.add ~key:"Authorization" ~value:(DStr "Bearer abc123")
+          let obj =
+            Dval.obj
+              [ ("Content-Type", DStr "application/json")
+              ; ("Authorization", DStr "Bearer abc123") ]
           in
-          expect (objAsHeaderCurl (DObj dict))
+          expect (objAsHeaderCurl obj)
           |> toEqual
                (Some
                   "-H 'Authorization:Bearer abc123' -H 'Content-Type:application/json'")) ;
@@ -87,23 +87,18 @@ let run () =
       in
       test "returns command for /test GET with headers" (fun () ->
           let headers =
-            Map.String.empty
-            |> Map.add ~key:"Content-Type" ~value:(DStr "application/json")
-            |> Map.add ~key:"Authorization" ~value:(DStr "Bearer abc123")
+            Dval.obj
+              [ ("Content-Type", DStr "application/json")
+              ; ("Authorization", DStr "Bearer abc123") ]
           in
           let input =
-            Map.String.empty
-            |> Map.add
-                 ~key:"request"
-                 ~value:
-                   (DObj
-                      ( Map.String.empty
-                      |> Map.add ~key:"body" ~value:DNull
-                      |> Map.add ~key:"headers" ~value:(DObj headers)
-                      |> Map.add
-                           ~key:"url"
-                           ~value:
-                             (DStr "http://test-curl.builtwithdark.com/test") ))
+            Belt.Map.String.empty
+            |. Belt.Map.String.set
+                 "request"
+                 (Dval.obj
+                    [ ("body", DNull)
+                    ; ("headers", headers)
+                    ; ("url", DStr "http://test-curl.builtwithdark.com/test") ])
           in
           let m =
             makeModel
@@ -118,20 +113,13 @@ let run () =
                   "curl -H 'Authorization:Bearer abc123' -H 'Content-Type:application/json' -X GET 'http://test-curl.builtwithdark.com/test'")) ;
       test "returns command for /test POST with body" (fun () ->
           let input =
-            Map.String.empty
-            |> Map.add
-                 ~key:"request"
-                 ~value:
-                   (DObj
-                      ( Map.String.empty
-                      |> Map.add
-                           ~key:"fullBody"
-                           ~value:(DStr "{\"a\":1,\"b\":false}")
-                      |> Map.add ~key:"headers" ~value:DNull
-                      |> Map.add
-                           ~key:"url"
-                           ~value:
-                             (DStr "http://test-curl.builtwithdark.com/test") ))
+            Belt.Map.String.set
+              Belt.Map.String.empty
+              "request"
+              (Dval.obj
+                 [ ("fullBody", DStr "{\"a\":1,\"b\":false}")
+                 ; ("headers", DNull)
+                 ; ("url", DStr "http://test-curl.builtwithdark.com/test") ])
           in
           let m =
             makeModel

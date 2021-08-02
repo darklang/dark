@@ -351,7 +351,7 @@ let rec dval j : dval =
   let dblock_args j =
     { params = field "params" (list (pair id string)) j
     ; body = field "body" fluidExpr j
-    ; symtable = field "symtable" (strDict dval) j }
+    ; symtable = field "symtable" (beltStrDict dval) j }
   in
   let encodedFloat j =
     (* We can sometimes get infinity/NaN in analysis results. While the Dark
@@ -381,7 +381,7 @@ let rec dval j : dval =
     ; ("DCharacter", dv1 (fun x -> DCharacter x) string)
     ; ("DStr", dv1 (fun x -> DStr x) string)
     ; ("DList", dv1 (fun x -> DList x) (array dd))
-    ; ("DObj", dv1 (fun x -> DObj x) (strDict dd))
+    ; ("DObj", dv1 (fun x -> DObj x) (beltStrDict dd))
     ; ( "DIncomplete"
         (* catch decoding errors for backwards compatibility. if you see this
          * comment in main branch, the withDefault can be removed *)
@@ -575,7 +575,7 @@ let executionResult (j : Js.Json.t) : executionResult =
 
 
 let intermediateResultStore (j : Js.Json.t) : intermediateResultStore =
-  strDict executionResult j
+  beltStrDict executionResult j
 
 
 let dvalDict (j : Js.Json.t) : dvalDict = strDict dval j
@@ -728,7 +728,7 @@ let presenceMsg j : avatar =
 
 
 let inputValueDict j : inputValueDict =
-  j |> list (tuple2 string dval) |> Map.String.fromList
+  j |> array (tuple2 string dval) |> Belt.Map.String.fromArray
 
 
 let functionResult j : functionResult =

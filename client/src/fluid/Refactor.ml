@@ -422,7 +422,7 @@ let generateUserType (dv : dval option) : (userTipe, string) Result.t =
   | Some (DObj dvalmap) ->
       let userTipeDefinition =
         dvalmap
-        |> Map.toList
+        |> Belt.Map.String.toList
         |> List.map ~f:(fun (k, v) ->
                let tipe = v |> Runtime.typeOf in
                (*

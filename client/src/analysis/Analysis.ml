@@ -73,7 +73,7 @@ let replaceFunctionResult
                 ~default:
                   [ ( traceID
                     , Ok
-                        { input = Map.String.empty
+                        { input = Belt.Map.String.empty
                         ; timestamp = ""
                         ; functionResults = [newResult] } ) ]
            |> List.map ~f:(fun ((tid, tdata) as t) ->
@@ -96,14 +96,14 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : ID.t) :
     executionResult loadable =
   match analysisStore with
   | LoadableSuccess dvals ->
-      Map.get ~key:id dvals
+      Belt.Map.String.get dvals id
       |> Option.map ~f:(fun dv -> LoadableSuccess dv)
       |> Option.unwrap ~default:LoadableNotInitialized
   | LoadableNotInitialized ->
       LoadableNotInitialized
   | LoadableLoading oldDvals ->
       oldDvals
-      |> Option.andThen ~f:(Map.get ~key:id)
+      |> Option.andThen ~f:(fun m -> Belt.Map.String.get m id)
       |> Option.map ~f:(fun dv -> LoadableSuccess dv)
       |> Option.unwrap ~default:(LoadableLoading None)
   | LoadableError error ->
@@ -113,7 +113,7 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : ID.t) :
 let getLiveValue' (analysisStore : analysisStore) (ID id : ID.t) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
-    ( match Map.get dvals ~key:id with
+    ( match Belt.Map.String.get dvals id with
     | Some (ExecutedResult dval) | Some (NonExecutedResult dval) ->
         Some dval
     | _ ->
@@ -161,7 +161,7 @@ let getAvailableVarnames
     getTrace m tlid traceID
     |> Option.andThen ~f:(fun (_tid, td) -> td |> Result.toOption)
     |> Option.andThen ~f:(fun t -> Some t.input)
-    |> Option.unwrap ~default:Map.String.empty
+    |> Option.unwrap ~default:Belt.Map.String.empty
   in
   let varsFor (ast : FluidAST.t) =
     ast
@@ -178,7 +178,8 @@ let getAvailableVarnames
   in
   let inputVariables =
     RT.inputVariables tl
-    |> List.map ~f:(fun varname -> (varname, traceDict |> Map.get ~key:varname))
+    |> List.map ~f:(fun varname ->
+           (varname, Belt.Map.String.get traceDict varname))
   in
   match tl with
   | TLHandler h ->

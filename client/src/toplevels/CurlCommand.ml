@@ -69,7 +69,7 @@ let strAsBodyCurl (dv : dval) : string option =
 let objAsHeaderCurl (dv : dval) : string option =
   match dv with
   | DObj o ->
-      Map.toList o
+      Belt.Map.String.toList o
       (* curl will add content-length automatically, and having it specified
        * explicitly causes weird errors if the user, say, changes the body of
        * the request without changing the value of this header *)
@@ -123,19 +123,20 @@ let curlFromCurrentTrace (m : model) (tlid : TLID.t) : string option =
   in
   match trace with
   | Some (_, Ok td) ->
-      Map.get ~key:"request" td.input
+      Belt.Map.String.get td.input "request"
       |> Option.andThen ~f:(fun obj ->
              match obj with DObj r -> Some r | _ -> None)
       |> Option.andThen ~f:(fun r ->
-             match Map.get ~key:"url" r with
+             let get name = Belt.Map.String.get r name in
+             match get "url" with
              | Some (DStr url) ->
                  let headers =
-                   Map.get ~key:"headers" r
+                   get "headers"
                    |> Option.andThen ~f:objAsHeaderCurl
                    |> wrapInList
                  in
                  let body =
-                   Map.get ~key:"fullBody" r
+                   get "fullBody"
                    |> Option.andThen ~f:strAsBodyCurl
                    |> wrapInList
                  in
@@ -240,7 +241,7 @@ let curlFromHttpClientCall
              ( match query with
              | DObj map ->
                  map
-                 |> Map.toList
+                 |> Belt.Map.String.toList
                  |> List.filterMap ~f:(fun (k, v) ->
                         to_url_string v |> Option.map ~f:(fun v -> k ^ "=" ^ v))
                  |> String.join ~sep:"&"

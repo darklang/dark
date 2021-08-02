@@ -27,7 +27,9 @@ let run () =
         let expr = f idGenerator in
         let decendantIDs = E.decendants expr |> ID.Set.fromList in
         test name (fun () ->
-            expect decendantIDs |> withEquality (Belt.Set.eq) |> toEqual !generatedIDs)
+            expect decendantIDs
+            |> withEquality Belt.Set.eq
+            |> toEqual !generatedIDs)
       in
       t "simple expression" (fun gid -> int ~id:(gid ()) 5) ;
       t "complex expression" (fun gid ->

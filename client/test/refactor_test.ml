@@ -269,16 +269,15 @@ let run () =
           |> toEqual true) ;
       test "with Some DObj input" (fun () ->
           let dobj =
-            DObj
-              ( [ ("str", DStr "foo")
-                ; ("int", DInt 1)
-                ; ("float", DFloat 1.0)
-                ; ("obj", DObj Map.String.empty)
-                ; ("date", DDate "2019-07-10T20:42:11Z")
-                ; ("datestr", DStr "2019-07-10T20:42:11Z")
-                ; ("uuid", DUuid "0a18ca77-9bae-4dfb-816f-0d12cb81c17b")
-                ; ("uuidstr", DStr "0a18ca77-9bae-4dfb-816f-0d12cb81c17b") ]
-              |> Map.String.fromList )
+            Dval.obj
+              [ ("str", DStr "foo")
+              ; ("int", DInt 1)
+              ; ("float", DFloat 1.0)
+              ; ("obj", Dval.obj [])
+              ; ("date", DDate "2019-07-10T20:42:11Z")
+              ; ("datestr", DStr "2019-07-10T20:42:11Z")
+              ; ("uuid", DUuid "0a18ca77-9bae-4dfb-816f-0d12cb81c17b")
+              ; ("uuidstr", DStr "0a18ca77-9bae-4dfb-816f-0d12cb81c17b") ]
           in
           let expectedFields =
             (* Note: datestr and uuidstr are TDate and TUuid respectively, _not_ TStr *)

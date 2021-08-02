@@ -113,15 +113,15 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DList" [array dval l]
   | DObj o ->
       o
-      |> Map.map ~f:dval
-      |> Map.toList
+      |. Belt.Map.String.map dval
+      |. Belt.Map.String.toList
       |> Js.Dict.fromList
       |> jsonDict
       |> fun x -> [x] |> ev "DObj"
   | DBlock {body; params; symtable} ->
       let dblock_args =
         object_
-          [ ("symtable", tcStrDict dval symtable)
+          [ ("symtable", beltStrDict dval symtable)
           ; ("params", list (pair id string) params)
           ; ("body", fluidExpr body) ]
       in
@@ -449,7 +449,8 @@ and triggerHandlerAPIParams (params : Types.triggerHandlerAPIParams) : Js.Json.t
   object_
     [ ("tlid", tlid params.thTLID)
     ; ("trace_id", string params.thTraceID)
-    ; ("input", list (tuple2 string dval) (Map.toList params.thInput)) ]
+    ; ( "input"
+      , list (tuple2 string dval) (Belt.Map.String.toList params.thInput) ) ]
 
 
 and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
@@ -764,7 +765,7 @@ and traceID = string
 
 and traceData (t : Types.traceData) : Js.Json.t =
   object_
-    [ ("input", list (tuple2 string dval) (Map.toList t.input))
+    [ ("input", list (tuple2 string dval) (Belt.Map.String.toList t.input))
     ; ("timestamp", string t.timestamp)
     ; ("function_results", list functionResult t.functionResults) ]
 

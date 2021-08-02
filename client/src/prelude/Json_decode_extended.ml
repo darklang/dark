@@ -86,6 +86,11 @@ let strDict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) : 'a Map.String.t =
   dict decoder json |> Js.Dict.entries |> Map.String.fromArray
 
 
+let beltStrDict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) :
+    'a Belt.Map.String.t =
+  dict decoder json |> Js.Dict.entries |> Belt.Map.String.fromArray
+
+
 let strSet json = json |> array string |> Set.String.fromArray
 
 let decodeString (decoder : 'a decoder) (str : string) :
