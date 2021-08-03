@@ -12,15 +12,16 @@ module Caml = {
 /* This allows us override submodules. See
  * http://gallium.inria.fr/blog/overriding-submodules/ */
 include (
-  Tablecloth: module type of Tablecloth with module Option := Tablecloth.Option
-    with module Int := Tablecloth.Int
-    with module Float := Tablecloth.Float
-    with module String := Tablecloth.String
-    with module Array := Tablecloth.Array
-    with module Result := Tablecloth.Result
-    with module List := Tablecloth.List
-    with module Set := Tablecloth.Set
-    with module Map := Tablecloth.Map
+  Tablecloth: module type of Tablecloth
+    with module Option := Tablecloth.Option
+    and module Int := Tablecloth.Int
+    and module Float := Tablecloth.Float
+    and module String := Tablecloth.String
+    and module Array := Tablecloth.Array
+    and module Result := Tablecloth.Result
+    and module List := Tablecloth.List
+    and module Set := Tablecloth.Set
+    and module Map := Tablecloth.Map
 )
 
 let \"<|" = (a, b) => a(b)
@@ -304,8 +305,9 @@ module String = {
 module Map = {
   /* Include this way to allow adding to String and Int submodules */
   include (
-    Tablecloth.Map: module type of Tablecloth.Map with module String := Tablecloth.Map.String
-      with module Int := Tablecloth.Map.Int
+    Tablecloth.Map: module type of Tablecloth.Map
+      with module String := Tablecloth.Map.String
+      and module Int := Tablecloth.Map.Int
   )
 
   let updateIfPresent = (~key: 'key, ~f: 'value => 'value, dict: t<'key, 'value, 'id>): t<
@@ -424,8 +426,9 @@ module Map = {
 module Set = {
   /* Include this way to allow adding to String and Int submodules */
   include (
-    Tablecloth.Set: module type of Tablecloth.Set with module String := Tablecloth.Set.String
-      with module Int := Tablecloth.Set.Int
+    Tablecloth.Set: module type of Tablecloth.Set
+      with module String := Tablecloth.Set.String
+      and module Int := Tablecloth.Set.Int
   )
 
   @warning("-3")
