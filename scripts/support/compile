@@ -566,8 +566,8 @@ def mark(should, f):
     should.npm_install = True
 
   elif ("/client/" in f) \
-          and ((".mli" in f) \
-                  or (".ml" in f)
+          and ((".resi" in f) \
+                  or (".res" in f)
                   or (".js" in f)):
     # This correctly handles tests and other dirs, which need to be built
     # as part of this step.
