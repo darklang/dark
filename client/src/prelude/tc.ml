@@ -214,8 +214,7 @@ module Result = struct
   let combine (l : ('ok, 'err) t list) : ('ok list, 'err) t =
     List.foldRight ~f:(map2 ~f:(fun accum r -> r :: accum)) ~initial:(Ok []) l
 
-
-  let pp
+  let [@warning "-3"] pp
       (okf : Format.formatter -> 'ok -> unit)
       (errf : Format.formatter -> 'error -> unit)
       (fmt : Format.formatter)
@@ -341,7 +340,7 @@ module Map = struct
     |> fun s -> "{" ^ s ^ "}"
 
 
-  let pp
+  let [@warning "-3"] pp
       (keyFormatter : Format.formatter -> 'key -> unit)
       (valueFormatter : Format.formatter -> 'value -> unit)
       (fmt : Format.formatter)
@@ -359,7 +358,7 @@ module Map = struct
   module String = struct
     include Tablecloth.Map.String
 
-    let pp
+    let [@warning "-3"] pp
         (valueFormatter : Format.formatter -> 'value -> unit)
         (fmt : Format.formatter)
         (map : 'value t) =
@@ -376,7 +375,7 @@ module Map = struct
   module Int = struct
     include Tablecloth.Map.Int
 
-    let pp
+    let [@warning "-3"] pp
         (valueFormatter : Format.formatter -> 'value -> unit)
         (fmt : Format.formatter)
         (map : 'value t) =
@@ -399,7 +398,7 @@ module Set = struct
         with module String := Tablecloth.Set.String
         with module Int := Tablecloth.Set.Int )
 
-  let pp
+  let [@warning "-3"] pp
       (valueFormatter : Format.formatter -> 'key -> unit)
       (fmt : Format.formatter)
       (set : ('key, 'id) t) =
@@ -414,7 +413,7 @@ module Set = struct
   module String = struct
     include Tablecloth.Set.String
 
-    let pp (fmt : Format.formatter) (set : t) =
+    let [@warning "-3"] pp (fmt : Format.formatter) (set : t) =
       Format.pp_print_string fmt "{ " ;
       Tablecloth.Set.forEach set ~f:(fun v ->
           Format.pp_print_string fmt v ;
@@ -425,8 +424,7 @@ module Set = struct
 
   module Int = struct
     include Tablecloth.Set.Int
-
-    let pp (fmt : Format.formatter) (set : t) =
+    let [@warning "-3"] pp (fmt : Format.formatter) (set : t) =
       Format.pp_print_string fmt "{ " ;
       Tablecloth.Set.forEach set ~f:(fun v ->
           Format.pp_print_int fmt v ;
