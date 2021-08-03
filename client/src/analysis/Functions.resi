@@ -1,6 +1,6 @@
-@ppx.deriving(show({with_path: false})) type t = Types.functionsType
+@ppx.deriving(show({with_path: false})) type rec t = Types.functionsType
 
-@ppx.deriving(show({with_path: false})) type props = Types.functionsProps
+@ppx.deriving(show({with_path: false})) type rec props = Types.functionsProps
 
 /* Returns the function named `name`. Returns Nothing if the function
  * can't be found - this shouldn't happen in theory but often does

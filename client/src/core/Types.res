@@ -32,9 +32,9 @@ module Belt = {
 module TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
 
-@ppx.deriving(show) type analysisID = ID.t
+@ppx.deriving(show) type rec analysisID = ID.t
 
-@ppx.deriving(show) type parentBlockID = ID.t
+@ppx.deriving(show) type rec parentBlockID = ID.t
 
 /* == end legacy aliases == */
 
@@ -49,7 +49,7 @@ let opaque = (msg, fmt, _) => {
 /* Probably deletable? */
 module PageVisibility = {
   @ppx.deriving(show)
-  type visibility =
+  type rec visibility =
     | Hidden
     | Visible
 }
@@ -121,7 +121,7 @@ and tipe =
 
 module TypeInformation = {
   @ppx.deriving(show)
-  type t = {
+  type rec t = {
     fnName: string,
     paramName: string,
     returnType: tipe,
@@ -379,57 +379,57 @@ and dval =
  based on which specific parts of the AST we actually want to represent via astRef */
 
 @ppx.deriving(show({with_path: false}))
-type astFloatPart =
+type rec astFloatPart =
   | FPWhole
   | FPPoint
   | FPFractional
 
-@ppx.deriving(show({with_path: false})) type astStringPart = SPOpenQuote
+@ppx.deriving(show({with_path: false})) type rec astStringPart = SPOpenQuote
 
 @ppx.deriving(show({with_path: false}))
-type astLetPart =
+type rec astLetPart =
   | LPKeyword
   | LPVarName
   | LPAssignment
 
 @ppx.deriving(show({with_path: false}))
-type astIfPart =
+type rec astIfPart =
   | IPIfKeyword
   | IPThenKeyword
   | IPElseKeyword
 
 @ppx.deriving(show({with_path: false}))
-type astLambdaPart =
+type rec astLambdaPart =
   | LBPSymbol
   | LBPVarName(/* index of the var */ int)
   | LBPComma(/* index of the var */ int)
   | LBPArrow
 
 @ppx.deriving(show({with_path: false}))
-type astFieldAccessPart =
+type rec astFieldAccessPart =
   | FAPFieldname
   | FAPFieldOp
 
 @ppx.deriving(show({with_path: false}))
-type astRecordPart =
+type rec astRecordPart =
   | RPOpen
   | RPFieldname(/* index of the <fieldname,value> pair */ int)
   | RPFieldSep(/* index of the <fieldname,value> pair */ int)
   | RPClose
 
 @ppx.deriving(show({with_path: false}))
-type astListPart =
+type rec astListPart =
   | LPOpen
   | LPClose
   | LPComma(int)
 
 @ppx.deriving(show({with_path: false}))
-type astMatchPart =
+type rec astMatchPart =
   | MPKeyword
   | MPBranchArrow(/* index of the branch */ int)
 
 @ppx.deriving(show({with_path: false}))
-type astPatternPart =
+type rec astPatternPart =
   | PPVariable
   | PPConstructor
   | PPInteger
@@ -440,7 +440,7 @@ type astPatternPart =
   | PPBlank
 
 @ppx.deriving(show({with_path: false}))
-type astFlagPart =
+type rec astFlagPart =
   | FPWhenKeyword
   | FPEnabledKeyword
 
@@ -462,7 +462,7 @@ type astFlagPart =
    to generate a more specific astRef within the nested expression.
  */
 @ppx.deriving(show({with_path: false}))
-type astRef =
+type rec astRef =
   | ARInteger(ID.t)
   | ARBool(ID.t)
   | ARString(ID.t, astStringPart)
@@ -495,7 +495,7 @@ type astRef =
    for the caret to jump during AST transformations, even ones that
    drastically change the token stream. */
 @ppx.deriving(show({with_path: false}))
-type caretTarget = {
+type rec caretTarget = {
   astRef: astRef,
   offset: int,
 }
@@ -503,7 +503,7 @@ type caretTarget = {
 /* ----------------------------- */
 /* Scroll */
 /* ----------------------------- */
-@ppx.deriving(show({with_path: false})) type scrollEvent = {timeStamp: float}
+@ppx.deriving(show({with_path: false})) type rec scrollEvent = {timeStamp: float}
 
 /* ----------------------------- */
 /* Mouse */
@@ -586,7 +586,7 @@ and inputValueDict = Belt.Map.String.t<dval>
 
 and analysisStore = loadable<intermediateResultStore>
 
-and analyses = /* indexed by traceID */ Map.String.t<analysisStore /* indexed by traceID */>
+and analyses = /* indexed by traceID */ Map.String.t<analysisStore> /* indexed by traceID */
 
 and functionResult = {
   fnName: string,
@@ -639,7 +639,7 @@ and traceError =
 
 and trace = (traceID, Result.t<traceData, traceError>)
 
-and traces = /* indexed by TLID.t */ Map.String.t<list<trace> /* indexed by TLID.t */>
+and traces = /* indexed by TLID.t */ Map.String.t<list<trace>> /* indexed by TLID.t */
 
 and fourOhFour = {
   space: string,

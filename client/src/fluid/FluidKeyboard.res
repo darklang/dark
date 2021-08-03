@@ -19,7 +19,7 @@ let getBrowserPlatform = (): browserPlatform =>
  */
 
 @ppx.deriving(show)
-type shortcutHeritage =
+type rec shortcutHeritage =
   | LegacyShortcut
   | CurrentShortcut
 
@@ -171,7 +171,7 @@ let fromKeyboardEvent = (key: string, shift: bool, ctrl: bool, meta: bool, alt: 
 }
 
 @ppx.deriving(show)
-type keyEvent = {
+type rec keyEvent = {
   key: key,
   shiftKey: bool,
   ctrlKey: bool,

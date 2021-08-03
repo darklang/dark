@@ -1,5 +1,5 @@
 module T: {
-  @ppx.deriving(show) type t
+  @ppx.deriving(show) type rec t
 
   type identity
 

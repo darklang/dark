@@ -1,11 +1,11 @@
 @ppx.deriving(show)
-type t = {
+type rec t = {
   secretName: string,
   secretValue: string,
 }
 
 @ppx.deriving(show)
-type msg =
+type rec msg =
   | OpenCreateModal
   | CloseCreateModal
   | OnUpdateName(string)
@@ -13,7 +13,7 @@ type msg =
   | SaveNewSecret
 
 @ppx.deriving(show)
-type insertModal = {
+type rec insertModal = {
   newSecretName: string,
   isNameValid: bool,
   newSecretValue: string,

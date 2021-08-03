@@ -1,12 +1,12 @@
 let focusItem: int => Tea.Cmd.t<Types.msg>
 
-@ppx.deriving(show) type t = Types.fluidAutocompleteState
+@ppx.deriving(show) type rec t = Types.fluidAutocompleteState
 
-@ppx.deriving(show) type item = Types.fluidAutocompleteItem
+@ppx.deriving(show) type rec item = Types.fluidAutocompleteItem
 
-@ppx.deriving(show) type data = Types.fluidAutocompleteData
+@ppx.deriving(show) type rec data = Types.fluidAutocompleteData
 
-@ppx.deriving(show) type query = (TLID.t, Types.fluidTokenInfo)
+@ppx.deriving(show) type rec query = (TLID.t, Types.fluidTokenInfo)
 
 type props = {functions: Types.functionsType}
 

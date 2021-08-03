@@ -1,6 +1,6 @@
-@ppx.deriving(show({with_path: false})) type id = UnsharedTypes.id
+@ppx.deriving(show({with_path: false})) type rec id = UnsharedTypes.id
 
-@ppx.deriving(show({with_path: false})) type analysisID = id
+@ppx.deriving(show({with_path: false})) type rec analysisID = id
 
 let gid = Unshared.gid
 

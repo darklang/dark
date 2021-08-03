@@ -291,7 +291,7 @@ let code = (key: key): option<int> =>
   }
 
 @ppx.deriving(show)
-type keyEvent = {
+type rec keyEvent = {
   keyCode: key,
   key: option<string>,
   shiftKey: bool,

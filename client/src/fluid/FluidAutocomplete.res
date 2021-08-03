@@ -3,15 +3,15 @@ module RT = Runtime
 module TL = Toplevel
 module Regex = Util.Regex
 
-@ppx.deriving(show) type t = fluidAutocompleteState
+@ppx.deriving(show) type rec t = fluidAutocompleteState
 
-@ppx.deriving(show) type item = fluidAutocompleteItem
+@ppx.deriving(show) type rec item = fluidAutocompleteItem
 
-@ppx.deriving(show) type data = fluidAutocompleteData
+@ppx.deriving(show) type rec data = fluidAutocompleteData
 
 type props = {functions: Types.functionsType}
 
-@ppx.deriving(show) type tokenInfo = fluidTokenInfo
+@ppx.deriving(show) type rec tokenInfo = fluidTokenInfo
 
 let focusItem = (i: int): Tea.Cmd.t<msg> =>
   Tea_task.attempt(
@@ -308,7 +308,7 @@ let typeCheck = (
   }
 }
 
-@ppx.deriving(show) type query = (TLID.t, tokenInfo)
+@ppx.deriving(show) type rec query = (TLID.t, tokenInfo)
 
 type fullQuery = {
   tl: toplevel,

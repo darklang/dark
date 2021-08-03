@@ -2,7 +2,7 @@ module T: {
   /* FIXME it would be nice to make this an opaque type, but things in
    * libshared are tangled up a bit and this needs to unify with
    * libshared/Shared.id, which is also aliased to UnsharedTypes.id */
-  @ppx.deriving(show) type t = UnsharedTypes.id
+  @ppx.deriving(show) type rec t = UnsharedTypes.id
 
   type identity
 

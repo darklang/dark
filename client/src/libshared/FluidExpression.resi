@@ -1,5 +1,5 @@
 @ppx.deriving(show({with_path: false}))
-type sendToRail =
+type rec sendToRail =
   | Rail
   | NoRail
 

@@ -7,7 +7,7 @@ let opaque = (msg, fmt, _) => {
 }
 
 @ppx.deriving(show)
-type formField = {
+type rec formField = {
   value: string,
   error: option<string>,
 }
@@ -22,16 +22,16 @@ and settingsTab =
   | Privacy
 
 @ppx.deriving(show)
-type inviteFormMessage = {
+type rec inviteFormMessage = {
   email: string,
   inviterUsername: string,
   inviterName: string,
 }
 
-@ppx.deriving(show) type privacySettings = {recordConsent: option<bool>}
+@ppx.deriving(show) type rec privacySettings = {recordConsent: option<bool>}
 
 @ppx.deriving(show)
-type settingsViewState = {
+type rec settingsViewState = {
   opened: bool,
   tab: settingsTab,
   canvasList: list<string>,
@@ -43,7 +43,7 @@ type settingsViewState = {
 }
 
 @ppx.deriving(show)
-type settingsMsg =
+type rec settingsMsg =
   | CloseSettingsView(settingsTab)
   | SetSettingsView(@opaque (list<string>, string, list<string>, list<string>))
   | OpenSettingsView(settingsTab)

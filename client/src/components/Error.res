@@ -1,4 +1,4 @@
-@ppx.deriving(show) type t = option<string>
+@ppx.deriving(show) type rec t = option<string>
 
 let clear = _ => None
 

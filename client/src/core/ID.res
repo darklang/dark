@@ -1,6 +1,6 @@
 module T = {
   module Nested = {
-    @ppx.deriving(show) type t = UnsharedTypes.id
+    @ppx.deriving(show) type rec t = UnsharedTypes.id
 
     let compare = (ID(id1): t, ID(id2): t) => compare(id1, id2)
   }

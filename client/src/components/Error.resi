@@ -1,4 +1,4 @@
-@ppx.deriving(show) type t
+@ppx.deriving(show) type rec t
 
 let clear: t => t
 

@@ -2,7 +2,7 @@ include Tc
 open Shared
 
 @ppx.deriving(show({with_path: false}))
-type sendToRail =
+type rec sendToRail =
   | Rail
   | NoRail
 
@@ -34,7 +34,7 @@ type rec t =
   | EFeatureFlag(id, string, t, t, t)
 
 @ppx.deriving(show({with_path: false}))
-type fluidPatOrExpr =
+type rec fluidPatOrExpr =
   | Expr(t)
   | Pat(FluidPattern.t)
 

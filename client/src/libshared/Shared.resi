@@ -1,7 +1,7 @@
 /* Unshared are the base types that are different between frontend and backend */
-@ppx.deriving(show({with_path: false})) type id = UnsharedTypes.id
+@ppx.deriving(show({with_path: false})) type rec id = UnsharedTypes.id
 
-@ppx.deriving(show({with_path: false})) type analysisID = UnsharedTypes.analysisID
+@ppx.deriving(show({with_path: false})) type rec analysisID = UnsharedTypes.analysisID
 
 let gid: unit => UnsharedTypes.id
 
