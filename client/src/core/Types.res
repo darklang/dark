@@ -28,8 +28,31 @@ module Belt = {
   }
 }
 
-/* == legacy aliases == */
-module TLIDDict = TLID.Dict
+/* ------------------- */
+/* Clipboard */
+/* ------------------- */
+
+type clipboardSetData = @meth (string, string) => unit
+type clipboardGetData = @meth (string => string)
+type clipboardPreventDefault = @meth (unit => unit)
+
+type clipboardData = {"setData": clipboardSetData, "getData": clipboardGetData}
+
+type clipboardEventDef = {"preventDefault": clipboardPreventDefault, "clipboardData": clipboardData}
+
+@ppx.deriving(show) @opaque
+type rec clipboardContents = /* Clipboard supports both text and encoded FluidExpression.ts. At the moment,
+ * there is always a text option - there isn't a json option if the copied
+ * string wasn't a FluidExpression.t */
+(string, @opaque option<Js.Json.t>)
+
+@ppx.deriving(show) @opaque type rec clipboardEvent = @opaque clipboardEventDef
+
+/* ------------------- */
+/* Standard types */
+/* ------------------- */
+
+module /* == legacy aliases == */ TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
 
 @ppx.deriving(show) type rec analysisID = ID.t
@@ -1002,23 +1025,6 @@ and functionsProps = {
   usedFns: Map.String.t<int>,
   userFunctions: TLIDDict.t<userFunction>,
 }
-
-/* ------------------- */
-/* Clipboard */
-/* ------------------- */
-and clipboardData = @opaque {
-  @meth
-  "setData": (string, string) => unit,
-  @meth
-  "getData": string => string,
-}
-
-and clipboardEvent = @opaque {@meth "preventDefault": unit => unit, "clipboardData": clipboardData}
-
-and clipboardContents = /* Clipboard supports both text and encoded FluidExpression.ts. At the moment,
- * there is always a text option - there isn't a json option if the copied
- * string wasn't a FluidExpression.t */
-@opaque (string, option<Js.Json.t>)
 
 /* --------------- */
 /* Component Types */

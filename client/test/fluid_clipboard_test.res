@@ -11,11 +11,21 @@ open FluidShortcuts
 type testResult = /* ast, clipboard, newPos */
 (string, (string, option<string>), int)
 
-let clipboardEvent = () =>
-  {
-    "clipboardData": Pexp_object not impemented in printer,
-    "preventDefault": %raw(` function () { return null; } `),
-  }
+let clipboardEvent = (): clipboardEvent => {
+  %raw(`
+      {
+        clipboardData: {
+          getData: (contentType) => {
+            this.hiddenContent ? (this.hiddenContent[contentType] ? this.hiddenContent[contentType] : "") : ""
+          },
+          setData: (contentType, data) => {
+            this.hiddenContent = (this.hiddenContent || {}) && (this.hiddenContent[contentType] = data)
+          },
+        },
+        preventDefault: () => {},
+      }
+    `)
+}
 
 let execute_roundtrip = (ast: fluidExpr) => {
   let ast = FluidExpression.clone(ast)
