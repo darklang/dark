@@ -13,17 +13,18 @@ type testResult = /* ast, clipboard, newPos */
 
 let clipboardEvent = (): clipboardEvent => {
   %raw(`
-      {
-        clipboardData: {
-          getData: (contentType) => {
-            this.hiddenContent ? (this.hiddenContent[contentType] ? this.hiddenContent[contentType] : "") : ""
-          },
-          setData: (contentType, data) => {
-            this.hiddenContent = (this.hiddenContent || {}) && (this.hiddenContent[contentType] = data)
-          },
+    {
+      clipboardData: {
+        getData: function (contentType) {
+          return (this.hiddenContent ? (this.hiddenContent[contentType] ? this.hiddenContent[contentType] : "") : "");
         },
-        preventDefault: () => {},
-      }
+        setData: function (contentType, data) {
+          (((this.hiddenContent = (this.hiddenContent || {})) && (this.hiddenContent[contentType] = data)));
+          return;
+        },
+      },
+      preventDefault: function () { return null; },
+    }
     `)
 }
 
