@@ -39,7 +39,6 @@ end
 module Option = struct
   include Tablecloth.Option
 
-
   let values (l : 'a option list) : 'a list =
     let valuesHelper (l : 'a list) (item : 'a option) : 'a list =
       match item with None -> l | Some v -> v :: l
@@ -332,6 +331,7 @@ module Map = struct
   let get ~key (dict : ('key, 'value, 'id) t) : 'value option =
     Tablecloth.Map.get dict key
 
+
   (* Js.String.make gives us "[object Object]", so we actually want our own toString. Not perfect, but slightly nicer (e.g., for App.ml's DisplayAndReportHttpError, info's values are all strings, which this handles) *)
   let toString (d : ('key, 'value, 'id) t) =
     d
@@ -371,7 +371,6 @@ module Map = struct
           Format.pp_print_string fmt ",  ") ;
       Format.pp_print_string fmt "}" ;
       ()
-
   end
 
   module Int = struct
@@ -447,6 +446,7 @@ module Set = struct
 
   let add ~(value : 'key) (set : ('key, 'id) t) : ('key, 'id) t =
     Tablecloth.Set.add set value
+
 
   let member ~(value : 'key) (set : ('key, 'id) t) : bool =
     Tablecloth.Set.includes set value
