@@ -12,7 +12,7 @@ type t =
   | FPFloat of Shared.id * Shared.id * string * string
   | FPNull of Shared.id * Shared.id
   | FPBlank of Shared.id * Shared.id
-[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}]
 
 val toID : t -> Shared.id
 

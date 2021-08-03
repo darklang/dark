@@ -1,8 +1,8 @@
 type id = UnsharedTypes.id
-[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}]
 
 type analysisID = id
-[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}]
 
 let gid = Unshared.gid
 

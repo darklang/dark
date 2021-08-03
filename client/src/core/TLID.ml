@@ -1,6 +1,8 @@
 module T = struct
   module Nested = struct
-    type t = TLID of string [@@ppx.deriving show {with_path = false}, ord]
+    type t = TLID of string [@@ppx.deriving show {with_path = false}]
+    let compare (TLID id1 : t) (TLID id2 : t) =
+      compare id1 id2
   end
 
   include Nested

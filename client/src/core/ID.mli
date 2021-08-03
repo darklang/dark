@@ -2,7 +2,7 @@ module T : sig
   (* FIXME it would be nice to make this an opaque type, but things in
    * libshared are tangled up a bit and this needs to unify with
    * libshared/Shared.id, which is also aliased to UnsharedTypes.id *)
-  type t = UnsharedTypes.id [@@ppx.deriving show, ord]
+  type t = UnsharedTypes.id [@@ppx.deriving show]
 
   type identity
 

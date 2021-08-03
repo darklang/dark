@@ -1,7 +1,7 @@
 type sendToRail =
   | Rail
   | NoRail
-[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}]
 
 type t =
   (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
@@ -74,12 +74,12 @@ type t =
   | EPipeTarget of Shared.id
   (* EFeatureFlag: Shared.id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of Shared.id * string * t * t * t
-[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}]
 
 type fluidPatOrExpr =
   | Expr of t
   | Pat of FluidPattern.t
-[@@ppx.deriving show {with_path = false}, eq]
+[@@ppx.deriving show {with_path = false}]
 
 val toID : t -> Shared.id
 

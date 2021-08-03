@@ -1,9 +1,9 @@
 (* Unshared are the base types that are different between frontend and backend *)
 type id = UnsharedTypes.id
-[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}]
 
 type analysisID = UnsharedTypes.analysisID
-[@@ppx.deriving show {with_path = false}, eq, ord, yojson {optional = true}]
+[@@ppx.deriving show {with_path = false}]
 
 val gid : unit -> UnsharedTypes.id
 

@@ -1,6 +1,9 @@
 module T = struct
   module Nested = struct
-    type t = UnsharedTypes.id [@@ppx.deriving show, ord]
+    type t = UnsharedTypes.id [@@ppx.deriving show]
+
+    let compare (ID id1 : t) (ID id2 : t) =
+      compare id1 id2
   end
 
   let fromString (id : string) = UnsharedTypes.ID id

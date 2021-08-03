@@ -1,5 +1,5 @@
 module T : sig
-  type t [@@ppx.deriving show, ord]
+  type t [@@ppx.deriving show]
 
   type identity
 

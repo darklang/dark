@@ -1,6 +1,6 @@
 open Tc
 
-let opaque msg fmt _ =
+let [@warning "-3"] opaque msg fmt _ =
   Format.pp_print_string fmt ("<opaque:" ^ msg ^ ">") ;
   ()
 
