@@ -131,7 +131,7 @@ let fromKeyboardEvent = (key: string, shift: bool, ctrl: bool, meta: bool, alt: 
   | "Escape" => Escape
   | " " => Space
   | "s" if ctrl => CommandPalette(CurrentShortcut)
-  | "\" if ctrl => CommandPalette(CurrentShortcut)
+  | "\\" if ctrl => CommandPalette(CurrentShortcut)
   /* ~*~*~*~ HERE BE DRAGONS ~*~*~*~*
    * alt-x opens command palatte.
    *

@@ -9,7 +9,7 @@ let linkEx = "^(.*)\\[(.+)\\]\\((http[s]?\\://.+)\\)(.*)$"
 
 let codeClass = "code"
 
-let nestedTag = Regex.regex(`<\\w+[^>]*<`)
+let nestedTag = Regex.regex(`<\\\w+[^>]*<`)
 
 let nestedCodeBlock = Regex.regex(`{{[^}]+{{`)
 

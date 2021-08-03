@@ -1484,7 +1484,7 @@ let maybeCommitStringPartial = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): 
 
   let newAST = FluidAST.update(
     ~failIfMissing=false,
-    ~f= /* no-op */x =>
+    ~f=/* no-op */ x =>
       switch x {
       | EPartial(_, str, EString(_)) as origExpr =>
         let processedStr = processStr(str)
@@ -1551,7 +1551,7 @@ let startEscapingString = (pos: int, ti: T.tokenInfo, astInfo: ASTInfo.t): ASTIn
 
       EPartial(id, new_str, old_expr)
     | e => e
-    } /* TODO can't happen */
+    }
   )
   |> (ast => ASTInfo.setAST(ast, astInfo) |> moveToAstRef(~offset=offset + 1, ARPartial(id)))
 }
@@ -4225,16 +4225,16 @@ let rec updateKey = (~recursing=false, inputEvent: fluidInputEvent, astInfo: AST
   /* Pressing ] to go over the last ] */
   | (InsertText("]"), _, R(TListClose(_), ti)) if pos == ti.endPos - 1 => moveOneRight(pos, astInfo)
   /* Pressing quote to go over the last quote */
-  | (InsertText("""), _, R(TPatternString(_), ti))
-  | (InsertText("""), _, R(TString(_), ti))
-  | (InsertText("""), _, R(TStringMLEnd(_), ti)) if pos == ti.endPos - 1 =>
+  | (InsertText("\""), _, R(TPatternString(_), ti))
+  | (InsertText("\""), _, R(TString(_), ti))
+  | (InsertText("\""), _, R(TStringMLEnd(_), ti)) if pos == ti.endPos - 1 =>
     moveOneRight(pos, astInfo)
   /* ************************* */
   /* CREATING NEW CONSTRUCTS */
   /* ************************* */
   /* Entering a string escape
    * TODO: Move this to doInsert */
-  | (InsertText("\"), L(TString(_), _), R(TString(_), ti))
+  | (InsertText("\\"), L(TString(_), _), R(TString(_), ti))
     if false /* disable for now */ && pos - ti.startPos !== 0 =>
     startEscapingString(pos, ti, astInfo)
   /* comma - add another of the thing */
@@ -5090,7 +5090,7 @@ let reconstructExprFromRange = (range: (int, int), astInfo: ASTInfo.t): option<
             if recordID == id /* watch out for nested records */ =>
             List.getAt(~index, entries) |> Option.map(
               ~f=Tuple2.mapEach(
-                ~f= /* replace key */_ => newKey,
+                ~f=/* replace key */ _ => newKey,
                 ~g=\">>"(reconstructExpr, orDefaultExpr),
                 /* reconstruct value expression */
               ),

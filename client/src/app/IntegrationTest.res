@@ -238,8 +238,8 @@ let feature_flag_works = (m: model): testResult => {
         id,
         "myflag",
         EFnCall(_, "Int::greaterThan", list{EVariable(_, "a"), EInteger(_, "10")}, _),
-        EString(_, ""A""),
-        EString(_, ""B""),
+        EString(_, "\"A\""),
+        EString(_, "\"B\""),
       ),
     )) =>
     let res =
