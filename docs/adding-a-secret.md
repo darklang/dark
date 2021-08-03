@@ -24,7 +24,7 @@ Add it to Kubernetes with `kubectl apply -f secret.yaml`
 
 If it's not available from the vendor's console, consider adding it to the Dark
 admin 1password vault, so that we can recover it if we lose the cluster. Ask
-IanS or Paul.
+Paul.
 
 ## Make it accessible to containers
 
