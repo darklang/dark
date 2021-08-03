@@ -61,6 +61,11 @@ spec:
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar
+                  key: post_token
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
@@ -125,6 +130,11 @@ spec:
             - configMapRef:
                 name: gke-dark-prod
           env:
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar
+                  key: post_token
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
