@@ -46,7 +46,7 @@ let preprocess (ops : List<OpWithNewness>) : List<OpWithNewness> =
          | (_, PT.UndoTL uid) :: (_, PT.RedoTL rid) :: rest when rid = uid -> rest
          // Step 2: error on solo redos
          | (_, PT.RedoTL id1) :: (_, PT.RedoTL id2) :: rest when id1 = id2 ->
-             op :: ops
+           op :: ops
          | _ :: (_, PT.RedoTL _) :: rest -> failwith "Already at latest redo"
          | ops -> ops)
   // Step 3: remove undos and all the ops up to the savepoint.
@@ -57,21 +57,21 @@ let preprocess (ops : List<OpWithNewness>) : List<OpWithNewness> =
        (fun ops op ->
          match op with
          | _, PT.UndoTL tlid ->
-             let notSavepoint o =
-               match o with
-               | _, PT.TLSavepoint sptlid when tlid = sptlid -> false
-               | _ -> true
+           let notSavepoint o =
+             match o with
+             | _, PT.TLSavepoint sptlid when tlid = sptlid -> false
+             | _ -> true
 
-             let after = List.dropWhile notSavepoint ops in
-             let before = List.takeWhile notSavepoint ops in
-             // if the canvas is older than the new Savepoints, then its
-             // possible to undo to a point with no Savepoints anymore
-             let newBefore =
-               List.filter (fun (_, o : PT.Op) -> Op.tlidOf o <> tlid) before
+           let after = List.dropWhile notSavepoint ops in
+           let before = List.takeWhile notSavepoint ops in
+           // if the canvas is older than the new Savepoints, then its
+           // possible to undo to a point with no Savepoints anymore
+           let newBefore =
+             List.filter (fun (_, o : PT.Op) -> Op.tlidOf o <> tlid) before
 
-             let newAfter = after |> List.tail |> Option.defaultValue [] in
-             // drop savepoint
-             newBefore @ newAfter
+           let newAfter = after |> List.tail |> Option.defaultValue [] in
+           // drop savepoint
+           newBefore @ newAfter
          | _ -> op :: ops)
   // previous step leaves the list reversed
   |> List.reverse

@@ -60,9 +60,9 @@ module TraceData =
         match handler with
         | Some h -> Traces.handlerTrace c.meta.id p.trace_id h |> Task.map Some
         | None ->
-            match c.userFunctions |> Map.get p.tlid with
-            | Some u -> Traces.userfnTrace c.meta.id p.trace_id u |> Task.map Some
-            | None -> task { return None }
+          match c.userFunctions |> Map.get p.tlid with
+          | Some u -> Traces.userfnTrace c.meta.id p.trace_id u |> Task.map Some
+          | None -> task { return None }
 
       t "load-trace"
 
@@ -70,19 +70,19 @@ module TraceData =
       let (trace : Option<Trace>) =
         match trace with
         | Some (id, (traceData : AT.TraceData)) ->
-            Some(
-              id,
-              { input =
-                  List.map
-                    (fun (s, dv) -> (s, Convert.rt2ocamlDval dv))
-                    traceData.input
-                timestamp = traceData.timestamp
-                function_results =
-                  List.map
-                    (fun (r1, r2, r3, r4, dv) ->
-                      (r1, r2, r3, r4, Convert.rt2ocamlDval dv))
-                    traceData.function_results }
-            )
+          Some(
+            id,
+            { input =
+                List.map
+                  (fun (s, dv) -> (s, Convert.rt2ocamlDval dv))
+                  traceData.input
+              timestamp = traceData.timestamp
+              function_results =
+                List.map
+                  (fun (r1, r2, r3, r4, dv) ->
+                    (r1, r2, r3, r4, Convert.rt2ocamlDval dv))
+                  traceData.function_results }
+          )
         | None -> None
 
       t "write-api"

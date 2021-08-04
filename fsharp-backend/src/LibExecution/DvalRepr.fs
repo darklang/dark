@@ -105,13 +105,13 @@ let (|JList|_|) (j : JToken) : Option<List<JToken>> =
 let (|JObject|_|) (j : JToken) : Option<List<string * JToken>> =
   match j.Type with
   | JTokenType.Object ->
-      let list =
-        j.Values()
-        |> seq
-        |> Seq.toList
-        |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
+    let list =
+      j.Values()
+      |> seq
+      |> Seq.toList
+      |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
 
-      Some(JObject list)
+    Some(JObject list)
   | _ -> None
 
 
@@ -198,18 +198,18 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
 
     match dv with
     | DList l ->
-        if l = [] then
-          "[]"
-        else
-          "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
+      if l = [] then
+        "[]"
+      else
+        "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
     | DObj o ->
-        if o = Map.empty then
-          "{}"
-        else
-          let strs =
-            Map.fold [] (fun key value l -> (key + ": " + recurse value) :: l) o
+      if o = Map.empty then
+        "{}"
+      else
+        let strs =
+          Map.fold [] (fun key value l -> (key + ": " + recurse value) :: l) o
 
-          "{ " + inl + String.concat ("," + inl) strs + nl + "}"
+        "{ " + inl + String.concat ("," + inl) strs + nl + "}"
     | _ -> reprfn dv
 
   inner 0 dv
@@ -237,30 +237,30 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DUuid uuid -> uuid.ToString()
     | DDB dbname -> $"<DB: {dbname}>"
     | DError (_, msg) ->
-        // FSTODO make this a string again
-        $"Error: {msg}"
+      // FSTODO make this a string again
+      $"Error: {msg}"
     | DIncomplete _ -> "<Incomplete>"
     | DFnVal _ ->
-        // See docs/dblock-serialization.ml
-        "<Block>"
+      // See docs/dblock-serialization.ml
+      "<Block>"
     | DPassword _ ->
-        // redacting, do not unredact
-        "<Password>"
+      // redacting, do not unredact
+      "<Password>"
     | DObj _
     | DList _ -> toNestedString nestedreprfn dv
     | DErrorRail d ->
-        // We don't print error here, because the errorrail value will know
-        // whether it's an error or not.
-        reprfn d
+      // We don't print error here, because the errorrail value will know
+      // whether it's an error or not.
+      reprfn d
     | DHttpResponse (Redirect url) -> $"302 {url}\n" + nestedreprfn DNull
     | DHttpResponse (Response (code, headers, body)) ->
-        let headerString =
-          headers
-          |> List.map (fun (k, v) -> k + ": " + v)
-          |> String.concat ","
-          |> fun s -> "{ " + s + " }"
+      let headerString =
+        headers
+        |> List.map (fun (k, v) -> k + ": " + v)
+        |> String.concat ","
+        |> fun s -> "{ " + s + " }"
 
-        $"{code} {headerString}" + "\n" + nestedreprfn body
+      $"{code} {headerString}" + "\n" + nestedreprfn body
     | DResult (Ok d) -> reprfn d
     | DResult (Error d) -> "Error: " + reprfn d
     | DOption (Some d) -> reprfn d
@@ -284,49 +284,49 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DObj o ->
-      w.writeObject
-        (fun () ->
-          Map.iter
-            (fun k v ->
-              w.WritePropertyName k
-              writeDval v)
-            o)
+    w.writeObject
+      (fun () ->
+        Map.iter
+          (fun k v ->
+            w.WritePropertyName k
+            writeDval v)
+          o)
   | DFnVal _ ->
-      (* See docs/dblock-serialization.ml *)
-      w.WriteNull()
+    (* See docs/dblock-serialization.ml *)
+    w.WriteNull()
   | DIncomplete _ -> w.WriteNull()
   | DChar c -> w.WriteValue c
   | DError (_, msg) ->
-      w.writeObject
-        (fun () ->
-          w.WritePropertyName "Error"
-          w.WriteValue msg)
+    w.writeObject
+      (fun () ->
+        w.WritePropertyName "Error"
+        w.WriteValue msg)
   | DHttpResponse (Redirect _) -> writeDval DNull
   | DHttpResponse (Response (_, _, response)) -> writeDval response
   | DDB dbName -> w.WriteValue dbName
   | DDate date -> w.WriteValue(date.toIsoString ())
   | DPassword hashed ->
-      w.writeObject
-        (fun () ->
-          w.WritePropertyName "Error"
-          w.WriteValue "Password is redacted")
+    w.writeObject
+      (fun () ->
+        w.WritePropertyName "Error"
+        w.WriteValue "Password is redacted")
   | DUuid uuid -> w.WriteValue uuid
   | DOption opt ->
-      match opt with
-      | None -> w.WriteNull()
-      | Some v -> writeDval v
+    match opt with
+    | None -> w.WriteNull()
+    | Some v -> writeDval v
   | DErrorRail dv -> writeDval dv
   | DResult res ->
-      (match res with
-       | Ok dv -> writeDval dv
-       | Error dv ->
-           w.writeObject
-             (fun () ->
-               w.WritePropertyName "Error"
-               writeDval dv))
+    (match res with
+     | Ok dv -> writeDval dv
+     | Error dv ->
+       w.writeObject
+         (fun () ->
+           w.WritePropertyName "Error"
+           writeDval dv))
   | DBytes bytes ->
-      //FSTODO: rather than using a mutable byte array, should this be a readonly span?
-      w.WriteValue(System.Convert.ToBase64String bytes)
+    //FSTODO: rather than using a mutable byte array, should this be a readonly span?
+    w.WriteValue(System.Convert.ToBase64String bytes)
 
 
 let toPrettyMachineJsonStringV1 (dval : Dval) : string =
@@ -338,14 +338,14 @@ let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
   match j with
   | JList [ JString "Redirect"; JString url ] -> Redirect url
   | JList [ JString "Response"; JInteger code; JList headers ] ->
-      let headers =
-        headers
-        |> List.map
-             (function
-             | JList [ JString k; JString v ] -> (k, v)
-             | _ -> failwith "Invalid DHttpResponse headers")
+    let headers =
+      headers
+      |> List.map
+           (function
+           | JList [ JString k; JString v ] -> (k, v)
+           | _ -> failwith "Invalid DHttpResponse headers")
 
-      Response(bigint code, headers, dv)
+    Response(bigint code, headers, dv)
   | _ -> failwith "invalid response json"
 
 #nowarn "104" // ignore warnings about enums out of range
@@ -365,45 +365,46 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
   | JNull -> DNull
   | JString s -> DStr s
   | JList l ->
-      // We shouldnt have saved dlist that have incompletes or error rails but we might have
-      l |> List.map convert |> Dval.list
+    // We shouldnt have saved dlist that have incompletes or error rails but we might have
+    l |> List.map convert |> Dval.list
 
   | JObject fields ->
-      let fields = fields |> List.sortBy (fun (k, _) -> k)
-      // These are the only types that are allowed in the queryable
-      // representation. We may allow more in the future, but the real thing to
-      // do is to use the DB's type and version to encode/decode them correctly
-      match fields with
-      // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
-      | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
-          DHttpResponse(responseOfJson (convert b) a)
-      | [ ("type", JString "date"); ("value", JString v) ] ->
-          DDate(System.DateTime.ofIsoString v)
-      | [ ("type", JString "password"); ("value", JString v) ] ->
-          v |> base64Decode |> Password |> DPassword
-      | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
-      | [ ("type", JString "bytes"); ("value", JString v) ] ->
-          // Note that the OCaml version uses the non-url-safe b64 encoding here
-          v |> System.Convert.FromBase64String |> DBytes
-      | [ ("type", JString "char"); ("value", JString v) ] -> DChar v
-      | [ ("type", JString "character"); ("value", JString v) ] -> DChar v
-      | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
-      | [ ("type", JString "incomplete"); ("value", JNull) ] ->
-          DIncomplete SourceNone
-      | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
-      | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
-      | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
-      | [ ("type", JString "block"); ("value", JNull) ] ->
-          // See docs/dblock-serialization.ml
-          DFnVal(
-            Lambda { body = EBlank(id 56789); symtable = Map.empty; parameters = [] }
-          )
-      | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
-      | [ ("constructor", JString "Ok"); ("type", JString "result");
-          ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
-      | [ ("constructor", JString "Error"); ("type", JString "result");
-          ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
-      | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
+    let fields = fields |> List.sortBy (fun (k, _) -> k)
+    // These are the only types that are allowed in the queryable
+    // representation. We may allow more in the future, but the real thing to
+    // do is to use the DB's type and version to encode/decode them correctly
+    match fields with
+    // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
+    | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
+      DHttpResponse(responseOfJson (convert b) a)
+    | [ ("type", JString "date"); ("value", JString v) ] ->
+      DDate(System.DateTime.ofIsoString v)
+    | [ ("type", JString "password"); ("value", JString v) ] ->
+      v |> base64Decode |> Password |> DPassword
+    | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
+    | [ ("type", JString "bytes"); ("value", JString v) ] ->
+      // Note that the OCaml version uses the non-url-safe b64 encoding here
+      v |> System.Convert.FromBase64String |> DBytes
+    | [ ("type", JString "char"); ("value", JString v) ] -> DChar v
+    | [ ("type", JString "character"); ("value", JString v) ] -> DChar v
+    | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
+    | [ ("type", JString "incomplete"); ("value", JNull) ] -> DIncomplete SourceNone
+    | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
+    | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
+    | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
+    | [ ("type", JString "block"); ("value", JNull) ] ->
+      // See docs/dblock-serialization.ml
+      DFnVal(
+        Lambda { body = EBlank(id 56789); symtable = Map.empty; parameters = [] }
+      )
+    | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+    | [ ("constructor", JString "Ok")
+        ("type", JString "result")
+        ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
+    | [ ("constructor", JString "Error")
+        ("type", JString "result")
+        ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
+    | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
   // disable all those so we fail if we see them. However, we might need to
@@ -435,46 +436,47 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   | JNull -> DNull
   | JString s -> DStr s
   | JList l ->
-      // We shouldnt have saved dlist that have incompletes or error rails but we might have
-      l |> List.map convert |> Dval.list
+    // We shouldnt have saved dlist that have incompletes or error rails but we might have
+    l |> List.map convert |> Dval.list
   | JObject fields ->
-      let fields = fields |> List.sortBy (fun (k, _) -> k)
-      // These are the only types that are allowed in the queryable
-      // representation. We may allow more in the future, but the real thing to
-      // do is to use the DB's type and version to encode/decode them correctly
-      match fields with
-      // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
-      | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
-          DHttpResponse(responseOfJson (convert b) a)
-      | [ ("type", JString "date"); ("value", JString v) ] ->
-          DDate(System.DateTime.ofIsoString v)
-      | [ ("type", JString "password"); ("value", JString v) ] ->
-          v |> base64Decode |> Password |> DPassword
-      | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
-      | [ ("type", JString "bytes"); ("value", JString v) ] ->
-          // Note that the OCaml version uses the non-url-safe b64 encoding here
-          v |> System.Convert.FromBase64String |> DBytes
-      | [ ("type", JString "char"); ("value", JString v) ] ->
-          v |> String.toEgcSeq |> Seq.head |> DChar
-      | [ ("type", JString "character"); ("value", JString v) ] ->
-          v |> String.toEgcSeq |> Seq.head |> DChar
-      | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
-      | [ ("type", JString "incomplete"); ("value", JNull) ] ->
-          DIncomplete SourceNone
-      | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
-      | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
-      | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
-      | [ ("type", JString "block"); ("value", JNull) ] ->
-          // See docs/dblock-serialization.ml
-          DFnVal(
-            Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
-          )
-      | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
-      | [ ("constructor", JString "Ok"); ("type", JString "result");
-          ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
-      | [ ("constructor", JString "Error"); ("type", JString "result");
-          ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
-      | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
+    let fields = fields |> List.sortBy (fun (k, _) -> k)
+    // These are the only types that are allowed in the queryable
+    // representation. We may allow more in the future, but the real thing to
+    // do is to use the DB's type and version to encode/decode them correctly
+    match fields with
+    // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
+    | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
+      DHttpResponse(responseOfJson (convert b) a)
+    | [ ("type", JString "date"); ("value", JString v) ] ->
+      DDate(System.DateTime.ofIsoString v)
+    | [ ("type", JString "password"); ("value", JString v) ] ->
+      v |> base64Decode |> Password |> DPassword
+    | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
+    | [ ("type", JString "bytes"); ("value", JString v) ] ->
+      // Note that the OCaml version uses the non-url-safe b64 encoding here
+      v |> System.Convert.FromBase64String |> DBytes
+    | [ ("type", JString "char"); ("value", JString v) ] ->
+      v |> String.toEgcSeq |> Seq.head |> DChar
+    | [ ("type", JString "character"); ("value", JString v) ] ->
+      v |> String.toEgcSeq |> Seq.head |> DChar
+    | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
+    | [ ("type", JString "incomplete"); ("value", JNull) ] -> DIncomplete SourceNone
+    | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
+    | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
+    | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
+    | [ ("type", JString "block"); ("value", JNull) ] ->
+      // See docs/dblock-serialization.ml
+      DFnVal(
+        Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
+      )
+    | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+    | [ ("constructor", JString "Ok")
+        ("type", JString "result")
+        ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
+    | [ ("constructor", JString "Error")
+        ("type", JString "result")
+        ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
+    | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
   // disable all those so we fail if we see them. However, we might need to
@@ -528,89 +530,89 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DObj o ->
-      w.writeObject
-        (fun () ->
-          Map.iter
-            (fun k v ->
-              w.WritePropertyName k
-              writeDval v)
-            o)
+    w.writeObject
+      (fun () ->
+        Map.iter
+          (fun k v ->
+            w.WritePropertyName k
+            writeDval v)
+          o)
   | DFnVal _ ->
-      // See docs/dblock-serialization.md
-      wrapNullValue "block"
+    // See docs/dblock-serialization.md
+    wrapNullValue "block"
   | DIncomplete _ -> wrapNullValue "incomplete"
   | DChar c -> wrapStringValue "character" c
   | DError (_, msg) -> wrapStringValue "error" msg
   | DHttpResponse (h) ->
-      w.writeObject
-        (fun () ->
-          w.WritePropertyName "type"
-          w.WriteValue "response"
-          w.WritePropertyName "value"
+    w.writeObject
+      (fun () ->
+        w.WritePropertyName "type"
+        w.WriteValue "response"
+        w.WritePropertyName "value"
 
-          w.writeArray
-            (fun () ->
-              match h with
-              | Redirect str ->
+        w.writeArray
+          (fun () ->
+            match h with
+            | Redirect str ->
+              w.writeArray
+                (fun () ->
+                  w.WriteValue "Redirect"
+                  w.WriteValue str)
+
+              writeDval DNull
+            | Response (code, headers, hdv) ->
+              w.writeArray
+                (fun () ->
+                  w.WriteValue "Response"
+                  w.WriteValue code
+
                   w.writeArray
                     (fun () ->
-                      w.WriteValue "Redirect"
-                      w.WriteValue str)
+                      List.iter
+                        (fun (k : string, v : string) ->
+                          w.writeArray
+                            (fun () ->
+                              w.WriteValue k
+                              w.WriteValue v))
+                        headers))
 
-                  writeDval DNull
-              | Response (code, headers, hdv) ->
-                  w.writeArray
-                    (fun () ->
-                      w.WriteValue "Response"
-                      w.WriteValue code
-
-                      w.writeArray
-                        (fun () ->
-                          List.iter
-                            (fun (k : string, v : string) ->
-                              w.writeArray
-                                (fun () ->
-                                  w.WriteValue k
-                                  w.WriteValue v))
-                            headers))
-
-                  writeDval hdv))
+              writeDval hdv))
   | DDB dbname -> wrapStringValue "datastore" dbname
   | DDate date -> wrapStringValue "date" (date.toIsoString ())
   | DPassword (Password hashed) ->
-      if redact then
-        wrapNullValue "password"
-      else
-        hashed |> base64Encode |> wrapStringValue "password"
+    if redact then
+      wrapNullValue "password"
+    else
+      hashed |> base64Encode |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (uuid.ToString())
   | DOption opt ->
-      (match opt with
-       | None -> wrapNullValue "option"
-       | Some ndv -> wrapNestedDvalValue "option" ndv)
+    (match opt with
+     | None -> wrapNullValue "option"
+     | Some ndv -> wrapNestedDvalValue "option" ndv)
   | DErrorRail erdv -> wrapNestedDvalValue "errorrail" erdv
   | DResult res ->
-      (match res with
-       | Ok rdv ->
-           w.writeObject
-             (fun () ->
-               w.WritePropertyName "type"
-               w.WriteValue("result")
-               w.WritePropertyName "constructor"
-               w.WriteValue("Ok")
-               w.WritePropertyName "values"
-               w.writeArray (fun () -> writeDval rdv))
-       | Error rdv ->
-           w.writeObject
-             (fun () ->
-               w.WritePropertyName "type"
-               w.WriteValue("result")
-               w.WritePropertyName "constructor"
-               w.WriteValue("Error")
-               w.WritePropertyName "values"
-               w.writeArray (fun () -> writeDval rdv)))
+    (match res with
+     | Ok rdv ->
+       w.writeObject
+         (fun () ->
+           w.WritePropertyName "type"
+           w.WriteValue("result")
+           w.WritePropertyName "constructor"
+           w.WriteValue("Ok")
+           w.WritePropertyName "values"
+           w.writeArray (fun () -> writeDval rdv))
+     | Error rdv ->
+       w.writeObject
+         (fun () ->
+           w.WritePropertyName "type"
+           w.WriteValue("result")
+           w.WritePropertyName "constructor"
+           w.WriteValue("Error")
+           w.WritePropertyName "values"
+           w.writeArray (fun () -> writeDval rdv)))
   | DBytes bytes ->
-      // Note that the OCaml version uses the non-url-safe b64 encoding here
-      bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
+    // Note that the OCaml version uses the non-url-safe b64 encoding here
+    bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
 
 
 let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
@@ -636,9 +638,9 @@ let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
   | DBool _ -> true
   | DFloat _ -> true
   | DList ls when not allowKnownBuggyValues ->
-      // CLEANUP: Bug where Lists containing fake dvals will be replaced with
-      // the fakeval
-      not (List.any Dval.isFake ls)
+    // CLEANUP: Bug where Lists containing fake dvals will be replaced with
+    // the fakeval
+    not (List.any Dval.isFake ls)
   | DList _ -> true
   | DObj _ -> true
   | DDate _ -> true
@@ -647,9 +649,9 @@ let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
   | DBytes _ -> true
   | DHttpResponse _ -> true
   | DOption (Some DNull) when not allowKnownBuggyValues ->
-      // CLEANUP: Bug where Lists containing fake dvals will be replaced with
-      // the fakeval
-      false
+    // CLEANUP: Bug where Lists containing fake dvals will be replaced with
+    // the fakeval
+    false
   | DOption _ -> true
   | DResult _ -> true
   | DDB _ -> true
@@ -662,7 +664,8 @@ let ofInternalRoundtrippableJsonV0 (j : JToken) : Result<Dval, string> =
   (* Switched to v1 cause it was a bug fix *)
   try
     unsafeDvalOfJsonV1 j |> Ok
-  with e -> Error(e.ToString())
+  with
+  | e -> Error(e.ToString())
 
 let ofInternalRoundtrippableV0 (str : string) : Dval =
   // cleanup: we know the types here, so we should probably do type directed parsing and simplify what's stored
@@ -726,21 +729,20 @@ let ofInternalQueryableV1 (str : string) : Dval =
     | JNull -> DNull
     | JString s -> DStr s
     | JList l ->
-        // We shouldnt have saved dlist that have incompletes or error rails but we might have
-        l |> List.map convert |> Dval.list
+      // We shouldnt have saved dlist that have incompletes or error rails but we might have
+      l |> List.map convert |> Dval.list
     | JObject fields ->
-        let fields = fields |> List.sortBy (fun (k, _) -> k)
-        // These are the only types that are allowed in the queryable
-        // representation. We may allow more in the future, but the real thing to
-        // do is to use the DB's type and version to encode/decode them correctly
-        match fields with
-        | [ ("type", JString "date"); ("value", JString v) ] ->
-            DDate(System.DateTime.ofIsoString v)
-        | [ ("type", JString "password"); ("value", JString v) ] ->
-            v |> base64Decode |> Password |> DPassword
-        | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
-        | _ ->
-            fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
+      let fields = fields |> List.sortBy (fun (k, _) -> k)
+      // These are the only types that are allowed in the queryable
+      // representation. We may allow more in the future, but the real thing to
+      // do is to use the DB's type and version to encode/decode them correctly
+      match fields with
+      | [ ("type", JString "date"); ("value", JString v) ] ->
+        DDate(System.DateTime.ofIsoString v)
+      | [ ("type", JString "password"); ("value", JString v) ] ->
+        v |> base64Decode |> Password |> DPassword
+      | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+      | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     // Json.NET does a bunch of magic based on the contents of various types.
     // For example, it has tokens for Dates, constructors, etc. We've tried to
     // disable all those so we fail if we see them. However, we might need to
@@ -837,44 +839,41 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DFloat f -> ocamlStringOfFloat f
     | DNull -> "null"
     | DFnVal _ ->
-        (* See docs/dblock-serialization.ml *)
-        justtipe
+      (* See docs/dblock-serialization.ml *)
+      justtipe
     | DIncomplete _ -> justtipe
     | DError (_, msg) -> wrap msg
     | DDate d -> wrap (d.toIsoString ())
     | DDB name -> wrap name
     | DUuid uuid -> wrap (uuid.ToString())
     | DHttpResponse h ->
-        match h with
-        | Redirect url -> $"302 {url}" + nl + toRepr_ indent DNull
-        | Response (code, headers, hdv) ->
-            let headerString =
-              headers
-              |> List.map (fun (k, v) -> k + ": " + v)
-              |> String.concat ","
-              |> fun s -> "{ " + s + " }"
+      match h with
+      | Redirect url -> $"302 {url}" + nl + toRepr_ indent DNull
+      | Response (code, headers, hdv) ->
+        let headerString =
+          headers
+          |> List.map (fun (k, v) -> k + ": " + v)
+          |> String.concat ","
+          |> fun s -> "{ " + s + " }"
 
-            $"{code} {headerString}" + nl + toRepr_ indent hdv
+        $"{code} {headerString}" + nl + toRepr_ indent hdv
     | DList l ->
-        if List.isEmpty l then
-          "[]"
-        else
-          let elems = String.concat ", " (List.map (toRepr_ indent) l)
-          // CLEANUP: this space makes no sense
-          $"[ {inl}{elems}{nl}]"
+      if List.isEmpty l then
+        "[]"
+      else
+        let elems = String.concat ", " (List.map (toRepr_ indent) l)
+        // CLEANUP: this space makes no sense
+        $"[ {inl}{elems}{nl}]"
     | DObj o ->
-        if Map.isEmpty o then
-          "{}"
-        else
-          let strs =
-            Map.fold
-              []
-              (fun key value l -> ($"{key}: {toRepr_ indent value}") :: l)
-              o
+      if Map.isEmpty o then
+        "{}"
+      else
+        let strs =
+          Map.fold [] (fun key value l -> ($"{key}: {toRepr_ indent value}") :: l) o
 
-          let elems = String.concat $",{inl}" strs
-          // CLEANUP: this space makes no sense
-          "{ " + $"{inl}{elems}{nl}" + "}"
+        let elems = String.concat $",{inl}" strs
+        // CLEANUP: this space makes no sense
+        "{ " + $"{inl}{elems}{nl}" + "}"
     | DOption None -> "Nothing"
     | DOption (Some dv) -> "Just " + toRepr_ indent dv
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
@@ -888,7 +887,8 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 let ofUnknownJsonV0 str =
   try
     str |> parseJson |> unsafeDvalOfJsonV0
-  with _ -> failwith "Invalid json"
+  with
+  | _ -> failwith "Invalid json"
 
 
 let ofUnknownJsonV1 str =
@@ -903,9 +903,7 @@ let ofUnknownJsonV1 str =
     | JString s -> DStr s
     | JList l -> l |> List.map convert |> Dval.list
     | JObject fields ->
-        fields
-        |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m)
-        |> DObj
+      fields |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m) |> DObj
 
     // Json.NET does a bunch of magic based on the contents of various types.
     // For example, it has tokens for Dates, constructors, etc. We've tried to
@@ -916,7 +914,8 @@ let ofUnknownJsonV1 str =
 
   try
     str |> parseJson |> convert
-  with :? JsonReaderException as e ->
+  with
+  | :? JsonReaderException as e ->
     let msg = if str = "" then "JSON string was empty" else e.Message
     failwith msg
 
@@ -1135,78 +1134,77 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
   | DStr s -> "\"" + toString s + "\"" |> toBytes
   | DChar c -> "'" + toString c + "'" |> toBytes
   | DIncomplete _ ->
-      "<incomplete: <incomplete>>" |> toBytes (* Can't be used anyway *)
+    "<incomplete: <incomplete>>" |> toBytes (* Can't be used anyway *)
   | DFnVal _ ->
-      (* See docs/dblock-serialization.ml *)
-      "<block: <block>>" |> toBytes
+    (* See docs/dblock-serialization.ml *)
+    "<block: <block>>" |> toBytes
   | DError (_, msg) -> "<error: " + msg + ">" |> toBytes
   | DDate d -> "<date: " + d.toIsoString () + ">" |> toBytes
   | DPassword _ -> "<password: <password>>" |> toBytes
   | DUuid id -> "<uuid: " + toString id + ">" |> toBytes
   | DHttpResponse d ->
-      let formatted, hdv =
-        match d with
-        | Redirect url -> ("302 " + url, DNull)
-        | Response (c, hs, hdv) ->
-            let stringOfHeaders hs =
-              hs
-              |> List.map (fun (k, v) -> k + ": " + v)
-              |> String.concat ","
-              |> fun s -> "{ " + s + " }"
+    let formatted, hdv =
+      match d with
+      | Redirect url -> ("302 " + url, DNull)
+      | Response (c, hs, hdv) ->
+        let stringOfHeaders hs =
+          hs
+          |> List.map (fun (k, v) -> k + ": " + v)
+          |> String.concat ","
+          |> fun s -> "{ " + s + " }"
 
-            (toString c + " " + stringOfHeaders hs, hdv)
+        (toString c + " " + stringOfHeaders hs, hdv)
 
-      [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ]
-      |> Array.concat
+    [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ] |> Array.concat
   | DList l ->
-      if List.is_empty l then
-        "[]" |> toBytes
-      else
-        let body =
-          l
-          |> List.map (toHashableRepr indent false)
-          |> List.intersperse (toBytes ", ")
-          |> Array.concat
+    if List.is_empty l then
+      "[]" |> toBytes
+    else
+      let body =
+        l
+        |> List.map (toHashableRepr indent false)
+        |> List.intersperse (toBytes ", ")
+        |> Array.concat
 
-        Array.concat [ "[ " |> toBytes
-                       inl |> toBytes
-                       body
-                       nl |> toBytes
-                       "]" |> toBytes ]
+      Array.concat [ "[ " |> toBytes
+                     inl |> toBytes
+                     body
+                     nl |> toBytes
+                     "]" |> toBytes ]
   | DObj o ->
-      if Map.isEmpty o then
-        "{}" |> toBytes
-      else
-        let rows =
-          o
-          |> Map.fold
-               []
-               (fun key value l ->
-                 (Array.concat [ toBytes (key + ": ")
-                                 toHashableRepr indent false value ]
-                  :: l))
-          |> List.intersperse (toBytes ("," + inl))
+    if Map.isEmpty o then
+      "{}" |> toBytes
+    else
+      let rows =
+        o
+        |> Map.fold
+             []
+             (fun key value l ->
+               (Array.concat [ toBytes (key + ": ")
+                               toHashableRepr indent false value ]
+                :: l))
+        |> List.intersperse (toBytes ("," + inl))
 
-        Array.concat (
-          [ toBytes "{ "; toBytes inl ] @ rows @ [ toBytes nl; toBytes "}" ]
-        )
+      Array.concat (
+        [ toBytes "{ "; toBytes inl ] @ rows @ [ toBytes nl; toBytes "}" ]
+      )
   | DOption None -> "Nothing" |> toBytes
   | DOption (Some dv) ->
-      Array.concat [ "Just " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "Just " |> toBytes; toHashableRepr indent false dv ]
   | DErrorRail dv ->
-      Array.concat [ "ErrorRail: " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ErrorRail: " |> toBytes; toHashableRepr indent false dv ]
   | DResult (Ok dv) ->
-      Array.concat [ "ResultOk " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ResultOk " |> toBytes; toHashableRepr indent false dv ]
   | DResult (Error dv) ->
-      Array.concat [ "ResultError " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ResultError " |> toBytes; toHashableRepr indent false dv ]
   | DBytes bytes ->
-      if oldBytes then
-        bytes
-      else
-        bytes
-        |> System.Security.Cryptography.SHA384.HashData
-        |> base64UrlEncode
-        |> toBytes
+    if oldBytes then
+      bytes
+    else
+      bytes
+      |> System.Security.Cryptography.SHA384.HashData
+      |> base64UrlEncode
+      |> toBytes
 
 
 let supportedHashVersions : int list = [ 0; 1 ]

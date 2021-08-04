@@ -211,7 +211,8 @@ let t filename =
             if not connected then
               do! client.ConnectAsync("127.0.0.1", port)
               connected <- true
-          with _ when i <> 10 ->
+          with
+          | _ when i <> 10 ->
             printfn $"Server not ready on port {port}, maybe retry"
             do! System.Threading.Tasks.Task.Delay 1000
 
@@ -276,19 +277,20 @@ let t filename =
                 LibExecution.DvalRepr.parseJson (ofBytes aBody),
                 LibExecution.DvalRepr.parseJson (ofBytes eBody)
               )
-            with e -> None
+            with
+            | e -> None
 
           match asJson with
           | Some (aJson, eJson) ->
-              Expect.equal
-                (aStatus, aHeaders, toString aJson)
-                (eStatus, eHeaders, toString eJson)
-                $"({server} as json)"
+            Expect.equal
+              (aStatus, aHeaders, toString aJson)
+              (eStatus, eHeaders, toString eJson)
+              $"({server} as json)"
           | None ->
-              Expect.equal
-                (aStatus, aHeaders, ofBytes aBody)
-                (eStatus, eHeaders, ofBytes eBody)
-                $"({server} as string)"
+            Expect.equal
+              (aStatus, aHeaders, ofBytes aBody)
+              (eStatus, eHeaders, ofBytes eBody)
+              $"({server} as string)"
 
       }
 

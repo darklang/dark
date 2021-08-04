@@ -89,9 +89,9 @@ let deleteDB (tlid : tlid) c =
   match Map.get tlid c.dbs with
   | None -> c
   | Some db ->
-      { c with
-          dbs = Map.remove db.tlid c.dbs
-          deletedDBs = Map.add db.tlid db c.deletedDBs }
+    { c with
+        dbs = Map.remove db.tlid c.dbs
+        deletedDBs = Map.add db.tlid db c.deletedDBs }
 
 let setHandler (h : PT.Handler.T) c =
   // if the handler had been deleted, remove it from the deleted set. This handles
@@ -104,9 +104,9 @@ let deleteHandler (tlid : tlid) c =
   match Map.get tlid c.handlers with
   | None -> c
   | Some h ->
-      { c with
-          handlers = Map.remove h.tlid c.handlers
-          deletedHandlers = Map.add h.tlid h c.deletedHandlers }
+    { c with
+        handlers = Map.remove h.tlid c.handlers
+        deletedHandlers = Map.add h.tlid h c.deletedHandlers }
 
 let setFunction (f : PT.UserFunction.T) (c : T) : T =
   // if the fn had been deleted, remove it from the deleted set. This handles
@@ -126,9 +126,9 @@ let deleteFunction (tlid : tlid) (c : T) : T =
   match Map.get tlid c.userFunctions with
   | None -> c
   | Some f ->
-      { c with
-          userFunctions = Map.remove tlid c.userFunctions
-          deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
+    { c with
+        userFunctions = Map.remove tlid c.userFunctions
+        deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
 
 let deleteFunctionForever (tlid : tlid) (c : T) : T =
   { c with
@@ -139,9 +139,9 @@ let deleteType (tlid : tlid) (c : T) : T =
   match Map.get tlid c.userTypes with
   | None -> c
   | Some t ->
-      { c with
-          userTypes = Map.remove tlid c.userTypes
-          deletedUserTypes = Map.add tlid t c.deletedUserTypes }
+    { c with
+        userTypes = Map.remove tlid c.userTypes
+        deletedUserTypes = Map.add tlid t c.deletedUserTypes }
 
 let deleteTypeForever (tlid : tlid) (c : T) : T =
   { c with
@@ -181,19 +181,19 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     match op with
     | PT.SetHandler (_, _, h) -> setHandler h c
     | PT.CreateDB (tlid, pos, name) ->
-        if isNew && name = "" then failwith "DB must have a name"
-        let db = UserDB.create tlid name pos
-        setDB db c
+      if isNew && name = "" then failwith "DB must have a name"
+      let db = UserDB.create tlid name pos
+      setDB db c
     | PT.AddDBCol (tlid, colid, typeid) ->
-        applyToDB (UserDB.addCol colid typeid) tlid c
+      applyToDB (UserDB.addCol colid typeid) tlid c
     | PT.SetDBColName (tlid, id, name) ->
-        applyToDB (UserDB.setColName id name) tlid c
+      applyToDB (UserDB.setColName id name) tlid c
     | PT.ChangeDBColName (tlid, id, name) ->
-        applyToDB (UserDB.setColName id name) tlid c
+      applyToDB (UserDB.setColName id name) tlid c
     | PT.SetDBColType (tlid, id, tipe) ->
-        applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+      applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
     | PT.ChangeDBColType (tlid, id, tipe) ->
-        applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+      applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
     | PT.DeprecatedInitDBm (tlid, id, rbid, rfid, kind) -> c
     | PT.CreateDBMigration (tlid, rbid, rfid, cols) -> c
@@ -213,13 +213,14 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.RedoTL _ -> failwith $"This should have been preprocessed out! {op}"
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
-        setDB (UserDB.create2 tlid name pos id) c
+      setDB (UserDB.create2 tlid name pos id) c
     | PT.DeleteTLForever tlid -> deleteTLForever tlid c
     | PT.DeleteFunctionForever tlid -> deleteFunctionForever tlid c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
     | PT.DeleteTypeForever tlid -> deleteTypeForever tlid c
-  with e ->
+  with
+  | e ->
     // FSTODO
     (* Log here so we have context, but then re-raise *)
     // Log.erroR
@@ -267,18 +268,20 @@ let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
          match read.stringOrNone "cors_setting" with
          | None -> None
          | Some str ->
-             let json = System.Text.Json.JsonDocument.Parse str
+           let json = System.Text.Json.JsonDocument.Parse str
 
-             match json.RootElement.ValueKind with
-             | System.Text.Json.JsonValueKind.String when
-               json.RootElement.GetString() = "*" -> Some AllOrigins
-             | System.Text.Json.JsonValueKind.Array ->
-                 json.RootElement.EnumerateArray()
-                 |> Seq.map (fun e -> e.ToString())
-                 |> Seq.toList
-                 |> Origins
-                 |> Some
-             | _ -> failwith "invalid json in CorsSettings")
+           match json.RootElement.ValueKind with
+           | System.Text.Json.JsonValueKind.String when
+             json.RootElement.GetString() = "*"
+             ->
+             Some AllOrigins
+           | System.Text.Json.JsonValueKind.Array ->
+             json.RootElement.EnumerateArray()
+             |> Seq.map (fun e -> e.ToString())
+             |> Seq.toList
+             |> Origins
+             |> Some
+           | _ -> failwith "invalid json in CorsSettings")
 
 let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
@@ -422,12 +425,12 @@ let loadOplists
   let query =
     match loadAmount with
     | LiveToplevels ->
-        "SELECT tlid, data FROM toplevel_oplists
+      "SELECT tlid, data FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
             AND deleted IS NOT TRUE"
     | IncludeDeletedToplevels ->
-        "SELECT tlid, data FROM toplevel_oplists
+      "SELECT tlid, data FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)"
 
@@ -604,18 +607,18 @@ let saveTLIDs
              let routingNames =
                match tl with
                | PT.TLHandler ({ spec = spec }) ->
-                   match spec with
-                   | PT.Handler.HTTP _ ->
-                       Some(
-                         spec.module' (),
-                         Routing.routeToPostgresPattern (spec.name ()),
-                         spec.modifier ()
-                       )
-                   | PT.Handler.Worker _
-                   | PT.Handler.OldWorker _
-                   | PT.Handler.Cron _
-                   | PT.Handler.REPL _ ->
-                       Some(spec.module' (), spec.name (), spec.modifier ())
+                 match spec with
+                 | PT.Handler.HTTP _ ->
+                   Some(
+                     spec.module' (),
+                     Routing.routeToPostgresPattern (spec.name ()),
+                     spec.modifier ()
+                   )
+                 | PT.Handler.Worker _
+                 | PT.Handler.OldWorker _
+                 | PT.Handler.Cron _
+                 | PT.Handler.REPL _ ->
+                   Some(spec.module' (), spec.name (), spec.modifier ())
                | PT.TLDB _
                | PT.TLType _
                | PT.TLFunction _ -> None
@@ -623,7 +626,7 @@ let saveTLIDs
              let (module_, name, modifier) =
                match routingNames with
                | Some (module_, name, modifier) ->
-                   (string2option module_, string2option name, string2option modifier)
+                 (string2option module_, string2option name, string2option modifier)
                | None -> None, None, None
 
              let pos =
@@ -670,7 +673,8 @@ let saveTLIDs
            })
     |> List.map (fun (t : Task<unit>) -> t :> Task)
     |> Task.WhenAll
-  with e -> reraise () // pageable
+  with
+  | e -> reraise () // pageable
 
 
 // let saveAll (c : T) : Task =

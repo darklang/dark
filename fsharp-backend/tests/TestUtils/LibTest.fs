@@ -50,8 +50,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr errorString ] ->
-            let msg = LibExecution.Errors.queryCompilerErrorTemplate ++ errorString
-            Value(DError(SourceNone, msg))
+          let msg = LibExecution.Errors.queryCompilerErrorTemplate ++ errorString
+          Value(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -85,14 +85,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let chars = String.toEgcSeq s
+          let chars = String.toEgcSeq s
 
-            if Seq.length chars = 1 then
-              chars
-              |> Seq.toList
-              |> fun l -> l.[0] |> DChar |> Some |> DOption |> Value
-            else
-              Value(DOption None)
+          if Seq.length chars = 1 then
+            chars
+            |> Seq.toList
+            |> fun l -> l.[0] |> DChar |> Some |> DOption |> Value
+          else
+            Value(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -118,8 +118,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ arg ] ->
-            sideEffectCount := !sideEffectCount + 1
-            Value(arg)
+          sideEffectCount := !sideEffectCount + 1
+          Value(arg)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -142,8 +142,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ v; DStr msg ] ->
-            printfn $"{msg}: {v}"
-            Value v
+          printfn $"{msg}: {v}"
+          Value v
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

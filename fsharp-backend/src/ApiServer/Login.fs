@@ -57,7 +57,8 @@ let logout : HttpHandler =
         // if no session data, continue without deleting it
         let sessionData = Middleware.loadSessionData ctx
         do! Session.clear sessionData.key
-      with _ -> ()
+      with
+      | _ -> ()
 
       ctx.Response.Cookies.Delete(Session.cookieKey, cookieOptionsFor ctx)
 
@@ -96,20 +97,20 @@ let loginHandler : HttpHandler =
 
       match! Account.authenticate usernameOrEmail password with
       | None ->
-          let redirect = if redirect = "" then [] else [ "redirect", redirect ]
-          let error = [ "error", "Invalid username or password" ]
-          let qs = Middleware.queryString (redirect @ error)
+        let redirect = if redirect = "" then [] else [ "redirect", redirect ]
+        let error = [ "error", "Invalid username or password" ]
+        let qs = Middleware.queryString (redirect @ error)
 
-          return! redirectTo false $"/login?{qs}" earlyReturn ctx
+        return! redirectTo false $"/login?{qs}" earlyReturn ctx
       | Some username ->
-          let! sessionData = Session.insert username
+        let! sessionData = Session.insert username
 
-          ctx.Response.Cookies.Append(
-            Session.cookieKey,
-            sessionData.sessionKey,
-            cookieOptionsFor ctx
-          )
+        ctx.Response.Cookies.Append(
+          Session.cookieKey,
+          sessionData.sessionKey,
+          cookieOptionsFor ctx
+        )
 
-          let location = if redirect = "" then $"/a/{username}" else redirect
-          return! redirectTo false location earlyReturn ctx
+        let location = if redirect = "" then $"/a/{username}" else redirect
+        return! redirectTo false location earlyReturn ctx
     })

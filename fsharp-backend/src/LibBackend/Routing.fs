@@ -66,10 +66,10 @@ let routeInputVars
                match routeVariable r with
                | Some rv -> Some((rv, RT.DStr p) :: acc)
                | None ->
-                   // Concretized match, or we were passed a Postgres wildcard
-                   // and should treat this as a match.
-                   // Otherwise, this route/path do not match and should fail
-                   if r = p || r = "%" then Some acc else None)
+                 // Concretized match, or we were passed a Postgres wildcard
+                 // and should treat this as a match.
+                 // Otherwise, this route/path do not match and should fail
+                 if r = p || r = "%" then Some acc else None)
              acc)
 
   let splitRoute = splitUriPath route |> Array.toList
@@ -87,8 +87,10 @@ let routeInputVars
     // the lengths match and we can do a zip binding
     let lastRouteSegment = List.tryLast splitRoute
 
-    if Option.isSome (lastRouteSegment |> Option.bind routeVariable)
-       || Option.defaultValue "" lastRouteSegment = "%" then
+    if
+      Option.isSome (lastRouteSegment |> Option.bind routeVariable)
+      || Option.defaultValue "" lastRouteSegment = "%"
+    then
       let mungedPath =
         let before, after =
           List.splitAt (List.length splitRoute - 1) splitRequestPath
@@ -114,9 +116,7 @@ let filterInvalidHandlerMatches
   (handlers : List<PT.Handler.T>)
   : List<PT.Handler.T> =
   List.filter
-    (fun h ->
-      let route = h.spec.name () in
-      requestPathMatchesRoute route path)
+    (fun h -> let route = h.spec.name () in requestPathMatchesRoute route path)
     handlers
 
 
@@ -165,10 +165,10 @@ let filterMatchingHandlersBySpecificity
   | [] -> []
   | [ a ] -> [ a ]
   | a :: rest ->
-      let sameSpecificity =
-        List.filter (fun b -> comparePageRouteSpecificity a b = 0) rest
+    let sameSpecificity =
+      List.filter (fun b -> comparePageRouteSpecificity a b = 0) rest
 
-      a :: sameSpecificity
+    a :: sameSpecificity
 
 
 let filterMatchingHandlers

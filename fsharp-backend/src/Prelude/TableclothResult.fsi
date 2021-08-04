@@ -400,12 +400,11 @@ val to_option : t<'ok, _> -> 'ok option
 (** {1 Compare} *)
 
 val equal :
-
-    ('ok -> 'ok -> bool) ->
-    ('error -> 'error -> bool) ->
-    t<'ok, 'error> ->
-    t<'ok, 'error> ->
-    bool
+  ('ok -> 'ok -> bool) ->
+  ('error -> 'error -> bool) ->
+  t<'ok, 'error> ->
+  t<'ok, 'error> ->
+  bool
 (** Test two results for equality using the provided functions.
 
     {2 Examples}
@@ -422,12 +421,11 @@ val equal :
 *)
 
 val compare :
-
-    ('ok -> 'ok -> int) ->
-    ('error -> 'error -> int) ->
-    t<'ok, 'error> ->
-    t<'ok, 'error> ->
-    int
+  ('ok -> 'ok -> int) ->
+  ('error -> 'error -> int) ->
+  t<'ok, 'error> ->
+  t<'ok, 'error> ->
+  int
 (** Compare results for using the provided functions.
 
     In the case when one of the results is an [Error] and one is [Ok], [Error]s  are considered 'less' then [Ok]s

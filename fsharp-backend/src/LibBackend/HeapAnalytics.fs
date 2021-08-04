@@ -112,19 +112,19 @@ let heapioEvent
 
     match result.StatusCode with
     | System.Net.HttpStatusCode.Accepted ->
-        // FSTODO
-        // Log.infO
-        //   "pushed to heapio via stroller"
-        //   ~jsonparams:[("status", `Int code)]
-        //   ~params:log_params
-        ()
+      // FSTODO
+      // Log.infO
+      //   "pushed to heapio via stroller"
+      //   ~jsonparams:[("status", `Int code)]
+      //   ~params:log_params
+      ()
     | _ ->
-        // FSTODO
-        // Log.erroR
-        //   "failed to push to heapio via stroller"
-        //   ~jsonparams:[("status", `Int code)]
-        //   ~params:log_params ) ;
-        ()
+      // FSTODO
+      // Log.erroR
+      //   "failed to push to heapio via stroller"
+      //   ~jsonparams:[("status", `Int code)]
+      //   ~params:log_params ) ;
+      ()
 
     return ()
   }

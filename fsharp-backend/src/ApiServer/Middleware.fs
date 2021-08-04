@@ -118,13 +118,13 @@ let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
       task {
         match! f ctx with
         | Some result ->
-            let t = startTimer ctx
-            let! newCtx = ctx.WriteJsonAsync result
-            t "serialize-to-json"
-            return newCtx
+          let t = startTimer ctx
+          let! newCtx = ctx.WriteJsonAsync result
+          t "serialize-to-json"
+          return newCtx
         | None ->
-            ctx.SetStatusCode 404
-            return! ctx.WriteJsonAsync "Not found"
+          ctx.SetStatusCode 404
+          return! ctx.WriteJsonAsync "Not found"
       })
 
 // Either redirect to a login page, or apply the passed function if a
@@ -216,12 +216,12 @@ let sessionDataMiddleware : HttpHandler =
 
       match session with
       | None ->
-          t "session-data-middleware"
-          return! redirectOr unauthorized ctx
+        t "session-data-middleware"
+        return! redirectOr unauthorized ctx
       | Some sessionData ->
-          let newCtx = saveSessionData sessionData ctx
-          t "session-data-middleware"
-          return! next newCtx
+        let newCtx = saveSessionData sessionData ctx
+        t "session-data-middleware"
+        return! next newCtx
     })
 
 
@@ -233,14 +233,14 @@ let userInfoMiddleware : HttpHandler =
 
       match! Account.getUser (UserName.create sessionData.username) with
       | None ->
-          t "user-info-middleware"
-          return! redirectOr notFound ctx
+        t "user-info-middleware"
+        return! redirectOr notFound ctx
       | Some user ->
-          // FSTODO: add canvas to tracing
-          ctx.SetHttpHeader("x-dark-username", user.username)
-          let newCtx = saveUserInfo user ctx
-          t "user-info-middleware"
-          return! next newCtx
+        // FSTODO: add canvas to tracing
+        ctx.SetHttpHeader("x-dark-username", user.username)
+        let newCtx = saveUserInfo user ctx
+        t "user-info-middleware"
+        return! next newCtx
     })
 
 // checks permission on the canvas and continues. As a safety check, we add the

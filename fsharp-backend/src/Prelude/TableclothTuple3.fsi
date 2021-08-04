@@ -156,12 +156,11 @@ val mapThird : f: ('c -> 'z) -> 'a * 'b * 'c -> 'a * 'b * 'z
 *)
 
 val mapEach :
-
-    f: ('a -> 'x) ->
-    g: ('b -> 'y) ->
-    h: ('c -> 'z) ->
-    'a * 'b * 'c ->
-    'x * 'y * 'z
+  f: ('a -> 'x) ->
+  g: ('b -> 'y) ->
+  h: ('c -> 'z) ->
+  'a * 'b * 'c ->
+  'x * 'y * 'z
 (** Transform each value in a tuple by applying [f] to the {!first} value, [g] to the {!second} value and [h] to the {!third} value.
 
     {2 Examples}
@@ -216,13 +215,12 @@ val toList : 'a * 'a * 'a -> 'a list
 (** {1 Compare} *)
 
 val equal :
-
-    ('a -> 'a -> bool) ->
-    ('b -> 'b -> bool) ->
-    ('c -> 'c -> bool) ->
-    'a * 'b * 'c ->
-    'a * 'b * 'c ->
-    bool
+  ('a -> 'a -> bool) ->
+  ('b -> 'b -> bool) ->
+  ('c -> 'c -> bool) ->
+  'a * 'b * 'c ->
+  'a * 'b * 'c ->
+  bool
 (** Test two {!Tuple3}s for equality, using the provided functions to test the
     first, second and third components.
 
@@ -234,13 +232,12 @@ val equal :
  *)
 
 val compare :
-
-    ('a -> 'a -> int) ->
-    ('b -> 'b -> int) ->
-    ('c -> 'c -> int) ->
-    'a * 'b * 'c ->
-    'a * 'b * 'c ->
-    int
+  ('a -> 'a -> int) ->
+  ('b -> 'b -> int) ->
+  ('c -> 'c -> int) ->
+  'a * 'b * 'c ->
+  'a * 'b * 'c ->
+  int
 (** Compare two {!Tuple3}s, using the provided functions to compare the first
     components then, if the first components are equal, the second components,
     then the third components

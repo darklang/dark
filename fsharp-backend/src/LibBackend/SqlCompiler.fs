@@ -53,11 +53,11 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DOption _
   | DResult _
   | DBytes _ ->
-      error2 "This value is not yet supported" (DvalRepr.toDeveloperReprV0 dval)
+    error2 "This value is not yet supported" (DvalRepr.toDeveloperReprV0 dval)
   | DDate date -> Sql.timestamp date
   | DInt i ->
-      // FSTODO: gonna have to do better than this for infinite precision
-      Sql.int64 (int64 i)
+    // FSTODO: gonna have to do better than this for infinite precision
+    Sql.int64 (int64 i)
   | DFloat v -> Sql.double v
   | DBool b -> Sql.bool b
   | DNull -> Sql.dbnull
@@ -70,9 +70,9 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
   | TVariable _ -> ()
   | other when actualType = other -> ()
   | _ ->
-      let actual = DvalRepr.typeToDeveloperReprV0 actualType
-      let expected = DvalRepr.typeToDeveloperReprV0 expectedType
-      error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
+    let actual = DvalRepr.typeToDeveloperReprV0 actualType
+    let expected = DvalRepr.typeToDeveloperReprV0 expectedType
+    error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
 // (* TODO: support character. And maybe lists and
 //  * bytes. Probably something can be done with options and results. *)
@@ -130,20 +130,22 @@ let rec inline'
   Ast.postTraversal
     (function
     | ELet (_, name, expr, body) ->
-        inline' paramName (Map.add name expr symtable) body
+      inline' paramName (Map.add name expr symtable) body
     | EVariable (_, name) as expr when name <> paramName ->
-        (match Map.get name symtable with
-         | Some found -> found
-         | None ->
-             // the variable might be in the symtable, so put it back to fill in later
-             expr)
+      (match Map.get name symtable with
+       | Some found -> found
+       | None ->
+         // the variable might be in the symtable, so put it back to fill in later
+         expr)
     | expr -> expr)
     expr
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (pattern : Expr) =
   match pattern with
   | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _, NoRail) when
-    std.module_ = mName && std.function_ = fName && std.version = v -> Some args
+    std.module_ = mName && std.function_ = fName && std.version = v
+    ->
+    Some args
   | _ -> None
 
 // Generate SQL from an Expr. This expects that all the hard stuff has been
@@ -167,99 +169,97 @@ let rec lambdaToSql
   // rather than a comparison with null. *)
   | Fn "" "==" 0 [ ENull _; e ]
   | Fn "" "==" 0 [ e; ENull _ ] ->
-      let sql, vars = lts TNull e
-      $"({sql} is null)", vars
+    let sql, vars = lts TNull e
+    $"({sql} is null)", vars
   | Fn "" "!=" 0 [ ENull _; e ]
   | Fn "" "!=" 0 [ e; ENull _ ] ->
-      let sql, vars = lts TNull e
-      $"({sql} is not null)", vars
+    let sql, vars = lts TNull e
+    $"({sql} is not null)", vars
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
-      match Map.get name fns with
-      | Some fn ->
-          typecheck (toString name) fn.returnType expectedType
+    match Map.get name fns with
+    | Some fn ->
+      typecheck (toString name) fn.returnType expectedType
 
-          let argSqls, sqlVars =
-            let paramCount = List.length fn.parameters
-            let argCount = List.length args
+      let argSqls, sqlVars =
+        let paramCount = List.length fn.parameters
+        let argCount = List.length args
 
-            if argCount = paramCount then
-              List.map2 (fun arg param -> lts param.typ arg) args fn.parameters
-              |> List.unzip
-              |> (fun (sqls, vars) -> (sqls, List.concat vars))
-            else
-              error
-                $"{fn.name} has {paramCount} functions but we have {argCount} arguments"
-
-          match fn, argSqls with
-          | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
-              $"({argL} {op} {argR})", sqlVars
-          | { sqlSpec = SqlUnaryOp op }, [ argSql ] -> $"({op} {argSql})", sqlVars
-          | { sqlSpec = SqlFunction fnname }, _ ->
-              let argSql = String.concat ", " argSqls
-              $"({fnname}({argSql}))", sqlVars
-          | { sqlSpec = SqlFunctionWithPrefixArgs (fnName, fnArgs) }, _ ->
-              let argSql = fnArgs @ argSqls |> String.concat ", "
-              $"({fnName} ({argSql}))", sqlVars
-          | { sqlSpec = SqlFunctionWithSuffixArgs (fnName, fnArgs) }, _ ->
-              let argSql = argSqls @ fnArgs |> String.concat ", "
-              $"({fnName} ({argSql}))", sqlVars
-          | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
-              $"({fn arg1 arg2})", sqlVars
-          | fn, args -> error $"This function ({name}) is not yet implemented"
-      | None ->
+        if argCount = paramCount then
+          List.map2 (fun arg param -> lts param.typ arg) args fn.parameters
+          |> List.unzip
+          |> (fun (sqls, vars) -> (sqls, List.concat vars))
+        else
           error
-            $"Only builtin functions can be used in queries right now; {name} is not a builtin function"
+            $"{fn.name} has {paramCount} functions but we have {argCount} arguments"
+
+      match fn, argSqls with
+      | { sqlSpec = SqlBinOp op }, [ argL; argR ] -> $"({argL} {op} {argR})", sqlVars
+      | { sqlSpec = SqlUnaryOp op }, [ argSql ] -> $"({op} {argSql})", sqlVars
+      | { sqlSpec = SqlFunction fnname }, _ ->
+        let argSql = String.concat ", " argSqls
+        $"({fnname}({argSql}))", sqlVars
+      | { sqlSpec = SqlFunctionWithPrefixArgs (fnName, fnArgs) }, _ ->
+        let argSql = fnArgs @ argSqls |> String.concat ", "
+        $"({fnName} ({argSql}))", sqlVars
+      | { sqlSpec = SqlFunctionWithSuffixArgs (fnName, fnArgs) }, _ ->
+        let argSql = argSqls @ fnArgs |> String.concat ", "
+        $"({fnName} ({argSql}))", sqlVars
+      | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] -> $"({fn arg1 arg2})", sqlVars
+      | fn, args -> error $"This function ({name}) is not yet implemented"
+    | None ->
+      error
+        $"Only builtin functions can be used in queries right now; {name} is not a builtin function"
   | EVariable (_, varname) ->
-      match Map.get varname symtable with
-      | Some dval ->
-          typecheckDval $"variable {varname}" dval expectedType
-          let random = randomString 8
-          let newname = $"{varname}_{random}"
-          $"(@{newname})", [ newname, dvalToSql dval ]
-      | None -> error $"This variable is not defined: {varname}"
+    match Map.get varname symtable with
+    | Some dval ->
+      typecheckDval $"variable {varname}" dval expectedType
+      let random = randomString 8
+      let newname = $"{varname}_{random}"
+      $"(@{newname})", [ newname, dvalToSql dval ]
+    | None -> error $"This variable is not defined: {varname}"
   | EInteger (_, v) ->
-      typecheck $"integer {v}" TInt expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, v |> int64 |> Sql.int64 ]
+    typecheck $"integer {v}" TInt expectedType
+    let name = randomString 10
+    $"(@{name})", [ name, v |> int64 |> Sql.int64 ]
   | EBool (_, v) ->
-      typecheck $"bool {v}" TBool expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.bool v ]
+    typecheck $"bool {v}" TBool expectedType
+    let name = randomString 10
+    $"(@{name})", [ name, Sql.bool v ]
   | ENull _ ->
-      typecheck "value null" TNull expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.dbnull ]
+    typecheck "value null" TNull expectedType
+    let name = randomString 10
+    $"(@{name})", [ name, Sql.dbnull ]
   | EFloat (_, v) ->
-      typecheck $"float {v}" TFloat expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.double v ]
+    typecheck $"float {v}" TFloat expectedType
+    let name = randomString 10
+    $"(@{name})", [ name, Sql.double v ]
   | EString (_, v) ->
-      typecheck $"string \"{v}\"" TStr expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.string v ]
+    typecheck $"string \"{v}\"" TStr expectedType
+    let name = randomString 10
+    $"(@{name})", [ name, Sql.string v ]
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
-      let typ =
-        match Map.get fieldname dbFields with
-        | Some v -> v
-        | None -> error2 "The datastore does not have a field named" fieldname
+    let typ =
+      match Map.get fieldname dbFields with
+      | Some v -> v
+      | None -> error2 "The datastore does not have a field named" fieldname
 
-      if expectedType <> TNull (* Fields are allowed be null *) then
-        typecheck fieldname typ expectedType
+    if expectedType <> TNull (* Fields are allowed be null *) then
+      typecheck fieldname typ expectedType
 
-      let fieldname = escapeFieldname fieldname
-      let typename = typeToSqlType typ
+    let fieldname = escapeFieldname fieldname
+    let typename = typeToSqlType typ
 
-      (match expectedType with
-       | TDate ->
-           // This match arm handles types that are serialized in
-           // unsafeDvalToJson using wrapUserType or wrapUserStr, meaning
-           // they are wrapped in {type:, value:}. Right now, of the types sql
-           // compiler supports, that's just TDate.
-           // Likely future candidates include DPassword and DUuid; at time of
-           // writing, DCharacter and DBytes also serialize this way but are not
-           // allowed as DB field types.
-           ($"(CAST(data::jsonb->'{fieldname}'->>'value' as {typename}))", [])
-       | _ -> ($"(CAST(data::jsonb->>'{fieldname}' as {typename}))", []))
+    (match expectedType with
+     | TDate ->
+       // This match arm handles types that are serialized in
+       // unsafeDvalToJson using wrapUserType or wrapUserStr, meaning
+       // they are wrapped in {type:, value:}. Right now, of the types sql
+       // compiler supports, that's just TDate.
+       // Likely future candidates include DPassword and DUuid; at time of
+       // writing, DCharacter and DBytes also serialize this way but are not
+       // allowed as DB field types.
+       ($"(CAST(data::jsonb->'{fieldname}'->>'value' as {typename}))", [])
+     | _ -> ($"(CAST(data::jsonb->>'{fieldname}' as {typename}))", []))
   | _ -> error $"We do not yet support compiling this code: {expr}"
 
 
@@ -314,10 +314,10 @@ let partiallyEvaluate
         // We list any construction that we think is safe to evaluate
         match expr with
         | EFieldAccess (_, EVariable (_, name), _) when name <> paramName ->
-            return! exec expr
+          return! exec expr
         | EFieldAccess (_, ERecord _, _) ->
-            // inlining can create these situations
-            return! exec expr
+          // inlining can create these situations
+          return! exec expr
         | EApply (_, EFQFnValue (_, name), args, _, _) when
           // functions that are fully specified
           List.all
@@ -329,9 +329,10 @@ let partiallyEvaluate
             | EString _
             | EVariable _ -> true
             | _ -> false)
-            args ->
-            // TODO: should limit this further to pure functions.
-            return! exec expr
+            args
+          ->
+          // TODO: should limit this further to pure functions.
+          return! exec expr
         | _ -> return expr
       }
 
@@ -353,61 +354,61 @@ let partiallyEvaluate
             | ENull _
             | EFloat _ -> return expr
             | ELet (id, name, rhs, next) ->
-                let! rhs = r rhs
-                let! next = r next
-                return ELet(id, name, rhs, next)
+              let! rhs = r rhs
+              let! next = r next
+              return ELet(id, name, rhs, next)
             | EApply (id, name, exprs, inPipe, ster) ->
-                let! exprs = List.map_s r exprs
-                return EApply(id, name, exprs, inPipe, ster)
+              let! exprs = List.map_s r exprs
+              return EApply(id, name, exprs, inPipe, ster)
             | EIf (id, cond, ifexpr, elseexpr) ->
-                let! cond = r cond
-                let! ifexpr = r ifexpr
-                let! elseexpr = r elseexpr
-                return EIf(id, cond, ifexpr, elseexpr)
+              let! cond = r cond
+              let! ifexpr = r ifexpr
+              let! elseexpr = r elseexpr
+              return EIf(id, cond, ifexpr, elseexpr)
             | EFieldAccess (id, expr, fieldname) ->
-                let! expr = r expr
-                return EFieldAccess(id, expr, fieldname)
+              let! expr = r expr
+              return EFieldAccess(id, expr, fieldname)
             | ELambda (id, names, expr) ->
-                let! expr = r expr
-                return ELambda(id, names, expr)
+              let! expr = r expr
+              return ELambda(id, names, expr)
             | EList (id, exprs) ->
-                let! exprs = List.map_s r exprs
-                return EList(id, exprs)
+              let! exprs = List.map_s r exprs
+              return EList(id, exprs)
             | EMatch (id, mexpr, pairs) ->
-                let! mexpr = r mexpr
+              let! mexpr = r mexpr
 
-                let! pairs =
-                  List.map_s
-                    (fun (name, expr) ->
-                      taskv {
-                        let! expr = r expr
-                        return (name, expr)
-                      })
-                    pairs
+              let! pairs =
+                List.map_s
+                  (fun (name, expr) ->
+                    taskv {
+                      let! expr = r expr
+                      return (name, expr)
+                    })
+                  pairs
 
-                return EMatch(id, mexpr, pairs)
+              return EMatch(id, mexpr, pairs)
             | ERecord (id, fields) ->
-                let! fields =
-                  List.map_s
-                    (fun (name, expr) ->
-                      taskv {
-                        let! expr = r expr
-                        return (name, expr)
-                      })
-                    fields
+              let! fields =
+                List.map_s
+                  (fun (name, expr) ->
+                    taskv {
+                      let! expr = r expr
+                      return (name, expr)
+                    })
+                  fields
 
-                return ERecord(id, fields)
+              return ERecord(id, fields)
             | EConstructor (id, name, exprs) ->
-                let! exprs = List.map_s r exprs
-                return EConstructor(id, name, exprs)
+              let! exprs = List.map_s r exprs
+              return EConstructor(id, name, exprs)
             | EPartial (id, oldExpr) ->
-                let! oldExpr = r oldExpr
-                return EPartial(id, oldExpr)
+              let! oldExpr = r oldExpr
+              return EPartial(id, oldExpr)
             | EFeatureFlag (id, cond, casea, caseb) ->
-                let! cond = r cond
-                let! casea = r casea
-                let! caseb = r caseb
-                return EFeatureFlag(id, cond, casea, caseb)
+              let! cond = r cond
+              let! casea = r casea
+              let! caseb = r caseb
+              return EFeatureFlag(id, cond, casea, caseb)
           }
 
         return! f result

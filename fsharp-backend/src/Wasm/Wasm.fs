@@ -41,7 +41,7 @@ module ClientInterop =
     | OT.Blank id -> (name, OT.Blank id)
     | OT.Partial (id, str) -> (name, OT.Partial(id, str))
     | OT.Filled (id, tipe) ->
-        (name, (OT.Filled(id, PT.DType.parse tipe |> OT.Convert.pt2ocamlTipe)))
+      (name, (OT.Filled(id, PT.DType.parse tipe |> OT.Convert.pt2ocamlTipe)))
 
   let convert_migration
     (m : client_db_migration)
@@ -184,9 +184,9 @@ module Eval =
                k,
                match v with
                | AT.ExecutedResult dv ->
-                   ClientInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
+                 ClientInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
                | AT.NonExecutedResult dv ->
-                   ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
+                 ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
         |> Dictionary.fromList
 
       return (traceID, ocamlResults)
@@ -197,23 +197,23 @@ module Eval =
     : Task<ClientInterop.AnalysisEnvelope> =
     match args with
     | ClientInterop.AnalyzeHandler ah ->
-        runAnalysis
-          ah.handler.tlid
-          ah.trace_id
-          ah.trace_data
-          ah.user_fns
-          ah.user_tipes
-          (List.map ClientInterop.convert_db ah.dbs)
-          ah.handler.ast
+      runAnalysis
+        ah.handler.tlid
+        ah.trace_id
+        ah.trace_data
+        ah.user_fns
+        ah.user_tipes
+        (List.map ClientInterop.convert_db ah.dbs)
+        ah.handler.ast
     | ClientInterop.AnalyzeFunction af ->
-        runAnalysis
-          af.func.tlid
-          af.trace_id
-          af.trace_data
-          af.user_fns
-          af.user_tipes
-          (List.map ClientInterop.convert_db af.dbs)
-          af.func.ast
+      runAnalysis
+        af.func.tlid
+        af.trace_id
+        af.trace_data
+        af.user_fns
+        af.user_tipes
+        (List.map ClientInterop.convert_db af.dbs)
+        af.func.ast
 
 
 
@@ -267,7 +267,8 @@ type EvalWorker =
 
         let! result = Eval.performAnalysis args
         return Ok result
-      with e ->
+      with
+      | e ->
         System.Console.WriteLine("Error running analysis in Blazor")
         System.Console.WriteLine(e)
         return Error(string e)

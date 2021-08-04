@@ -47,7 +47,8 @@ module Insert =
 
         return result
 
-      with e ->
+      with
+      | e ->
         let msg = e.ToString()
 
         // FSTODO: does this error trigger correctly

@@ -49,12 +49,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-            o
-            |> Map.keys
-            |> Seq.map (fun k -> DStr k)
-            |> Seq.toList
-            |> fun l -> DList l
-            |> Value
+          o
+          |> Map.keys
+          |> Seq.map (fun k -> DStr k)
+          |> Seq.toList
+          |> fun l -> DList l
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -78,10 +78,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-            Map.toList o
-            |> List.map (fun (k, v) -> DList [ DStr k; v ])
-            |> DList
-            |> Value
+          Map.toList o
+          |> List.map (fun (k, v) -> DList [ DStr k; v ])
+          |> DList
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -89,25 +89,26 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
       parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TDict varA
-      description = "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+      description =
+        "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
         If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
         This function is the opposite of `Dict::toList`."
       fn =
         (function
         | state, [ DList l ] ->
 
-            let f acc e =
-              match e with
-              | DList [ DStr k; value ] -> Map.add k value acc
-              | DList [ k; value ] ->
-                  Errors.throw (Errors.argumentWasnt "a string" "key" k)
-              | (DIncomplete _
-              | DErrorRail _
-              | DError _) as dv -> Errors.foundFakeDval (dv)
-              | _ -> Errors.throw "All list items must be `[key, value]`"
+          let f acc e =
+            match e with
+            | DList [ DStr k; value ] -> Map.add k value acc
+            | DList [ k; value ] ->
+              Errors.throw (Errors.argumentWasnt "a string" "key" k)
+            | (DIncomplete _
+            | DErrorRail _
+            | DError _) as dv -> Errors.foundFakeDval (dv)
+            | _ -> Errors.throw "All list items must be `[key, value]`"
 
-            let result = List.fold f Map.empty l
-            Value((DObj(result)))
+          let result = List.fold f Map.empty l
+          Value((DObj(result)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -115,31 +116,32 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "fromList" 0
       parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TOption(TDict varA)
-      description = "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+      description =
+        "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
          If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
          Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
       fn =
         (function
         | _, [ DList l ] ->
 
-            let f acc e =
-              match acc, e with
-              | Some acc, DList [ DStr k; value ] when Map.containsKey k acc -> None
-              | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
-              | _,
-                ((DIncomplete _
-                | DErrorRail _
-                | DError _) as dv) -> Errors.foundFakeDval dv
-              | Some _, DList [ k; _ ] ->
-                  Errors.throw (Errors.argumentWasnt "a string" "key" k)
-              | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
-              | None, _ -> None
+          let f acc e =
+            match acc, e with
+            | Some acc, DList [ DStr k; value ] when Map.containsKey k acc -> None
+            | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
+            | _,
+              ((DIncomplete _
+              | DErrorRail _
+              | DError _) as dv) -> Errors.foundFakeDval dv
+            | Some _, DList [ k; _ ] ->
+              Errors.throw (Errors.argumentWasnt "a string" "key" k)
+            | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
+            | None, _ -> None
 
-            let result = List.fold f (Some Map.empty) l
+          let result = List.fold f (Some Map.empty) l
 
-            match result with
-            | Some map -> Value(DOption(Some(DObj(map))))
-            | None -> Value(DOption None)
+          match result with
+          | Some map -> Value(DOption(Some(DObj(map))))
+          | None -> Value(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -152,9 +154,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o; DStr s ] ->
-            (match Map.tryFind s o with
-             | Some d -> Value(d)
-             | None -> Value(DNull))
+          (match Map.tryFind s o with
+           | Some d -> Value(d)
+           | None -> Value(DNull))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -204,15 +206,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-            taskv {
-              let! result =
-                Map.map_s
-                  (fun dv ->
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
-                  o
+          taskv {
+            let! result =
+              Map.map_s
+                (fun dv ->
+                  Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
+                o
 
-              return DObj result
-            }
+            return DObj result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -222,28 +224,29 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs "f" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
       returnType = TDict varB
-      description = "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
+      description =
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
           Consider `Dict::filterMap` if you also want to drop some of the entries."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-            taskv {
-              let mapped = Map.map (fun i v -> (i, v)) o
+          taskv {
+            let mapped = Map.map (fun i v -> (i, v)) o
 
-              let! result =
-                Map.map_s
-                  (fun ((key, dv) : string * Dval) ->
-                    Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ DStr key; dv ]
-                      NotInPipe
-                      NoRail)
-                  mapped
+            let! result =
+              Map.map_s
+                (fun ((key, dv) : string * Dval) ->
+                  Interpreter.applyFnVal
+                    state
+                    (id 0)
+                    b
+                    [ DStr key; dv ]
+                    NotInPipe
+                    NoRail)
+                mapped
 
-              return DObj result
-            }
+            return DObj result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -253,39 +256,40 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs "f" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varA
-      description = "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
+      description =
+        "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
               Consider `Dict::filterMap` if you also want to transform the entries."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-            taskv {
-              let incomplete = ref false
+          taskv {
+            let incomplete = ref false
 
-              let f (key : string) (dv : Dval) : TaskOrValue<bool> =
-                taskv {
-                  let! result =
-                    Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ DStr key; dv ]
-                      NotInPipe
-                      NoRail
+            let f (key : string) (dv : Dval) : TaskOrValue<bool> =
+              taskv {
+                let! result =
+                  Interpreter.applyFnVal
+                    state
+                    (id 0)
+                    b
+                    [ DStr key; dv ]
+                    NotInPipe
+                    NoRail
 
-                  match result with
-                  | DBool b -> return b
-                  | DIncomplete _ ->
-                      incomplete := true
-                      return false
-                  | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
-                }
+                match result with
+                | DBool b -> return b
+                | DIncomplete _ ->
+                  incomplete := true
+                  return false
+                | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+              }
 
-              if !incomplete then
-                return DIncomplete SourceNone (*TODO(ds) source info *)
-              else
-                let! result = Map.filter_s f o
-                return DObj result
-            }
+            if !incomplete then
+              return DIncomplete SourceNone (*TODO(ds) source info *)
+            else
+              let! result = Map.filter_s f o
+              return DObj result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -300,42 +304,41 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-            taskv {
-              let filter_propagating_errors
-                (acc : Result<DvalMap, Dval>)
-                (key : string)
-                (data : Dval)
-                : TaskOrValue<Result<DvalMap, Dval>> =
-                match acc with
-                | Error dv -> Value(Error dv)
-                | Ok m ->
-                    taskv {
-                      let! result =
-                        Interpreter.applyFnVal
-                          state
-                          (id 0)
-                          b
-                          [ DStr key; data ]
-                          NotInPipe
-                          NoRail
+          taskv {
+            let filter_propagating_errors
+              (acc : Result<DvalMap, Dval>)
+              (key : string)
+              (data : Dval)
+              : TaskOrValue<Result<DvalMap, Dval>> =
+              match acc with
+              | Error dv -> Value(Error dv)
+              | Ok m ->
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ DStr key; data ]
+                      NotInPipe
+                      NoRail
 
-                      match result with
-                      | DBool true -> return Ok(Map.add key data m)
-                      | DBool false -> return Ok m
-                      | (DIncomplete _ as e)
-                      | (DError _ as e) -> return Error e
-                      | other ->
-                          return
-                            Errors.throw (Errors.expectedLambdaType "f" TBool other)
-                    }
+                  match result with
+                  | DBool true -> return Ok(Map.add key data m)
+                  | DBool false -> return Ok m
+                  | (DIncomplete _ as e)
+                  | (DError _ as e) -> return Error e
+                  | other ->
+                    return Errors.throw (Errors.expectedLambdaType "f" TBool other)
+                }
 
-              let! filtered_result =
-                Map.fold_s filter_propagating_errors (Ok Map.empty) o
+            let! filtered_result =
+              Map.fold_s filter_propagating_errors (Ok Map.empty) o
 
-              match filtered_result with
-              | Ok o -> return DObj o
-              | Error dv -> return dv
-            }
+            match filtered_result with
+            | Ok o -> return DObj o
+            | Error dv -> return dv
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -349,53 +352,54 @@ let fns : List<BuiltInFn> =
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
-      description = "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
+      description =
+        "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
           If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
           If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
           This function combines `Dict::filter` and `Dict::map`."
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-            taskv {
-              let abortReason = ref None
+          taskv {
+            let abortReason = ref None
 
-              let f (key : string) (data : Dval) : TaskOrValue<Dval option> =
-                taskv {
-                  let run = !abortReason = None
+            let f (key : string) (data : Dval) : TaskOrValue<Dval option> =
+              taskv {
+                let run = !abortReason = None
 
-                  if run then
-                    let! result =
-                      Interpreter.applyFnVal
-                        state
-                        (id 0)
-                        b
-                        [ DStr key; data ]
-                        NotInPipe
-                        NoRail
+                if run then
+                  let! result =
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ DStr key; data ]
+                      NotInPipe
+                      NoRail
 
-                    match result with
-                    | DOption (Some o) -> return Some o
-                    | DOption None -> return None
-                    | (DIncomplete _
-                    | DErrorRail _
-                    | DError _) as dv ->
-                        abortReason := Some dv
-                        return None
-                    | v ->
-                        Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
-
-                        return None
-
-                  else
+                  match result with
+                  | DOption (Some o) -> return Some o
+                  | DOption None -> return None
+                  | (DIncomplete _
+                  | DErrorRail _
+                  | DError _) as dv ->
+                    abortReason := Some dv
                     return None
-                }
+                  | v ->
+                    Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
 
-              let! result = Map.filter_map f o
+                    return None
 
-              match !abortReason with
-              | None -> return DObj result
-              | Some v -> return v
-            }
+                else
+                  return None
+              }
+
+            let! result = Map.filter_map f o
+
+            match !abortReason with
+            | None -> return DObj result
+            | Some v -> return v
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -442,8 +446,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-            // CLEANUP: this prints invalid JSON for infinity and NaN
-            DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
+          // CLEANUP: this prints invalid JSON for infinity and NaN
+          DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -332,7 +332,8 @@ module Password =
 
           try
             Json.Vanilla.serialize (RT.DPassword(Password [||])) |> ignore
-          with e -> success <- true
+          with
+          | e -> success <- true
 
           Expect.equal success true "success should be true"
         }
@@ -341,7 +342,8 @@ module Password =
 
           try
             Json.OCamlCompatible.serialize (RT.DPassword(Password [||])) |> ignore
-          with e -> success <- true
+          with
+          | e -> success <- true
 
           Expect.equal success true "success should be true"
         } ]

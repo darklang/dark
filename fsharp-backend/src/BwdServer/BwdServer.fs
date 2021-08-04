@@ -128,7 +128,8 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
   task {
     try
       return! fn value
-    with _ -> return! raise (LoadException(msg, code))
+    with
+    | _ -> return! raise (LoadException(msg, code))
   }
 
 // ---------------
@@ -158,7 +159,7 @@ let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
       | None, _ -> None
       // Return the origin if and only if it's in the setting
       | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
-          Some origin
+        Some origin
       // Otherwise: there was a supplied origin and it's not in the setting.
       // return "null" explicitly
       | Some _, Some _ -> Some "null"
@@ -284,100 +285,96 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
-        // CLEANUP: move execution ID header up
-        let executionID = gid ()
-        setHeader ctx "x-darklang-execution-id" (toString executionID)
-        let ownerName = Account.ownerNameFromCanvasName canvasName
-        let ownerUsername = UserName.create (toString ownerName)
+      // CLEANUP: move execution ID header up
+      let executionID = gid ()
+      setHeader ctx "x-darklang-execution-id" (toString executionID)
+      let ownerName = Account.ownerNameFromCanvasName canvasName
+      let ownerUsername = UserName.create (toString ownerName)
 
-        let! ownerID =
-          catch "user not found" 404 Account.userIDForUserName ownerUsername
+      let! ownerID =
+        catch "user not found" 404 Account.userIDForUserName ownerUsername
 
-        // No error checking as this will create a canvas if none exists
-        let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
+      // No error checking as this will create a canvas if none exists
+      let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
 
-        let meta : Canvas.Meta =
-          { id = canvasID; owner = ownerID; name = canvasName }
+      let meta : Canvas.Meta = { id = canvasID; owner = ownerID; name = canvasName }
 
-        let traceID = System.Guid.NewGuid()
-        let method = ctx.Request.Method
-        let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
+      let traceID = System.Guid.NewGuid()
+      let method = ctx.Request.Method
+      let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
 
-        // redirect HEADs to GET. We pass the actual HEAD method to the engine,
-        // and leave it to middleware to say what it wants to do with that
-        let searchMethod = if method = "HEAD" then "GET" else method
+      // redirect HEADs to GET. We pass the actual HEAD method to the engine,
+      // and leave it to middleware to say what it wants to do with that
+      let searchMethod = if method = "HEAD" then "GET" else method
 
-        let! c =
-          Canvas.loadHttpHandlers meta requestPath searchMethod
-          |> Task.map Result.unwrapUnsafe
+      let! c =
+        Canvas.loadHttpHandlers meta requestPath searchMethod
+        |> Task.map Result.unwrapUnsafe
 
-        let pages =
-          Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
+      let pages = Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
 
-        match pages with
-        | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-            let isHttps =
-              getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
+      match pages with
+      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
+        let isHttps =
+          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
 
-            let url = ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
-            // FSTODO: move vars into http middleware
-            let vars = Routing.routeInputVars route requestPath
+        let url = ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
+        // FSTODO: move vars into http middleware
+        let vars = Routing.routeInputVars route requestPath
 
-            match vars with
-            | Some vars ->
-                let symtable = Map.ofList vars
-                let! body = getBody ctx
-                let expr = expr.toRuntimeType ()
-                let headers = getHeaders ctx
+        match vars with
+        | Some vars ->
+          let symtable = Map.ofList vars
+          let! body = getBody ctx
+          let expr = expr.toRuntimeType ()
+          let headers = getHeaders ctx
 
-                let! result, touchedTLIDs =
-                  runHttp c tlid traceID url headers body symtable expr
+          let! result, touchedTLIDs =
+            runHttp c tlid traceID url headers body symtable expr
 
-                do! getCORS ctx canvasID
+          do! getCORS ctx canvasID
 
-                // FSTODO: save event in the http pipeline
+          // FSTODO: save event in the http pipeline
 
-                // Do not resolve task, send this into the ether
-                let tlids = HashSet.toList touchedTLIDs
-                Pusher.pushNewTraceID executionID canvasID traceID tlids
+          // Do not resolve task, send this into the ether
+          let tlids = HashSet.toList touchedTLIDs
+          Pusher.pushNewTraceID executionID canvasID traceID tlids
 
-                match result with
-                | RT.DHttpResponse (RT.Redirect url) ->
-                    ctx.Response.Redirect(url, false)
-                    return ctx
-                | RT.DHttpResponse (RT.Response (status, headers, RT.DBytes body)) ->
-                    ctx.Response.StatusCode <- truncateToInt32 status
-                    // FSTODO content type of application/json for dobj and dlist
-                    List.iter (fun (k, v) -> setHeader ctx k v) headers
-                    do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-                    return ctx
-                | RT.DIncomplete _ -> return! dincompleteResponse ctx
-                | RT.DError _ -> return! derrorResponse ctx
-                | other ->
-                    // all other cases should be handled in middleware
-                    printfn $"Not a HTTP response: {other}"
-                    return! msg 500 "body is not a HttpResponse"
-            | None -> // vars didnt parse
-                return!
-                  msg
-                    500
-                    $"The request ({requestPath}) does not match the route ({route})"
-        | [] when toString ctx.Request.Path = "/favicon.ico" ->
-            return! faviconResponse ctx
-        | [] ->
-            // FSTODO: The request body is created in the pipeline. Should we run this through the pipeline to a handler that returns 404?
-            let event = RT.DNull
+          match result with
+          | RT.DHttpResponse (RT.Redirect url) ->
+            ctx.Response.Redirect(url, false)
+            return ctx
+          | RT.DHttpResponse (RT.Response (status, headers, RT.DBytes body)) ->
+            ctx.Response.StatusCode <- truncateToInt32 status
+            // FSTODO content type of application/json for dobj and dlist
+            List.iter (fun (k, v) -> setHeader ctx k v) headers
+            do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+            return ctx
+          | RT.DIncomplete _ -> return! dincompleteResponse ctx
+          | RT.DError _ -> return! derrorResponse ctx
+          | other ->
+            // all other cases should be handled in middleware
+            printfn $"Not a HTTP response: {other}"
+            return! msg 500 "body is not a HttpResponse"
+        | None -> // vars didnt parse
+          return!
+            msg 500 $"The request ({requestPath}) does not match the route ({route})"
+      | [] when toString ctx.Request.Path = "/favicon.ico" ->
+        return! faviconResponse ctx
+      | [] ->
+        // FSTODO: The request body is created in the pipeline. Should we run this through the pipeline to a handler that returns 404?
+        let event = RT.DNull
 
-            let! timestamp =
-              TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
+        let! timestamp =
+          TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
 
-            Pusher.pushNew404
-              executionID
-              canvasID
-              ("HTTP", requestPath, method, timestamp, traceID)
+        Pusher.pushNew404
+          executionID
+          canvasID
+          ("HTTP", requestPath, method, timestamp, traceID)
 
-            return! noHandlerResponse ctx
-        | _ -> return! moreThanOneHandlerResponse ctx
+        return! noHandlerResponse ctx
+      | _ -> return! moreThanOneHandlerResponse ctx
     | None -> return! canvasNotFoundResponse ctx
   }
 
@@ -396,16 +393,16 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
           return! runDarkHandler ctx
       with
       | LoadException (msg, code) ->
-          // FSTODO log/honeycomb, rollbar
-          let bytes = System.Text.Encoding.UTF8.GetBytes msg
-          ctx.Response.StatusCode <- code
-          if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
-          ctx.Response.ContentLength <- int64 bytes.Length
-          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
-          return ctx
+        // FSTODO log/honeycomb, rollbar
+        let bytes = System.Text.Encoding.UTF8.GetBytes msg
+        ctx.Response.StatusCode <- code
+        if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
+        ctx.Response.ContentLength <- int64 bytes.Length
+        do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+        return ctx
       | e ->
-          printfn "%s" (toString e)
-          return raise e
+        printfn "%s" (toString e)
+        return raise e
      })
     :> Task
 

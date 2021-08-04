@@ -166,19 +166,18 @@ let extent l =
       match current with
       | None -> Some(element, element)
       | Some (min, max) ->
-          Some(
-            (match compare element min < 0 with
-             | true -> element
-             | false -> min),
-            match compare element max > 0 with
-            | true -> element
-            | false -> max
-          ))
+        Some(
+          (match compare element min < 0 with
+           | true -> element
+           | false -> min),
+          match compare element max > 0 with
+          | true -> element
+          | false -> max
+        ))
     l
 
 let insertAt (index : int) (value : 'a) (l : 'a list) =
-  (let front, back = splitAt index l in
-   append front (value :: back) : 'a list)
+  (let front, back = splitAt index l in append front (value :: back) : 'a list)
 
 let insert_at i v l = insertAt i v l
 
@@ -208,6 +207,7 @@ let sliding (step : int) (size : int) (l : 'a t) =
        []
      else
        let sample = takeAllOrEmpty t size ([], 0) in
+
        if isEmpty sample then [] else sample :: loop (List.skip step l)
 
    loop l : 'a t t)
@@ -242,9 +242,7 @@ let rec groupWhile f l =
 
   match l with
   | [] -> []
-  | x :: rest ->
-      let ys, zs = span (f x) rest in
-      (x :: ys) :: groupWhile f zs
+  | x :: rest -> let ys, zs = span (f x) rest in (x :: ys) :: groupWhile f zs
 
 
 let group_while f l = groupWhile f l
@@ -269,6 +267,6 @@ let rec compare compareElement (a : 'a list) (b : 'a list) : int =
   | [], _ -> -1
   | _, [] -> 1
   | x :: xs, y :: ys ->
-      (match compareElement x y with
-       | 0 -> compare compareElement xs ys
-       | result -> result)
+    (match compareElement x y with
+     | 0 -> compare compareElement xs ys
+     | result -> result)

@@ -297,7 +297,8 @@ type OCamlError = { short : string }
 let parseOCamlError (str : string) : string =
   try
     (Json.Vanilla.deserialize<OCamlError> str).short
-  with _ -> str
+  with
+  | _ -> str
 
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
@@ -311,7 +312,7 @@ open LibExecution.RuntimeTypes
 let debugDval (v : Dval) : string =
   match v with
   | DStr s ->
-      $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+    $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
   | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
   | _ -> v.ToString()
 
@@ -341,15 +342,15 @@ module Expect =
 
     | DHttpResponse (Redirect str) -> str.IsNormalized()
     | DHttpResponse (Response (_, headers, v)) ->
-        // We don't check code as you can actually set it to anything
-        let vOk = check v
+      // We don't check code as you can actually set it to anything
+      let vOk = check v
 
-        let headersOk =
-          List.all
-            (fun ((k, v) : string * string) -> k.IsNormalized() && v.IsNormalized())
-            headers
+      let headersOk =
+        List.all
+          (fun ((k, v) : string * string) -> k.IsNormalized() && v.IsNormalized())
+          headers
 
-        vOk && headersOk
+      vOk && headersOk
 
     | DResult (Ok v)
     | DResult (Error v)
@@ -382,8 +383,8 @@ module Expect =
     match actual, expected with
     | PVariable (_, name), PVariable (_, name') -> check name name'
     | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
-        check name name'
-        eqList patterns patterns'
+      check name name'
+      eqList patterns patterns'
     | PString (_, str), PString (_, str') -> check str str'
     | PInteger (_, l), PInteger (_, l') -> check l l'
     | PFloat (_, d), PFloat (_, d') -> check d d'
@@ -432,56 +433,56 @@ module Expect =
     | EFloat (_, v), EFloat (_, v') -> check v v'
     | EBool (_, v), EBool (_, v') -> check v v'
     | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
-        check lhs lhs'
-        eq rhs rhs'
-        eq body body'
+      check lhs lhs'
+      eq rhs rhs'
+      eq body body'
     | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
-        eq con con'
-        eq thn thn'
-        eq els els'
+      eq con con'
+      eq thn thn'
+      eq els els'
     | EList (_, l), EList (_, l') -> eqList l l'
     | EFQFnValue (_, v), EFQFnValue (_, v') -> check v v'
     | EApply (_, name, args, inPipe, toRail),
       EApply (_, name', args', inPipe', toRail') ->
-        eq name name'
-        eqList args args'
+      eq name name'
+      eqList args args'
 
-        match (inPipe, inPipe') with
-        | InPipe id, InPipe id' -> if checkIDs then check id id'
-        | _ -> check inPipe inPipe'
+      match (inPipe, inPipe') with
+      | InPipe id, InPipe id' -> if checkIDs then check id id'
+      | _ -> check inPipe inPipe'
 
-        check toRail toRail'
+      check toRail toRail'
 
     | ERecord (_, pairs), ERecord (_, pairs') ->
-        List.iter2
-          (fun (k, v) (k', v') ->
-            check k k'
-            eq v v')
-          pairs
-          pairs'
+      List.iter2
+        (fun (k, v) (k', v') ->
+          check k k'
+          eq v v')
+        pairs
+        pairs'
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
-        eq e e'
-        check f f'
+      eq e e'
+      check f f'
     | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
-        eq cond cond'
-        eq old old'
-        eq knew knew'
+      eq cond cond'
+      eq old old'
+      eq knew knew'
     | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
-        check s s'
-        eqList ts ts'
+      check s s'
+      eqList ts ts'
     | EPartial (_, e), EPartial (_, e') -> eq e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
-        eq e e'
-        List.iter2 (fun (_, v) (_, v') -> check v v') vars vars'
+      eq e e'
+      List.iter2 (fun (_, v) (_, v') -> check v v') vars vars'
     | EMatch (_, e, branches), EMatch (_, e', branches') ->
-        eq e e'
+      eq e e'
 
-        List.iter2
-          (fun ((p, v) : Pattern * Expr) (p', v') ->
-            patternEqualityBaseFn checkIDs p p' errorFn
-            eq v v')
-          branches
-          branches'
+      List.iter2
+        (fun ((p, v) : Pattern * Expr) (p', v') ->
+          patternEqualityBaseFn checkIDs p p' errorFn
+          eq v v')
+        branches
+        branches'
     // exhaustiveness check
     | ENull _, _
     | EBlank _, _
@@ -521,56 +522,56 @@ module Expect =
 
     match actual, expected with
     | DFloat l, DFloat r ->
-        if System.Double.IsNaN l && System.Double.IsNaN r then
-          // This isn't "true" equality, it's just for tests
-          ()
-        else if System.Double.IsPositiveInfinity l
-                && System.Double.IsPositiveInfinity r then
-          ()
-        else if System.Double.IsNegativeInfinity l
-                && System.Double.IsNegativeInfinity r then
-          ()
-        else if not (Accuracy.areClose Accuracy.veryHigh l r) then
-          error ()
+      if System.Double.IsNaN l && System.Double.IsNaN r then
+        // This isn't "true" equality, it's just for tests
+        ()
+      else if System.Double.IsPositiveInfinity l
+              && System.Double.IsPositiveInfinity r then
+        ()
+      else if System.Double.IsNegativeInfinity l
+              && System.Double.IsNegativeInfinity r then
+        ()
+      else if not (Accuracy.areClose Accuracy.veryHigh l r) then
+        error ()
     | DResult (Ok l), DResult (Ok r) -> de l r
     | DResult (Error l), DResult (Error r) -> de l r
     | DOption (Some l), DOption (Some r) -> de l r
     | DDate l, DDate r ->
-        // Two dates can be the same millisecond and not be equal if they don't
-        // have the same number of ticks. For testing, we shall consider them
-        // equal if they print the same string.
-        check (string l) (string r)
+      // Two dates can be the same millisecond and not be equal if they don't
+      // have the same number of ticks. For testing, we shall consider them
+      // equal if they print the same string.
+      check (string l) (string r)
     | DList ls, DList rs ->
-        let lLength = List.length ls
-        let rLength = List.length rs
+      let lLength = List.length ls
+      let rLength = List.length rs
 
-        check lLength rLength
-        List.iter2 de ls rs
+      check lLength rLength
+      List.iter2 de ls rs
     | DObj ls, DObj rs ->
-        let lLength = Map.count ls
-        let rLength = Map.count rs
-        check lLength rLength
+      let lLength = Map.count ls
+      let rLength = Map.count rs
+      check lLength rLength
 
-        List.iter2
-          (fun (k1, v1) (k2, v2) ->
-            check k1 k2
-            de v1 v2)
-          (Map.toList ls)
-          (Map.toList rs)
+      List.iter2
+        (fun (k1, v1) (k2, v2) ->
+          check k1 k2
+          de v1 v2)
+        (Map.toList ls)
+        (Map.toList rs)
     | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
-        check sc1 sc2
-        check h1 h2
-        de b1 b2
+      check sc1 sc2
+      check h1 h2
+      de b1 b2
     | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) -> check u1 u2
     | DIncomplete _, DIncomplete _ -> ()
     | DError (_, msg1), DError (_, msg2) ->
-        check (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
+      check (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
     | DErrorRail l, DErrorRail r -> de l r
     | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
-        let vals l = List.map Tuple2.second l
-        check (vals l1.parameters) (vals l2.parameters)
-        check l1.symtable l2.symtable // TODO: use dvalEquality
-        exprEqualityBaseFn false l1.body l2.body errorFn
+      let vals l = List.map Tuple2.second l
+      check (vals l1.parameters) (vals l2.parameters)
+      check l1.symtable l2.symtable // TODO: use dvalEquality
+      exprEqualityBaseFn false l1.body l2.body errorFn
     | DStr _, DStr _ -> check (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
@@ -625,19 +626,19 @@ let interestingFloats : List<string * float> =
   let initial =
     // interesting cause OCaml uses 31 bit ints
     [ "min 31 bit", System.Math.Pow(2.0, 30.0) - 1.0
-      "max 31 bit", -System.Math.Pow(2.0, 30.0)
+      "max 31 bit", - System.Math.Pow(2.0, 30.0)
       // interesting cause boundary of 32 bit ints
       "min 32 bit", System.Math.Pow(2.0, 31.0) - 1.0
-      "max 32 bit", -System.Math.Pow(2.0, 31.0)
+      "max 32 bit", - System.Math.Pow(2.0, 31.0)
       // interesting cause doubles support up to 53-bit ints
       "min 53 bit", System.Math.Pow(2.0, 52.0) - 1.0
-      "max 53 bit", -System.Math.Pow(2.0, 52.0)
+      "max 53 bit", - System.Math.Pow(2.0, 52.0)
       // interesting cause OCaml uses 63 bit ints
       "min 63 bit", System.Math.Pow(2.0, 62.0) - 1.0
-      "max 63 bit", -System.Math.Pow(2.0, 62.0)
+      "max 63 bit", - System.Math.Pow(2.0, 62.0)
       // interesting cause boundary of 64 bit ints
       "min 64 bit", System.Math.Pow(2.0, 63.0) - 1.0
-      "max 64 bit", -System.Math.Pow(2.0, 63.0)
+      "max 64 bit", - System.Math.Pow(2.0, 63.0)
       // Interesting anyway
       "zero", 0.0
       "negative zero", -0.0

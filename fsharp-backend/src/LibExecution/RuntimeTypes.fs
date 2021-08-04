@@ -83,7 +83,9 @@ module FQFnName =
       | Stdlib std when
         std.module_ = "DB"
         && String.startsWith "query" std.function_
-        && not (String.includes "ExactFields" std.function_) -> true
+        && not (String.includes "ExactFields" std.function_)
+        ->
+        true
       | _ -> false
 
   let namePat = @"^[a-z][a-z0-9_]*$"
@@ -447,7 +449,7 @@ module Dval =
     | DList (head :: _) -> TList(toType head)
     | DList [] -> TList any
     | DObj map ->
-        map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
+      map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
     | DError _ -> TError
     | DIncomplete _ -> TIncomplete
@@ -487,19 +489,19 @@ module Dval =
     | DList l, TList t -> List.all (typeMatches t) l
     | DObj m, TDict t -> Map.all (typeMatches t) m
     | DObj m, TRecord pairs ->
-        let actual = Map.toList m |> List.sortBy Tuple2.first
-        let expected = pairs |> List.sortBy Tuple2.first
+      let actual = Map.toList m |> List.sortBy Tuple2.first
+      let expected = pairs |> List.sortBy Tuple2.first
 
-        if List.length actual <> List.length expected then
-          false
-        else
-          List.zip actual expected
-          |> List.all
-               (fun ((aField, aVal), (eField, eType)) ->
-                 aField = eField && typeMatches eType aVal)
+      if List.length actual <> List.length expected then
+        false
+      else
+        List.zip actual expected
+        |> List.all
+             (fun ((aField, aVal), (eField, eType)) ->
+               aField = eField && typeMatches eType aVal)
     | DObj _, TUserType _ -> false // not used
     | DFnVal (Lambda l), TFn (parameters, _) ->
-        List.length parameters = List.length l.parameters
+      List.length parameters = List.length l.parameters
     | DFnVal (FnName fnName), TFn _ -> false // not used
     | DOption None, TOption _ -> true
     | DOption (Some v), TOption t
@@ -540,13 +542,15 @@ module Dval =
     // FSTODO - add sourceID to errors
     try
       DFloat(makeFloat (sign = Positive) whole fraction)
-    with _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
+    with
+    | _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
   let floatStringParts (sign : Sign, whole : string, fraction : string) : Dval =
     // FSTODO - add sourceID to errors
     try
       DFloat(parseFloat whole fraction)
-    with _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
+    with
+    | _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
 
   // Dvals should never be constructed that contain fakevals - the fakeval
@@ -573,7 +577,7 @@ module Dval =
         | DObj _, _, v when isFake v -> v
         // Error if the key appears twice
         | DObj m, k, v when Map.containsKey k m ->
-            DError(SourceNone, $"Duplicate key: {k}")
+          DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
         | DObj m, k, v -> DObj(Map.add k v m)
         // If we haven't got a DObj we're propagating an error so let it go
@@ -597,7 +601,7 @@ module Dval =
         | DObj _, _, (DErrorRail _ as v) -> v
         // Error if the key appears twice
         | DObj m, k, v when Map.containsKey k m ->
-            DError(SourceNone, $"Duplicate key: {k}")
+          DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
         | DObj m, k, v -> DObj(Map.add k v m)
         // If we haven't got a DObj we're propagating an error so let it go

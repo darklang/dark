@@ -54,26 +54,26 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
   match result with
   | RT.DErrorRail (RT.DOption None)
   | RT.DErrorRail (RT.DResult (Error _)) ->
-      // CLEANUP: result should become a 500 error
-      (RT.DHttpResponse(
-        RT.Response(
-          404I,
-          [ "Content-Length", "9"
-            "Server", "darklang"
-            "Content-Type", "text/plain; charset=utf-8" ],
-          RT.DBytes(toBytes "Not found")
-        )
-      ))
+    // CLEANUP: result should become a 500 error
+    (RT.DHttpResponse(
+      RT.Response(
+        404I,
+        [ "Content-Length", "9"
+          "Server", "darklang"
+          "Content-Type", "text/plain; charset=utf-8" ],
+        RT.DBytes(toBytes "Not found")
+      )
+    ))
   | RT.DErrorRail _ ->
-      (RT.DHttpResponse(
-        RT.Response(
-          500I,
-          [ "Content-Length", "33"
-            "Server", "darklang"
-            "Content-Type", "text/plain; charset=utf-8" ],
-          RT.DBytes(toBytes "Invalid conversion from errorrail")
-        )
-      ))
+    (RT.DHttpResponse(
+      RT.Response(
+        500I,
+        [ "Content-Length", "33"
+          "Server", "darklang"
+          "Content-Type", "text/plain; charset=utf-8" ],
+        RT.DBytes(toBytes "Invalid conversion from errorrail")
+      )
+    ))
   | dv -> dv
 
 let executeHandler

@@ -112,10 +112,9 @@ let indexOf (needle : string) (haystack : string) : int option =
 let index_of n s = indexOf n s
 
 let indexOfRight (needle : string) (haystack : string) =
-  let result = haystack.LastIndexOf(needle) in if result = -1 then
-                                                 None
-                                               else
-                                                 Some result
+  let result = haystack.LastIndexOf(needle) in
+
+  if result = -1 then None else Some result
 
 let index_of_right n s = indexOfRight n s
 

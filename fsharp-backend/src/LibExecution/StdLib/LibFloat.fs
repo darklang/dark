@@ -231,17 +231,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l as ldv ] ->
-            let floats =
-              List.map
-                (fun f ->
-                  match f with
-                  | DFloat ft -> ft
-                  | t ->
-                      Errors.throw (Errors.argumentWasnt "a list of floats" "a" ldv))
-                l
+          let floats =
+            List.map
+              (fun f ->
+                match f with
+                | DFloat ft -> ft
+                | t -> Errors.throw (Errors.argumentWasnt "a list of floats" "a" ldv))
+              l
 
-            let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats
-            Value(DFloat sum)
+          let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats
+          Value(DFloat sum)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -274,19 +273,18 @@ let fns : List<BuiltInFn> =
           Param.make "limitA" TFloat ""
           Param.make "limitB" TFloat "" ]
       returnType = TFloat
-      description = "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
+      description =
+        "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
          If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
          `limitA` and `limitB` can be provided in any order."
       fn =
         (function
         | _, [ DFloat v; DFloat a; DFloat b ] ->
-            if System.Double.IsNaN a || System.Double.IsNaN b then
-              Value(
-                DError(SourceNone, "clamp requires arguments to be valid numbers")
-              )
-            else
-              let min, max = if a < b then (a, b) else (b, a)
-              Value(DFloat(Math.Clamp(v, min, max)))
+          if System.Double.IsNaN a || System.Double.IsNaN b then
+            Value(DError(SourceNone, "clamp requires arguments to be valid numbers"))
+          else
+            let min, max = if a < b then (a, b) else (b, a)
+            Value(DFloat(Math.Clamp(v, min, max)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

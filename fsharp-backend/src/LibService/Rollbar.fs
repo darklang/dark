@@ -59,7 +59,8 @@ let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit 
       Rollbar.RollbarLocator.RollbarInstance.Error(e, state)
 
     ()
-  with e ->
+  with
+  | e ->
     // FSTODO: log failure
     printfn "Exception when calling rollbar"
 

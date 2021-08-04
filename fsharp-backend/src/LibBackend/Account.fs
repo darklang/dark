@@ -140,9 +140,9 @@ let upsertAccount
 
     match result with
     | Ok () ->
-        return!
-          Sql.query
-            "INSERT INTO accounts
+      return!
+        Sql.query
+          "INSERT INTO accounts
              (id, username, name, email, admin, password)
              VALUES
              (@id, @username, @name, @email, @admin, @password)
@@ -150,15 +150,15 @@ let upsertAccount
              DO UPDATE SET name = EXCLUDED.name,
                            email = EXCLUDED.email,
                            password = EXCLUDED.password"
-          |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                              "username", Sql.string (toString account.username)
-                              "admin", Sql.bool admin
-                              "name", Sql.string account.name
-                              "email", Sql.string account.email
-                              ("password",
-                               account.password |> Password.toString |> Sql.string) ]
-          |> Sql.executeStatementAsync
-          |> Task.map Ok
+        |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
+                            "username", Sql.string (toString account.username)
+                            "admin", Sql.bool admin
+                            "name", Sql.string account.name
+                            "email", Sql.string account.email
+                            ("password",
+                             account.password |> Password.toString |> Sql.string) ]
+        |> Sql.executeStatementAsync
+        |> Task.map Ok
     | Error _ -> return result
   }
 

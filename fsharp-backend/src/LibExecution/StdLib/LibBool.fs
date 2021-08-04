@@ -67,11 +67,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ value ] ->
-            Value(
-              match value with
-              | DNull -> DBool true
-              | _ -> DBool false
-            )
+          Value(
+            match value with
+            | DNull -> DBool true
+            | _ -> DBool false
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -83,11 +83,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ value ] ->
-            Value(
-              match value with
-              | DError _ -> DBool true
-              | _ -> DBool false
-            )
+          Value(
+            match value with
+            | DError _ -> DBool true
+            | _ -> DBool false
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

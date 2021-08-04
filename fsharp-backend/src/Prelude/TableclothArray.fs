@@ -85,7 +85,8 @@ let swap (i : int) (j : int) (a : 'a array) =
 let find f a =
   try
     Some(Array.find f a)
-  with _ -> None
+  with
+  | _ -> None
 
 let findIndex (f : int -> 'a -> bool) (a : 'a array) : (int * 'a) option =
   let mutable i = -1
@@ -108,6 +109,7 @@ let map_with_index f a = mapWithIndex f a
 
 let map2 (f : 'a -> 'b -> 'c) (a : 'a array) (b : 'b array) =
   let minLength = min (length a) (length b) in
+
   Array.init minLength (fun i -> f a.[i] b.[i])
 
 
@@ -230,14 +232,14 @@ let extent a =
       match range with
       | None -> Some(element, element)
       | Some (min, max) ->
-          Some(
-            (match compare element min < 0 with
-             | true -> element
-             | false -> min),
-            match compare element max > 0 with
-            | true -> element
-            | false -> max
-          ))
+        Some(
+          (match compare element min < 0 with
+           | true -> element
+           | false -> min),
+          match compare element max > 0 with
+          | true -> element
+          | false -> max
+        ))
     a
 
 
@@ -275,16 +277,16 @@ let equal (f : 'a -> 'a -> bool) a b =
 let compare (f : 'a -> 'a -> int) a b =
   match Int.compare (length a) (length b) with
   | 0 ->
-      if length a = 0 then
-        0
-      else
-        let rec loop index =
-          if index = length a then
-            0
-          else
-            match f a.[index] b.[index] with
-            | 0 -> loop (index + 1)
-            | result -> result
+    if length a = 0 then
+      0
+    else
+      let rec loop index =
+        if index = length a then
+          0
+        else
+          match f a.[index] b.[index] with
+          | 0 -> loop (index + 1)
+          | result -> result
 
-        loop 0
+      loop 0
   | result -> result
