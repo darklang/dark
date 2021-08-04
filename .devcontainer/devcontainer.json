@@ -18,7 +18,8 @@
     "esbenp.prettier-vscode",
     "ms-python.python",
     "ms-azuretools.vscode-docker",
-    "editorconfig.editorconfig"
+    "editorconfig.editorconfig",
+    "chenglou92.rescript-vscode@1.1.3"
   ],
 
   /////////////////////////////////////////////////
