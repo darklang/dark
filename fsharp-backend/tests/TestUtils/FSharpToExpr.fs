@@ -98,7 +98,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   let convertLambdaVar (var : SynSimplePat) : string =
     match var with
-    | SynSimplePat.Id (name, _, _, _, _, _) -> name.idText
+    | SynSimplePat.Id (name, _, _, _, _, _) ->
+      if name.idText = "___" then "" else name.idText
     | _ -> failwith $"unsupported lambdaVar {var}"
 
   // Add a pipetarget after creating it

@@ -188,8 +188,22 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         do! preview st newcode
         return! eval state st oldcode
 
-    // FSTODO
     | ELambda (_id, parameters, body) ->
+      if state.tracing.realOrPreview = Preview then
+        // Since we return a DBlock, it's contents may never be
+        // executed. So first we execute with no context to get some
+        // live values.
+        let fakeST = st.Add("var", DIncomplete SourceNone)
+        do! preview fakeST body
+      let parameters =
+        List.choose
+          (function
+          | _, "" -> None
+          | id, name -> Some(id, name))
+          parameters
+
+      // It is the responsibility of wherever executes the DBlock to pass in
+      // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
     | EMatch (id, matchExpr, cases) ->
       return!

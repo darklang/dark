@@ -267,6 +267,34 @@ let testFeatureFlagPreview : Test =
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new"))) ]
 
+let testLambdaPreview : Test =
+  let f body =
+    task {
+      let lID = gid ()
+      let bodyID = Expr.toID body
+      let ast = ELambda(lID, [], body)
+      let! results = execSaveDvals [] [] ast
+
+      return (Dictionary.get lID results, Dictionary.get bodyID results)
+    }
+  testManyTask
+    "lambda preview"
+    f
+    [ (EString(65UL, "body"),
+       (Some(
+         AT.ExecutedResult(
+           DFnVal(
+             Lambda(
+               { parameters = []
+                 symtable = Map.empty
+                 body = EString(65UL, "body") }
+             )
+           )
+         )
+        ),
+        Some(AT.ExecutedResult(DStr "body")))) ]
+
+
 
 let testMatchPreview : Test =
   testTask "test match evaluation" {
@@ -472,6 +500,7 @@ let tests =
     [ testListLiterals
       testRecursionInEditor
       testIfPreview
+      testLambdaPreview
       testFeatureFlagPreview
       testMatchPreview
       testExecFunctionTLIDs
