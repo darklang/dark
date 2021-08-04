@@ -259,7 +259,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     |> List.map
          (function
          | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
-           (name.idText, c expr)
+           // Allow empty fields in tests
+           let name = if name.idText = "___" then "" else name.idText
+           (name, c expr)
          | f -> failwith $"Not an expected field {f}")
     |> eRecord
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap

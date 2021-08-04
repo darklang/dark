@@ -25,6 +25,7 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 
 // fsharplint:disable FL0039
 let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
+  // Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
@@ -46,7 +47,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       match rhs with
       // CLEANUP we should still preview the body
-      // Usually fakevals get propagated when they're evaluated. However, if we don't use the value, we still want to propagate the errorrail here, so return it instead of evaling the body
+      // Usually fakevals get propagated when they're evaluated. However, if we
+      // don't use the value, we still want to propagate the errorrail here, so
+      // return it instead of evaling the body
       | DErrorRail v -> return rhs
       | _ ->
         let st = if lhs <> "" then st.Add(lhs, rhs) else st
@@ -59,9 +62,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ECharacter (_id, s) -> return DChar s
     | EList (_id, exprs) ->
       // We ignore incompletes but not error rail.
-      // TODO: Other places where lists are created propagate incompletes
+      // CLEANUP: Other places where lists are created propagate incompletes
       // instead of ignoring, this is probably a mistake.
-      let! results = Prelude.List.map_s (eval state st) exprs
+      let! results = List.map_s (eval state st) exprs
 
       let filtered =
         List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
@@ -84,23 +87,30 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
       | Some other, _ -> return other
     | ERecord (id, pairs) ->
-      let skipEmptyKeys =
+      let! evaluated =
         pairs
-        |> List.choose
-             (function
-             | ("", e) -> None
-             | k, e -> Some(k, e))
-      // FSTODO: we actually want to stop on the first incomplete/error/etc, thing, not do them all.
-      let! (resolved : List<string * Dval>) =
-        List.map_s
-          (fun (k, v) ->
-            taskv {
-              let! dv = eval state st v
-              return (k, dv)
-            })
-          skipEmptyKeys
+        |> List.map_s
+             (fun (k, v) ->
+               taskv {
+                 match (k, v) with
+                 | "", v ->
+                   let! (_ : Dval) = eval state st v
+                   return None
+                 | keyname, v ->
+                   match! eval state st v with
+                   | DIncomplete _ -> return None
+                   | dv -> return Some(keyname, dv)
+               })
 
-      return Dval.interpreterObj resolved
+      let evaluated = List.choose Operators.id evaluated
+
+      // CLEANUP - we should propagate DErrors too
+      let errorRail = List.tryFind (fun (_, dv) -> Dval.isErrorRail dv) evaluated
+
+      match errorRail with
+      | None -> return Dval.interpreterObj evaluated
+      | Some (_, er) -> return er
+
     | EApply (id, fnVal, exprs, inPipe, ster) ->
       let! fnVal = eval state st fnVal
       let! args = List.map_s (eval state st) exprs

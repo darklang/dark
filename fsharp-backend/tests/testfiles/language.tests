@@ -215,10 +215,11 @@ Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 { col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key: col1"
 { col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
 { col1 = 2 ; col2 = blank } = { col1 = 2 }
-//({ col1 = 2 ; ```` = blank }) = ({ col1 = 2 }) // todo: do unit test instead
 { col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
 { col1 = 2 ; col2 = (List.head_v1_ster []) } = Test.errorRailNothing_v0_ster
 (let x = { col1 = 1 } in x.fieldName) = null
+{ col1 = 2 ; ___ = 3 } = { col1 = 2 }
+(let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 2 } in Test.sideEffectCount_v0) = 1
 
 [tests.list]
 [] = []
