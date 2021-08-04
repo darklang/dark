@@ -16,7 +16,7 @@ open PT.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"
-  let checker = SourceCodeServices.FSharpChecker.Create()
+  let checker = FSharpChecker.Create()
 
   // Throws an exception here if we don't do this:
   // https://github.com/fsharp/FSharp.Compiler.Service/blob/122520fa62edec7be5d00854989b282bf3ce7315/src/fsharp/service/FSharpCheckerResults.fs#L1555
@@ -53,6 +53,8 @@ let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")
 // This is a "Partial active pattern" that you can use as a Pattern to match a Placeholder value
 let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
+
+let nameOrBlank (v : string) : string = if v = "___" then "" else v
 
 
 let rec convertToExpr (ast : SynExpr) : PT.Expr =
@@ -98,8 +100,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   let convertLambdaVar (var : SynSimplePat) : string =
     match var with
-    | SynSimplePat.Id (name, _, _, _, _, _) ->
-      if name.idText = "___" then "" else name.idText
+    | SynSimplePat.Id (name, _, _, _, _, _) -> nameOrBlank name.idText
     | _ -> failwith $"unsupported lambdaVar {var}"
 
   // Add a pipetarget after creating it
@@ -199,16 +200,16 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
     PT.EFnCall(gid (), PT.FQFnName.parse name, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
-    let obj1 = eFieldAccess (eVar var.idText) f1.idText
-    let obj2 = eFieldAccess obj1 f2.idText
-    eFieldAccess obj2 f3.idText
+    let obj1 = eFieldAccess (eVar var.idText) (nameOrBlank f1.idText)
+    let obj2 = eFieldAccess obj1 (nameOrBlank f2.idText)
+    eFieldAccess obj2 (nameOrBlank f3.idText)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field1; field2 ], _), _, _) ->
-    let obj1 = eFieldAccess (eVar var.idText) field1.idText
-    eFieldAccess obj1 field2.idText
+    let obj1 = eFieldAccess (eVar var.idText) (nameOrBlank field1.idText)
+    eFieldAccess obj1 (nameOrBlank field2.idText)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field ], _), _, _) ->
-    eFieldAccess (eVar var.idText) field.idText
+    eFieldAccess (eVar var.idText) (nameOrBlank field.idText)
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
-    PT.EFieldAccess(gid (), c expr, field.idText)
+    eFieldAccess (c expr) (nameOrBlank field.idText)
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
     let rec extractVarsAndBody expr =
       match expr with
@@ -262,9 +263,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     |> List.map
          (function
          | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
-           // Allow empty fields in tests
-           let name = if name.idText = "___" then "" else name.idText
-           (name, c expr)
+           (nameOrBlank name.idText, c expr)
          | f -> failwith $"Not an expected field {f}")
     |> eRecord
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
@@ -353,7 +352,7 @@ let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
                  _) when ident.idText = "op_Inequality" ->
     // failwith $"whole thing: {actual}"
     (false, convert actual, convert expected)
-  | _ -> true, convert ast, PT.Shortcuts.eBool true
+  | _ -> true, convert ast, eBool true
 
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
 let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType ()
