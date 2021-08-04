@@ -280,13 +280,11 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 
 # these files deploy the newly-created deployment containers
 #FSTODO
-# Don't deploy the OCaml containers - lets just try to keep the latest versions
-# running so that nothing changes in production. But keep them working so that
-# they're ready to deploy if we need to.
-# kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
-# kubectl apply -f services/cron-deployment/cron-deployment.yaml
+kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
+kubectl apply -f services/cron-deployment/cron-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-deployment.yaml
-# kubectl apply -f services/qw-deployment/qw-deployment.yaml
+kubectl apply -f services/qw-deployment/qw-deployment.yaml
+kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
 kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml
 kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml
