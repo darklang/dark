@@ -261,43 +261,45 @@ toString 5 = "5"
 
 
 [tests.equality]
-5 = 5
-5 <> 6
-5.6 = 5.6
-5.6 <> 5.7
-5.7 <> 6
-5.7 <> 5
-true = true
-false = false
-true <> false
-null = null
-null <> Nothing
-null <> false
-null <> 0
-null <> 0.0
-[ 1; 2; 3 ] = [ 1; 2; 3]
-[ 1; 2; 3 ] <> [ 3; 2; 1]
-{ x = 6; y = 7 } = { x = 6; y = 7 }
-{ x = 6; y = 7 } = { y = 7; x = 6 }
-{ x = 6; y = 7 } <> { x = 7; y = 6 }
-"asd" = "asd"
-"asd" <> "sad"
-(Date.parse_v2 "2019-07-28T22:42:36Z") = (Date.parse_v2 "2019-07-28T22:42:36Z")
-(Date.parse_v2 "2019-07-28T22:42:37Z") <> (Date.parse_v2 "2019-07-28T22:42:36Z")
-String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-Nothing = Nothing
-Nothing <> Just Nothing
-Just 5 = Just 5
-Just 5 <> Just 6
-Just (Just 0) <> Just (Just 1)
-Just (Just 0) = Just (Just 0)
-Error 0 = Error 0
-Ok 0 = Ok 0
-Ok 0 <> Error 0
-(String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼") = (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+(5 = 5) = true
+(5 <> 6) = true
+(5.6 = 5.6) = true
+(5.6 <> 5.7) = true
+(5.7 <> 6) = true
+(5.7 <> 5) = true
+(blank = blank) = blank
+(Test.typeError_v0 "test" <> Test.typeError_v0 "different msg") = Test.typeError_v0 "Fn called with an error as an argument"
+(true = true) = true
+(false = false) = true
+(true <> false) = true
+(null = null) = true
+(null <> Nothing) = true
+(null <> false) = true
+(null <> 0) = true
+(null <> 0.0) = true
+([ 1; 2; 3 ] = [ 1; 2; 3 ]) = true
+([ 1; 2; 3 ] <> [ 3; 2; 1 ]) = true
+({ x = 6; y = 7 } = { x = 6; y = 7 }) = true
+({ x = 6; y = 7 } = { y = 7; x = 6 }) = true
+({ x = 6; y = 7 } <> { x = 7; y = 6 }) = true
+("asd" = "asd") = true
+("asd" <> "sad") = true
+((Date.parse_v2 "2019-07-28T22:42:36Z") = (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
+((Date.parse_v2 "2019-07-28T22:42:37Z") <> (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
+(String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+(String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+(Nothing = Nothing) = true
+(Nothing <> Just Nothing) = true
+(Just 5 = Just 5) = true
+(Just 5 <> Just 6) = true
+(Just (Just 0) <> Just (Just 1)) = true
+(Just (Just 0) = Just (Just 0)) = true
+(Error 0 = Error 0) = true
+(Ok 0 = Ok 0) = true
+(Ok 0 <> Error 0) = true
+((String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼") = (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
 //(fun x -> y) = (fun x -> y) // CLEANUP: they have different IDs so they're not equal
-(fun x -> let y = 1 in y) <> (fun x -> let y = 1 in x)
+((fun x -> let y = 1 in y) <> (fun x -> let y = 1 in x)) = true
 
 [db.MyDB { "x" : "Str", "y": "Str" }]
 [test.db equality] with DB MyDB
