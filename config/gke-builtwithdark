@@ -1,4 +1,7 @@
-# The value "k8s" means that this value is set in production through kubernetes
+# Many values are set in production via kubernetes. These are commented out
+# here to ensure that the service will not start if they are not set in
+# production (we previously had situation where the service would start using a
+# dummy value as key)
 
 # Root directories
 DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
@@ -42,19 +45,19 @@ DARK_CONFIG_SHOW_STACKTRACE=n
 DARK_CONFIG_ROLLBAR_ENABLED=y
 DARK_CONFIG_ROLLBAR_ENVIRONMENT=production
 DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM=c7af77e991aa4edd80cf6a576c1e42f5
-DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM=k8s
+#DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM=k8s
 
 # Honeycomb
 DARK_CONFIG_TELEMETRY_EXPORTER=honeycomb
-DARK_CONFIG_HONEYCOMB_API_KEY=k8s
+#DARK_CONFIG_HONEYCOMB_API_KEY=k8s
 DARK_CONFIG_HONEYCOMB_DATASET_NAME=kubernetes-bwd-ocaml
 DARK_CONFIG_HONEYCOMB_API_ENDPOINT=https://api.honeycomb.io:443
 
 # DB
 DARK_CONFIG_DB_DBNAME=postgres
-DARK_CONFIG_DB_HOST=k8s
-DARK_CONFIG_DB_USER=k8s
-DARK_CONFIG_DB_PASSWORD=k8s
+#DARK_CONFIG_DB_HOST=k8s
+#DARK_CONFIG_DB_USER=k8s
+#DARK_CONFIG_DB_PASSWORD=k8s
 
 # Services
 DARK_CONFIG_HEALTH_CHECK_PORT=8081
@@ -72,8 +75,8 @@ DARK_CONFIG_PUBLIC_DOMAIN=localhost
 DARK_CONFIG_STROLLER_PORT=3001
 
 DARK_CONFIG_PUSHER_APP_ID=710063
-DARK_CONFIG_PUSHER_KEY=k8s
-DARK_CONFIG_PUSHER_SECRET=k8s
+#DARK_CONFIG_PUSHER_KEY=k8s
+#DARK_CONFIG_PUSHER_SECRET=k8s
 DARK_CONFIG_PUSHER_CLUSTER=us2
 
 # Heap analytics
