@@ -428,11 +428,14 @@ and applyFn
       | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
       // Incompletes are allowed in pipes
       | DIncomplete _, InPipe _ -> Value(Option.defaultValue fn (List.tryHead args))
+      | other, InPipe _ ->
+        // CLEANUP: this matches the old pipe behaviour, no need to preserve that
+        Value(Option.defaultValue fn (List.tryHead args))
       | other, _ ->
         Value(
           Dval.errSStr
             sourceID
-            $"Expected a function value, got something else: {other}"
+            $"Expected a function value, got something else: {DvalRepr.toDeveloperReprV0 other}"
         )
 
   }
