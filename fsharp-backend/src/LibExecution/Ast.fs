@@ -26,17 +26,17 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
   | EApply (id, name, exprs, inPipe, ster) ->
-      EApply(id, name, List.map r exprs, inPipe, ster)
+    EApply(id, name, List.map r exprs, inPipe, ster)
   | ELambda (id, names, expr) -> ELambda(id, names, r expr)
   | EList (id, exprs) -> EList(id, List.map r exprs)
   | EMatch (id, mexpr, pairs) ->
-      EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
+    EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
   | ERecord (id, fields) ->
-      ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+    ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
   | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
   | EPartial (id, oldExpr) -> EPartial(id, r oldExpr)
   | EFeatureFlag (id, cond, casea, caseb) ->
-      EFeatureFlag(id, r cond, r casea, r caseb)
+    EFeatureFlag(id, r cond, r casea, r caseb)
 
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
@@ -55,18 +55,18 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EFloat _ -> expr
     | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
     | EApply (id, name, exprs, inPipe, ster) ->
-        EApply(id, name, List.map r exprs, inPipe, ster)
+      EApply(id, name, List.map r exprs, inPipe, ster)
     | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
     | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
     | ELambda (id, names, expr) -> ELambda(id, names, r expr)
     | EList (id, exprs) -> EList(id, List.map r exprs)
     | EMatch (id, mexpr, pairs) ->
-        EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
+      EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
     | ERecord (id, fields) ->
-        ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+      ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
     | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
     | EPartial (id, oldExpr) -> EPartial(id, r oldExpr)
     | EFeatureFlag (id, cond, casea, caseb) ->
-        EFeatureFlag(id, r cond, r casea, r caseb)
+      EFeatureFlag(id, r cond, r casea, r caseb)
 
   f result

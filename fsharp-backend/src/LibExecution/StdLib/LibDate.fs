@@ -23,9 +23,10 @@ let fns : List<BuiltInFn> =
 
         (function
         | _, [ DStr s ] ->
-            (try
-              Value(DDate(System.DateTime.ofIsoString s))
-             with e -> Value(DError(SourceNone, "Invalid date format")))
+          (try
+            Value(DDate(System.DateTime.ofIsoString s))
+           with
+           | e -> Value(DError(SourceNone, "Invalid date format")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -38,9 +39,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            (try
-              Value(DResult(Ok(DDate(System.DateTime.ofIsoString s))))
-             with e -> Value(DResult(Error(DStr "Invalid date format"))))
+          (try
+            Value(DResult(Ok(DDate(System.DateTime.ofIsoString s))))
+           with
+           | e -> Value(DResult(Error(DStr "Invalid date format"))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -53,9 +55,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            (try
-              Value(Dval.resultOk (DDate(System.DateTime.ofIsoString s)))
-             with e -> Value(Dval.resultError (DStr "Invalid date format")))
+          (try
+            Value(Dval.resultOk (DDate(System.DateTime.ofIsoString s)))
+           with
+           | e -> Value(Dval.resultError (DStr "Invalid date format")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -113,8 +116,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] ->
-            let now = System.DateTime.Now
-            Value(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
+          let now = System.DateTime.Now
+          Value(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -204,12 +207,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            d
-            |> System.DateTimeOffset
-            |> (fun dto -> dto.ToUnixTimeSeconds())
-            |> bigint
-            |> DInt
-            |> Value
+          d
+          |> System.DateTimeOffset
+          |> (fun dto -> dto.ToUnixTimeSeconds())
+          |> bigint
+          |> DInt
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -224,12 +227,12 @@ let fns : List<BuiltInFn> =
 
         (function
         | _, [ DInt s ] ->
-            s
-            |> int64
-            |> System.DateTimeOffset.FromUnixTimeSeconds
-            |> (fun dto -> dto.DateTime)
-            |> DDate
-            |> Value
+          s
+          |> int64
+          |> System.DateTimeOffset.FromUnixTimeSeconds
+          |> (fun dto -> dto.DateTime)
+          |> DDate
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -241,50 +244,50 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate date ] ->
-            let time =
-              date
-              |> System.DateTimeOffset
-              |> (fun dto -> dto.ToUnixTimeSeconds())
-              |> float
+          let time =
+            date
+            |> System.DateTimeOffset
+            |> (fun dto -> dto.ToUnixTimeSeconds())
+            |> float
 
-            let msPerMinute = 60.0 * 1000.0
-            let msPerHour = msPerMinute * 60.0
-            let msPerDay = msPerHour * 24.0
-            let msPerMonth = msPerDay * 30.0
-            let msPerYear = msPerDay * 365.0
+          let msPerMinute = 60.0 * 1000.0
+          let msPerHour = msPerMinute * 60.0
+          let msPerDay = msPerHour * 24.0
+          let msPerMonth = msPerDay * 30.0
+          let msPerYear = msPerDay * 365.0
 
-            let rec f time =
-              if time / msPerYear > 1.0 then
-                let suffix = if time / msPerYear > 2.0 then "years" else "year"
+          let rec f time =
+            if time / msPerYear > 1.0 then
+              let suffix = if time / msPerYear > 2.0 then "years" else "year"
 
-                ((time / msPerYear |> int |> string) + " " + suffix + ", ")
-                + f (time % msPerYear)
-              else if time / msPerMonth > 1.0 then
-                let suffix = if time / msPerMonth > 2.0 then "months" else "month"
+              ((time / msPerYear |> int |> string) + " " + suffix + ", ")
+              + f (time % msPerYear)
+            else if time / msPerMonth > 1.0 then
+              let suffix = if time / msPerMonth > 2.0 then "months" else "month"
 
-                ((time / msPerMonth |> int |> string) + " " + suffix + ", ")
-                + f (time % msPerMonth)
-              else if time / msPerDay > 1.0 then
-                let suffix = if time / msPerDay > 2.0 then "days" else "day"
+              ((time / msPerMonth |> int |> string) + " " + suffix + ", ")
+              + f (time % msPerMonth)
+            else if time / msPerDay > 1.0 then
+              let suffix = if time / msPerDay > 2.0 then "days" else "day"
 
-                ((time / msPerDay |> int |> string) + " " + suffix + ", ")
-                + f (time % msPerDay)
-              else if time / msPerHour > 1.0 then
-                let suffix = if time / msPerHour > 2.0 then "hours" else "hour"
+              ((time / msPerDay |> int |> string) + " " + suffix + ", ")
+              + f (time % msPerDay)
+            else if time / msPerHour > 1.0 then
+              let suffix = if time / msPerHour > 2.0 then "hours" else "hour"
 
-                ((time / msPerHour |> int |> string) + " " + suffix + ", ")
-                + f (time % msPerHour)
-              else if time / msPerMinute > 1.0 then
-                let suffix = if time / msPerMinute > 2.0 then "minutes" else "minute"
+              ((time / msPerHour |> int |> string) + " " + suffix + ", ")
+              + f (time % msPerHour)
+            else if time / msPerMinute > 1.0 then
+              let suffix = if time / msPerMinute > 2.0 then "minutes" else "minute"
 
-                ((time / msPerMinute |> int |> string) + " " + suffix)
-                + f (time % msPerMinute)
-              else
-                ""
+              ((time / msPerMinute |> int |> string) + " " + suffix)
+              + f (time % msPerMinute)
+            else
+              ""
 
-            let diff = f time
-            let result = if diff = "" then "less than a minute" else diff
-            Value(DStr result)
+          let diff = f time
+          let result = if diff = "" then "less than a minute" else diff
+          Value(DStr result)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -331,9 +334,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            let day = d.DayOfWeek
-            let day = if day = System.DayOfWeek.Sunday then 7 else int day
-            day |> Dval.int |> Value
+          let day = d.DayOfWeek
+          let day = if day = System.DayOfWeek.Sunday then 7 else int day
+          day |> Dval.int |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -345,11 +348,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            // This is wrong, hence being replaced
-            ((d - System.DateTime.UnixEpoch).TotalHours % 60.0)
-            |> int
-            |> Dval.int
-            |> Value
+          // This is wrong, hence being replaced
+          ((d - System.DateTime.UnixEpoch).TotalHours % 60.0)
+          |> int
+          |> Dval.int
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -361,9 +364,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            // CLEANUP - this was made bug-for-bug compatible
-            let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
-            Value(Dval.int s)
+          // CLEANUP - this was made bug-for-bug compatible
+          let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
+          Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -375,14 +378,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            // CLEANUP - this was made bug-for-bug compatible
-            let s =
-              if d.Year < 1970 then
-                if d.Second = 0 then (d.Minute - 60) % 60 else d.Minute - 59
-              else
-                d.Minute
+          // CLEANUP - this was made bug-for-bug compatible
+          let s =
+            if d.Year < 1970 then
+              if d.Second = 0 then (d.Minute - 60) % 60 else d.Minute - 59
+            else
+              d.Minute
 
-            Value(Dval.int s)
+          Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -394,9 +397,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            // CLEANUP - this was made bug-for-bug compatible
-            let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
-            Value(Dval.int s)
+          // CLEANUP - this was made bug-for-bug compatible
+          let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
+          Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
@@ -408,7 +411,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            System.DateTime(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Value
+          System.DateTime(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
       previewable = Pure

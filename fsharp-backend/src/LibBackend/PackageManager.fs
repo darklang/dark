@@ -314,7 +314,18 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
        (fun fns ->
          fns
          |> List.map
-              (fun (username, package, module_, fnname, version, body, returnType, parameters, description, author, deprecated, tlid) ->
+              (fun (username,
+                    package,
+                    module_,
+                    fnname,
+                    version,
+                    body,
+                    returnType,
+                    parameters,
+                    description,
+                    author,
+                    deprecated,
+                    tlid) ->
                 task {
                   let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
 

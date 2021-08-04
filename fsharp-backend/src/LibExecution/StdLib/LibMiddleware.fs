@@ -89,36 +89,36 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr url ] ->
-            // FSTODO: could do with some fuzzing here
-            let queryString = System.Uri(url).Query
-            let nvc = System.Web.HttpUtility.ParseQueryString queryString
+          // FSTODO: could do with some fuzzing here
+          let queryString = System.Uri(url).Query
+          let nvc = System.Web.HttpUtility.ParseQueryString queryString
 
-            nvc.AllKeys
-            |> Seq.map
-                 (fun key ->
-                   let values = nvc.GetValues key
+          nvc.AllKeys
+          |> Seq.map
+               (fun key ->
+                 let values = nvc.GetValues key
 
-                   let value =
-                     let split =
-                       values.[values.Length - 1]
-                       |> String.split [| "," |]
-                       |> Seq.toList
+                 let value =
+                   let split =
+                     values.[values.Length - 1]
+                     |> String.split [| "," |]
+                     |> Seq.toList
 
-                     match split with
-                     | [] -> DNull
-                     | [ "" ] -> DNull // CLEANUP this should be a string
-                     | [ v ] -> DStr v
-                     | list -> DList(List.map DStr list)
+                   match split with
+                   | [] -> DNull
+                   | [ "" ] -> DNull // CLEANUP this should be a string
+                   | [ v ] -> DStr v
+                   | list -> DList(List.map DStr list)
 
-                   if isNull key then
-                     // All the values with no key are by GetValues, so make each one a value
-                     values |> Array.toList |> List.map (fun k -> (k, DNull))
-                   else
-                     [ (key, value) ])
-            |> List.concat
-            |> Map
-            |> DObj
-            |> Value
+                 if isNull key then
+                   // All the values with no key are by GetValues, so make each one a value
+                   values |> Array.toList |> List.map (fun k -> (k, DNull))
+                 else
+                   [ (key, value) ])
+          |> List.concat
+          |> Map
+          |> DObj
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -145,8 +145,8 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DFnVal _ as next ] ->
-            let st = Map.empty |> Map.add "next" next
-            Interpreter.eval state st code
+          let st = Map.empty |> Map.add "next" next
+          Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -171,21 +171,21 @@ let fns : List<BuiltInFn> =
 
         (function
         | _, [ DStr queryParams ] ->
-            let result = System.Text.StringBuilder()
-            // What if there;s a urlencoded ',' or '=' in the values?
-            queryParams
-            |> toBytes
-            |> Array.iter
-                 (fun b ->
-                   let (_ : System.Text.StringBuilder) =
-                     if urlSafe.[int b] then
-                       result.Append(char b)
-                     else
-                       result.AppendFormat("%{0:X2}", b)
+          let result = System.Text.StringBuilder()
+          // What if there;s a urlencoded ',' or '=' in the values?
+          queryParams
+          |> toBytes
+          |> Array.iter
+               (fun b ->
+                 let (_ : System.Text.StringBuilder) =
+                   if urlSafe.[int b] then
+                     result.Append(char b)
+                   else
+                     result.AppendFormat("%{0:X2}", b)
 
-                   ())
+                 ())
 
-            result |> string |> DStr |> Value
+          result |> string |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -248,8 +248,8 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DFnVal _ as next ] ->
-            let st = Map.empty |> Map.add "next" next
-            Interpreter.eval state st code
+          let st = Map.empty |> Map.add "next" next
+          Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -296,12 +296,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DHttpResponse response; DStr name; DStr value ] ->
-            match response with
-            | Response (code, headers, responseVal) ->
-                Response(code, headers ++ [ name, value ], responseVal)
-                |> DHttpResponse
-                |> Value
-            | Redirect _ -> Value(DHttpResponse response)
+          match response with
+          | Response (code, headers, responseVal) ->
+            Response(code, headers ++ [ name, value ], responseVal)
+            |> DHttpResponse
+            |> Value
+          | Redirect _ -> Value(DHttpResponse response)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -316,20 +316,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DHttpResponse response; DStr headerName; DStr value ] ->
-            match response with
-            | Response (code, headers, responseVal) ->
-                let existingHeader =
-                  headers
-                  |> List.tryFind (fun (name, _) -> String.toLower name = headerName)
+          match response with
+          | Response (code, headers, responseVal) ->
+            let existingHeader =
+              headers
+              |> List.tryFind (fun (name, _) -> String.toLower name = headerName)
 
-                let headers =
-                  if existingHeader = None then
-                    (headerName, value) :: headers
-                  else
-                    headers
+            let headers =
+              if existingHeader = None then
+                (headerName, value) :: headers
+              else
+                headers
 
-                Response(code, headers, responseVal) |> DHttpResponse |> Value
-            | Redirect _ -> Value(DHttpResponse response)
+            Response(code, headers, responseVal) |> DHttpResponse |> Value
+          | Redirect _ -> Value(DHttpResponse response)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -342,9 +342,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DHttpResponse response ] ->
-            match response with
-            | Redirect _ -> Value DNull
-            | Response (_, _, dv) -> Value dv
+          match response with
+          | Redirect _ -> Value DNull
+          | Response (_, _, dv) -> Value dv
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -371,8 +371,8 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DFnVal _ as next ] ->
-            let st = Map.empty |> Map.add "next" next
-            Interpreter.eval state st code
+          let st = Map.empty |> Map.add "next" next
+          Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -387,31 +387,31 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr _ as url; DObj headers; DBytes bodyBytes as body ] ->
-            let body = if bodyBytes.Length = 0 then DNull else body
-            let cookies = DObj Map.empty // FSTODO
-            let formBody = DNull // FSTODO
-            let fullBody = DStr ""
-            let jsonBody = DNull // FSTODO
+          let body = if bodyBytes.Length = 0 then DNull else body
+          let cookies = DObj Map.empty // FSTODO
+          let formBody = DNull // FSTODO
+          let fullBody = DStr ""
+          let jsonBody = DNull // FSTODO
 
-            let headers =
-              headers
-              |> Map.toList
-              |> List.map (fun (k, v) -> (String.toLower k, v))
-              |> (++) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
-              |> Map.ofList
-              |> DObj
-
-            Map.empty
-            |> Map.add "body" body
-            |> Map.add "url" url
-            |> Map.add "headers" headers
-            |> Map.add "cookies" cookies
-            |> Map.add "formBody" formBody
-            |> Map.add "fullBody" fullBody
-            |> Map.add "jsonBody" jsonBody
-
+          let headers =
+            headers
+            |> Map.toList
+            |> List.map (fun (k, v) -> (String.toLower k, v))
+            |> (++) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
+            |> Map.ofList
             |> DObj
-            |> Value
+
+          Map.empty
+          |> Map.add "body" body
+          |> Map.add "url" url
+          |> Map.add "headers" headers
+          |> Map.add "cookies" cookies
+          |> Map.add "formBody" formBody
+          |> Map.add "fullBody" fullBody
+          |> Map.add "jsonBody" jsonBody
+
+          |> DObj
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -435,62 +435,60 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ response ] ->
-            // let req ->
-            //   if not wrapped in a response
-            //     use machinejson
-            //     infer header based on type (list/obj uses JSON, else use textplain)
-            //   if in a response:
-            //      use existing header or infer from type.
-            //      if output is bytes, print direct
-            //      if text/html or text/plain or applcation/xml, use enduser_readable_text
-            //      if application/json, convert to pretty_machine_json_v1
-            //   note: string with no response: machine printout and text/plain (dev mode)
-            //         string in http response: enduser_readable_text and text/plain
-            let inferContentType dv =
-              match dv with
-              | DObj _
-              | DList _ -> "application/json; charset=utf-8"
-              | _ -> "text/plain; charset=utf-8"
+          // let req ->
+          //   if not wrapped in a response
+          //     use machinejson
+          //     infer header based on type (list/obj uses JSON, else use textplain)
+          //   if in a response:
+          //      use existing header or infer from type.
+          //      if output is bytes, print direct
+          //      if text/html or text/plain or applcation/xml, use enduser_readable_text
+          //      if application/json, convert to pretty_machine_json_v1
+          //   note: string with no response: machine printout and text/plain (dev mode)
+          //         string in http response: enduser_readable_text and text/plain
+          let inferContentType dv =
+            match dv with
+            | DObj _
+            | DList _ -> "application/json; charset=utf-8"
+            | _ -> "text/plain; charset=utf-8"
 
-            match response with
-            | DHttpResponse (Response (code, headers, dv)) ->
-                let inferredCT = inferContentType dv
+          match response with
+          | DHttpResponse (Response (code, headers, dv)) ->
+            let inferredCT = inferContentType dv
 
-                let existingContentType =
-                  headers
-                  |> List.tryFind
-                       (fun (name, _) -> String.toLower name = "content-type")
+            let existingContentType =
+              headers
+              |> List.tryFind (fun (name, _) -> String.toLower name = "content-type")
 
-                let headers =
-                  if existingContentType = None then
-                    ("Content-type", inferredCT) :: headers
-                  else
-                    headers
+            let headers =
+              if existingContentType = None then
+                ("Content-type", inferredCT) :: headers
+              else
+                headers
 
-                let contentType =
-                  existingContentType
-                  |> Option.map (fun (k, v) -> v)
-                  |> Option.defaultValue inferredCT
-                  |> String.split [| ";" |]
-                  |> Seq.tryHead
+            let contentType =
+              existingContentType
+              |> Option.map (fun (k, v) -> v)
+              |> Option.defaultValue inferredCT
+              |> String.split [| ";" |]
+              |> Seq.tryHead
 
-                let asBytes =
-                  match dv, contentType with
-                  | DBytes bytes, _ -> bytes
-                  | _, Some "text/plain"
-                  | _, Some "application/xml"
-                  | _, Some "text/html" ->
-                      dv |> DvalRepr.toEnduserReadableTextV0 |> toBytes
-                  | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
+            let asBytes =
+              match dv, contentType with
+              | DBytes bytes, _ -> bytes
+              | _, Some "text/plain"
+              | _, Some "application/xml"
+              | _, Some "text/html" ->
+                dv |> DvalRepr.toEnduserReadableTextV0 |> toBytes
+              | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
 
-                Value(DHttpResponse(Response(code, headers, DBytes asBytes)))
-            | DHttpResponse (Redirect _) as resp -> Value resp
-            | response ->
-                let bytes =
-                  response |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
+            Value(DHttpResponse(Response(code, headers, DBytes asBytes)))
+          | DHttpResponse (Redirect _) as resp -> Value resp
+          | response ->
+            let bytes = response |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
 
-                let headers = [ "content-type", inferContentType response ]
-                Value(DHttpResponse(Response(200I, headers, DBytes bytes)))
+            let headers = [ "content-type", inferContentType response ]
+            Value(DHttpResponse(Response(200I, headers, DBytes bytes)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -498,7 +496,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Http" "convertToResponseMiddleware" 0
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
-      description = "Takes a value that is expected to be returned to an end-user via HTTP.
+      description =
+        "Takes a value that is expected to be returned to an end-user via HTTP.
         If it is not a HttpResponse, it converts it into one."
       fn =
         let code =
@@ -513,8 +512,8 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DFnVal _ as next ] ->
-            let st = Map.empty |> Map.add "next" next
-            Interpreter.eval state st code
+          let st = Map.empty |> Map.add "next" next
+          Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -547,8 +546,8 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DFnVal _ as next ] ->
-            let st = Map.empty |> Map.add "next" next
-            Interpreter.eval state st code
+          let st = Map.empty |> Map.add "next" next
+          Interpreter.eval state st code
         | _, _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -587,8 +586,8 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DFnVal _ as next ] ->
-            let st = Map.empty |> Map.add "next" next
-            Interpreter.eval state st code
+          let st = Map.empty |> Map.add "next" next
+          Interpreter.eval state st code
         | _, _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -600,7 +599,8 @@ let fns : List<BuiltInFn> =
           Param.make "headers" (TDict TStr) ""
           middlewareNextParameter ]
       returnType = THttpResponse TBytes
-      description = "Call the middleware stack, returning a response which can be sent
+      description =
+        "Call the middleware stack, returning a response which can be sent
         to the browser. Each function in the middleware stack receives the next
         middleware element, and returns a function to be called on the request,
         returning a response. The stack is executed with the last elements executed
@@ -644,14 +644,14 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
-            let st =
-              Map.empty
-              |> Map.add "url" url
-              |> Map.add "body" body
-              |> Map.add "headers" headers
-              |> Map.add "handler" handler
+          let st =
+            Map.empty
+            |> Map.add "url" url
+            |> Map.add "body" body
+            |> Map.add "headers" headers
+            |> Map.add "handler" handler
 
-            Interpreter.eval state st code
+          Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

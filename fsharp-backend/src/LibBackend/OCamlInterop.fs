@@ -164,16 +164,20 @@ let toplevelOfCachedBinary
   task {
     try
       return! handlerBin2Json data pos |> Task.map PT.TLHandler
-    with e1 ->
+    with
+    | e1 ->
       try
         return! dbBin2Json data pos |> Task.map PT.TLDB
-      with e2 ->
+      with
+      | e2 ->
         try
           return! userFnBin2Json data |> Task.map PT.TLFunction
-        with e3 ->
+        with
+        | e3 ->
           try
             return! userTypeBin2Json data |> Task.map PT.TLType
-          with e4 ->
+          with
+          | e4 ->
             failwith
               $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
 
@@ -292,5 +296,6 @@ let execute
     try
       let! result = stringToDvalReq "execute" str
       return result
-    with e -> return (RT.DError(RT.SourceNone, e.Message))
+    with
+    | e -> return (RT.DError(RT.SourceNone, e.Message))
   }

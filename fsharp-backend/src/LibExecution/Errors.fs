@@ -92,13 +92,16 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
     match p.typ, actualType, name with
     | TInt, TFloat, FQFnName.Stdlib std when
       std.module_ = "Int"
-      || (std.module_ = "" && Set.contains std.function_ intInfixFns) ->
-        let altfn = { std with module_ = "Float" }
+      || (std.module_ = "" && Set.contains std.function_ intInfixFns)
+      ->
+      let altfn = { std with module_ = "Float" }
 
-        $" Try using {altfn.ToString()}, or use Float::truncate to truncate Floats to Ints."
+      $" Try using {altfn.ToString()}, or use Float::truncate to truncate Floats to Ints."
     | TInt, TStr, FQFnName.Stdlib std when
       (std.module_ = "Int" && std.function_ = "add")
-      || (std.module_ = "" && std.function_ = "+") -> " Use ++ to concatenate"
+      || (std.module_ = "" && std.function_ = "+")
+      ->
+      " Use ++ to concatenate"
     | _ -> ""
 
   $"{fnname} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "

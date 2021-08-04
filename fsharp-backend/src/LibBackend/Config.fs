@@ -162,11 +162,11 @@ let rollbarEnvironment = LibService.Config.rollbarEnvironment
 let rollbarJs =
   match rollbarClientAccessToken with
   | Some token ->
-      Printf.sprintf
-        "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
-        (if rollbarEnabled then "true" else "false")
-        token
-        rollbarEnvironment
+    Printf.sprintf
+      "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
+      (if rollbarEnabled then "true" else "false")
+      token
+      rollbarEnvironment
   | _ -> "{enabled:false}"
 
 

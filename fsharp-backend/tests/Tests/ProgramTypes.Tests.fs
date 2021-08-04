@@ -57,7 +57,8 @@ let parseTests =
         (fun name ->
           try
             Some(PT.FQFnName.parse name)
-          with _ -> None)
+          with
+          | _ -> None)
         [ ("toString",
            Some(Stdlib { module_ = ""; function_ = "toString"; version = 0 }))
           ("toRepr", Some(Stdlib { module_ = ""; function_ = "toRepr"; version = 0 }))

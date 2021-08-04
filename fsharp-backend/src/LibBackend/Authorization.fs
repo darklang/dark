@@ -50,29 +50,29 @@ let setUserAccess
   : Task<unit> =
   match p with
   | None ->
-      Sql.query
-        "DELETE FROM access AS a
+    Sql.query
+      "DELETE FROM access AS a
          USING accounts AS u, accounts AS o
          WHERE o.username = @orgName
            AND u.username = @username
            AND a.access_account = u.id
            AND a.organization_account = o.id"
-      |> Sql.parameters [ "username", username |> toString |> Sql.string
-                          "orgName", orgName |> toString |> Sql.string ]
-      |> Sql.executeStatementAsync
+    |> Sql.parameters [ "username", username |> toString |> Sql.string
+                        "orgName", orgName |> toString |> Sql.string ]
+    |> Sql.executeStatementAsync
   | Some p ->
-      Sql.query
-        "INSERT into access
+    Sql.query
+      "INSERT into access
          (access_account, organization_account, permission)
          SELECT u.id, o.id, @permission
          FROM accounts u, accounts o
          WHERE o.username = @orgName
            AND u.username = @username
          ON CONFLICT (access_account, organization_account) DO UPDATE SET permission = EXCLUDED.permission"
-      |> Sql.parameters [ "username", username |> toString |> Sql.string
-                          "orgName", orgName |> toString |> Sql.string
-                          "permission", p |> toString |> Sql.string ]
-      |> Sql.executeStatementAsync
+    |> Sql.parameters [ "username", username |> toString |> Sql.string
+                        "orgName", orgName |> toString |> Sql.string
+                        "permission", p |> toString |> Sql.string ]
+    |> Sql.executeStatementAsync
 
 
 // (* Returns a list of (username, permission) pairs for a given auth_domain,
@@ -152,13 +152,7 @@ let specialCasePermission
   (username : UserName.T)
   (ownerName : OwnerName.T)
   : Option<Permission> =
-  if List.any
-       ((=)
-         (
-           ownerName,
-           username
-         ))
-       specialCases then
+  if List.any ((=) (ownerName, username)) specialCases then
     Some ReadWrite
   else
     None
@@ -196,9 +190,9 @@ let permission
         match! p with
         | Some ReadWrite -> return Some ReadWrite
         | Some older ->
-            match! f () with
-            | Some newer -> return Some(older.max (newer))
-            | None -> return! p
+          match! f () with
+          | Some newer -> return Some(older.max (newer))
+          | None -> return! p
         | None -> return! f ()
       })
     permFs

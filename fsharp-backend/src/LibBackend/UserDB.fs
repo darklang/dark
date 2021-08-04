@@ -50,21 +50,21 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
     match LibExecution.DvalRepr.ofInternalQueryableV1 obj with
     | RT.DObj o ->
-        // <HACK 1>: some legacy objects were allowed to be saved with `id`
-        // keys _in_ the data object itself. they got in the datastore on
-        // the `update` of an already present object as `update` did not
-        // remove the magic `id` field which had been injected on fetch. we
-        // need to remove magic `id` if we fetch them otherwise they will
-        // not type check on the way out any more and will not work.  if
-        // they are re-saved with `update` they will have their ids
-        // removed.  we consider an `id` key on the map to be a "magic" one
-        // if it is present in the map but not in the schema of the object.
-        // this is a deliberate weakening of our schema checker to deal
-        // with this case.
-        if not (List.includes "id" (db.cols |> List.map Tuple2.first)) then
-          Map.remove "id" o
-        else
-          o
+      // <HACK 1>: some legacy objects were allowed to be saved with `id`
+      // keys _in_ the data object itself. they got in the datastore on
+      // the `update` of an already present object as `update` did not
+      // remove the magic `id` field which had been injected on fetch. we
+      // need to remove magic `id` if we fetch them otherwise they will
+      // not type check on the way out any more and will not work.  if
+      // they are re-saved with `update` they will have their ids
+      // removed.  we consider an `id` key on the map to be a "magic" one
+      // if it is present in the map but not in the schema of the object.
+      // this is a deliberate weakening of our schema checker to deal
+      // with this case.
+      if not (List.includes "id" (db.cols |> List.map Tuple2.first)) then
+        Map.remove "id" o
+      else
+        o
     // </HACK 1>
     | x -> failwith $"failed format, expected DObj got: {obj}"
   // <HACK 2>: because it's hard to migrate at the moment, we need to have
@@ -105,7 +105,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TRecord _, RT.DObj _ -> value
         | _, RT.DNull -> value (* allow nulls for now *)
         | expectedType, valueOfActualType ->
-            Errors.throw (Errors.typeErrorMsg key expectedType valueOfActualType))
+          Errors.throw (Errors.typeErrorMsg key expectedType valueOfActualType))
       obj
   else
     let missingKeys = Set.difference tipeKeys objKeys in
@@ -127,8 +127,8 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
     | false, true -> Errors.throw missingMsg
     | true, false -> Errors.throw extraMsg
     | true, true ->
-        Errors.throw
-          "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
+      Errors.throw
+        "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 
 and set

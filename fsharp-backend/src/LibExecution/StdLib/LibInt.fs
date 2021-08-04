@@ -23,19 +23,20 @@ let fns : List<BuiltInFn> =
   [ { name = fn "Int" "mod" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
-      description = "Returns the result of wrapping `a` around so that `0 <= res < b`.
+      description =
+        "Returns the result of wrapping `a` around so that `0 <= res < b`.
          The modulus `b` must be 0 or negative.
          Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
       fn =
         (function
         | state, [ DInt v; DInt m as mdv ] ->
-            if m <= bigint 0 then
-              err (Errors.argumentWasnt "positive" "b" mdv)
-            else
-              // dotnet returns negative mods, but OCaml did positive ones
-              let result = v % m
-              let result = if result < 0I then m + result else result
-              Value(DInt(result))
+          if m <= bigint 0 then
+            err (Errors.argumentWasnt "positive" "b" mdv)
+          else
+            // dotnet returns negative mods, but OCaml did positive ones
+            let result = v % m
+            let result = if result < 0I then m + result else result
+            Value(DInt(result))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
@@ -75,21 +76,23 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "remainder" 0
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
       returnType = TResult(TInt, TStr)
-      description = "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
+      description =
+        "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
           For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
           The sign of `divisor` doesn't influence the outcome.
           Returns an `Error` if `divisor` is 0."
       fn =
         (function
         | _, [ DInt v; DInt d ] ->
-            (try
-              BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Value
-             with e ->
-               if d = bigint 0 then
-                 Value(DResult(Error(DStr($"`divisor` must be non-zero"))))
+          (try
+            BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Value
+           with
+           | e ->
+             if d = bigint 0 then
+               Value(DResult(Error(DStr($"`divisor` must be non-zero"))))
 
-               else // In case there's another failure mode, rollbar
-                 raise e)
+             else // In case there's another failure mode, rollbar
+               raise e)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -134,22 +137,23 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt number; DInt exp as expdv ] ->
-            (try
-              if exp < bigint 0 then
-                err (Errors.argumentWasnt "positive" "exponent" expdv)
-              // Handle some edge cases around 1. We want to make this match
-              // OCaml, so we have to support an exponent above int32, but
-              // below int63. This only matters for 1 or -1, and otherwise a
-              // number raised to an int63 exponent wouldn't fit in an int63
-              else if number = 1I then
-                Value(DInt(1I))
-              else if number = -1I && exp.IsEven then
-                Value(DInt(1I))
-              else if number = -1I then
-                Value(DInt(-1I))
-              else
-                Value(DInt(number ** (int exp)))
-             with _ -> err "Error raising to exponent")
+          (try
+            if exp < bigint 0 then
+              err (Errors.argumentWasnt "positive" "exponent" expdv)
+            // Handle some edge cases around 1. We want to make this match
+            // OCaml, so we have to support an exponent above int32, but
+            // below int63. This only matters for 1 or -1, and otherwise a
+            // number raised to an int63 exponent wouldn't fit in an int63
+            else if number = 1I then
+              Value(DInt(1I))
+            else if number = -1I && exp.IsEven then
+              Value(DInt(1I))
+            else if number = -1I then
+              Value(DInt(-1I))
+            else
+              Value(DInt(number ** (int exp)))
+           with
+           | _ -> err "Error raising to exponent")
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -161,7 +165,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            if b = 0I then err "Division by zero" else Value(DInt(a / b))
+          if b = 0I then err "Division by zero" else Value(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -240,7 +244,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
+          a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -252,11 +256,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            let lower, upper = if a > b then (b, a) else (a, b)
+          let lower, upper = if a > b then (b, a) else (a, b)
 
-            lower + (Prelude.random.Next((upper - lower) |> int) |> bigint)
-            |> DInt
-            |> Value
+          lower + (Prelude.random.Next((upper - lower) |> int) |> bigint)
+          |> DInt
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -290,16 +294,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l as ldv ] ->
-            let ints =
-              List.map
-                (fun i ->
-                  match i with
-                  | DInt it -> it
-                  | t -> Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
-                l
+          let ints =
+            List.map
+              (fun i ->
+                match i with
+                | DInt it -> it
+                | t -> Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
+              l
 
-            let sum = List.fold (fun acc elem -> acc + elem) (bigint 0) ints
-            Value(DInt sum)
+          let sum = List.fold (fun acc elem -> acc + elem) (bigint 0) ints
+          Value(DInt sum)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -332,17 +336,18 @@ let fns : List<BuiltInFn> =
           Param.make "limitA" TInt ""
           Param.make "limitB" TInt "" ]
       returnType = TInt
-      description = "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
+      description =
+        "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
    If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
    `limitA` and `limitB` can be provided in any order."
       fn =
         (function
         | _, [ DInt v; DInt a; DInt b ] ->
-            let min, max = if a < b then (a, b) else (b, a)
+          let min, max = if a < b then (a, b) else (b, a)
 
-            if v < min then Value(DInt min)
-            else if v > max then Value(DInt max)
-            else Value(DInt v)
+          if v < min then Value(DInt min)
+          else if v > max then Value(DInt max)
+          else Value(DInt v)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

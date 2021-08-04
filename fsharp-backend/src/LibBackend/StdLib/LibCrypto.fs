@@ -33,13 +33,14 @@ let fns : List<BuiltInFn> =
   [ { name = fn "Password" "hash" 0
       parameters = [ Param.make "pw" TStr "" ]
       returnType = TPassword
-      description = "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
+      description =
+        "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
                      NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
         | _, [ DStr s ] ->
-            s
-            (* libsodium authors recommend the `interactive'
+          s
+          (* libsodium authors recommend the `interactive'
                parameter set for interactive, online uses:
                https://download.libsodium.org/doc/password_hashing/the_argon2i_function.html
                and the general advice is to use the highest
@@ -49,14 +50,14 @@ let fns : List<BuiltInFn> =
                and the `sensitive' parameter set takes 12s.
                -lizzie.
             *)
-            (* libsodium's crypto_pwhash_str, which is what this
+          (* libsodium's crypto_pwhash_str, which is what this
                calls eventually, transparently salts:
                https://github.com/jedisct1/libsodium/blob/d49d7e8d4f4dd8df593beb9e715e7bc87bc74108/src/libsodium/crypto_pwhash/argon2/pwhash_argon2i.c#L187 *)
-            |> Sodium.PasswordHash.ArgonHashString
-            |> toBytes
-            |> Password
-            |> DPassword
-            |> Value
+          |> Sodium.PasswordHash.ArgonHashString
+          |> toBytes
+          |> Password
+          |> DPassword
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -65,14 +66,15 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "existingpwr" TPassword ""; Param.make "rawpw" TStr "" ]
       returnType = TBool
-      description = "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
+      description =
+        "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
         | _, [ DPassword (Password existingpw); DStr rawpw ] ->
-            Sodium.PasswordHash.ArgonHashStringVerify(existingpw, toBytes rawpw)
-            |> DBool
-            |> Value
+          Sodium.PasswordHash.ArgonHashStringVerify(existingpw, toBytes rawpw)
+          |> DBool
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -119,8 +121,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBytes key; DBytes data ] ->
-            let hmac = new HMACSHA256(key)
-            data |> hmac.ComputeHash |> DBytes |> Value
+          let hmac = new HMACSHA256(key)
+          data |> hmac.ComputeHash |> DBytes |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
@@ -133,8 +135,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBytes key; DBytes data ] ->
-            let hmac = new HMACSHA1(key)
-            data |> hmac.ComputeHash |> DBytes |> Value
+          let hmac = new HMACSHA1(key)
+          data |> hmac.ComputeHash |> DBytes |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable

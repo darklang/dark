@@ -53,10 +53,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-            DObj o
-            |> Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0
-            |> DStr
-            |> Value
+          DObj o
+          |> Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -68,7 +68,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-            DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
+          DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -14,7 +14,8 @@ let canvasName =
       try
         CanvasName.create c |> ignore
         true
-      with e -> false)
+      with
+      | e -> false)
     [ ("a", true)
       ("demo-hello", true)
       ("demo-", false)

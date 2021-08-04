@@ -135,11 +135,10 @@ val get : 'key -> t<'key, 'value> -> 'value option
 //  *)
 //
 val update :
-
-    key: 'key ->
-    f: ('value option -> 'value option) ->
-    t<'key, 'value> ->
-    t<'key, 'value>
+  key: 'key ->
+  f: ('value option -> 'value option) ->
+  t<'key, 'value> ->
+  t<'key, 'value>
 (** Update the value for a specific key using [f]. If [key] is not present in the map [f] will be called with [None].
 
     {2 Examples}
@@ -367,10 +366,9 @@ val filter_with_index :
   f: ('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value>
 
 val partition :
-
-    f: ('key -> 'value -> bool) ->
-    t<'key, 'value> ->
-    t<'key, 'value> * t<'key, 'value>
+  f: ('key -> 'value -> bool) ->
+  t<'key, 'value> ->
+  t<'key, 'value> * t<'key, 'value>
 (** Divide a map into two, the first map will contain the key-value pairs that [f] returns [true] for, pairs that [f] returns [false] for will end up in the second.
 
     {2 Examples}

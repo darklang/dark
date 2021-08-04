@@ -49,7 +49,8 @@ let forever f =
       f ()
 
     failwith "[while true] managed to return, you are in trouble now."
-  with exn -> exn
+  with
+  | exn -> exn
 
 
 let curry (f : 'a * 'b -> 'c) a b = (f (a, b) : 'c)

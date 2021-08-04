@@ -91,7 +91,8 @@ let t
 
 
         return ()
-      with e ->
+      with
+      | e ->
         printfn "Exception thrown in test: %s" (e.ToString())
         return (Expect.equal "Exception thrown in test" (e.ToString()) "")
     }
@@ -178,103 +179,104 @@ let fileTests () : Test =
                 match line with
                 // [tests] indicator
                 | Regex @"^\[tests\.(.*)\] with DB (.*)$" [ name; dbName ] ->
-                    finish ()
+                  finish ()
 
-                    match Map.get dbName dbs with
-                    | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
-                    | None -> failwith $"No DB named {dbName} found"
+                  match Map.get dbName dbs with
+                  | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
+                  | None -> failwith $"No DB named {dbName} found"
 
-                    currentGroup <- { currentGroup with name = name }
+                  currentGroup <- { currentGroup with name = name }
                 | Regex @"^\[tests\.(.*)\]$" [ name ] ->
-                    finish ()
-                    currentGroup <- { currentGroup with name = name }
+                  finish ()
+                  currentGroup <- { currentGroup with name = name }
                 // [db] declaration
                 | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
-                    finish ()
+                  finish ()
 
-                    let (db : PT.DB.T) =
-                      { tlid = id i
-                        pos = { x = 0; y = 0 }
-                        name = name
-                        nameID = gid ()
-                        version = 0
-                        cols =
-                          definition
-                          |> Json.Vanilla.deserialize<Map<string, string>>
-                          |> Map.mapWithIndex
-                               (fun k v ->
-                                 ({ name = k
-                                    nameID = gid ()
-                                    typ =
-                                      if v = "" then None else Some(PT.DType.parse v)
-                                    typeID = gid () } : PT.DB.Col))
-                          |> Map.values }
+                  let (db : PT.DB.T) =
+                    { tlid = id i
+                      pos = { x = 0; y = 0 }
+                      name = name
+                      nameID = gid ()
+                      version = 0
+                      cols =
+                        definition
+                        |> Json.Vanilla.deserialize<Map<string, string>>
+                        |> Map.mapWithIndex
+                             (fun k v ->
+                               ({ name = k
+                                  nameID = gid ()
+                                  typ =
+                                    if v = "" then None else Some(PT.DType.parse v)
+                                  typeID = gid () } : PT.DB.Col))
+                        |> Map.values }
 
-                    dbs <- Map.add name db dbs
+                  dbs <- Map.add name db dbs
                 // [function] declaration
                 | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
-                    finish ()
+                  finish ()
 
-                    let parameters : List<PT.UserFunction.Parameter> =
-                      definition
-                      |> String.split " "
-                      |> List.map
-                           (fun name ->
-                             { name = name
-                               nameID = gid ()
-                               description = ""
-                               typ = Some(PT.TVariable "a")
-                               typeID = gid () })
+                  let parameters : List<PT.UserFunction.Parameter> =
+                    definition
+                    |> String.split " "
+                    |> List.map
+                         (fun name ->
+                           { name = name
+                             nameID = gid ()
+                             description = ""
+                             typ = Some(PT.TVariable "a")
+                             typeID = gid () })
 
-                    currentFn <-
-                      { tlid = id i
-                        recording = true
-                        name = name
-                        parameters = parameters
-                        code = "" }
+                  currentFn <-
+                    { tlid = id i
+                      recording = true
+                      name = name
+                      parameters = parameters
+                      code = "" }
                 // [test] with DB indicator
                 | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
-                    finish ()
+                  finish ()
 
-                    match Map.get dbName dbs with
-                    | Some db -> currentTest <- { currentTest with dbs = [ db ] }
-                    | None -> failwith $"No DB named {dbName} found"
+                  match Map.get dbName dbs with
+                  | Some db -> currentTest <- { currentTest with dbs = [ db ] }
+                  | None -> failwith $"No DB named {dbName} found"
 
-                    currentTest <-
-                      { currentTest with
-                          name = $"{name} (line {i})"
-                          recording = true }
+                  currentTest <-
+                    { currentTest with
+                        name = $"{name} (line {i})"
+                        recording = true }
                 // [test] indicator (no DB)
                 | Regex @"^\[test\.(.*)\]$" [ name ] ->
-                    finish ()
+                  finish ()
 
-                    currentTest <-
-                      { currentTest with
-                          name = $"{name} (line {i})"
-                          recording = true }
+                  currentTest <-
+                    { currentTest with
+                        name = $"{name} (line {i})"
+                        recording = true }
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments
                 | Regex @"^\s*//.*$" [] when
-                  currentTest.recording || currentFn.recording -> ()
+                  currentTest.recording || currentFn.recording
+                  ->
+                  ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
-                    currentTest <-
-                      { currentTest with code = currentTest.code + line }
+                  currentTest <- { currentTest with code = currentTest.code + line }
                 | _ when currentFn.recording ->
-                    currentFn <- { currentFn with code = currentFn.code + line }
+                  currentFn <- { currentFn with code = currentFn.code + line }
                 // 1-line test
                 | Regex @"^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                    let test =
-                      t $"{comment} (line {i})" code currentGroup.dbs functions
+                  let test =
+                    t $"{comment} (line {i})" code currentGroup.dbs functions
 
-                    currentGroup <-
-                      { currentGroup with tests = currentGroup.tests @ [ test ] }
+                  currentGroup <-
+                    { currentGroup with tests = currentGroup.tests @ [ test ] }
                 | Regex @"^(.*)\s*$" [ code ] ->
-                    let test = t $"line {i}" code currentGroup.dbs functions
+                  let test = t $"line {i}" code currentGroup.dbs functions
 
-                    currentGroup <-
-                      { currentGroup with tests = currentGroup.tests @ [ test ] }
+                  currentGroup <-
+                    { currentGroup with tests = currentGroup.tests @ [ test ] }
 
                 | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 

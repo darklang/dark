@@ -51,7 +51,8 @@ let push
           client.TriggerAsync(channel, eventName, payload)
 
         return ()
-      with e ->
+      with
+      | e ->
         // swallow this error
         printfn
           $"Error Sending push to Pusher {eventName}: {canvasID}: {e.ToString()}"

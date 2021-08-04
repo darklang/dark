@@ -76,35 +76,34 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr s; DFnVal b ] ->
-            (String.toEgcSeq s
-             |> Seq.toList
-             |> List.map_s
-                  (fun te ->
-                    (LibExecution.Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ DChar te ]
-                      NotInPipe
-                      NoRail))
-             |> (fun dvals ->
-               (taskv {
-                 let! (dvals : List<Dval>) = dvals
+          (String.toEgcSeq s
+           |> Seq.toList
+           |> List.map_s
+                (fun te ->
+                  (LibExecution.Interpreter.applyFnVal
+                    state
+                    (id 0)
+                    b
+                    [ DChar te ]
+                    NotInPipe
+                    NoRail))
+           |> (fun dvals ->
+             (taskv {
+               let! (dvals : List<Dval>) = dvals
 
-                 match List.tryFind (fun dv -> Dval.isIncomplete dv) dvals with
-                 | Some i -> return i
-                 | None ->
-                     let chars =
-                       List.map
-                         (function
-                         | DChar c -> c
-                         | dv ->
-                             Errors.throw (Errors.expectedLambdaType "f" TChar dv))
-                         dvals
+               match List.tryFind (fun dv -> Dval.isIncomplete dv) dvals with
+               | Some i -> return i
+               | None ->
+                 let chars =
+                   List.map
+                     (function
+                     | DChar c -> c
+                     | dv -> Errors.throw (Errors.expectedLambdaType "f" TChar dv))
+                     dvals
 
-                     let str = String.concat "" chars
-                     return DStr str
-                })))
+                 let str = String.concat "" chars
+                 return DStr str
+              })))
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -139,12 +138,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            (s
-             |> String.toEgcSeq
-             |> Seq.map (fun c -> DChar c)
-             |> Seq.toList
-             |> DList
-             |> Value)
+          (s
+           |> String.toEgcSeq
+           |> Seq.map (fun c -> DChar c)
+           |> Seq.toList
+           |> DList
+           |> Value)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -159,20 +158,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr search; DStr replace ] ->
-            if search = "" then
-              if s = "" then
-                Value(DStr replace)
-              else
-                // .Net Replace doesn't allow empty string, but we do.
-                String.toEgcSeq s
-                |> Seq.toList
-                |> List.intersperse replace
-                |> (fun l -> replace :: l @ [ replace ])
-                |> String.concat ""
-                |> DStr
-                |> Value
+          if search = "" then
+            if s = "" then
+              Value(DStr replace)
             else
-              Value(DStr(s.Replace(search, replace)))
+              // .Net Replace doesn't allow empty string, but we do.
+              String.toEgcSeq s
+              |> Seq.toList
+              |> List.intersperse replace
+              |> (fun l -> replace :: l @ [ replace ])
+              |> String.concat ""
+              |> DStr
+              |> Value
+          else
+            Value(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "replace"
       previewable = Pure
@@ -184,13 +183,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            (try
-              let int = s |> System.Numerics.BigInteger.Parse
+          (try
+            let int = s |> System.Numerics.BigInteger.Parse
 
-              if int < -4611686018427387904I then failwith "goto exception case"
-              else if int >= 4611686018427387904I then failwith "goto exception case"
-              else int |> DInt |> Value
-             with e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
+            if int < -4611686018427387904I then failwith "goto exception case"
+            else if int >= 4611686018427387904I then failwith "goto exception case"
+            else int |> DInt |> Value
+           with
+           | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -203,19 +203,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            try
-              // CLEANUP: These constants represent how high the OCaml parsers would go
-              let int = s |> System.Numerics.BigInteger.Parse
+          try
+            // CLEANUP: These constants represent how high the OCaml parsers would go
+            let int = s |> System.Numerics.BigInteger.Parse
 
-              if int < -4611686018427387904I then failwith "goto exception case"
-              else if int >= 4611686018427387904I then failwith "goto exception case"
-              else int |> DInt |> Ok |> DResult |> Value
-            with e ->
-              $"Expected to parse string with only numbers, instead got \"{s}\""
-              |> DStr
-              |> Error
-              |> DResult
-              |> Value
+            if int < -4611686018427387904I then failwith "goto exception case"
+            else if int >= 4611686018427387904I then failwith "goto exception case"
+            else int |> DInt |> Ok |> DResult |> Value
+          with
+          | e ->
+            $"Expected to parse string with only numbers, instead got \"{s}\""
+            |> DStr
+            |> Error
+            |> DResult
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -227,15 +228,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s as dv ] ->
-            (try
-              float (s) |> DFloat |> Value
-             with e ->
-               err (
-                 Errors.argumentWasnt
-                   "a string representation of an IEEE float"
-                   "s"
-                   dv
-               ))
+          (try
+            float (s) |> DFloat |> Value
+           with
+           | e ->
+             err (
+               Errors.argumentWasnt "a string representation of an IEEE float" "s" dv
+             ))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -247,14 +246,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            (try
-              float (s) |> DFloat |> Ok |> DResult |> Value
-             with e ->
-               "Expected a string representation of an IEEE float"
-               |> DStr
-               |> Error
-               |> DResult
-               |> Value)
+          (try
+            float (s) |> DFloat |> Ok |> DResult |> Value
+           with
+           | e ->
+             "Expected a string representation of an IEEE float"
+             |> DStr
+             |> Error
+             |> DResult
+             |> Value)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -268,12 +268,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            s
-            |> String.toArray
-            |> Array.map (fun c -> if int c < 128 then Char.ToUpper c else c)
-            |> System.String
-            |> DStr
-            |> Value
+          s
+          |> String.toArray
+          |> Array.map (fun c -> if int c < 128 then Char.ToUpper c else c)
+          |> System.String
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -298,12 +298,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            s
-            |> String.toArray
-            |> Array.map (fun c -> if int c < 128 then Char.ToLower c else c)
-            |> System.String
-            |> DStr
-            |> Value
+          s
+          |> String.toArray
+          |> Array.map (fun c -> if int c < 128 then Char.ToLower c else c)
+          |> System.String
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -326,7 +326,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Value
+          s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "length"
       previewable = Pure
@@ -354,19 +354,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s1; DStr s2 ] ->
-            // This implementation does not normalize post-concatenation.
-            // This is a problem because it breaks our guarantees about strings always being normalized;
-            // concatenating two normalized strings does not always result in a normalized string.
-            // replicating known broken behaviour feels wrong, but maybe necessary
-            Value(
-              DStr(
-                System.Text.Encoding.UTF8.GetString(
-                  Array.append
-                    (System.Text.Encoding.UTF8.GetBytes s1)
-                    (System.Text.Encoding.UTF8.GetBytes s2)
-                )
+          // This implementation does not normalize post-concatenation.
+          // This is a problem because it breaks our guarantees about strings always being normalized;
+          // concatenating two normalized strings does not always result in a normalized string.
+          // replicating known broken behaviour feels wrong, but maybe necessary
+          Value(
+            DStr(
+              System.Text.Encoding.UTF8.GetString(
+                Array.append
+                  (System.Text.Encoding.UTF8.GetBytes s1)
+                  (System.Text.Encoding.UTF8.GetBytes s2)
               )
             )
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -403,20 +403,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let toRemove = "[^-a-zA-Z0-9\\s\\$\\*_+~\\.\\(\\)'\"!:@]|\x0b"
-            let trim = @"^\s+|\s+$"
-            let spaces = @"[-\s]+"
+          let toRemove = "[^-a-zA-Z0-9\\s\\$\\*_+~\\.\\(\\)'\"!:@]|\x0b"
+          let trim = @"^\s+|\s+$"
+          let spaces = @"[-\s]+"
 
-            let replace (pattern : string) (replacement : string) (input : string) =
-              Regex.Replace(input, pattern, replacement)
+          let replace (pattern : string) (replacement : string) (input : string) =
+            Regex.Replace(input, pattern, replacement)
 
-            s
-            |> replace toRemove ""
-            |> replace trim ""
-            |> replace spaces "-"
-            |> String.toLower
-            |> DStr
-            |> Value
+          s
+          |> replace toRemove ""
+          |> replace trim ""
+          |> replace spaces "-"
+          |> String.toLower
+          |> DStr
+          |> Value
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -429,20 +429,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let toRemove = "[^a-zA-Z0-9\\s_-]|\x0b"
-            let trim = @"^\s+|\s+$"
-            let newSpaces = @"[-_\s]+"
+          let toRemove = "[^a-zA-Z0-9\\s_-]|\x0b"
+          let trim = @"^\s+|\s+$"
+          let newSpaces = @"[-_\s]+"
 
-            let replace (pattern : string) (replacement : string) (input : string) =
-              Regex.Replace(input, pattern, replacement)
+          let replace (pattern : string) (replacement : string) (input : string) =
+            Regex.Replace(input, pattern, replacement)
 
-            s
-            |> replace toRemove ""
-            |> replace trim ""
-            |> replace newSpaces "-"
-            |> String.toLower
-            |> DStr
-            |> Value
+          s
+          |> replace toRemove ""
+          |> replace trim ""
+          |> replace newSpaces "-"
+          |> String.toLower
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -455,21 +455,21 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            // Should work the same as https://blog.tersmitten.nl/slugify/
-            // explicitly limit to (roman) alphanumeric for pretty urls
-            let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
-            let toBeHyphenated = @"[-_\s]+"
+          // Should work the same as https://blog.tersmitten.nl/slugify/
+          // explicitly limit to (roman) alphanumeric for pretty urls
+          let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
+          let toBeHyphenated = @"[-_\s]+"
 
-            let replace (pattern : string) (replacement : string) (input : string) =
-              Regex.Replace(input, pattern, replacement)
+          let replace (pattern : string) (replacement : string) (input : string) =
+            Regex.Replace(input, pattern, replacement)
 
-            s
-            |> String.toLower
-            |> replace toRemove ""
-            |> fun s -> s.Trim()
-            |> replace toBeHyphenated "-"
-            |> DStr
-            |> Value
+          s
+          |> String.toLower
+          |> replace toRemove ""
+          |> fun s -> s.Trim()
+          |> replace toBeHyphenated "-"
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -481,7 +481,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Value
+          String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "reverse"
       previewable = Pure
@@ -494,30 +494,30 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
-            if sep = "" then
-              s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Value
-            else
-              // CLEANUP
-              // This behaviour is the worst. This mimics what OCaml did: There
-              // should be (n-1) empty strings returned for each sequence of n
-              // strings matching the separator (eg: split "aaaa" "a" = ["",
-              // "", ""]). However, the .NET string split puts in n-1 empty
-              // strings correctly everywhere except at the start and end,
-              // where there are n empty strings instead.
-              let stripStartingEmptyString =
-                (function
-                | "" :: rest -> rest
-                | all -> all)
+          if sep = "" then
+            s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Value
+          else
+            // CLEANUP
+            // This behaviour is the worst. This mimics what OCaml did: There
+            // should be (n-1) empty strings returned for each sequence of n
+            // strings matching the separator (eg: split "aaaa" "a" = ["",
+            // "", ""]). However, the .NET string split puts in n-1 empty
+            // strings correctly everywhere except at the start and end,
+            // where there are n empty strings instead.
+            let stripStartingEmptyString =
+              (function
+              | "" :: rest -> rest
+              | all -> all)
 
-              s.Split sep
-              |> Array.toList
-              |> stripStartingEmptyString
-              |> List.rev
-              |> stripStartingEmptyString
-              |> List.rev
-              |> List.map DStr
-              |> DList
-              |> Value
+            s.Split sep
+            |> Array.toList
+            |> stripStartingEmptyString
+            |> List.rev
+            |> stripStartingEmptyString
+            |> List.rev
+            |> List.map DStr
+            |> DList
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -529,16 +529,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DStr sep ] ->
-            let strs =
-              List.map
-                (fun s ->
-                  match s with
-                  | DStr st -> st
-                  | dv -> Errors.throw (Errors.argumentMemberWasnt TStr "l" dv))
-                l
+          let strs =
+            List.map
+              (fun s ->
+                match s with
+                | DStr st -> st
+                | dv -> Errors.throw (Errors.argumentMemberWasnt TStr "l" dv))
+              l
 
-            // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
-            Value(DStr((String.concat sep strs)))
+          // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
+          Value(DStr((String.concat sep strs)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -561,15 +561,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] ->
-            DStr(
-              l
-              |> List.map
-                   (function
-                   | DChar c -> c
-                   | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
-              |> String.concat ""
-            )
-            |> Value
+          DStr(
+            l
+            |> List.map
+                 (function
+                 | DChar c -> c
+                 | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
+            |> String.concat ""
+          )
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -616,33 +616,34 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            // CLEANUP this should be a result
-            let base64FromUrlEncoded (str : string) : string =
-              let initial = str.Replace('-', '+').Replace('_', '/')
-              let length = initial.Length
+          // CLEANUP this should be a result
+          let base64FromUrlEncoded (str : string) : string =
+            let initial = str.Replace('-', '+').Replace('_', '/')
+            let length = initial.Length
 
-              if length % 4 = 2 then $"{initial}=="
-              else if length % 4 = 3 then $"{initial}="
-              else initial
+            if length % 4 = 2 then $"{initial}=="
+            else if length % 4 = 3 then $"{initial}="
+            else initial
 
-            if s = "" then
-              // This seems like we should allow it
-              Value(DStr "")
-            // dotnet ignores whitespace but we don't allow it
-            else
+          if s = "" then
+            // This seems like we should allow it
+            Value(DStr "")
+          // dotnet ignores whitespace but we don't allow it
+          else
 
-            if Regex.IsMatch(s, @"\s") then
-              err "Not a valid base64 string"
-            else
-              try
-                s
-                |> base64FromUrlEncoded
-                |> Convert.FromBase64String
-                |> System.Text.Encoding.UTF8.GetString
-                |> String.normalize
-                |> DStr
-                |> Value
-              with e -> err "Not a valid base64 string"
+          if Regex.IsMatch(s, @"\s") then
+            err "Not a valid base64 string"
+          else
+            try
+              s
+              |> base64FromUrlEncoded
+              |> Convert.FromBase64String
+              |> System.Text.Encoding.UTF8.GetString
+              |> String.normalize
+              |> DStr
+              |> Value
+            with
+            | e -> err "Not a valid base64 string"
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -651,19 +652,20 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "digest" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
-      description = "Take a string and hash it to a cryptographically-secure digest.
+      description =
+        "Take a string and hash it to a cryptographically-secure digest.
          Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr s ] ->
-            let sha384Hash = SHA384.Create()
-            let data = System.Text.Encoding.UTF8.GetBytes(s)
+          let sha384Hash = SHA384.Create()
+          let data = System.Text.Encoding.UTF8.GetBytes(s)
 
-            let bytes = sha384Hash.ComputeHash(data)
+          let bytes = sha384Hash.ComputeHash(data)
 
-            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-            |> DStr
-            |> Value
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -676,14 +678,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let sha384Hash = SHA384.Create()
-            let data = System.Text.Encoding.UTF8.GetBytes(s)
+          let sha384Hash = SHA384.Create()
+          let data = System.Text.Encoding.UTF8.GetBytes(s)
 
-            let bytes = sha384Hash.ComputeHash(data)
+          let bytes = sha384Hash.ComputeHash(data)
 
-            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-            |> DStr
-            |> Value
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -696,14 +698,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let sha256Hash = SHA256.Create()
-            let data = System.Text.Encoding.UTF8.GetBytes(s)
+          let sha256Hash = SHA256.Create()
+          let data = System.Text.Encoding.UTF8.GetBytes(s)
 
-            let bytes = sha256Hash.ComputeHash(data)
+          let bytes = sha256Hash.ComputeHash(data)
 
-            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-            |> DStr
-            |> Value
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -715,23 +717,23 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l as dv ] ->
-            if l < 0I then
-              err "l should be a positive integer"
-            else
-              let randomString length =
-                let gen () =
-                  match random.Next(26 + 26 + 10) with
-                  | n when n < 26 -> ('a' |> int) + n
-                  | n when n < 26 + 26 -> ('A' |> int) + n - 26
-                  | n -> ('0' |> int) + n - 26 - 26
+          if l < 0I then
+            err "l should be a positive integer"
+          else
+            let randomString length =
+              let gen () =
+                match random.Next(26 + 26 + 10) with
+                | n when n < 26 -> ('a' |> int) + n
+                | n when n < 26 + 26 -> ('A' |> int) + n - 26
+                | n -> ('0' |> int) + n - 26 - 26
 
-                let gen _ = char (gen ()) in
+              let gen _ = char (gen ()) in
 
-                (Array.toList (Array.init length gen))
-                |> List.map (fun i -> i.ToString())
-                |> String.concat ""
+              (Array.toList (Array.init length gen))
+              |> List.map (fun i -> i.ToString())
+              |> String.concat ""
 
-              randomString (int l) |> DStr |> Value
+            randomString (int l) |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -743,23 +745,23 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l ] ->
-            if l < 0I then
-              "l should be a positive integer" |> DStr |> Error |> DResult |> Value
-            else
-              let randomString length =
-                let gen () =
-                  match random.Next(26 + 26 + 10) with
-                  | n when n < 26 -> ('a' |> int) + n
-                  | n when n < 26 + 26 -> ('A' |> int) + n - 26
-                  | n -> ('0' |> int) + n - 26 - 26
+          if l < 0I then
+            "l should be a positive integer" |> DStr |> Error |> DResult |> Value
+          else
+            let randomString length =
+              let gen () =
+                match random.Next(26 + 26 + 10) with
+                | n when n < 26 -> ('a' |> int) + n
+                | n when n < 26 + 26 -> ('A' |> int) + n - 26
+                | n -> ('0' |> int) + n - 26 - 26
 
-                let gen _ = char (gen ()) in
+              let gen _ = char (gen ()) in
 
-                (Array.toList (Array.init length gen))
-                |> List.map (fun i -> i.ToString())
-                |> String.concat ""
+              (Array.toList (Array.init length gen))
+              |> List.map (fun i -> i.ToString())
+              |> String.concat ""
 
-              randomString (int l) |> DStr |> Ok |> DResult |> Value
+            randomString (int l) |> DStr |> Ok |> DResult |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -771,28 +773,28 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l as dv ] ->
-            if l < 0I then
-              dv
-              |> Errors.argumentWasnt "positive" "length"
-              |> DStr
-              |> Error
-              |> DResult
-              |> Value
-            else
-              let randomString length =
-                let gen () =
-                  match random.Next(26 + 26 + 10) with
-                  | n when n < 26 -> ('a' |> int) + n
-                  | n when n < 26 + 26 -> ('A' |> int) + n - 26
-                  | n -> ('0' |> int) + n - 26 - 26
+          if l < 0I then
+            dv
+            |> Errors.argumentWasnt "positive" "length"
+            |> DStr
+            |> Error
+            |> DResult
+            |> Value
+          else
+            let randomString length =
+              let gen () =
+                match random.Next(26 + 26 + 10) with
+                | n when n < 26 -> ('a' |> int) + n
+                | n when n < 26 + 26 -> ('A' |> int) + n - 26
+                | n -> ('0' |> int) + n - 26 - 26
 
-                let gen _ = char (gen ()) in
+              let gen _ = char (gen ()) in
 
-                (Array.toList (Array.init length gen))
-                |> List.map (fun i -> i.ToString())
-                |> String.concat ""
+              (Array.toList (Array.init length gen))
+              |> List.map (fun i -> i.ToString())
+              |> String.concat ""
 
-              randomString (int l) |> DStr |> Ok |> DResult |> Value
+            randomString (int l) |> DStr |> Ok |> DResult |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -805,24 +807,24 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let htmlEscape (html : string) : string =
-              List.map
-                (fun c ->
-                  match c with
-                  | '<' -> "&lt;"
-                  | '>' -> "&gt;"
-                  | '&' -> "&amp;"
-                  // include these for html-attribute-escaping
-                  // even though they're not strictly necessary
-                  // for html-escaping proper.
-                  | '"' -> "&quot;"
-                  // &apos; doesn't work in IE....
-                  | ''' -> "&#x27;"
-                  | _ -> string c)
-                (Seq.toList html)
-              |> String.concat ""
+          let htmlEscape (html : string) : string =
+            List.map
+              (fun c ->
+                match c with
+                | '<' -> "&lt;"
+                | '>' -> "&gt;"
+                | '&' -> "&amp;"
+                // include these for html-attribute-escaping
+                // even though they're not strictly necessary
+                // for html-escaping proper.
+                | '"' -> "&quot;"
+                // &apos; doesn't work in IE....
+                | ''' -> "&#x27;"
+                | _ -> string c)
+              (Seq.toList html)
+            |> String.concat ""
 
-            Value(DStr(htmlEscape s))
+          Value(DStr(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -835,12 +837,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            match Guid.TryParse s with
-            | true, x -> x |> DUuid |> Value
-            | _ ->
-                err (
-                  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                )
+          match Guid.TryParse s with
+          | true, x -> x |> DUuid |> Value
+          | _ ->
+            err (
+              "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+            )
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -854,14 +856,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            match Guid.TryParse s with
-            | true, x -> x |> DUuid |> Ok |> DResult |> Value
-            | _ ->
-                "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                |> DStr
-                |> Error
-                |> DResult
-                |> Value
+          match Guid.TryParse s with
+          | true, x -> x |> DUuid |> Ok |> DResult |> Value
+          | _ ->
+            "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+            |> DStr
+            |> Error
+            |> DResult
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -874,7 +876,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr needle; DStr haystack ] ->
-            DBool(haystack.Contains needle) |> Value
+          DBool(haystack.Contains needle) |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -887,7 +889,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr haystack; DStr needle ] ->
-            DBool(haystack.Contains needle) |> Value
+          DBool(haystack.Contains needle) |> Value
         | _ -> incorrectArgs ())
       sqlSpec =
         SqlCallback2
@@ -918,34 +920,35 @@ let fns : List<BuiltInFn> =
           Param.make "from" TInt ""
           Param.make "to" TInt "" ]
       returnType = TStr
-      description = "Returns the substring of `string` between the `from` and `to` indices.
+      description =
+        "Returns the substring of `string` between the `from` and `to` indices.
        Negative indices start counting from the end of `string`.
        Indices represent characters."
       fn =
         (function
         | _, [ DStr s; DInt first; DInt last ] ->
 
-            let chars = String.toEgcSeq s
-            let length = length chars |> bigint
+          let chars = String.toEgcSeq s
+          let length = length chars |> bigint
 
-            let normalize (i : bigint) =
-              i
-              |> fun i -> if i < 0I then length + i else i // account for - values
-              |> min length
-              |> max 0I
+          let normalize (i : bigint) =
+            i
+            |> fun i -> if i < 0I then length + i else i // account for - values
+            |> min length
+            |> max 0I
 
 
-            let f = normalize first |> int
-            let l = normalize last |> int
-            let l = if f > l then f else l // return empty string when start is less than end
+          let f = normalize first |> int
+          let l = normalize last |> int
+          let l = if f > l then f else l // return empty string when start is less than end
 
-            chars
-            |> Seq.toList
-            |> List.drop f
-            |> List.take (l - f)
-            |> String.concat ""
-            |> DStr
-            |> Value
+          chars
+          |> Seq.toList
+          |> List.drop f
+          |> List.take (l - f)
+          |> String.concat ""
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -954,20 +957,21 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
-      description = "Returns the first `characterCount` characters of `string`, as a String.
+      description =
+        "Returns the first `characterCount` characters of `string`, as a String.
       If `characterCount` is longer than `string`, returns `string`.
       If `characterCount` is negative, returns the empty string."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let n = String.lengthInEgcs s |> bigint |> min n |> max 0I |> int
+          let n = String.lengthInEgcs s |> bigint |> min n |> max 0I |> int
 
-            String.toEgcSeq s
-            |> List.take n
-            |> String.concat ""
-            |> fun s -> s.Normalize()
-            |> DStr
-            |> Value
+          String.toEgcSeq s
+          |> List.take n
+          |> String.concat ""
+          |> fun s -> s.Normalize()
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -976,43 +980,44 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
-      description = "Returns the last `characterCount` characters of `string`, as a String.
+      description =
+        "Returns the last `characterCount` characters of `string`, as a String.
       If `characterCount` is longer than `string`, returns `string`.
       If `characterCount` is negative, returns the empty string."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let egcSeq = String.toEgcSeq s
-            let stringEgcCount = length egcSeq
+          let egcSeq = String.toEgcSeq s
+          let stringEgcCount = length egcSeq
 
-            let lastN s (numEgcs : bigint) =
-              let stringBuilder = new StringBuilder(String.length s) in
-              (* We iterate through every EGC, adding it to the buffer
+          let lastN s (numEgcs : bigint) =
+            let stringBuilder = new StringBuilder(String.length s) in
+            (* We iterate through every EGC, adding it to the buffer
                 * if its [idx] >= ([stringEgcCount] - [numEgcs]).
                 * Consider if the string is "abcde" and [numEgcs] = 2,
                 * [stringEgcCount] = 5; 5-2 = 3. The index of "d" is 3 and
                 * we want to keep it and everything after it so we end up with "de". *)
 
-              let startIdx = bigint stringEgcCount - numEgcs in
+            let startIdx = bigint stringEgcCount - numEgcs in
 
-              let lastFunc (idx : bigint) (seg : string) =
-                if idx >= startIdx then
-                  stringBuilder.Append seg |> ignore
-                else
-                  () |> ignore
+            let lastFunc (idx : bigint) (seg : string) =
+              if idx >= startIdx then
+                stringBuilder.Append seg |> ignore
+              else
+                () |> ignore
 
-                1I + idx
+              1I + idx
 
-              ignore (
-                egcSeq
-                |> Seq.toList
-                |> List.mapi (fun index value -> (lastFunc (bigint index) value))
-              )
-              (* We don't need to renormalize because all normalization forms are closed
+            ignore (
+              egcSeq
+              |> Seq.toList
+              |> List.mapi (fun index value -> (lastFunc (bigint index) value))
+            )
+            (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              stringBuilder.ToString()
+            stringBuilder.ToString()
 
-            Value(DStr(lastN s n))
+          Value(DStr(lastN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1021,41 +1026,42 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
-      description = "Returns all but the last `characterCount` characters of `string`, as a String.
+      description =
+        "Returns all but the last `characterCount` characters of `string`, as a String.
       If `characterCount` is longer than `string`, returns the empty string.
       If `characterCount` is negative, returns `string`."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let egcSeq = String.toEgcSeq s
-            let stringEgcCount = length egcSeq
+          let egcSeq = String.toEgcSeq s
+          let stringEgcCount = length egcSeq
 
-            let dropLastN s (numEgcs : bigint) =
-              let stringBuilder = new StringBuilder(String.length s) in
-              // We iterate through every EGC, adding it to the buffer
-              // if its [idx] < ([stringEgcCount] - [numEgcs]).
-              // This works by the inverse of the logic for [lastN].
+          let dropLastN s (numEgcs : bigint) =
+            let stringBuilder = new StringBuilder(String.length s) in
+            // We iterate through every EGC, adding it to the buffer
+            // if its [idx] < ([stringEgcCount] - [numEgcs]).
+            // This works by the inverse of the logic for [lastN].
 
-              let startIdx = bigint stringEgcCount - numEgcs in
+            let startIdx = bigint stringEgcCount - numEgcs in
 
-              let lastFunc (idx : bigint) (seg : string) =
-                if idx < startIdx then
-                  stringBuilder.Append seg |> ignore
-                else
-                  () |> ignore
+            let lastFunc (idx : bigint) (seg : string) =
+              if idx < startIdx then
+                stringBuilder.Append seg |> ignore
+              else
+                () |> ignore
 
-                1I + idx
+              1I + idx
 
-              ignore (
-                egcSeq
-                |> Seq.toList
-                |> List.mapi (fun index value -> (lastFunc (bigint index) value))
-              )
-              (* We don't need to renormalize because all normalization forms are closed
+            ignore (
+              egcSeq
+              |> Seq.toList
+              |> List.mapi (fun index value -> (lastFunc (bigint index) value))
+            )
+            (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              stringBuilder.ToString()
+            stringBuilder.ToString()
 
-            Value(DStr(dropLastN s n))
+          Value(DStr(dropLastN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1064,34 +1070,35 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
-      description = "Returns all but the first `characterCount` characters of `string`, as a String.
+      description =
+        "Returns all but the first `characterCount` characters of `string`, as a String.
         If `characterCount` is longer than `string`, returns the empty string.
         If `characterCount` is negative, returns `string`."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let dropFirstN s (numEgcs : bigint) =
-              let stringBuilder = new StringBuilder(String.length s) in
-              // We iterate through every EGC, adding it to the buffer
-              // if its index >= numEgcs. This works by the inverse of the logic for [first_n]:
-              let firstFunc (idx : bigint) (seg : string) =
-                if idx >= numEgcs then
-                  stringBuilder.Append seg |> ignore
-                else
-                  () |> ignore
+          let dropFirstN s (numEgcs : bigint) =
+            let stringBuilder = new StringBuilder(String.length s) in
+            // We iterate through every EGC, adding it to the buffer
+            // if its index >= numEgcs. This works by the inverse of the logic for [first_n]:
+            let firstFunc (idx : bigint) (seg : string) =
+              if idx >= numEgcs then
+                stringBuilder.Append seg |> ignore
+              else
+                () |> ignore
 
-                1I + idx
+              1I + idx
 
-              ignore (
-                String.toEgcSeq s
-                |> Seq.toList
-                |> List.mapi (fun index value -> (firstFunc (bigint index) value))
-              )
-              // We don't need to renormalize because all normalization forms are closed
-              // under substringing (see https://unicode.org/reports/tr15/#Concatenation).
-              stringBuilder.ToString()
+            ignore (
+              String.toEgcSeq s
+              |> Seq.toList
+              |> List.mapi (fun index value -> (firstFunc (bigint index) value))
+            )
+            // We don't need to renormalize because all normalization forms are closed
+            // under substringing (see https://unicode.org/reports/tr15/#Concatenation).
+            stringBuilder.ToString()
 
-            Value(DStr(dropFirstN s n))
+          Value(DStr(dropFirstN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1102,26 +1109,27 @@ let fns : List<BuiltInFn> =
           Param.make "padWith" TStr ""
           Param.make "goalLength" TInt "" ]
       returnType = TStr
-      description = "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
+      description =
+        "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
       fn =
         (function
         | _, [ DStr s; DStr padWith as dv; DInt l ] ->
-            if String.lengthInEgcs padWith <> 1 then
-              err (Errors.argumentWasnt "1 character long" "padWith" dv)
-            else
-              let targetLength = int l
-              let currentLength = String.lengthInEgcs s
-              let requiredPads = max 0 (targetLength - currentLength)
+          if String.lengthInEgcs padWith <> 1 then
+            err (Errors.argumentWasnt "1 character long" "padWith" dv)
+          else
+            let targetLength = int l
+            let currentLength = String.lengthInEgcs s
+            let requiredPads = max 0 (targetLength - currentLength)
 
-              let stringBuilder = new StringBuilder()
+            let stringBuilder = new StringBuilder()
 
-              for _ = 1 to requiredPads do
-                stringBuilder.Append(padWith) |> ignore<StringBuilder>
+            for _ = 1 to requiredPads do
+              stringBuilder.Append(padWith) |> ignore<StringBuilder>
 
-              stringBuilder.Append(s) |> ignore<StringBuilder>
+            stringBuilder.Append(s) |> ignore<StringBuilder>
 
-              stringBuilder.ToString().Normalize() |> DStr |> Value
+            stringBuilder.ToString().Normalize() |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1132,25 +1140,26 @@ let fns : List<BuiltInFn> =
           Param.make "padWith" TStr ""
           Param.make "goalLength" TInt "" ]
       returnType = TStr
-      description = "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
+      description =
+        "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
       fn =
         (function
         | _, [ DStr s; DStr padWith as dv; DInt l ] ->
-            if String.lengthInEgcs padWith <> 1 then
-              err (Errors.argumentWasnt "1 character long" "padWith" dv)
-            else
-              let targetLength = int l
-              let currentLength = String.lengthInEgcs s
-              let requiredPads = max 0 (targetLength - currentLength)
+          if String.lengthInEgcs padWith <> 1 then
+            err (Errors.argumentWasnt "1 character long" "padWith" dv)
+          else
+            let targetLength = int l
+            let currentLength = String.lengthInEgcs s
+            let requiredPads = max 0 (targetLength - currentLength)
 
-              let stringBuilder = new StringBuilder()
-              stringBuilder.Append(s) |> ignore<StringBuilder>
+            let stringBuilder = new StringBuilder()
+            stringBuilder.Append(s) |> ignore<StringBuilder>
 
-              for _ = 1 to requiredPads do
-                stringBuilder.Append(padWith) |> ignore<StringBuilder>
+            for _ = 1 to requiredPads do
+              stringBuilder.Append(padWith) |> ignore<StringBuilder>
 
-              stringBuilder.ToString().Normalize() |> DStr |> Value
+            stringBuilder.ToString().Normalize() |> DStr |> Value
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1200,8 +1209,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr str ] ->
-            let theBytes = System.Text.Encoding.UTF8.GetBytes str
-            Value(DBytes theBytes)
+          let theBytes = System.Text.Encoding.UTF8.GetBytes str
+          Value(DBytes theBytes)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1213,7 +1222,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr subject; DStr prefix ] ->
-            Value(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
+          Value(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1227,7 +1236,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr subject; DStr suffix ] ->
-            Value(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
+          Value(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

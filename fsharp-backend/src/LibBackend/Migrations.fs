@@ -42,36 +42,38 @@ let runSystemMigration (name : string) (sql : string) : unit =
 
   // Insert into the string because params don't work here for some reason.
   // On conflict, do nothing because another starting process might be running this migration as well.
-  let recordMigrationStmt = "INSERT INTO system_migrations
+  let recordMigrationStmt =
+    "INSERT INTO system_migrations
                              (name, execution_date, sql)
                              VALUES
                              (@name, CURRENT_TIMESTAMP, @sql)
                              ON CONFLICT DO NOTHING"
+
   let recordMigrationParams = [ "name", Sql.string name; "sql", Sql.string sql ]
 
   match String.splitOnNewline sql with
   // allow special "pragma" to skip wrapping in a transaction
   // be VERY careful with this!
   | "--#[no_tx]" :: _ ->
-      Sql.query sql |> Sql.executeStatement
+    Sql.query sql |> Sql.executeStatement
 
-      Sql.query recordMigrationStmt
-      |> Sql.parameters recordMigrationParams
-      |> Sql.executeStatement
+    Sql.query recordMigrationStmt
+    |> Sql.parameters recordMigrationParams
+    |> Sql.executeStatement
   | _ ->
-      // a small number of migrations need this. We could move them to the
-      // migrations themselves, but we need to match the OCaml version for now
-      let sql = $"DO $do$\nBEGIN\n{sql};\nEND\n$do$"
+    // a small number of migrations need this. We could move them to the
+    // migrations themselves, but we need to match the OCaml version for now
+    let sql = $"DO $do$\nBEGIN\n{sql};\nEND\n$do$"
 
-      let counts =
+    let counts =
 
-        LibService.DBConnection.connect ()
-        |> Sql.executeTransaction [ sql, []
-                                    recordMigrationStmt, [ recordMigrationParams ] ]
+      LibService.DBConnection.connect ()
+      |> Sql.executeTransaction [ sql, []
+                                  recordMigrationStmt, [ recordMigrationParams ] ]
 
-      assertEq "recorded migrations" 1 counts.[1]
+    assertEq "recorded migrations" 1 counts.[1]
 
-      ()
+    ()
 
 
 let names () : List<string> =

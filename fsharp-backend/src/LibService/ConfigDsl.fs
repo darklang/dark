@@ -28,8 +28,7 @@ let bool (name : string) : bool =
   | "y" -> true
   | "n" -> false
   | v ->
-      failwith
-        $"Invalid env var value for {name}={v}. Allowed values are 'n' and 'y'."
+    failwith $"Invalid env var value for {name}={v}. Allowed values are 'n' and 'y'."
 
 
 let lowercase (name : string) (v : string) =

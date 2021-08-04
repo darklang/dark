@@ -63,11 +63,11 @@ let requiredContextToValidate (op : PT.Op) : RequiredContext =
   | PT.SetExpr _ -> NoContext
   | PT.TLSavepoint _ -> NoContext
   | PT.UndoTL _ ->
-      (* Can undo/redo ops on dbs *)
-      AllDatastores
+    (* Can undo/redo ops on dbs *)
+    AllDatastores
   | PT.RedoTL _ ->
-      (* Can undo/redo ops on dbs *)
-      AllDatastores
+    (* Can undo/redo ops on dbs *)
+    AllDatastores
   | PT.DeleteTL _ -> NoContext
   | PT.MoveTL _ -> NoContext
   | PT.SetFunction _ -> NoContext
@@ -188,7 +188,7 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   | PT.SetFunction userfn -> PT.SetFunction { userfn with body = newAST }
   | PT.SetExpr (tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
   | PT.SetHandler (tlid, id, handler) ->
-      PT.SetHandler(tlid, id, { handler with ast = newAST })
+    PT.SetHandler(tlid, id, { handler with ast = newAST })
   | PT.CreateDB (_, _, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)

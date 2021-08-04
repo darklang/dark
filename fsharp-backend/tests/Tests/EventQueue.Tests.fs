@@ -48,14 +48,14 @@ let testEventQueueRoundtrip =
 
     match result with
     | Ok (Some resultDval) ->
-        // should have at least one trace
-        let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
-        let traceID = eventIDs |> List.head |> Option.unwrapUnsafe |> Tuple2.first
+      // should have at least one trace
+      let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
+      let traceID = eventIDs |> List.head |> Option.unwrapUnsafe |> Tuple2.first
 
-        let! functionResults = TFR.load meta.id traceID h.tlid
+      let! functionResults = TFR.load meta.id traceID h.tlid
 
-        Expect.equal (List.length functionResults) 1 "should have stored fn result"
-        Expect.equal (RT.DInt 123I) resultDval "Round tripped value"
+      Expect.equal (List.length functionResults) 1 "should have stored fn result"
+      Expect.equal (RT.DInt 123I) resultDval "Round tripped value"
     | Ok None -> failwith "Failed: expected Some, got None"
     | Error e -> failwith $"Failed: got error: {e}"
   }

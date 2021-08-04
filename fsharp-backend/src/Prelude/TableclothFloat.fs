@@ -13,7 +13,8 @@ let from_int i = fromInt i
 let fromString string : t option =
   try
     Some(System.Double.Parse string)
-  with _ -> None
+  with
+  | _ -> None
 
 
 let from_string s = fromString s
@@ -188,21 +189,21 @@ let rec round (direction : Direction) (n : t) : t =
   | Closest Up -> FSharp.Core.Operators.round n
   | Closest ClosestToEven
   | ClosestToEven ->
-      let roundNearestLowerBound = -(2. ** 52.) in
-      let roundNearestUpperBound = 2. ** 52. in
+    let roundNearestLowerBound = -(2. ** 52.) in
+    let roundNearestUpperBound = 2. ** 52. in
 
-      if n <= roundNearestLowerBound || n >= roundNearestUpperBound then
-        n + 0.
-      else
-        let floor = floor n in
-        let ceil_or_succ = floor + 1. in
-        let diff_floor = n - floor in
-        let diff_ceil = ceil_or_succ - n in
+    if n <= roundNearestLowerBound || n >= roundNearestUpperBound then
+      n + 0.
+    else
+      let floor = floor n in
+      let ceil_or_succ = floor + 1. in
+      let diff_floor = n - floor in
+      let diff_ceil = ceil_or_succ - n in
 
-        if diff_floor < diff_ceil then floor
-        else if diff_floor > diff_ceil then ceil_or_succ
-        else if floor % 2. = 0. then floor
-        else ceil_or_succ
+      if diff_floor < diff_ceil then floor
+      else if diff_floor > diff_ceil then ceil_or_succ
+      else if floor % 2. = 0. then floor
+      else ceil_or_succ
   | Closest (Closest x) -> round (Closest x) n
 
 

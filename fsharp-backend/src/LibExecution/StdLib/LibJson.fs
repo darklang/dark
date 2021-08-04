@@ -30,9 +30,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-            (try
-              json |> DvalRepr.ofUnknownJsonV0 |> Value
-             with _ -> Value DNull)
+          (try
+            json |> DvalRepr.ofUnknownJsonV0 |> Value
+           with
+           | _ -> Value DNull)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -57,9 +58,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-            try
-              json |> DvalRepr.ofUnknownJsonV1 |> Value
-            with e -> Value(DError(SourceNone, e.Message))
+          try
+            json |> DvalRepr.ofUnknownJsonV1 |> Value
+          with
+          | e -> Value(DError(SourceNone, e.Message))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -72,10 +74,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-            (try
-              let dval = json |> DvalRepr.ofUnknownJsonV1
-              Value(DResult(Ok dval))
-             with Failure (e) -> e.ToString() |> DStr |> Error |> DResult |> Value)
+          (try
+            let dval = json |> DvalRepr.ofUnknownJsonV1
+            Value(DResult(Ok dval))
+           with
+           | Failure (e) -> e.ToString() |> DStr |> Error |> DResult |> Value)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

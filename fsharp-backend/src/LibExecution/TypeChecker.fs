@@ -22,35 +22,35 @@ module Error =
   let toString (t : T) : string =
     match t with
     | TypeLookupFailure (lookupName, lookupVersion) ->
-        let lookupString = $"({lookupName}, v{lookupVersion})"
-        $"Type {lookupString} could not be found on the canvas"
+      let lookupString = $"({lookupName}, v{lookupVersion})"
+      $"Type {lookupString} could not be found on the canvas"
     | TypeUnificationFailure uf ->
-        let expected = DvalRepr.typeToDeveloperReprV0 uf.expectedType
-        let actual = DvalRepr.prettyTypename uf.actualValue
-        $"Expected to see a value of type {expected} but found a {actual}"
+      let expected = DvalRepr.typeToDeveloperReprV0 uf.expectedType
+      let actual = DvalRepr.prettyTypename uf.actualValue
+      $"Expected to see a value of type {expected} but found a {actual}"
     | MismatchedRecordFields mrf ->
-        let expected = mrf.expectedFields
-        let actual = mrf.actualFields
-        // More or less wholesale from User_db's type checker
-        let missingFields = Set.difference expected actual in
-        let extraFields = Set.difference actual expected in
+      let expected = mrf.expectedFields
+      let actual = mrf.actualFields
+      // More or less wholesale from User_db's type checker
+      let missingFields = Set.difference expected actual in
+      let extraFields = Set.difference actual expected in
 
-        let missingMsg =
-          "Expected but did not find: ["
-          + (missingFields |> Set.toList |> String.concat ", ")
-          + "]"
+      let missingMsg =
+        "Expected but did not find: ["
+        + (missingFields |> Set.toList |> String.concat ", ")
+        + "]"
 
-        let extraMsg =
-          "Found but did not expect: ["
-          + (extraFields |> Set.toList |> String.concat ", ")
-          + "]"
+      let extraMsg =
+        "Found but did not expect: ["
+        + (extraFields |> Set.toList |> String.concat ", ")
+        + "]"
 
-        (match (Set.isEmpty missingFields, Set.isEmpty extraFields) with
-         | false, false -> $"{missingMsg} & {extraMsg}"
-         | false, true -> missingMsg
-         | true, false -> extraMsg
-         | true, true ->
-             "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
+      (match (Set.isEmpty missingFields, Set.isEmpty extraFields) with
+       | false, false -> $"{missingMsg} & {extraMsg}"
+       | false, true -> missingMsg
+       | true, false -> extraMsg
+       | true, true ->
+         "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
 
 
   let listToString ts = ts |> List.map toString |> String.concat ", "
@@ -89,14 +89,14 @@ let rec unify
   | THttpResponse _, DHttpResponse _ -> Ok()
   | TBytes, DBytes _ -> Ok()
   | TUserType (expectedName, expectedVersion), DObj dmap ->
-      (match Map.tryFind (expectedName, expectedVersion) userTypes with
-       | None -> Error [ TypeLookupFailure(expectedName, expectedVersion) ]
-       | Some ut ->
-           (match ut.definition with
-            | UserType.UTRecord utd -> unifyUserRecordWithDvalMap userTypes utd dmap))
+    (match Map.tryFind (expectedName, expectedVersion) userTypes with
+     | None -> Error [ TypeLookupFailure(expectedName, expectedVersion) ]
+     | Some ut ->
+       (match ut.definition with
+        | UserType.UTRecord utd -> unifyUserRecordWithDvalMap userTypes utd dmap))
   | expectedType, actualValue ->
-      Error [ TypeUnificationFailure
-                { expectedType = expectedType; actualValue = actualValue } ]
+    Error [ TypeUnificationFailure
+              { expectedType = expectedType; actualValue = actualValue } ]
 
 
 and unifyUserRecordWithDvalMap

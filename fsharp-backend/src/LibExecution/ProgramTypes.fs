@@ -46,30 +46,29 @@ module FQFnName =
     match fnName with
     | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ owner; package; module_; name; version ] ->
-        RT.FQFnName.packageFqName owner package module_ name (int version)
+      RT.FQFnName.packageFqName owner package module_ name (int version)
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ module_; name; version ] ->
-        RT.FQFnName.stdlibFqName module_ name (int version)
+      RT.FQFnName.stdlibFqName module_ name (int version)
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ module_; name; version ] ->
-        RT.FQFnName.stdlibFqName module_ name (int version)
+      RT.FQFnName.stdlibFqName module_ name (int version)
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
-        RT.FQFnName.stdlibFqName module_ name 0
+      RT.FQFnName.stdlibFqName module_ name 0
     | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
-        RT.FQFnName.stdlibFqName "" name (int version)
+      RT.FQFnName.stdlibFqName "" name (int version)
     | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] ->
-        RT.FQFnName.stdlibFqName "Date" name 0
+      RT.FQFnName.stdlibFqName "Date" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
-        RT.FQFnName.stdlibFqName "" name (int version)
+      RT.FQFnName.stdlibFqName "" name (int version)
     // don't accidentally parse these as userFns
     | v when Set.contains v oneWordFunctions ->
-        match v with
-        | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
-            RT.FQFnName.stdlibFqName "" name (int version)
-        | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] ->
-            RT.FQFnName.stdlibFqName "" name 0
-        | _ -> failwith $"Bad format in one word function name: \"{fnName}\""
+      match v with
+      | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
+        RT.FQFnName.stdlibFqName "" name (int version)
+      | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0
+      | _ -> failwith $"Bad format in one word function name: \"{fnName}\""
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
@@ -123,39 +122,39 @@ type Expr =
     | EFloat (_, s, w, f), EFloat (_, s', w', f') -> s = s' && w = w' && f = f'
     | EBool (_, v), EBool (_, v') -> v = v'
     | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
-        lhs = lhs' && eq rhs rhs' && eq body body'
+      lhs = lhs' && eq rhs rhs' && eq body body'
     | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
-        eq con con' && eq thn thn' && eq els els'
+      eq con con' && eq thn thn' && eq els els'
     | EList (_, l), EList (_, l') -> eqList l l'
     | EFnCall (_, name, args, toRail), EFnCall (_, name', args', toRail') ->
-        name = name' && eqList args args' && toRail = toRail'
+      name = name' && eqList args args' && toRail = toRail'
     | EBinOp (_, name, lhs, rhs, toRail), EBinOp (_, name', lhs', rhs', toRail') ->
-        name = name' && eq lhs lhs' && eq rhs rhs' && toRail = toRail'
+      name = name' && eq lhs lhs' && eq rhs rhs' && toRail = toRail'
     | ERecord (_, pairs), ERecord (_, pairs') ->
-        let sort = List.sortBy fst
+      let sort = List.sortBy fst
 
-        List.forall2
-          (fun (k, v) (k', v') -> k = k' && eq v v')
-          (sort pairs)
-          (sort pairs')
+      List.forall2
+        (fun (k, v) (k', v') -> k = k' && eq v v')
+        (sort pairs)
+        (sort pairs')
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') -> eq e e' && f = f'
     | EPipe (_, e1, e2, l), EPipe (_, e1', e2', l') ->
-        eqList l l' && eq e1 e1' && eq e2 e2'
+      eqList l l' && eq e1 e1' && eq e2 e2'
     | EFeatureFlag (_, _, cond, old, knew), EFeatureFlag (_, _, cond', old', knew') ->
-        eq cond cond' && eq old old' && eq knew knew'
+      eq cond cond' && eq old old' && eq knew knew'
     | EConstructor (_, s, ts), EConstructor (_, s', ts') -> s = s' && eqList ts ts'
     | ERightPartial (_, str, e), ERightPartial (_, str', e')
     | ELeftPartial (_, str, e), ELeftPartial (_, str', e')
     | EPartial (_, str, e), EPartial (_, str', e') -> str = str' && eq e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
-        eq e e' && List.forall2 (fun (_, v) (_, v') -> v = v') vars vars'
+      eq e e' && List.forall2 (fun (_, v) (_, v') -> v = v') vars vars'
     | EMatch (_, e, branches), EMatch (_, e', branches') ->
-        eq e e'
-        && List.forall2
-             (fun ((p, v) : Pattern * Expr) (p', v') ->
-               p.testEqualIgnoringIDs (p') && eq v v')
-             branches
-             branches'
+      eq e e'
+      && List.forall2
+           (fun ((p, v) : Pattern * Expr) (p', v') ->
+             p.testEqualIgnoringIDs (p') && eq v v')
+           branches
+           branches'
     | ENull _, _
     | EBlank _, _
     | EPipeTarget _, _
@@ -180,8 +179,8 @@ type Expr =
     | EPartial _, _
     | ELambda _, _
     | EMatch _, _ ->
-        (* exhaustiveness check *)
-        false
+      (* exhaustiveness check *)
+      false
 
 
 
@@ -194,85 +193,85 @@ type Expr =
     | EInteger (id, num) -> RT.EInteger(id, num)
     | EString (id, str) -> RT.EString(id, str)
     | EFloat (id, sign, whole, fraction) ->
-        RT.EFloat(id, makeFloat (sign = Positive) whole fraction)
+      RT.EFloat(id, makeFloat (sign = Positive) whole fraction)
     | EBool (id, b) -> RT.EBool(id, b)
     | ENull id -> RT.ENull id
     | EVariable (id, var) -> RT.EVariable(id, var)
     | EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | EFnCall (id, name, args, ster) ->
-        RT.EApply(
-          id,
-          RT.EFQFnValue(gid (), name),
-          List.map r args,
-          RT.NotInPipe,
-          ster.toRuntimeType ()
-        )
+      RT.EApply(
+        id,
+        RT.EFQFnValue(gid (), name),
+        List.map r args,
+        RT.NotInPipe,
+        ster.toRuntimeType ()
+      )
     | EBinOp (id, name, arg1, arg2, ster) ->
-        r (EFnCall(id, name, [ arg1; arg2 ], ster))
+      r (EFnCall(id, name, [ arg1; arg2 ], ster))
     | ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
     | ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
     | EIf (id, cond, thenExpr, elseExpr) ->
-        RT.EIf(id, r cond, r thenExpr, r elseExpr)
+      RT.EIf(id, r cond, r thenExpr, r elseExpr)
     | EPartial (id, _, oldExpr)
     | ERightPartial (id, _, oldExpr)
     | ELeftPartial (id, _, oldExpr) -> RT.EPartial(id, r oldExpr)
     | EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
     | EPipe (pipeID, expr1, expr2, rest) ->
-        // Convert v |> fn1 a |> fn2 |> fn3 b c
-        // into fn3 (fn2 (fn1 v a)) b c
-        // This conversion should correspond to ast.ml:inject_param_and_execute
-        // from the OCaml interpreter
-        let inner = r expr1
+      // Convert v |> fn1 a |> fn2 |> fn3 b c
+      // into fn3 (fn2 (fn1 v a)) b c
+      // This conversion should correspond to ast.ml:inject_param_and_execute
+      // from the OCaml interpreter
+      let inner = r expr1
 
-        List.fold
-          inner
-          (fun prev next ->
-            match next with
-            // TODO: support currying
-            | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
-                RT.EApply(
-                  id,
-                  RT.EFQFnValue(ptID, name),
-                  prev :: List.map r exprs,
-                  RT.InPipe pipeID,
-                  rail.toRuntimeType ()
-                )
-            // TODO: support currying
-            | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
-                RT.EApply(
-                  id,
-                  RT.EFQFnValue(ptID, name),
-                  [ prev; r expr2 ],
-                  RT.InPipe pipeID,
-                  rail.toRuntimeType ()
-                )
-            // If there's a hole, run the computation right through it as if it wasn't there
-            | EBlank _ -> prev
-            // Here, the expression evaluates to an FnValue. This is for eg variables containing values
-            | other ->
-                RT.EApply(
-                  pipeID,
-                  r other,
-                  [ prev ],
-                  RT.InPipe pipeID,
-                  NoRail.toRuntimeType ()
-                ))
-          (expr2 :: rest)
+      List.fold
+        inner
+        (fun prev next ->
+          match next with
+          // TODO: support currying
+          | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
+            RT.EApply(
+              id,
+              RT.EFQFnValue(ptID, name),
+              prev :: List.map r exprs,
+              RT.InPipe pipeID,
+              rail.toRuntimeType ()
+            )
+          // TODO: support currying
+          | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
+            RT.EApply(
+              id,
+              RT.EFQFnValue(ptID, name),
+              [ prev; r expr2 ],
+              RT.InPipe pipeID,
+              rail.toRuntimeType ()
+            )
+          // If there's a hole, run the computation right through it as if it wasn't there
+          | EBlank _ -> prev
+          // Here, the expression evaluates to an FnValue. This is for eg variables containing values
+          | other ->
+            RT.EApply(
+              pipeID,
+              r other,
+              [ prev ],
+              RT.InPipe pipeID,
+              NoRail.toRuntimeType ()
+            ))
+        (expr2 :: rest)
 
     | EConstructor (id, name, exprs) -> RT.EConstructor(id, name, List.map r exprs)
     | EMatch (id, mexpr, pairs) ->
-        RT.EMatch(
-          id,
-          r mexpr,
-          List.map
-            ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
-             << (Tuple2.mapItem2 r))
-            pairs
-        )
+      RT.EMatch(
+        id,
+        r mexpr,
+        List.map
+          ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
+           << (Tuple2.mapItem2 r))
+          pairs
+      )
     | EPipeTarget id -> failwith "No EPipeTargets should remain"
     | EFeatureFlag (id, name, cond, caseA, caseB) ->
-        RT.EFeatureFlag(id, r cond, r caseA, r caseB)
+      RT.EFeatureFlag(id, r cond, r caseA, r caseB)
 
 
 and SendToRail =
@@ -317,7 +316,7 @@ and Pattern =
     match (this, other) with
     | PVariable (_, name), PVariable (_, name') -> name = name'
     | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
-        name = name' && eqList patterns patterns'
+      name = name' && eqList patterns patterns'
     | PString (_, str), PString (_, str') -> str = str'
     | PInteger (_, l), PInteger (_, l') -> l = l'
     | PFloat (_, s, w, f), PFloat (_, s', w', f') -> (s, w, f) = (s', w', f')
@@ -351,7 +350,7 @@ module Shortcuts =
     | EInteger (_, num) -> $"eInt {num}"
     | EString (_, str) -> $"eStr {q str}"
     | EFloat (_, sign, whole, fraction) ->
-        $"eFloat {sign = Positive} {whole} {fraction}"
+      $"eFloat {sign = Positive} {whole} {fraction}"
     | EBool (_, b) -> $"eBool {b}"
     | ENull _ -> $"eNull ()"
     | EVariable (_, var) -> $"eVar {q var}"
@@ -641,15 +640,15 @@ type DType =
     | TUserType (name, version) -> RT.TUserType(name, version)
     | TBytes -> RT.TBytes
     | TResult (okType, errType) ->
-        RT.TResult(okType.toRuntimeType (), errType.toRuntimeType ())
+      RT.TResult(okType.toRuntimeType (), errType.toRuntimeType ())
     | TVariable (name) -> RT.TVariable(name)
     | TFn (paramTypes, returnType) ->
-        RT.TFn(
-          List.map (fun (pt : DType) -> pt.toRuntimeType ()) paramTypes,
-          returnType.toRuntimeType ()
-        )
+      RT.TFn(
+        List.map (fun (pt : DType) -> pt.toRuntimeType ()) paramTypes,
+        returnType.toRuntimeType ()
+      )
     | TRecord (rows) ->
-        RT.TRecord(List.map (fun (f, v : DType) -> f, v.toRuntimeType ()) rows)
+      RT.TRecord(List.map (fun (f, v : DType) -> f, v.toRuntimeType ()) rows)
     | TDbList typ -> RT.TList(typ.toRuntimeType ())
 
   static member parse(str : string) : DType =
@@ -682,27 +681,27 @@ type DType =
     | "result" -> TResult(any, any)
     | "dict" -> TDict any
     | _ ->
-        let parseListTyp (listTyp : string) : DType =
-          match String.toLower listTyp with
-          | "str" -> TDbList TStr
-          | "string" -> TDbList TStr
-          | "int" -> TDbList TInt
-          | "integer" -> TDbList TInt
-          | "float" -> TDbList TFloat
-          | "bool" -> TDbList TBool
-          | "boolean" -> TDbList TBool
-          | "password" -> TDbList TPassword
-          | "uuid" -> TDbList TUuid
-          | "dict" -> TDbList(TDict any)
-          | "date" -> TDbList TDate
-          | "title" -> TDbList TStr
-          | "url" -> TDbList TStr
-          | _ -> failwith $"Unhandled parseListTyp: {listTyp}"
+      let parseListTyp (listTyp : string) : DType =
+        match String.toLower listTyp with
+        | "str" -> TDbList TStr
+        | "string" -> TDbList TStr
+        | "int" -> TDbList TInt
+        | "integer" -> TDbList TInt
+        | "float" -> TDbList TFloat
+        | "bool" -> TDbList TBool
+        | "boolean" -> TDbList TBool
+        | "password" -> TDbList TPassword
+        | "uuid" -> TDbList TUuid
+        | "dict" -> TDbList(TDict any)
+        | "date" -> TDbList TDate
+        | "title" -> TDbList TStr
+        | "url" -> TDbList TStr
+        | _ -> failwith $"Unhandled parseListTyp: {listTyp}"
 
-        if String.startsWith "[" str && String.endsWith "]" str then
-          str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
-        else
-          failwith $"Unhandled DType.parse: {str}"
+      if String.startsWith "[" str && String.endsWith "]" str then
+        str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
+      else
+        failwith $"Unhandled DType.parse: {str}"
 
 
 module Handler =
@@ -761,7 +760,7 @@ module Handler =
       | Worker (name, _ids) -> RT.Handler.Worker(name)
       | OldWorker (modulename, name, _ids) -> RT.Handler.OldWorker(modulename, name)
       | Cron (name, interval, _ids) ->
-          RT.Handler.Cron(name, interval |> Option.map (fun i -> i.toRuntimeType ()))
+        RT.Handler.Cron(name, interval |> Option.map (fun i -> i.toRuntimeType ()))
       | REPL (name, _ids) -> RT.Handler.REPL(name)
 
     member this.name() =
@@ -778,7 +777,7 @@ module Handler =
       | Worker (_name, _ids) -> "_"
       | OldWorker (_modulename, _name, _ids) -> "_"
       | Cron (_name, interval, _ids) ->
-          interval |> Option.map toString |> Option.defaultValue ""
+        interval |> Option.map toString |> Option.defaultValue ""
       | REPL (_name, _ids) -> "_"
 
     member this.module'() =
@@ -858,14 +857,14 @@ module UserType =
     let defToRuntimeType (d : Definition) : RT.UserType.Definition =
       match d with
       | Record fields ->
-          RT.UserType.UTRecord(
-            List.filterMap
-              (fun (rf : RecordField) ->
-                match rf.typ with
-                | Some t -> Some({ name = rf.name; typ = t.toRuntimeType () })
-                | None -> None)
-              fields
-          )
+        RT.UserType.UTRecord(
+          List.filterMap
+            (fun (rf : RecordField) ->
+              match rf.typ with
+              | Some t -> Some({ name = rf.name; typ = t.toRuntimeType () })
+              | None -> None)
+            fields
+        )
 
     { tlid = t.tlid
       name = t.name
@@ -1029,15 +1028,15 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EFnCall (id, fn, args, ster) -> EFnCall(id, fn, List.map r args, ster)
   | EPipe (id, arg0, arg1, args) -> EPipe(id, r arg0, r arg1, List.map r args)
   | EMatch (id, mexpr, pairs) ->
-      EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
+    EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
   | ERecord (id, fields) ->
-      ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+    ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
   | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
   | EPartial (id, str, oldExpr) -> EPartial(id, str, r oldExpr)
   | ELeftPartial (id, str, oldExpr) -> ELeftPartial(id, str, r oldExpr)
   | ERightPartial (id, str, oldExpr) -> ERightPartial(id, str, r oldExpr)
   | EFeatureFlag (id, msg, cond, casea, caseb) ->
-      EFeatureFlag(id, msg, r cond, r casea, r caseb)
+    EFeatureFlag(id, msg, r cond, r casea, r caseb)
 
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
@@ -1060,17 +1059,17 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | ELambda (id, names, expr) -> ELambda(id, names, r expr)
     | EList (id, exprs) -> EList(id, List.map r exprs)
     | EMatch (id, mexpr, pairs) ->
-        EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
+      EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
     | EBinOp (id, op, arg1, arg2, ster) -> EBinOp(id, op, r arg1, r arg2, ster)
     | EFnCall (id, fn, args, ster) -> EFnCall(id, fn, List.map r args, ster)
     | EPipe (id, arg0, arg1, args) -> EPipe(id, r arg0, r arg1, List.map r args)
     | ERecord (id, fields) ->
-        ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+      ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
     | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
     | EPartial (id, str, oldExpr) -> EPartial(id, str, r oldExpr)
     | ELeftPartial (id, str, oldExpr) -> ELeftPartial(id, str, r oldExpr)
     | ERightPartial (id, str, oldExpr) -> ERightPartial(id, str, r oldExpr)
     | EFeatureFlag (id, str, cond, casea, caseb) ->
-        EFeatureFlag(id, str, r cond, r casea, r caseb)
+      EFeatureFlag(id, str, r cond, r casea, r caseb)
 
   f result

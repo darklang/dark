@@ -62,7 +62,8 @@ module Generators =
       try
         let (_ : string) = s.Normalize()
         true
-      with e ->
+      with
+      | e ->
         // debuG
         //   "Failed to normalize :"
         //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
@@ -200,7 +201,8 @@ module OCamlInterop =
            + $"fsharpStringReadable: {bothCanReadFSharpString}\n")
 
         false
-    with e ->
+    with
+    | e ->
       printfn $"Cause exception while fuzzing {e}"
       reraise ()
 
@@ -609,7 +611,7 @@ module ExecutePureFunctions =
         | RT.TResult (t1, t2) -> isSupportedType t1 && isSupportedType t2
         | RT.TFn (ts, rt) -> isSupportedType rt && List.all isSupportedType ts
         | RT.TRecord (pairs) ->
-            pairs |> List.map Tuple2.second |> List.all isSupportedType
+          pairs |> List.map Tuple2.second |> List.all isSupportedType
         | _ -> false) // FSTODO: expand list and support all types
 
       Arb.Default.Derive() |> Arb.filter isSupportedType
@@ -622,10 +624,10 @@ module ExecutePureFunctions =
         gen {
           match typ with
           | RT.TVariable name ->
-              // Generally return a homogenous list. We'll sometimes get a
-              // TVariable which will give us a heterogenous list. It's fine to
-              // do that occasionally
-              return! Arb.generate<RT.DType>
+            // Generally return a homogenous list. We'll sometimes get a
+            // TVariable which will give us a heterogenous list. It's fine to
+            // do that occasionally
+            return! Arb.generate<RT.DType>
           | typ -> return typ
         }
 
@@ -643,110 +645,110 @@ module ExecutePureFunctions =
           gen {
             match typ with
             | RT.TInt ->
-                let! v = Arb.generate<bigint>
-                return RT.EInteger(gid (), v)
+              let! v = Arb.generate<bigint>
+              return RT.EInteger(gid (), v)
             | RT.TStr ->
-                let! v = Generators.string ()
-                return RT.EString(gid (), v)
+              let! v = Generators.string ()
+              return RT.EString(gid (), v)
             | RT.TChar ->
-                // We don't have a construct for characters, so create code to generate the character
-                let! v = G.char ()
-                return call "String" "toChar" 0 [ RT.EString(gid (), v) ]
+              // We don't have a construct for characters, so create code to generate the character
+              let! v = G.char ()
+              return call "String" "toChar" 0 [ RT.EString(gid (), v) ]
             // Don't generate a random value as some random values are invalid
             // (eg constructor outside certain names). Ints should be fine for
             // whatever purpose there is here
             | RT.TVariable _ -> return! genExpr' RT.TInt s
             | RT.TFloat ->
-                let! v = Arb.generate<float>
-                return RT.EFloat(gid (), v)
+              let! v = Arb.generate<float>
+              return RT.EFloat(gid (), v)
             | RT.TBool ->
-                let! v = Arb.generate<bool>
-                return RT.EBool(gid (), v)
+              let! v = Arb.generate<bool>
+              return RT.EBool(gid (), v)
             | RT.TNull -> return RT.ENull(gid ())
             | RT.TList typ ->
-                let! typ = selectNestedType typ
-                let! v = (Gen.listOfLength s (genExpr' typ (s / 2)))
-                return RT.EList(gid (), v)
+              let! typ = selectNestedType typ
+              let! v = (Gen.listOfLength s (genExpr' typ (s / 2)))
+              return RT.EList(gid (), v)
             | RT.TDict typ ->
-                let! typ = selectNestedType typ
+              let! typ = selectNestedType typ
 
-                return!
-                  Gen.map
-                    (fun l -> RT.ERecord(gid (), l))
-                    (Gen.listOfLength
-                      s
-                      (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+              return!
+                Gen.map
+                  (fun l -> RT.ERecord(gid (), l))
+                  (Gen.listOfLength
+                    s
+                    (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
             | RT.TUserType (_name, _version) ->
-                let! typ = Arb.generate<RT.DType>
+              let! typ = Arb.generate<RT.DType>
 
-                return!
-                  Gen.map
-                    (fun l -> RT.ERecord(gid (), l))
-                    (Gen.listOfLength
-                      s
-                      (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+              return!
+                Gen.map
+                  (fun l -> RT.ERecord(gid (), l))
+                  (Gen.listOfLength
+                    s
+                    (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
 
             | RT.TRecord pairs ->
-                let! entries =
-                  List.fold
-                    (Gen.constant [])
-                    (fun (l : Gen<List<string * RT.Expr>>) ((k, t) : string * RT.DType) ->
-                      gen {
-                        let! l = l
-                        let! v = genExpr' t s
-                        return (k, v) :: l
-                      })
-                    pairs
-                  |> Gen.map List.reverse
+              let! entries =
+                List.fold
+                  (Gen.constant [])
+                  (fun (l : Gen<List<string * RT.Expr>>) ((k, t) : string * RT.DType) ->
+                    gen {
+                      let! l = l
+                      let! v = genExpr' t s
+                      return (k, v) :: l
+                    })
+                  pairs
+                |> Gen.map List.reverse
 
-                return RT.ERecord(gid (), entries)
+              return RT.ERecord(gid (), entries)
             | RT.TOption typ ->
-                match! Gen.optionOf (genExpr' typ s) with
-                | Some v -> return RT.EConstructor(gid (), "Just", [ v ])
-                | None -> return RT.EConstructor(gid (), "Nothing", [])
+              match! Gen.optionOf (genExpr' typ s) with
+              | Some v -> return RT.EConstructor(gid (), "Just", [ v ])
+              | None -> return RT.EConstructor(gid (), "Nothing", [])
             | RT.TResult (okType, errType) ->
-                let! v =
-                  Gen.oneof [ Gen.map Ok (genExpr' okType s)
-                              Gen.map Error (genExpr' errType s) ]
+              let! v =
+                Gen.oneof [ Gen.map Ok (genExpr' okType s)
+                            Gen.map Error (genExpr' errType s) ]
 
-                match v with
-                | Ok v -> return RT.EConstructor(gid (), "Ok", [ v ])
-                | Error v -> return RT.EConstructor(gid (), "Error", [ v ])
+              match v with
+              | Ok v -> return RT.EConstructor(gid (), "Ok", [ v ])
+              | Error v -> return RT.EConstructor(gid (), "Error", [ v ])
 
             | RT.TFn (paramTypes, returnType) ->
-                let parameters =
-                  List.mapi
-                    (fun i (v : RT.DType) ->
-                      (id i, $"{v.toOldString().ToLower()}_{i}"))
-                    paramTypes
+              let parameters =
+                List.mapi
+                  (fun i (v : RT.DType) ->
+                    (id i, $"{v.toOldString().ToLower()}_{i}"))
+                  paramTypes
 
-                // FSTODO: occasionally use the wrong return type
-                // FSTODO: can we use the argument to get this type?
-                let! body = genExpr' returnType s
-                return RT.ELambda(gid (), parameters, body)
+              // FSTODO: occasionally use the wrong return type
+              // FSTODO: can we use the argument to get this type?
+              let! body = genExpr' returnType s
+              return RT.ELambda(gid (), parameters, body)
             | RT.TBytes ->
-                // FSTODO: this doesn't really do anything useful
-                let! bytes = Arb.generate<byte []>
-                let v = RT.EString(gid (), base64Encode bytes)
-                return call "String" "toBytes" 0 [ v ]
+              // FSTODO: this doesn't really do anything useful
+              let! bytes = Arb.generate<byte []>
+              let v = RT.EString(gid (), base64Encode bytes)
+              return call "String" "toBytes" 0 [ v ]
             | RT.TDB _ ->
-                let! name = Generators.string ()
-                let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
-                let name = ti.ToTitleCase name
-                return RT.EVariable(gid (), name)
+              let! name = Generators.string ()
+              let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
+              let name = ti.ToTitleCase name
+              return RT.EVariable(gid (), name)
             | RT.TDate ->
-                let! d = Arb.generate<System.DateTime>
-                return call "Date" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
+              let! d = Arb.generate<System.DateTime>
+              return call "Date" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
             | RT.TUuid ->
-                let! u = Arb.generate<System.Guid>
-                return call "String" "toUUID" 0 [ RT.EString(gid (), string u) ]
+              let! u = Arb.generate<System.Guid>
+              return call "String" "toUUID" 0 [ RT.EString(gid (), string u) ]
             | RT.THttpResponse typ ->
-                let! code = genExpr' RT.TInt s
-                let! body = genExpr' typ s
-                return call "Http" "response" 0 [ body; code ]
+              let! code = genExpr' RT.TInt s
+              let! body = genExpr' typ s
+              return call "Http" "response" 0 [ body; code ]
             | RT.TError ->
-                let! msg = genExpr' RT.TStr s
-                return call "Test" "typeError" 0 [ msg ]
+              let! msg = genExpr' RT.TStr s
+              return call "Test" "typeError" 0 [ msg ]
 
             | _ -> return failwith $"Not supported yet: {typ}"
           }
@@ -760,108 +762,108 @@ module ExecutePureFunctions =
           gen {
             match typ with
             | RT.TInt ->
-                let! v = Arb.generate<bigint>
-                return RT.DInt v
+              let! v = Arb.generate<bigint>
+              return RT.DInt v
             | RT.TStr ->
-                let! v = Generators.string ()
-                return RT.DStr v
+              let! v = Generators.string ()
+              return RT.DStr v
             | RT.TVariable _ ->
-                let! newtyp = Arb.generate<RT.DType>
-                return! genDval' newtyp s
+              let! newtyp = Arb.generate<RT.DType>
+              return! genDval' newtyp s
             | RT.TFloat ->
-                let! v = Arb.generate<float>
-                return RT.DFloat v
+              let! v = Arb.generate<float>
+              return RT.DFloat v
             | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
             | RT.TNull -> return RT.DNull
             | RT.TList typ ->
-                let! typ = selectNestedType typ
-                return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
+              let! typ = selectNestedType typ
+              return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
             | RT.TDict typ ->
-                let! typ = selectNestedType typ
+              let! typ = selectNestedType typ
 
-                return!
-                  Gen.map
-                    (fun l -> RT.DObj(Map.ofList l))
-                    (Gen.listOfLength
-                      s
-                      (Gen.zip (Generators.string ()) (genDval' typ (s / 2))))
+              return!
+                Gen.map
+                  (fun l -> RT.DObj(Map.ofList l))
+                  (Gen.listOfLength
+                    s
+                    (Gen.zip (Generators.string ()) (genDval' typ (s / 2))))
             // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
             // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
             | RT.TDB _ -> return! Gen.map RT.DDB (Generators.string ())
             | RT.TDate ->
-                return!
-                  Gen.map
-                    (fun (dt : System.DateTime) ->
-                      // Set milliseconds to zero
-                      let dt = (dt.AddMilliseconds(-(double dt.Millisecond)))
-                      RT.DDate dt)
-                    Arb.generate<System.DateTime>
+              return!
+                Gen.map
+                  (fun (dt : System.DateTime) ->
+                    // Set milliseconds to zero
+                    let dt = (dt.AddMilliseconds(-(double dt.Millisecond)))
+                    RT.DDate dt)
+                  Arb.generate<System.DateTime>
             | RT.TChar ->
-                let! v = G.char ()
-                return RT.DChar v
+              let! v = G.char ()
+              return RT.DChar v
             // | RT.TPassword -> return! Gen.map RT.TPassword Arb.generate<password>
             | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
             | RT.TOption typ ->
-                return! Gen.map RT.DOption (Gen.optionOf (genDval' typ s))
+              return! Gen.map RT.DOption (Gen.optionOf (genDval' typ s))
             | RT.TBytes ->
-                let! v = Arb.generate<byte []>
-                return RT.DBytes v
+              let! v = Arb.generate<byte []>
+              return RT.DBytes v
             | RT.TResult (okType, errType) ->
-                return!
-                  Gen.map
-                    RT.DResult
-                    (Gen.oneof [ Gen.map Ok (genDval' okType s)
-                                 Gen.map Error (genDval' errType s) ])
+              return!
+                Gen.map
+                  RT.DResult
+                  (Gen.oneof [ Gen.map Ok (genDval' okType s)
+                               Gen.map Error (genDval' errType s) ])
             | RT.TFn (paramTypes, returnType) ->
-                let parameters =
-                  List.mapi
-                    (fun i (v : RT.DType) -> (id i, $"{v.toOldString ()}_{i}"))
-                    paramTypes
+              let parameters =
+                List.mapi
+                  (fun i (v : RT.DType) -> (id i, $"{v.toOldString ()}_{i}"))
+                  paramTypes
 
-                let! body = genExpr returnType
+              let! body = genExpr returnType
 
-                return
-                  (RT.DFnVal(
-                    RT.Lambda
-                      { parameters = parameters; symtable = Map.empty; body = body }
-                  ))
+              return
+                (RT.DFnVal(
+                  RT.Lambda
+                    { parameters = parameters; symtable = Map.empty; body = body }
+                ))
             | RT.TError ->
-                let! source = Arb.generate<RT.DvalSource>
-                let! str = Arb.generate<string>
-                return RT.DError(source, str)
+              let! source = Arb.generate<RT.DvalSource>
+              let! str = Arb.generate<string>
+              return RT.DError(source, str)
             | RT.TUserType (_name, _version) ->
-                let! list =
-                  Gen.listOfLength
-                    s
-                    (Gen.zip (Generators.string ()) (genDval' typ (s / 2)))
+              let! list =
+                Gen.listOfLength
+                  s
+                  (Gen.zip (Generators.string ()) (genDval' typ (s / 2)))
 
-                return RT.DObj(Map list)
+              return RT.DObj(Map list)
             | RT.TRecord (pairs) ->
-                let map =
-                  List.fold
-                    (Gen.constant Map.empty)
-                    (fun (m : Gen<RT.DvalMap>) ((k, t) : string * RT.DType) ->
-                      gen {
-                        let! m = m
-                        let! v = genDval' t s
-                        return Map.add k v m
-                      })
-                    pairs
+              let map =
+                List.fold
+                  (Gen.constant Map.empty)
+                  (fun (m : Gen<RT.DvalMap>) ((k, t) : string * RT.DType) ->
+                    gen {
+                      let! m = m
+                      let! v = genDval' t s
+                      return Map.add k v m
+                    })
+                  pairs
 
-                return! Gen.map RT.DObj map
+              return! Gen.map RT.DObj map
             | RT.THttpResponse typ ->
-                let! url = Arb.generate<string>
-                let! code = Arb.generate<bigint>
-                let! headers = Arb.generate<List<string * string>>
-                let! body = genDval' typ s
+              let! url = Arb.generate<string>
+              let! code = Arb.generate<bigint>
+              let! headers = Arb.generate<List<string * string>>
+              let! body = genDval' typ s
 
-                return!
-                  Gen.oneof [ Gen.constant (RT.Response(code, headers, body))
-                              Gen.constant (RT.Redirect url) ]
-                  |> Gen.map RT.DHttpResponse
+              return!
+                Gen.oneof [ Gen.constant (RT.Response(code, headers, body))
+                            Gen.constant (RT.Redirect url) ]
+                |> Gen.map RT.DHttpResponse
             | RT.TErrorRail ->
-                let! typ = Arb.generate<RT.DType>
-                return! Gen.map RT.DErrorRail (genDval' typ s)
+              let! typ = Arb.generate<RT.DType>
+              return! Gen.map RT.DErrorRail (genDval' typ s)
             | _ -> return failwith $"Not supported yet: {typ}"
           }
 
@@ -932,18 +934,18 @@ module ExecutePureFunctions =
                     match toString name, i with
                     | "String::toInt_v1", 0
                     | "String::toInt", 0 ->
-                        let! v = Arb.generate<bigint>
-                        return v |> toString |> RT.DStr
+                      let! v = Arb.generate<bigint>
+                      return v |> toString |> RT.DStr
                     | "String::toFloat", 0 ->
-                        let! v = Arb.generate<float>
-                        return v |> toString |> RT.DStr
+                      let! v = Arb.generate<float>
+                      return v |> toString |> RT.DStr
                     | "String::toUUID", 0 ->
-                        let! v = Arb.generate<System.Guid>
-                        return v |> toString |> RT.DStr
+                      let! v = Arb.generate<System.Guid>
+                      return v |> toString |> RT.DStr
                     | "String::padStart", 1
                     | "String::padEnd", 1 ->
-                        let! v = Generators.char ()
-                        return RT.DStr v
+                      let! v = Generators.char ()
+                      return RT.DStr v
                     | _ -> return! genDval signature.[i].typ
                   }
                 // Still throw in random data occasionally test errors, edge-cases, etc.
@@ -966,34 +968,34 @@ module ExecutePureFunctions =
                        // Specific OCaml exception (use `when`s here)
                        | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
                        | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" ->
-                           false
+                         false
                        | 1, RT.DInt i, _, "Int", "power", 0
                        | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false
                        // Int Overflow
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
-                           i <> 1I
-                           && i <> (-1I)
-                           && isValidOCamlInt i
-                           && i <= 2000I
-                           && isValidOCamlInt (e ** (int i))
+                         i <> 1I
+                         && i <> (-1I)
+                         && isValidOCamlInt i
+                         && i <= 2000I
+                         && isValidOCamlInt (e ** (int i))
                        | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
-                           isValidOCamlInt (e * i)
+                         isValidOCamlInt (e * i)
                        | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
-                           isValidOCamlInt (e + i)
+                         isValidOCamlInt (e + i)
                        | 1, RT.DInt i, [ RT.DInt e ], "", "-", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
-                           isValidOCamlInt (e - i)
+                         isValidOCamlInt (e - i)
                        | 0, RT.DList l, _, "Int", "sum", 0 ->
-                           l
-                           |> List.map
-                                (function
-                                | RT.DInt i -> i
-                                | _ -> 0I)
-                           |> List.fold 0I (+)
-                           |> isValidOCamlInt
+                         l
+                         |> List.map
+                              (function
+                              | RT.DInt i -> i
+                              | _ -> 0I)
+                         |> List.fold 0I (+)
+                         |> isValidOCamlInt
                        // Int overflow converting from Floats
                        | 0, RT.DFloat f, _, "Float", "floor", 0
                        | 0, RT.DFloat f, _, "Float", "roundDown", 0
@@ -1002,7 +1004,7 @@ module ExecutePureFunctions =
                        | 0, RT.DFloat f, _, "Float", "ceiling", 0
                        | 0, RT.DFloat f, _, "Float", "roundUp", 0
                        | 0, RT.DFloat f, _, "Float", "truncate", 0 ->
-                           f |> bigint |> isValidOCamlInt
+                         f |> bigint |> isValidOCamlInt
                        // gmtime out of range
                        | 1, RT.DInt i, _, "Date", "sub", 0
                        | 1, RT.DInt i, _, "Date", "subtract", 0
@@ -1020,28 +1022,28 @@ module ExecutePureFunctions =
               match List.length signature with
               | 0 -> return (name, [])
               | 1 ->
-                  let! arg0 = arg 0 []
-                  return (name, [ arg0 ])
+                let! arg0 = arg 0 []
+                return (name, [ arg0 ])
               | 2 ->
-                  let! arg0 = arg 0 []
-                  let! arg1 = arg 1 [ arg0 ]
-                  return (name, [ arg0; arg1 ])
+                let! arg0 = arg 0 []
+                let! arg1 = arg 1 [ arg0 ]
+                return (name, [ arg0; arg1 ])
               | 3 ->
-                  let! arg0 = arg 0 []
-                  let! arg1 = arg 1 [ arg0 ]
-                  let! arg2 = arg 2 [ arg0; arg1 ]
-                  return (name, [ arg0; arg1; arg2 ])
+                let! arg0 = arg 0 []
+                let! arg1 = arg 1 [ arg0 ]
+                let! arg2 = arg 2 [ arg0; arg1 ]
+                return (name, [ arg0; arg1; arg2 ])
               | 4 ->
-                  let! arg0 = arg 0 []
-                  let! arg1 = arg 1 [ arg0 ]
-                  let! arg2 = arg 2 [ arg0; arg1 ]
-                  let! arg3 = arg 3 [ arg0; arg1; arg2 ]
-                  return (name, [ arg0; arg1; arg2; arg3 ])
+                let! arg0 = arg 0 []
+                let! arg1 = arg 1 [ arg0 ]
+                let! arg2 = arg 2 [ arg0; arg1 ]
+                let! arg3 = arg 3 [ arg0; arg1; arg2 ]
+                return (name, [ arg0; arg1; arg2; arg3 ])
               | _ ->
-                  failwith
-                    "No support for generating functions with over 4 parameters yet"
+                failwith
+                  "No support for generating functions with over 4 parameters yet"
 
-                  return (name, [])
+                return (name, [])
             } }
 
 
@@ -1084,7 +1086,8 @@ module ExecutePureFunctions =
                 elem.GetString()
               else
                 expectedMsg
-            with _ -> expectedMsg
+            with
+            | _ -> expectedMsg
 
           if actualMsg = expectedMsg then
             true
@@ -1095,53 +1098,53 @@ module ExecutePureFunctions =
             List.any
               (function
               | [ namePat; actualPat; expectedPat ] ->
-                  let regexMatch str regex =
-                    Regex.Match(str, regex, RegexOptions.Singleline)
+                let regexMatch str regex =
+                  Regex.Match(str, regex, RegexOptions.Singleline)
 
-                  let nameMatches = (regexMatch (string fn) namePat).Success
-                  let actualMatch = regexMatch actualMsg actualPat
-                  let expectedMatch = regexMatch expectedMsg expectedPat
+                let nameMatches = (regexMatch (string fn) namePat).Success
+                let actualMatch = regexMatch actualMsg actualPat
+                let expectedMatch = regexMatch expectedMsg expectedPat
 
-                  // Not only should we check that the error message matches,
-                  // but also that the captures match in both.
-                  let sameGroups =
-                    actualMatch.Groups.Count = expectedMatch.Groups.Count
+                // Not only should we check that the error message matches,
+                // but also that the captures match in both.
+                let sameGroups =
+                  actualMatch.Groups.Count = expectedMatch.Groups.Count
 
-                  let actualGroupMatches = Dictionary.empty ()
-                  let expectedGroupMatches = Dictionary.empty ()
+                let actualGroupMatches = Dictionary.empty ()
+                let expectedGroupMatches = Dictionary.empty ()
 
-                  if sameGroups && actualMatch.Groups.Count > 1 then
-                    // start at 1, because 0 is the whole match
-                    for i = 1 to actualMatch.Groups.Count - 1 do
-                      let group = actualMatch.Groups.[i]
-                      actualGroupMatches.Add(group.Name, group.Value)
-                      let group = expectedMatch.Groups.[i]
-                      expectedGroupMatches.Add(group.Name, group.Value)
+                if sameGroups && actualMatch.Groups.Count > 1 then
+                  // start at 1, because 0 is the whole match
+                  for i = 1 to actualMatch.Groups.Count - 1 do
+                    let group = actualMatch.Groups.[i]
+                    actualGroupMatches.Add(group.Name, group.Value)
+                    let group = expectedMatch.Groups.[i]
+                    expectedGroupMatches.Add(group.Name, group.Value)
 
-                  let dToL d = Dictionary.toList d |> List.sortBy Tuple2.first
+                let dToL d = Dictionary.toList d |> List.sortBy Tuple2.first
 
-                  let groupsMatch =
-                    (dToL actualGroupMatches) = (dToL expectedGroupMatches)
+                let groupsMatch =
+                  (dToL actualGroupMatches) = (dToL expectedGroupMatches)
 
-                  if nameMatches && debug then
-                    printfn "\n\n\n======================"
-                    printfn (if nameMatches then "✅" else "❌")
-                    printfn (if actualMatch.Success then "✅" else "❌")
-                    printfn (if expectedMatch.Success then "✅" else "❌")
-                    printfn (if groupsMatch then "✅" else "❌")
-                    printfn $"{string fn}"
-                    printfn $"{actualMsg}"
-                    printfn $"{expectedMsg}\n\n"
-                    printfn $"{namePat}"
-                    printfn $"{actualPat}"
-                    printfn $"{expectedPat}"
-                    printfn $"actualGroupMatches: {dToL actualGroupMatches}"
-                    printfn $"expectedGroupMatches: {dToL expectedGroupMatches}"
+                if nameMatches && debug then
+                  printfn "\n\n\n======================"
+                  printfn (if nameMatches then "✅" else "❌")
+                  printfn (if actualMatch.Success then "✅" else "❌")
+                  printfn (if expectedMatch.Success then "✅" else "❌")
+                  printfn (if groupsMatch then "✅" else "❌")
+                  printfn $"{string fn}"
+                  printfn $"{actualMsg}"
+                  printfn $"{expectedMsg}\n\n"
+                  printfn $"{namePat}"
+                  printfn $"{actualPat}"
+                  printfn $"{expectedPat}"
+                  printfn $"actualGroupMatches: {dToL actualGroupMatches}"
+                  printfn $"expectedGroupMatches: {dToL expectedGroupMatches}"
 
-                  nameMatches
-                  && actualMatch.Success
-                  && expectedMatch.Success
-                  && groupsMatch
+                nameMatches
+                && actualMatch.Success
+                && expectedMatch.Success
+                && groupsMatch
               | _ -> failwith "Invalid json in tests/allowedFuzzerErrors.json")
               allowedErrors.knownErrors
 
@@ -1163,36 +1166,34 @@ module ExecutePureFunctions =
         else
           match actual, expected with
           | RT.DError (_, aMsg), RT.DError (_, eMsg) ->
-              let allowed = errorAllowed false aMsg eMsg
-              // For easier debugging. Check once then step through
-              let allowed2 =
-                if not allowed then errorAllowed true aMsg eMsg else allowed
+            let allowed = errorAllowed false aMsg eMsg
+            // For easier debugging. Check once then step through
+            let allowed2 =
+              if not allowed then errorAllowed true aMsg eMsg else allowed
 
-              if not allowed2 then
-                debugFn ()
-
-                printfn
-                  $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
-
-              return allowed
-          | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
-              let allowed = errorAllowed false aMsg eMsg
-              // For easier debugging. Check once then step through
-              let allowed2 =
-                if not allowed then errorAllowed true aMsg eMsg else allowed
-
-              if not allowed2 then
-                debugFn ()
-
-                printfn
-                  $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
-
-              return allowed
-          | _ ->
+            if not allowed2 then
               debugFn ()
-              debuG "ocaml (expected)" (debugDval expected)
-              debuG "fsharp (actual) " (debugDval actual)
-              return false
+
+              printfn $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+
+            return allowed
+          | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
+            let allowed = errorAllowed false aMsg eMsg
+            // For easier debugging. Check once then step through
+            let allowed2 =
+              if not allowed then errorAllowed true aMsg eMsg else allowed
+
+            if not allowed2 then
+              debugFn ()
+
+              printfn $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+
+            return allowed
+          | _ ->
+            debugFn ()
+            debuG "ocaml (expected)" (debugDval expected)
+            debuG "fsharp (actual) " (debugDval actual)
+            return false
       }
 
     Task.WaitAll [| t :> Task |]

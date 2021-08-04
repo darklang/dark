@@ -36,11 +36,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj value; DStr key; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! _id = UserDB.set state true db key value
-              return DObj value
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! _id = UserDB.set state true db key value
+            return DObj value
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -53,12 +53,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj value; DDB dbname ] ->
-            taskv {
-              let key = System.Guid.NewGuid() |> toString
-              let db = state.program.dbs.[dbname]
-              let! _id = UserDB.set state true db key value
-              return DStr(key)
-            }
+          taskv {
+            let key = System.Guid.NewGuid() |> toString
+            let db = state.program.dbs.[dbname]
+            let! _id = UserDB.set state true db key value
+            return DStr(key)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -70,11 +70,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! result = UserDB.getOption state db key
-              return Dval.option result
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! result = UserDB.getOption state db key
+            return Dval.option result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -86,11 +86,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! result = UserDB.getOption state db key
-              return Dval.option result
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! result = UserDB.getOption state db key
+            return Dval.option result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -103,20 +103,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
+          taskv {
+            let db = state.program.dbs.[dbname]
 
-              let skeys =
-                List.map
-                  (function
-                  | DStr s -> s
-                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                  keys
+            let skeys =
+              List.map
+                (function
+                | DStr s -> s
+                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                keys
 
-              let! result = UserDB.getMany state db skeys
+            let! result = UserDB.getMany state db skeys
 
-              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-            }
+            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -129,19 +129,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
+          taskv {
+            let db = state.program.dbs.[dbname]
 
-              let skeys =
-                List.map
-                  (function
-                  | DStr s -> s
-                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                  keys
+            let skeys =
+              List.map
+                (function
+                | DStr s -> s
+                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                keys
 
-              let! result = UserDB.getMany state db skeys
-              return result |> List.map snd |> DList
-            }
+            let! result = UserDB.getMany state db skeys
+            return result |> List.map snd |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -154,23 +154,23 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
+          taskv {
+            let db = state.program.dbs.[dbname]
 
-              let skeys =
-                List.map
-                  (function
-                  | DStr s -> s
-                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                  keys
+            let skeys =
+              List.map
+                (function
+                | DStr s -> s
+                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                keys
 
-              let! items = UserDB.getMany state db skeys
+            let! items = UserDB.getMany state db skeys
 
-              if List.length items = List.length skeys then
-                return items |> List.map snd |> DList |> Some |> DOption
-              else
-                return DOption None
-            }
+            if List.length items = List.length skeys then
+              return items |> List.map snd |> DList |> Some |> DOption
+            else
+              return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -183,19 +183,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
+          taskv {
+            let db = state.program.dbs.[dbname]
 
-              let skeys =
-                List.map
-                  (function
-                  | DStr s -> s
-                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                  keys
+            let skeys =
+              List.map
+                (function
+                | DStr s -> s
+                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                keys
 
-              let! result = UserDB.getMany state db skeys
-              return result |> List.map snd |> DList
-            }
+            let! result = UserDB.getMany state db skeys
+            return result |> List.map snd |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -208,20 +208,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
+          taskv {
+            let db = state.program.dbs.[dbname]
 
-              let skeys =
-                List.map
-                  (function
-                  | DStr s -> s
-                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                  keys
+            let skeys =
+              List.map
+                (function
+                | DStr s -> s
+                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                keys
 
-              let! result = UserDB.getManyWithKeys state db skeys
+            let! result = UserDB.getManyWithKeys state db skeys
 
-              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-            }
+            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -234,19 +234,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
+          taskv {
+            let db = state.program.dbs.[dbname]
 
-              let skeys =
-                List.map
-                  (function
-                  | DStr s -> s
-                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                  keys
+            let skeys =
+              List.map
+                (function
+                | DStr s -> s
+                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                keys
 
-              let! result = UserDB.getManyWithKeys state db skeys
-              return result |> Map.ofList |> DObj
-            }
+            let! result = UserDB.getManyWithKeys state db skeys
+            return result |> Map.ofList |> DObj
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -258,11 +258,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! _result = UserDB.delete state db key
-              return DNull
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! _result = UserDB.delete state db key
+            return DNull
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -274,11 +274,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! _result = UserDB.deleteAll state db
-              return DNull
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! _result = UserDB.deleteAll state db
+            return DNull
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -286,17 +286,18 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "query" 1
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA // heterogenous list
-      description = "Fetch all the values from `table` which have the same fields and values that `spec` has,
+      description =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has,
          returning a [[key, value]] list of lists"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
 
-              return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-            }
+            return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -310,11 +311,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
-              return results |> List.map snd |> Dval.list
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
+            return results |> List.map snd |> Dval.list
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -327,11 +328,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
-              return results |> List.map snd |> Dval.list
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
+            return results |> List.map snd |> Dval.list
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -344,11 +345,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
-              return results |> List.map (fun (k, v) -> v) |> Dval.list
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
+            return results |> List.map (fun (k, v) -> v) |> Dval.list
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -356,18 +357,19 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "queryWithKey" 1
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA
-      description = "Fetch all the values from `table` which have the same fields and values that `spec` has
+      description =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has
           , returning a [[key, value]] list of lists"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
+          taskv {
+            let db = state.program.dbs.[dbname]
 
-              let! result = UserDB.queryExactFields state db fields
+            let! result = UserDB.queryExactFields state db fields
 
-              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-            }
+            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -375,16 +377,17 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "queryWithKey" 2
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = ocamlTObj
-      description = "Fetch all the values from `table` which have the same fields and values that `spec` has
+      description =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has
           , returning {key : value} as an object"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! result = UserDB.queryExactFields state db fields
-              return result |> Map.ofList |> DObj
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! result = UserDB.queryExactFields state db fields
+            return result |> Map.ofList |> DObj
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -392,16 +395,17 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "queryExactFieldsWithKey" 0
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = ocamlTObj
-      description = "Fetch all the values from `table` which have the same fields and values that `spec` has
+      description =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! result = UserDB.queryExactFields state db fields
-              return result |> Map.ofList |> DObj
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! result = UserDB.queryExactFields state db fields
+            return result |> Map.ofList |> DObj
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -414,14 +418,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
 
-              match results with
-              | [ (_, v) ] -> return DOption(Some v)
-              | _ -> return DOption None
-            }
+            match results with
+            | [ (_, v) ] -> return DOption(Some v)
+            | _ -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -434,14 +438,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
 
-              match results with
-              | [ (_, v) ] -> return DOption(Some v)
-              | _ -> return DOption None
-            }
+            match results with
+            | [ (_, v) ] -> return DOption(Some v)
+            | _ -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -454,14 +458,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
 
-              match results with
-              | [ (_, v) ] -> return (DOption(Some v))
-              | _ -> return (DOption None)
-            }
+            match results with
+            | [ (_, v) ] -> return (DOption(Some v))
+            | _ -> return (DOption None)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -474,14 +478,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
 
-              match results with
-              | [ (k, v) ] -> return (DOption(Some(DList [ DStr k; v ])))
-              | _ -> return (DOption None)
-            }
+            match results with
+            | [ (k, v) ] -> return (DOption(Some(DList [ DStr k; v ])))
+            | _ -> return (DOption None)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -494,14 +498,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
 
-              match results with
-              | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
-              | _ -> return DOption None
-            }
+            match results with
+            | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
+            | _ -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -514,14 +518,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryExactFields state db fields
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryExactFields state db fields
 
-              match results with
-              | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
-              | _ -> return DOption None
-            }
+            match results with
+            | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
+            | _ -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -529,17 +533,18 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "getAll" 1
       parameters = [ tableParam ]
       returnType = TList varA
-      description = "Fetch all the values in `table`. Returns a list of lists such that the inner
+      description =
+        "Fetch all the values in `table`. Returns a list of lists such that the inner
           lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.getAll state db
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.getAll state db
 
-              return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-            }
+            return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -551,11 +556,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.getAll state db
-              return results |> List.map snd |> DList
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.getAll state db
+            return results |> List.map snd |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -567,11 +572,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.getAll state db
-              return results |> List.map snd |> Dval.list
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.getAll state db
+            return results |> List.map snd |> Dval.list
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -579,17 +584,18 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "getAllWithKeys" 1
       parameters = [ tableParam ]
       returnType = TList varA
-      description = "Fetch all the values in `table`. Returns a list of lists such that the inner
+      description =
+        "Fetch all the values in `table`. Returns a list of lists such that the inner
                      lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! result = UserDB.getAll state db
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! result = UserDB.getAll state db
 
-              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-            }
+            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -602,11 +608,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! result = UserDB.getAll state db
-              return result |> Map.ofList |> DObj
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! result = UserDB.getAll state db
+            return result |> Map.ofList |> DObj
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -618,11 +624,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! (count : int) = UserDB.count state db
-              return count |> bigint |> DInt
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! (count : int) = UserDB.count state db
+            return count |> bigint |> DInt
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -635,13 +641,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            let db = state.program.dbs.[dbname]
+          let db = state.program.dbs.[dbname]
 
-            db.cols
-            |> List.filter (fun (k, v) -> k <> "")
-            |> List.map (fun (k, v) -> DStr k)
-            |> DList
-            |> Value
+          db.cols
+          |> List.filter (fun (k, v) -> k <> "")
+          |> List.map (fun (k, v) -> DStr k)
+          |> DList
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -654,13 +660,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            let db = state.program.dbs.[dbname]
+          let db = state.program.dbs.[dbname]
 
-            db.cols
-            |> List.filter (fun (k, v) -> k <> "")
-            |> List.map (fun (k, v) -> (k, (v.toOldString () |> DStr)))
-            |> Dval.obj
-            |> Value
+          db.cols
+          |> List.filter (fun (k, v) -> k <> "")
+          |> List.map (fun (k, v) -> (k, (v.toOldString () |> DStr)))
+          |> Dval.obj
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -684,11 +690,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.getAllKeys state db
-              return results |> List.map (fun k -> DStr k) |> DList
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.getAllKeys state db
+            return results |> List.map (fun k -> DStr k) |> DList
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -701,11 +707,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.queryValues state db b
-              return results |> Dval.list
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.queryValues state db b
+            return results |> Dval.list
+          }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
@@ -718,11 +724,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.query state db b
-              return results |> Map.ofList |> DObj
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.query state db b
+            return results |> Map.ofList |> DObj
+          }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
@@ -735,14 +741,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.query state db b
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.query state db b
 
-              match results with
-              | [ (_, v) ] -> return Dval.optionJust v
-              | _ -> return DOption None
-            }
+            match results with
+            | [ (_, v) ] -> return Dval.optionJust v
+            | _ -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -755,14 +761,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.query state db b
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.query state db b
 
-              match results with
-              | [ (_, v) ] -> return Dval.optionJust v
-              | _ -> return DOption None
-            }
+            match results with
+            | [ (_, v) ] -> return Dval.optionJust v
+            | _ -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
@@ -775,14 +781,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! results = UserDB.query state db b
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! results = UserDB.query state db b
 
-              match results with
-              | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
-              | _ -> return DOption None
-            }
+            match results with
+            | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
+            | _ -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -795,11 +801,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-            taskv {
-              let db = state.program.dbs.[dbname]
-              let! result = UserDB.queryCount state db b
-              return Dval.int result
-            }
+          taskv {
+            let db = state.program.dbs.[dbname]
+            let! result = UserDB.queryCount state db b
+            return Dval.int result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

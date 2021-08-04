@@ -17,9 +17,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBytes bytes ] ->
-            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-            |> DStr
-            |> Value
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+          |> DStr
+          |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -33,19 +33,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBytes bytes ] ->
-            let hexUppercaseLookup = "0123456789ABCDEF"
-            let len = bytes.Length
-            let buf = new StringBuilder(len * 2)
+          let hexUppercaseLookup = "0123456789ABCDEF"
+          let len = bytes.Length
+          let buf = new StringBuilder(len * 2)
 
-            for i = 0 to len - 1 do
-              let byte = bytes.[i] |> int
+          for i = 0 to len - 1 do
+            let byte = bytes.[i] |> int
 
-              buf
-                .Append(hexUppercaseLookup.[((byte >>> 4) &&& 0xF)])
-                .Append(hexUppercaseLookup.[(byte &&& 0xF)])
-              |> ignore
+            buf
+              .Append(hexUppercaseLookup.[((byte >>> 4) &&& 0xF)])
+              .Append(hexUppercaseLookup.[(byte &&& 0xF)])
+            |> ignore
 
-            buf.ToString() |> DStr |> Value
+          buf.ToString() |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -11,7 +11,8 @@ let to_code c = toCode c
 let fromCode (i : int) =
   try
     Some(System.Convert.ToChar i)
-  with _ -> None
+  with
+  | _ -> None
 
 let from_code i = fromCode i
 
@@ -22,7 +23,8 @@ let to_string c = toString c
 let fromString (str : string) =
   try
     Some(System.Convert.ToChar str)
-  with _ -> None
+  with
+  | _ -> None
 
 let from_string s = fromString s
 

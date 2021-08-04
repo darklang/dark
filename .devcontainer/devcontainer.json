@@ -13,12 +13,13 @@
 
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
-    "ionide.ionide-fsharp@5.5.5",
+    "ionide.ionide-fsharp@5.6.0",
     "shuumatsu.vscode-ocamlformat",
     "esbenp.prettier-vscode",
     "ms-python.python",
     "ms-azuretools.vscode-docker",
-    "editorconfig.editorconfig"
+    "editorconfig.editorconfig",
+    "chenglou92.rescript-vscode@1.1.3"
   ],
 
   /////////////////////////////////////////////////

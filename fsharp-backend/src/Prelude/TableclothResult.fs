@@ -105,7 +105,8 @@ let flatten r =
 let attempt f =
   try
     Ok(f ())
-  with e -> Error e
+  with
+  | e -> Error e
 
 
 let tap f t =

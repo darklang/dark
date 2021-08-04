@@ -64,29 +64,27 @@ let executionCheck (cron : CronScheduleData) : Task<ExecutionCheck> =
 
     match! lastRanAt cron with
     | None ->
-        // we should always run if we've never run before
-        return { shouldExecute = true; scheduledRunAt = Some now; interval = None }
+      // we should always run if we've never run before
+      return { shouldExecute = true; scheduledRunAt = Some now; interval = None }
     | Some lrt ->
-        // Example:
-        //   last_ran_at = 16:00
-        //   interval: 1 hour
-        //   now: 16:30
-        //   therefore:
-        //     shouldRunAfter is 17:01
-        //     and we should run once now >= shouldRunAfter
-        let interval = convertInterval cron.interval
-        let shouldRunAfter = lrt + interval
+      // Example:
+      //   last_ran_at = 16:00
+      //   interval: 1 hour
+      //   now: 16:30
+      //   therefore:
+      //     shouldRunAfter is 17:01
+      //     and we should run once now >= shouldRunAfter
+      let interval = convertInterval cron.interval
+      let shouldRunAfter = lrt + interval
 
-        if now >= shouldRunAfter then
-          return
-            { shouldExecute = true
-              scheduledRunAt = Some shouldRunAfter
-              interval = Some interval }
-        else
-          return
-            { shouldExecute = false
-              scheduledRunAt = None
-              interval = Some interval }
+      if now >= shouldRunAfter then
+        return
+          { shouldExecute = true
+            scheduledRunAt = Some shouldRunAfter
+            interval = Some interval }
+      else
+        return
+          { shouldExecute = false; scheduledRunAt = None; interval = Some interval }
   }
 
 

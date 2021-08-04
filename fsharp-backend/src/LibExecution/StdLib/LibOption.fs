@@ -28,20 +28,21 @@ let fns : List<BuiltInFn> =
   [ { name = fn "Option" "map" 0
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
-      description = "If `option` is `Just value`, returns `Just (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Just`).
+      description =
+        "If `option` is `Just value`, returns `Just (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Just`).
         If `result` is `Nothing`, returns `Nothing`."
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
-            taskv {
-              match o with
-              | Some dv ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+          taskv {
+            match o with
+            | Some dv ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
-                  return DOption(Some result)
-              | None _ -> return (DOption None)
-            }
+              return DOption(Some result)
+            | None _ -> return (DOption None)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -54,15 +55,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
-            taskv {
-              match o with
-              | Some dv ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+          taskv {
+            match o with
+            | Some dv ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
-                  return Dval.optionJust result
-              | None -> return DOption None
-            }
+              return Dval.optionJust result
+            | None -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -78,22 +79,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DOption o1; DOption o2; DFnVal b ] ->
-            taskv {
-              match (o1, o2) with
-              | None, _ -> return DOption None
-              | _, None -> return DOption None
-              | Some dv1, Some dv2 ->
-                  let! result =
-                    Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ dv1; dv2 ]
-                      NotInPipe
-                      NoRail
+          taskv {
+            match (o1, o2) with
+            | None, _ -> return DOption None
+            | _, None -> return DOption None
+            | Some dv1, Some dv2 ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail
 
-                  return Dval.optionJust result
-            }
+              return Dval.optionJust result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -108,21 +103,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
-            taskv {
-              match o with
-              | Some dv ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+          taskv {
+            match o with
+            | Some dv ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
-                  match result with
-                  | DOption result -> return DOption result
-                  | other ->
-                      return
-                        Errors.throw (
-                          Errors.expectedLambdaType "f" (TOption varB) other
-                        )
-              | None -> return DOption None
-            }
+              match result with
+              | DOption result -> return DOption result
+              | other ->
+                return
+                  Errors.throw (Errors.expectedLambdaType "f" (TOption varB) other)
+            | None -> return DOption None
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -135,9 +128,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DOption o; default' ] ->
-            (match o with
-             | Some dv -> Value dv
-             | None -> Value default')
+          (match o with
+           | Some dv -> Value dv
+           | None -> Value default')
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

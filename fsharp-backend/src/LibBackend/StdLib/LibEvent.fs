@@ -33,15 +33,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ data; DStr space; DStr name ] ->
-            Task(
-              task {
-                // See client/src/Entry.ml for the "_"
-                let canvasID = state.program.canvasID
-                let accountID = state.program.accountID
-                do! EventQueue.enqueue canvasID accountID space name "_" data
-                return data
-              }
-            )
+          Task(
+            task {
+              // See client/src/Entry.ml for the "_"
+              let canvasID = state.program.canvasID
+              let accountID = state.program.accountID
+              do! EventQueue.enqueue canvasID accountID space name "_" data
+              return data
+            }
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -53,15 +53,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ data; DStr name ] ->
-            taskv {
-              // See client/src/Entry.ml for the "_"
-              let canvasID = state.program.canvasID
-              let accountID = state.program.accountID
+          taskv {
+            // See client/src/Entry.ml for the "_"
+            let canvasID = state.program.canvasID
+            let accountID = state.program.accountID
 
-              do! EventQueue.enqueue canvasID accountID "WORKER" name "_" data
+            do! EventQueue.enqueue canvasID accountID "WORKER" name "_" data
 
-              return data
-            }
+            return data
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

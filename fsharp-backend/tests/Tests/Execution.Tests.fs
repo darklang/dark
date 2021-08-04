@@ -280,9 +280,9 @@ let testMatchEvaluation : Test =
                if not (Set.contains id expectedIDs) then
                  match Dictionary.tryGetValue id results with
                  | Some (AT.ExecutedResult dv) ->
-                     Expect.isTrue
-                       false
-                       $"{msg}: found unexpected execution result ({id}: {dv})"
+                   Expect.isTrue
+                     false
+                     $"{msg}: found unexpected execution result ({id}: {dv})"
                  | None -> Expect.isTrue false "missing value"
                  | Some (AT.NonExecutedResult _) -> ())
       }

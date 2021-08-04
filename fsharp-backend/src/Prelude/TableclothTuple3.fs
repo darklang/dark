@@ -69,7 +69,7 @@ let compare
   =
   match compareFirst a a' with
   | 0 ->
-      (match compareSecond b b' with
-       | 0 -> compareThird c c'
-       | result -> result)
+    (match compareSecond b b' with
+     | 0 -> compareThird c c'
+     | result -> result)
   | result -> result

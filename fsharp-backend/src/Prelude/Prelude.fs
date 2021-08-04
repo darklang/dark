@@ -94,19 +94,22 @@ let parseInt64 (str : string) : int64 =
   try
     assertRe "int64" @"-?\d+" str
     System.Convert.ToInt64 str
-  with e -> failwith $"parseInt64 failed: {str} - {e}"
+  with
+  | e -> failwith $"parseInt64 failed: {str} - {e}"
 
 let parseUInt64 (str : string) : uint64 =
   try
     assertRe "uint64" @"-?\d+" str
     System.Convert.ToUInt64 str
-  with e -> failwith $"parseUInt64 failed: {str} - {e}"
+  with
+  | e -> failwith $"parseUInt64 failed: {str} - {e}"
 
 let parseBigint (str : string) : bigint =
   try
     assertRe "bigint" @"-?\d+" str
     System.Numerics.BigInteger.Parse str
-  with e -> failwith $"parseBigint failed: {str} - {e}"
+  with
+  | e -> failwith $"parseBigint failed: {str} - {e}"
 
 let parseFloat (whole : string) (fraction : string) : float =
   try
@@ -114,7 +117,8 @@ let parseFloat (whole : string) (fraction : string) : float =
     assertRe "whole" @"-?\d+" whole
     assertRe "fraction" @"\d+" fraction
     System.Double.Parse($"{whole}.{fraction}")
-  with e -> failwith $"parseFloat failed: {whole}.{fraction} - {e}"
+  with
+  | e -> failwith $"parseFloat failed: {whole}.{fraction} - {e}"
 
 // Given a float, read it correctly into two ints: whole number and fraction
 let readFloat (f : float) : (bigint * bigint) =
@@ -131,7 +135,8 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
     assert_ "makefloat" (whole >= 0I)
     let sign = if positiveSign then "" else "-"
     $"{sign}{whole}.{fraction}" |> System.Double.Parse
-  with e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
+  with
+  | e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
 
 let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
 
@@ -167,13 +172,15 @@ let toString (v : 'a) : string = v.ToString()
 let truncateToInt32 (v : bigint) : int32 =
   try
     int32 v
-  with :? System.OverflowException ->
+  with
+  | :? System.OverflowException ->
     if v > 0I then System.Int32.MaxValue else System.Int32.MinValue
 
 let truncateToInt64 (v : bigint) : int64 =
   try
     int64 v
-  with :? System.OverflowException ->
+  with
+  | :? System.OverflowException ->
     if v > 0I then System.Int64.MaxValue else System.Int64.MinValue
 
 
@@ -215,7 +222,8 @@ let gid () : uint64 =
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
-  with e -> failwith $"gid failed: {e}"
+  with
+  | e -> failwith $"gid failed: {e}"
 
 let randomString (length : int) : string =
   let result =
@@ -323,13 +331,13 @@ type TaskOrValueBuilder() =
     match tv with
     | Value v -> f v
     | Task t ->
-        Task(
-          task {
-            let! v = t
-            let result = f v
-            return! TaskOrValue.toTask result
-          }
-        )
+      Task(
+        task {
+          let! v = t
+          let result = f v
+          return! TaskOrValue.toTask result
+        }
+      )
 
   member x.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
     Task(
@@ -359,15 +367,17 @@ type TaskOrValueBuilder() =
       match tv () with
       | Value v -> Value v
       | Task t ->
-          Task(
-            task {
-              try
-                let! x = t
-                return x
-              with e -> return! TaskOrValue.toTask (f e)
-            }
-          )
-    with e -> f e
+        Task(
+          task {
+            try
+              let! x = t
+              return x
+            with
+            | e -> return! TaskOrValue.toTask (f e)
+          }
+        )
+    with
+    | e -> f e
 
   member x.Delay(f : unit -> TaskOrValue<'a>) : Delayed<'a> = f
 
@@ -452,8 +462,8 @@ module List =
           match! accum with
           | Some v -> return Some v
           | None ->
-              let! result = f arg
-              return (if result then Some arg else None)
+            let! result = f arg
+            return (if result then Some arg else None)
         })
       (Value None)
       list
@@ -602,10 +612,10 @@ module Json =
         match reader.TokenType with
         | JsonToken.StartArray -> ()
         | _ ->
-            failwith (
-              "Incorrect starting token for union, should be array, was "
-              + $"{reader.TokenType}, with type {destinationType}"
-            )
+          failwith (
+            "Incorrect starting token for union, should be array, was "
+            + $"{reader.TokenType}, with type {destinationType}"
+          )
 
         let caseName : string =
           reader.Read() |> ignore
@@ -622,11 +632,10 @@ module Json =
             match reader.TokenType with
             | JsonToken.EndArray -> acc
             | _ ->
-                let value =
-                  serializer.Deserialize(reader, fields.[index].PropertyType)
+              let value = serializer.Deserialize(reader, fields.[index].PropertyType)
 
-                reader.Read() |> ignore
-                read (index + 1) (acc @ [ value ])
+              reader.Read() |> ignore
+              read (index + 1) (acc @ [ value ])
 
           reader.Read() |> ignore
           read 0 List.empty
@@ -690,17 +699,17 @@ module Json =
             match reader.TokenType with
             | JsonToken.EndArray -> acc
             | _ ->
-                let value = deserialize (itemTypes.[index])
-                advance ()
-                read (index + 1) (acc @ [ value ])
+              let value = deserialize (itemTypes.[index])
+              advance ()
+              read (index + 1) (acc @ [ value ])
 
           advance ()
           read 0 List.empty
 
         match reader.TokenType with
         | JsonToken.StartArray ->
-            let values = readElements ()
-            FSharpValue.MakeTuple(values |> List.toArray, t)
+          let values = readElements ()
+          FSharpValue.MakeTuple(values |> List.toArray, t)
         | _ -> failwith $"invalid token: {existingValue}"
 
 
@@ -788,8 +797,8 @@ module Json =
         | "-infinity" -> System.Double.NegativeInfinity
         | "NaN" -> System.Double.NaN
         | _ ->
-            let style = System.Globalization.NumberStyles.Float
-            System.Double.Parse(rawToken, style)
+          let style = System.Globalization.NumberStyles.Float
+          System.Double.Parse(rawToken, style)
 
       override _.WriteJson
         (
@@ -954,30 +963,30 @@ module Task =
         match list with
         | [] -> task { return [] }
         | head :: tail ->
-            task {
-              let firstComp =
-                task {
-                  let! result = f head
-                  return ([], result)
-                }
+          task {
+            let firstComp =
+              task {
+                let! result = f head
+                return ([], result)
+              }
 
-              let! ((accum, lastcomp) : (List<'b> * 'b)) =
-                List.fold
-                  (fun (prevcomp : Task<List<'b> * 'b>) (arg : 'a) ->
-                    task {
-                      // Ensure the previous computation is done first
-                      let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                      let accum = prev :: accum
+            let! ((accum, lastcomp) : (List<'b> * 'b)) =
+              List.fold
+                (fun (prevcomp : Task<List<'b> * 'b>) (arg : 'a) ->
+                  task {
+                    // Ensure the previous computation is done first
+                    let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
+                    let accum = prev :: accum
 
-                      let! result = (f arg)
+                    let! result = (f arg)
 
-                      return (accum, result)
-                    })
-                  firstComp
-                  tail
+                    return (accum, result)
+                  })
+                firstComp
+                tail
 
-              return List.rev (lastcomp :: accum)
-            }
+            return List.rev (lastcomp :: accum)
+          }
 
       return (result |> Seq.toList)
     }
@@ -988,34 +997,34 @@ module Task =
         match list with
         | [] -> task { return [] }
         | head :: tail ->
-            task {
-              let firstComp =
-                task {
-                  let! keep = f head
-                  return ([], (keep, head))
-                }
+          task {
+            let firstComp =
+              task {
+                let! keep = f head
+                return ([], (keep, head))
+              }
 
-              let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
-                List.fold
-                  (fun (prevcomp : Task<List<'a> * (bool * 'a)>) (arg : 'a) ->
-                    task {
-                      // Ensure the previous computation is done first
-                      let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
-                        prevcomp
+            let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
+              List.fold
+                (fun (prevcomp : Task<List<'a> * (bool * 'a)>) (arg : 'a) ->
+                  task {
+                    // Ensure the previous computation is done first
+                    let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
+                      prevcomp
 
-                      let accum = if prevkeep then prev :: accum else accum
+                    let accum = if prevkeep then prev :: accum else accum
 
-                      let! keep = (f arg)
+                    let! keep = (f arg)
 
-                      return (accum, (keep, arg))
-                    })
-                  firstComp
-                  tail
+                    return (accum, (keep, arg))
+                  })
+                firstComp
+                tail
 
-              let (lastkeep, lastval) = lastcomp
-              let accum = if lastkeep then lastval :: accum else accum
-              return List.rev accum
-            }
+            let (lastkeep, lastval) = lastcomp
+            let accum = if lastkeep then lastval :: accum else accum
+            return List.rev accum
+          }
 
       return (result |> Seq.toList)
     }
@@ -1025,28 +1034,28 @@ module Task =
       match list with
       | [] -> return ()
       | head :: tail ->
-          let firstComp =
-            task {
-              let! result = f head
-              return ([], result)
-            }
+        let firstComp =
+          task {
+            let! result = f head
+            return ([], result)
+          }
 
-          let! ((accum, lastcomp) : (List<unit> * unit)) =
-            List.fold
-              (fun (prevcomp : Task<List<unit> * unit>) (arg : 'a) ->
-                task {
-                  // Ensure the previous computation is done first
-                  let! ((accum, prev) : (List<unit> * unit)) = prevcomp
-                  let accum = prev :: accum
+        let! ((accum, lastcomp) : (List<unit> * unit)) =
+          List.fold
+            (fun (prevcomp : Task<List<unit> * unit>) (arg : 'a) ->
+              task {
+                // Ensure the previous computation is done first
+                let! ((accum, prev) : (List<unit> * unit)) = prevcomp
+                let accum = prev :: accum
 
-                  let! result = f arg
+                let! result = f arg
 
-                  return (accum, result)
-                })
-              firstComp
-              tail
+                return (accum, result)
+              })
+            firstComp
+            tail
 
-          return List.head (lastcomp :: accum)
+        return List.head (lastcomp :: accum)
     }
 
   // takes a list of tasks and calls f on it, turning it into a single task
@@ -1058,8 +1067,8 @@ module Task =
         match xs with
         | [] -> return List.rev acc
         | x :: xs ->
-            let! x = x
-            return! loop (task { return (x :: acc) }) xs
+          let! x = x
+          return! loop (task { return (x :: acc) }) xs
       }
 
     loop (task { return [] }) list

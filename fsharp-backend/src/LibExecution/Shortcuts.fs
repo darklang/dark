@@ -17,49 +17,49 @@ let rec toStringRepr (e : Expr) : string =
   | EInteger (_, num) -> $"eInt {num}"
   | EString (_, str) -> $"eStr {q str}"
   | EFloat (_, number) ->
-      let sign = if System.Double.IsNegative number then Negative else Positive
-      let stringified = number |> abs |> string
+    let sign = if System.Double.IsNegative number then Negative else Positive
+    let stringified = number |> abs |> string
 
-      match String.split "." stringified with
-      | [ whole; fraction ] -> $"eFloat {sign} {whole}I {fraction}I"
-      | [ whole ] -> $"eFloat {sign} {whole}I 0I"
-      | _ -> failwith $"can't print float: {number}, {stringified}"
+    match String.split "." stringified with
+    | [ whole; fraction ] -> $"eFloat {sign} {whole}I {fraction}I"
+    | [ whole ] -> $"eFloat {sign} {whole}I 0I"
+    | _ -> failwith $"can't print float: {number}, {stringified}"
   | EBool (_, b) -> $"eBool {b |> string |> String.toLowercase}"
   | ENull _ -> $"eNull ()"
   | EVariable (_, var) -> $"eVar {q var}"
   | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
   | EApply (_, EFQFnValue (_, FQFnName.Stdlib name), args, NotInPipe, ster) ->
-      let fn, suffix =
-        match ster with
-        | NoRail -> "eFn", ""
-        | Rail -> "eFnRail", ""
+    let fn, suffix =
+      match ster with
+      | NoRail -> "eFn", ""
+      | Rail -> "eFnRail", ""
 
-      let args = List.map r args |> String.concat "; "
-      $"{fn} {q name.module_} {q name.function_} {name.version} [{args}] {suffix}"
+    let args = List.map r args |> String.concat "; "
+    $"{fn} {q name.module_} {q name.function_} {name.version} [{args}] {suffix}"
 
   | EApply (_, expr, args, pipe, ster) ->
-      let fn, suffix =
-        match pipe, ster with
-        | InPipe _, NoRail -> "ePipeApply", ""
-        | NotInPipe, Rail -> "eRailApply", ""
-        | InPipe _, Rail -> "ePipeAndRailApply", ""
-        | _ -> "eApply'", "{rail} {ster}"
+    let fn, suffix =
+      match pipe, ster with
+      | InPipe _, NoRail -> "ePipeApply", ""
+      | NotInPipe, Rail -> "eRailApply", ""
+      | InPipe _, Rail -> "ePipeAndRailApply", ""
+      | _ -> "eApply'", "{rail} {ster}"
 
-      let args = List.map r args |> String.concat "; "
-      $"{fn} {pr expr} [{args}] {suffix}"
+    let args = List.map r args |> String.concat "; "
+    $"{fn} {pr expr} [{args}] {suffix}"
   | EFQFnValue (_, FQFnName.Stdlib std) ->
-      $"eStdFnVal {q std.module_} {q std.function_} {std.version}"
+    $"eStdFnVal {q std.module_} {q std.function_} {std.version}"
   | EFQFnValue (_, FQFnName.Package pkg) ->
-      $"ePackageFnVal {q pkg.owner} {q pkg.package}"
-      + $" {q pkg.module_} {q pkg.function_} {pkg.version}"
+    $"ePackageFnVal {q pkg.owner} {q pkg.package}"
+    + $" {q pkg.module_} {q pkg.function_} {pkg.version}"
   | EFQFnValue (_, FQFnName.User name) -> $"eUserFnVal {q name}"
   | ELambda (_, vars, body) ->
-      let vars = List.map (fun (_, y) -> q y) vars |> String.concat "; "
-      $"eLambda [{vars}] {pr body}"
+    let vars = List.map (fun (_, y) -> q y) vars |> String.concat "; "
+    $"eLambda [{vars}] {pr body}"
   | ELet (_, lhs, rhs, body) -> $"eLet {q lhs} {pr rhs} {pr body}"
   | EList (_, exprs) ->
-      let exprs = List.map r exprs |> String.concat "; "
-      $"eList [{exprs}]"
+    let exprs = List.map r exprs |> String.concat "; "
+    $"eList [{exprs}]"
   | _ -> $"Bored now: {e}"
 // | EIf (_, cond, thenExpr, elseExpr) -> R.EIf(id, r cond, r thenExpr, r elseExpr)
 // | EPartial (_, _, oldExpr)

@@ -35,15 +35,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
-            taskv {
-              match r with
-              | Ok dv ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+          taskv {
+            match r with
+            | Ok dv ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
-                  return DResult(Ok result)
-              | Error _ -> return DResult r
-            }
+              return DResult(Ok result)
+            | Error _ -> return DResult r
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -58,15 +58,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal d ] ->
-            taskv {
-              match r with
-              | Ok dv ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) d [ dv ] NotInPipe NoRail
+          taskv {
+            match r with
+            | Ok dv ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) d [ dv ] NotInPipe NoRail
 
-                  return Dval.resultOk result
-              | Error _ -> return DResult r
-            }
+              return Dval.resultOk result
+            | Error _ -> return DResult r
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -81,15 +81,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
-            taskv {
-              match r with
-              | Ok _ -> return DResult r
-              | Error err ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
+          taskv {
+            match r with
+            | Ok _ -> return DResult r
+            | Error err ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
 
-                  return DResult(Error result)
-            }
+              return DResult(Error result)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -104,15 +104,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
-            taskv {
-              match r with
-              | Ok _ -> return DResult r
-              | Error err ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
+          taskv {
+            match r with
+            | Ok _ -> return DResult r
+            | Error err ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
 
-                  return Dval.resultError result
-            }
+              return Dval.resultError result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -127,9 +127,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DResult o; default' ] ->
-            match o with
-            | Ok dv -> Value dv
-            | Error _ -> Value default'
+          match o with
+          | Ok dv -> Value dv
+          | Error _ -> Value default'
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -143,9 +143,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DOption o; DStr error ] ->
-            match o with
-            | Some dv -> Value(DResult(Ok dv))
-            | None -> Value(DResult(Error(DStr error)))
+          match o with
+          | Some dv -> Value(DResult(Ok dv))
+          | None -> Value(DResult(Error(DStr error)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -159,9 +159,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DOption o; DStr error ] ->
-            match o with
-            | Some dv -> Value(Dval.resultOk dv)
-            | None -> Value(DResult(Error(DStr error)))
+          match o with
+          | Some dv -> Value(Dval.resultOk dv)
+          | None -> Value(DResult(Error(DStr error)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -173,9 +173,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DResult o ] ->
-            match o with
-            | Ok dv -> Value(DOption(Some dv))
-            | Error _ -> Value(DOption None)
+          match o with
+          | Ok dv -> Value(DOption(Some dv))
+          | Error _ -> Value(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -187,9 +187,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DResult o ] ->
-            match o with
-            | Ok dv -> Value(Dval.optionJust dv)
-            | Error _ -> Value(DOption None)
+          match o with
+          | Ok dv -> Value(Dval.optionJust dv)
+          | Error _ -> Value(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -205,22 +205,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r1; DResult r2; DFnVal b ] ->
-            taskv {
-              match (r1, r2) with
-              | Error e1, _ -> return DResult(Error e1)
-              | Ok _, Error e2 -> return DResult(Error e2)
-              | Ok dv1, Ok dv2 ->
-                  let! result =
-                    Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ dv1; dv2 ]
-                      NotInPipe
-                      NoRail
+          taskv {
+            match (r1, r2) with
+            | Error e1, _ -> return DResult(Error e1)
+            | Ok _, Error e2 -> return DResult(Error e2)
+            | Ok dv1, Ok dv2 ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail
 
-                  return Dval.resultOk result
-            }
+              return Dval.resultOk result
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -235,24 +229,21 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult o; DFnVal b ] ->
-            taskv {
-              match o with
-              | Ok dv ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+          taskv {
+            match o with
+            | Ok dv ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
-                  match result with
-                  | DResult result -> return (DResult result)
-                  | other ->
-                      return
-                        Errors.throw (
-                          Errors.expectedLambdaType
-                            "f"
-                            (TResult(varOk, varErr))
-                            other
-                        )
-              | Error msg -> return DResult(Error msg)
-            }
+              match result with
+              | DResult result -> return (DResult result)
+              | other ->
+                return
+                  Errors.throw (
+                    Errors.expectedLambdaType "f" (TResult(varOk, varErr)) other
+                  )
+            | Error msg -> return DResult(Error msg)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -267,25 +258,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult o; DFnVal b ] ->
-            taskv {
-              match o with
-              | Ok dv ->
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+          taskv {
+            match o with
+            | Ok dv ->
+              let! result =
+                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
-                  match result with
-                  | DResult (Ok result) -> return Dval.resultOk result
-                  | DResult (Error result) -> return Dval.resultError result
-                  | other ->
-                      return
-                        Errors.throw (
-                          Errors.expectedLambdaType
-                            "f"
-                            (TResult(varOk, varErr))
-                            other
-                        )
-              | Error msg -> return DResult(Error msg)
-            }
+              match result with
+              | DResult (Ok result) -> return Dval.resultOk result
+              | DResult (Error result) -> return Dval.resultError result
+              | other ->
+                return
+                  Errors.throw (
+                    Errors.expectedLambdaType "f" (TResult(varOk, varErr)) other
+                  )
+            | Error msg -> return DResult(Error msg)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

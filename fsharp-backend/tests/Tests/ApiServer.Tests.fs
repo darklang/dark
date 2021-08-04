@@ -131,14 +131,14 @@ let testUiReturnsTheSame =
     let parse (s : string) : string * List<Functions.FunctionMetadata> =
       match s with
       | RegexAny "(.*const complete = )(\[.*\])(;\n.*)" [ before; fns; after ] ->
-          let text = $"{before}{after}"
+        let text = $"{before}{after}"
 
-          let fns =
-            fns
-            |> FsRegEx.replace "\\s+" " " // ignore differences in string spacing in docstrings
-            |> Json.Vanilla.deserialize<List<Functions.FunctionMetadata>>
+        let fns =
+          fns
+          |> FsRegEx.replace "\\s+" " " // ignore differences in string spacing in docstrings
+          |> Json.Vanilla.deserialize<List<Functions.FunctionMetadata>>
 
-          (text, fns)
+        (text, fns)
       | _ -> failwith "doesn't match"
 
     let oc, ocfns = parse oc
@@ -230,7 +230,8 @@ let postApiTestCase
     let (body : 'a) =
       try
         content |> deserialize |> canonicalizeBody
-      with e ->
+      with
+      | e ->
         printfn $"Error deserializing {server}: \n{content}"
         reraise ()
 
@@ -530,9 +531,9 @@ let testDelete404s =
         // assert 404 added
         match! get404 () with
         | Some (space, thisPath, modifier, date, traceID) ->
-            Expect.equal space "HTTP" "inserted space correctly"
-            Expect.equal thisPath path "inserted path correctly"
-            Expect.equal modifier "GET" "inserted modifier correctly"
+          Expect.equal space "HTTP" "inserted space correctly"
+          Expect.equal thisPath path "inserted path correctly"
+          Expect.equal modifier "GET" "inserted modifier correctly"
         | v -> failwith $"Unexpected value: {v}"
       }
 
@@ -563,13 +564,13 @@ let testInitialLoadReturnsTheSame =
       match tl.data with
       | ORT.DB _ -> tl
       | ORT.Handler h ->
-          { tl with
-              data =
-                ORT.Handler
-                  { h with
-                      spec =
-                        { h.spec with
-                            types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
+        { tl with
+            data =
+              ORT.Handler
+                { h with
+                    spec =
+                      { h.spec with
+                          types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
 
     { v with
         toplevels =
@@ -674,11 +675,11 @@ let cookies =
 
         match creds with
         | Some (username, password) ->
-            let body =
-              [ KeyValuePair<string, string>("username", username)
-                KeyValuePair<string, string>("password", password) ]
+          let body =
+            [ KeyValuePair<string, string>("username", username)
+              KeyValuePair<string, string>("password", password) ]
 
-            req.Content <- new FormUrlEncodedContent(body)
+          req.Content <- new FormUrlEncodedContent(body)
         | None -> ()
 
         let! resp = client.SendAsync(req)
@@ -696,7 +697,7 @@ let cookies =
                (fun c ->
                  match String.split ";" c with
                  | h :: rest when String.startsWith "__session" h ->
-                     rest |> String.concat ";" |> String.trim |> Some
+                   rest |> String.concat ";" |> String.trim |> Some
                  | split -> None)
 
         let location = getHeader "location"
