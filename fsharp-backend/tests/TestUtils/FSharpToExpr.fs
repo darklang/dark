@@ -80,6 +80,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | SynPat.Const (SynConst.Char c, _) -> pChar c
     | SynPat.Const (SynConst.Bool b, _) -> pBool b
     | SynPat.Null _ -> pNull ()
+    | SynPat.Paren (pat, _) -> convertPattern pat
     | SynPat.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = splitFloat d
       pFloat sign whole fraction
