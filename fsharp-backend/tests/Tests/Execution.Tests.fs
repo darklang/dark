@@ -292,7 +292,7 @@ let testLambdaPreview : Test =
            )
          )
         ),
-        Some(AT.ExecutedResult(DStr "body")))) ]
+        Some(AT.NonExecutedResult(DStr "body")))) ]
 
 
 
