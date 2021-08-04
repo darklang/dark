@@ -105,7 +105,21 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-
+    { name = fn "Test" "resetSideEffectCounter" 0
+      parameters = []
+      returnType = TNull
+      description =
+        "Reset the side effect counter to zero, to test real-world side-effects."
+      fn =
+        (function
+        | state, [ arg ] ->
+          // CLEANUP this function is no longer needed once we remove ocaml
+          state.test.sideEffectCount <- 0
+          Value(arg)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
         [ Param.make "passThru" (TVariable "a") "Value which will be returned" ]

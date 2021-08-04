@@ -218,6 +218,22 @@ let fns : Types.RuntimeT.fn list =
               Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Test::resetSideEffectCounter"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TNull
+    ; description =
+        "Resets the side effect counter to zero, to test real-world side-effects."
+    ; func =
+        InProcess
+          (function
+          | state, [] ->
+              sideEffectCount := 0 ;
+              DNull
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Test::sideEffectCount"]
     ; infix_names = []
     ; parameters = []
