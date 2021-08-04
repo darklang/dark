@@ -17,9 +17,6 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-// FSTODO: this is going cause race conditions - we should move this into state
-let sideEffectCount : int ref = ref 0
-
 let fns : List<BuiltInFn> =
   [ { name = fn "Test" "errorRailNothing" 0
       parameters = []
@@ -118,7 +115,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ arg ] ->
-          sideEffectCount := !sideEffectCount + 1
+          state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Value(arg)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -130,7 +127,7 @@ let fns : List<BuiltInFn> =
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, [] -> Value(Dval.int !sideEffectCount)
+        | state, [] -> Value(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -37,6 +37,7 @@ let createState
   { libraries = libraries
     tracing = tracing
     program = program
+    test = { sideEffectCount = 0 }
     tlid = tlid
     callstack = Set.empty
     onExecutionPath = true
