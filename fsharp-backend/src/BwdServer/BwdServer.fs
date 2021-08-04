@@ -42,11 +42,7 @@ module TI = LibBackend.TraceInputs
 // Headers
 // ---------------
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-  // There's an exception thrown for duplicate test name. We just want the last
-  // header to win, especially since the user can add the same headers we add
-  let (_ : bool) = ctx.Response.Headers.Remove name
-
-  ctx.Response.Headers.Add(name, StringValues([| value |]))
+  ctx.Response.Headers.[name] <- StringValues([| value |])
 
 let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   match hs.TryGetValue name with

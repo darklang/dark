@@ -121,7 +121,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
     let! _value = Exe.executeExpr state Map.empty ast
 
     Expect.equal
-      (Dictionary.tryGetValue varID results)
+      (Dictionary.get varID results)
       (Some(AT.ExecutedResult(DObj(Map.ofList [ "age", DIncomplete SourceNone ]))))
       "Has an age field"
   }
@@ -134,7 +134,7 @@ let testListLiterals : Test =
     let! (results : AT.AnalysisResults) = execSaveDvals [] [] ast
 
     return
-      match Dictionary.tryGetValue id results with
+      match Dictionary.get id results with
       | Some (AT.ExecutedResult (DIncomplete _)) -> Expect.isTrue true ""
       | _ -> Expect.isTrue false ""
   }
@@ -157,37 +157,146 @@ let testRecursionInEditor : Test =
     let! results = execSaveDvals [] [ recurse ] ast
 
     Expect.equal
-      (Dictionary.tryGetValue callerID results)
+      (Dictionary.get callerID results)
       (Some(AT.ExecutedResult(DInt 0I)))
       "result is there as expected"
 
     Expect.equal
-      (Dictionary.tryGetValue skippedCallerID results)
+      (Dictionary.get skippedCallerID results)
       (Some(
         AT.NonExecutedResult(DIncomplete(SourceID(recurse.tlid, skippedCallerID)))
       ))
       "result is incomplete for other path"
   }
 
+let testIfPreview : Test =
+  let f cond =
+    task {
+      let ifID = gid ()
+      let thenID = gid ()
+      let elseID = gid ()
+      let ast = EIf(ifID, cond, EString(thenID, "then"), EString(elseID, "else"))
+      let! results = execSaveDvals [] [] ast
 
-let testIfNotIsEvaluated : Test =
-  testTask "test if else case is evaluated" {
-    let falseID = gid ()
-    let trueID = gid ()
-    let ifID = gid ()
-    let ast = EIf(ifID, eBool true, EInteger(trueID, 5I), EInteger(falseID, 6I))
-    let! results = execSaveDvals [] [] ast
+      return
+        (Dictionary.get ifID results |> Option.unwrapUnsafe,
+         Dictionary.get thenID results |> Option.unwrapUnsafe,
+         Dictionary.get elseID results |> Option.unwrapUnsafe)
+    }
+  testManyTask
+    "if preview"
+    f
+    [ (eBool false,
+       (AT.ExecutedResult(DStr "else"),
+        AT.NonExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "else")))
+      (eNull (),
+       (AT.ExecutedResult(DStr "else"),
+        AT.NonExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "else")))
+      // fakevals
+      (eFn "Test" "errorRailNothing" 0 [],
+       (AT.ExecutedResult(DErrorRail(DOption None)),
+        AT.NonExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      (EBlank 999UL,
+       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.NonExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      // others are true
+      (eBool true,
+       (AT.ExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      (eInt 5,
+       (AT.ExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      (eStr "test",
+       (AT.ExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else"))) ]
 
-    let check id expected msg =
-      Expect.equal (Dictionary.tryGetValue id results) (Some expected) msg
-
-    check ifID (AT.ExecutedResult(DInt 5I)) "if is ok"
-    check trueID (AT.ExecutedResult(DInt 5I)) "truebody is ok"
-    check falseID (AT.NonExecutedResult(DInt 6I)) "falsebody is ok"
-  }
 
 
-let testMatchEvaluation : Test =
+let testFeatureFlagPreview : Test =
+  let f cond =
+    task {
+      let ffID = gid ()
+      let oldID = gid ()
+      let newID = gid ()
+      let ast =
+        EFeatureFlag(ffID, cond, EString(oldID, "old"), EString(newID, "new"))
+      let! results = execSaveDvals [] [] ast
+
+      return
+        (Dictionary.get ffID results |> Option.unwrapUnsafe,
+         Dictionary.get oldID results |> Option.unwrapUnsafe,
+         Dictionary.get newID results |> Option.unwrapUnsafe)
+    }
+  testManyTask
+    "feature flag preview"
+    f
+    [ (eBool true,
+       (AT.ExecutedResult(DStr "new"),
+        AT.NonExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "new")))
+      // everything else should be old
+      (eBool false,
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eFn "Test" "errorRailNothing" 0 [],
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eBlank (),
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eInt 5,
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eStr "test",
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eNull (),
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new"))) ]
+
+let testLambdaPreview : Test =
+  let f body =
+    task {
+      let lID = gid ()
+      let bodyID = Expr.toID body
+      let ast = ELambda(lID, [], body)
+      let! results = execSaveDvals [] [] ast
+
+      return (Dictionary.get lID results, Dictionary.get bodyID results)
+    }
+  testManyTask
+    "lambda preview"
+    f
+    [ (EString(65UL, "body"),
+       (Some(
+         AT.ExecutedResult(
+           DFnVal(
+             Lambda(
+               { parameters = []
+                 symtable = Map.empty
+                 body = EString(65UL, "body") }
+             )
+           )
+         )
+        ),
+        Some(AT.NonExecutedResult(DStr "body")))) ]
+
+
+
+let testMatchPreview : Test =
   testTask "test match evaluation" {
     let mid = gid ()
     let pIntId = gid ()
@@ -253,7 +362,7 @@ let testMatchEvaluation : Test =
         List.iter
           (fun (id, name, value) ->
             Expect.equal
-              (Dictionary.tryGetValue id results)
+              (Dictionary.get id results)
               (Some value)
               $"{msg}: {id}, {name}")
           expected
@@ -278,7 +387,7 @@ let testMatchEvaluation : Test =
         |> List.iter
              (fun id ->
                if not (Set.contains id expectedIDs) then
-                 match Dictionary.tryGetValue id results with
+                 match Dictionary.get id results with
                  | Some (AT.ExecutedResult dv) ->
                    Expect.isTrue
                      false
@@ -387,11 +496,13 @@ let testMatchEvaluation : Test =
 
 let tests =
   testList
-    "Execution"
+    "ExecutionUnitTests"
     [ testListLiterals
       testRecursionInEditor
-      testIfNotIsEvaluated
-      testMatchEvaluation
+      testIfPreview
+      testLambdaPreview
+      testFeatureFlagPreview
+      testMatchPreview
       testExecFunctionTLIDs
       testErrorRailUsedInAnalysis
       testOtherDbQueryFunctionsHaveAnalysis ]

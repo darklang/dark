@@ -835,6 +835,9 @@ and Tracing =
     storeFnArguments : StoreFnArguments
     realOrPreview : RealOrPreview }
 
+// Used for testing
+and TestContext = { mutable sideEffectCount : int }
+
 // Non-user-specific functionality needed to run code
 and Libraries =
   { stdlib : Map<FQFnName.T, BuiltInFn>
@@ -845,6 +848,7 @@ and ExecutionState =
   { libraries : Libraries
     tracing : Tracing
     program : ProgramContext
+    test : TestContext
     // TLID of the currently executing handler/fn
     tlid : tlid
     executingFnName : Option<FQFnName.T>

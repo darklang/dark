@@ -25,6 +25,7 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 
 // fsharplint:disable FL0039
 let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
+  // Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
@@ -46,12 +47,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       match rhs with
       // CLEANUP we should still preview the body
-      // Usually fakevals get propagated when they're evaluated. However, if we don't use the value, we still want to propagate the errorrail here, so return it instead of evaling the body
+      // Usually fakevals get propagated when they're evaluated. However, if we
+      // don't use the value, we still want to propagate the errorrail here, so
+      // return it instead of evaling the body
       | DErrorRail v -> return rhs
       | _ ->
-        let st = if lhs <> "" then st.Add(lhs, rhs) else st
-        return! (eval state st body)
-    | EString (_id, s) -> return (DStr(s.Normalize()))
+        let st = if lhs <> "" then Map.add lhs rhs st else st
+        return! eval state st body
+    | EString (_id, s) -> return DStr(s.Normalize())
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
@@ -59,9 +62,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ECharacter (_id, s) -> return DChar s
     | EList (_id, exprs) ->
       // We ignore incompletes but not error rail.
-      // TODO: Other places where lists are created propagate incompletes
+      // CLEANUP: Other places where lists are created propagate incompletes
       // instead of ignoring, this is probably a mistake.
-      let! results = Prelude.List.map_s (eval state st) exprs
+      let! results = List.map_s (eval state st) exprs
 
       let filtered =
         List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
@@ -84,23 +87,30 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
       | Some other, _ -> return other
     | ERecord (id, pairs) ->
-      let skipEmptyKeys =
+      let! evaluated =
         pairs
-        |> List.choose
-             (function
-             | ("", e) -> None
-             | k, e -> Some(k, e))
-      // FSTODO: we actually want to stop on the first incomplete/error/etc, thing, not do them all.
-      let! (resolved : List<string * Dval>) =
-        List.map_s
-          (fun (k, v) ->
-            taskv {
-              let! dv = eval state st v
-              return (k, dv)
-            })
-          skipEmptyKeys
+        |> List.map_s
+             (fun (k, v) ->
+               taskv {
+                 match (k, v) with
+                 | "", v ->
+                   let! (_ : Dval) = eval state st v
+                   return None
+                 | keyname, v ->
+                   match! eval state st v with
+                   | DIncomplete _ -> return None
+                   | dv -> return Some(keyname, dv)
+               })
 
-      return Dval.interpreterObj resolved
+      let evaluated = List.choose Operators.id evaluated
+
+      // CLEANUP - we should propagate DErrors too
+      let errorRail = List.tryFind (fun (_, dv) -> Dval.isErrorRail dv) evaluated
+
+      match errorRail with
+      | None -> return Dval.interpreterObj evaluated
+      | Some (_, er) -> return er
+
     | EApply (id, fnVal, exprs, inPipe, ster) ->
       let! fnVal = eval state st fnVal
       let! args = List.map_s (eval state st) exprs
@@ -130,7 +140,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             Map.tryFind field o |> Option.defaultValue DNull
         | DIncomplete _ -> obj
         | DErrorRail _ -> obj
-        | DError _ -> obj // differs from ocaml, but produces an Error either way
+        // CLEANUP: we should propagate DErrors too
+        // | DError _ -> obj // differs from ocaml, but produces an Error either way
         | x ->
           let actualType =
             match Dval.toType x with
@@ -147,7 +158,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       return! Value result
     | EFeatureFlag (id, cond, oldcode, newcode) ->
-      // True gives newexpr, unlike in If statements
+      // True gives newcode, unlike in If statements
       //
       // In If statements, we use a false/null as false, and anything else is
       // true. But this won't work for feature flags. If statements are built
@@ -169,27 +180,31 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         try
           eval state st cond
         with
-        | e -> Value(DBool false)
+        | _ -> Value(DBool false)
 
-      match cond with
-      | DBool true ->
-        // FSTODO
-        (* preview st oldcode *)
+      if cond = DBool true then
+        do! preview st oldcode
         return! eval state st newcode
-      // FSTODO
-      | DIncomplete _
-      | DErrorRail _
-      | DError _ ->
-        // FSTODO
-        (* preview st newcode *)
-        return! eval state st oldcode
-      | _ ->
-        // FSTODO
-        (* preview st newcode *)
+      else
+        do! preview st newcode
         return! eval state st oldcode
 
-    // FSTODO
     | ELambda (_id, parameters, body) ->
+      if state.tracing.realOrPreview = Preview then
+        // Since we return a DBlock, it's contents may never be
+        // executed. So first we execute with no context to get some
+        // live values.
+        let fakeST = Map.add "var" (DIncomplete SourceNone) st
+        do! preview fakeST body
+      let parameters =
+        List.choose
+          (function
+          | _, "" -> None
+          | id, name -> Some(id, name))
+          parameters
+
+      // It is the responsibility of wherever executes the DBlock to pass in
+      // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
     | EMatch (id, matchExpr, cases) ->
       return!
@@ -359,11 +374,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | DNull ->
         do! preview st thenbody
         return! eval state st elsebody
+      | DError (src, _) ->
+        do! preview st thenbody
+        do! preview st elsebody
+        return DError(src, "Expected boolean, got error")
       | cond when Dval.isFake cond ->
         do! preview st thenbody
         do! preview st elsebody
         return cond
       // CLEANUP: I dont know why I made these always true
+      // This can't be cleaned up without a new language version
       | _ ->
         let! result = eval state st thenbody
         do! preview st elsebody
@@ -408,11 +428,14 @@ and applyFn
       | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
       // Incompletes are allowed in pipes
       | DIncomplete _, InPipe _ -> Value(Option.defaultValue fn (List.tryHead args))
+      | other, InPipe _ ->
+        // CLEANUP: this matches the old pipe behaviour, no need to preserve that
+        Value(Option.defaultValue fn (List.tryHead args))
       | other, _ ->
         Value(
           Dval.errSStr
             sourceID
-            $"Expected a function value, got something else: {other}"
+            $"Expected a function value, got something else: {DvalRepr.toDeveloperReprV0 other}"
         )
 
   }

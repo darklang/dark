@@ -275,10 +275,10 @@ module HashSet =
 
 module Dictionary =
   type T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
-  let tryGetValue = FSharpPlus.Dictionary.tryGetValue
+  let get = FSharpPlus.Dictionary.tryGetValue
 
   let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : T<'k, 'v> =
-    d.Add(k, v)
+    d.[k] <- v
     d
 
   let empty () : T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>()
@@ -297,7 +297,7 @@ module Dictionary =
 
   let fromList (l : List<'k * 'v>) : T<'k, 'v> =
     let result = System.Collections.Generic.Dictionary<'k, 'v>()
-    List.iter (fun (k, v) -> result.Add(k, v)) l
+    List.iter (fun (k, v) -> result.[k] <- v) l
     result
 
 

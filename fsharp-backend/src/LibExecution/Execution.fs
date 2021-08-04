@@ -37,6 +37,7 @@ let createState
   { libraries = libraries
     tracing = tracing
     program = program
+    test = { sideEffectCount = 0 }
     tlid = tlid
     callstack = Set.empty
     onExecutionPath = true
@@ -131,6 +132,7 @@ let traceDvals () : Dictionary<id, AT.ExecutionResult> * RT.TraceDval =
     let result =
       (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
 
-    results.Add(id, result)
+    // Overwrites if present, which is what we want
+    results.[id] <- result
 
   (results, trace)
