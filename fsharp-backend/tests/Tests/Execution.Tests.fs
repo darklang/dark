@@ -121,7 +121,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
     let! _value = Exe.executeExpr state Map.empty ast
 
     Expect.equal
-      (Dictionary.tryGetValue varID results)
+      (Dictionary.get varID results)
       (Some(AT.ExecutedResult(DObj(Map.ofList [ "age", DIncomplete SourceNone ]))))
       "Has an age field"
   }
@@ -134,7 +134,7 @@ let testListLiterals : Test =
     let! (results : AT.AnalysisResults) = execSaveDvals [] [] ast
 
     return
-      match Dictionary.tryGetValue id results with
+      match Dictionary.get id results with
       | Some (AT.ExecutedResult (DIncomplete _)) -> Expect.isTrue true ""
       | _ -> Expect.isTrue false ""
   }
@@ -157,12 +157,12 @@ let testRecursionInEditor : Test =
     let! results = execSaveDvals [] [ recurse ] ast
 
     Expect.equal
-      (Dictionary.tryGetValue callerID results)
+      (Dictionary.get callerID results)
       (Some(AT.ExecutedResult(DInt 0I)))
       "result is there as expected"
 
     Expect.equal
-      (Dictionary.tryGetValue skippedCallerID results)
+      (Dictionary.get skippedCallerID results)
       (Some(
         AT.NonExecutedResult(DIncomplete(SourceID(recurse.tlid, skippedCallerID)))
       ))
@@ -170,7 +170,7 @@ let testRecursionInEditor : Test =
   }
 
 
-let testIfNotIsEvaluated : Test =
+let testIfPreview : Test =
   testTask "test if else case is evaluated" {
     let falseID = gid ()
     let trueID = gid ()
@@ -179,15 +179,14 @@ let testIfNotIsEvaluated : Test =
     let! results = execSaveDvals [] [] ast
 
     let check id expected msg =
-      Expect.equal (Dictionary.tryGetValue id results) (Some expected) msg
+      Expect.equal (Dictionary.get id results) (Some expected) msg
 
     check ifID (AT.ExecutedResult(DInt 5I)) "if is ok"
     check trueID (AT.ExecutedResult(DInt 5I)) "truebody is ok"
     check falseID (AT.NonExecutedResult(DInt 6I)) "falsebody is ok"
   }
 
-
-let testMatchEvaluation : Test =
+let testMatchPreview : Test =
   testTask "test match evaluation" {
     let mid = gid ()
     let pIntId = gid ()
@@ -253,7 +252,7 @@ let testMatchEvaluation : Test =
         List.iter
           (fun (id, name, value) ->
             Expect.equal
-              (Dictionary.tryGetValue id results)
+              (Dictionary.get id results)
               (Some value)
               $"{msg}: {id}, {name}")
           expected
@@ -278,7 +277,7 @@ let testMatchEvaluation : Test =
         |> List.iter
              (fun id ->
                if not (Set.contains id expectedIDs) then
-                 match Dictionary.tryGetValue id results with
+                 match Dictionary.get id results with
                  | Some (AT.ExecutedResult dv) ->
                    Expect.isTrue
                      false
@@ -390,8 +389,8 @@ let tests =
     "Execution"
     [ testListLiterals
       testRecursionInEditor
-      testIfNotIsEvaluated
-      testMatchEvaluation
+      testIfPreview
+      testMatchPreview
       testExecFunctionTLIDs
       testErrorRailUsedInAnalysis
       testOtherDbQueryFunctionsHaveAnalysis ]
