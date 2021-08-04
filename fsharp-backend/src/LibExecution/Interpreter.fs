@@ -52,9 +52,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // return it instead of evaling the body
       | DErrorRail v -> return rhs
       | _ ->
-        let st = if lhs <> "" then st.Add(lhs, rhs) else st
-        return! (eval state st body)
-    | EString (_id, s) -> return (DStr(s.Normalize()))
+        let st = if lhs <> "" then Map.add lhs rhs st else st
+        return! eval state st body
+    | EString (_id, s) -> return DStr(s.Normalize())
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
@@ -194,7 +194,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         // Since we return a DBlock, it's contents may never be
         // executed. So first we execute with no context to get some
         // live values.
-        let fakeST = st.Add("var", DIncomplete SourceNone)
+        let fakeST = Map.add "var" (DIncomplete SourceNone) st
         do! preview fakeST body
       let parameters =
         List.choose

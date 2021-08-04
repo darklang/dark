@@ -7,6 +7,7 @@
 (let x = blank in 5) = 5
 (let x = Test.typeError_v0 "" in 5) = 5
 (let x = 5 in x) = 5
+(let x = 5 in let x = 6 in x) = 6
 
 
 [tests.list]

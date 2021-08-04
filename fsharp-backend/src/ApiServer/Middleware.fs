@@ -287,7 +287,7 @@ let executionIDMiddleware : HttpHandler =
       let executionID = gid ()
       let newCtx = saveExecutionID executionID ctx
       let headerValue = StringValues([| toString executionID |])
-      ctx.Response.Headers.Add("x-darklang-execution-id", headerValue)
+      ctx.Response.Headers.["x-darklang-execution-id"] <- headerValue
       return! next newCtx
     })
 
