@@ -1,9 +1,77 @@
-(5 + 3) = 8 // binop
--55555555555555555555555555555.5 = -55555555555555555555555555555.5
+// ---------------------------
+// Basic interpreter execution
+// ---------------------------
 
-[test.lambda]
-(let y = (fun x -> x + 1) in
- List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
+[tests.let]
+(let x = Test.errorRailNothing_v0 in 5) = Test.errorRailNothing_v0
+(let x = blank in 5) = 5
+(let x = Test.typeError_v0 "" in 5) = 5
+(let x = 5 in x) = 5
+
+
+[tests.list]
+[] = []
+[1] = [1]
+[ 5; blank; 0 ] = [5;0]
+[ 5; Int.add_v0 blank 5; 0 ] = [5;0]
+[ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ]
+[ 5; Test.errorRailNothing_v0; 0 ] = Test.errorRailNothing_v0
+
+
+[tests.records]
+{ col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key: col1"
+{ col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
+{ col1 = 2 ; col2 = blank } = { col1 = 2 }
+{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
+{ col1 = 2 ; col2 = Test.errorRailNothing_v0 } = Test.errorRailNothing_v0
+{ col1 = 2 ; ___ = 3 } = { col1 = 2 }
+(let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 2 } in Test.sideEffectCount_v0) = 1
+
+
+[tests.fieldAccess]
+(let x = { col1 = 1 } in x.fieldName) = null
+
+
+[tests.variable]
+myvar = Test.typeError_v0 "There is no variable named: myvar"
+(let x = 5 in x) = 5
+
+
+[tests.fncall]
+(5 + 3) = 8
+Int.add_v0 5 3 = 8
+
+[tests.fqfnname]
+toString 5 = "5"
+
+
+[tests.if]
+(if true then "correct" else 0) = "correct")
+(if false then "" else "correct") = "correct")
+(if null then "" else "correct") = "correct")
+(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error")
+(if List.head_v1_ster [] then "" else "") = Test.errorRailNothing_v0)
+(if blank then "" else "") = blank
+(if 5 then "correct" else "") = "correct"
+
+
+[tests.featureflag]
+flag "test" true "old" "new" = "new"
+flag "test" false "old" "new" = "old"
+flag "" [true] "old" "new" = "old"
+// everything else is old
+flag "test" null "old" "new" = "old"
+flag "test" 5 "old" "new" = "old"
+flag "test" blank "old" "new" = "old"
+flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
+flag "test" (List.head_v1_ster []) "old" "new" = "old"
+flag "test" {x = true} "old" "new" = "old"
+flag "test" [true] "old" "new" = "old"
+
+
+[tests.lambdas]
+List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
+(let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
 
 [test.lambda1]
 (let x = 5 in
@@ -17,8 +85,36 @@
     (String.toList_v1 "some string")
     (fun var -> String.toUppercase_v0 (String.fromChar_v1 var))) "") = "SOME STRING"
 
-[test.lambdaFloat]
-List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
+
+
+[tests.pipes]
+([] |> List.push_v0 2) = [2]
+
+[test.pipes]
+([5]
+ |> List.head_v0
+ |> Int.add_v0 1
+ |> (+) 3
+ |> blank
+ |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
+
+[test.pipevariable FSHARPONLY - we didn't implement this in OCaml]
+(let x = fun a -> a + 1 in
+ (5
+ |> x
+ |> x
+ |> (+) 3
+ |> blank)) = 10
+
+
+[tests.match]
+(match 6 with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = "pass"
+(match "x" with | "y" -> "fail" | "x" -> "pass" | var -> "fail") = "pass"
+(match true with | false -> "fail" | true -> "pass" | var -> "fail") = "pass"
+(match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
+(match null with | null -> "pass" | var -> "fail") = "pass"
+(match 2.0 with | blank -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
+(match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
 
 [test.matchInt]
 (match 5 with
@@ -128,39 +224,19 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "not matched: var"
 
-[tests.match]
-(match 6 with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = "pass"
-(match "x" with | "y" -> "fail" | "x" -> "pass" | var -> "fail") = "pass"
-(match true with | false -> "fail" | true -> "pass" | var -> "fail") = "pass"
-(match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
-(match null with | null -> "pass" | var -> "fail") = "pass"
-(match 2.0 with | blank -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
-(match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
-
-[test.pipesimple]
-([] |> List.push_v0 2) = [2]
-
-[test.pipes]
-([5]
- |> List.head_v0
- |> Int.add_v0 1
- |> (+) 3
- |> blank
- |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
-
-[test.pipevariable FSHARPONLY - we didn't implement this in OCaml]
-(let x = fun a -> a + 1 in
- (5
- |> x
- |> x
- |> (+) 3
- |> blank)) = 10
 
 [tests.constructors]
 Nothing = Nothing
 ((List.head_v1 []) == Nothing) = true
 
-[tests.incomplete_propagation]
+
+// ---------------------------
+// Fakeval propagation and handling
+// This should also should be tested above for all cases
+// No harm in repeating tests
+// ---------------------------
+
+[tests.incompletePropagation]
 List.head_v0 blank = blank
 (if blank then 5 else 6) = blank
 (List.head_v0 blank).field = blank
@@ -180,28 +256,34 @@ List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments
 Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with the wrong type to parameter: option2" // OCAMLONLY
 Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a String (\"not an option\"), but `option2` expected a Option." // FSHARPONLY
 
-[fn.errorRailFn arg]
-[] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))
 
+
+[fn.errorRailFn arg]
+([] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x)))
 
 [tests.errorrail]
+
 Dict.get_v1 {} "i" = Nothing
 Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
 ([5] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 8
 ([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailNothing_v0
-(errorRailFn null) = Nothing
 (blank == Test.errorRailNothing_v0) = Test.errorRailNothing_v0
 (let x = Dict.get_v1_ster {} "i" in 1) = Test.errorRailNothing_v0
+(errorRailFn null) = Nothing
+
 
 [tests.errorrailPropagation]
-List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
-// List.filter_v1 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
-List.map_v0 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
-List.fold_v0 [1;2;3;4] 1 (fun x y -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+List.push_v0 [1;2;3;4] Test.errorRailNothing_v0 = Test.errorRailNothing_v0
+List.filter_v1 [1;2;3;4] (fun x -> Test.errorRailNothing_v0) = Test.errorRailNothing_v0
+List.map_v0 [1;2;3;4] (fun x -> Test.errorRailNothing_v0) = Test.errorRailNothing_v0
+List.fold_v0 [1;2;3;4] 1 (fun x y -> Test.errorRailNothing_v0) = Test.errorRailNothing_v0
 List.map_v0 [1;2;3;4] (fun x -> blank) = blank
-{ x = (List.head_v1_ster []) } = Test.errorRailNothing_v0_ster
-Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+{ x = Test.errorRailNothing_v0 } = Test.errorRailNothing_v0
+Error Test.errorRailNothing_v0 = Test.errorRailNothing_v0
 
+// ---------------------------
+// Shadowing
+// ---------------------------
 [tests.shadowing]
 (let x = 5 in let x = 6 in x) = 6
 (let x = 35 in (match 6 with | x -> x)) = 6
@@ -210,60 +292,18 @@ Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 (let x = 35 in (match Ok 6 with | Ok x -> (List.map_v0 [1; 2; 3; 4] (fun x -> x + 2)))) = [ 3; 4; 5; 6]
 (List.map_v0 [1;2;3;4] (fun x -> (let x = 35 in (match Ok 6 with | Ok x -> x + 2)))) = [ 8; 8; 8; 8 ]
 (List.map_v0 [1;2;3;4] (fun x -> (match Ok 6 with | Ok x -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
-
-[tests.records]
-{ col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key: col1"
-{ col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
-{ col1 = 2 ; col2 = blank } = { col1 = 2 }
-{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
-{ col1 = 2 ; col2 = Test.errorRailNothing_v0 } = Test.errorRailNothing_v0
-{ col1 = 2 ; ___ = 3 } = { col1 = 2 }
-(let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 2 } in Test.sideEffectCount_v0) = 1
-
-[tests.fieldAccess]
-(let x = { col1 = 1 } in x.fieldName) = null
-
-[tests.list]
-[] = []
-[1] = [1]
-[ 5; blank; 0 ] = [5;0]
-[ 5; Int.add_v0 blank 5; 0 ] = [5;0]
-[ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ]
-[ 5; (List.head_v1_ster []); 0 ] = Test.errorRailNothing_v0
-
-[tests.variable]
-myvar = Test.typeError_v0 "There is no variable named: myvar"
-(let x = 5 in x) = 5
+(List.map_v0 [1;2;3;4] (fun x -> (match Ok (Ok 6) with | Ok (Ok x) -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
 
 
-[tests.featureflag]
-flag "test" true "old" "new" = "new" // show new for true
-flag "test" false "old" "new" = "old" // show old for false
-flag "test" blank "old" "new" = "old" // show old for incomplete condition
-flag "test" null "old" "new" = "old" // show old for null
-flag "test" (Test.typeError_v0 "test") "old" "new" = "old" // show old for error
-flag "test" (List.head_v1_ster []) "old" "new" = "old" // show old for errorrail
-flag "test" {x = true} "old" "new" = "old" // show old for object
-flag "test" [true] "old" "new" = "old" // show old for list
-
-[tests.if]
-(if true then "correct" else 0) = "correct")
-(if false then "" else "correct") = "correct")
-(if null then "" else "correct") = "correct")
-(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error")
-(if List.head_v1_ster [] then "" else "") = Test.errorRailNothing_v0)
-(if blank then "" else "") = blank
-(if 5 then "correct" else "") = "correct"
-
-
-[tests.fqfnname]
-toString 5 = "5"
-
+// ---------------------------
+// Equality
+// ---------------------------
 
 [tests.equality]
 (5 = 5) = true
 (5 <> 6) = true
 (5.6 = 5.6) = true
+(-55555555555555555555555555555.5 = -55555555555555555555555555555.5) = true
 (5.6 <> 5.7) = true
 (5.7 <> 6) = true
 (5.7 <> 5) = true
@@ -302,6 +342,6 @@ toString 5 = "5"
 ((fun x -> let y = 1 in y) <> (fun x -> let y = 1 in x)) = true
 
 [db.MyDB { "x" : "Str", "y": "Str" }]
-[test.db equality] with DB MyDB
-MyDB = MyDB
-MyDB <> 5
+[tests.db equality] with DB MyDB
+(MyDB = MyDB) = true
+(MyDB <> 5) = true
