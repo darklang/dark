@@ -369,11 +369,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | DNull ->
         do! preview st thenbody
         return! eval state st elsebody
+      | DError (src, _) ->
+        do! preview st thenbody
+        do! preview st elsebody
+        return DError(src, "Expected boolean, got error")
       | cond when Dval.isFake cond ->
         do! preview st thenbody
         do! preview st elsebody
         return cond
       // CLEANUP: I dont know why I made these always true
+      // This can't be cleaned up without a new language version
       | _ ->
         let! result = eval state st thenbody
         do! preview st elsebody

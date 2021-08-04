@@ -240,6 +240,15 @@ flag "test" (List.head_v1_ster []) "old" "new" = "old" // show old for errorrail
 flag "test" {x = true} "old" "new" = "old" // show old for object
 flag "test" [true] "old" "new" = "old" // show old for list
 
+[tests.if]
+(if true then "correct" else 0) = "correct")
+(if false then "" else "correct") = "correct")
+(if null then "" else "correct") = "correct")
+(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error")
+(if List.head_v1_ster [] then "" else "") = Test.errorRailNothing_v0)
+(if blank then "" else "") = blank
+(if 5 then "correct" else "") = "correct"
+
 
 [tests.fqfnname]
 toString 5 = "5"
