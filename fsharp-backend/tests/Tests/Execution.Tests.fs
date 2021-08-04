@@ -169,22 +169,104 @@ let testRecursionInEditor : Test =
       "result is incomplete for other path"
   }
 
-
 let testIfPreview : Test =
-  testTask "test if else case is evaluated" {
-    let falseID = gid ()
-    let trueID = gid ()
-    let ifID = gid ()
-    let ast = EIf(ifID, eBool true, EInteger(trueID, 5I), EInteger(falseID, 6I))
-    let! results = execSaveDvals [] [] ast
+  let f cond =
+    task {
+      let ifID = gid ()
+      let thenID = gid ()
+      let elseID = gid ()
+      let ast = EIf(ifID, cond, EString(thenID, "then"), EString(elseID, "else"))
+      let! results = execSaveDvals [] [] ast
 
-    let check id expected msg =
-      Expect.equal (Dictionary.get id results) (Some expected) msg
+      return
+        (Dictionary.get ifID results |> Option.unwrapUnsafe,
+         Dictionary.get thenID results |> Option.unwrapUnsafe,
+         Dictionary.get elseID results |> Option.unwrapUnsafe)
+    }
+  testManyTask
+    "if preview"
+    f
+    [ (eBool false,
+       (AT.ExecutedResult(DStr "else"),
+        AT.NonExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "else")))
+      (eNull (),
+       (AT.ExecutedResult(DStr "else"),
+        AT.NonExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "else")))
+      // fakevals
+      (eFn "Test" "errorRailNothing" 0 [],
+       (AT.ExecutedResult(DErrorRail(DOption None)),
+        AT.NonExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      (EBlank 999UL,
+       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+        AT.NonExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      // others are true
+      (eBool true,
+       (AT.ExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      (eInt 5,
+       (AT.ExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
+      (eStr "test",
+       (AT.ExecutedResult(DStr "then"),
+        AT.ExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else"))) ]
 
-    check ifID (AT.ExecutedResult(DInt 5I)) "if is ok"
-    check trueID (AT.ExecutedResult(DInt 5I)) "truebody is ok"
-    check falseID (AT.NonExecutedResult(DInt 6I)) "falsebody is ok"
-  }
+
+
+let testFeatureFlagPreview : Test =
+  let f cond =
+    task {
+      let ffID = gid ()
+      let oldID = gid ()
+      let newID = gid ()
+      let ast =
+        EFeatureFlag(ffID, cond, EString(oldID, "old"), EString(newID, "new"))
+      let! results = execSaveDvals [] [] ast
+
+      return
+        (Dictionary.get ffID results |> Option.unwrapUnsafe,
+         Dictionary.get oldID results |> Option.unwrapUnsafe,
+         Dictionary.get newID results |> Option.unwrapUnsafe)
+    }
+  testManyTask
+    "feature flag preview"
+    f
+    [ (eBool true,
+       (AT.ExecutedResult(DStr "new"),
+        AT.NonExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "new")))
+      // everything else should be old
+      (eBool false,
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eFn "Test" "errorRailNothing" 0 [],
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eBlank (),
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eInt 5,
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eStr "test",
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new")))
+      (eNull (),
+       (AT.ExecutedResult(DStr "old"),
+        AT.ExecutedResult(DStr "old"),
+        AT.NonExecutedResult(DStr "new"))) ]
+
 
 let testMatchPreview : Test =
   testTask "test match evaluation" {
@@ -386,10 +468,11 @@ let testMatchPreview : Test =
 
 let tests =
   testList
-    "Execution"
+    "ExecutionUnitTests"
     [ testListLiterals
       testRecursionInEditor
       testIfPreview
+      testFeatureFlagPreview
       testMatchPreview
       testExecFunctionTLIDs
       testErrorRailUsedInAnalysis

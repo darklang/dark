@@ -157,7 +157,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       return! Value result
     | EFeatureFlag (id, cond, oldcode, newcode) ->
-      // True gives newexpr, unlike in If statements
+      // True gives newcode, unlike in If statements
       //
       // In If statements, we use a false/null as false, and anything else is
       // true. But this won't work for feature flags. If statements are built
@@ -179,23 +179,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         try
           eval state st cond
         with
-        | e -> Value(DBool false)
+        | _ -> Value(DBool false)
 
-      match cond with
-      | DBool true ->
-        // FSTODO
-        (* preview st oldcode *)
+      if cond = DBool true then
+        do! preview st oldcode
         return! eval state st newcode
-      // FSTODO
-      | DIncomplete _
-      | DErrorRail _
-      | DError _ ->
-        // FSTODO
-        (* preview st newcode *)
-        return! eval state st oldcode
-      | _ ->
-        // FSTODO
-        (* preview st newcode *)
+      else
+        do! preview st newcode
         return! eval state st oldcode
 
     // FSTODO
