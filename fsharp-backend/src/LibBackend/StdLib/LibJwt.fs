@@ -111,9 +111,9 @@ module Legacy =
     | [] -> ()
     | [ h ] -> f h
     | h :: tail ->
-        f h
-        append v ","
-        listToStringList v tail f
+      f h
+      append v ","
+      listToStringList v tail f
 
   and appendString (v : Vector) (s : string) : unit =
     s
@@ -137,8 +137,8 @@ module Legacy =
            | 0x09uy -> append v "\\t"
            // write_control_char
            | b when b >= 0uy && b <= 0x1fuy ->
-               append v "\\u"
-               append v (b.ToString("x4"))
+             append v "\\u"
+             append v (b.ToString("x4"))
            | 0x7fuy -> append v "\\u007f"
            | b -> v.Add b)
 
@@ -153,42 +153,42 @@ module Legacy =
     | Float f when System.Double.IsPositiveInfinity f -> append v "Infinity"
     | Float f when System.Double.IsNegativeInfinity f -> append v "-Infinity"
     | Float f ->
-        let s =
-          // based  on yojson code
-          let s = sprintf "%.16g" f
-          if System.Double.Parse s = f then s else (sprintf "%.17g" f)
+      let s =
+        // based  on yojson code
+        let s = sprintf "%.16g" f
+        if System.Double.Parse s = f then s else (sprintf "%.17g" f)
 
-        append v s
-        let mutable needsZero = true
+      append v s
+      let mutable needsZero = true
 
-        String.toArray s
-        |> Array.iter
-             (fun d ->
-               if d >= '0' && d <= '9' || d = '-' then () else needsZero <- false)
+      String.toArray s
+      |> Array.iter
+           (fun d ->
+             if d >= '0' && d <= '9' || d = '-' then () else needsZero <- false)
 
-        if needsZero then append v ".0"
+      if needsZero then append v ".0"
 
     // write_string
     | String s ->
-        append v "\""
-        appendString v s
-        append v "\""
+      append v "\""
+      appendString v s
+      append v "\""
     | List l ->
-        append v "["
-        listToStringList v l (toString' v)
-        append v "]"
+      append v "["
+      listToStringList v l (toString' v)
+      append v "]"
     | Assoc l ->
-        append v "{"
+      append v "{"
 
-        let f ((k, j) : string * Yojson) =
-          append v "\""
-          appendString v k
-          append v "\":"
-          toString' v j
+      let f ((k, j) : string * Yojson) =
+        append v "\""
+        appendString v k
+        append v "\":"
+        toString' v j
 
-        listToStringList v l f
+      listToStringList v l f
 
-        append v "}"
+      append v "}"
 
   let toString (j : Yojson) : string =
     let v = Vector 10
@@ -238,30 +238,30 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
 let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
   match Seq.toList (String.split [| "." |] token) with
   | [ header; payload; signature ] ->
-      // do the minimum of parsing and decoding before verifying signature.
-      // c.f. "cryptographic doom principle".
-      try
-        let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
+    // do the minimum of parsing and decoding before verifying signature.
+    // c.f. "cryptographic doom principle".
+    try
+      let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
 
-        match signature with
-        | None -> None
-        | Some signature ->
-            let hash =
-              (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
+      match signature with
+      | None -> None
+      | Some signature ->
+        let hash = (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
 
-            let rsaDeformatter = RSAPKCS1SignatureDeformatter key
-            rsaDeformatter.SetHashAlgorithm "SHA256"
+        let rsaDeformatter = RSAPKCS1SignatureDeformatter key
+        rsaDeformatter.SetHashAlgorithm "SHA256"
 
-            if rsaDeformatter.VerifySignature(hash, signature) then
-              let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-              let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+        if rsaDeformatter.VerifySignature(hash, signature) then
+          let header = header |> base64FromUrlEncoded |> base64DecodeOpt
+          let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
 
-              match (header, payload) with
-              | Some header, Some payload -> Some(ofBytes header, ofBytes payload)
-              | _ -> None
-            else
-              None
-      with e -> None
+          match (header, payload) with
+          | Some header, Some payload -> Some(ofBytes header, ofBytes payload)
+          | _ -> None
+        else
+          None
+    with
+    | e -> None
   | _ -> None
 
 let verifyAndExtractV1
@@ -271,32 +271,32 @@ let verifyAndExtractV1
 
   match Seq.toList (String.split [| "." |] token) with
   | [ header; payload; signature ] ->
-      //do the minimum of parsing and decoding before verifying signature.
-      //c.f. "cryptographic doom principle".
-      try
-        let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
+    //do the minimum of parsing and decoding before verifying signature.
+    //c.f. "cryptographic doom principle".
+    try
+      let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
 
-        match signature with
-        | None -> Error "Unable to base64-decode signature"
-        | Some signature ->
-            let hash =
-              (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
+      match signature with
+      | None -> Error "Unable to base64-decode signature"
+      | Some signature ->
+        let hash = (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
 
-            let rsaDeformatter = RSAPKCS1SignatureDeformatter key
-            rsaDeformatter.SetHashAlgorithm "SHA256"
+        let rsaDeformatter = RSAPKCS1SignatureDeformatter key
+        rsaDeformatter.SetHashAlgorithm "SHA256"
 
-            if rsaDeformatter.VerifySignature(hash, signature) then
-              let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-              let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+        if rsaDeformatter.VerifySignature(hash, signature) then
+          let header = header |> base64FromUrlEncoded |> base64DecodeOpt
+          let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
 
-              match (header, payload) with
-              | Some header, Some payload -> Ok(ofBytes header, ofBytes payload)
-              | Some _, None -> Error "Unable to base64-decode header"
-              | _ -> Error "Unable to base64-decode payload"
-            else
-              Error "Unable to verify signature"
+          match (header, payload) with
+          | Some header, Some payload -> Ok(ofBytes header, ofBytes payload)
+          | Some _, None -> Error "Unable to base64-decode header"
+          | _ -> Error "Unable to base64-decode payload"
+        else
+          Error "Unable to verify signature"
 
-      with e -> Error e.Message
+    with
+    | e -> Error e.Message
   | _ -> Error "Invalid token format"
 
 let fns : List<BuiltInFn> =
@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; payload ] ->
-            signAndEncode key Map.empty payload |> DStr |> Value
+          signAndEncode key Map.empty payload |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -324,7 +324,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
-            signAndEncode key headers payload |> DStr |> Value
+          signAndEncode key headers payload |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -337,9 +337,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; payload ] ->
-            try
-              signAndEncode key Map.empty payload |> DStr |> Ok |> DResult |> Value
-            with e -> Value(DResult(Error(DStr e.Message)))
+          try
+            signAndEncode key Map.empty payload |> DStr |> Ok |> DResult |> Value
+          with
+          | e -> Value(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -355,9 +356,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
-            try
-              signAndEncode key headers payload |> DStr |> Ok |> DResult |> Value
-            with e -> Value(DResult(Error(DStr e.Message)))
+          try
+            signAndEncode key headers payload |> DStr |> Ok |> DResult |> Value
+          with
+          | e -> Value(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -371,23 +373,24 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
-            try
-              let rsa = RSA.Create()
-              rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
+          try
+            let rsa = RSA.Create()
+            rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
 
-              match verifyAndExtractV0 rsa token with
-              | Some (headers, payload) ->
-                  [ ("header", DvalRepr.ofUnknownJsonV1 headers)
-                    ("payload", DvalRepr.ofUnknownJsonV1 payload) ]
-                  |> Map.ofList
-                  |> DObj
-                  |> Some
-                  |> DOption
-                  |> Value
-              | None -> Value(DOption None)
-            with _ ->
-              Errors.throw
-                "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
+            match verifyAndExtractV0 rsa token with
+            | Some (headers, payload) ->
+              [ ("header", DvalRepr.ofUnknownJsonV1 headers)
+                ("payload", DvalRepr.ofUnknownJsonV1 payload) ]
+              |> Map.ofList
+              |> DObj
+              |> Some
+              |> DOption
+              |> Value
+            | None -> Value(DOption None)
+          with
+          | _ ->
+            Errors.throw
+              "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -401,21 +404,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
-            try
-              let rsa = RSA.Create()
-              rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
+          try
+            let rsa = RSA.Create()
+            rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
 
-              match verifyAndExtractV1 rsa token with
-              | Ok (headers, payload) ->
-                  [ ("header", DvalRepr.ofUnknownJsonV1 headers)
-                    ("payload", DvalRepr.ofUnknownJsonV1 payload) ]
-                  |> Map.ofList
-                  |> DObj
-                  |> Ok
-                  |> DResult
-                  |> Value
-              | Error msg -> Value(DResult(Error(DStr msg)))
-            with _ -> Value(DResult(Error(DStr "Invalid public key")))
+            match verifyAndExtractV1 rsa token with
+            | Ok (headers, payload) ->
+              [ ("header", DvalRepr.ofUnknownJsonV1 headers)
+                ("payload", DvalRepr.ofUnknownJsonV1 payload) ]
+              |> Map.ofList
+              |> DObj
+              |> Ok
+              |> DResult
+              |> Value
+            | Error msg -> Value(DResult(Error(DStr msg)))
+          with
+          | _ -> Value(DResult(Error(DStr "Invalid public key")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
