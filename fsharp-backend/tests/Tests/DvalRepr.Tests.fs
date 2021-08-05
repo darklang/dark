@@ -358,6 +358,34 @@ module Password =
         testSerialization2
         testNoAutoSerialization ]
 
+module LibJwt =
+  let testJsonSameOnBoth =
+    testMany
+      "LibJwt json toString works same on both"
+      FuzzTests.All.LibJwtJson.equalsOCaml
+      ([ RT.DObj(
+           Map.ofList [ ("", RT.DFloat 1.797693135e+308)
+                        ("a", RT.DErrorRail(RT.DFloat nan)) ]
+         )
+         RT.DDate(System.DateTime.Parse "7/29/2028 12:00:00 AM")
+         RT.DStr "痃"
+         RT.DError(RT.SourceNone, "ܱ")
+         RT.DDB "ϴ"
+         RT.DStr "\u000f"
+         RT.DFloat 1.7976931348623157e+308
+         RT.DObj(Map [ ("鳉", RT.DChar "\u001e") ])
+         RT.DObj(
+           Map [ ("", RT.DPassword(Password [||]))
+                 ("伯",
+                  RT.DUuid(System.Guid.Parse "1cfb3de5-4350-2a1c-3e03-7945672ca26e")) ]
+         ) ]
+       @ (sampleDvals
+          |> List.map Tuple2.second
+          |> List.filter ((<>) (RT.DInt 4611686018427387904I)))
+       |> List.map (fun x -> x, true))
+
+
+
 
 let tests =
   testList
@@ -369,4 +397,5 @@ let tests =
       testToEnduserReadable
       ToHashableRepr.tests
       Password.tests
+      LibJwt.testJsonSameOnBoth
       allRoundtrips ]

@@ -506,6 +506,39 @@ module PrettyMachineJson =
           "roundtripping prettyMachineJson"
           equalsOCaml ]
 
+module LibJwtJson =
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           // They're all printed as blocks, but the OCamlInterop doesn't work great - no point in fixing though
+           | RT.DFnVal _ -> false
+           | _ -> true)
+
+  // This should produce absolutely identical JSON to the OCaml function or customers will have an unexpected change
+  let equalsOCaml (dv : RT.Dval) : bool =
+    let actual =
+      dv
+      |> LibBackend.StdLib.LibJwt.Legacy.toYojson
+      |> LibBackend.StdLib.LibJwt.Legacy.toString
+
+    let expected = (OCamlInterop.toSafePrettyMachineYojsonV1 dv).Result
+
+    actual .=. expected
+
+  let tests =
+    testList
+      "jwtJson"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "comparing LibJWT json"
+          equalsOCaml ]
+
+
+
 module ExecutePureFunctions =
   open LibExecution.ProgramTypes.Shortcuts
 
@@ -1216,6 +1249,7 @@ let knownGood =
        EndUserReadable.tests
        Hashing.tests
        PrettyMachineJson.tests
+       LibJwtJson.tests
        ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]

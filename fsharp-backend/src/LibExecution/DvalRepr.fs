@@ -225,7 +225,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   and reprfn dv =
     match dv with
-    | DInt i -> i.ToString()
+    | DInt i -> string i
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
@@ -234,7 +234,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DChar c -> c
     | DNull -> "null"
     | DDate d -> d.toIsoString ()
-    | DUuid uuid -> uuid.ToString()
+    | DUuid uuid -> string uuid
     | DDB dbname -> $"<DB: {dbname}>"
     | DError (_, msg) ->
       // FSTODO make this a string again
@@ -833,7 +833,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DPassword _ -> "<password>"
     | DStr s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
-    | DInt i -> i.ToString()
+    | DInt i -> string i
     | DBool true -> "true"
     | DBool false -> "false"
     | DFloat f -> ocamlStringOfFloat f
@@ -845,7 +845,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DError (_, msg) -> wrap msg
     | DDate d -> wrap (d.toIsoString ())
     | DDB name -> wrap name
-    | DUuid uuid -> wrap (uuid.ToString())
+    | DUuid uuid -> wrap (string uuid)
     | DHttpResponse h ->
       match h with
       | Redirect url -> $"302 {url}" + nl + toRepr_ indent DNull

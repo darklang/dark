@@ -264,6 +264,9 @@ let toInternalRoundtrippableV0 (dv : RT.Dval) : Task<string> =
 let toPrettyMachineJsonV1 (dv : RT.Dval) : Task<string> =
   dvalToStringReq "fuzzing/to_pretty_machine_json_v1" dv
 
+let toSafePrettyMachineYojsonV1 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_safe_pretty_machine_yojson_v1" dv
+
 let toUrlString (dv : RT.Dval) : Task<string> =
   dvalToStringReq "fuzzing/to_url_string" dv
 

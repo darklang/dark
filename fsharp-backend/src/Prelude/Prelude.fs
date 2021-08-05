@@ -52,6 +52,16 @@ let debugString (msg : string) (s : string) : string =
   printfn $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
+let debugByteArray (msg : string) (a : byte array) : byte array =
+  let bytes = a |> System.BitConverter.ToString
+  printfn $"DEBUG: {msg} (len {a.Length}, {bytes}"
+  a
+
+let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
+  printfn $"DEBUG: {msg} {f v}"
+  v
+
+
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
 // of operations.
@@ -163,8 +173,14 @@ let base64UrlEncode (bytes : byte []) : string =
 let base64Decode (encoded : string) : byte [] =
   encoded |> System.Convert.FromBase64String
 
+let base64DecodeOpt (encoded : string) : byte [] option =
+  try
+    encoded |> System.Convert.FromBase64String |> Some
+  with
+  | _ -> None
+
 let sha1digest (input : string) : byte [] =
-  use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
+  use sha1 = System.Security.Cryptography.SHA1.Create()
   input |> toBytes |> sha1.ComputeHash
 
 let toString (v : 'a) : string = v.ToString()
