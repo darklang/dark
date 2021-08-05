@@ -8,6 +8,9 @@ to run things slightly differently to make it work. Instead of using
 
 Install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
+Note that "Clone into container" does not work at the moment, so first clone the
+Dark repo locally.
+
 Open the Dark directory, and when prompted to open it in a container, do so.
 The container will build, hopefully without problem.
 
