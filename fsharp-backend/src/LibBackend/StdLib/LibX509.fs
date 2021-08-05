@@ -5,6 +5,7 @@ open System.Numerics
 open FSharp.Control.Tasks
 open FSharpPlus
 open System.Security.Cryptography
+open System.Security.Cryptography.X509Certificates
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -29,16 +30,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr cert ] ->
-          (try
+          try
             let x509Cert = new X509Certificates.X509Certificate2(toBytes cert)
-            let publicKeyBytes = x509Cert.GetPublicKey()
+            let publicKeyBytes = x509Cert.PublicKey.Key.ExportSubjectPublicKeyInfo()
             let label = System.ReadOnlySpan<char>("PUBLIC KEY".ToCharArray())
             let data = System.ReadOnlySpan<byte> publicKeyBytes
             let chars = PemEncoding.Write(label, data)
-
-            (new System.String(chars)) |> DStr |> Ok |> DResult |> Value
-           with
-           | e -> Value(DResult(Error(DStr e.Message))))
+            let str = new System.String(chars) ++ "\n"
+            str |> DStr |> Ok |> DResult |> Value
+          with
+          | e -> Value(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
