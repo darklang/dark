@@ -29,17 +29,34 @@ let fns : List<BuiltInFn> =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
       fn =
         (function
-        | _, [ DStr cert ] ->
+        | _, [ DStr certString ] ->
           try
-            let x509Cert = new X509Certificates.X509Certificate2(toBytes cert)
-            let publicKeyBytes = x509Cert.PublicKey.Key.ExportSubjectPublicKeyInfo()
+            let cert = new X509Certificates.X509Certificate2(toBytes certString)
+            // The OCaml version looks like it supports ECC certs, which require
+            // this workaround on .NET. However, the OCaml version gets the wrong
+            // answer for it.
+
+            // https://www.pkisolutions.com/accessing-and-using-certificate-private-keys-in-net-framework-net-core/
+            let publicKeyBytes =
+              match cert.PublicKey.Oid.Value with
+              | "1.2.840.10045.2.1" -> // ECC
+                cert.GetECDsaPublicKey().ExportSubjectPublicKeyInfo()
+              | "1.2.840.113549.1.1.1" // RSA
+              // DSA
+              | "1.2.840.10040.4.1"
+              | _ -> cert.PublicKey.Key.ExportSubjectPublicKeyInfo()
             let label = System.ReadOnlySpan<char>("PUBLIC KEY".ToCharArray())
             let data = System.ReadOnlySpan<byte> publicKeyBytes
             let chars = PemEncoding.Write(label, data)
             let str = new System.String(chars) ++ "\n"
             str |> DStr |> Ok |> DResult |> Value
           with
-          | e -> Value(DResult(Error(DStr e.Message)))
+          | e ->
+            // The OCaml version seems to support anything starting in BEGIN
+            // CERTIFICATE. If it doesn't find that, it errors with No certificates. If
+            // it does find that, it tries to parse it, returning X509: failed to parse
+            // certificate if it fails (either data is bullshit or it's not an RSA cert).
+            Value(DResult(Error(DStr "No certificates")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
