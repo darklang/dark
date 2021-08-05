@@ -14,7 +14,7 @@ open Tablecloth
 open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module Exe = LibExecution.Execution
 
 open TestUtils
@@ -102,7 +102,8 @@ let t filename =
             []
             []
 
-        with e -> failwith "When calling OCaml code, OCaml server failed: {msg}, {e}"
+        with
+        | e -> failwith "When calling OCaml code, OCaml server failed: {msg}, {e}"
 
       if shouldEqual then
         Expect.equal (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
