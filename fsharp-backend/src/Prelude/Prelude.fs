@@ -176,7 +176,8 @@ let base64Decode (encoded : string) : byte [] =
 let base64DecodeOpt (encoded : string) : byte [] option =
   try
     encoded |> System.Convert.FromBase64String |> Some
-  with _ -> None
+  with
+  | _ -> None
 
 let sha1digest (input : string) : byte [] =
   use sha1 = System.Security.Cryptography.SHA1.Create()
