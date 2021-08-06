@@ -12,7 +12,6 @@ let main args =
   // CLEANUP For now, migrations are run by the ocaml process in run-fsharp-tests
   // LibBackend.Migrations.init ()
   let (_ : Task) = Tests.HttpClient.init ()
-  LibBackend.Migrations.init ()
   LibService.Telemetry.Console.loadTelemetry ()
   (LibBackend.Account.initTestAccounts ()).Wait()
 
