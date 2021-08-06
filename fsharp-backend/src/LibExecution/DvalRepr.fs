@@ -15,6 +15,8 @@ open Tablecloth
 
 open RuntimeTypes
 
+// FSTODO: move everything in this file into where it's used
+
 // I tried System.Text.Json but ran into a number of problems:
 //
 // - Infinity/Nan: The original OCaml Yojson converter represented these
@@ -52,7 +54,7 @@ let writePrettyJson (f : JsonWriter -> unit) : string =
 
 let parseJson (s : string) : JToken =
   let reader = new JsonTextReader(new System.IO.StringReader(s))
-  let jls = new JsonLoadSettings()
+  let jls = JsonLoadSettings()
   jls.CommentHandling <- CommentHandling.Load // Load them so we can error later
   jls.DuplicatePropertyNameHandling <- DuplicatePropertyNameHandling.Error
   jls.CommentHandling <- CommentHandling.Ignore
@@ -188,6 +190,34 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TBytes -> "Bytes"
 
 let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
+
+// Backwards compatible version of `typeToDeveloperRepr`, should not be visible to
+// users but used by things like HttpClient (transitively)
+let rec typeToBCTypeName (t : DType) : string =
+  match t with
+  | TInt -> "int"
+  | TFloat -> "float"
+  | TBool -> "bool"
+  | TNull -> "null"
+  | TChar -> "character"
+  | TStr -> "string"
+  | TList _ -> "list"
+  | TDict _ -> "dict"
+  | TRecord _ -> "dict"
+  | TFn _ -> "block"
+  | TVariable varname -> "any"
+  | TIncomplete -> "incomplete"
+  | TError -> "error"
+  | THttpResponse _ -> "response"
+  | TDB _ -> "datastore"
+  | TDate -> "date"
+  | TPassword -> "password"
+  | TUuid -> "uuid"
+  | TOption _ -> "option"
+  | TErrorRail -> "errorrail"
+  | TResult _ -> "result"
+  | TUserType (name, _) -> String.toLowercase name
+  | TBytes -> "bytes"
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
@@ -1010,63 +1040,11 @@ let ofUnknownJsonV1 str =
 //       | None ->
 //           None )
 //
-// (* For putting into URLs as query params *)
-// let rec to_url_string_exn (dv : dval) : string =
-//   match dv with
-//   | DBlock _ ->
-//       (* See docs/dblock-serialization.ml *)
-//       "<" ^ (dv |> tipename) ^ ">"
-//   | DIncomplete _ | DPassword _ ->
-//       "<" ^ (dv |> tipename) ^ ">"
-//   | DInt i ->
-//       Dint.to_string i
-//   | DBool true ->
-//       "true"
-//   | DBool false ->
-//       "false"
-//   | DStr s ->
-//       Unicode_string.to_string s
-//   | DFloat f ->
-//       string_of_float f
-//   | DCharacter c ->
-//       Unicode_string.Character.to_string c
-//   | DNull ->
-//       "null"
-//   | DDate d ->
-//       Util.isostring_of_date d
-//   | DDB dbname ->
-//       dbname
-//   | DErrorRail d ->
-//       to_url_string_exn d
-//   | DError (_, msg) ->
-//       "error=" ^ msg
-//   | DUuid uuid ->
-//       Uuidm.to_string uuid
-//   | DResp (_, hdv) ->
-//       to_url_string_exn hdv
-//   | DList l ->
-//       "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
-//   | DObj o ->
-//       let strs =
-//         DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-//             (key ^ ": " ^ to_url_string_exn value) :: l)
-//       in
-//       "{ " ^ String.concat ~sep:", " strs ^ " }"
-//   | DOption OptNothing ->
-//       "none"
-//   | DOption (OptJust v) ->
-//       to_url_string_exn v
-//   | DResult (ResError v) ->
-//       "error=" ^ to_url_string_exn v
-//   | DResult (ResOk v) ->
-//       to_url_string_exn v
-//   | DBytes bytes ->
-//       bytes |> RawBytes.to_string |> B64.encode
-//
-//
-// (* ------------------------- *)
-// (* Forms and queries Functions *)
-// (* ------------------------- *)
+
+
+// -------------------------
+// Forms and queries Functions
+// -------------------------
 //
 // let query_to_dval (query : (string * string list) list) : dval =
 //   query
@@ -1084,30 +1062,22 @@ let ofUnknownJsonV1 str =
 //   |> DvalMap.from_list
 //   |> DObj
 //
-//
-// let dval_to_query (dv : dval) : (string * string list) list =
-//   match dv with
-//   | DObj kvs ->
-//       kvs
-//       |> DvalMap.to_list
-//       |> List.map ~f:(fun (k, value) ->
-//              match value with
-//              | DNull ->
-//                  (k, [])
-//              | DList l ->
-//                  (k, List.map ~f:to_url_string_exn l)
-//              | _ ->
-//                  (k, [to_url_string_exn value]))
-//   | _ ->
-//       Exception.code "attempting to use non-object as query param"
-//
-//
-// let to_form_encoding (dv : dval) : string =
-//   dv |> dval_to_query |> Uri.encoded_of_query
-//
-//
 // let of_form_encoding (f : string) : dval =
 //   f |> Uri.query_of_encoded |> query_to_dval
+
+
+let toStringPairsExn (dv : Dval) : (string * string) list =
+  match dv with
+  | DObj obj ->
+    obj
+    |> Map.toList
+    |> List.map
+         (function
+         | (k, DStr v) -> (k, v)
+         | (k, v) -> failwith $"Expected a string, but got: {toDeveloperReprV0 dv}")
+  | _ -> failwith $"Expected a string, but got: {toDeveloperReprV0 dv}"
+
+
 
 
 // -------------------------

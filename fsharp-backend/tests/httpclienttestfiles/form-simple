@@ -1,0 +1,36 @@
+[expected-request]
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip
+Content-Type: application/x-www-form-urlencoded; charset=utf-8
+Host: HOST
+[i dunno what to put here]
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: 11
+
+"Hello back"
+
+[test]
+(let headers = { ``Content-type` = "application/x-www-form-urlencoded" } in
+ let response = HttpClient.get_v5_ster "http://URL/" Dict.empty headers in
+ let headers = response.headers |> Dict.set "Date" "" in
+ Dict.set response "headers" headers) =
+   { body = ""
+     code = 200
+     error = ""
+     headers =
+      {
+        Accept = "*/*"
+        ``Accept-Encoding`` = "deflate, gzip"
+        ``Content-Type`` = "text/plain; charset=utf-8"
+        ``HTTP/1.1 200 OK`` = ""
+        Date = ""
+        Host = "test.builtwithdark.localhost:10005"
+        ``Transfer-Encoding`` = "chunked"
+        Server = "Kestrel"
+      }
+     raw = ""}

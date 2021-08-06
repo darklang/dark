@@ -271,6 +271,9 @@ module String =
 
   let normalize (s : string) : string = s.Normalize()
 
+  let equalsCaseInsensitive (s1 : string) (s2 : string) : bool =
+    System.String.Equals(s1, s2, System.StringComparison.InvariantCultureIgnoreCase)
+
 module HashSet =
   type T<'v> = System.Collections.Generic.HashSet<'v>
 

@@ -45,6 +45,7 @@
     <Compile Include="StdLib/LibDB2.fs" />
     <Compile Include="StdLib/LibDarkInternal.fs" />
     <Compile Include="StdLib/LibEvent.fs" />
+    <Compile Include="HttpClient.fs" />
     <Compile Include="StdLib/LibHttpClient0.fs" />
     <Compile Include="StdLib/LibHttpClient1.fs" />
     <Compile Include="StdLib/LibHttpClient2.fs" />
