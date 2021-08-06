@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -6,6 +6,7 @@
     <LangVersion>5.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
   </ItemGroup>
@@ -44,7 +45,12 @@
     <Compile Include="StdLib/LibDB2.fs" />
     <Compile Include="StdLib/LibDarkInternal.fs" />
     <Compile Include="StdLib/LibEvent.fs" />
-    <Compile Include="StdLib/LibHttpClient.fs" />
+    <Compile Include="StdLib/LibHttpClient0.fs" />
+    <Compile Include="StdLib/LibHttpClient1.fs" />
+    <Compile Include="StdLib/LibHttpClient2.fs" />
+    <Compile Include="StdLib/LibHttpClient3.fs" />
+    <Compile Include="StdLib/LibHttpClient4.fs" />
+    <Compile Include="StdLib/LibHttpClient5.fs" />
     <Compile Include="StdLib/LibJwt.fs" />
     <Compile Include="StdLib/LibStaticAssets.fs" />
     <Compile Include="StdLib/LibTwilio.fs" />
