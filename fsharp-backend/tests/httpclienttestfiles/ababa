@@ -1,7 +1,7 @@
 [expected-request]
 GET PATH HTTP/1.1
 Accept: */*
-Accept-Encoding: deflate, gzip
+Accept-Encoding: deflate, gzip, br
 Content-Type: text/plain; charset=utf-8
 Host: HOST
 
@@ -23,7 +23,7 @@ Content-Length: 11
      headers =
       {
         Accept = "*/*"
-        ``Accept-Encoding`` = "deflate, gzip"
+        ``Accept-Encoding`` = "deflate, gzip, br"
         ``Content-Type`` = "text/plain; charset=utf-8"
         ``HTTP/1.1 200 OK`` = ""
         Date = ""
