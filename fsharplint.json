@@ -134,7 +134,7 @@
   "recordFieldNames": {
     "enabled": true,
     "config": {
-      "naming": "PascalCase",
+      "naming": "CamelCase",
       "underscores": "None"
     }
   },
@@ -162,7 +162,7 @@
   "literalNames": {
     "enabled": true,
     "config": {
-      "naming": "PascalCase",
+      "naming": "camelCase",
       "underscores": "None"
     }
   },
