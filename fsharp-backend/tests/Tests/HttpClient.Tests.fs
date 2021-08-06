@@ -103,7 +103,7 @@ let t filename =
             []
 
         with
-        | e -> failwith "When calling OCaml code, OCaml server failed: {msg}, {e}"
+        | e -> failwith $"When calling OCaml code, OCaml server failed: {msg}, {e}"
 
       if shouldEqual then
         Expect.equal (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
@@ -137,6 +137,12 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
 open Microsoft.AspNetCore.Server.Kestrel.Core
 
+type ErrorResponse =
+  { expectedHeaders : List<string * string>
+    expectedBody : byte []
+    actualHeaders : List<string * string>
+    actualBody : byte [] }
+
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     let testName =
@@ -161,27 +167,20 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       Map.iter (fun k v -> BwdServer.setHeader ctx k v) expectedHeaders
       do! ctx.Response.Body.WriteAsync(expectedBody, 0, expectedBody.Length)
     else
-      let expectedHeaders =
-        expectedHeaders
-        |> Map.toList
-        |> List.map (fun (k, v) -> k + ": " + v)
-        |> String.concat "\n"
-
-      let headers =
-        headers
-        |> Map.toList
-        |> List.map (fun (k, v) -> k + ": " + v)
-        |> String.concat "\n"
+      let expectedHeaders = expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
+      let headers = headers |> Map.toList |> List.sortBy Tuple2.first
 
       let body =
-        $"Expected\n{expectedHeaders}\n{toStr expectedBody}\n"
-        + $"Got:\n{headers}\n{toStr requestBody}"
-
-      printfn "%s" body
+        { expectedHeaders = expectedHeaders
+          expectedBody = expectedBody
+          actualHeaders = headers
+          actualBody = requestBody }
+        |> Json.Vanilla.serialize
+        |> toBytes
 
       ctx.Response.StatusCode <- 400
       ctx.Response.ContentLength <- int64 body.Length
-      do! ctx.Response.Body.WriteAsync(toBytes body, 0, body.Length)
+      do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
 
     return ctx
   }
