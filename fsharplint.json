@@ -135,7 +135,7 @@
     "enabled": true,
     "config": {
       "naming": "CamelCase",
-      "underscores": "None"
+      "underscores": "AllowAny"
     }
   },
   "enumCasesNames": {
@@ -176,8 +176,8 @@
   "memberNames": {
     "enabled": true,
     "config": {
-      "naming": "PascalCase",
-      "underscores": "AllowPrefix"
+      "naming": "CamelCase",
+      "underscores": "AllowAny"
     }
   },
   "parameterNames": {
@@ -295,9 +295,6 @@
       "List.head (List.sort x) ===> List.min x",
       "List.head (List.sortBy f x) ===> List.minBy f x",
 
-      "List.map f (List.map g x) ===> List.map (g >> f) x",
-      "Array.map f (Array.map g x) ===> Array.map (g >> f) x",
-      "Seq.map f (Seq.map g x) ===> Seq.map (g >> f) x",
       "List.nth x 0 ===> List.head x",
       "List.map f (List.replicate n x) ===> List.replicate n (f x)",
       "List.rev (List.rev x) ===> x",
