@@ -20,7 +20,13 @@ type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 type Headers = (string * string) list
 
-type HttpResult = { body : string; code : int; headers : Headers; error : string }
+type HttpResult =
+  { body : string
+    code : int
+    headers : Headers
+    error : string
+    httpVersion : string
+    httpStatusMessage : string }
 
 type CurlError = { url : string; error : string; code : int }
 
@@ -244,11 +250,20 @@ let httpCallWithCode
              (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
       |> Seq.toList
 
+    let contentHeaders =
+      response.Content.Headers
+      |> Seq.map
+           (fun (kvp : KeyValuePair<string, seq<string>>) ->
+             (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
+      |> Seq.toList
+
     let result =
       { body = respBody
         code = int response.StatusCode
-        headers = respHeaders
-        error = "" }
+        headers = respHeaders @ contentHeaders
+        error = ""
+        httpVersion = string response.Version
+        httpStatusMessage = response.ReasonPhrase }
     return Ok result
   }
 

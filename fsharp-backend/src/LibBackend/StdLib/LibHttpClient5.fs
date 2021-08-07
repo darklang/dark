@@ -143,12 +143,19 @@ let sendRequest
         else
           DStr response.body
 
+      // CLEANUP: For some reason, the OCaml version includes a header with the HTTP
+      // status line the response and each redirect.
+      // FSTODO: test redirects
+      let statusHeader =
+        ($"HTTP/{response.httpVersion} {response.code} {response.httpStatusMessage}")
+
       let parsedResponseHeaders =
         response.headers
         |> debug "Headers"
         |> List.map (fun (k, v) -> (k.Trim(), DStr(v.Trim())))
         |> debug "trimmed"
         |> List.filter (fun (k, _) -> String.length k > 0)
+        |> List.append [ statusHeader, DStr "" ]
         |> debug "filtered"
         |> Dval.obj
         |> debug "objed"
