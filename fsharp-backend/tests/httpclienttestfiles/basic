@@ -16,7 +16,7 @@ Content-Length: 11
 [test]
 (let response = HttpClient.get_v5_ster "http://URL/" Dict.empty Dict.empty in
  let headers = response.headers |> Dict.set "Date" "" in
- Dict.set response "headers" headers) =
+ Dict.set_v0 response "headers" headers) =
    { body = ""
      code = 200
      error = ""
