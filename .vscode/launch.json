@@ -8,7 +8,6 @@
       "name": "ApiServer",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
       "program": "/home/dark/app/fsharp-backend/Build/out/ApiServer.dll",
       "args": [],
       "cwd": "${workspaceFolder}",
@@ -19,7 +18,6 @@
       "name": "BwdServer",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
       "program": "/home/dark/app/fsharp-backend/Build/out/BwdServer.dll",
       "args": [],
       "cwd": "${workspaceFolder}",
@@ -31,10 +29,7 @@
       "type": "coreclr",
       "request": "launch",
       "program": "/home/dark/app/fsharp-backend/Build/out/Tests",
-      "args": [
-        "--filter-test-case",
-        "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
-      ],
+      "args": ["--filter-test-list", "HttpClient"],
       "cwd": "${workspaceFolder}/fsharp-backend",
       "stopAtEntry": false,
       "console": "internalConsole",
