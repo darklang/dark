@@ -39,53 +39,35 @@ let parametersNoBody =
     Param.make "query" (TDict TStr) ""
     Param.make "headers" (TDict TStr) "" ]
 
-type Headers = (string * string) list
 
-let hasHeader
-  ((headerKey, headerVal) : (string * string))
-  (headers : Headers)
-  : bool =
-  List.exists
-    (fun (k, v) ->
-      String.equalsCaseInsensitive headerKey k
-      && String.equalsCaseInsensitive headerVal v)
-    headers
-
-
-let hasFormHeader (headers : Headers) : bool =
-  hasHeader ("content-type", "application/x-www-form-urlencoded") headers
-
-let hasJsonHeader (headers : Headers) : bool =
-  hasHeader ("content-type", "application/json") headers
-
-let hasPlaintextHeader (headers : Headers) : bool =
-  hasHeader ("content-type", "text/plain") headers
+let guessContentType (body : Dval option) : string =
+  match body with
+  | Some dv ->
+    match dv with
+    (* TODO: DBytes? *)
+    // Do nothing to strings; users can set the header if they have opinions
+    | DStr _ -> "text/plain; charset=utf-8"
+    // Otherwise, jsonify (this is the 'easy' API afterall), regardless of
+    // headers passed. This makes a little more sense than you might think on
+    // first glance, due to the interaction with the above `DStr` case. Note that
+    // this handles all non-DStr dvals.
+    | _ -> "application/json; charset=utf-8"
+  // If we were passed an empty body, we need to ensure a Content-Type was set, or
+  // else helpful intermediary load balancers will set the Content-Type to something
+  // they've plucked out of the ether, which is distinctfully non-helpful and also
+  // non-deterministic *)
+  | None -> "text/plain; charset=utf-8"
 
 
-// Adds a default Content-Type header if one is not provided
-let withDefaultContentType (ct : string) (headers : Headers) : Headers =
-  if List.exists
-       (fun (k, v) -> String.equalsCaseInsensitive "content-type" v)
-       headers then
-    headers
-  else
-    ("Content-Type", ct) :: headers
-
-
-// Encodes [body] as a UTF-8 buffer/OCaml string, safe for sending across the internet! Uses
+// Encodes [body] as a UTF-8 string, safe for sending across the internet! Uses
 // the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
 // how to encode said body. Returns a tuple of the encoded body, and the passed headers that
 // have potentially had a Content-Type added to them based on the magic decision we've made.
-let encodeRequestBody
-  (headers : Headers)
-  (body : Dval option)
-  : string option * Headers =
+let encodeRequestBody (body : Dval option) (contentType : string) : string option =
   match body with
   | Some dv ->
-    let encodedBody, mungedHeaders =
+    let encodedBody =
       match dv with
-      | DObj _ as dv when hasFormHeader headers ->
-        (HttpClient.toFormEncoding dv, headers)
       (* TODO: DBytes? *)
       | DStr s ->
         // Do nothing to strings, ever. The reasoning here is that users do not
@@ -97,37 +79,20 @@ let encodeRequestBody
         // See:
         // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
         // for more information. *)
-        (s, withDefaultContentType "text/plain; charset=utf-8" headers)
-      | dv when hasPlaintextHeader headers ->
-        (DvalRepr.toEnduserReadableTextV0 dv, headers)
-      | dv ->
-        // Otherwise, jsonify (this is the 'easy' API afterall), regardless of
-        // headers passed. This makes a little more sense than you might think on
-        // first glance, due to the interaction with the above `DStr` case. Note that
-        // this handles all non-DStr dvals.
-        //
-        // If a user actually _wants_ to use a different Content-Type than the
-        // form/plain-text magic provided, they're responsible for encoding the value
-        // to a String first (ie. using the above DStr case) and not just giving us a
-        // random dval.
-        //
-        // TODO: Better feedback for user who explicitly provides a Content-Type
-        // expecting magic from us but we don't support it. *)
-        (DvalRepr.toPrettyMachineJsonStringV1 dv,
-         withDefaultContentType "application/json; charset=utf-8" headers)
-    // FSTODO: investigate comment
-    // Explicitly convert the empty String to `None`, to ensure downstream we set the
-    // right bits on the outgoing cURL request.
-    if String.length encodedBody = 0 then
-      (None, mungedHeaders)
-    else
-      (Some encodedBody, mungedHeaders)
+        s
+      | DObj _ when contentType = HttpClient.formContentType ->
+        HttpClient.dvalToFormEncoding dv
+      | dv when contentType = HttpClient.textContentType ->
+        DvalRepr.toEnduserReadableTextV0 dv
+      | _ -> // when contentType = jsonContentType
+        DvalRepr.toPrettyMachineJsonStringV1 dv
+    if String.length encodedBody = 0 then None else Some encodedBody
 
   // If we were passed an empty body, we need to ensure a Content-Type was set, or
   // else helpful intermediary load balancers will set the Content-Type to something
   // they've plucked out of the ether, which is distinctfully non-helpful and also
-  // non-deterministic *)
-  | None -> (None, withDefaultContentType "text/plain; charset=utf-8" headers)
+  // non-deterministic
+  | None -> None
 
 
 let sendRequest
@@ -138,46 +103,56 @@ let sendRequest
   (requestHeaders : Dval)
   : Task<Dval> =
   task {
-    let encodedQuery = HttpClient.toQuery query
+    let encodedQuery = HttpClient.dvalToQuery query
+
+    // Headers
     let encodedRequestHeaders = DvalRepr.toStringPairsExn requestHeaders
-    let encodedRequestBody, mungedEncodedRequestHeaders =
-      // We use the user-provided Content-Type headers to make ~magic~ decisions
-      // about how to encode the the outgoing request
-      //
-      // We also _munge_ the headers, specifically to add a Content-Type if none
-      // was provided. This is to ensure we're being good HTTP citizens.
-      encodeRequestBody encodedRequestHeaders requestBody
+    let contentType =
+      HttpClient.getHeader "content-type" encodedRequestHeaders
+      |> Option.defaultValue (guessContentType requestBody)
+
+    let defaultHeaders =
+      [ "Accept", "*/*"
+        "Accept-Encoding", "deflate, gzip, br"
+        "Content-Type", contentType ]
+
+    let requestHeaders =
+      // Prioritize the users' headers over the defaults
+      // FSTODO: keep header ordering
+      Map.union (Map defaultHeaders) (Map encodedRequestHeaders)
+    let encodedRequestBody = encodeRequestBody requestBody contentType
     match! HttpClient.httpCall
              false
              uri
              encodedQuery
              verb
-             mungedEncodedRequestHeaders
+             (Map.toList requestHeaders)
              encodedRequestBody with
     | Ok response ->
-      let parsedResponseBody = DNull
-      //   (if hasFormHeader res.headers then
-      //      try
-      //        Dval.ofFormEncoding res.body
-      //      with
-      //      | _ -> DStr "form decoding error"
-      //    elif hasJsonHeader res.headers then
-      //      try
-      //        Dval.of_unknown_json_v0 res.body
-      //      with
-      //      | _ -> DStr "json decoding error"
-      //    else
-      //      try
-      //        DStr res.body
-      //      with
-      //      | _ -> DStr "utf-8 decoding error")
+      let parsedResponseBody =
+        if HttpClient.hasFormHeader response.headers then
+          try
+            HttpClient.queryToDval response.body
+          with
+          | _ -> DStr "form decoding error"
+        elif HttpClient.hasJsonHeader response.headers then
+          try
+            DvalRepr.ofUnknownJsonV0 response.body
+          with
+          | _ -> DStr "json decoding error"
+        else
+          DStr response.body
 
-      let parsedResponseHeaders = DNull
-      //   res.headers
-      //   |> List.map (fun (k, v) -> (String.strip k, DStr(String.strip v)))
-      //   |> List.filter (fun (k, _) -> String.length k > 0)
-      //   |> DvalMap.from_list
-      // |> fun dm -> DObj dm
+      let parsedResponseHeaders =
+        response.headers
+        |> debug "Headers"
+        |> List.map (fun (k, v) -> (k.Trim(), DStr(v.Trim())))
+        |> debug "trimmed"
+        |> List.filter (fun (k, _) -> String.length k > 0)
+        |> debug "filtered"
+        |> Dval.obj
+        |> debug "objed"
+
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
                    ("headers", parsedResponseHeaders)

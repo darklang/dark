@@ -34,12 +34,12 @@ let t filename =
 
     let filename = $"tests/httpclienttestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
-    let contents = toStr contents
+    let content = toStr contents
 
     let expectedRequest, response, code =
       let m =
         Regex.Match(
-          contents,
+          content,
           "^(\[expected-request\]\n(.*)\n)\[response\]\n(.*)\[test\]\n(.*)$",
           RegexOptions.Singleline
         )
@@ -47,7 +47,7 @@ let t filename =
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
 
-      (toBytes g.[2].Value, toBytes g.[3].Value, g.[4].Value)
+      (g.[2].Value, g.[3].Value, g.[4].Value)
 
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
@@ -58,16 +58,17 @@ let t filename =
     let normalizeHeaders
       (headers : (string * string) list)
       : (string * string) list =
-      List.map
-        (function
-        | ("Host", _) -> ("Host", host)
-        | other -> other)
-        headers
+      headers
+      |> List.map
+           (function
+           // make writing tests easier
+           | ("Host", _) -> ("Host", host)
+           | other -> other)
 
     // Add the expectedRequest and response to the server
-    let expected = expectedRequest |> Http.setHeadersToCRLF |> Http.split
+    let expected = expectedRequest |> toBytes |> Http.setHeadersToCRLF |> Http.split
     let expected = { expected with headers = normalizeHeaders expected.headers }
-    let response = response |> Http.setHeadersToCRLF |> Http.split
+    let response = response |> toBytes |> Http.setHeadersToCRLF |> Http.split
     let response = { response with headers = normalizeHeaders response.headers }
 
     let testCase = { expected = expected; result = response }
@@ -154,28 +155,31 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
     debuG "testCases" (Dictionary.toList testCases)
     let testCase = Dictionary.tryGetValue testName testCases |> Option.unwrapUnsafe
 
-    let headers = BwdServer.getHeaders ctx
-    let! requestBody = BwdServer.getBody ctx
-    debuG "requestBody" (toStr requestBody)
+    let actualHeaders =
+      BwdServer.getHeaders ctx
+      // .NET always adds a Content-Length header, but OCaml doesn't
+      |> Map.remove "Content-Length"
+    let! actualBody = BwdServer.getBody ctx
+    debuG "requestBody" (toStr actualBody)
 
     let expectedHeaders = Map testCase.expected.headers
     let expectedBody = testCase.expected.body
 
-    if (headers, requestBody) = (expectedHeaders, testCase.expected.body) then
+    if (actualHeaders, actualBody) = (expectedHeaders, expectedBody) then
       printfn "It matches, returning prepared response"
       ctx.Response.StatusCode <- 200
       Map.iter (fun k v -> BwdServer.setHeader ctx k v) expectedHeaders
       do! ctx.Response.Body.WriteAsync(expectedBody, 0, expectedBody.Length)
     else
       let expectedHeaders = expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
-      let headers = headers |> Map.toList |> List.sortBy Tuple2.first
+      let actualHeaders = actualHeaders |> Map.toList |> List.sortBy Tuple2.first
 
       let body =
         { expectedHeaders = expectedHeaders
           expectedBody = expectedBody
-          actualHeaders = headers
-          actualBody = requestBody }
-        |> Json.Vanilla.serialize
+          actualHeaders = actualHeaders
+          actualBody = actualBody }
+        |> Json.Vanilla.prettySerialize
         |> toBytes
 
       ctx.Response.StatusCode <- 400

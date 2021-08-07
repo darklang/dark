@@ -14,15 +14,13 @@ open System.Net.Http
 open System.Net.Http.Json
 open System.Net.Http.Headers
 
+type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
+type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 
-type Headers = string list
+type Headers = (string * string) list
 
-type HttpResult =
-  { body : string
-    code : int
-    headers : (string * string) list
-    error : string }
+type HttpResult = { body : string; code : int; headers : Headers; error : string }
 
 type CurlError = { url : string; error : string; code : int }
 
@@ -66,9 +64,14 @@ type Charset =
 //   |> List.head
 //   |> Option.value Other
 
+// -------------------------
+// Forms and queries Functions
+// -------------------------
+
 // For putting into URLs as query params
 // FSTODO: fuzz against OCaml
-let rec toUrlStringExn (dv : RT.Dval) : string =
+let rec dvalToUrlStringExn (dv : RT.Dval) : string =
+  let r = dvalToUrlStringExn
   match dv with
   | RT.DFnVal _ ->
     (* See docs/dblock-serialization.ml *)
@@ -84,26 +87,23 @@ let rec toUrlStringExn (dv : RT.Dval) : string =
   | RT.DNull -> "null"
   | RT.DDate d -> d.toIsoString ()
   | RT.DDB dbname -> dbname
-  | RT.DErrorRail d -> toUrlStringExn d
+  | RT.DErrorRail d -> r d
   | RT.DError (_, msg : string) -> $"error={msg}"
   | RT.DUuid uuid -> string uuid
   | RT.DHttpResponse (RT.Redirect _) -> "null"
-  | RT.DHttpResponse (RT.Response (_, _, hdv)) -> toUrlStringExn hdv
-  | RT.DList l -> "[ " + String.concat ", " (List.map toUrlStringExn l) + " ]"
+  | RT.DHttpResponse (RT.Response (_, _, hdv)) -> r hdv
+  | RT.DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
   | RT.DObj o ->
-    let strs =
-      Map.fold (fun l key value -> (key + ": " + toUrlStringExn value) :: l) [] o
+    let strs = Map.fold (fun l key value -> (key + ": " + r value) :: l) [] o
     "{ " + (String.concat ", " strs) + " }"
   | RT.DOption None -> "none"
-  | RT.DOption (Some v) -> toUrlStringExn v
-  | RT.DResult (Error v) -> "error=" + toUrlStringExn v
-  | RT.DResult (Ok v) -> toUrlStringExn v
+  | RT.DOption (Some v) -> r v
+  | RT.DResult (Error v) -> "error=" + r v
+  | RT.DResult (Ok v) -> r v
   | RT.DBytes bytes -> base64Encode bytes
 
-
-
 // FSTODO: fuzz this against OCAML
-let toQuery (dv : RT.Dval) : (string * string list) list =
+let dvalToQuery (dv : RT.Dval) : (string * string list) list =
   match dv with
   | RT.DObj kvs ->
     kvs
@@ -112,17 +112,43 @@ let toQuery (dv : RT.Dval) : (string * string list) list =
          (fun (k, value) ->
            match value with
            | RT.DNull -> (k, [])
-           | RT.DList l -> (k, List.map toUrlStringExn l)
-           | _ -> (k, [ toUrlStringExn value ]))
+           | RT.DList l -> (k, List.map dvalToUrlStringExn l)
+           | _ -> (k, [ dvalToUrlStringExn value ]))
   | _ -> failwith "attempting to use non-object as query param" // CODE exception
 
 // FSTODO: fuzz against OCaml
 // https://secretgeek.net/uri_enconding
-let toFormEncoding (dv : RT.Dval) : string =
-  toQuery dv
+let dvalToFormEncoding (dv : RT.Dval) : string =
+  dvalToQuery dv
   |> List.map (fun (k, v) -> $"{k}={v}")
   |> List.map System.Uri.EscapeDataString
   |> String.concat "&"
+
+let queryToDval (queryString : string) : RT.Dval =
+  let nvc = System.Web.HttpUtility.ParseQueryString queryString
+  nvc.AllKeys
+  |> Seq.map
+       (fun key ->
+         let values = nvc.GetValues key
+         let value =
+           let split =
+             values.[values.Length - 1]
+             |> FSharpPlus.String.split [| "," |]
+             |> Seq.toList
+
+           match split with
+           | [] -> RT.DNull
+           | [ "" ] -> RT.DNull // CLEANUP this should be a string
+           | [ v ] -> RT.DStr v
+           | list -> RT.DList(List.map RT.DStr list)
+
+         if isNull key then
+           // All the values with no key are by GetValues, so make each one a value
+           values |> Array.toList |> List.map (fun k -> (k, RT.DNull))
+         else
+           [ (key, value) ])
+  |> List.concat
+  |> RT.Dval.obj
 
 (* Servers should default to ISO-8859-1 (aka Latin-1) if nothing
  * provided. We ask for UTF-8, but might not get it. If we get
@@ -154,6 +180,24 @@ let _socketsHandler =
 
 let httpClient () : HttpClient = new HttpClient(_socketsHandler)
 
+let getHeader (headerKey : string) (headers : Headers) : string option =
+  headers
+  |> List.tryFind
+       (fun ((k : string), (_ : string)) -> String.equalsCaseInsensitive headerKey k)
+  |> Option.map (fun (k, v) -> v)
+
+let formContentType = "application/x-www-form-urlencoded"
+let jsonContentType = "application/json"
+let textContentType = "text/plain"
+
+let hasFormHeader (headers : Headers) : bool =
+  getHeader "content-type" headers = Some formContentType
+
+let hasJsonHeader (headers : Headers) : bool =
+  getHeader "content-type" headers = Some jsonContentType
+
+let hasTextHeader (headers : Headers) : bool =
+  getHeader "content-type" headers = Some textContentType
 
 
 // The [body] parameter is optional to force us to actually treat its
@@ -169,19 +213,42 @@ let httpCallWithCode
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (headers : (string * string) list)
-  (body : string option)
+  (reqHeaders : Headers)
+  (reqBody : string option)
   : Task<Result<HttpResult, CurlError>> =
   task {
     // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
 
     let client = httpClient ()
     let req = new HttpRequestMessage(method, url)
+
+    // content
+    match reqBody with
+    | Some body -> req.Content <- new StringContent(body)
+    | None -> req.Content <- new ByteArrayContent([||])
+
+    // headers
+    List.iter
+      (fun (k, v) ->
+        // Headers are split between req.Headers and req.Content.Headers so just try both
+        let added = req.Headers.TryAddWithoutValidation(k, [ v ])
+        if not added then req.Content.Headers.Add(k, v))
+      reqHeaders
+
     let! response = client.SendAsync req
-    let! body = response.Content.ReadAsStringAsync()
+    let! respBody = response.Content.ReadAsStringAsync()
+    let respHeaders =
+      response.Headers
+      |> Seq.map
+           (fun (kvp : KeyValuePair<string, seq<string>>) ->
+             (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
+      |> Seq.toList
 
     let result =
-      { body = body; code = int response.StatusCode; headers = []; error = "" }
+      { body = respBody
+        code = int response.StatusCode
+        headers = respHeaders
+        error = "" }
     return Ok result
   }
 
