@@ -196,9 +196,12 @@ let formContentType = "application/x-www-form-urlencoded"
 let jsonContentType = "application/json"
 let textContentType = "text/plain"
 
-// CLEANUP: this doesn't work properly if a charset is included
 let hasFormHeader (headers : Headers) : bool =
-  getHeader "content-type" headers = Some formContentType
+  // CLEANUP: this doesn't work properly if a charset is included. But also, this was
+  // always false in OCaml because the string we compared against wasn't properly
+  // trimmed.
+  // getHeader "content-type" headers = Some formContentType
+  false
 
 let hasJsonHeader (headers : Headers) : bool =
   getHeader "content-type" headers
