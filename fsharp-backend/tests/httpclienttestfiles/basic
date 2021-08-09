@@ -9,26 +9,22 @@ Host: HOST
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-type: text/plain; charset=utf-8
-Content-Length: 11
+Content-Length: LENGTH
 
 "Hello back"
 
 [test]
 (let response = HttpClient.get_v5_ster "http://URL/" Dict.empty Dict.empty in
- let headers = response.headers |> Dict.set "Date" "" in
+ let headers = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" headers) =
-   { body = ""
+   { body = "\"Hello back\""
      code = 200
      error = ""
      headers =
       {
-        Accept = "*/*"
-        ``Accept-Encoding`` = "deflate, gzip, br"
+        ``Content-Length`` = "12"
         ``Content-Type`` = "text/plain; charset=utf-8"
         ``HTTP/1.1 200 OK`` = ""
-        Date = ""
-        Host = "test.builtwithdark.localhost:10005"
-        ``Transfer-Encoding`` = "chunked"
         Server = "Kestrel"
       }
-     raw = ""}
+     raw = "\"Hello back\""}
