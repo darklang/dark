@@ -196,14 +196,20 @@ let formContentType = "application/x-www-form-urlencoded"
 let jsonContentType = "application/json"
 let textContentType = "text/plain"
 
+// CLEANUP: these doesn't actually check the headers correctly, as they don't work if
+// the charset is included
 let hasFormHeader (headers : Headers) : bool =
   getHeader "content-type" headers = Some formContentType
 
 let hasJsonHeader (headers : Headers) : bool =
-  getHeader "content-type" headers = Some jsonContentType
+  getHeader "content-type" headers
+  |> Option.map (fun s -> s.Contains jsonContentType)
+  |> Option.defaultValue false
 
 let hasTextHeader (headers : Headers) : bool =
-  getHeader "content-type" headers = Some textContentType
+  getHeader "content-type" headers
+  |> Option.map (fun s -> s.Contains textContentType)
+  |> Option.defaultValue false
 
 
 // The [body] parameter is optional to force us to actually treat its
@@ -251,7 +257,7 @@ let httpCallWithCode
 
     // send request
     let! response = client.SendAsync req
-    let! respBody = response.Content.ReadAsStringAsync()
+    let! respBody = response.Content.ReadAsByteArrayAsync()
     let respHeaders =
       response.Headers
       |> Seq.map
@@ -267,7 +273,7 @@ let httpCallWithCode
       |> Seq.toList
 
     let result =
-      { body = respBody
+      { body = respBody |> ofBytes
         code = int response.StatusCode
         headers = respHeaders @ contentHeaders
         error = ""

@@ -130,7 +130,7 @@ let sendRequest
              encodedRequestBody with
     | Ok response ->
       let parsedResponseBody =
-        // FSTODO: AFAICT, this never triggered in the OCaml version, only the String version
+        // CLEANUP: form header never triggers. But is it even needed?
         if HttpClient.hasFormHeader response.headers then
           try
             HttpClient.queryToDval response.body
