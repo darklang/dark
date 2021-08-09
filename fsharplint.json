@@ -381,9 +381,6 @@
 
       "x @ [] ===> x",
 
-      "List.isEmpty [] ===> true",
-      "Array.isEmpty [||] ===> true",
-
       "fun _ -> () ===> ignore",
       "fun x -> x ===> id",
       "id x ===> x",
