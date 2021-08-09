@@ -53,11 +53,11 @@ Responses are returned by the server if the request is exactly as expected. An e
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-content-type: application/json; charset=utf-8
+Content-Type: application/json; charset=utf-8
 Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
-Server: darklang
-Content-Length: 92
+Server: Kestrel
+Content-Length: LENGTH
 
 {
   "b": { "field1": "value1"},
@@ -71,8 +71,23 @@ The response will presumably be parsed by the HttpClient::\* call.
 
 # Adjusting for minor differences
 
-## HOST
+In test cases, you can use some standard strings in some places to make writing test
+cases a little but easier.
 
-HOST is replaced with the appropriate host. In the case of a test file named
-"mytest", this would be something like `mytest.localhost:10005`. The test suite
-runs a test server here that listens for requests.
+## `Host: HOST` header
+
+In the `Host` header, the string `HOST` is replaced with the appropriate host for
+server that's running as part of the test suite
+
+## `Content-Type: LENGTH` header
+
+In the `Content-type` header, the test suite will replace the header with the body's length.
+
+## `PATH` in status line
+
+In the status line, `PATH` is replaced by the right path to get the test server to
+respond to this test.
+
+## URL in code
+
+In the test body, `URL` is replaced by the actual URL used in the test.
