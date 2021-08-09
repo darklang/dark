@@ -314,11 +314,13 @@ let httpCallWithCode
 //     C.set_verbose c true
 //     C.set_debugfunction c (debugfn debug_bufs)
 //     C.set_errorbuffer c errorbuf
+// FSTODO followlocation
 //     C.set_followlocation c true
 //     C.set_failonerror c false
 //     C.set_writefunction c responsefn
 //     C.set_httpheader c headers
 //     C.set_headerfunction c headerfn
+// FSTODO timeout
 //     C.setopt c (Curl.CURLOPT_TIMEOUT 30) (* timeout is infinite by default *)
 //     (* This tells CURL to send an Accept-Encoding header including all
 //       * of the encodings it supports *and* tells it to automagically decode
@@ -327,11 +329,14 @@ let httpCallWithCode
 //       *
 //       * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
 //       * *)
+// FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
 //     (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
+// FSTODO allowed protocols
 //     C.set_protocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ]
 //     (* Seems like redirects can be used to get around the above list... *)
 //     C.set_redirprotocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ]
+// FSTODO proxy
 //     C.setopt c (Curl.CURLOPT_PROXY Config.curl_tunnel_url)
 //     (match verb with
 //      | PUT ->
@@ -382,6 +387,7 @@ let httpCallWithCode
 //       * straightforward in theory but likely not practice.
 //       * Alternatively, we could clear the headers ref when we receive a
 //       * new `ok` header. *)
+// FSTODO latin1 translation
 //     let responsebody =
 //       if charset !result_headers = Latin1 then
 //         recode_latin1 (Buffer.contents responsebuf)
