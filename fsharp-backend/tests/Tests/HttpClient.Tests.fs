@@ -9,6 +9,9 @@ open System.Net.Sockets
 open System.Text.RegularExpressions
 open FSharpPlus
 
+type ConcurrentDictionary<'a, 'b> =
+  System.Collections.Concurrent.ConcurrentDictionary<'a, 'b>
+
 open Prelude
 open Tablecloth
 open Prelude.Tablecloth
@@ -21,7 +24,7 @@ open TestUtils
 
 type TestCase = { expected : Http.T; result : Http.T }
 
-let testCases : Dictionary.T<string, TestCase> = Dictionary.empty ()
+let testCases : ConcurrentDictionary<string, TestCase> = ConcurrentDictionary()
 
 let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
 let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
@@ -79,7 +82,7 @@ let t filename =
 
     let testCase = { expected = expected; result = response }
 
-    testCases.Add(name, testCase)
+    testCases.[name] <- testCase
 
     if skip then
       skiptest $"underscore test - {name}"
@@ -153,27 +156,20 @@ type ErrorResponse =
 
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    let testName =
-      ctx.Request.Path.Value
-      |> String.dropLeft 1
-      |> String.dropRight 2
-      |> debug "testName"
+    let testName = ctx.Request.Path.Value |> String.dropLeft 1 |> String.dropRight 2
 
-    debuG "testCases" (Dictionary.toList testCases)
-    let testCase = Dictionary.tryGetValue testName testCases |> Option.unwrapUnsafe
+    let testCase = testCases.[testName]
 
     let actualHeaders =
       BwdServer.getHeaders ctx
       // .NET always adds a Content-Length header, but OCaml doesn't
       |> Map.remove "Content-Length"
     let! actualBody = BwdServer.getBody ctx
-    debuG "requestBody" (toStr actualBody)
 
-    let expectedHeaders = Map testCase.expected.headers |> debug "expectedHeaders"
-    let expectedBody = testCase.expected.body |> debug "expectedBody"
+    let expectedHeaders = Map testCase.expected.headers
+    let expectedBody = testCase.expected.body
 
     if (actualHeaders, actualBody) = (expectedHeaders, expectedBody) then
-      printfn "It matches, returning prepared response"
       ctx.Response.StatusCode <-
         testCase.result.status
         |> String.split " "

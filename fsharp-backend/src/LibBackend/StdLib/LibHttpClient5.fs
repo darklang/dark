@@ -152,14 +152,10 @@ let sendRequest
 
       let parsedResponseHeaders =
         response.headers
-        |> debug "Headers"
         |> List.map (fun (k, v) -> (k.Trim(), DStr(v.Trim())))
-        |> debug "trimmed"
         |> List.filter (fun (k, _) -> String.length k > 0)
         |> List.append [ statusHeader, DStr "" ]
-        |> debug "filtered"
         |> Dval.obj
-        |> debug "objed"
 
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
