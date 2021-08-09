@@ -229,18 +229,24 @@ let httpCallWithCode
     let req = new HttpRequestMessage(method, url)
 
     // content
-    match reqBody with
-    | Some body -> req.Content <- new StringContent(body)
-    | None -> req.Content <- new ByteArrayContent([||])
+    let body =
+      match reqBody with
+      | Some body -> toBytes body
+      | None -> [||]
+    req.Content <- new ByteArrayContent(body)
 
     // headers
     List.iter
       (fun (k, v) ->
-        // Headers are split between req.Headers and req.Content.Headers so just try both
-        let added = req.Headers.TryAddWithoutValidation(k, [ v ])
-        if not added then req.Content.Headers.Add(k, v))
+        if String.equalsCaseInsensitive k "content-type" then
+          req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
+        else
+          // Headers are split between req.Headers and req.Content.Headers so just try both
+          let added = req.Headers.TryAddWithoutValidation(k, v)
+          if not added then req.Content.Headers.Add(k, v))
       reqHeaders
 
+    // send request
     let! response = client.SendAsync req
     let! respBody = response.Content.ReadAsStringAsync()
     let respHeaders =
