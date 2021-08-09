@@ -196,8 +196,7 @@ let formContentType = "application/x-www-form-urlencoded"
 let jsonContentType = "application/json"
 let textContentType = "text/plain"
 
-// CLEANUP: these doesn't actually check the headers correctly, as they don't work if
-// the charset is included
+// CLEANUP: this doesn't work properly if a charset is included
 let hasFormHeader (headers : Headers) : bool =
   getHeader "content-type" headers = Some formContentType
 
