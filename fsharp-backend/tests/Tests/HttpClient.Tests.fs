@@ -66,7 +66,8 @@ let t filename =
       |> List.map
            (function
            // make writing tests easier
-           | ("Host", _) -> ("Host", host)
+           | (key, "HOST") when String.equalsCaseInsensitive "Host" key ->
+             (key, host)
            // optionally change content length for writing responses more easily
            | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
              (key, string body.Length)
