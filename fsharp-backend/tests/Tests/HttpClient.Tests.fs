@@ -40,7 +40,7 @@ let t filename =
       let m =
         Regex.Match(
           content,
-          "^(\[expected-request\]\n(.*)\n)\[response\]\n(.*)\[test\]\n(.*)$",
+          "^(\[expected-request\]\n(.*)\n)\[response\]\n(.*)\n\n\[test\]\n(.*)$",
           RegexOptions.Singleline
         )
 
@@ -56,6 +56,7 @@ let t filename =
     let host = $"test.builtwithdark.localhost:10005"
 
     let normalizeHeaders
+      (body : byte array)
       (headers : (string * string) list)
       : (string * string) list =
       headers
@@ -63,13 +64,18 @@ let t filename =
            (function
            // make writing tests easier
            | ("Host", _) -> ("Host", host)
+           // optionally change content length for writing responses more easily
+           | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
+             (key, string body.Length)
            | other -> other)
 
     // Add the expectedRequest and response to the server
     let expected = expectedRequest |> toBytes |> Http.setHeadersToCRLF |> Http.split
-    let expected = { expected with headers = normalizeHeaders expected.headers }
+    let expected =
+      { expected with headers = normalizeHeaders expected.body expected.headers }
     let response = response |> toBytes |> Http.setHeadersToCRLF |> Http.split
-    let response = { response with headers = normalizeHeaders response.headers }
+    let response =
+      { response with headers = normalizeHeaders response.body response.headers }
 
     let testCase = { expected = expected; result = response }
 
@@ -90,7 +96,7 @@ let t filename =
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
 
-      let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
+      let msg = $"\n\n{actualProg}\n=\n{expectedResult}\n\n"
 
       // Test OCaml
       let! ocamlActual =
@@ -107,9 +113,9 @@ let t filename =
         | e -> failwith $"When calling OCaml code, OCaml server failed: {msg}, {e}"
 
       if shouldEqual then
-        Expect.equal (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
+        Expect.equalDval (normalizeDvalResult ocamlActual) expected $"{msg} -> OCaml"
       else
-        Expect.notEqual (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
+        Expect.notEqual (normalizeDvalResult ocamlActual) expected $"{msg} -> OCaml"
 
       // Test F#
       let! fsharpActual =
@@ -118,9 +124,9 @@ let t filename =
       let fsharpActual = normalizeDvalResult fsharpActual
 
       if shouldEqual then
-        Expect.equalDval fsharpActual expected $"FSharp: {msg}"
+        Expect.equalDval fsharpActual expected $"{msg} -> FSharp"
       else
-        Expect.notEqual fsharpActual expected $"FSharp: {msg}"
+        Expect.notEqual fsharpActual expected $"{msg} -> FSharp"
   }
 
 
@@ -139,7 +145,8 @@ open Microsoft.Extensions.Hosting
 open Microsoft.AspNetCore.Server.Kestrel.Core
 
 type ErrorResponse =
-  { expectedHeaders : List<string * string>
+  { message : string
+    expectedHeaders : List<string * string>
     expectedBody : byte []
     actualHeaders : List<string * string>
     actualBody : byte [] }
@@ -162,20 +169,27 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
     let! actualBody = BwdServer.getBody ctx
     debuG "requestBody" (toStr actualBody)
 
-    let expectedHeaders = Map testCase.expected.headers
-    let expectedBody = testCase.expected.body
+    let expectedHeaders = Map testCase.expected.headers |> debug "expectedHeaders"
+    let expectedBody = testCase.expected.body |> debug "expectedBody"
 
     if (actualHeaders, actualBody) = (expectedHeaders, expectedBody) then
       printfn "It matches, returning prepared response"
-      ctx.Response.StatusCode <- 200
-      Map.iter (fun k v -> BwdServer.setHeader ctx k v) expectedHeaders
-      do! ctx.Response.Body.WriteAsync(expectedBody, 0, expectedBody.Length)
+      ctx.Response.StatusCode <-
+        testCase.result.status
+        |> String.split " "
+        |> List.getAt 1
+        |> Option.unwrapUnsafe
+        |> int
+      List.iter (fun (k, v) -> BwdServer.setHeader ctx k v) testCase.result.headers
+      let body = testCase.result.body
+      do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
     else
       let expectedHeaders = expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
       let actualHeaders = actualHeaders |> Map.toList |> List.sortBy Tuple2.first
 
       let body =
-        { expectedHeaders = expectedHeaders
+        { message = "The request to the server does not match the expected request"
+          expectedHeaders = expectedHeaders
           expectedBody = expectedBody
           actualHeaders = actualHeaders
           actualBody = actualBody }
