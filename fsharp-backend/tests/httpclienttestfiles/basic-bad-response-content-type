@@ -23,7 +23,7 @@ Content-Length: LENGTH
      error = ""
      headers =
       {
-        ``Content-Length`` = "12"
+        ``Content-Length`` = "LENGTH"
         ``Content-Type`` = "invalid content type header"
         ``HTTP/1.1 200 OK`` = ""
         Server = "Kestrel"

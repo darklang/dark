@@ -91,6 +91,7 @@ let t filename =
       let shouldEqual, actualProg, expectedResult =
         code
         |> String.replace "URL" $"{host}/{name}"
+        |> String.replace "LENGTH" (string response.body.Length)
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
 
