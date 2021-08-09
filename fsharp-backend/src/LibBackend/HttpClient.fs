@@ -238,7 +238,10 @@ let httpCallWithCode
     // headers
     List.iter
       (fun (k, v) ->
-        if String.equalsCaseInsensitive k "content-type" then
+        if v = "" then
+          // CLEANUP: OCaml doesn't send empty headers, but no reason not to
+          ()
+        elif String.equalsCaseInsensitive k "content-type" then
           req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
         else
           // Headers are split between req.Headers and req.Content.Headers so just try both
