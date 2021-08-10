@@ -152,9 +152,9 @@ open Microsoft.AspNetCore.Server.Kestrel.Core
 type ErrorResponse =
   { message : string
     expectedHeaders : List<string * string>
-    expectedBody : byte []
     actualHeaders : List<string * string>
-    actualBody : byte [] }
+    expectedBody : string
+    actualBody : string }
 
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
@@ -188,9 +188,9 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       let body =
         { message = "The request to the server does not match the expected request"
           expectedHeaders = expectedHeaders
-          expectedBody = expectedBody
+          expectedBody = ofBytes expectedBody
           actualHeaders = actualHeaders
-          actualBody = actualBody }
+          actualBody = ofBytes actualBody }
         |> Json.Vanilla.prettySerialize
         |> toBytes
 
