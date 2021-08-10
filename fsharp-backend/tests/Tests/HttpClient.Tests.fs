@@ -150,13 +150,13 @@ open Microsoft.Extensions.Hosting
 open Microsoft.AspNetCore.Server.Kestrel.Core
 
 type ErrorResponse =
-  { message : string
-    expectedStatus : string
+  { expectedStatus : string
     actualStatus : string
     expectedHeaders : List<string * string>
     actualHeaders : List<string * string>
     expectedBody : string
-    actualBody : string }
+    actualBody : string
+    message : string }
 
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
@@ -193,9 +193,16 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
     else
       let expectedHeaders = expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
       let actualHeaders = actualHeaders |> Map.toList |> List.sortBy Tuple2.first
+      let message =
+        [ (if actualStatus <> expectedStatus then "status" else "")
+          (if actualHeaders <> expectedHeaders then "headers" else "")
+          (if actualBody <> expectedBody then "body" else "") ]
+        |> List.filter ((<>) "")
+        |> String.concat ", "
+        |> fun s -> $"The request to the server differs in {s}"
 
       let body =
-        { message = "The request to the server does not match the expected request"
+        { message = message
           expectedStatus = expectedStatus
           actualStatus = actualStatus
           expectedHeaders = expectedHeaders
