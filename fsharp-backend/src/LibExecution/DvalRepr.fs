@@ -1051,7 +1051,7 @@ let toStringPairsExn (dv : Dval) : (string * string) list =
     |> List.map
          (function
          | (k, DStr v) -> (k, v)
-         | (k, v) -> failwith $"Expected a string, but got: {toDeveloperReprV0 dv}")
+         | (k, v) -> failwith $"Expected a string, but got: {toDeveloperReprV0 v}")
   | _ -> failwith $"Expected a string, but got: {toDeveloperReprV0 dv}"
 
 
