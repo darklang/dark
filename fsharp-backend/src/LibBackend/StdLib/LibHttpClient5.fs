@@ -214,22 +214,18 @@ let sendRequest
 //          (Unicode_string.to_string input))
 //   in
 //   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
-//
-//
-// let call verb =
-//     (function
-//     | _, [DStr uri; body; query; headers] ->
-//         send_request
-//           (Unicode_string.to_string uri)
-//           verb
-//           (Some body)
-//           query
-//           headers
-//     | _ ->
-//         incorrectArgs ())
-//
-//
-let callNoBody (method : System.Net.Http.HttpMethod) : BuiltInFnSig =
+
+
+let call (method : HttpMethod) =
+  (function
+  | _, [ DStr uri; body; query; headers ] ->
+    taskv {
+      let! response = sendRequest uri method (Some body) query headers
+      return response
+    }
+  | _ -> incorrectArgs ())
+
+let callNoBody (method : HttpMethod) : BuiltInFnSig =
   (function
   | _, [ DStr uri; query; headers ] ->
     taskv {
@@ -240,25 +236,24 @@ let callNoBody (method : System.Net.Http.HttpMethod) : BuiltInFnSig =
 
 
 let fns : List<BuiltInFn> =
-  [
-    // [// ; { name = fn "HttpClient" "post" 5
-//   ; parameters = parameters
-//   ; returnType = TResult
-//   ; description =
-//       "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-//   ; fn = call Httpclient.POST
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "HttpClient" "put" 5
-//   ; parameters = parameters
-//   ; returnType = TResult
-//   ; description =
-//       "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-//   ; fn = call Httpclient.PUT
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+  [ { name = fn "HttpClient" "post" 5
+      parameters = parameters
+      returnType = returnType
+      description =
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+      fn = call HttpMethod.Post
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "HttpClient" "put" 5
+      parameters = parameters
+      returnType = returnType
+      description =
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+      fn = call HttpMethod.Put
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "HttpClient" "get" 5
       parameters = parametersNoBody
       returnType = returnType
@@ -268,44 +263,41 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "delete" 5
-//   ; infix_names =
-//       []
-//       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
-//        * the spec says it may have a body *)
-//   ; parameters = parametersNoBody
-//   ; returnType = TResult
-//   ; description =
-//       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-//   ; fn = callNoBody Httpclient.DELETE
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "HttpClient" "options" 5
-//   ; parameters = parametersNoBody
-//   ; returnType = TResult
-//   ; description =
-//       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-//   ; fn = callNoBody Httpclient.OPTIONS
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "HttpClient" "head" 5
-//   ; parameters = parametersNoBody
-//   ; returnType = TResult
-//   ; description =
-//       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-//   ; fn = callNoBody Httpclient.HEAD
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "HttpClient" "patch" 5
-//   ; parameters = parameters
-//   ; returnType = TResult
-//   ; description =
-//       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-//   ; fn = call Httpclient.PATCH
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-   ]
+    { name = fn "HttpClient" "delete" 5
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE the spec
+      // says it may have a body
+      parameters = parametersNoBody
+      returnType = returnType
+      description =
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+      fn = callNoBody HttpMethod.Delete
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "HttpClient" "options" 5
+      parameters = parametersNoBody
+      returnType = returnType
+      description =
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+      fn = callNoBody HttpMethod.Options
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "HttpClient" "head" 5
+      parameters = parametersNoBody
+      returnType = returnType
+      description =
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+      fn = callNoBody HttpMethod.Head
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "HttpClient" "patch" 5
+      parameters = parameters
+      returnType = returnType
+      description =
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+      fn = call HttpMethod.Patch
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated } ]
