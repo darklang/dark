@@ -75,6 +75,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) when name.idText = "blank" ->
       pBlank ()
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
+    | SynPat.Wild _ -> pVar "_" // wildcard, not blank
     | SynPat.Const (SynConst.Int32 n, _) -> pInt n
     | SynPat.Const (SynConst.Int64 n, _) -> PT.PInteger(gid (), bigint n)
     | SynPat.Const (SynConst.UserNum (n, "I"), _) ->
