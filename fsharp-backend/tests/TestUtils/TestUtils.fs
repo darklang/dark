@@ -830,8 +830,8 @@ module Http =
       |> List.reverse
       |> List.map
            (fun s ->
-             match String.split ": " s with
-             | k :: vs -> (k, String.concat ": " vs)
+             match String.split ":" s with
+             | k :: vs -> (k, vs |> String.concat ":" |> String.trimLeft)
              | _ -> failwith $"not a valid header: {s}")
 
 
