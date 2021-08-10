@@ -821,7 +821,6 @@ module Http =
 
     // read the status like (eg HTTP 200 OK)
     let status, bytes = consume [] bytes
-    printfn "status is %s" (status |> Array.ofList |> ofBytes)
 
     let headers, body = consumeHeaders [] bytes
 
