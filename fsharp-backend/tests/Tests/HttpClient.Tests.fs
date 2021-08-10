@@ -151,6 +151,8 @@ open Microsoft.AspNetCore.Server.Kestrel.Core
 
 type ErrorResponse =
   { message : string
+    expectedStatus : string
+    actualStatus : string
     expectedHeaders : List<string * string>
     actualHeaders : List<string * string>
     expectedBody : string
@@ -168,10 +170,17 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       |> Map.remove "Content-Length"
     let! actualBody = BwdServer.getBody ctx
 
+    let actualStatus =
+      $"{ctx.Request.Method} {ctx.Request.Path.Value} {ctx.Request.Protocol}"
+
     let expectedHeaders = Map testCase.expected.headers
     let expectedBody = testCase.expected.body
+    let expectedStatus =
+      testCase.expected.status |> String.replace "PATH" ctx.Request.Path.Value
 
-    if (actualHeaders, actualBody) = (expectedHeaders, expectedBody) then
+    if (actualStatus, actualHeaders, actualBody) = (expectedStatus,
+                                                    expectedHeaders,
+                                                    expectedBody) then
       ctx.Response.StatusCode <-
         testCase.result.status
         |> String.split " "
@@ -187,6 +196,8 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
       let body =
         { message = "The request to the server does not match the expected request"
+          expectedStatus = expectedStatus
+          actualStatus = actualStatus
           expectedHeaders = expectedHeaders
           expectedBody = ofBytes expectedBody
           actualHeaders = actualHeaders
