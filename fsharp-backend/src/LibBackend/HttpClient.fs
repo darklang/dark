@@ -233,8 +233,78 @@ let httpCallWithCode
   task {
     // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
 
+    let urlEncode (s : string) : string =
+      let encodeByte (b : byte) : byte array =
+        // FSTODO: fuzz this against OCaml version
+        // CLEANUP make a nicer version of this that's designed for this use case
+        // We do want to escape the following: []+&^%#@"<>/;
+        // We don't want to escape the following: *$@!:?,.-_'
+        match b with
+        | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+        | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+        | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+        | b when b = (byte '*') -> [| b |]
+        | b when b = (byte '$') -> [| b |]
+        | b when b = (byte '@') -> [| b |]
+        | b when b = (byte '!') -> [| b |]
+        | b when b = (byte ':') -> [| b |]
+        | b when b = (byte '(') -> [| b |]
+        | b when b = (byte ')') -> [| b |]
+        | b when b = (byte '~') -> [| b |]
+        | b when b = (byte '?') -> [| b |]
+        | b when b = (byte '/') -> [| b |]
+        | b when b = (byte '.') -> [| b |]
+        | b when b = (byte '-') -> [| b |]
+        | b when b = (byte '_') -> [| b |]
+        | b when b = (byte '=') -> [| b |] // not the same for key
+        | b when b = (byte '\'') -> [| b |]
+        | _ -> toBytes ("%" + b.ToString("X2"))
+      s |> toBytes |> Array.collect encodeByte |> ofBytes
+
+    let urlEncodeKey (s : string) : string =
+      let encodeByte (b : byte) : byte array =
+        // FSTODO: fuzz this against OCaml version
+        // CLEANUP make a nicer version of this that's designed for this use case
+        // We do want to escape the following: []+&^%#@"<>/;
+        // We don't want to escape the following: *$@!:?,.-_'
+        match b with
+        | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+        | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+        | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+        | b when b = (byte '*') -> [| b |]
+        | b when b = (byte '$') -> [| b |]
+        | b when b = (byte '@') -> [| b |]
+        | b when b = (byte '!') -> [| b |]
+        | b when b = (byte ':') -> [| b |]
+        | b when b = (byte '(') -> [| b |]
+        | b when b = (byte ')') -> [| b |]
+        | b when b = (byte '~') -> [| b |]
+        | b when b = (byte '?') -> [| b |]
+        | b when b = (byte '/') -> [| b |]
+        | b when b = (byte '.') -> [| b |]
+        | b when b = (byte ',') -> [| b |] // only in keys
+        | b when b = (byte '-') -> [| b |]
+        | b when b = (byte '_') -> [| b |]
+        | b when b = (byte '\'') -> [| b |]
+
+        | _ -> toBytes ("%" + b.ToString("X2"))
+      s |> toBytes |> Array.collect encodeByte |> ofBytes
+
+
     let client = httpClient ()
-    let req = new HttpRequestMessage(method, url)
+    let queryString =
+      match queryParams with
+      | [ key, [] ] -> urlEncodeKey key
+      | _ ->
+        queryParams
+        |> List.map
+             (fun (k, vs) ->
+               let k = k |> urlEncodeKey
+               vs |> List.map urlEncode |> String.concat "," |> fun vs -> $"{k}={vs}")
+        |> String.concat "&"
+        |> fun s -> if s = "" then "" else "?" + s
+
+    let req = new HttpRequestMessage(method, url + queryString)
 
     // content
     let body =

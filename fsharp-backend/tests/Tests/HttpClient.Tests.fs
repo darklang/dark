@@ -171,7 +171,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
     let! actualBody = BwdServer.getBody ctx
 
     let actualStatus =
-      $"{ctx.Request.Method} {ctx.Request.Path.Value} {ctx.Request.Protocol}"
+      $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
 
     let expectedHeaders = Map testCase.expected.headers
     let expectedBody = testCase.expected.body
