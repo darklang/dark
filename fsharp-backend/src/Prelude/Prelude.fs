@@ -44,6 +44,19 @@ let matches (pattern : string) (input : string) : bool =
 type BlockingCollection = System.Collections.Concurrent.BlockingCollection<string>
 
 type NonBlockingConsole() =
+
+  // It seems like printing on the Console can cause a deadlock. I observed that all
+  // the tasks in the threadpool were blocking on Console.WriteLine, and that the
+  // logging thread in the background was blocked on one of those threads. This is
+  // like a known issue with a known solution:
+  // https://stackoverflow.com/a/3670628/104021.
+
+  // Note that there are sometimes other loggers, such as in IHosts, which may also
+  // need to move off the console logger.
+
+  // This adds a collection which receives all output from WriteLine. Then, a
+  // background thread writes the output to Console.
+
   static let mQueue : BlockingCollection = new BlockingCollection()
   static do
     let f () =
@@ -62,12 +75,6 @@ type NonBlockingConsole() =
       thread.Name <- "Prelude.NonBlockingConsole printer"
       thread.Start()
 
-
-  // It seems like using printf causes deadlock. I observed that all the tasks in the
-  // threadpool were blocking on Console.WriteLine, and that the logging thread in
-  // the background was blocked on one of those threads. This seems like a known
-  // issue with a known solution:
-  // https://stackoverflow.com/a/3670628/104021
 
   static member WriteLine(value : string) : unit = mQueue.Add(value)
 
