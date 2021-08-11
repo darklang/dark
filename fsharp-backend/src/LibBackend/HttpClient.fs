@@ -294,7 +294,7 @@ let httpCallWithCode
     let client = httpClient ()
     let queryString =
       match queryParams with
-      | [ key, [] ] -> urlEncodeKey key
+      | [ key, [] ] -> "?" + urlEncodeKey key
       | _ ->
         queryParams
         |> List.map
