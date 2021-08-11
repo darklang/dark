@@ -8,7 +8,15 @@
 
   // Set *default* container specific settings.json values on container create.
   "settings": {
-    "terminal.integrated.defaultProfile.linux": null
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "FSharp.dotNetRoot": "/usr/share/dotnet",
+    "FSharp.useSdkScripts": true,
+    "FSharp.workspaceModePeekDeepLevel": 5,
+    "FSharp.workspacePath": "/home/dark/app/fsharp-backend/fsdark.sln",
+    "remote.containers.cacheVolume": true,
+    "remote.containers.workspaceMountConsistency": "delegated",
+    "editor.tabSize": 2,
+    "files.trimTrailingWhitespace": true
   },
 
   // Add the IDs of extensions you want installed when the container is created.
