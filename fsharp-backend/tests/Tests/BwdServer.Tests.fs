@@ -152,7 +152,7 @@ let t filename =
               connected <- true
           with
           | _ when i <> 10 ->
-            printfn $"Server not ready on port {port}, maybe retry"
+            print $"Server not ready on port {port}, maybe retry"
             do! System.Threading.Tasks.Task.Delay 1000
 
         use stream = client.GetStream()

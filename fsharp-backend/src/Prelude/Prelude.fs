@@ -40,7 +40,41 @@ let matches (pattern : string) (input : string) : bool =
 // ----------------------
 // Debugging
 // ----------------------
-let debuG (msg : string) (a : 'a) : unit = printfn $"DEBUG: {msg} ({a})"
+
+type BlockingCollection = System.Collections.Concurrent.BlockingCollection<string>
+
+type NonBlockingConsole() =
+  static let mQueue : BlockingCollection = new BlockingCollection()
+  static do
+    let f () =
+      while true do
+        try
+          let v = mQueue.Take()
+          System.Console.WriteLine(v)
+        with
+        | e ->
+          System.Console.WriteLine(
+            $"Exception in blocking qu eue thread: {e.Message}"
+          )
+    let thread = System.Threading.Thread(f)
+    do
+      thread.IsBackground <- true
+      thread.Name <- "Prelude.NonBlockingConsole printer"
+      thread.Start()
+
+
+  // It seems like using printf causes deadlock. I observed that all the tasks in the
+  // threadpool were blocking on Console.WriteLine, and that the logging thread in
+  // the background was blocked on one of those threads. This seems like a known
+  // issue with a known solution:
+  // https://stackoverflow.com/a/3670628/104021
+
+  static member WriteLine(value : string) : unit = mQueue.Add(value)
+
+
+let debuG (msg : string) (a : 'a) : unit =
+  // Don't deadlock when debugging
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
 
 let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
@@ -49,17 +83,19 @@ let debug (msg : string) (a : 'a) : 'a =
 // Print the value of s, alongside with length and the bytes in the string
 let debugString (msg : string) (s : string) : string =
   let bytes = s |> System.Text.Encoding.UTF8.GetBytes |> System.BitConverter.ToString
-  printfn $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
 let debugByteArray (msg : string) (a : byte array) : byte array =
   let bytes = a |> System.BitConverter.ToString
-  printfn $"DEBUG: {msg} (len {a.Length}, {bytes}"
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
   a
 
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
-  printfn $"DEBUG: {msg} {f v}"
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} {f v}"
   v
+
+let print (string : string) : unit = NonBlockingConsole.WriteLine string
 
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
@@ -68,7 +104,7 @@ let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
 let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
   task {
     let! a = a
-    printfn $"DEBUG: {msg} ({a})"
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
     return a
   }
 

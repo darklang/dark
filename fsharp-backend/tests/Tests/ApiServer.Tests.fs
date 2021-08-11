@@ -180,7 +180,7 @@ let testUiReturnsTheSame =
           if Set.contains (PT.FQFnName.parse fn.name) builtins then
             true
           else
-            printfn $"Not yet implemented: {fn.name}"
+            print $"Not yet implemented: {fn.name}"
             notImplementedCount <- notImplementedCount + 1
             false)
         myFns
@@ -191,11 +191,11 @@ let testUiReturnsTheSame =
     // all.
     let filteredOCamlFns = filtered ocfns
 
-    printfn $"Implemented fns  : {List.length allBuiltins}"
-    printfn $"Excluding F#-only: {Set.length builtins}"
-    printfn $"Fns in OCaml api : {List.length ocfns}"
-    printfn $"Fns in F# api    : {List.length fcfns}"
-    printfn $"Missing fns      : {notImplementedCount}"
+    print $"Implemented fns  : {List.length allBuiltins}"
+    print $"Excluding F#-only: {Set.length builtins}"
+    print $"Fns in OCaml api : {List.length ocfns}"
+    print $"Fns in F# api    : {List.length fcfns}"
+    print $"Missing fns      : {notImplementedCount}"
 
     List.iter2
       (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
@@ -232,7 +232,7 @@ let postApiTestCase
         content |> deserialize |> canonicalizeBody
       with
       | e ->
-        printfn $"Error deserializing {server}: \n{content}"
+        print $"Error deserializing {server}: \n{content}"
         reraise ()
 
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
@@ -272,10 +272,10 @@ let postApiTestCases
 
     let () =
       if oStatus <> fStatus then
-        printfn
-          "%s"
-          ($"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
-           + $"ocaml:\n{o}\n\nfsharp:\n{f}")
+        print (
+          $"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
+          + $"ocaml:\n{o}\n\nfsharp:\n{f}"
+        )
 
     Expect.equal fStatus oStatus "status"
     Expect.equal fContent oContent "content"

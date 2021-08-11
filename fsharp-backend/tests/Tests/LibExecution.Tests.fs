@@ -93,7 +93,7 @@ let t
         return ()
       with
       | e ->
-        printfn "Exception thrown in test: %s" (e.ToString())
+        print "Exception thrown in test: {e}"
         return (Expect.equal "Exception thrown in test" (e.ToString()) "")
     }
 

@@ -6,7 +6,7 @@ open Prelude
 open Tablecloth
 
 let init (serviceName : string) : unit =
-  printfn "Initializing LibBackend"
+  print "Initializing LibBackend"
 
   LibService.Telemetry.init serviceName
   LibService.Rollbar.init serviceName

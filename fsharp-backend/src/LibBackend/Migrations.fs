@@ -87,15 +87,15 @@ let run () : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
   let migrations = names ()
-  printfn $"migrations: {migrations}"
+  print $"migrations: {migrations}"
 
   List.iter
     (fun name ->
       if isAlreadyRun name then
-        printfn $"migration already run: {name}"
+        print $"migration already run: {name}"
         () // FSTODO Log.infO "migration already run" name
       else
-        printfn $"new migration: {name}"
+        print $"new migration: {name}"
         // FSTODO Log.infO "new migration" name ;
         let sql = File.readfile Config.Migrations name
         runSystemMigration name sql)
