@@ -33,7 +33,6 @@ let t filename =
   testTask $"HttpClient files: {filename}" {
     let skip = String.startsWith "_" filename
     let name = if skip then String.dropLeft 1 filename else filename
-    let testName = $"test-{name}"
 
     let filename = $"tests/httpclienttestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
