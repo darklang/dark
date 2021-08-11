@@ -135,7 +135,8 @@ let t filename =
 
 
 // ---------------
-// Configure Kestrel/ASP.NET
+// This is the webserver that we will be testing against. It reads the testCases,
+// checks that the request is expected, then returns the test case output.
 // ---------------
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
@@ -224,13 +225,26 @@ let configureApp (app : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) : unit = ()
 
+let configureLogging (logging : ILoggingBuilder) : unit =
+  // This removes the default ConsoleLogger. Having two console loggers (this one and
+  // also the one in Main), caused a deadlock (possibly from having two different
+  // console logging threads)
+  logging.ClearProviders() |> ignore<ILoggingBuilder>
+  logging.AddDebug() |> ignore<ILoggingBuilder>
+
 let webserver () =
-  WebHost.CreateDefaultBuilder()
-  |> fun wh -> wh.UseKestrel()
-  |> fun wh -> wh.UseUrls("http://*:10005")
-  |> fun wh -> wh.ConfigureServices(configureServices)
-  |> fun wh -> wh.Configure(configureApp)
-  |> fun wh -> wh.Build()
+  Host.CreateDefaultBuilder()
+  |> fun h -> h.ConfigureLogging(configureLogging)
+  |> fun h ->
+       h.ConfigureWebHost
+         (fun wh ->
+           wh
+           |> fun wh -> wh.UseKestrel()
+           |> fun wh -> wh.UseUrls("http://*:10005")
+           |> fun wh -> wh.ConfigureServices(configureServices)
+           |> fun wh -> wh.Configure(configureApp)
+           |> ignore<IWebHostBuilder>)
+  |> fun h -> h.Build()
 
 // run a webserver to read test input
 let init () : Task = (webserver ()).RunAsync()
