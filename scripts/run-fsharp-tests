@@ -24,6 +24,7 @@ done
 
 sudo killall legacyserver.exe || true
 sudo killall ocamltestserver.exe || true
+killall -9 Build/out/Tests || true
 
 ./scripts/support/wait-for-background-services postgresql
 dropdb --if-exists testdb
