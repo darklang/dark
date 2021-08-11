@@ -144,10 +144,11 @@ open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Logging
+open Microsoft.Extensions.Logging.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
-open Microsoft.AspNetCore.Server.Kestrel.Core
+open Microsoft.Extensions.DependencyInjection.Extensions
 
 type ErrorResponse =
   { expectedStatus : string
@@ -219,18 +220,54 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
     return ctx
   }
 
+
+// Replace the console logger with one which writes to Prelude.NonBlockingConsole.
+// Has the benefit that it speeds up tests by a factor of 3.
+// https://docs.microsoft.com/en-us/dotnet/core/extensions/custom-logging-provider
+
+type Logger() =
+  interface ILogger with
+    member this.Log<'TState>
+      (
+        level : LogLevel,
+        eventID : EventId,
+        state : 'TState,
+        exc : exn,
+        formatter : System.Func<'TState, exn, string>
+      ) : unit =
+      print ($"{eventID, 5}" + formatter.Invoke(state, exc))
+
+    member _.IsEnabled(level : LogLevel) : bool = true
+
+    member _.BeginScope<'TState>(state : 'TState) : System.IDisposable =
+      Unchecked.defaultof<System.IDisposable>
+
+type LoggerProvider() =
+  interface ILoggerProvider with
+    member this.CreateLogger(_categoryName : string) : ILogger =
+      new Logger() :> ILogger
+
+    member this.Dispose() : unit = ()
+
+let configureLogging (builder : ILoggingBuilder) : unit =
+  // This removes the default ConsoleLogger. Having two console loggers (this one and
+  // also the one in Main), caused a deadlock (possibly from having two different
+  // console logging threads).
+  builder
+    .ClearProviders()
+    .Services
+    .TryAddEnumerable(
+      ServiceDescriptor.Singleton<ILoggerProvider, LoggerProvider>()
+    )
+
+
+
 let configureApp (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) = runTestHandler ctx :> Task
   app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit = ()
 
-let configureLogging (logging : ILoggingBuilder) : unit =
-  // This removes the default ConsoleLogger. Having two console loggers (this one and
-  // also the one in Main), caused a deadlock (possibly from having two different
-  // console logging threads)
-  logging.ClearProviders() |> ignore<ILoggingBuilder>
-  logging.AddDebug() |> ignore<ILoggingBuilder>
 
 let webserver () =
   Host.CreateDefaultBuilder()
