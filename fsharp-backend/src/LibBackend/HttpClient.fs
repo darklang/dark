@@ -316,10 +316,8 @@ let httpCallWithCode
     try
       // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
       // FSTODO: ensure the proxy is used
-      // FSTODO parse the url and use the username, password, and query strings
       let uri = System.Uri(url)
-      // get the username and password and pass it to the reuqest
-      // get the query, combine it with the other query, then re-add it
+      // FSTODO get the query, combine it with the other query, then re-add it
       if uri.IsAbsoluteUri = false then
         // FSTODO can't seem to trigger this in a test
         return Error { url = url; code = 0; error = "Relative URL is not allowed" }
@@ -328,8 +326,22 @@ let httpCallWithCode
       elif uri.IsLoopback then
         return Error { url = url; code = 0; error = "Loopback is not allowed" }
       else
-
         let req = new HttpRequestMessage(method, url + toQueryString queryParams)
+
+        // username and password - note that an actual auth header will overwrite this
+        // FSTODO test emoji in username
+        // FSTODO test emoji in password
+        if uri.UserInfo <> "" then
+          let authString =
+            // Handle usernames with no colon
+            if uri.UserInfo.Contains(":") then uri.UserInfo else uri.UserInfo + ":"
+          req.Headers.Authorization <-
+            AuthenticationHeaderValue(
+              "Basic",
+              System.Convert.ToBase64String(
+                System.Text.ASCIIEncoding.UTF8.GetBytes(authString)
+              )
+            )
 
         // content
         let body =
@@ -347,9 +359,15 @@ let httpCallWithCode
             elif String.equalsCaseInsensitive k "content-type" then
               req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
             else
-              // Headers are split between req.Headers and req.Content.Headers so just try both
+              // FSTODO test headers that are gibberish
+              // Dark headers can only be added once, as they use a Dict. Remove them
+              // so they don't get added twice (eg via Authorization headers above)
+              req.Headers.Remove(k) |> ignore<bool>
               let added = req.Headers.TryAddWithoutValidation(k, v)
-              if not added then req.Content.Headers.Add(k, v))
+              // Headers are split between req.Headers and req.Content.Headers so just try both
+              if not added then
+                req.Content.Headers.Remove(k) |> ignore<bool>
+                req.Content.Headers.Add(k, v))
           reqHeaders
 
         // send request
