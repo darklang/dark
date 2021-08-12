@@ -315,47 +315,64 @@ let httpCallWithCode
   task {
     try
       // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
-      let client = httpClient ()
-      let req = new HttpRequestMessage(method, url + toQueryString queryParams)
+      // FSTODO: ensure the proxy is used
+      // FSTODO parse the url and use the username, password, and query strings
+      let uri = System.Uri(url)
+      // get the username and password and pass it to the reuqest
+      // get the query, combine it with the other query, then re-add it
+      if uri.IsAbsoluteUri = false then
+        // FSTODO can't seem to trigger this in a test
+        return Error { url = url; code = 0; error = "Relative URL is not allowed" }
+      elif uri.Scheme <> "https" && uri.Scheme <> "http" then
+        return Error { url = url; code = 0; error = "Unsupported protocol" }
+      elif uri.IsLoopback then
+        return Error { url = url; code = 0; error = "Loopback is not allowed" }
+      else
 
-      // content
-      let body =
-        match reqBody with
-        | Some body -> toBytes body
-        | None -> [||]
-      req.Content <- new ByteArrayContent(body)
+        let req = new HttpRequestMessage(method, url + toQueryString queryParams)
 
-      // headers
-      List.iter
-        (fun (k, v) ->
-          if v = "" then
-            // CLEANUP: OCaml doesn't send empty headers, but no reason not to
-            ()
-          elif String.equalsCaseInsensitive k "content-type" then
-            req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
-          else
-            // Headers are split between req.Headers and req.Content.Headers so just try both
-            let added = req.Headers.TryAddWithoutValidation(k, v)
-            if not added then req.Content.Headers.Add(k, v))
-        reqHeaders
+        // content
+        let body =
+          match reqBody with
+          | Some body -> toBytes body
+          | None -> [||]
+        req.Content <- new ByteArrayContent(body)
 
-      // send request
-      let! response = client.SendAsync req
-      let! respBody = response.Content.ReadAsByteArrayAsync()
-      let result =
-        { body = respBody |> ofBytes
-          code = int response.StatusCode
-          headers =
-            convertHeaders response.Headers @ convertHeaders response.Content.Headers
-          error = ""
-          httpVersion = string response.Version
-          httpStatusMessage = response.ReasonPhrase }
-      return Ok result
+        // headers
+        List.iter
+          (fun (k, v) ->
+            if v = "" then
+              // CLEANUP: OCaml doesn't send empty headers, but no reason not to
+              ()
+            elif String.equalsCaseInsensitive k "content-type" then
+              req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
+            else
+              // Headers are split between req.Headers and req.Content.Headers so just try both
+              let added = req.Headers.TryAddWithoutValidation(k, v)
+              if not added then req.Content.Headers.Add(k, v))
+          reqHeaders
+
+        // send request
+        let client = httpClient ()
+        let! response = client.SendAsync req
+        let! respBody = response.Content.ReadAsByteArrayAsync()
+        let result =
+          { body = respBody |> ofBytes
+            code = int response.StatusCode
+            headers =
+              convertHeaders response.Headers
+              @ convertHeaders response.Content.Headers
+            error = ""
+            httpVersion = string response.Version
+            httpStatusMessage = response.ReasonPhrase }
+        return Ok result
     with
     | :? TaskCanceledException -> // only timeouts
       return Error { url = url; code = 0; error = "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
       return Error { url = url; code = 0; error = e.Message }
+    | :? System.UriFormatException ->
+      return Error { url = url; code = 0; error = "Invalid URI" }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
       return Error { url = url; code = code; error = e.Message }
