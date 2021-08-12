@@ -17,7 +17,7 @@ Content-Length: LENGTH
 [test]
 // CLEANUP it seems very odd to me that we're claiming to send json and then not
 // sending valid json
-(let response = HttpClient.post_v5_ster "http://URL/" "string" Dict.empty HttpClient.jsonContentType_v0 in
+(let response = HttpClient.post_v5_ster "http://URL" "string" {} HttpClient.jsonContentType_v0 in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""

@@ -13,7 +13,7 @@ Content-Length: 568
 
 
 [test]
-(let response = HttpClient.head_v5_ster "http://URL/" Dict.empty Dict.empty in
+(let response = HttpClient.head_v5_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = ""

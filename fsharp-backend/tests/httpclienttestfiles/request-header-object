@@ -14,6 +14,6 @@ Content-Length: LENGTH
 "Hello back"
 
 [test]
-(let reqHeaders = { some_header = Dict.empty }
- HttpClient.get_v5 "http://URL/" Dict.empty reqHeaders) =
+(let reqHeaders = { some_header = {} }
+ HttpClient.get_v5 "http://URL" {} reqHeaders) =
  Test.typeError_v0 "expecting str")

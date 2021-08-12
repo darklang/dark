@@ -17,7 +17,7 @@ Here's a body!
 [test]
 // HEAD requests aren't supposed to actually return a body. But it seems like the
 // clients successfully ignore it.
-(let response = HttpClient.head_v5_ster "http://URL/" Dict.empty Dict.empty in
+(let response = HttpClient.head_v5_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = ""

@@ -15,7 +15,7 @@ The code to make the HTTP request should be put in a `[test]` section. For examp
 
 ```
 [test]
-HttpClient::get_v0 "http://HOST/path" Dict.empty Dict.empty Dict.empty = Test.error_v0 "x"
+HttpClient::get_v0 "http://HOST/path" {} {} {} = Test.error_v0 "x"
 ```
 
 Note that this section has an equality test, this is so that the same test can
@@ -90,4 +90,4 @@ respond to this test.
 
 ## URL in code
 
-In the test body, `URL` is replaced by the actual URL used in the test.
+In the test body, `URL` is replaced by the actual URL used in the test (this isn't really a URL, it's actually just the hostname and port and the test path, not the scheme or the rest of the path or query string).
