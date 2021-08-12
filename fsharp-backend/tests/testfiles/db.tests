@@ -436,7 +436,7 @@
 // queryWithKey
 [test.queryWithKey works - none] with DB Person
 (let _ = prepFriends null in
- DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = Dict.empty_v0
+ DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = {}
 
 [test.queryWithKey works - one] with DB Person
 (let _ = prepFriends null in
