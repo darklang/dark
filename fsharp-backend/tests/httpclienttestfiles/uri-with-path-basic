@@ -1,11 +1,11 @@
 [expected-request]
-GET PATH/some/2path/hypen-ated/under_scored HTTP/1.1
+GET /uri-with-path-basic/some/2path/hyphen-ated/under_scored HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: application/json; charset=utf-8
+Content-Type: text/plain; charset=utf-8
 Host: HOST
 
-[ 5, 6 ]
+
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx

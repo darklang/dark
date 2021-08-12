@@ -161,63 +161,71 @@ type ErrorResponse =
 
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    let testName = ctx.Request.Path.Value |> String.dropLeft 1 |> String.dropRight 2
+    try
+      let testName =
+        let segment = System.Uri(ctx.Request.Path.Value).Segments.[1]
+        if String.endsWith "/" segment then String.dropRight 1 segment else segment
+      let testCase = testCases.[testName]
 
-    let testCase = testCases.[testName]
+      let actualHeaders =
+        BwdServer.getHeaders ctx
+        // .NET always adds a Content-Length header, but OCaml doesn't
+        |> Map.remove "Content-Length"
+      let! actualBody = BwdServer.getBody ctx
 
-    let actualHeaders =
-      BwdServer.getHeaders ctx
-      // .NET always adds a Content-Length header, but OCaml doesn't
-      |> Map.remove "Content-Length"
-    let! actualBody = BwdServer.getBody ctx
+      let actualStatus =
+        $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
 
-    let actualStatus =
-      $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
+      let expectedHeaders = Map testCase.expected.headers
+      let expectedBody = testCase.expected.body
+      let expectedStatus =
+        testCase.expected.status |> String.replace "PATH" ctx.Request.Path.Value
 
-    let expectedHeaders = Map testCase.expected.headers
-    let expectedBody = testCase.expected.body
-    let expectedStatus =
-      testCase.expected.status |> String.replace "PATH" ctx.Request.Path.Value
+      if (actualStatus, actualHeaders, actualBody) = (expectedStatus,
+                                                      expectedHeaders,
+                                                      expectedBody) then
+        ctx.Response.StatusCode <-
+          testCase.result.status
+          |> String.split " "
+          |> List.getAt 1
+          |> Option.unwrapUnsafe
+          |> int
+        List.iter (fun (k, v) -> BwdServer.setHeader ctx k v) testCase.result.headers
+        let body = testCase.result.body
+        do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+      else
+        let expectedHeaders =
+          expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
+        let actualHeaders = actualHeaders |> Map.toList |> List.sortBy Tuple2.first
+        let message =
+          [ (if actualStatus <> expectedStatus then "status" else "")
+            (if actualHeaders <> expectedHeaders then "headers" else "")
+            (if actualBody <> expectedBody then "body" else "") ]
+          |> List.filter ((<>) "")
+          |> String.concat ", "
+          |> fun s -> $"The request to the server differs in {s}"
 
-    if (actualStatus, actualHeaders, actualBody) = (expectedStatus,
-                                                    expectedHeaders,
-                                                    expectedBody) then
-      ctx.Response.StatusCode <-
-        testCase.result.status
-        |> String.split " "
-        |> List.getAt 1
-        |> Option.unwrapUnsafe
-        |> int
-      List.iter (fun (k, v) -> BwdServer.setHeader ctx k v) testCase.result.headers
-      let body = testCase.result.body
-      do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-    else
-      let expectedHeaders = expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
-      let actualHeaders = actualHeaders |> Map.toList |> List.sortBy Tuple2.first
-      let message =
-        [ (if actualStatus <> expectedStatus then "status" else "")
-          (if actualHeaders <> expectedHeaders then "headers" else "")
-          (if actualBody <> expectedBody then "body" else "") ]
-        |> List.filter ((<>) "")
-        |> String.concat ", "
-        |> fun s -> $"The request to the server differs in {s}"
+        let body =
+          { message = message
+            expectedStatus = expectedStatus
+            actualStatus = actualStatus
+            expectedHeaders = expectedHeaders
+            expectedBody = ofBytes expectedBody
+            actualHeaders = actualHeaders
+            actualBody = ofBytes actualBody }
+          |> Json.Vanilla.prettySerialize
+          |> toBytes
 
-      let body =
-        { message = message
-          expectedStatus = expectedStatus
-          actualStatus = actualStatus
-          expectedHeaders = expectedHeaders
-          expectedBody = ofBytes expectedBody
-          actualHeaders = actualHeaders
-          actualBody = ofBytes actualBody }
-        |> Json.Vanilla.prettySerialize
-        |> toBytes
+        ctx.Response.StatusCode <- 400
+        ctx.Response.ContentLength <- int64 body.Length
+        do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
 
-      ctx.Response.StatusCode <- 400
-      ctx.Response.ContentLength <- int64 body.Length
-      do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-
-    return ctx
+      return ctx
+    with
+    | e ->
+      print $"Exception raised in test handler: {e}"
+      failwith $"Exception raised in test handler: {e}"
+      return ctx
   }
 
 
@@ -235,7 +243,7 @@ type Logger() =
         exc : exn,
         formatter : System.Func<'TState, exn, string>
       ) : unit =
-      print ($"{eventID, 5}" + formatter.Invoke(state, exc))
+      print ($"{eventID, 3} " + formatter.Invoke(state, exc))
 
     member _.IsEnabled(level : LogLevel) : bool = true
 
