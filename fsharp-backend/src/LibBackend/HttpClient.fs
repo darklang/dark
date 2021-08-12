@@ -28,7 +28,7 @@ type HttpResult =
     httpVersion : string
     httpStatusMessage : string }
 
-type CurlError = { url : string; error : string; code : int }
+type ClientError = { url : string; error : string; code : int }
 
 (* Given ~regex, return Err if it doesn't match, or list of captures if
  * it does. First elem of the list is the first capture, not the whole
@@ -296,7 +296,6 @@ let convertHeaders (headers : HttpHeaders) : List<string * string> =
 
 
 
-
 // The [body] parameter is optional to force us to actually treat its
 // presence/non-presence correctly between different requests. Naively using
 // the empty string to stand-in for "no body" was a pattern that bubbled up
@@ -312,49 +311,55 @@ let httpCallWithCode
   (method : HttpMethod)
   (reqHeaders : Headers)
   (reqBody : string option)
-  : Task<Result<HttpResult, CurlError>> =
+  : Task<Result<HttpResult, ClientError>> =
   task {
-    // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
-    let client = httpClient ()
-    let req = new HttpRequestMessage(method, url + toQueryString queryParams)
+    try
+      // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
+      let client = httpClient ()
+      let req = new HttpRequestMessage(method, url + toQueryString queryParams)
 
-    // content
-    let body =
-      match reqBody with
-      | Some body -> toBytes body
-      | None -> [||]
-    req.Content <- new ByteArrayContent(body)
+      // content
+      let body =
+        match reqBody with
+        | Some body -> toBytes body
+        | None -> [||]
+      req.Content <- new ByteArrayContent(body)
 
-    // headers
-    List.iter
-      (fun (k, v) ->
-        if v = "" then
-          // CLEANUP: OCaml doesn't send empty headers, but no reason not to
-          ()
-        elif String.equalsCaseInsensitive k "content-type" then
-          req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
-        else
-          // Headers are split between req.Headers and req.Content.Headers so just try both
-          let added = req.Headers.TryAddWithoutValidation(k, v)
-          if not added then req.Content.Headers.Add(k, v))
-      reqHeaders
+      // headers
+      List.iter
+        (fun (k, v) ->
+          if v = "" then
+            // CLEANUP: OCaml doesn't send empty headers, but no reason not to
+            ()
+          elif String.equalsCaseInsensitive k "content-type" then
+            req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
+          else
+            // Headers are split between req.Headers and req.Content.Headers so just try both
+            let added = req.Headers.TryAddWithoutValidation(k, v)
+            if not added then req.Content.Headers.Add(k, v))
+        reqHeaders
 
-    // send request
-    let! response = client.SendAsync req
-    let! respBody = response.Content.ReadAsByteArrayAsync()
-    let result =
-      { body = respBody |> ofBytes
-        code = int response.StatusCode
-        headers =
-          convertHeaders response.Headers @ convertHeaders response.Content.Headers
-        error = ""
-        httpVersion = string response.Version
-        httpStatusMessage = response.ReasonPhrase }
-    return Ok result
+      // send request
+      let! response = client.SendAsync req
+      let! respBody = response.Content.ReadAsByteArrayAsync()
+      let result =
+        { body = respBody |> ofBytes
+          code = int response.StatusCode
+          headers =
+            convertHeaders response.Headers @ convertHeaders response.Content.Headers
+          error = ""
+          httpVersion = string response.Version
+          httpStatusMessage = response.ReasonPhrase }
+      return Ok result
+    with
+    | :? TaskCanceledException -> // only timeouts
+      return Error { url = url; code = 0; error = "Timeout" }
+    | :? System.ArgumentException as e -> // incorrect protocol, possibly more
+      return Error { url = url; code = 0; error = e.Message }
+    | :? HttpRequestException as e ->
+      let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
+      return Error { url = url; code = code; error = e.Message }
   }
-
-// FSTODO: For now, let's do the simplest possible thing and just get a HttpClient
-// working.  After that, we can handle the edge cases from the old version.
 
 
 // try

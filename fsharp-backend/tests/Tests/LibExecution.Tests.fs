@@ -267,7 +267,7 @@ let fileTests () : Test =
                 | _ when currentFn.recording ->
                   currentFn <- { currentFn with code = currentFn.code + line }
                 // 1-line test
-                | Regex @"^(.*)\s*//\s*(.*)$" [ code; comment ] ->
+                | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
                   let test =
                     t $"{comment} (line {i})" code currentGroup.dbs functions
 
