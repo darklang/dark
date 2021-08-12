@@ -81,7 +81,10 @@ let t
 
           let fsharpActual = normalizeDvalResult fsharpActual
 
-          Expect.isTrue (Expect.isCanonical fsharpActual) "expected is normalized"
+          let canonical = Expect.isCanonical fsharpActual
+          if not canonical then
+            debugDval fsharpActual |> debuG "not canonicalized"
+            Expect.isTrue canonical "expected is canonicalized"
 
           if shouldEqual then
             Expect.equalDval fsharpActual expected $"FSharp: {msg}"
