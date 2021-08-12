@@ -213,6 +213,89 @@ let hasTextHeader (headers : Headers) : bool =
   |> Option.map (fun s -> s.Contains textContentType)
   |> Option.defaultValue false
 
+// Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
+let toQueryString (queryParams : (List<string * List<string>>)) : string =
+  let urlEncodeValue (s : string) : string =
+    let encodeByte (b : byte) : byte array =
+      // FSTODO: fuzz this against OCaml version
+      // CLEANUP make a nicer version of this that's designed for this use case
+      // We do want to escape the following: []+&^%#@"<>/;
+      // We don't want to escape the following: *$@!:?,.-_'
+      match b with
+      | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+      | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+      | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+      | b when b = (byte '*') -> [| b |]
+      | b when b = (byte '$') -> [| b |]
+      | b when b = (byte '@') -> [| b |]
+      | b when b = (byte '!') -> [| b |]
+      | b when b = (byte ':') -> [| b |]
+      | b when b = (byte '(') -> [| b |]
+      | b when b = (byte ')') -> [| b |]
+      | b when b = (byte '~') -> [| b |]
+      | b when b = (byte '?') -> [| b |]
+      | b when b = (byte '/') -> [| b |]
+      | b when b = (byte '.') -> [| b |]
+      | b when b = (byte '-') -> [| b |]
+      | b when b = (byte '_') -> [| b |]
+      | b when b = (byte '=') -> [| b |] // not the same for key
+      | b when b = (byte '\'') -> [| b |]
+      | _ -> toBytes ("%" + b.ToString("X2"))
+    s |> toBytes |> Array.collect encodeByte |> ofBytes
+
+  let urlEncodeKey (s : string) : string =
+    let encodeByte (b : byte) : byte array =
+      // FSTODO: fuzz this against OCaml version
+      // CLEANUP make a nicer version of this that's designed for this use case
+      // We do want to escape the following: []+&^%#@"<>/;
+      // We don't want to escape the following: *$@!:?,.-_'
+      match b with
+      | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+      | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+      | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+      | b when b = (byte '*') -> [| b |]
+      | b when b = (byte '$') -> [| b |]
+      | b when b = (byte '@') -> [| b |]
+      | b when b = (byte '!') -> [| b |]
+      | b when b = (byte ':') -> [| b |]
+      | b when b = (byte '(') -> [| b |]
+      | b when b = (byte ')') -> [| b |]
+      | b when b = (byte '~') -> [| b |]
+      | b when b = (byte '?') -> [| b |]
+      | b when b = (byte '/') -> [| b |]
+      | b when b = (byte '.') -> [| b |]
+      | b when b = (byte ',') -> [| b |] // only in keys
+      | b when b = (byte '-') -> [| b |]
+      | b when b = (byte '_') -> [| b |]
+      | b when b = (byte '\'') -> [| b |]
+
+      | _ -> toBytes ("%" + b.ToString("X2"))
+    s |> toBytes |> Array.collect encodeByte |> ofBytes
+
+  match queryParams with
+  | [ key, [] ] -> "?" + urlEncodeKey key
+  | _ ->
+    queryParams
+    |> List.map
+         (fun (k, vs) ->
+           let k = k |> urlEncodeKey
+           vs
+           |> List.map urlEncodeValue
+           |> String.concat ","
+           |> fun vs -> $"{k}={vs}")
+    |> String.concat "&"
+    |> fun s -> if s = "" then "" else "?" + s
+
+// Convert .NET HttpHeaders into Dark-style headers
+let convertHeaders (headers : HttpHeaders) : List<string * string> =
+  headers
+  |> Seq.map
+       (fun (kvp : KeyValuePair<string, seq<string>>) ->
+         (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
+  |> Seq.toList
+
+
+
 
 // The [body] parameter is optional to force us to actually treat its
 // presence/non-presence correctly between different requests. Naively using
@@ -232,79 +315,8 @@ let httpCallWithCode
   : Task<Result<HttpResult, CurlError>> =
   task {
     // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
-
-    let urlEncode (s : string) : string =
-      let encodeByte (b : byte) : byte array =
-        // FSTODO: fuzz this against OCaml version
-        // CLEANUP make a nicer version of this that's designed for this use case
-        // We do want to escape the following: []+&^%#@"<>/;
-        // We don't want to escape the following: *$@!:?,.-_'
-        match b with
-        | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
-        | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
-        | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
-        | b when b = (byte '*') -> [| b |]
-        | b when b = (byte '$') -> [| b |]
-        | b when b = (byte '@') -> [| b |]
-        | b when b = (byte '!') -> [| b |]
-        | b when b = (byte ':') -> [| b |]
-        | b when b = (byte '(') -> [| b |]
-        | b when b = (byte ')') -> [| b |]
-        | b when b = (byte '~') -> [| b |]
-        | b when b = (byte '?') -> [| b |]
-        | b when b = (byte '/') -> [| b |]
-        | b when b = (byte '.') -> [| b |]
-        | b when b = (byte '-') -> [| b |]
-        | b when b = (byte '_') -> [| b |]
-        | b when b = (byte '=') -> [| b |] // not the same for key
-        | b when b = (byte '\'') -> [| b |]
-        | _ -> toBytes ("%" + b.ToString("X2"))
-      s |> toBytes |> Array.collect encodeByte |> ofBytes
-
-    let urlEncodeKey (s : string) : string =
-      let encodeByte (b : byte) : byte array =
-        // FSTODO: fuzz this against OCaml version
-        // CLEANUP make a nicer version of this that's designed for this use case
-        // We do want to escape the following: []+&^%#@"<>/;
-        // We don't want to escape the following: *$@!:?,.-_'
-        match b with
-        | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
-        | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
-        | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
-        | b when b = (byte '*') -> [| b |]
-        | b when b = (byte '$') -> [| b |]
-        | b when b = (byte '@') -> [| b |]
-        | b when b = (byte '!') -> [| b |]
-        | b when b = (byte ':') -> [| b |]
-        | b when b = (byte '(') -> [| b |]
-        | b when b = (byte ')') -> [| b |]
-        | b when b = (byte '~') -> [| b |]
-        | b when b = (byte '?') -> [| b |]
-        | b when b = (byte '/') -> [| b |]
-        | b when b = (byte '.') -> [| b |]
-        | b when b = (byte ',') -> [| b |] // only in keys
-        | b when b = (byte '-') -> [| b |]
-        | b when b = (byte '_') -> [| b |]
-        | b when b = (byte '\'') -> [| b |]
-
-        | _ -> toBytes ("%" + b.ToString("X2"))
-      s |> toBytes |> Array.collect encodeByte |> ofBytes
-
-
     let client = httpClient ()
-    let queryString =
-      match queryParams with
-      | [ key, [] ] -> "?" + urlEncodeKey key
-      | _ ->
-        queryParams
-        |> List.map
-             (fun (k, vs) ->
-               let k = k |> urlEncodeKey
-               vs |> List.map urlEncode |> String.concat "," |> fun vs -> $"{k}={vs}")
-        |> String.concat "&"
-        |> fun s -> if s = "" then "" else "?" + s
-
-    let req = new HttpRequestMessage(method, url + queryString)
+    let req = new HttpRequestMessage(method, url + toQueryString queryParams)
 
     // content
     let body =
@@ -330,24 +342,11 @@ let httpCallWithCode
     // send request
     let! response = client.SendAsync req
     let! respBody = response.Content.ReadAsByteArrayAsync()
-    let respHeaders =
-      response.Headers
-      |> Seq.map
-           (fun (kvp : KeyValuePair<string, seq<string>>) ->
-             (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
-      |> Seq.toList
-
-    let contentHeaders =
-      response.Content.Headers
-      |> Seq.map
-           (fun (kvp : KeyValuePair<string, seq<string>>) ->
-             (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
-      |> Seq.toList
-
     let result =
       { body = respBody |> ofBytes
         code = int response.StatusCode
-        headers = respHeaders @ contentHeaders
+        headers =
+          convertHeaders response.Headers @ convertHeaders response.Content.Headers
         error = ""
         httpVersion = string response.Version
         httpStatusMessage = response.ReasonPhrase }
