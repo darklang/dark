@@ -37,6 +37,7 @@ HttpClient.get_v5 "file:///etc/passwd" {} {} = Error "Only 'http' and 'https' sc
 // contents ended up in the error message. Now we've restricted the URL
 // protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
 // is even sent.
-HttpClient.get_v0 "file:/localhost//etc/passwd" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+// FSTODO: add FSHARP test
+HttpClient.get_v0 "file:/localhost//etc/passwd" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // OCAMLONLY
 
 
