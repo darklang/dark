@@ -5,6 +5,7 @@ module LibExecution.ProgramTypes
 open FSharpPlus
 
 open Prelude
+// FSTODO shouldn't have tablecloth in here
 open Tablecloth
 
 // Used for conversion functions
@@ -698,6 +699,7 @@ type DType =
         | "url" -> TDbList TStr
         | _ -> failwith $"Unhandled parseListTyp: {listTyp}"
 
+      // FSTODO add a test with a list type in a DB schema
       if String.startsWith "[" str && String.endsWith "]" str then
         str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
       else
