@@ -126,11 +126,11 @@ let dvalToQuery (dv : RT.Dval) : (string * string list) list =
 
 // FSTODO: fuzz against OCaml
 // https://secretgeek.net/uri_enconding
-let dvalToFormEncoding (dv : RT.Dval) : string =
+let dvalToFormEncoding (dv : RT.Dval) : HttpContent =
   dvalToQuery dv
-  |> List.map (fun (k, v) -> $"{k}={v}")
-  |> List.map System.Uri.EscapeDataString
-  |> String.concat "&"
+  |> List.map (fun (k, v) -> KeyValuePair(k, String.concat "," v))
+  |> (fun pairs -> new FormUrlEncodedContent(pairs))
+  :> HttpContent
 
 // FSTODO: fuzz against OCaml
 let queryStringToParams (queryString : string) : List<string * List<string>> =
@@ -323,7 +323,7 @@ let httpCallWithCode
   (queryParams : (string * string list) list)
   (method : HttpMethod)
   (reqHeaders : Headers)
-  (reqBody : string option)
+  (reqBody : HttpContent)
   : Task<Result<HttpResult, ClientError>> =
   task {
     try
@@ -361,11 +361,7 @@ let httpCallWithCode
             )
 
         // content
-        let body =
-          match reqBody with
-          | Some body -> toBytes body
-          | None -> [||]
-        req.Content <- new ByteArrayContent(body)
+        req.Content <- reqBody
 
         // headers
         List.iter
@@ -580,6 +576,6 @@ let httpCall
   (queryParams : (string * string list) list)
   (verb : HttpMethod)
   (headers : (string * string) list)
-  (body : string option)
+  (body : HttpContent)
   =
   httpCallWithCode rawBytes url queryParams verb headers body

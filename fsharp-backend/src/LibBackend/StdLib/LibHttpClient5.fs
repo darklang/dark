@@ -4,11 +4,11 @@ open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
 open FSharpPlus
-
-type HttpMethod = System.Net.Http.HttpMethod
+open System.Net.Http
 
 open Prelude
 open LibExecution.RuntimeTypes
+
 
 
 module HttpClient = LibBackend.HttpClient
@@ -63,36 +63,30 @@ let guessContentType (body : Dval option) : string =
 // the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
 // how to encode said body. Returns a tuple of the encoded body, and the passed headers that
 // have potentially had a Content-Type added to them based on the magic decision we've made.
-let encodeRequestBody (body : Dval option) (contentType : string) : string option =
+let encodeRequestBody (body : Dval option) (contentType : string) : HttpContent =
   match body with
   | Some dv ->
-    let encodedBody =
-      match dv with
-      (* TODO: DBytes? *)
-      | DStr s ->
-        // Do nothing to strings, ever. The reasoning here is that users do not
-        // expect any magic to happen to their raw strings. It's also the only real
-        // way (barring Bytes) to support users doing their _own_ encoding (say,
-        // jsonifying themselves and passing the Content-Type header manually).
-        //
-        // CLEANUP find a place for all the notion links
-        // See:
-        // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
-        // for more information. *)
-        s
-      | DObj _ when contentType = HttpClient.formContentType ->
-        HttpClient.dvalToFormEncoding dv
-      | dv when contentType = HttpClient.textContentType ->
-        DvalRepr.toEnduserReadableTextV0 dv
-      | _ -> // when contentType = jsonContentType
-        DvalRepr.toPrettyMachineJsonStringV1 dv
-    if String.length encodedBody = 0 then None else Some encodedBody
+    match dv with
+    (* TODO: DBytes? *)
+    | DStr s ->
+      // Do nothing to strings, ever. The reasoning here is that users do not
+      // expect any magic to happen to their raw strings. It's also the only real
+      // way (barring Bytes) to support users doing their _own_ encoding (say,
+      // jsonifying themselves and passing the Content-Type header manually).
+      //
+      // CLEANUP find a place for all the notion links
+      // See:
+      // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
+      // for more information. *)
+      new StringContent(s) :> HttpContent
+    | DObj _ when contentType = HttpClient.formContentType ->
+      HttpClient.dvalToFormEncoding dv
+    | dv when contentType = HttpClient.textContentType ->
+      new StringContent(DvalRepr.toEnduserReadableTextV0 dv) :> HttpContent
+    | _ -> // when contentType = jsonContentType
+      new StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv) :> HttpContent
 
-  // If we were passed an empty body, we need to ensure a Content-Type was set, or
-  // else helpful intermediary load balancers will set the Content-Type to something
-  // they've plucked out of the ether, which is distinctfully non-helpful and also
-  // non-deterministic
-  | None -> None
+  | None -> new ByteArrayContent([||]) :> HttpContent
 
 
 let sendRequest
