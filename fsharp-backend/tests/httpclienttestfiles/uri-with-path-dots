@@ -1,5 +1,5 @@
 [expected-request]
-GET /uri-with-path-relative/2path/hyphen-ated/under_scored/ HTTP/1.1
+GET /uri-with-path-dots/2path/hyphen-ated/under_scored/ HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
 Content-Type: text/plain; charset=utf-8
