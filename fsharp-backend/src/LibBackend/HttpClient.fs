@@ -130,30 +130,34 @@ let dvalToFormEncoding (dv : RT.Dval) : string =
   |> List.map System.Uri.EscapeDataString
   |> String.concat "&"
 
-let queryToDval (queryString : string) : RT.Dval =
+let queryStringToParams (queryString : string) : List<string * List<string>> =
   let nvc = System.Web.HttpUtility.ParseQueryString queryString
   nvc.AllKeys
-  |> Seq.map
+  |> Array.map
        (fun key ->
          let values = nvc.GetValues key
-         let value =
-           let split =
-             values.[values.Length - 1]
-             |> FSharpPlus.String.split [| "," |]
-             |> Seq.toList
-
-           match split with
-           | [] -> RT.DNull
-           | [ "" ] -> RT.DNull // CLEANUP this should be a string
-           | [ v ] -> RT.DStr v
-           | list -> RT.DList(List.map RT.DStr list)
+         let split =
+           values.[values.Length - 1]
+           |> FSharpPlus.String.split [| "," |]
+           |> Seq.toList
 
          if isNull key then
            // All the values with no key are by GetValues, so make each one a value
-           values |> Array.toList |> List.map (fun k -> (k, RT.DNull))
+           values |> Array.toList |> List.map (fun k -> (k, []))
          else
-           [ (key, value) ])
+           [ (key, split) ])
   |> List.concat
+
+let queryToDval (queryString : string) : RT.Dval =
+  queryString
+  |> queryStringToParams
+  |> List.map
+       (fun (k, v) ->
+         match v with
+         | [] -> k, RT.DNull
+         | [ "" ] -> k, RT.DNull // CLEANUP this should be a string
+         | [ v ] -> k, RT.DStr v
+         | list -> k, RT.DList(List.map RT.DStr list))
   |> RT.Dval.obj
 
 (* Servers should default to ISO-8859-1 (aka Latin-1) if nothing
@@ -323,7 +327,15 @@ let httpCallWithCode
       elif uri.IsLoopback then
         return Error { url = url; code = 0; error = "Loopback is not allowed" }
       else
-        let req = new HttpRequestMessage(method, url + toQueryString queryParams)
+        // Remove the parts of the existing Uri that are duplicated or handled in
+        // other ways
+        let reqUri = System.UriBuilder()
+        reqUri.Scheme <- uri.Scheme
+        reqUri.Host <- uri.Host
+        reqUri.Port <- uri.Port
+        reqUri.Path <- uri.AbsolutePath
+        reqUri.Query <- toQueryString (queryParams @ queryStringToParams uri.Query)
+        let req = new HttpRequestMessage(method, string reqUri)
 
         // username and password - note that an actual auth header will overwrite this
         if uri.UserInfo <> "" then
@@ -336,9 +348,7 @@ let httpCallWithCode
           req.Headers.Authorization <-
             AuthenticationHeaderValue(
               "Basic",
-              System.Convert.ToBase64String(
-                System.Text.ASCIIEncoding.UTF8.GetBytes(authString)
-              )
+              System.Convert.ToBase64String(toBytes authString)
             )
 
         // content
