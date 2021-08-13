@@ -2,7 +2,7 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: x/notAValidContentType
+Content-Type: just an invalid string
 Host: HOST
 
 [response]
@@ -14,7 +14,8 @@ Content-Length: LENGTH
 "Hello back"
 
 [test]
-(let reqHeaders = { ``Content-Type`` = "x/notAValidContentType" } in
+// OCAMLONLY - F# doesn't support this
+(let reqHeaders = { ``Content-Type`` = "just an invalid string" } in
  let response = HttpClient.get_v5_ster "http://URL" {} reqHeaders in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
