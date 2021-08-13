@@ -26,8 +26,6 @@ type TestCase = { expected : Http.T; result : Http.T }
 
 let testCases : ConcurrentDictionary<string, TestCase> = ConcurrentDictionary()
 
-let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
-let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
 let t filename =
   testTask $"HttpClient files: {filename}" {
@@ -36,7 +34,7 @@ let t filename =
 
     let filename = $"tests/httpclienttestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
-    let content = toStr contents
+    let content = ofBytes contents
 
     let expectedRequest, response, code =
       let m =
@@ -50,6 +48,11 @@ let t filename =
       let g = m.Groups
 
       (g.[2].Value, g.[3].Value, g.[4].Value)
+
+    let testOCaml, testFSharp =
+      if String.includes "FSHARPONLY" code then (false, true)
+      else if String.includes "OCAMLONLY" code then (true, false)
+      else (true, true)
 
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
@@ -103,34 +106,42 @@ let t filename =
       let msg = $"\n\n{actualProg}\n=\n{expectedResult}\n\n"
 
       // Test OCaml
-      let! ocamlActual =
-        try
-          LibBackend.OCamlInterop.execute
-            state.program.accountID
-            state.program.canvasID
-            actualProg
-            Map.empty
-            []
-            []
+      if testOCaml then
+        let! ocamlActual =
+          try
+            LibBackend.OCamlInterop.execute
+              state.program.accountID
+              state.program.canvasID
+              actualProg
+              Map.empty
+              []
+              []
 
-        with
-        | e -> failwith $"When calling OCaml code, OCaml server failed: {msg}, {e}"
+          with
+          | e -> failwith $"When calling OCaml code, OCaml server failed: {msg}, {e}"
 
-      if shouldEqual then
-        Expect.equalDval (normalizeDvalResult ocamlActual) expected $"{msg} -> OCaml"
-      else
-        Expect.notEqual (normalizeDvalResult ocamlActual) expected $"{msg} -> OCaml"
+        if shouldEqual then
+          Expect.equalDval
+            (normalizeDvalResult ocamlActual)
+            expected
+            $"{msg} -> OCaml"
+        else
+          Expect.notEqual
+            (normalizeDvalResult ocamlActual)
+            expected
+            $"{msg} -> OCaml"
 
       // Test F#
-      let! fsharpActual =
-        Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
+      if testFSharp then
+        let! fsharpActual =
+          Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
 
-      let fsharpActual = normalizeDvalResult fsharpActual
+        let fsharpActual = normalizeDvalResult fsharpActual
 
-      if shouldEqual then
-        Expect.equalDval fsharpActual expected $"{msg} -> FSharp"
-      else
-        Expect.notEqual fsharpActual expected $"{msg} -> FSharp"
+        if shouldEqual then
+          Expect.equalDval fsharpActual expected $"{msg} -> FSharp"
+        else
+          Expect.notEqual fsharpActual expected $"{msg} -> FSharp"
   }
 
 

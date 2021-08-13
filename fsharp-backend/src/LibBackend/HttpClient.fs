@@ -316,12 +316,9 @@ let httpCallWithCode
     try
       // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
       // FSTODO: ensure the proxy is used
-      let uri = System.Uri(url)
+      let uri = System.Uri(url, System.UriKind.Absolute)
       // FSTODO get the query, combine it with the other query, then re-add it
-      if uri.IsAbsoluteUri = false then
-        // FSTODO can't seem to trigger this in a test
-        return Error { url = url; code = 0; error = "Relative URL is not allowed" }
-      elif uri.Scheme <> "https" && uri.Scheme <> "http" then
+      if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return Error { url = url; code = 0; error = "Unsupported protocol" }
       elif uri.IsLoopback then
         return Error { url = url; code = 0; error = "Loopback is not allowed" }
@@ -329,12 +326,13 @@ let httpCallWithCode
         let req = new HttpRequestMessage(method, url + toQueryString queryParams)
 
         // username and password - note that an actual auth header will overwrite this
-        // FSTODO test emoji in username
-        // FSTODO test emoji in password
         if uri.UserInfo <> "" then
           let authString =
+            // UserInfo is escaped during parsing, but shouldn't actually isn't
+            // useful here, so unescape it.
+            let userInfo = System.Uri.UnescapeDataString uri.UserInfo
             // Handle usernames with no colon
-            if uri.UserInfo.Contains(":") then uri.UserInfo else uri.UserInfo + ":"
+            if userInfo.Contains(":") then userInfo else userInfo + ":"
           req.Headers.Authorization <-
             AuthenticationHeaderValue(
               "Basic",
