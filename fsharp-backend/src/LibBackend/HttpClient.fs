@@ -130,6 +130,7 @@ let dvalToFormEncoding (dv : RT.Dval) : string =
   |> List.map System.Uri.EscapeDataString
   |> String.concat "&"
 
+// FSTODO: fuzz against OCaml
 let queryStringToParams (queryString : string) : List<string * List<string>> =
   let nvc = System.Web.HttpUtility.ParseQueryString queryString
   nvc.AllKeys
@@ -148,6 +149,8 @@ let queryStringToParams (queryString : string) : List<string * List<string>> =
            [ (key, split) ])
   |> List.concat
 
+
+// FSTODO: fuzz against OCaml
 let queryToDval (queryString : string) : RT.Dval =
   queryString
   |> queryStringToParams
