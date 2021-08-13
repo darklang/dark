@@ -13,6 +13,8 @@ open FSharp.Control.Tasks
 open System.Net.Http
 open System.Net.Http.Json
 open System.Net.Http.Headers
+open System.IO.Compression
+open System.IO
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
@@ -187,6 +189,7 @@ let queryToDval (queryString : string) : RT.Dval =
 //   Buffer.contents recodebuf
 let _socketsHandler =
   let socketsHandler = new SocketsHttpHandler()
+  // Note, do not do automatic decompression
   socketsHandler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
   socketsHandler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
   socketsHandler
@@ -311,6 +314,9 @@ let convertHeaders (headers : HttpHeaders) : List<string * string> =
 // making this an `option` here, and bubbling this optionality the whole way
 // up the callstack, we hopefully make it clear that a request has an optional
 // body
+
+exception InvalidEncodingException of int
+
 let httpCallWithCode
   (rawBytes : bool)
   (url : string)
@@ -384,9 +390,28 @@ let httpCallWithCode
         // send request
         let client = httpClient ()
         let! response = client.SendAsync req
-        let! respBody = response.Content.ReadAsByteArrayAsync()
+        // We do not do automatic decompression, because if we did, we would lose the
+        // content-Encoding header, which the automatic decompression removes for
+        // some reason.
+
+        // From http://www.west-wind.com/WebLog/posts/102969.aspx
+        let! responseStream = response.Content.ReadAsStreamAsync()
+        let encoding = response.Content.Headers.ContentEncoding.ToString()
+        let contentStream =
+          if (String.equalsCaseInsensitive "br" encoding) then
+            new BrotliStream(responseStream, CompressionMode.Decompress) :> Stream
+          elif (String.equalsCaseInsensitive "gzip" encoding) then
+            new GZipStream(responseStream, CompressionMode.Decompress) :> Stream
+          elif (String.equalsCaseInsensitive "deflate" encoding) then
+            new DeflateStream(responseStream, CompressionMode.Decompress) :> Stream
+          else if encoding = "" then
+            responseStream
+          else
+            raise (InvalidEncodingException(int response.StatusCode))
+
+        let! respBody = (new StreamReader(contentStream)).ReadToEndAsync()
         let result =
-          { body = respBody |> ofBytes
+          { body = respBody
             code = int response.StatusCode
             headers =
               convertHeaders response.Headers
@@ -396,6 +421,9 @@ let httpCallWithCode
             httpStatusMessage = response.ReasonPhrase }
         return Ok result
     with
+    | InvalidEncodingException code ->
+      let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
+      return Error { url = url; code = code; error = error }
     | :? TaskCanceledException -> // only timeouts
       return Error { url = url; code = 0; error = "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more

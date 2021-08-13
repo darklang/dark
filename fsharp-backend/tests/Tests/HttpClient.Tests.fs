@@ -6,6 +6,8 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Net.Sockets
+open System.IO
+open System.IO.Compression
 open System.Text.RegularExpressions
 open FSharpPlus
 
@@ -170,6 +172,11 @@ type ErrorResponse =
     actualBody : string
     message : string }
 
+type Compression =
+  | Deflate
+  | Brotli
+  | Gzip
+
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     try
@@ -195,15 +202,41 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       if (actualStatus, actualHeaders, actualBody) = (expectedStatus,
                                                       expectedHeaders,
                                                       expectedBody) then
+        let mutable compression = None
+        let mutable setContentLength = false
+
         ctx.Response.StatusCode <-
           testCase.result.status
           |> String.split " "
           |> List.getAt 1
           |> Option.unwrapUnsafe
           |> int
-        List.iter (fun (k, v) -> BwdServer.setHeader ctx k v) testCase.result.headers
-        let body = testCase.result.body
-        do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+        List.iter
+          (fun (k, v) ->
+            if String.equalsCaseInsensitive k "Content-Encoding" then
+              if v = "deflate" then compression <- Some Deflate
+              else if v = "br" then compression <- Some Brotli
+              else if v = "gzip" then compression <- Some Gzip
+              else ()
+
+            BwdServer.setHeader ctx k v)
+          testCase.result.headers
+
+        match compression with
+        | Some algo ->
+          let stream =
+            let body = ctx.Response.Body
+            match algo with
+            | Gzip -> new GZipStream(body, CompressionMode.Compress) :> Stream
+            | Brotli -> new BrotliStream(body, CompressionMode.Compress) :> Stream
+            | Deflate -> new DeflateStream(body, CompressionMode.Compress) :> Stream
+          let data = testCase.result.body
+          do! stream.WriteAsync(data, 0, data.Length)
+          do! stream.FlushAsync()
+          do! stream.DisposeAsync()
+        | None ->
+          let data = testCase.result.body
+          do! ctx.Response.Body.WriteAsync(data, 0, data.Length)
       else
         let expectedHeaders =
           expectedHeaders |> Map.toList |> List.sortBy Tuple2.first
