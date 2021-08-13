@@ -36,6 +36,10 @@ HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connec
 HttpClient.get_v5 "/just-a-path" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v5 "/just-a-path" {} {} = Error "Unsupported protocol" // FSHARPONLY
 
+// No F# version as these work in F#
+HttpClient.get_v5 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v5 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
+
 // FSTODO: disabling OCAML for now just to get the tests written
 
 HttpClient.get_v5 "http://127.0.0.1" {} {} = Error "Loopback is not allowed" // FSHARPONLY
