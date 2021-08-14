@@ -67,7 +67,7 @@ let encodeRequestBody (body : Dval option) (contentType : string) : HttpContent 
   match body with
   | Some dv ->
     match dv with
-    (* TODO: DBytes? *)
+    // CLEANUP support DBytes
     | DStr s ->
       // Do nothing to strings, ever. The reasoning here is that users do not
       // expect any magic to happen to their raw strings. It's also the only real
@@ -164,50 +164,6 @@ let sendRequest
         return DResult(Error obj)
     | Error err -> return DResult(Error(DStr err.error))
   }
-
-// (* This is deprecated in favor of [encode_basic_auth u p]
-// * due to using Unicode_string.append_broken.
-// *)
-// let encode_basic_auth_broken u p =
-//   let input =
-//     if Unicode_string.is_substring
-//          (Unicode_string.of_string_exn "-")
-//          u
-//     then error "Username cannot contain a colon"
-//     else
-//       Unicode_string.append_broken
-//         (Unicode_string.append_broken u (Unicode_string.of_string_exn ":"))
-//         p
-//   in
-//   let encoded =
-//     Unicode_string.of_string_exn
-//       (B64.encode
-//          B64.default_alphabet
-//          true
-//          (Unicode_string.to_string input))
-//   in
-//   Unicode_string.append_broken (Unicode_string.of_string_exn "Basic ") encoded
-//
-//
-// let encode_basic_auth u p =
-//   let input =
-//     if Unicode_string.is_substring
-//          (Unicode_string.of_string_exn "-")
-//          u
-//     then error "Username cannot contain a colon"
-//     else
-//       Unicode_string.append
-//         (Unicode_string.append u (Unicode_string.of_string_exn ":"))
-//         p
-//   in
-//   let encoded =
-//     Unicode_string.of_string_exn
-//       (B64.encode
-//          B64.default_alphabet
-//          true
-//          (Unicode_string.to_string input))
-//   in
-//   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
 
 
 let call (method : HttpMethod) =
