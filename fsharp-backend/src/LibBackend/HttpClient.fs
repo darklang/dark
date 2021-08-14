@@ -187,14 +187,19 @@ let queryToDval (queryString : string) : RT.Dval =
 //   let e = Uutf.encoder UTF_8 (Buffer recodebuf) in
 //   loop d e
 //   Buffer.contents recodebuf
-let _socketsHandler =
-  let socketsHandler = new SocketsHttpHandler()
-  // Note, do not do automatic decompression
-  socketsHandler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
-  socketsHandler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
-  socketsHandler
+let _httpMessageHandler : HttpMessageHandler =
+  let handler = new SocketsHttpHandler()
+  // Note, do not do automatic decompression, see decompression code later
+  handler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
+  handler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
+  handler.AllowAutoRedirect <- false
+  // handler.UseProxy <- true
+  // CLEANUP rename CurlTunnelUrl
+  // handler.Proxy <- System.Net.WebProxy(Config.curlTunnelUrl, false)
+  handler.UseCookies <- false // FSTODO test
+  handler :> HttpMessageHandler
 
-let httpClient () : HttpClient = new HttpClient(_socketsHandler)
+let httpClient () : HttpClient = new HttpClient(_httpMessageHandler)
 
 let getHeader (headerKey : string) (headers : Headers) : string option =
   headers
