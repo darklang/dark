@@ -13,8 +13,7 @@ Content-type: text/plain; charset=utf-8
 Content-Length: LENGTH
 
 [test]
-// CLEANUP: clearly it should actually form encode here, right?
-// This doesn't work yet because it uses json encoding
+// OCAMLONLY
 (let reqHeaders = {``Content-Type`` = "application/x-www-form-urlencoded; charset=utf-8" } in
  let reqBody = { var1 = 2; var2 = [] } in
  let response = HttpClient.post_v5_ster "http://URL" reqBody {} reqHeaders in
