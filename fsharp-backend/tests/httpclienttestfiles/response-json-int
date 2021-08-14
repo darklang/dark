@@ -12,6 +12,7 @@ Content-type: application/json; charset=utf-8
 Content-Length: LENGTH
 
 5
+
 [test]
 (let response = HttpClient.get_v5_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
