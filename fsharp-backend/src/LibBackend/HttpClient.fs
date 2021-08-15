@@ -331,22 +331,9 @@ let httpCall
   task {
     try
       // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
-      // FSTODO: ensure the proxy is used
       let uri = System.Uri(url, System.UriKind.Absolute)
-      // FSTODO get the query, combine it with the other query, then re-add it
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return Error { url = url; code = 0; error = "Unsupported protocol" }
-      elif uri.IsLoopback then
-        // CLEANUP this is like this to match the OCaml version
-        let error = "Service not ready"
-        return
-          Ok
-            { body = error
-              code = 0
-              headers = []
-              error = error
-              httpVersion = ""
-              httpStatusMessage = "" }
       else
         // Remove the parts of the existing Uri that are duplicated or handled in
         // other ways
