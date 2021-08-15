@@ -189,13 +189,20 @@ let queryToDval (queryString : string) : RT.Dval =
 //   Buffer.contents recodebuf
 let _httpMessageHandler : HttpMessageHandler =
   let handler = new SocketsHttpHandler()
-  // Note, do not do automatic decompression, see decompression code later
   handler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
   handler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
+
+  // Note, do not do automatic decompression, see decompression code later for details
+  handler.AutomaticDecompression <- System.Net.DecompressionMethods.None
+
   handler.AllowAutoRedirect <- false
-  // handler.UseProxy <- true
+
   // CLEANUP rename CurlTunnelUrl
-  // handler.Proxy <- System.Net.WebProxy(Config.curlTunnelUrl, false)
+  // CLEANUP add port into config var
+  // This port is assumed by Curl in the OCaml version, but not by .NET
+  handler.UseProxy <- true
+  handler.Proxy <- System.Net.WebProxy($"{Config.curlTunnelUrl}:1080", false)
+
   handler.UseCookies <- false // FSTODO test
   handler :> HttpMessageHandler
 
@@ -390,6 +397,8 @@ let httpCallWithCode
         let! responseStream = response.Content.ReadAsStreamAsync()
         let encoding = response.Content.Headers.ContentEncoding.ToString()
         let contentStream =
+          // The version of Curl we used in OCaml does not support zstd, so omitting
+          // that won't break anything.
           if (String.equalsCaseInsensitive "br" encoding) then
             new BrotliStream(responseStream, CompressionMode.Decompress) :> Stream
           elif (String.equalsCaseInsensitive "gzip" encoding) then
@@ -422,6 +431,7 @@ let httpCallWithCode
       return Error { url = url; code = 0; error = e.Message }
     | :? System.UriFormatException ->
       return Error { url = url; code = 0; error = "Invalid URI" }
+    | :? IOException as e -> return Error { url = url; code = 0; error = e.Message }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
       return Error { url = url; code = code; error = e.Message }

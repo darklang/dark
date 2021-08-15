@@ -25,7 +25,7 @@ HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Invalid URI" // FSHARPONLY
 
 // FSTODO: add these tests for all versions
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "Name or service not known (thenonexistingurlforsure.com:80)" // FSHARPONLY
+HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The response ended prematurely." // FSHARPONLY
 
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connection could not be established, see inner exception." // FSHARPONLY
@@ -40,12 +40,10 @@ HttpClient.get_v5 "/just-a-path" {} {} = Error "Unsupported protocol" // FSHARPO
 HttpClient.get_v5 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
 
-// FSTODO: disabling OCAML for now just to get the tests written
-
 HttpClient.get_v5 "http://127.0.0.1" {} {} = Error "Loopback is not allowed" // FSHARPONLY
 HttpClient.get_v5 "http://localhost" {} {} = Error "Loopback is not allowed" // FSHARPONLY
-HttpClient.get_v5 "http://0" {} {} = Error "IPv4 address 0.0.0.0 and IPv6 address ::0 are unspecified addresses that cannot be used as a target address. (Parameter 'hostName') (0.0.0.0:80)" // FSHARPONLY
-HttpClient.get_v5 "http://0.0.0.0" {} {} = Error "IPv4 address 0.0.0.0 and IPv6 address ::0 are unspecified addresses that cannot be used as a target address. (Parameter 'hostName') (0.0.0.0:80)" // FSHARPONLY
+(match HttpClient.get_v5 "http://0" {} {} with | Error e -> e.body) = "Service not ready"
+(match HttpClient.get_v5 "http://0.0.0.0" {} {} with | Error e -> e.body) = "Service not ready"
 HttpClient.get_v5 "ftp://speedtest.tele2.net/1KB.zip" {} {} = Error "Unsupported protocol"
 HttpClient.get_v5 "file:///etc/passwd" {} {} = Error "Unsupported protocol"
 
