@@ -55,4 +55,5 @@ HttpClient.get_v5 "file:///etc/passwd" {} {} = Error "Unsupported protocol"
 // FSTODO: add FSHARP test
 HttpClient.get_v0 "file:/localhost//etc/passwd" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // OCAMLONLY
 
+// FSTODO add test for empty content (the None value to http_call)
 
