@@ -320,7 +320,7 @@ let convertHeaders (headers : HttpHeaders) : List<string * string> =
 
 exception InvalidEncodingException of int
 
-let httpCallWithCode
+let httpCall
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
@@ -574,14 +574,3 @@ let httpCallWithCode
 //     error = Curl.strerror curl_code
 //     code
 //   Error info
-
-
-let httpCall
-  (rawBytes : bool)
-  (url : string)
-  (queryParams : (string * string list) list)
-  (verb : HttpMethod)
-  (headers : (string * string) list)
-  (body : HttpContent)
-  =
-  httpCallWithCode rawBytes url queryParams verb headers body
