@@ -206,7 +206,12 @@ let _httpMessageHandler : HttpMessageHandler =
   handler.UseCookies <- false // FSTODO test
   handler :> HttpMessageHandler
 
-let httpClient () : HttpClient = new HttpClient(_httpMessageHandler)
+let httpClient () : HttpClient =
+  let client = new HttpClient(_httpMessageHandler)
+  client.Timeout <- System.TimeSpan.FromSeconds 30.0
+  // Can't find what this was in Curl, but this seems a reasonable default
+  client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
+  client
 
 let getHeader (headerKey : string) (headers : Headers) : string option =
   headers
@@ -436,16 +441,14 @@ let httpCall
 
 // FSTODO followlocation
 //     C.set_followlocation c true
-// FSTODO timeout
-//     C.setopt c (Curl.CURLOPT_TIMEOUT 30) (* timeout is infinite by default *)
-// FSTODO rawbytes
-//     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
 // FSTODO allowed protocols on redirect
 //     (* Seems like redirects can be used to get around the above list... *)
 //     C.set_redirprotocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ]
 // FSTODO - don't follow on DELETE
 //      | DELETE ->
 //        C.set_followlocation c false
+// FSTODO rawbytes
+//     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
 // FSTODO - test for the following
 //     (* If we get a redirect back, then we may see the content-type
 //       * header twice. Fortunately, because we push headers to the front
@@ -461,8 +464,3 @@ let httpCall
 //         recode_latin1 (Buffer.contents responsebuf)
 //       else
 //         Buffer.contents responsebuf
-//     let response = (C.get_responsecode c, !errorbuf, responsebody)
-//     let primaryip = C.get_primaryip c
-//     C.cleanup c
-//     log_debug_info debug_bufs (Some primaryip)
-//     response
