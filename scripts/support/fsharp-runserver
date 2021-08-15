@@ -10,10 +10,10 @@ API_SERVER_FILE="${BINPATH}/ApiServer.dll"
 BWD_SERVER_FILE="${BINPATH}/BwdServer.dll"
 API_SERVER_EXE="${BINPATH}/ApiServer2.dll"
 BWD_SERVER_EXE="${BINPATH}/BwdServer2.dll"
+TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 #FSTODO
 # QW_EXE="$BINPATH/QueueWorker"
 # CRON_EXE="$BINPATH/CronChecker"
-# TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 
 # Stop the server processes
 echo "Stopping servers"
