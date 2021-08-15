@@ -385,10 +385,10 @@ let httpCall
         // send request
         let client = httpClient ()
         let! response = client.SendAsync req
+
         // We do not do automatic decompression, because if we did, we would lose the
         // content-Encoding header, which the automatic decompression removes for
         // some reason.
-
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let! responseStream = response.Content.ReadAsStreamAsync()
         let encoding = response.Content.Headers.ContentEncoding.ToString()
@@ -434,114 +434,19 @@ let httpCall
   }
 
 
-// try
-//   let queryParams = url |> Uri.of_string |> Uri.query |> List.append query_params
-//   let url =
-//     url |> Uri.of_string |> Uri.with_uri (Some queryParams) |> Uri.to_string
-//   let headers = headers |> List.map (fun (k, v) -> k ^ ": " ^ v) in
-//   let errorbuf = ref "" in
-//   let responsebuf = Buffer.create 16384 in
-//   (* uploads *)
-//   (* let bodybuffer = ref body in *)
-//   (* let putfn (count: int) : string = *)
-//   (*   let len = String.length !bodybuffer in *)
-//   (*   let this_body = !bodybuffer in *)
-//   (*   if count < len *)
-//   (*   then (bodybuffer := ""; this_body) *)
-//   (*   else *)
-//   (*     let result = String.sub ~pos:0 ~len:count this_body in *)
-//   (*     let save = String.sub ~pos:count ~len:(len-count) this_body in *)
-//   (*     bodybuffer := save; *)
-//   (*     result *)
-//   (*   in *)
-//   let responsefn str : int =
-//     Buffer.add_string responsebuf str
-//     String.length str
-//   (* headers *)
-//   let result_headers = ref [] in
-//   let headerfn (h : string) : int =
-//     (* See comment about responsebody below before changing this. *)
-//     let split = String.lsplit2 ':' h in
-
-//     match split with
-//     | Some (l, r) ->
-//       result_headers := List.cons (l, r) !result_headers
-//       String.length h
-//     | None ->
-//       result_headers := List.cons (h, "") !result_headers
-//       String.length h
-//   let debug_bufs = new_debug_bufs () in
-//   let code, error, body =
-//     let c = C.init () in
-//     C.set_url c url
-//     C.set_verbose c true
-//     C.set_debugfunction c (debugfn debug_bufs)
-//     C.set_errorbuffer c errorbuf
 // FSTODO followlocation
 //     C.set_followlocation c true
-//     C.set_failonerror c false
-//     C.set_writefunction c responsefn
-//     C.set_httpheader c headers
-//     C.set_headerfunction c headerfn
 // FSTODO timeout
 //     C.setopt c (Curl.CURLOPT_TIMEOUT 30) (* timeout is infinite by default *)
-//     (* This tells CURL to send an Accept-Encoding header including all
-//       * of the encodings it supports *and* tells it to automagically decode
-//       * responses in those encodings. This works even if someone manually specifies
-//       * the encoding in the header, as libcurl will still appropriately decode it
-//       *
-//       * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
-//       * *)
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
-//     (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
-// FSTODO allowed protocols
-//     C.set_protocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ]
+// FSTODO allowed protocols on redirect
 //     (* Seems like redirects can be used to get around the above list... *)
 //     C.set_redirprotocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ]
-// FSTODO proxy
-//     C.setopt c (Curl.CURLOPT_PROXY Config.curl_tunnel_url)
-//     (match verb with
-//      | PUT ->
-//        (match body with
-//         | Some body ->
-//           C.set_postfields c body
-//           C.set_postfieldsize c (String.length body)
-//           C.set_customrequest c "PUT"
-//         | None ->
-//           C.set_postfields c ""
-//           C.set_postfieldsize c 0
-//           C.set_customrequest c "PUT")
-//      | POST ->
-//        (match body with
-//         | Some body ->
-//           C.set_post c true
-//           C.set_postfields c body
-//           C.set_postfieldsize c (String.length body)
-//         | None ->
-//           C.set_postfields c ""
-//           C.set_postfieldsize c 0
-//           C.set_customrequest c "POST")
-//      | PATCH ->
-//        (match body with
-//         | Some body ->
-//           C.set_postfields c body
-//           C.set_postfieldsize c (String.length body)
-//           C.set_customrequest c "PATCH"
-//         | None ->
-//           C.set_postfields c ""
-//           C.set_postfieldsize c 0
-//           C.set_customrequest c "PATCH")
+// FSTODO - don't follow on DELETE
 //      | DELETE ->
 //        C.set_followlocation c false
-//        C.set_customrequest c "DELETE"
-//      | OPTIONS -> C.set_customrequest c "OPTIONS"
-//      | HEAD ->
-//        C.set_nobody c true
-//        C.set_customrequest c "HEAD"
-//      | GET -> ())
-//     (* Actually do the request *)
-//     C.perform c
+// FSTODO - test for the following
 //     (* If we get a redirect back, then we may see the content-type
 //       * header twice. Fortunately, because we push headers to the front
 //       * above, and take the first in charset, we get the right
@@ -561,12 +466,3 @@ let httpCall
 //     C.cleanup c
 //     log_debug_info debug_bufs (Some primaryip)
 //     response
-//   let obj = { body = body; code = code; headers = !result_headers; error = error }
-//   Ok obj
-// with
-// | Curl.CurlException (curl_code, code, s) ->
-//   let info =
-//     url
-//     error = Curl.strerror curl_code
-//     code
-//   Error info
