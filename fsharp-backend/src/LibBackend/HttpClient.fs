@@ -337,7 +337,16 @@ let httpCall
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return Error { url = url; code = 0; error = "Unsupported protocol" }
       elif uri.IsLoopback then
-        return Error { url = url; code = 0; error = "Loopback is not allowed" }
+        // CLEANUP this is like this to match the OCaml version
+        let error = "Service not ready"
+        return
+          Ok
+            { body = error
+              code = 0
+              headers = []
+              error = error
+              httpVersion = ""
+              httpStatusMessage = "" }
       else
         // Remove the parts of the existing Uri that are duplicated or handled in
         // other ways

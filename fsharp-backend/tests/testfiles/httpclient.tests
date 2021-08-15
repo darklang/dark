@@ -40,8 +40,8 @@ HttpClient.get_v5 "/just-a-path" {} {} = Error "Unsupported protocol" // FSHARPO
 HttpClient.get_v5 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
 
-HttpClient.get_v5 "http://127.0.0.1" {} {} = Error "Loopback is not allowed" // FSHARPONLY
-HttpClient.get_v5 "http://localhost" {} {} = Error "Loopback is not allowed" // FSHARPONLY
+(match HttpClient.get_v5 "http://localhost" {} {} with | Error e -> e.body) = "Service not ready"
+(match HttpClient.get_v5 "http://127.0.0.1" {} {} with | Error e -> e.body) = "Service not ready"
 (match HttpClient.get_v5 "http://0" {} {} with | Error e -> e.body) = "Service not ready"
 (match HttpClient.get_v5 "http://0.0.0.0" {} {} with | Error e -> e.body) = "Service not ready"
 HttpClient.get_v5 "ftp://speedtest.tele2.net/1KB.zip" {} {} = Error "Unsupported protocol"
