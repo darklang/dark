@@ -8,22 +8,10 @@ Host: HOST
 [response]
 HTTP/1.1 301 Moved Permanently
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: file////etc/passwd
+Location: file:////etc/passwd
+
 
 [test]
 (match HttpClient.get_v5 "http://URL" {} {} with
  | Ok -> "fail"
- | Error response ->
-    let respHeaders = response.headers |> Dict.remove_v0 "Date" in
-    Dict.set_v0 response "headers" respHeaders) =
-  { body = ""
-    code = 301
-    error = ""
-    headers =
-      {
-        ``HTTP/1.1 301 Moved Permanently`` = ""
-        ``Transfer-Encoding`` = "chunked"
-        Server = "Kestrel"
-      }
-    raw = ""
-  }
+ | Error response -> response) = "Unsupported protocol"

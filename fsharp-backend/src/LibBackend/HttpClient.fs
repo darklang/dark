@@ -195,7 +195,10 @@ let _httpMessageHandler : HttpMessageHandler =
   // Note, do not do automatic decompression, see decompression code later for details
   handler.AutomaticDecompression <- System.Net.DecompressionMethods.None
 
-  handler.AllowAutoRedirect <- false
+  handler.AllowAutoRedirect <- true
+  // 50 is the default too. The OCaml implementation used infinite, but that's
+  // probably not a good default.
+  handler.MaxAutomaticRedirections <- 50
 
   // CLEANUP rename CurlTunnelUrl
   // CLEANUP add port into config var
@@ -209,8 +212,9 @@ let _httpMessageHandler : HttpMessageHandler =
 let httpClient () : HttpClient =
   let client = new HttpClient(_httpMessageHandler)
   client.Timeout <- System.TimeSpan.FromSeconds 30.0
-  // Can't find what this was in Curl, but this seems a reasonable default
+  // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
+
   client
 
 let getHeader (headerKey : string) (headers : Headers) : string option =
@@ -436,7 +440,12 @@ let httpCall
     | :? TaskCanceledException -> // only timeouts
       return Error { url = url; code = 0; error = "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
-      return Error { url = url; code = 0; error = e.Message }
+      let message =
+        if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
+          "Unsupported protocol"
+        else
+          e.Message
+      return Error { url = url; code = 0; error = message }
     | :? System.UriFormatException ->
       return Error { url = url; code = 0; error = "Invalid URI" }
     | :? IOException as e -> return Error { url = url; code = 0; error = e.Message }
@@ -446,11 +455,6 @@ let httpCall
   }
 
 
-// FSTODO followlocation
-//     C.set_followlocation c true
-// FSTODO allowed protocols on redirect
-//     (* Seems like redirects can be used to get around the above list... *)
-//     C.set_redirprotocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ]
 // FSTODO - don't follow on DELETE
 //      | DELETE ->
 //        C.set_followlocation c false

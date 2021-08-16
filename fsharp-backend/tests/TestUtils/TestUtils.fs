@@ -314,7 +314,7 @@ let rec debugDval (v : Dval) : string =
   | DStr s ->
     $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
   | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
-  | DObj obj when obj.Count > 4 ->
+  | DObj obj ->
     obj
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
