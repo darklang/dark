@@ -321,20 +321,20 @@
 //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
 [test.db fieldaccess] with DB Person
-(friends (fun p -> let obj = { x = 42 } in p.height > obj.x ))
-= [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> let obj = { x = 42 } in p.height > obj.x )) =
+  [" Chandler "; "Rachel"; "Ross" ]
 
 [test.db nested fieldaccess] with DB Person
-(friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ))
-= [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 )) =
+  [" Chandler "; "Rachel"; "Ross" ]
 
 [test.db lambda doesnt return a bool] with DB Person
-(friends (fun p -> "x"))
-= Test.typeError_v0 "Fn called with an error as an argument"
+(friends (fun p -> "x")) =
+  Test.typeError_v0 "Fn called with an error as an argument"
 
 [test.db bad variable name] with DB Person
-(friends (fun p -> let x = 32 in true && p.height > y))
-= Test.typeError_v0 "Fn called with an error as an argument"
+(friends (fun p -> let x = 32 in true && p.height > y)) =
+  Test.typeError_v0 "Fn called with an error as an argument"
 
 [test.db sql injection] with DB Person
 (friends (fun p -> "; select * from users;" = p.name )) = []
@@ -389,8 +389,8 @@
 (friends (fun p -> Date.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
 
 [test.db partial evaluation fieldAccesses outside query] with DB Person
-(let _ = prepFriends null in
- let x = { y = { z = { a = 5 }}} in
+(let _ = prepFriends null
+ let x = { y = { z = { a = 5 }}}
  ((DB.query_v4 Person (fun p -> x.y.z.a < (String.length_v0 p.name)))
  |> List.map_v0 (fun p -> p.name)
  |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"]
@@ -470,23 +470,23 @@ Date.parse_v2_ster "2100-01-01T00:00:00Z"
 
 [test.query with Date::<] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.(<) (middleDate null) value.ts))
-= Just { ts = afterDate null }
+ DB.queryOne_v4 Timestamp (fun value -> Date.(<) (middleDate null) value.ts)) =
+   Just { ts = afterDate null }
 
 [test.query with Date::>] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.(>) (middleDate null) value.ts))
-= Just { ts = beforeDate null }
+ DB.queryOne_v4 Timestamp (fun value -> Date.(>) (middleDate null) value.ts)) =
+   Just { ts = beforeDate null }
 
 [test.query with Date::lessThan] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 (middleDate null) value.ts))
-= Just ({ ts = afterDate null })
+ DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 (middleDate null) value.ts)) =
+   Just ({ ts = afterDate null })
 
 [test.query with Date::greaterThan] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts))
-= Just { ts = beforeDate null }
+ DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts)) =
+   Just { ts = beforeDate null }
 
 [tests.other tests]
 (DB.generateKey_v0 |> String.length_v1) = 36
