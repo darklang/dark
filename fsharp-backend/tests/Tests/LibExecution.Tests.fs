@@ -266,9 +266,10 @@ let fileTests () : Test =
                   ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
-                  currentTest <- { currentTest with code = currentTest.code + line }
+                  currentTest <-
+                    { currentTest with code = currentTest.code + "\n" + line }
                 | _ when currentFn.recording ->
-                  currentFn <- { currentFn with code = currentFn.code + line }
+                  currentFn <- { currentFn with code = currentFn.code + "\n" + line }
                 // 1-line test
                 | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
                   let test =
