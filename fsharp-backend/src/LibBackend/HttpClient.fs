@@ -206,7 +206,7 @@ let _httpMessageHandler : HttpMessageHandler =
   handler.UseProxy <- true
   handler.Proxy <- System.Net.WebProxy($"{Config.curlTunnelUrl}:1080", false)
 
-  handler.UseCookies <- false // FSTODO test
+  handler.UseCookies <- false
   handler :> HttpMessageHandler
 
 let httpClient () : HttpClient =
@@ -339,7 +339,6 @@ let httpCall
   : Task<Result<HttpResult, ClientError>> =
   task {
     try
-      // FSTODO: check clients dont share cookies or other state (apart from DNS cache)
       let uri = System.Uri(url, System.UriKind.Absolute)
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return Error { url = url; code = 0; error = "Unsupported protocol" }
@@ -387,7 +386,6 @@ let httpCall
             elif String.equalsCaseInsensitive k "content-type" then
               req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
             else
-              // FSTODO test headers that are gibberish
               // Dark headers can only be added once, as they use a Dict. Remove them
               // so they don't get added twice (eg via Authorization headers above)
               req.Headers.Remove(k) |> ignore<bool>
@@ -454,21 +452,8 @@ let httpCall
       return Error { url = url; code = code; error = e.Message }
   }
 
-
-// FSTODO - don't follow on DELETE
-//      | DELETE ->
-//        C.set_followlocation c false
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
-// FSTODO - test for the following
-//     (* If we get a redirect back, then we may see the content-type
-//       * header twice. Fortunately, because we push headers to the front
-//       * above, and take the first in charset, we get the right
-//       * answer. Whew. To do this correctly, we'd have to implement our
-//       * own follow logic which would clear the header ref, which seems
-//       * straightforward in theory but likely not practice.
-//       * Alternatively, we could clear the headers ref when we receive a
-//       * new `ok` header. *)
 // FSTODO latin1 translation
 //     let responsebody =
 //       if charset !result_headers = Latin1 then
