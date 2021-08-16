@@ -21,7 +21,7 @@ HttpClient::get_v0 "http://HOST/path" {} {} {} = Test.error_v0 "x"
 Note that this section has an equality test, this is so that the same test can
 check how it sends and how it receives data.
 
-TODO: allow multiple test sections?
+You can use OCAMLONLY and FSHARPONLY in this section to limit tests to just one implementation. Otherwise they are tested against both implementations.
 
 # Expected Requests
 
