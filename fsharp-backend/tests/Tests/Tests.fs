@@ -6,12 +6,13 @@ open Expecto
 open System.Threading.Tasks
 
 [<EntryPoint>]
-let main args =
+let main (args : string array) : int =
   LibBackend.Init.init "Tests" // Must go before Tests.BwdServer.init
-  let (_ : Task) = Tests.BwdServer.init ()
+  let cancelationTokenSource = new System.Threading.CancellationTokenSource()
+  let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
   // CLEANUP For now, migrations are run by the ocaml process in run-fsharp-tests
   // LibBackend.Migrations.init ()
-  let (_ : Task) = Tests.HttpClient.init ()
+  let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
   LibService.Telemetry.Console.loadTelemetry ()
   (LibBackend.Account.initTestAccounts ()).Wait()
 
@@ -41,6 +42,9 @@ let main args =
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang
-  let result = runTestsWithCLIArgs [] args (testList "tests" tests)
-  if result <> 0 then failwith "Tests have non-zero exit code"
-  0
+  let exitCode = runTestsWithCLIArgs [] args (testList "tests" tests)
+
+  cancelationTokenSource.Cancel()
+  bwdServerTestsTask.Wait()
+  httpClientTestsTask.Wait()
+  exitCode

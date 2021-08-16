@@ -257,7 +257,8 @@ let tests = testList "BwdServer" [ testList "From files" testsFromFiles ]
 
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
-let init () : Task = (BwdServer.webserver false 10001 6002).RunAsync()
+let init (token : System.Threading.CancellationToken) : Task =
+  (BwdServer.webserver false 10001 6002).RunAsync(token)
 
 
 // FSTODO

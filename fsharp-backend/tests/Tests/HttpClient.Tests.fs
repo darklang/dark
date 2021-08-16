@@ -336,7 +336,8 @@ let webserver () =
   |> fun h -> h.Build()
 
 // run a webserver to read test input
-let init () : Task = (webserver ()).RunAsync()
+let init (token : System.Threading.CancellationToken) : Task =
+  (webserver ()).RunAsync(token)
 
 
 let testsFromFiles =
