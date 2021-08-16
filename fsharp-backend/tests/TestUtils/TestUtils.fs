@@ -309,11 +309,18 @@ let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
 
 open LibExecution.RuntimeTypes
 
-let debugDval (v : Dval) : string =
+let rec debugDval (v : Dval) : string =
   match v with
   | DStr s ->
-    $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+    $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
   | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
+  | DObj obj when obj.Count > 4 ->
+    obj
+    |> Map.toList
+    |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
+    |> String.concat ",\n  "
+    |> fun contents -> $"DObj {{\n  {contents}}}"
+
   | _ -> v.ToString()
 
 module Expect =
@@ -552,23 +559,25 @@ module Expect =
       // equal if they print the same string.
       check path (string l) (string r)
     | DList ls, DList rs ->
-      let lLength = List.length ls
-      let rLength = List.length rs
-
+      check (".Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
-      check (".Length" :: path) lLength rLength
 
     | DObj ls, DObj rs ->
-      let lLength = Map.count ls
-      let rLength = Map.count rs
-      check (".Length" :: path) lLength rLength
-
-      List.iter2
-        (fun (k1, v1) (k2, v2) ->
-          check path k1 k2
-          de (k1 :: path) v1 v2)
-        (Map.toList ls)
-        (Map.toList rs)
+      // check keys from ls are in both, check matching values
+      Map.forEachWithIndex
+        (fun key v1 ->
+          match Map.tryFind key rs with
+          | Some v2 -> de (key :: path) v1 v2
+          | None -> check (key :: path) ls rs)
+        ls
+      // check keys from rs are in both
+      Map.forEachWithIndex
+        (fun key _ ->
+          match Map.tryFind key rs with
+          | Some _ -> () // already checked
+          | None -> check (key :: path) ls rs)
+        rs
+      check (".Length" :: path) (Map.count ls) (Map.count rs)
     | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
       check path sc1 sc2
       check path h1 h2
