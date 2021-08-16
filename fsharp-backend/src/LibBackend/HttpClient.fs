@@ -350,6 +350,13 @@ let httpCall
         reqUri.Query <- toQueryString (queryParams @ queryStringToParams uri.Query)
         let req = new HttpRequestMessage(method, string reqUri)
 
+        // CLEANUP We could use 3.0. This uses 2.0 as that's what was supported in
+        // OCaml/Curl, and we don't want to change behaviour. The potential behaviour
+        // is that we know the behaviour of headers in 2.0 (our OCaml code lowercases
+        // them in 2.0 only, but we don't want a surprise with 3.0 when they're
+        // dynamically upgraded)
+        req.Version <- System.Net.HttpVersion.Version20
+
         // username and password - note that an actual auth header will overwrite this
         if uri.UserInfo <> "" then
           let authString =

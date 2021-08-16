@@ -141,12 +141,22 @@ let sendRequest
       // CLEANUP: For some reason, the OCaml version includes a header with the HTTP
       // status line the response and each redirect.
       // FSTODO: test redirects
+      let isHttp2 = response.httpVersion = "2.0"
       let statusHeader =
-        ($"HTTP/{response.httpVersion} {response.code} {response.httpStatusMessage}")
+        if isHttp2 then
+          $"HTTP/2 {response.code}"
+        else
+          $"HTTP/{response.httpVersion} {response.code} {response.httpStatusMessage}"
 
       let parsedResponseHeaders =
         response.headers
-        |> List.map (fun (k, v) -> (k.Trim(), DStr(v.Trim())))
+        |> List.map
+             (fun (k, v) ->
+               // CLEANUP The OCaml version automatically made this lowercase for
+               // http2. That's a weird experience for users, as they don't have
+               // control over this, so make this lowercase by default
+               let key = if isHttp2 then k.Trim().ToLower() else k.Trim()
+               (key, DStr(v.Trim())))
         |> List.filter (fun (k, _) -> String.length k > 0)
         |> List.append [ statusHeader, DStr "" ]
         |> Dval.obj
