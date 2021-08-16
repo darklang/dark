@@ -28,28 +28,61 @@ type TestCase = { expected : Http.T; result : Http.T }
 
 let testCases : ConcurrentDictionary<string, TestCase> = ConcurrentDictionary()
 
+let host = $"test.builtwithdark.localhost:10005"
+
+let normalizeHeaders
+  (body : byte array)
+  (headers : (string * string) list)
+  : (string * string) list =
+  headers
+  |> List.map
+       (function
+       // make writing tests easier
+       | (key, "HOST") when String.equalsCaseInsensitive "Host" key -> (key, host)
+       // optionally change content length for writing responses more easily
+       | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
+         (key, string body.Length)
+       | other -> other)
+
+
+
 
 let t filename =
+  // Parse the file contents now, rather than later, so that tests that refer to
+  // other tests (that is, tests for redirects) will work.
+  let skip = String.startsWith "_" filename
+  let name = if skip then String.dropLeft 1 filename else filename
+
+  let filename = $"tests/httpclienttestfiles/{filename}"
+  let contents = System.IO.File.ReadAllBytes filename
+  let content = ofBytes contents
+
+  let expectedRequest, response, code =
+    let m =
+      Regex.Match(
+        content,
+        "^(\[expected-request\]\n(.*)\n)\[response\]\n(.*)\n\n\[test\]\n(.*)$",
+        RegexOptions.Singleline
+      )
+
+    if not m.Success then failwith $"incorrect format in {name}"
+    let g = m.Groups
+
+    (g.[2].Value, g.[3].Value, g.[4].Value)
+
+  let expected = expectedRequest |> toBytes |> Http.setHeadersToCRLF |> Http.split
+  let expected =
+    { expected with headers = normalizeHeaders expected.body expected.headers }
+  let response = response |> toBytes |> Http.setHeadersToCRLF |> Http.split
+  let response =
+    { response with headers = normalizeHeaders response.body response.headers }
+
+  testCases.[name] <- { expected = expected; result = response }
+
+
+  // Load the testcases first so that redirection works
   testTask $"HttpClient files: {filename}" {
-    let skip = String.startsWith "_" filename
-    let name = if skip then String.dropLeft 1 filename else filename
-
-    let filename = $"tests/httpclienttestfiles/{filename}"
-    let! contents = System.IO.File.ReadAllBytesAsync filename
-    let content = ofBytes contents
-
-    let expectedRequest, response, code =
-      let m =
-        Regex.Match(
-          content,
-          "^(\[expected-request\]\n(.*)\n)\[response\]\n(.*)\n\n\[test\]\n(.*)$",
-          RegexOptions.Singleline
-        )
-
-      if not m.Success then failwith $"incorrect format in {name}"
-      let g = m.Groups
-
-      (g.[2].Value, g.[3].Value, g.[4].Value)
+    print $"name is {name}"
 
     let testOCaml, testFSharp =
       if String.includes "FSHARPONLY" code then (false, true)
@@ -59,35 +92,6 @@ let t filename =
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
     // debuG "code" code
-
-    let host = $"test.builtwithdark.localhost:10005"
-
-    let normalizeHeaders
-      (body : byte array)
-      (headers : (string * string) list)
-      : (string * string) list =
-      headers
-      |> List.map
-           (function
-           // make writing tests easier
-           | (key, "HOST") when String.equalsCaseInsensitive "Host" key ->
-             (key, host)
-           // optionally change content length for writing responses more easily
-           | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
-             (key, string body.Length)
-           | other -> other)
-
-    // Add the expectedRequest and response to the server
-    let expected = expectedRequest |> toBytes |> Http.setHeadersToCRLF |> Http.split
-    let expected =
-      { expected with headers = normalizeHeaders expected.body expected.headers }
-    let response = response |> toBytes |> Http.setHeadersToCRLF |> Http.split
-    let response =
-      { response with headers = normalizeHeaders response.body response.headers }
-
-    let testCase = { expected = expected; result = response }
-
-    testCases.[name] <- testCase
 
     if skip then
       skiptest $"underscore test - {name}"
