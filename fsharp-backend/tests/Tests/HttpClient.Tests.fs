@@ -82,8 +82,6 @@ let t filename =
 
   // Load the testcases first so that redirection works
   testTask $"HttpClient files: {filename}" {
-    print $"name is {name}"
-
     let testOCaml, testFSharp =
       if String.includes "FSHARPONLY" code then (false, true)
       else if String.includes "OCAMLONLY" code then (true, false)
