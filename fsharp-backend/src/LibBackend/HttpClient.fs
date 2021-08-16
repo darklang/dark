@@ -11,7 +11,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Net.Http
-open System.Net.Http.Json
 open System.Net.Http.Headers
 open System.IO.Compression
 open System.IO
@@ -31,46 +30,6 @@ type HttpResult =
     httpStatusMessage : string }
 
 type ClientError = { url : string; error : string; code : int }
-
-(* Given ~regex, return Err if it doesn't match, or list of captures if
- * it does. First elem of the list is the first capture, not the whole
- * match. *)
-// let stringMatch (regex : string) (str : string) : Result<string list, string> =
-// let reg = Re2.create_exn regex in
-
-// str
-// |> Re2.find_submatches reg
-// |> Result.map Array.to_list
-// |> Result.map List.tl_exn
-// (* skip full match *)
-// |> Result.map (List.map (Option.value ""))
-
-type Charset =
-  | Latin1
-  | Utf8
-  | Other
-
-
-// let charset (headers : (string * string) list) : Charset =
-//   let canonicalize s = s |> String.strip |> String.toLower in
-
-//   headers
-//   |> List.map (Tuple.T2.map_fst canonicalize)
-//   |> List.map (Tuple.T2.map_snd canonicalize)
-//   |> List.filter_map
-//        (function
-//        | "content-type", v ->
-//          (match stringMatch ".*;\\s*charset=(.*)$" v with
-//           | Result.Ok [ "utf-8" ] -> Some Utf8
-//           | Result.Ok [ "utf8" ] -> Some Utf8
-//           | Result.Ok [ "us-ascii" ] -> Some Latin1 (* should work *)
-//           | Result.Ok [ "iso-8859-1" ] -> Some Latin1
-//           | Result.Ok [ "iso_8859-1" ] -> Some Latin1
-//           | Result.Ok [ "latin1" ] -> Some Latin1
-//           | _ -> None)
-//        | _ -> None)
-//   |> List.head
-//   |> Option.value Other
 
 // -------------------------
 // Forms and queries Functions
@@ -165,29 +124,15 @@ let queryToDval (queryString : string) : RT.Dval =
          | list -> k, RT.DList(List.map RT.DStr list))
   |> RT.Dval.obj
 
-(* Servers should default to ISO-8859-1 (aka Latin-1) if nothing
- * provided. We ask for UTF-8, but might not get it. If we get
- * ISO-8859-1 we can transcode it using Uutf. Uutf supports more recent
- * unicode than camomile (10, vs 3.2). However, camomile supports many
- * more transcoding formats. So we should default to Uutf, and fallback
- * to camomile if needs be. *)
-// let recodeLatin1 (src : string) =
-//   let recodebuf = Buffer.create 16384 in
-//   let rec loop d e =
-//     match Uutf.decode d with
-//     | Uchar _ as u ->
-//       ignore (Uutf.encode e u)
-//       loop d e
-//     | _End -> ignore (Uutf.encode e End)
-//     | Malformed _ ->
-//       ignore (Uutf.encode e (Uchar Uutf.u_rep))
-//       loop d e
-//     | _Await -> assert false
-//   let d = Uutf.decoder ISO_8859_1 (String src) in
-//   let e = Uutf.encoder UTF_8 (Buffer recodebuf) in
-//   loop d e
-//   Buffer.contents recodebuf
-let _httpMessageHandler : HttpMessageHandler =
+
+// There has been quite a history of HTTPClient having problems in previous versions
+// of .NET, including socket exhaustion and DNS results not expiring. The history is
+// handled quite well in
+// https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
+//
+// As of today (using .NET6) it seems we no longer need to worry about either socket
+// exhaustion or DNS issues, so long as we use a single HttpClient.
+let httpClient : HttpClient =
   let handler = new SocketsHttpHandler()
   handler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
   handler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
@@ -195,9 +140,9 @@ let _httpMessageHandler : HttpMessageHandler =
   // Note, do not do automatic decompression, see decompression code later for details
   handler.AutomaticDecompression <- System.Net.DecompressionMethods.None
 
-  handler.AllowAutoRedirect <- true
   // 50 is the default too. The OCaml implementation used infinite, but that's
   // probably not a good default.
+  handler.AllowAutoRedirect <- true
   handler.MaxAutomaticRedirections <- 50
 
   // CLEANUP rename CurlTunnelUrl
@@ -206,11 +151,11 @@ let _httpMessageHandler : HttpMessageHandler =
   handler.UseProxy <- true
   handler.Proxy <- System.Net.WebProxy($"{Config.curlTunnelUrl}:1080", false)
 
+  // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false
-  handler :> HttpMessageHandler
 
-let httpClient () : HttpClient =
-  let client = new HttpClient(_httpMessageHandler)
+
+  let client = new HttpClient(handler)
   client.Timeout <- System.TimeSpan.FromSeconds 30.0
   // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
@@ -397,8 +342,7 @@ let httpCall
           reqHeaders
 
         // send request
-        let client = httpClient ()
-        let! response = client.SendAsync req
+        let! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
         // content-Encoding header, which the automatic decompression removes for
