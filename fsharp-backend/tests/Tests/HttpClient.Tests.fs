@@ -98,6 +98,8 @@ let t filename =
       let shouldEqual, actualProg, expectedResult =
         code
         |> String.replace "URL" $"{host}/{name}"
+        // CLEANUP: this doesn't use the correct length, as it might be latin1 or
+        // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
@@ -205,7 +207,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
                                                       expectedHeaders,
                                                       expectedBody) then
         let mutable compression = None
-        let mutable setContentLength = false
+        let mutable transcodeToLatin1 = false
 
         ctx.Response.StatusCode <-
           testCase.result.status
@@ -220,9 +222,24 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
               else if v = "br" then compression <- Some Brotli
               else if v = "gzip" then compression <- Some Gzip
               else ()
+            elif String.equalsCaseInsensitive k "Content-Type" then
+              if v.Contains "charset=iso-8859-1"
+                 || v.Contains "charset=latin1"
+                 || v.Contains "us-ascii" then
+                transcodeToLatin1 <- true
 
             BwdServer.setHeader ctx k v)
           testCase.result.headers
+
+        let data =
+          if transcodeToLatin1 then
+            System.Text.Encoding.Convert(
+              System.Text.Encoding.UTF8,
+              System.Text.Encoding.Latin1,
+              testCase.result.body
+            )
+          else
+            testCase.result.body
 
         match compression with
         | Some algo ->
@@ -232,13 +249,10 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
             | Gzip -> new GZipStream(body, CompressionMode.Compress) :> Stream
             | Brotli -> new BrotliStream(body, CompressionMode.Compress) :> Stream
             | Deflate -> new DeflateStream(body, CompressionMode.Compress) :> Stream
-          let data = testCase.result.body
           do! stream.WriteAsync(data, 0, data.Length)
           do! stream.FlushAsync()
           do! stream.DisposeAsync()
-        | None ->
-          let data = testCase.result.body
-          do! ctx.Response.Body.WriteAsync(data, 0, data.Length)
+        | None -> do! ctx.Response.Body.WriteAsync(data, 0, data.Length)
       else
         let expectedHeaders =
           expectedHeaders |> Map.toList |> List.sortBy Tuple2.first

@@ -420,9 +420,31 @@ let httpCall
           else
             raise (InvalidEncodingException(int response.StatusCode))
 
-        let! respBody = (new StreamReader(contentStream)).ReadToEndAsync()
+        use memoryStream = new MemoryStream()
+        do! contentStream.CopyToAsync(memoryStream)
+        let respBody = memoryStream.ToArray()
+
+        let respString =
+          // CLEANUP we can support any encoding that .NET supports, which I bet is a
+          // lot
+          let latin1 =
+            try
+              let charset = response.Content.Headers.ContentType.CharSet
+              match charset with
+              | "latin1"
+              | "us-ascii"
+              | "iso-8859-1"
+              | "iso_8859-1" -> true
+              | _ -> false
+            with
+            | _ -> false
+          if latin1 then
+            System.Text.Encoding.Latin1.GetString respBody
+          else
+            ofBytes respBody
+
         let result =
-          { body = respBody
+          { body = respString
             code = int response.StatusCode
             headers =
               convertHeaders response.Headers
@@ -454,9 +476,3 @@ let httpCall
 
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
-// FSTODO latin1 translation
-//     let responsebody =
-//       if charset !result_headers = Latin1 then
-//         recode_latin1 (Buffer.contents responsebuf)
-//       else
-//         Buffer.contents responsebuf
