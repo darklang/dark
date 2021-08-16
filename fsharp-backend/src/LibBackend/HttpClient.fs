@@ -296,7 +296,7 @@ let httpCall
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
         reqUri.Query <- toQueryString (queryParams @ queryStringToParams uri.Query)
-        let req = new HttpRequestMessage(method, string reqUri)
+        use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use 3.0. This uses 2.0 as that's what was supported in
         // OCaml/Curl, and we don't want to change behaviour. The potential behaviour
@@ -342,27 +342,24 @@ let httpCall
           reqHeaders
 
         // send request
-        let! response = httpClient.SendAsync req
+        use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
         // content-Encoding header, which the automatic decompression removes for
         // some reason.
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
-        let! responseStream = response.Content.ReadAsStreamAsync()
         let encoding = response.Content.Headers.ContentEncoding.ToString()
-        let contentStream =
+        use! responseStream = response.Content.ReadAsStreamAsync()
+        use contentStream =
+          let decompress = CompressionMode.Decompress
           // The version of Curl we used in OCaml does not support zstd, so omitting
           // that won't break anything.
-          if (String.equalsCaseInsensitive "br" encoding) then
-            new BrotliStream(responseStream, CompressionMode.Decompress) :> Stream
-          elif (String.equalsCaseInsensitive "gzip" encoding) then
-            new GZipStream(responseStream, CompressionMode.Decompress) :> Stream
-          elif (String.equalsCaseInsensitive "deflate" encoding) then
-            new DeflateStream(responseStream, CompressionMode.Decompress) :> Stream
-          else if encoding = "" then
-            responseStream
-          else
-            raise (InvalidEncodingException(int response.StatusCode))
+          match encoding.ToLower() with
+          | "br" -> new BrotliStream(responseStream, decompress) :> Stream
+          | "gzip" -> new GZipStream(responseStream, decompress) :> Stream
+          | "deflate" -> new DeflateStream(responseStream, decompress) :> Stream
+          | "" -> responseStream
+          | _ -> raise (InvalidEncodingException(int response.StatusCode))
 
         use memoryStream = new MemoryStream()
         do! contentStream.CopyToAsync(memoryStream)
