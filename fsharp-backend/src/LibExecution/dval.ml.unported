@@ -110,22 +110,6 @@ let parse_literal (str : string) : dval option =
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
-let to_char dv : string option =
-  match dv with
-  | DCharacter c ->
-      Some (Unicode_string.Character.to_string c)
-  | _ ->
-      None
-
-
-let to_int dv : Dint.t option = match dv with DInt i -> Some i | _ -> None
-
-let to_float dv : Float.t option =
-  match dv with DFloat f -> Some f | _ -> None
-
-
-let dint (i : int) : dval = DInt (Dint.of_int i)
-
 let to_dobj_exn (pairs : (string * dval) list) : dval =
   match DvalMap.from_list_unique pairs with
   | Ok ok ->
@@ -158,88 +142,12 @@ let to_string_pairs_exn dv : (string * string) list =
   dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
 
 
-(* For putting into URLs as query params *)
-let rec to_url_string_exn (dv : dval) : string =
-  match dv with
-  | DBlock _ ->
-      (* See docs/dblock-serialization.ml *)
-      "<" ^ (dv |> tipename) ^ ">"
-  | DIncomplete _ | DPassword _ ->
-      "<" ^ (dv |> tipename) ^ ">"
-  | DInt i ->
-      Dint.to_string i
-  | DBool true ->
-      "true"
-  | DBool false ->
-      "false"
-  | DStr s ->
-      Unicode_string.to_string s
-  | DFloat f ->
-      string_of_float f
-  | DCharacter c ->
-      Unicode_string.Character.to_string c
-  | DNull ->
-      "null"
-  | DDate d ->
-      Util.isostring_of_date d
-  | DDB dbname ->
-      dbname
-  | DErrorRail d ->
-      to_url_string_exn d
-  | DError (_, msg) ->
-      "error=" ^ msg
-  | DUuid uuid ->
-      Uuidm.to_string uuid
-  | DResp (_, hdv) ->
-      to_url_string_exn hdv
-  | DList l ->
-      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
-  | DObj o ->
-      let strs =
-        DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-            (key ^ ": " ^ to_url_string_exn value) :: l)
-      in
-      "{ " ^ String.concat ~sep:", " strs ^ " }"
-  | DOption OptNothing ->
-      "none"
-  | DOption (OptJust v) ->
-      to_url_string_exn v
-  | DResult (ResError v) ->
-      "error=" ^ to_url_string_exn v
-  | DResult (ResOk v) ->
-      to_url_string_exn v
-  | DBytes bytes ->
-      bytes |> RawBytes.to_string |> B64.encode
-
 
 (* ------------------------- *)
 (* Forms and queries Functions *)
 (* ------------------------- *)
 
-let dval_to_query (dv : dval) : (string * string list) list =
-  match dv with
-  | DObj kvs ->
-      kvs
-      |> DvalMap.to_list
-      |> List.map ~f:(fun (k, value) ->
-             match value with
-             | DNull ->
-                 (k, [])
-             | DList l ->
-                 (k, List.map ~f:to_url_string_exn l)
-             | _ ->
-                 (k, [to_url_string_exn value]))
-  | _ ->
-      Exception.code "attempting to use non-object as query param"
-
-
-let to_form_encoding (dv : dval) : string =
-  dv |> dval_to_query |> Uri.encoded_of_query
-
 
 let of_form_encoding (f : string) : dval =
   f |> Uri.query_of_encoded |> query_to_dval
 
-(* ------------------------- *)
-(* Hashes *)
-(* ------------------------- *)

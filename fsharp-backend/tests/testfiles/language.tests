@@ -272,7 +272,6 @@ List.head_v0 (Test.typeError_v0 "test") = Test.typeError_v0 "Fn called with an e
 [ 5; 6; List.head_v0 (Test.typeError_v0 "test") ] = [5;6; Test.typeError_v0 "Fn called with an error as an argument"]
 [ 5; 6; Test.typeError_v0 "test"] = [ 5; 6; Test.typeError_v0 "test"]
 { i = Test.typeError_v0 "test"; m = 5; j = List.head_v0 (Test.typeError_v0 "test"); n = 6 } = { n = 6; m = 5 ; j = Test.typeError_v0 "Fn called with an error as an argument"; i = Test.typeError_v0 "test" }
-5 |> (Test.typeError_v0 "test") |> (+) 3 = Test.typeError_v0 "Fn called with an error as an argument"
 5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "Fn called with an error as an argument"
 5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "Fn called with an error as an argument"
 (let x = Test.typeError_v0 "test" in (5 |> x)) = 5
@@ -280,7 +279,9 @@ Just (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
 Error (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
 Ok (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
 
-
+[test.pipe into error]
+(let e = Test.typeError_v0 "test" in
+ 5 |> e |> (+) 3) = 8
 
 
 [fn.errorRailFn arg]

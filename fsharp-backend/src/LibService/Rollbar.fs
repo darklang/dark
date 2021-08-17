@@ -6,7 +6,7 @@ open Tablecloth
 let mutable initialized = false
 
 let init (serviceName : string) : unit =
-  printfn "Configuring rollbar"
+  print "Configuring rollbar"
   // FSTODO: include host, ip address, serviceName
   let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
   config.Environment <- Config.rollbarEnvironment
@@ -49,7 +49,7 @@ let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit 
   assert initialized
 
   try
-    printfn "sending exception to rollbar"
+    print "sending exception to rollbar"
     let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
     state.["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
     state.["execution_id"] <- executionID
@@ -62,7 +62,7 @@ let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit 
   with
   | e ->
     // FSTODO: log failure
-    printfn "Exception when calling rollbar"
+    print "Exception when calling rollbar"
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection

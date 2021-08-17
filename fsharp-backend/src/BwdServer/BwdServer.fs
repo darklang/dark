@@ -232,7 +232,7 @@ let runHttp
   (body : byte [])
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
-  : Task<RT.Dval * Exe.HashSet<tlid>> =
+  : Task<RT.Dval * HashSet.T<tlid>> =
   task {
     let program = Canvas.toProgram c
     let! state, touchedTLIDs = RealExe.createState traceID tlid program
@@ -350,7 +350,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           | RT.DError _ -> return! derrorResponse ctx
           | other ->
             // all other cases should be handled in middleware
-            printfn $"Not a HTTP response: {other}"
+            print $"Not a HTTP response: {other}"
             return! msg 500 "body is not a HttpResponse"
         | None -> // vars didnt parse
           return!
@@ -397,7 +397,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
         return ctx
       | e ->
-        printfn "%s" (toString e)
+        print (string e)
         return raise e
      })
     :> Task
@@ -431,7 +431,7 @@ let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
 
 [<EntryPoint>]
 let main _ =
-  printfn "Starting BwdServer"
+  print "Starting BwdServer"
   LibBackend.Init.init "Bwdserver"
 
   (webserver

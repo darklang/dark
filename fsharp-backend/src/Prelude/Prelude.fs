@@ -40,7 +40,48 @@ let matches (pattern : string) (input : string) : bool =
 // ----------------------
 // Debugging
 // ----------------------
-let debuG (msg : string) (a : 'a) : unit = printfn $"DEBUG: {msg} ({a})"
+
+type BlockingCollection = System.Collections.Concurrent.BlockingCollection<string>
+
+type NonBlockingConsole() =
+
+  // It seems like printing on the Console can cause a deadlock. I observed that all
+  // the tasks in the threadpool were blocking on Console.WriteLine, and that the
+  // logging thread in the background was blocked on one of those threads. This is
+  // like a known issue with a known solution:
+  // https://stackoverflow.com/a/3670628/104021.
+
+  // Note that there are sometimes other loggers, such as in IHosts, which may also
+  // need to move off the console logger.
+
+  // This adds a collection which receives all output from WriteLine. Then, a
+  // background thread writes the output to Console.
+
+  static let mQueue : BlockingCollection = new BlockingCollection()
+  static do
+    let f () =
+      while true do
+        try
+          let v = mQueue.Take()
+          System.Console.WriteLine(v)
+        with
+        | e ->
+          System.Console.WriteLine(
+            $"Exception in blocking qu eue thread: {e.Message}"
+          )
+    let thread = System.Threading.Thread(f)
+    do
+      thread.IsBackground <- true
+      thread.Name <- "Prelude.NonBlockingConsole printer"
+      thread.Start()
+
+
+  static member WriteLine(value : string) : unit = mQueue.Add(value)
+
+
+let debuG (msg : string) (a : 'a) : unit =
+  // Don't deadlock when debugging
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
 
 let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
@@ -49,17 +90,19 @@ let debug (msg : string) (a : 'a) : 'a =
 // Print the value of s, alongside with length and the bytes in the string
 let debugString (msg : string) (s : string) : string =
   let bytes = s |> System.Text.Encoding.UTF8.GetBytes |> System.BitConverter.ToString
-  printfn $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
 let debugByteArray (msg : string) (a : byte array) : byte array =
   let bytes = a |> System.BitConverter.ToString
-  printfn $"DEBUG: {msg} (len {a.Length}, {bytes}"
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
   a
 
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
-  printfn $"DEBUG: {msg} {f v}"
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} {f v}"
   v
+
+let print (string : string) : unit = NonBlockingConsole.WriteLine string
 
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
@@ -68,7 +111,7 @@ let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
 let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
   task {
     let! a = a
-    printfn $"DEBUG: {msg} ({a})"
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
     return a
   }
 
@@ -271,12 +314,17 @@ module String =
 
   let normalize (s : string) : string = s.Normalize()
 
+  let equalsCaseInsensitive (s1 : string) (s2 : string) : bool =
+    System.String.Equals(s1, s2, System.StringComparison.InvariantCultureIgnoreCase)
+
 module HashSet =
   type T<'v> = System.Collections.Generic.HashSet<'v>
 
   let add (v : 'v) (s : T<'v>) : unit =
     let (_ : bool) = s.Add v
     ()
+
+  let empty () : T<'v> = System.Collections.Generic.HashSet<'v>()
 
   let toList (d : T<'v>) : List<'v> =
     seq {
@@ -312,7 +360,7 @@ module Dictionary =
     |> Seq.toList
 
   let fromList (l : List<'k * 'v>) : T<'k, 'v> =
-    let result = System.Collections.Generic.Dictionary<'k, 'v>()
+    let result = empty ()
     List.iter (fun (k, v) -> result.[k] <- v) l
     result
 

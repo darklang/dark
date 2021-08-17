@@ -309,11 +309,18 @@ let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
 
 open LibExecution.RuntimeTypes
 
-let debugDval (v : Dval) : string =
+let rec debugDval (v : Dval) : string =
   match v with
   | DStr s ->
-    $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+    $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
   | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
+  | DObj obj ->
+    obj
+    |> Map.toList
+    |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
+    |> String.concat ",\n  "
+    |> fun contents -> $"DObj {{\n  {contents}}}"
+
   | _ -> v.ToString()
 
 module Expect =
@@ -362,34 +369,40 @@ module Expect =
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
 
+  type Path = string list
+
+  let pathToString (path : Path) : string =
+    let pathStr = (path @ [ "val" ]) |> List.reverse |> String.concat "."
+    $"in ({pathStr})"
 
   let rec patternEqualityBaseFn
     (checkIDs : bool)
+    (path : Path)
     (actual : Pattern)
     (expected : Pattern)
-    (errorFn : string -> string -> unit)
+    (errorFn : Path -> string -> string -> unit)
     : unit =
-    let eq a e = patternEqualityBaseFn checkIDs a e errorFn
+    let eq path a e = patternEqualityBaseFn checkIDs path a e errorFn
 
-    let check (a : 'a) (e : 'a) =
-      if a <> e then errorFn (string actual) (string expected)
+    let check path (a : 'a) (e : 'a) =
+      if a <> e then errorFn path (string actual) (string expected)
 
-    let eqList (l1 : List<RT.Pattern>) (l2 : List<RT.Pattern>) =
-      check (List.length l1) (List.length l2)
-      List.iter2 eq l1 l2
+    let eqList path (l1 : List<RT.Pattern>) (l2 : List<RT.Pattern>) =
+      List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      check path (List.length l1) (List.length l2)
 
-    if checkIDs then check (Pattern.toID actual) (Pattern.toID expected)
+    if checkIDs then check path (Pattern.toID actual) (Pattern.toID expected)
 
     match actual, expected with
-    | PVariable (_, name), PVariable (_, name') -> check name name'
+    | PVariable (_, name), PVariable (_, name') -> check path name name'
     | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
-      check name name'
-      eqList patterns patterns'
-    | PString (_, str), PString (_, str') -> check str str'
-    | PInteger (_, l), PInteger (_, l') -> check l l'
-    | PFloat (_, d), PFloat (_, d') -> check d d'
-    | PBool (_, l), PBool (_, l') -> check l l'
-    | PCharacter (_, c), PCharacter (_, c') -> check c c'
+      check path name name'
+      eqList (name :: path) patterns patterns'
+    | PString (_, str), PString (_, str') -> check path str str'
+    | PInteger (_, l), PInteger (_, l') -> check path l l'
+    | PFloat (_, d), PFloat (_, d') -> check path d d'
+    | PBool (_, l), PBool (_, l') -> check path l l'
+    | PCharacter (_, c), PCharacter (_, c') -> check path c c'
     | PNull (_), PNull (_) -> ()
     | PBlank (_), PBlank (_) -> ()
     // exhaustiveness check
@@ -401,25 +414,26 @@ module Expect =
     | PBool _, _
     | PCharacter _, _
     | PNull _, _
-    | PBlank _, _ -> check actual expected
+    | PBlank _, _ -> check path actual expected
 
 
   let rec exprEqualityBaseFn
     (checkIDs : bool)
+    (path : Path)
     (actual : Expr)
     (expected : Expr)
-    (errorFn : string -> string -> unit)
+    (errorFn : Path -> string -> string -> unit)
     : unit =
-    let eq a e = exprEqualityBaseFn checkIDs a e errorFn
+    let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
 
-    let check (a : 'a) (e : 'a) =
-      if a <> e then errorFn (string actual) (string expected)
+    let check path (a : 'a) (e : 'a) =
+      if a <> e then errorFn path (string actual) (string expected)
 
-    let eqList (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
-      check (List.length l1) (List.length l2)
-      List.iter2 eq l1 l2
+    let eqList path (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
+      List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      check path (List.length l1) (List.length l2)
 
-    if checkIDs then check (Expr.toID actual) (Expr.toID expected)
+    if checkIDs then check path (Expr.toID actual) (Expr.toID expected)
 
     match actual, expected with
     // expressions with no values
@@ -428,59 +442,61 @@ module Expect =
     // expressions with single string values
     | EString (_, v), EString (_, v')
     | ECharacter (_, v), ECharacter (_, v')
-    | EVariable (_, v), EVariable (_, v') -> check v v'
-    | EInteger (_, v), EInteger (_, v') -> check v v'
-    | EFloat (_, v), EFloat (_, v') -> check v v'
-    | EBool (_, v), EBool (_, v') -> check v v'
+    | EVariable (_, v), EVariable (_, v') -> check path v v'
+    | EInteger (_, v), EInteger (_, v') -> check path v v'
+    | EFloat (_, v), EFloat (_, v') -> check path v v'
+    | EBool (_, v), EBool (_, v') -> check path v v'
     | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
-      check lhs lhs'
-      eq rhs rhs'
-      eq body body'
+      check path lhs lhs'
+      eq ("rhs" :: path) rhs rhs'
+      eq ("body" :: path) body body'
     | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
-      eq con con'
-      eq thn thn'
-      eq els els'
-    | EList (_, l), EList (_, l') -> eqList l l'
-    | EFQFnValue (_, v), EFQFnValue (_, v') -> check v v'
+      eq ("cond" :: path) con con'
+      eq ("then" :: path) thn thn'
+      eq ("else" :: path) els els'
+    | EList (_, l), EList (_, l') -> eqList path l l'
+    | EFQFnValue (_, v), EFQFnValue (_, v') -> check path v v'
     | EApply (_, name, args, inPipe, toRail),
       EApply (_, name', args', inPipe', toRail') ->
-      eq name name'
-      eqList args args'
+      let path = (string name :: path)
+      eq path name name'
+      eqList path args args'
 
       match (inPipe, inPipe') with
-      | InPipe id, InPipe id' -> if checkIDs then check id id'
-      | _ -> check inPipe inPipe'
+      | InPipe id, InPipe id' -> if checkIDs then check path id id'
+      | _ -> check path inPipe inPipe'
 
-      check toRail toRail'
+      check path toRail toRail'
 
     | ERecord (_, pairs), ERecord (_, pairs') ->
       List.iter2
         (fun (k, v) (k', v') ->
-          check k k'
-          eq v v')
+          check path k k'
+          eq (k :: path) v v')
         pairs
         pairs'
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
-      eq e e'
-      check f f'
+      eq (f :: path) e e'
+      check path f f'
     | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
-      eq cond cond'
-      eq old old'
-      eq knew knew'
+      eq ("flagCond" :: path) cond cond'
+      eq ("flagOld" :: path) old old'
+      eq ("flagNew" :: path) knew knew'
     | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
-      check s s'
-      eqList ts ts'
-    | EPartial (_, e), EPartial (_, e') -> eq e e'
+      check path s s'
+      eqList (s :: path) ts ts'
+    | EPartial (_, e), EPartial (_, e') -> eq ("partial" :: path) e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
-      eq e e'
-      List.iter2 (fun (_, v) (_, v') -> check v v') vars vars'
+      let path = ("lambda" :: path)
+      eq path e e'
+      List.iteri2 (fun i (_, v) (_, v') -> check (string i :: path) v v') vars vars'
     | EMatch (_, e, branches), EMatch (_, e', branches') ->
-      eq e e'
+      eq ("matchCond" :: path) e e'
 
       List.iter2
         (fun ((p, v) : Pattern * Expr) (p', v') ->
-          patternEqualityBaseFn checkIDs p p' errorFn
-          eq v v')
+          patternEqualityBaseFn checkIDs path p p' errorFn
+          eq (string p :: path) v v')
         branches
         branches'
     // exhaustiveness check
@@ -503,22 +519,23 @@ module Expect =
     | EConstructor _, _
     | EPartial _, _
     | ELambda _, _
-    | EMatch _, _ -> check actual expected
+    | EMatch _, _ -> check path actual expected
 
 
 
   // If the dvals are not the same, call errorFn. This is in this form to allow
   // both an equality function and a test expectation function
   let rec dvalEqualityBaseFn
+    (path : Path)
     (actual : Dval)
     (expected : Dval)
-    (errorFn : string -> string -> unit)
+    (errorFn : Path -> string -> string -> unit)
     : unit =
-    let de a e = dvalEqualityBaseFn a e errorFn
-    let error () = errorFn (string actual) (string expected)
+    let de p a e = dvalEqualityBaseFn p a e errorFn
+    let error path = errorFn path (string actual) (string expected)
 
-    let check (a : 'a) (e : 'a) : unit =
-      if a <> e then errorFn (debugDval actual) (debugDval expected)
+    let check (path : Path) (a : 'a) (e : 'a) : unit =
+      if a <> e then errorFn path (debugDval actual) (debugDval expected)
 
     match actual, expected with
     | DFloat l, DFloat r ->
@@ -532,47 +549,51 @@ module Expect =
               && System.Double.IsNegativeInfinity r then
         ()
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
-        error ()
-    | DResult (Ok l), DResult (Ok r) -> de l r
-    | DResult (Error l), DResult (Error r) -> de l r
-    | DOption (Some l), DOption (Some r) -> de l r
+        error path
+    | DResult (Ok l), DResult (Ok r) -> de ("Ok" :: path) l r
+    | DResult (Error l), DResult (Error r) -> de ("Error" :: path) l r
+    | DOption (Some l), DOption (Some r) -> de ("Just" :: path) l r
     | DDate l, DDate r ->
       // Two dates can be the same millisecond and not be equal if they don't
       // have the same number of ticks. For testing, we shall consider them
       // equal if they print the same string.
-      check (string l) (string r)
+      check path (string l) (string r)
     | DList ls, DList rs ->
-      let lLength = List.length ls
-      let rLength = List.length rs
+      check (".Length" :: path) (List.length ls) (List.length rs)
+      List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
 
-      check lLength rLength
-      List.iter2 de ls rs
     | DObj ls, DObj rs ->
-      let lLength = Map.count ls
-      let rLength = Map.count rs
-      check lLength rLength
-
-      List.iter2
-        (fun (k1, v1) (k2, v2) ->
-          check k1 k2
-          de v1 v2)
-        (Map.toList ls)
-        (Map.toList rs)
+      // check keys from ls are in both, check matching values
+      Map.forEachWithIndex
+        (fun key v1 ->
+          match Map.tryFind key rs with
+          | Some v2 -> de (key :: path) v1 v2
+          | None -> check (key :: path) ls rs)
+        ls
+      // check keys from rs are in both
+      Map.forEachWithIndex
+        (fun key _ ->
+          match Map.tryFind key rs with
+          | Some _ -> () // already checked
+          | None -> check (key :: path) ls rs)
+        rs
+      check (".Length" :: path) (Map.count ls) (Map.count rs)
     | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
-      check sc1 sc2
-      check h1 h2
-      de b1 b2
-    | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) -> check u1 u2
+      check path sc1 sc2
+      check path h1 h2
+      de ("response" :: path) b1 b2
+    | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) ->
+      check ("redirectUrl" :: path) u1 u2
     | DIncomplete _, DIncomplete _ -> ()
     | DError (_, msg1), DError (_, msg2) ->
-      check (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
-    | DErrorRail l, DErrorRail r -> de l r
+      check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
+    | DErrorRail l, DErrorRail r -> de ("ErrorRail" :: path) l r
     | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
       let vals l = List.map Tuple2.second l
-      check (vals l1.parameters) (vals l2.parameters)
-      check l1.symtable l2.symtable // TODO: use dvalEquality
-      exprEqualityBaseFn false l1.body l2.body errorFn
-    | DStr _, DStr _ -> check (debugDval actual) (debugDval expected)
+      check ("lamdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
+      check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
+      exprEqualityBaseFn false path l1.body l2.body errorFn
+    | DStr _, DStr _ -> check path (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DObj _, _
@@ -594,30 +615,54 @@ module Expect =
     | DError _, _
     | DDB _, _
     | DUuid _, _
-    | DBytes _, _ -> check actual expected
+    | DBytes _, _ -> check path actual expected
 
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
-    dvalEqualityBaseFn actual expected (fun a e -> Expect.equal a e msg)
+    dvalEqualityBaseFn
+      []
+      actual
+      expected
+      (fun path a e -> Expect.equal a e $"{msg}: {pathToString path}")
 
   let rec equalPattern
     (actual : Pattern)
     (expected : Pattern)
     (msg : string)
     : unit =
-    patternEqualityBaseFn true actual expected (fun a e -> Expect.equal a e msg)
+    patternEqualityBaseFn
+      true
+      []
+      actual
+      expected
+      (fun path a e -> Expect.equal a e $"{msg}: {pathToString path}")
 
   let rec equalPatternIgnoringIDs (actual : Pattern) (expected : Pattern) : unit =
-    patternEqualityBaseFn false actual expected (fun a e -> Expect.equal a e "")
+    patternEqualityBaseFn
+      false
+      []
+      actual
+      expected
+      (fun path a e -> Expect.equal a e (pathToString path))
 
   let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
-    exprEqualityBaseFn true actual expected (fun a e -> Expect.equal a e msg)
+    exprEqualityBaseFn
+      true
+      []
+      actual
+      expected
+      (fun path a e -> Expect.equal a e $"{msg}: {pathToString path}")
 
   let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
-    exprEqualityBaseFn false actual expected (fun a e -> Expect.equal a e "")
+    exprEqualityBaseFn
+      false
+      []
+      actual
+      expected
+      (fun path a e -> Expect.equal a e (pathToString path))
 
 let dvalEquality (left : Dval) (right : Dval) : bool =
   let success = ref true
-  Expect.dvalEqualityBaseFn left right (fun _ _ -> success := false)
+  Expect.dvalEqualityBaseFn [] left right (fun _ _ _ -> success := false)
   !success
 
 let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
@@ -733,3 +778,71 @@ let sampleDvals : List<string * Dval> =
          )) ]
 
 // FSTODO: deeply nested data
+
+// Utilties shared among tests
+module Http =
+  type T = { status : string; headers : (string * string) list; body : byte array }
+
+  let setHeadersToCRLF (text : byte array) : byte array =
+    // We keep our test files with an LF line ending, but the HTTP spec
+    // requires headers (but not the body, nor the first line) to have CRLF
+    // line endings
+    let mutable justSawNewline = false
+    let mutable inBody = false
+
+    text
+    |> Array.toList
+    |> List.collect
+         (fun b ->
+           if not inBody && b = byte '\n' then
+             if justSawNewline then inBody <- true
+             justSawNewline <- true
+             [ byte '\r'; b ]
+           else
+             justSawNewline <- false
+             [ b ])
+    |> List.toArray
+
+  let split (response : byte array) : T =
+    // read a single line of bytes (a line ends with \r\n)
+    let rec consume (existing : byte list) (l : byte list) : byte list * byte list =
+      match l with
+      | [] -> [], []
+      | 13uy :: 10uy :: tail -> existing, tail
+      | head :: tail -> consume (existing @ [ head ]) tail
+
+    // read all headers (ends when we get two \r\n in a row), return headers
+    // and remaining byte string (the body). Assumes the status line is not
+    // present. Headers are returned reversed
+    let rec consumeHeaders
+      (headers : string list)
+      (l : byte list)
+      : string list * byte list =
+      let (line, remaining) = consume [] l
+
+      if line = [] then
+        (headers, remaining)
+      else
+        let str = line |> Array.ofList |> ofBytes
+        consumeHeaders (str :: headers) remaining
+
+    let bytes = Array.toList response
+
+    // read the status like (eg HTTP 200 OK)
+    let status, bytes = consume [] bytes
+
+    let headers, body = consumeHeaders [] bytes
+
+    let headers =
+      headers
+      |> List.reverse
+      |> List.map
+           (fun s ->
+             match String.split ":" s with
+             | k :: vs -> (k, vs |> String.concat ":" |> String.trimLeft)
+             | _ -> failwith $"not a valid header: {s}")
+
+
+    { status = status |> List.toArray |> ofBytes
+      headers = headers
+      body = List.toArray body }

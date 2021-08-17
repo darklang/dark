@@ -19,7 +19,7 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
   let f : string = $"{dir}{f}"
 
   let debug (name : string) (value : bool) =
-    if value then printfn $"checkFilename failed: {name}: {value}"
+    if value then print $"checkFilename failed: {name}: {value}"
     value
 
   if (root <> Config.NoCheck)
@@ -36,7 +36,7 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
              && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
              && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
             |> debug "irreg") then
-    printfn $"SECURITY_VIOLATION: {f}"
+    print $"SECURITY_VIOLATION: {f}"
     failwith "FILE SECURITY VIOLATION"
   // FSTODO
   // (Log.erroR "SECURITY_VIOLATION" f

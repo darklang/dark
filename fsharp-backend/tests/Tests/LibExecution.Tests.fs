@@ -81,7 +81,10 @@ let t
 
           let fsharpActual = normalizeDvalResult fsharpActual
 
-          Expect.isTrue (Expect.isCanonical fsharpActual) "expected is normalized"
+          let canonical = Expect.isCanonical fsharpActual
+          if not canonical then
+            debugDval fsharpActual |> debuG "not canonicalized"
+            Expect.isTrue canonical "expected is canonicalized"
 
           if shouldEqual then
             Expect.equalDval fsharpActual expected $"FSharp: {msg}"
@@ -93,8 +96,8 @@ let t
         return ()
       with
       | e ->
-        printfn "Exception thrown in test: %s" (e.ToString())
-        return (Expect.equal "Exception thrown in test" (e.ToString()) "")
+        print $"Exception thrown in test: {e}"
+        return (Expect.equal "Exception thrown in test" (string e) "")
     }
 
 
@@ -118,6 +121,7 @@ let fileTests () : Test =
   let dir = "tests/testfiles/"
 
   System.IO.Directory.GetFiles(dir, "*.tests")
+  |> Array.filter ((<>) "README.md")
   |> Array.map
        (fun file ->
          let filename = System.IO.Path.GetFileName file
@@ -262,11 +266,12 @@ let fileTests () : Test =
                   ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
-                  currentTest <- { currentTest with code = currentTest.code + line }
+                  currentTest <-
+                    { currentTest with code = currentTest.code + "\n" + line }
                 | _ when currentFn.recording ->
-                  currentFn <- { currentFn with code = currentFn.code + line }
+                  currentFn <- { currentFn with code = currentFn.code + "\n" + line }
                 // 1-line test
-                | Regex @"^(.*)\s*//\s*(.*)$" [ code; comment ] ->
+                | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
                   let test =
                     t $"{comment} (line {i})" code currentGroup.dbs functions
 

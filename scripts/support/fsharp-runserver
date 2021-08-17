@@ -10,10 +10,10 @@ API_SERVER_FILE="${BINPATH}/ApiServer.dll"
 BWD_SERVER_FILE="${BINPATH}/BwdServer.dll"
 API_SERVER_EXE="${BINPATH}/ApiServer2.dll"
 BWD_SERVER_EXE="${BINPATH}/BwdServer2.dll"
+TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 #FSTODO
 # QW_EXE="$BINPATH/QueueWorker"
 # CRON_EXE="$BINPATH/CronChecker"
-# TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 
 # Stop the server processes
 echo "Stopping servers"
@@ -28,26 +28,24 @@ sudo pkill -f "dotnet ${BWD_SERVER_EXE}" || true
 # pkill -f queue_worker.exe || true
 # pkill -f cron_checker.exe || true
 
-#FSTODO
 # tunnel cleanup
-# echo "pkill tunnel"
-# sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
-# echo "rm tunnel"
-# sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
-# echo "pkill sleep"
-# sudo pkill -f sleep.infinity || true
+echo "pkill tunnel"
+sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
+echo "rm tunnel"
+sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
+echo "pkill sleep"
+sudo pkill -f sleep.infinity || true
 # end tunnel cleanup
+
+# Run tunnel
+sudo mkdir -p /run/sshd
+echo "Starting tunnel"
+# shellcheck disable=SC2024
+sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
+echo "Started tunnel"
 
 echo "Waiting for postgres"
 ./scripts/support/wait-for-background-services postgresql
-
-#FSTODO
-# Run tunnel
-# sudo mkdir -p /run/sshd
-# echo "Starting tunnel"
-# # shellcheck disable=SC2024
-# sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
-# echo "Started tunnel"
 
 # if it hasn't been compiled yet, wait for it
 echo "Waiting for compiled servers"

@@ -66,8 +66,8 @@ let endpoints : Endpoint list =
 let notFoundHandler = "Not Found" |> text |> RequestErrors.notFound
 
 let errorHandler (ex : Exception) (logger : ILogger) =
-  printfn "Exception: %s" ex.Message
-  printfn "%s" (ex.ToString())
+  print $"Exception: {ex.Message}"
+  print (string ex)
   // FSTODO: configure logger and don't print the message to output
 // logger.LogError
 //   (EventId(),
@@ -124,7 +124,7 @@ let configureServices (services : IServiceCollection) : unit =
 
 [<EntryPoint>]
 let main args =
-  printfn "Starting ApiServer"
+  print "Starting ApiServer"
   LibBackend.Init.init "ApiServer"
 
   let hcUrl = HealthCheck.url LibService.Config.apiServerHealthCheckPort

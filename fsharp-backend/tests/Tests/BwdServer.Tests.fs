@@ -33,26 +33,6 @@ let t filename =
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
     let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
-    let setHeadersToCRLF (text : byte array) : byte array =
-      // We keep our test files with an LF line ending, but the HTTP spec
-      // requires headers (but not the body, nor the first line) to have CRLF
-      // line endings
-      let mutable justSawNewline = false
-      let mutable inBody = false
-
-      text
-      |> Array.toList
-      |> List.collect
-           (fun b ->
-             if not inBody && b = byte '\n' then
-               if justSawNewline then inBody <- true
-               justSawNewline <- true
-               [ byte '\r'; b ]
-             else
-               justSawNewline <- false
-               [ b ])
-      |> List.toArray
-
     let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
     let contents = toStr contents
@@ -107,63 +87,25 @@ let t filename =
     let! (meta : Canvas.Meta) = testCanvasInfo testName
     do! Canvas.saveTLIDs meta oplists
 
-    let split (response : byte array) : (string * string list * byte array) =
-      // read a single line of bytes (a line ends with \r\n)
-      let rec consume
-        (existing : byte list)
-        (l : byte list)
-        : byte list * byte list =
-        match l with
-        | [] -> [], []
-        | 13uy :: 10uy :: tail -> existing, tail
-        | head :: tail -> consume (existing @ [ head ]) tail
-
-      // read all headers (ends when we get two \r\n in a row), return headers
-      // and remaining byte string (the body). Assumes the status line is not
-      // present. Headers are returned reversed
-      let rec consumeHeaders
-        (headers : string list)
-        (l : byte list)
-        : string list * byte list =
-        let (line, remaining) = consume [] l
-
-        if line = [] then
-          (headers, remaining)
-        else
-          let str = line |> Array.ofList |> ofBytes
-          consumeHeaders (str :: headers) remaining
-
-      let bytes = Array.toList response
-
-      // read the status like (eg HTTP 200 OK)
-      let status, bytes = consume [] bytes
-
-      let headers, body = consumeHeaders [] bytes
-
-      (status |> List.toArray |> ofBytes, List.reverse headers, List.toArray body)
-
     let normalizeHeaders
       (server : Server)
-      (hs : string list)
+      (hs : (string * string) list)
       (body : byte array)
-      : string list =
+      : (string * string) list =
       let headerMap =
-        hs
-        |> List.map (fun s -> s |> String.toLowercase |> String.split ":")
-        |> List.filterMap List.head
-        |> Set.ofList
+        hs |> List.map Tuple2.first |> List.map String.toLowercase |> Set.ofList
 
       let ct =
         if (server = OCaml
             && (not (Set.contains "content-type" headerMap) && body.Length <> 0)) then
-          [ "content-type: text/plain" ]
+          [ "content-type", "text/plain" ]
         else
           []
 
-      let serverHeader = if server = OCaml then [ "server: darklang" ] else []
+      let serverHeader = if server = OCaml then [ "server", "darklang" ] else []
 
       let date =
-        if server = OCaml then [ "Date: xxx, xx xxx xxxx xx:xx:xx xxx" ] else []
+        if server = OCaml then [ "date", "xxx, xx xxx xxxx xx:xx:xx xxx" ] else []
 
       // All kestrel responses have
       //  - a content-type if they have content
@@ -172,26 +114,23 @@ let t filename =
       // Meanwhile all ocaml responses are sorted and lowercase
       ct @ date @ serverHeader @ hs
       |> List.map
-           (fun h ->
-             h
-             |> String.toLowercase // FSTODO ocaml responses are lowercase
-             |> FsRegEx.replace
-                  "date: ..., .. ... .... ..:..:.. ..."
-                  "date: xxx, xx xxx xxxx xx:xx:xx xxx"
-             |> FsRegEx.replace
-                  "x-darklang-execution-id: \\d+"
-                  "x-darklang-execution-id: 0123456789")
-      |> List.sort // FSTODO ocaml headers are sorted, inexplicably
+           (fun (k, v) ->
+             match (String.toLowercase k, String.toLowercase v) with
+             | ("date", _) -> "date", "xxx, xx xxx xxxx xx:xx:xx xxx"
+             | ("x-darklang-execution-id" as k, _) -> k, "0123456789"
+             | other -> other)
+      |> List.sortBy Tuple2.first // FSTODO ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders
-      (hs : string list)
+      (hs : (string * string) list)
       (bodyLength : int)
-      : string list =
+      : (string * string) list =
       hs
-      |> List.map (fun h -> FsRegEx.replace "LENGTH" (toString bodyLength) h)
-      |> List.map String.toLowercase
+      |> List.map
+           (fun (k, v) -> (k, FsRegEx.replace "LENGTH" (toString bodyLength) v))
+      |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
       // Json can be different lengths, this plugs in the expected length
-      |> List.sort
+      |> List.sortBy Tuple2.first
 
 
     let callServer (server : Server) : Task<unit> =
@@ -199,12 +138,12 @@ let t filename =
         // Web server might not be loaded yet
         use client = new TcpClient()
 
-        let mutable connected = false
-
         let port =
           match server with
           | OCaml -> 8001
           | FSharp -> 10001
+
+        let mutable connected = false
 
         for i in 1 .. 10 do
           try
@@ -213,7 +152,7 @@ let t filename =
               connected <- true
           with
           | _ when i <> 10 ->
-            printfn $"Server not ready on port {port}, maybe retry"
+            print $"Server not ready on port {port}, maybe retry"
             do! System.Threading.Tasks.Task.Delay 1000
 
         use stream = client.GetStream()
@@ -221,7 +160,7 @@ let t filename =
         let host = $"test-{name}.builtwithdark.localhost:{port}"
 
         let request =
-          request |> String.replace "HOST" host |> toBytes |> setHeadersToCRLF
+          request |> String.replace "HOST" host |> toBytes |> Http.setHeadersToCRLF
 
         do! stream.WriteAsync(request, 0, request.Length)
 
@@ -252,30 +191,30 @@ let t filename =
           |> String.concat "\n"
           |> String.replace "HOST" host
           |> toBytes
-          |> setHeadersToCRLF
+          |> Http.setHeadersToCRLF
 
         // Parse and normalize the response
-        let (aStatus, aHeaders, aBody) = split response
-        let (eStatus, eHeaders, eBody) = split expectedResponse
-        let eHeaders = normalizeExpectedHeaders eHeaders aBody.Length
-        let aHeaders = normalizeHeaders server aHeaders eBody
+        let actual = Http.split response
+        let expected = Http.split expectedResponse
+        let eHeaders = normalizeExpectedHeaders expected.headers actual.body.Length
+        let aHeaders = normalizeHeaders server actual.headers expected.body
 
         // Test as bytes, json, or strings
-        if eBody
+        if expected.body
            |> Array.any
                 (fun b -> b <> 10uy && b <> 13uy && not (Char.isPrintable (char b))) then
           // print as bytes for better readability
           Expect.equal
-            (aStatus, aHeaders, aBody)
-            (eStatus, eHeaders, eBody)
+            (actual.status, aHeaders, actual.body)
+            (expected.status, eHeaders, expected.body)
             $"({server} as bytes)"
         else
           // Json can be different shapes but equally valid
           let asJson =
             try
               Some(
-                LibExecution.DvalRepr.parseJson (ofBytes aBody),
-                LibExecution.DvalRepr.parseJson (ofBytes eBody)
+                LibExecution.DvalRepr.parseJson (ofBytes actual.body),
+                LibExecution.DvalRepr.parseJson (ofBytes expected.body)
               )
             with
             | e -> None
@@ -283,13 +222,13 @@ let t filename =
           match asJson with
           | Some (aJson, eJson) ->
             Expect.equal
-              (aStatus, aHeaders, toString aJson)
-              (eStatus, eHeaders, toString eJson)
+              (actual.status, aHeaders, toString aJson)
+              (expected.status, eHeaders, toString eJson)
               $"({server} as json)"
           | None ->
             Expect.equal
-              (aStatus, aHeaders, ofBytes aBody)
-              (eStatus, eHeaders, ofBytes eBody)
+              (actual.status, aHeaders, ofBytes actual.body)
+              (expected.status, eHeaders, ofBytes expected.body)
               $"({server} as string)"
 
       }
@@ -307,6 +246,7 @@ let testsFromFiles =
   let dir = "tests/httptestfiles/"
 
   System.IO.Directory.GetFiles(dir, "*")
+  |> Array.filter ((<>) "tests/httptestfiles/README.md")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
   |> List.map t
@@ -317,7 +257,8 @@ let tests = testList "BwdServer" [ testList "From files" testsFromFiles ]
 
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
-let init () : Task = (BwdServer.webserver false 10001 6002).RunAsync()
+let init (token : System.Threading.CancellationToken) : Task =
+  (BwdServer.webserver false 10001 6002).RunAsync(token)
 
 
 // FSTODO

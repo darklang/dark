@@ -195,15 +195,15 @@ module OCamlInterop =
       if bothCanReadFSharpString && bothCanReadOCamlString then
         true
       else
-        printfn
-          "%s"
-          ($"ocamlStringReadable: {bothCanReadOCamlString}\n"
-           + $"fsharpStringReadable: {bothCanReadFSharpString}\n")
+        print (
+          $"ocamlStringReadable: {bothCanReadOCamlString}\n"
+          + $"fsharpStringReadable: {bothCanReadFSharpString}\n"
+        )
 
         false
     with
     | e ->
-      printfn $"Cause exception while fuzzing {e}"
+      print $"Cause exception while fuzzing {e}"
       reraise ()
 
   type Generator =
@@ -1160,19 +1160,19 @@ module ExecutePureFunctions =
                   (dToL actualGroupMatches) = (dToL expectedGroupMatches)
 
                 if nameMatches && debug then
-                  printfn "\n\n\n======================"
-                  printfn (if nameMatches then "✅" else "❌")
-                  printfn (if actualMatch.Success then "✅" else "❌")
-                  printfn (if expectedMatch.Success then "✅" else "❌")
-                  printfn (if groupsMatch then "✅" else "❌")
-                  printfn $"{string fn}"
-                  printfn $"{actualMsg}"
-                  printfn $"{expectedMsg}\n\n"
-                  printfn $"{namePat}"
-                  printfn $"{actualPat}"
-                  printfn $"{expectedPat}"
-                  printfn $"actualGroupMatches: {dToL actualGroupMatches}"
-                  printfn $"expectedGroupMatches: {dToL expectedGroupMatches}"
+                  print "\n\n\n======================"
+                  print (if nameMatches then "✅" else "❌")
+                  print (if actualMatch.Success then "✅" else "❌")
+                  print (if expectedMatch.Success then "✅" else "❌")
+                  print (if groupsMatch then "✅" else "❌")
+                  print $"{string fn}"
+                  print $"{actualMsg}"
+                  print $"{expectedMsg}\n\n"
+                  print $"{namePat}"
+                  print $"{actualPat}"
+                  print $"{expectedPat}"
+                  print $"actualGroupMatches: {dToL actualGroupMatches}"
+                  print $"expectedGroupMatches: {dToL expectedGroupMatches}"
 
                 nameMatches
                 && actualMatch.Success
@@ -1207,7 +1207,7 @@ module ExecutePureFunctions =
             if not allowed2 then
               debugFn ()
 
-              printfn $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+              print $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
 
             return allowed
           | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
@@ -1219,7 +1219,7 @@ module ExecutePureFunctions =
             if not allowed2 then
               debugFn ()
 
-              printfn $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+              print $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
 
             return allowed
           | _ ->

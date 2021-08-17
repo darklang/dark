@@ -9,6 +9,8 @@ This is written in a Dark-like syntax, and asserts that calling the function `St
 Most tests are written as single lines, however, we support multi-line tests,
 test groups, functions, and Datastores.
 
+The implementation of the tests is in Tests/LibExecution.Tests.fs.
+
 # Code Syntax
 
 The code is written using F#, which is very similar to Dark. It is parsed by the F# parser, then converted from F# to Dark. The error messages around this are not very good, but there are a few things to be careful of:

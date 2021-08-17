@@ -153,7 +153,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ v; DStr msg ] ->
-          printfn $"{msg}: {v}"
+          print $"{msg}: {v}"
           Value v
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

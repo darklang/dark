@@ -52,7 +52,7 @@ let dropLeft (count : int) (s : string) = s.[count..]
 
 let drop_left c s = dropLeft c s
 
-let dropRight (count : int) (s : string) = s.[0..(s.Length - count)]
+let dropRight (count : int) (s : string) = s.[0..(s.Length - (count + 1))]
 
 let drop_right c s = dropRight c s
 

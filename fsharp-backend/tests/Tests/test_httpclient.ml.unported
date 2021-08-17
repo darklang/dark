@@ -1,46 +1,4 @@
 
-(* ------------------- *)
-(* httpclient *)
-(* ------------------- *)
-
-let t_bad_ssl_cert _ =
-  check_error_contains
-    "should get bad_ssl"
-    (exec_ast
-       (fn
-          "HttpClient::get"
-          [str "https://self-signed.badssl.com"; record []; record []; record []]))
-    "Internal HTTP-stack exception: Peer certificate cannot be authenticated with given CA certificates"
-
-
-
-let t_curl_file_urls () =
-  AT.check
-    (AT.option AT.string)
-    "aaa"
-    (* Before we limited the protocols for curl, .info.error was "",
-       since Httpclient.http_call checked for a 2xx HTTP code. But the file
-       contents ended up in the error message. Now we've restricted the URL
-       protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
-       is even sent. *)
-    (Some "Unsupported protocol")
-    (* TODO: use modern http_call *)
-    ( try
-        ignore
-          (Legacy.HttpclientV0.http_call
-             "file://localhost/etc/passwd"
-             []
-             Httpclient.GET
-             []
-             "") ;
-        None
-      with
-    | Exception.DarkException i ->
-        List.Assoc.find i.info ~equal:( = ) "error"
-    | _ ->
-        None )
-
-
 let t_encode_request_body () =
   clear_test_data () ;
   let () =
