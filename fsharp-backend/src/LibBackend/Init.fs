@@ -8,6 +8,8 @@ open Tablecloth
 let init (serviceName : string) : unit =
   print "Initializing LibBackend"
 
+
+  HttpClient.init ()
   LibService.Telemetry.init serviceName
   LibService.Rollbar.init serviceName
 

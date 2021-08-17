@@ -425,3 +425,9 @@ let httpCall
 
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
+
+let init () : unit =
+  // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
+  // idea, but it's a change (one that breaks all the tests), and so something we
+  // should do consciously.
+  System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
