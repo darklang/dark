@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   This moves all of the build files out of the build directory, so that they can be put
-  in a single Dicker volume.
+  in a single Docker volume.
 
   This file allows us to set where the build runs. It need to be in this
   file to be read by the msbuild tools before the SDK (which uses some
   of these values) is loaded.
 -->
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <BaseIntermediateOutputPath>\home\dark\app\fsharp-backend\Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>\home\dark\app\fsharp-backend\Build\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
-    <MSBuildProjectExtensionsPath>$(IntermediateOutputPath)\</MSBuildProjectExtensionsPath>
-    <OutputPath>\home\dark\app\fsharp-backend\Build\out\</OutputPath>
+    <BaseIntermediateOutputPath>/home/dark/app/fsharp-backend/Build/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(IntermediateOutputPath)</MSBuildProjectExtensionsPath>
     <RestoreOutputPath>$(MSBuildProjectExtensionsPath)</RestoreOutputPath>
+    <OutputPath>/home/dark/app/fsharp-backend/Build/out/</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
-    <DocumentationFile>\home\dark\app\fsharp-backend\Build\doc\$(MSBuildProjectName).xml</DocumentationFile>
+    <DocumentationFile>/home/dark/app/fsharp-backend/Build/doc/$(MSBuildProjectName).xml</DocumentationFile>
   </PropertyGroup>
 </Project>
