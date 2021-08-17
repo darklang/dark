@@ -131,9 +131,16 @@ let queryToDval (queryString : string) : RT.Dval =
 // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
 //
 // As of today (using .NET6) it seems we no longer need to worry about either socket
-// exhaustion or DNS issues, so long as we use a single HttpClient.
-let httpClient : HttpClient =
+// exhaustion or DNS issues. It appears that we can use either multiple HTTP clients
+// or just one, we use just one for efficiency.
+// See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#alternatives-to-ihttpclientfactory
+//
+// Note that I manually verified by hand the number of sockets, which you can do with
+//   sudo netstat -apn | grep _WAIT
+let socketHandler : HttpMessageHandler =
   let handler = new SocketsHttpHandler()
+
+  // Avoid DNS problems
   handler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
   handler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
 
@@ -153,13 +160,14 @@ let httpClient : HttpClient =
 
   // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false
+  handler :> HttpMessageHandler
 
 
-  let client = new HttpClient(handler)
+let httpClient : HttpClient =
+  let client = new HttpClient(socketHandler, disposeHandler = false)
   client.Timeout <- System.TimeSpan.FromSeconds 30.0
   // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
-
   client
 
 let getHeader (headerKey : string) (headers : Headers) : string option =
