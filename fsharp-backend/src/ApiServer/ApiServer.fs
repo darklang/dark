@@ -126,6 +126,7 @@ let configureServices (services : IServiceCollection) : unit =
 let main args =
   print "Starting ApiServer"
   LibBackend.Init.init "ApiServer"
+  LibBackend.Migrations.init ()
 
   let hcUrl = HealthCheck.url LibService.Config.apiServerHealthCheckPort
 

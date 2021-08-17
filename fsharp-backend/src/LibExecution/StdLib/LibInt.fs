@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-          a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
+          a + bigint (System.Random.Shared.Next((b - a) |> int)) |> DInt |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -258,7 +258,7 @@ let fns : List<BuiltInFn> =
         | _, [ DInt a; DInt b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
-          lower + (Prelude.random.Next((upper - lower) |> int) |> bigint)
+          lower + (System.Random.Shared.Next((upper - lower) |> int) |> bigint)
           |> DInt
           |> Value
         | _ -> incorrectArgs ())

@@ -722,7 +722,7 @@ let fns : List<BuiltInFn> =
           else
             let randomString length =
               let gen () =
-                match random.Next(26 + 26 + 10) with
+                match System.Random.Shared.Next(26 + 26 + 10) with
                 | n when n < 26 -> ('a' |> int) + n
                 | n when n < 26 + 26 -> ('A' |> int) + n - 26
                 | n -> ('0' |> int) + n - 26 - 26
@@ -750,7 +750,7 @@ let fns : List<BuiltInFn> =
           else
             let randomString length =
               let gen () =
-                match random.Next(26 + 26 + 10) with
+                match System.Random.Shared.Next(26 + 26 + 10) with
                 | n when n < 26 -> ('a' |> int) + n
                 | n when n < 26 + 26 -> ('A' |> int) + n - 26
                 | n -> ('0' |> int) + n - 26 - 26
@@ -783,7 +783,7 @@ let fns : List<BuiltInFn> =
           else
             let randomString length =
               let gen () =
-                match random.Next(26 + 26 + 10) with
+                match System.Random.Shared.Next(26 + 26 + 10) with
                 | n when n < 26 -> ('a' |> int) + n
                 | n when n < 26 + 26 -> ('A' |> int) + n - 26
                 | n -> ('0' |> int) + n - 26 - 26

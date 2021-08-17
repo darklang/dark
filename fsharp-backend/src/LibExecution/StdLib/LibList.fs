@@ -1278,7 +1278,8 @@ let fns : List<BuiltInFn> =
 
         (function
         | _, [ DList [] ] -> Value(DOption None)
-        | _, [ DList l ] -> Value(Dval.optionJust l.[Prelude.random.Next l.Length])
+        | _, [ DList l ] ->
+          Value(Dval.optionJust l.[System.Random.Shared.Next l.Length])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
