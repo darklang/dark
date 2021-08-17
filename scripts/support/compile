@@ -85,7 +85,7 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
-  wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/wwwroot/_framework/ backend/static/blazor/")
+  wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/net6.0/wwwroot/_framework/ backend/static/blazor/")
   return blazor and wwwroot
 
 def client_build():
