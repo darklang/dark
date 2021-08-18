@@ -3,8 +3,8 @@ module FSharpToExpr
 // Converts strings of F# into Dark. Used for testing.
 
 open FSharp.Compiler
-open FSharp.Compiler.SyntaxTree
-open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.CodeAnalysis
+open FSharp.Compiler.Syntax
 
 open Prelude
 open Tablecloth
@@ -27,22 +27,22 @@ let parse (input) : SynExpr =
     |> Async.RunSynchronously
 
   match results.ParseTree with
-  | Some (ParsedInput.ImplFile (ParsedImplFileInput (_,
-                                                     _,
-                                                     _,
-                                                     _,
-                                                     _,
-                                                     [ SynModuleOrNamespace (_,
-                                                                             _,
-                                                                             _,
-                                                                             [ SynModuleDecl.DoExpr (_,
-                                                                                                     expr,
-                                                                                                     _) ],
-                                                                             _,
-                                                                             _,
-                                                                             _,
-                                                                             _) ],
-                                                     _))) ->
+  | (ParsedInput.ImplFile (ParsedImplFileInput (_,
+                                                _,
+                                                _,
+                                                _,
+                                                _,
+                                                [ SynModuleOrNamespace (_,
+                                                                        _,
+                                                                        _,
+                                                                        [ SynModuleDecl.DoExpr (_,
+                                                                                                expr,
+                                                                                                _) ],
+                                                                        _,
+                                                                        _,
+                                                                        _,
+                                                                        _) ],
+                                                _))) ->
     // Extract declarations and walk over them
     expr
   | _ -> failwith $" - wrong shape tree: {results.ParseTree}"
@@ -72,9 +72,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   let rec convertPattern (pat : SynPat) : PT.Pattern =
     match pat with
-    | SynPat.Named (SynPat.Wild (_), name, _, _, _) when name.idText = "blank" ->
-      pBlank ()
-    | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
+    | SynPat.Named (name, _, _, _) when name.idText = "blank" -> pBlank ()
+    | SynPat.Named (name, _, _, _) -> pVar name.idText
     | SynPat.Wild _ -> pVar "_" // wildcard, not blank
     | SynPat.Const (SynConst.Int32 n, _) -> pInt n
     | SynPat.Const (SynConst.Int64 n, _) -> PT.PInteger(gid (), bigint n)
@@ -87,11 +86,11 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | SynPat.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = splitFloat d
       pFloat sign whole fraction
-    | SynPat.Const (SynConst.String (s, _), _) -> pString s
+    | SynPat.Const (SynConst.String (s, _, _), _) -> pString s
     | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
                         _,
                         _,
-                        Pats args,
+                        SynArgPats.Pats args,
                         _,
                         _) ->
       let args = List.map convertPattern args
@@ -145,7 +144,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Const (SynConst.Double d, _) ->
     let sign, whole, fraction = splitFloat d
     eFloat sign whole fraction
-  | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
+  | SynExpr.Const (SynConst.String (s, _, _), _) -> eStr s
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
     let op = Map.get ident.idText ops |> Option.unwrapUnsafe
     eBinOp "" op 0 placeholder placeholder
@@ -233,28 +232,39 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   // expanded to use convertPat
   | SynExpr.LetOrUse (_,
                       _,
-                      [ Binding (_,
-                                 _,
-                                 _,
-                                 _,
-                                 _,
-                                 _,
-                                 _,
-                                 SynPat.Named (SynPat.Wild (_), name, _, _, _),
-                                 _,
-                                 rhs,
-                                 _,
-                                 _) ],
+                      [ SynBinding (_,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    SynPat.Named (name, _, _, _),
+                                    _,
+                                    rhs,
+                                    _,
+                                    _) ],
                       body,
                       _) -> eLet name.idText (c rhs) (c body)
   | SynExpr.LetOrUse (_,
                       _,
-                      [ Binding (_, _, _, _, _, _, _, SynPat.Wild (_), _, rhs, _, _) ],
+                      [ SynBinding (_,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    SynPat.Wild (_),
+                                    _,
+                                    rhs,
+                                    _,
+                                    _) ],
                       body,
                       _) -> eLet "_" (c rhs) (c body)
   | SynExpr.Match (_, cond, clauses, _) ->
     let convertClause
-      (Clause (pat, _, expr, _, _) : SynMatchClause)
+      (SynMatchClause (pat, _, expr, _, _) : SynMatchClause)
       : PT.Pattern * PT.Expr =
       (convertPattern pat, c expr)
 
@@ -297,7 +307,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.App (_,
                  _,
                  SynExpr.Ident name,
-                 SynExpr.Const (SynConst.String (label, _), _),
+                 SynExpr.Const (SynConst.String (label, _, _), _),
                  _) when name.idText = "flag" ->
     eflag label placeholder placeholder placeholder
   // Callers with multiple args are encoded as apps wrapping other apps.
