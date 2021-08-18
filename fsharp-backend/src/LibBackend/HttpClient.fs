@@ -31,6 +31,22 @@ type HttpResult =
 
 type ClientError = { url : string; error : string; code : int }
 
+// HttpContent is consumed by the Http request, but we may need to reuse it on redirect, so use an immutable value instead.
+type Content =
+  | FormContent of (string * string list) list
+  | StringContent of string
+  | NoContent
+
+  member this.toHttpContent() : HttpContent =
+    match this with
+    | FormContent content ->
+      content
+      |> List.map (fun (k, v) -> KeyValuePair(k, String.concat "," v))
+      |> (fun pairs -> new FormUrlEncodedContent(pairs))
+      :> HttpContent
+    | StringContent content -> new StringContent(content) :> HttpContent
+    | NoContent -> new ByteArrayContent([||]) :> HttpContent
+
 // -------------------------
 // Forms and queries Functions
 // -------------------------
@@ -85,11 +101,7 @@ let dvalToQuery (dv : RT.Dval) : (string * string list) list =
 
 // FSTODO: fuzz against OCaml
 // https://secretgeek.net/uri_enconding
-let dvalToFormEncoding (dv : RT.Dval) : HttpContent =
-  dvalToQuery dv
-  |> List.map (fun (k, v) -> KeyValuePair(k, String.concat "," v))
-  |> (fun pairs -> new FormUrlEncodedContent(pairs))
-  :> HttpContent
+let dvalToFormEncoding (dv : RT.Dval) : Content = dvalToQuery dv |> FormContent
 
 // FSTODO: fuzz against OCaml
 let queryStringToParams (queryString : string) : List<string * List<string>> =
@@ -147,10 +159,9 @@ let socketHandler : HttpMessageHandler =
   // Note, do not do automatic decompression, see decompression code later for details
   handler.AutomaticDecompression <- System.Net.DecompressionMethods.None
 
-  // 50 is the default too. The OCaml implementation used infinite, but that's
-  // probably not a good default.
-  handler.AllowAutoRedirect <- true
-  handler.MaxAutomaticRedirections <- 50
+  // If we use auto-redirect, we can't limit the protocols or massage the headers, so
+  // we're going to have to implement this manually
+  handler.AllowAutoRedirect <- false
 
   // CLEANUP rename CurlTunnelUrl
   // CLEANUP add port into config var
@@ -282,13 +293,13 @@ let convertHeaders (headers : HttpHeaders) : List<string * string> =
 
 exception InvalidEncodingException of int
 
-let httpCall
+let makeHttpCall
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
   (reqHeaders : Headers)
-  (reqBody : HttpContent)
+  (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
     try
@@ -328,7 +339,7 @@ let httpCall
             )
 
         // content
-        req.Content <- reqBody
+        req.Content <- reqBody.toHttpContent ()
 
         // headers
         List.iter
@@ -422,6 +433,58 @@ let httpCall
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
       return Error { url = url; code = code; error = e.Message }
   }
+
+let rec httpCall
+  (count : int)
+  (rawBytes : bool)
+  (url : string)
+  (queryParams : (string * string list) list)
+  (method : HttpMethod)
+  (reqHeaders : Headers)
+  (reqBody : Content)
+  : Task<Result<HttpResult, ClientError>> =
+  task {
+    // The OCaml version of these functions handled a number of things differently
+    // which can only be done with our own redirect logic:
+    //   1) when redirecting, it stored all headers along the way
+    //   2) when redirecting, it kept the Authorization header (which HTTPClient drops)
+    //   3) when redirecting, it failed appropriately when the scheme was not http/https
+    // Each of these was a breaking change, and not great, but considering all three
+    // it felt worth implementing redirects outselves. Note that we did not use
+    // recursion within makeHttpCall, to ensure that the HTTP objects/streams were
+    // all cleaned up before the redirect happened. We do keep more data in this case
+    // than we would like but they're all redirects and so unlikely to have bodies.
+    if (count > 50) then
+      return Error { url = url; code = 0; error = "Too many redirects" }
+    else
+      let! response = makeHttpCall rawBytes url queryParams method reqHeaders reqBody
+      match response with
+      // FSTODO: not 304 or 305
+      // FSTODO: test returning two of the same header
+      | Ok result when result.code >= 300 && result.code < 400 ->
+        let location =
+          result.headers
+          |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive "location" k)
+        match location with
+        | Some (_, locationUrl) ->
+          let newCount = count + 1
+          // It might be a relative URL. If the location is absolute, the location will win over the last URL
+          let newUrl = System.Uri(System.Uri(url), locationUrl).ToString()
+          // FSTODO: make a test for redirecting posts
+          // Unlike HttpClient, do not drop the authorization header
+          let! newResponse =
+            httpCall newCount rawBytes newUrl queryParams method reqHeaders reqBody
+          return
+            Result.map
+              (fun redirectResult ->
+                // Keep all headers along the way, mirroring the OCaml version
+                { redirectResult with
+                    headers = redirectResult.headers @ result.headers })
+              newResponse
+        | _ -> return response
+      | _ -> return response
+  }
+
 
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY

@@ -63,7 +63,10 @@ let guessContentType (body : Dval option) : string =
 // the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
 // how to encode said body. Returns a tuple of the encoded body, and the passed headers that
 // have potentially had a Content-Type added to them based on the magic decision we've made.
-let encodeRequestBody (body : Dval option) (contentType : string) : HttpContent =
+let encodeRequestBody
+  (body : Dval option)
+  (contentType : string)
+  : HttpClient.Content =
   match body with
   | Some dv ->
     match dv with
@@ -78,15 +81,14 @@ let encodeRequestBody (body : Dval option) (contentType : string) : HttpContent 
       // See:
       // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
       // for more information. *)
-      new StringContent(s) :> HttpContent
+      HttpClient.StringContent s
     | DObj _ when contentType = HttpClient.formContentType ->
       HttpClient.dvalToFormEncoding dv
     | dv when contentType = HttpClient.textContentType ->
-      new StringContent(DvalRepr.toEnduserReadableTextV0 dv) :> HttpContent
+      HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // when contentType = jsonContentType
-      new StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv) :> HttpContent
-
-  | None -> new ByteArrayContent([||]) :> HttpContent
+      HttpClient.StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv)
+  | None -> HttpClient.NoContent
 
 
 let sendRequest
@@ -112,10 +114,10 @@ let sendRequest
 
     let requestHeaders =
       // Prioritize the users' headers over the defaults
-      // FSTODO: keep header ordering
       Map.union (Map defaultHeaders) (Map encodedRequestHeaders)
     let encodedRequestBody = encodeRequestBody requestBody contentType
     match! HttpClient.httpCall
+             0
              false
              uri
              encodedQuery
@@ -159,7 +161,8 @@ let sendRequest
                (key, DStr(v.Trim())))
         |> List.filter (fun (k, _) -> String.length k > 0)
         |> List.append [ statusHeader, DStr "" ]
-        |> Dval.obj
+        |> Map.ofList
+        |> DObj // in old version, this was Dval.obj, however we want to allow duplicates
 
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
