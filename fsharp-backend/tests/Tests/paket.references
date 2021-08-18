@@ -1,5 +1,7 @@
-Expecto
-FsRegEx
-FsCheck
-Expecto.FsCheck
 FSharp.Core
+FsRegEx
+
+group Test
+  Expecto
+  FsCheck
+  Expecto.FsCheck

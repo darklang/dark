@@ -1,6 +1,8 @@
-Giraffe
-FSharp.Core
 FSharpPlus
 Newtonsoft.Json
-Microsoft.AspNetCore.Mvc.NewtonsoftJson
-Lib.AspNetCore.ServerTiming
+
+group Server
+  Giraffe
+  FSharp.Core
+  Microsoft.AspNetCore.Mvc.NewtonsoftJson
+  Lib.AspNetCore.ServerTiming
