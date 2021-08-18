@@ -236,7 +236,7 @@ def fsharp_backend_full_build():
   #https://github.com/mono/linker/issues/1508
   if in_ci:
     configuration = "Release"
-    verbosity = "normal"
+    verbosity = "minimal"
     command = "publish"
   else:
     configuration = "Debug"
