@@ -13,7 +13,6 @@ Location: https://httpbin.org/status/200
 
 
 [test]
-// OCAMLONLY
 (let response = HttpClient.get_v5_ster "http://URL" {} {}
  let respHeaders = response.headers |> Dict.remove_v0 "date" in
  Dict.set_v0 response "headers" respHeaders) =

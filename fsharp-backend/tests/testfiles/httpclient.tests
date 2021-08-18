@@ -25,7 +25,7 @@ HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Invalid URI" // FSHARPONLY
 
 // FSTODO: add these tests for all versions
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The response ended prematurely." // FSHARPONLY
+HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The request was aborted." // FSHARPONLY
 
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connection could not be established, see inner exception." // FSHARPONLY

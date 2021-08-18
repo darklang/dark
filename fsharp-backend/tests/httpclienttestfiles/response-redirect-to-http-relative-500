@@ -12,7 +12,6 @@ Location: /invalid-url
 
 
 [test]
-// FSHARPONLY
 (match HttpClient.get_v5 "http://URL" {} {} with
  | Ok -> "fail"
  | Error response ->
@@ -24,7 +23,10 @@ Location: /invalid-url
     headers =
       {
         ``Content-Length`` = "0"
+        ``HTTP/1.1 303 See Other`` = ""
         ``HTTP/1.1 500 Internal Server Error`` = ""
+        Location = "/invalid-url"
+        ``Transfer-Encoding`` = "chunked"
         Server = "Kestrel"
       }
     raw = ""
