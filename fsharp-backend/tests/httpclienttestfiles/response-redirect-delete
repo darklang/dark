@@ -10,6 +10,7 @@ HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Location: /response-redirect-destination
 
+
 [test]
 (match HttpClient.delete_v5 "http://URL" {} {} with
  | Ok _ -> "fail"
@@ -22,6 +23,7 @@ Location: /response-redirect-destination
      headers =
       {
         ``HTTP/1.1 302 Found`` = ""
+        ``Location`` = "/response-redirect-destination"
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }

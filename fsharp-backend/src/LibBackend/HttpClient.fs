@@ -473,18 +473,15 @@ let rec httpCall
     else
       let! response = makeHttpCall rawBytes url queryParams method reqHeaders reqBody
       match response with
-      // FSTODO: not 304 or 305
-      // FSTODO: test returning two of the same header
       | Ok result when result.code >= 300 && result.code < 400 ->
         let location =
           result.headers
           |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive "location" k)
         match location with
-        | Some (_, locationUrl) ->
+        | Some (_, locationUrl) when method <> HttpMethod.Delete ->
           let newCount = count + 1
           // It might be a relative URL. If the location is absolute, the location will win over the last URL
           let newUrl = System.Uri(System.Uri(url), locationUrl).ToString()
-          // FSTODO: make a test for redirecting posts
           // Unlike HttpClient, do not drop the authorization header
           let! newResponse =
             httpCall newCount rawBytes newUrl queryParams method reqHeaders reqBody
