@@ -102,15 +102,17 @@ module Console =
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
+  open Honeycomb.OpenTelemetry
   open OpenTelemetry.Trace
   open OpenTelemetry.Resources
   open OpenTelemetry.Exporter
 
-  let configureHoneycomb (options : OtlpExporterOptions) =
-    let apiKey = Config.honeycombApiKey
-    let dataset = Config.honeycombDataset
-    options.Endpoint <- System.Uri Config.honeycombEndpoint
-    options.Headers <- $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}"
+  let honeycombOptions : HoneycombOptions =
+    let options = HoneycombOptions()
+    options.ApiKey <- Config.honeycombApiKey
+    options.Dataset <- Config.honeycombDataset
+    options.Endpoint <- Config.honeycombEndpoint
+    options
 
   let addTelemetryToServices
     (serviceName : string)
@@ -119,15 +121,11 @@ module AspNet =
     services.AddOpenTelemetryTracing
       (fun (builder : TracerProviderBuilder) ->
         builder
-        |> fun b ->
-             b.SetResourceBuilder(
-               ResourceBuilder.CreateDefault().AddService(serviceName)
-             )
         |> fun b -> b.AddAspNetCoreInstrumentation()
         |> fun b -> b.AddHttpClientInstrumentation()
         |> fun b ->
              match Config.telemetryExporter with
-             | Config.Honeycomb -> b.AddOtlpExporter(fun o -> configureHoneycomb o)
+             | Config.Honeycomb -> b.UseHoneycomb(honeycombOptions)
              | Config.NoExporter -> b
              | Config.Console -> b.AddConsoleExporter()
         |> fun b -> b.Build() |> ignore)

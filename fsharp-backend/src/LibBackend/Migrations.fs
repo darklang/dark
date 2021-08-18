@@ -8,7 +8,7 @@ module LibBackend.Migrations
 // tasks and then extra code to ensure the tasks are run synchronously.
 
 open Npgsql
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 open Db
 
 open Prelude

@@ -2,6 +2,7 @@ Giraffe
 FSharp.Core
 Rollbar
 Rollbar.NetCore.AspNet
+Honeycomb.OpenTelemetry
 OpenTelemetry
 OpenTelemetry.Exporter.OpenTelemetryProtocol
 OpenTelemetry.Exporter.Console

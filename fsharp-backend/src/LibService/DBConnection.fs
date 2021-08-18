@@ -1,7 +1,7 @@
 module LibService.DBConnection
 
 open Npgsql
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 
 let connectionString =
   Sql.host Config.pghost

@@ -5,7 +5,7 @@ open FSharp.Control.Tasks
 open FSharpPlus
 
 open Npgsql
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 
 open Prelude
 

@@ -6,7 +6,7 @@ module LibBackend.Serialize
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 open Npgsql
 open LibBackend.Db
 

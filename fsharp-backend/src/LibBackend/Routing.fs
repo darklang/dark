@@ -3,7 +3,7 @@ module LibBackend.Routing
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 open Npgsql
 open LibBackend.Db
 
