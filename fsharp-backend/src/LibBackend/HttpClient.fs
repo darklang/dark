@@ -21,13 +21,7 @@ type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 type Headers = (string * string) list
 
-type HttpResult =
-  { body : string
-    code : int
-    headers : Headers
-    error : string
-    httpVersion : string
-    httpStatusMessage : string }
+type HttpResult = { body : string; code : int; headers : Headers; error : string }
 
 type ClientError = { url : string; error : string; code : int }
 
@@ -403,15 +397,35 @@ let makeHttpCall
           else
             ofBytes respBody
 
+        let code = int response.StatusCode
+
+        let isHttp2 = (response.Version = System.Net.HttpVersion.Version20)
+
+        // CLEANUP: For some reason, the OCaml version includes a header with the HTTP
+        // status line the response and each redirect.
+        let statusHeader =
+          if isHttp2 then
+            $"HTTP/2 {code}"
+          else
+            $"HTTP/{response.Version} {code} {response.ReasonPhrase}"
+
+        let headers =
+          convertHeaders response.Headers @ convertHeaders response.Content.Headers
+
+        // CLEANUP The OCaml version automatically made this lowercase for
+        // http2. That's a weird experience for users, as they don't have
+        // control over this, so make this lowercase by default
+        let headers =
+          if isHttp2 then
+            List.map (fun (k : string, v) -> (k.ToLower(), v)) headers
+          else
+            headers
+
         let result =
           { body = respString
-            code = int response.StatusCode
-            headers =
-              convertHeaders response.Headers
-              @ convertHeaders response.Content.Headers
-            error = ""
-            httpVersion = string response.Version
-            httpStatusMessage = response.ReasonPhrase }
+            code = code
+            headers = [ statusHeader, "" ] @ headers
+            error = "" }
         return Ok result
     with
     | InvalidEncodingException code ->
