@@ -269,8 +269,7 @@ jobs:
       # so the ocamltestserver will load
       - run: touch backend/static/appsupport.js backend/static/app.js backend/static/analysis.js backend/static/app.css
       - run: scripts/support/generate-etags
-      - run: scripts/support/compile-project fsharp-backend
-      - run: scripts/run-fsharp-tests --published
+      - run: scripts/support/compile-project fsharp-backend --test
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache

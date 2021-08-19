@@ -172,12 +172,11 @@ def backend_test():
 def fsharp_backend_test():
   start = time.time()
   ci = "--verbosity detailed" if in_ci else "--verbosity normal"
-  # FSTODO: unused
   if in_ci:
-    configuration = "Release"
+    configuration = " --published"
   else:
-    configuration = "Debug"
-  build = f"scripts/run-fsharp-tests"
+    configuration = ""
+  build = f"scripts/run-fsharp-tests {configuration}"
   return run_test(start, build)
 
 def fsharp_tool_restore():
@@ -226,7 +225,8 @@ def fsharp_backend_quick_build():
       -graphBuild:true \
       --no-restore \
       --verbosity minimal \
-      --configuration Debug"
+      --configuration Debug \
+      /p:SuppressTrimAnalysisWarnings=false"
   return run_backend(start, build)
 
 
@@ -245,7 +245,8 @@ def fsharp_backend_full_build():
   build = f"cd fsharp-backend \
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
-      --configuration {configuration}"
+      --configuration {configuration} \
+      /p:SuppressTrimAnalysisWarnings=false"
   result = run_backend(start, build)
 
   # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
