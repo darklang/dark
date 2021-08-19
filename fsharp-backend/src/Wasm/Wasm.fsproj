@@ -4,10 +4,13 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>5.0</LangVersion>
     <!-- Publishing configuration -->
-    <!-- <PublishReadyToRun>true</PublishReadyToRun> -->
-    <SelfContained>true</SelfContained>
+    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
+    <!-- <SelfContained>true</SelfContained> -->
+    <!-- Disable from the publishing step for now, as it fails. Maybe when we're not
+         using super-alpha versions of everything this might work. -->
     <IsPublishable>false</IsPublishable>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <!-- <IsTrimmable>false</IsTrimmable> -->
+    <!-- <RuntimeIdentifier>browser-wasm</RuntimeIdentifier> -->
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
