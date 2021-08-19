@@ -1,28 +1,38 @@
-.DS_Store
-.idea
-.ionide/
+# OCaml
 .merlin
-tags
-.browser-trigger
-
-rundir/
-lib/
 _build/
-node_modules/
 _esy/
-
-*.pyc
-
+tags
 /backend/profile.json
 /backend/static/
 
+# OSes
+.DS_Store
+
+# IDEs
+.idea
+.ionide/
+
+# Build system
+.browser-trigger
+rundir/
+*.pyc
+
+# Frontend
+lib/
+node_modules/
+
 # F#
-fsharp-backend/.fake/
-fsharp-backend/deploy/
 fsharp-backend/packages/
 fsharp-backend/paket-files/
-fsharp-backend/node_modules/
 fsharp-backend/Build/
+fsharp-backend/src/**/obj
+fsharp-backend/tests/**/obj
+fsharp-backend/.paket/load/
+
+###############
+# Deployment
+###############
 
 # Templates for these are in services/*/*.template.yaml
 services/bwd-deployment/bwd-deployment.yaml
@@ -47,5 +57,3 @@ gzipped_assets
 
 deploy-lock-manual-deploy
 
-.fake
-/fsharp-backend/.paket/load/
