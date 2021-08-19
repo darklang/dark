@@ -11,7 +11,7 @@ module LibExecution.DvalRepr
 // general, we should avoid general purpose or reusable functions in this file.
 
 open Prelude
-open Tablecloth
+open VendoredTablecloth
 
 open RuntimeTypes
 
@@ -1110,7 +1110,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
 
     [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ] |> Array.concat
   | DList l ->
-    if List.is_empty l then
+    if List.isEmpty l then
       "[]" |> toBytes
     else
       let body =

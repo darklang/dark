@@ -1,7 +1,7 @@
 module LibExecution.Shortcuts
 
 open Prelude
-open Tablecloth
+open VendoredTablecloth
 open RuntimeTypes
 
 // Returns a string representation of an expr using shortcuts. This makes it

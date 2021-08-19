@@ -3,8 +3,7 @@ module LibExecution.TypeChecker
 open FSharpPlus
 
 open Prelude
-open Tablecloth
-open Prelude.Tablecloth
+open VendoredTablecloth
 open RuntimeTypes
 
 module Error =
@@ -124,7 +123,7 @@ and unifyUserRecordWithDvalMap
              userTypes
              (Map.get key completeDefinition |> Option.unwrapUnsafe)
              data)
-    |> Result.combineErrorsUnit
+    |> Prelude.Tablecloth.Result.combineErrorsUnit
     |> Result.mapError List.concat
   else
     Error [ MismatchedRecordFields
@@ -151,7 +150,7 @@ let checkFunctionCall
 
   withParams
   |> List.map (fun (param, value) -> unify userTypes param.typ value)
-  |> Result.combineErrorsUnit
+  |> Prelude.Tablecloth.Result.combineErrorsUnit
   |> Result.mapError List.concat
 
 

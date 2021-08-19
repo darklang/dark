@@ -16,7 +16,7 @@ module LibExecution.OCamlTypes
 open FSharpPlus
 
 open Prelude
-open Tablecloth
+open VendoredTablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = RuntimeTypes
@@ -912,6 +912,7 @@ module Convert =
     : ORT.toplevels * ORT.user_fn<ORT.fluidExpr> list * ORT.user_tipe list =
     toplevels
     |> Map.values
+    |> List.ofSeq
     |> List.fold
          ([], [], [])
          (fun (tls, ufns, uts) tl ->

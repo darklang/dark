@@ -53,9 +53,9 @@ let map2 (f : 'a -> 'b -> 'c) (ta : 'a t) (tb : 'b t) =
    | _ -> None : 'c t)
 
 
-let unwrap def t =
+let unwrap ``default`` t =
   match t with
-  | None -> def
+  | None -> ``default``
   | Some value -> value
 
 let unwrapUnsafe x =

@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="VendoredTablecloth.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="Shortcuts.fs" />
     <Compile Include="DvalRepr.fs" />
