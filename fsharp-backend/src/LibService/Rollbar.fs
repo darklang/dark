@@ -53,7 +53,10 @@ let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit 
     let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
     state.["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
     state.["execution_id"] <- executionID
-    List.iter (fun (k, v) -> Dictionary.add k (v :> obj) state |> ignore) metadata
+    List.iter
+      (fun (k, v) ->
+        Dictionary.add k (v :> obj) state |> ignore<Dictionary.T<string, obj>>)
+      metadata
 
     let (_ : Rollbar.ILogger) =
       Rollbar.RollbarLocator.RollbarInstance.Error(e, state)

@@ -275,4 +275,4 @@ type EvalWorker =
     }
     |> Task.map Json.OCamlCompatible.serialize
     |> Task.map EvalWorker.postMessage
-    |> ignore
+    |> ignore<Task<unit>>

@@ -238,8 +238,8 @@ let postApiTestCase
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
       let clear str =
         if h.Contains str then
-          (h.Remove str |> ignore
-           h.TryAddWithoutValidation(str, "XXX") |> ignore)
+          (h.Remove str |> ignore<bool>
+           h.TryAddWithoutValidation(str, "XXX") |> ignore<bool>)
 
       clear "Date"
       clear "Server"

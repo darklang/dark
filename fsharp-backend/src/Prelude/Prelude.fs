@@ -5,6 +5,14 @@ open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
 // ----------------------
+// Always use types with ignore
+// ----------------------
+
+[<RequiresExplicitTypeArgumentsAttribute>]
+let ignore<'a> (a : 'a) : unit = ignore<'a> a
+
+
+// ----------------------
 // Null
 // ----------------------
 // https://stackoverflow.com/a/11696947/104021
@@ -678,7 +686,7 @@ module Json =
           )
 
         let caseName : string =
-          reader.Read() |> ignore
+          reader.Read() |> ignore<bool>
           reader.Value :?> string
 
         let caseInfo =
@@ -694,10 +702,10 @@ module Json =
             | _ ->
               let value = serializer.Deserialize(reader, fields.[index].PropertyType)
 
-              reader.Read() |> ignore
+              reader.Read() |> ignore<bool>
               read (index + 1) (acc @ [ value ])
 
-          reader.Read() |> ignore
+          reader.Read() |> ignore<bool>
           read 0 List.empty
 
         let args = readElements () |> Array.ofList
@@ -750,7 +758,7 @@ module Json =
         serializer.Serialize(writer, values)
 
       override _.ReadJson(reader, t, existingValue, serializer) =
-        let advance = reader.Read >> ignore
+        let advance = reader.Read >> ignore<bool>
         let deserialize t = serializer.Deserialize(reader, t)
         let itemTypes = FSharpType.GetTupleElements(t)
 

@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
             buf
               .Append(hexUppercaseLookup.[((byte >>> 4) &&& 0xF)])
               .Append(hexUppercaseLookup.[(byte &&& 0xF)])
-            |> ignore
+            |> ignore<StringBuilder>
 
           buf.ToString() |> DStr |> Value
         | _ -> incorrectArgs ())

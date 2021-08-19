@@ -376,7 +376,7 @@ let testMatchPreview : Test =
              (fun e ->
                argIDs := (Expr.toID e) :: !argIDs
                e)
-        |> ignore
+        |> ignore<Expr>
 
         let expectedIDs = (mid :: !argIDs) @ List.map Tuple3.first expected |> Set
         Expect.isGreaterThan results.Count (Set.count expectedIDs) "sanity check"

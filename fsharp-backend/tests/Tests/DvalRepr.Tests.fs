@@ -331,7 +331,7 @@ module Password =
           let mutable success = false
 
           try
-            Json.Vanilla.serialize (RT.DPassword(Password [||])) |> ignore
+            Json.Vanilla.serialize (RT.DPassword(Password [||])) |> ignore<string>
           with
           | e -> success <- true
 
@@ -341,7 +341,8 @@ module Password =
           let mutable success = false
 
           try
-            Json.OCamlCompatible.serialize (RT.DPassword(Password [||])) |> ignore
+            Json.OCamlCompatible.serialize (RT.DPassword(Password [||]))
+            |> ignore<string>
           with
           | e -> success <- true
 

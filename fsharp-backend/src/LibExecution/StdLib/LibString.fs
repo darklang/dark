@@ -1002,13 +1002,13 @@ let fns : List<BuiltInFn> =
 
             let lastFunc (idx : bigint) (seg : string) =
               if idx >= startIdx then
-                stringBuilder.Append seg |> ignore
+                stringBuilder.Append seg |> ignore<StringBuilder>
               else
-                () |> ignore
+                ()
 
               1I + idx
 
-            ignore (
+            ignore<List<bigint>> (
               egcSeq
               |> Seq.toList
               |> List.mapi (fun index value -> (lastFunc (bigint index) value))
@@ -1046,13 +1046,13 @@ let fns : List<BuiltInFn> =
 
             let lastFunc (idx : bigint) (seg : string) =
               if idx < startIdx then
-                stringBuilder.Append seg |> ignore
+                stringBuilder.Append seg |> ignore<StringBuilder>
               else
-                () |> ignore
+                ()
 
               1I + idx
 
-            ignore (
+            ignore<List<bigint>> (
               egcSeq
               |> Seq.toList
               |> List.mapi (fun index value -> (lastFunc (bigint index) value))
@@ -1083,13 +1083,13 @@ let fns : List<BuiltInFn> =
             // if its index >= numEgcs. This works by the inverse of the logic for [first_n]:
             let firstFunc (idx : bigint) (seg : string) =
               if idx >= numEgcs then
-                stringBuilder.Append seg |> ignore
+                stringBuilder.Append seg |> ignore<StringBuilder>
               else
-                () |> ignore
+                ()
 
               1I + idx
 
-            ignore (
+            ignore<List<bigint>> (
               String.toEgcSeq s
               |> Seq.toList
               |> List.mapi (fun index value -> (firstFunc (bigint index) value))

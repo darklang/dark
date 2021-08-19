@@ -16,9 +16,11 @@ module Execution = LibExecution.Execution
 
 open LibService.Telemetry
 
+type Activity = System.Diagnostics.Activity
+
 let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
   use root = Span.root "dequeue_and_process"
-  root.AddTag("meta.process_id", toString executionID) |> ignore
+  root.AddTag("meta.process_id", toString executionID) |> ignore<Activity>
 
   Sql.withTransaction
     (fun () ->
@@ -34,7 +36,7 @@ let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
 
         match event with
         | Ok (None) ->
-          root.AddTag("event_queue.no_events", true) |> ignore
+          root.AddTag("event_queue.no_events", true) |> ignore<Activity>
           return Ok None
         | Ok (Some event) ->
           let! canvas =
