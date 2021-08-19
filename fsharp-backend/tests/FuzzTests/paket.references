@@ -1,6 +1,4 @@
 FSharp.Core
-
-group Test
-  Expecto
-  FsCheck
-  Expecto.FsCheck
+Expecto
+FsCheck
+Expecto.FsCheck

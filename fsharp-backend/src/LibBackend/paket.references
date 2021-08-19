@@ -1,9 +1,7 @@
 FSharp.Core
 FsRegEx
 FSharpPlus
-
-group Server
-  Npgsql.FSharp
-  PusherServer
-  System.Diagnostics.DiagnosticSource
-  Sodium.Core
+Npgsql.FSharp
+PusherServer
+System.Diagnostics.DiagnosticSource
+Sodium.Core

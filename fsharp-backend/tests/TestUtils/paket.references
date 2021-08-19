@@ -1,3 +1,2 @@
-group Test
-  Expecto
-  FSharp.Compiler.Service
+Expecto
+FSharp.Compiler.Service
