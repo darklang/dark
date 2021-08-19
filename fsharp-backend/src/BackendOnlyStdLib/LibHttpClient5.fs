@@ -9,9 +9,6 @@ open System.Net.Http
 open Prelude
 open LibExecution.RuntimeTypes
 
-
-
-module HttpClient = LibBackend.HttpClient
 module DvalRepr = LibExecution.DvalRepr
 
 module Errors = LibExecution.Errors

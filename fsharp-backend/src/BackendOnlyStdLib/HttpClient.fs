@@ -1,11 +1,6 @@
-module LibBackend.HttpClient
+module BackendOnlyStdLib.HttpClient
 
-// HttpClient used by standard libraries
-
-open Prelude
-open LibExecution
-
-module RT = RuntimeTypes
+// HttpClient used by LibHttpClient5 standard libraries
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -14,6 +9,12 @@ open System.Net.Http
 open System.Net.Http.Headers
 open System.IO.Compression
 open System.IO
+
+open Prelude
+open LibExecution
+open LibBackend
+
+module RT = RuntimeTypes
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
@@ -130,12 +131,6 @@ let queryToDval (queryString : string) : RT.Dval =
          | list -> k, RT.DList(List.map RT.DStr list))
   |> RT.Dval.obj
 
-
-let () =
-  // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
-  // idea, but it's a change (one that breaks all the tests), and so something we
-  // should do consciously.
-  System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
 
 
 // There has been quite a history of HTTPClient having problems in previous versions
@@ -506,3 +501,10 @@ let rec httpCall
 
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
+let init (serviceName : string) =
+  print $"Initing HttpClient in {serviceName}"
+  // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
+  // idea, but it's a change (one that breaks all the tests), and so something we
+  // should do consciously.
+  System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
+  print $" Inited HttpClient in {serviceName}"
