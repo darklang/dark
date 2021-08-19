@@ -3,11 +3,11 @@
 set -euo pipefail
 
 for name in "${@}"; do
-  if [[ $name == postgres ]]; then
+  if [[ $name == postgresql ]]; then
     # for some reason, uncommenting the equivalent line in the Dockerfile doesn't do the
     # job. don't have time right now to figure out why.
     LA="listen_addresses = '*'"
-    echo "$LA" >> /etc/postgresql/9.6/main/postgresql.conf
+    echo "$LA" | sudo tee -a /etc/postgresql/9.6/main/postgresql.conf
   fi
 
   echo "--------------------------"
