@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibHttpClient2
+module BackendOnlyStdLib.LibHttpClient2
 
 open System.Threading.Tasks
 open System.Numerics

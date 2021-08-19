@@ -1,4 +1,4 @@
-module LibBackend.StdLib.StdLib
+module BackendOnlyStdLib.StdLib
 
 module RT = LibExecution.RuntimeTypes
 

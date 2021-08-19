@@ -522,8 +522,8 @@ module LibJwtJson =
   let equalsOCaml (dv : RT.Dval) : bool =
     let actual =
       dv
-      |> LibBackend.StdLib.LibJwt.Legacy.toYojson
-      |> LibBackend.StdLib.LibJwt.Legacy.toString
+      |> BackendOnlyStdLib.LibJwt.Legacy.toYojson
+      |> BackendOnlyStdLib.LibJwt.Legacy.toString
 
     let expected = (OCamlInterop.toSafePrettyMachineYojsonV1 dv).Result
 
@@ -906,7 +906,7 @@ module ExecutePureFunctions =
           member x.Generator =
             gen {
               let fns =
-                (LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
+                (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns)
                 |> List.filter
                      (fun fn ->
                        let name = string fn.name

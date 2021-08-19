@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibDarkInternal
+module BackendOnlyStdLib.LibDarkInternal
 
 open System.Threading.Tasks
 open System.Numerics

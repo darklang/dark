@@ -35,7 +35,7 @@ type FunctionMetadata =
     deprecated : bool
     is_supported_in_query : bool }
 
-let allFunctions = LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+let allFunctions = LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
 
 // CLEANUP not needed anymore
 let fsharpOnlyFns : Lazy<Set<string>> =

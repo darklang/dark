@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibEvent
+module BackendOnlyStdLib.LibEvent
 
 open System.Threading.Tasks
 open System.Numerics

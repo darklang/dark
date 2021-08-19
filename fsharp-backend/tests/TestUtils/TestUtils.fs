@@ -155,7 +155,7 @@ let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 let libraries : Lazy<RT.Libraries> =
   lazy
     ({ stdlib =
-         (LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
+         (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns @ LibTest.fns
           |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
        packageFns = Map.empty })

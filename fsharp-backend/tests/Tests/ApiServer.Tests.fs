@@ -157,7 +157,7 @@ let testUiReturnsTheSame =
 
     Expect.equal fc oc ""
 
-    let allBuiltins = (LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
+    let allBuiltins = (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns)
 
     let builtins =
       allBuiltins

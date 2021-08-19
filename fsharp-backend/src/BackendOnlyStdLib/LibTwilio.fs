@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibTwilio
+module BackendOnlyStdLib.LibTwilio
 
 open System.Threading.Tasks
 open System.Numerics

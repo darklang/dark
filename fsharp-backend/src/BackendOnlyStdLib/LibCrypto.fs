@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibCrypto
+module BackendOnlyStdLib.LibCrypto
 
 open System
 open System.Threading.Tasks

@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibJwt
+module BackendOnlyStdLib.LibJwt
 
 open FSharpPlus
 open System.Security.Cryptography

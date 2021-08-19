@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibStaticAssets
+module BackendOnlyStdLib.LibStaticAssets
 
 open System.Threading.Tasks
 open System.Numerics

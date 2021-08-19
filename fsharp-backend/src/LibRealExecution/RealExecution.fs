@@ -19,7 +19,7 @@ open LibBackend
 
 let stdlibFns : Lazy<Map<RT.FQFnName.T, RT.BuiltInFn>> =
   lazy
-    (LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+    (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =

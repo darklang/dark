@@ -1,4 +1,4 @@
-module LibBackend.StdLib.LibDB2
+module BackendOnlyStdLib.LibDB2
 
 open Prelude
 open LibExecution.RuntimeTypes
