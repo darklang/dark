@@ -164,3 +164,8 @@ let run (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
     Task.FromResult(Ok None)
   else
     dequeueAndProcess executionID
+
+[<EntryPoint>]
+let main args : int =
+  // FSTODO: implement
+  0
