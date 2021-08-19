@@ -500,7 +500,9 @@ let rec httpCall
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
 
-let init () : unit =
+// Let's self-initialize, since there's no ordering constraints from this, we just
+// want it to be done before anything else in here runs.
+let init : unit =
   // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
   // idea, but it's a change (one that breaks all the tests), and so something we
   // should do consciously.

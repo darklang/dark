@@ -1,4 +1,4 @@
-module LibBackend.QueueWorker
+module QueueWorker
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -6,6 +6,8 @@ open FSharp.Control.Tasks
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
+open LibBackend
+open LibRealExecution
 open Db
 
 module PT = LibExecution.ProgramTypes

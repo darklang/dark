@@ -14,7 +14,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Cron = LibBackend.Cron
 module Canvas = LibBackend.Canvas
-module QW = LibBackend.QueueWorker
 module Serialize = LibBackend.Serialize
 module Span = LibService.Telemetry.Span
 

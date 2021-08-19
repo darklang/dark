@@ -26,7 +26,7 @@ open FSharpx
 module HealthCheck = LibService.HealthCheck
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module RealExe = LibBackend.RealExecution
+module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account

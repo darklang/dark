@@ -19,7 +19,7 @@ module AT = LibExecution.AnalysisTypes
 module Convert = LibExecution.OCamlTypes.Convert
 
 module Canvas = LibBackend.Canvas
-module RealExe = LibBackend.RealExecution
+module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
 module DvalRepr = LibExecution.DvalRepr
 

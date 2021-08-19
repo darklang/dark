@@ -1,6 +1,6 @@
 module LibBackend.Init
 
-open System
+// LibBackend holds the whole framework
 
 open Prelude
 open Tablecloth
@@ -8,8 +8,6 @@ open Tablecloth
 let init (serviceName : string) : unit =
   print "Initializing LibBackend"
 
-
-  HttpClient.init ()
   LibService.Telemetry.init serviceName
   LibService.Rollbar.init serviceName
 

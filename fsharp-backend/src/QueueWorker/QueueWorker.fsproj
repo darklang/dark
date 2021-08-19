@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
@@ -12,26 +12,13 @@
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
-    <Compile Include="Middleware.fs" />
-    <Compile Include="Login.fs" />
-    <Compile Include="Api/APIOps.fs" />
-    <Compile Include="Api/APIDBs.fs" />
-    <Compile Include="Api/APIExecution.fs" />
-    <Compile Include="Api/API404.fs" />
-    <Compile Include="Api/APIPackages.fs" />
-    <Compile Include="Api/APISecrets.fs" />
-    <Compile Include="Api/APITraces.fs" />
-    <Compile Include="Api/APIWorkers.fs" />
-    <Compile Include="Api/APIInitialLoad.fs" />
-    <Compile Include="Functions.fs" />
-    <Compile Include="Ui.fs" />
-    <Compile Include="ApiServer.fs" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="QueueWorker.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

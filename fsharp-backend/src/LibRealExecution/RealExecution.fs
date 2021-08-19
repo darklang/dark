@@ -1,7 +1,7 @@
-module LibBackend.RealExecution
+module LibRealExecution.RealExecution
 
 // For executing code with the appropriate production "real" execution, setting
-// traces, stdlib, etc, appropriately
+// traces, stdlib, etc, appropriately. Used by most of the executables.
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -14,6 +14,8 @@ module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
+
+open LibBackend
 
 let stdlibFns : Lazy<Map<RT.FQFnName.T, RT.BuiltInFn>> =
   lazy

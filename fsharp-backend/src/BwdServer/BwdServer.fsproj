@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
