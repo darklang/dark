@@ -4,6 +4,11 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>5.0</LangVersion>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>false</IsTrimmable>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
