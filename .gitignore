@@ -29,6 +29,7 @@ fsharp-backend/Build/
 fsharp-backend/src/**/obj
 fsharp-backend/tests/**/obj
 fsharp-backend/.paket/load/
+.fake
 
 ###############
 # Deployment
@@ -56,4 +57,3 @@ containers/*/target
 gzipped_assets
 
 deploy-lock-manual-deploy
-
