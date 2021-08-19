@@ -4,6 +4,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
+
 // ----------------------
 // Always use types with ignore
 // ----------------------
@@ -998,6 +999,7 @@ module Tablecloth =
 
     let merge (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
       FSharpPlus.Map.union m1 m2
+
 
   module Result =
     // Returns `Ok ()` if no errors, or `Error list` otherwise

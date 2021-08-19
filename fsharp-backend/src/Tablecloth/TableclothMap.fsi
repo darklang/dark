@@ -396,7 +396,7 @@ val partition :
 *)
 
 val fold :
-  initial: 'a -> f: ('key -> 'value -> 'a -> 'a) -> t<'key, 'value> -> 'a
+  initial: 'a -> f: ('a -> 'key -> 'value -> 'a) -> t<'key, 'value> -> 'a
 (** Like {!Array.fold} but [f] is also called with both the [key] and [value] *)
 
 (** {1 Iterate} *)

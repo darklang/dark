@@ -8,9 +8,10 @@ let empty = List.empty
 
 let singleton v = [ v ]
 
-let repeat times element = List.replicate times element
+let repeat count element = List.replicate count element
 
-let rec range from to_ = if from >= to_ then [] else from :: range (from + 1) to_
+let rec range from ``to`` =
+  if from >= ``to`` then [] else from :: range (from + 1) ``to``
 
 let initialize count f = List.init count f
 
@@ -118,9 +119,9 @@ let foldRight initial f l = List.foldBack (fun item accum -> f accum item) l ini
 
 let fold_right initial f l = foldRight initial f l
 
-let splitAt (i : int) (l : 'a list) = List.splitAt i l
+let splitAt (index : int) (l : 'a list) = List.splitAt index l
 
-let split_at i l = splitAt i l
+let split_at index l = splitAt index l
 
 let splitWhen (f : 'a -> bool) (l : 'a list) =
   (match findIndex (fun _ element -> f element) l with
@@ -139,7 +140,7 @@ let updateAt (index : int) (f : 'a -> 'a) (l : 'a list) =
      | [] -> l
      | x :: rest -> append front (f x :: rest) : 'a list)
 
-let update_at i f l = updateAt i f l
+let update_at index f l = updateAt index f l
 
 let length (l : 'a list) = List.length l
 
@@ -153,7 +154,7 @@ let removeAt (index : int) (l : 'a list) =
      | None -> l
      | Some t -> append front t : 'a list)
 
-let remove_at i l = removeAt i l
+let remove_at index l = removeAt index l
 
 let minimum l = if length l = 0 then None else Some(List.min l)
 
@@ -179,7 +180,7 @@ let extent l =
 let insertAt (index : int) (value : 'a) (l : 'a list) =
   (let front, back = splitAt index l in append front (value :: back) : 'a list)
 
-let insert_at i v l = insertAt i v l
+let insert_at index value l = insertAt index value l
 
 let zip listA listB =
   let rec loop result xs ys =

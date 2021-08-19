@@ -69,8 +69,8 @@ let update key f m = Map.change key f m
 //       | Both (v1, v2) ->
 //           f key (Some v1) (Some v2))
 
-let fold (initial : 'a) (f : 'key -> 'value -> 'a -> 'a) (m : t<'key, 'value>) : 'a =
-  Map.fold (fun map k v -> f k v map) initial m
+let fold (initial : 'a) (f : 'a -> 'key -> 'value -> 'a) (m : t<'key, 'value>) : 'a =
+  Map.fold f initial m
 
 let map f m = Map.map (fun _ v -> f v) m
 
