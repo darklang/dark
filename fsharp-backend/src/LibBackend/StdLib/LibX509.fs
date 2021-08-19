@@ -37,16 +37,18 @@ let fns : List<BuiltInFn> =
             // answer for it.
 
             // https://www.pkisolutions.com/accessing-and-using-certificate-private-keys-in-net-framework-net-core/
-            let publicKeyBytes =
+            let publicKey =
               match cert.PublicKey.Oid.Value with
               | "1.2.840.10045.2.1" -> // ECC
-                cert.GetECDsaPublicKey().ExportSubjectPublicKeyInfo()
-              | "1.2.840.113549.1.1.1" // RSA
+                cert.GetECDsaPublicKey() :> AsymmetricAlgorithm
+              | "1.2.840.113549.1.1.1" -> // RSA
+                cert.GetRSAPublicKey() :> AsymmetricAlgorithm
               // DSA
               | "1.2.840.10040.4.1"
-              | _ -> cert.PublicKey.Key.ExportSubjectPublicKeyInfo()
-            let label = System.ReadOnlySpan<char>("PUBLIC KEY".ToCharArray())
+              | _ -> cert.GetDSAPublicKey() :> AsymmetricAlgorithm
+            let publicKeyBytes = publicKey.ExportSubjectPublicKeyInfo()
             let data = System.ReadOnlySpan<byte> publicKeyBytes
+            let label = System.ReadOnlySpan<char>("PUBLIC KEY".ToCharArray())
             let chars = PemEncoding.Write(label, data)
             let str = new System.String(chars) ++ "\n"
             str |> DStr |> Ok |> DResult |> Value
