@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibHttpClient
+module LibExecutionStdLib.LibHttpClient
 
 open System.Threading.Tasks
 open System.Numerics

@@ -17,7 +17,7 @@ module Interpreter = LibExecution.Interpreter
 
 let stdlibFns : Lazy<Map<RT.FQFnName.T, RT.BuiltInFn>> =
   lazy
-    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+    (LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =

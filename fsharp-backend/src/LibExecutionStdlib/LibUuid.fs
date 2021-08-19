@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibUuid
+module LibExecutionStdLib.LibUuid
 
 open System.Threading.Tasks
 open System.Numerics

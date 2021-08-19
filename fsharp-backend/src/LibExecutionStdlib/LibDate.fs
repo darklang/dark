@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibDate
+module LibExecutionStdLib.LibDate
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

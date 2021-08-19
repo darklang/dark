@@ -906,7 +906,7 @@ module ExecutePureFunctions =
           member x.Generator =
             gen {
               let fns =
-                (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
+                (LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
                 |> List.filter
                      (fun fn ->
                        let name = string fn.name

@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibList
+module LibExecutionStdLib.LibList
 
 open LibExecution.RuntimeTypes
 open FSharpPlus

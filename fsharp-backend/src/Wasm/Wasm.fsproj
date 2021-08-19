@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Wasm.fs" />

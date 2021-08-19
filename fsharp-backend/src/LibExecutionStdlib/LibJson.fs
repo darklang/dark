@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibJson
+module LibExecutionStdLib.LibJson
 
 open System.Threading.Tasks
 open System.Numerics

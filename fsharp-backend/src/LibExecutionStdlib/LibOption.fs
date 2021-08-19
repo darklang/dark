@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibOption
+module LibExecutionStdLib.LibOption
 
 open System.Threading.Tasks
 open System.Numerics

@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibBool
+module LibExecutionStdLib.LibBool
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

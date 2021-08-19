@@ -35,11 +35,12 @@ type FunctionMetadata =
     deprecated : bool
     is_supported_in_query : bool }
 
-let allFunctions = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+let allFunctions = LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
 
+// CLEANUP not needed anymore
 let fsharpOnlyFns : Lazy<Set<string>> =
   lazy
-    (LibExecution.StdLib.LibMiddleware.fns
+    (LibExecutionStdLib.LibMiddleware.fns
      |> List.map (fun (fn : RT.BuiltInFn) -> (fn.name).ToString())
      |> Set)
 
@@ -100,7 +101,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
     description = fn.description
     return_type = typToApiString fn.returnType
     preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
-    infix = LibExecution.StdLib.StdLib.isInfixName fn.name
+    infix = LibExecutionStdLib.StdLib.isInfixName fn.name
     deprecated = fn.deprecated <> RT.NotDeprecated
     is_supported_in_query = fn.sqlSpec.isQueryable () }
 

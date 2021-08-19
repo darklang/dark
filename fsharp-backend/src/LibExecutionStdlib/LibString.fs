@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibString
+module LibExecutionStdLib.LibString
 
 open System.Globalization
 open System.Security.Cryptography

@@ -70,7 +70,7 @@ let oldFunctionsAreDeprecated =
     let counts = ref Map.empty
 
     let fns =
-      LibTest.fns @ LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+      LibTest.fns @ LibExecutionStdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
 
     fns
     |> List.iter

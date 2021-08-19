@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibDict
+module LibExecutionStdLib.LibDict
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

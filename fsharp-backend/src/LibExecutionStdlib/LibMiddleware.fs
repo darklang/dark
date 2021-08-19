@@ -1,4 +1,4 @@
-module LibExecution.StdLib.LibMiddleware
+module LibExecutionStdLib.LibMiddleware
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
