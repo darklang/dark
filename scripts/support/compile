@@ -232,8 +232,6 @@ def fsharp_backend_quick_build():
 
 def fsharp_backend_full_build():
   start = time.time()
-  #FSTODO: there is a bug in the .NET linker, come back to it later.
-  #https://github.com/mono/linker/issues/1508
   if in_ci:
     configuration = "Release"
     verbosity = "minimal"
@@ -243,12 +241,25 @@ def fsharp_backend_full_build():
     verbosity = "minimal"
     command = "build"
 
-  #FSTODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
+  # TODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
   build = f"cd fsharp-backend \
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
       --configuration {configuration}"
-  return run_backend(start, build)
+  result = run_backend(start, build)
+
+  # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
+  # ourselves for now.
+  if result and in_ci:
+    build = f"cd fsharp-backend \
+      && unbuffer dotnet build \
+        --verbosity {verbosity} \
+        --configuration {configuration} \
+        src/Wasm/Wasm.fsproj"
+    result = run_backend(start, build)
+  return result
+
+
 
 
 def rust_build(dir):
@@ -378,6 +389,7 @@ def execute(should):
     should.reload_browser |= success
 
   if should.fsharp_backend_full_build:
+    should.fsharp_backend_quick_build = False # no need to do both
     if not fsharp_backend_full_build(): success = False
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
