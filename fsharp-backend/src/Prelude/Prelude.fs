@@ -1001,20 +1001,6 @@ module Tablecloth =
       FSharpPlus.Map.union m1 m2
 
 
-  module Result =
-    // Returns `Ok ()` if no errors, or `Error list` otherwise
-    let combineErrorsUnit (l : List<Result<'ok, 'err>>) : Result<unit, List<'err>> =
-      List.fold
-        (fun l r ->
-          match l, r with
-          | _, Ok _ -> l
-          | Ok (), Error e -> Error [ e ]
-          | Error l, Error e -> Error(e :: l))
-        (Ok())
-        l
-
-
-
 // ----------------------
 // Task list processing
 // ----------------------

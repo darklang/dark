@@ -6,6 +6,17 @@ open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
+// Returns `Ok ()` if no errors, or `Error list` otherwise
+let combineErrorsUnit (l : List<Result<'ok, 'err>>) : Result<unit, List<'err>> =
+  List.fold
+    (Ok())
+    (fun l r ->
+      match l, r with
+      | _, Ok _ -> l
+      | Ok (), Error e -> Error [ e ]
+      | Error l, Error e -> Error(e :: l))
+    l
+
 module Error =
   type UnificationError = { expectedType : DType; actualValue : Dval }
 
@@ -123,7 +134,7 @@ and unifyUserRecordWithDvalMap
              userTypes
              (Map.get key completeDefinition |> Option.unwrapUnsafe)
              data)
-    |> Prelude.Tablecloth.Result.combineErrorsUnit
+    |> combineErrorsUnit
     |> Result.mapError List.concat
   else
     Error [ MismatchedRecordFields
@@ -150,7 +161,7 @@ let checkFunctionCall
 
   withParams
   |> List.map (fun (param, value) -> unify userTypes param.typ value)
-  |> Prelude.Tablecloth.Result.combineErrorsUnit
+  |> combineErrorsUnit
   |> Result.mapError List.concat
 
 
