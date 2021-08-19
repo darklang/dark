@@ -23,9 +23,6 @@ fsharp-backend/packages/
 fsharp-backend/paket-files/
 fsharp-backend/node_modules/
 fsharp-backend/Build/
-# Unclear why these appear
-fsharp-backend/src/*/obj
-fsharp-backend/tests/*/obj
 
 # Templates for these are in services/*/*.template.yaml
 services/bwd-deployment/bwd-deployment.yaml
