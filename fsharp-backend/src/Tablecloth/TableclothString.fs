@@ -39,7 +39,7 @@ let get (i : int) (s : string) = s.[i]
 let getAt index s =
   if index >= 0 && index < length s then Some(get index s) else None
 
-let get_at i s = getAt i s
+let get_at index s = getAt index s
 
 // let ( .?[] ) (string : string) (index : int) : char option = getAt string ~index
 
@@ -50,11 +50,11 @@ let uncons (s : string) : (char * string) option =
 
 let dropLeft (count : int) (s : string) = s.[count..]
 
-let drop_left c s = dropLeft c s
+let drop_left count s = dropLeft count s
 
 let dropRight (count : int) (s : string) = s.[0..(s.Length - (count + 1))]
 
-let drop_right c s = dropRight c s
+let drop_right count s = dropRight count s
 
 let split (on : string) (s : string) = s.Split(on) |> List.fromArray
 
@@ -64,7 +64,7 @@ let starts_with prefix s = startsWith prefix s
 
 let endsWith (suffix : string) (s : string) = s.EndsWith(suffix)
 
-let ends_with suf s = endsWith suf s
+let ends_with suffix s = endsWith suffix s
 
 let toLowercase (s : string) = s.ToLower()
 
@@ -109,7 +109,7 @@ let slice from ``to`` (str : string) = str.[from..``to``]
 let indexOf (needle : string) (haystack : string) : int option =
   let result = haystack.IndexOf(needle) in if result = -1 then None else Some result
 
-let index_of n s = indexOf n s
+let index_of needle haystack = indexOf needle haystack
 
 let indexOfRight (needle : string) (haystack : string) =
   let result = haystack.LastIndexOf(needle) in
@@ -120,7 +120,7 @@ let index_of_right n s = indexOfRight n s
 
 let insertAt (index : int) (value : string) (s : string) = s.Insert(index, value)
 
-let insert_at i v s = insertAt i v s
+let insert_at index value s = insertAt index value s
 
 let toArray (s : string) = s.ToCharArray()
 
@@ -150,7 +150,7 @@ let padLeft ``with`` targetLength (s : string) : string =
     padding + s
 
 
-let pad_left w t s = padLeft w t s
+let pad_left ``with`` t s = padLeft ``with`` t s
 
 let padRight ``with`` targetLength (s : string) : string =
   if length s >= targetLength then
@@ -162,7 +162,7 @@ let padRight ``with`` targetLength (s : string) : string =
     s + padding
 
 
-let pad_right w t s = padRight w t s
+let pad_right ``with`` t s = padRight ``with`` t s
 
 let forEach f s = String.iter f s
 

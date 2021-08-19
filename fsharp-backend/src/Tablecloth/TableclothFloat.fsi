@@ -205,7 +205,7 @@ val divide : t -> by: t -> t
 
     {2 Examples}
 
-    {[Float.divide 3.14 ~by:2.0 = 1.57]}
+    {[Float.divide 3.14 2.0 = 1.57]}
 
     {[Float.(3.14 / 2.0) = 1.57]}
 *)
@@ -287,7 +287,7 @@ val minimum : t -> t -> t
     {[Float.(isNaN (minimum 7. nan)) = true]}
 *)
 
-val clamp : t -> lower: t -> upper: t -> t
+val clamp : lower: t -> upper: t -> t -> t
 (** Clamps [n] within the inclusive [lower] and [upper] bounds.
 
     {3 Exceptions}
@@ -296,11 +296,11 @@ val clamp : t -> lower: t -> upper: t -> t
 
     {2 Examples}
 
-    {[Float.clamp ~lower:0. ~upper:8. 5. = 5.]}
+    {[Float.clamp 0. 8. 5. = 5.]}
 
-    {[Float.clamp ~lower:0. ~upper:8. 9. = 8.]}
+    {[Float.clamp 0. 8. 9. = 8.]}
 
-    {[Float.clamp ~lower:(-10.) ~upper:(-5.) 5. = -5.]}
+    {[Float.clamp (-10.) (-5.) 5. = -5.]}
 *)
 
 (** {1 Fancier math} *)
@@ -415,7 +415,7 @@ val isSafeInteger : t -> bool
 
 val is_safe_integer : t -> bool
 
-val inRange : t -> lower: t -> upper: t -> bool
+val inRange : lower: t -> upper: t -> t -> bool
 (** Checks if a float is between [lower] and up to, but not including, [upper].
 
     If [lower] is not specified, it's set to to [0.0].
@@ -433,7 +433,7 @@ val inRange : t -> lower: t -> upper: t -> bool
     {[Float.inRange 5.2 7.9 9.6 = false]}
 *)
 
-val in_range : t -> lower: t -> upper: t -> bool
+val in_range : lower: t -> upper: t -> t -> bool
 
 (** {1 Angles} *)
 

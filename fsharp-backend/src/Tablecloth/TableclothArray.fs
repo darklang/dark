@@ -35,18 +35,19 @@ let last t = if length t < 1 then None else Some t.[length t - 1]
 
 let get i a = Array.get a i
 
-let getAt i a = if i >= 0 && i < length a then Some(Array.get a i) else None
+let getAt index a =
+  if index >= 0 && index < length a then Some(Array.get a index) else None
 
-let get_at i a = getAt i a
+let get_at index a = getAt index a
 
 // let ( .?() ) (array : 'element t) (index : int) : 'element option =
 //   getAt array ~index
 
 let set i v a = Array.set a i v
 
-let setAt i v a = set i v a
+let setAt index value a = set index value a
 
-let set_at i v a = setAt i v a
+let set_at index value a = setAt index value a
 
 let filter f a = Array.filter f a
 
@@ -62,9 +63,9 @@ let flat_map f a = flatMap f a
 
 let fold initial f a = Array.fold f initial a
 
-let foldRight i f a = Array.foldBack (fun v accum -> f accum v) a i
+let foldRight initial f a = Array.foldBack (fun v accum -> f accum v) a initial
 
-let fold_right i f a = foldRight i f a
+let fold_right initial f a = foldRight initial f a
 
 let count f a =
   fold
@@ -127,9 +128,9 @@ let map3
 
 let partition f a = Array.partition f a
 
-let splitAt i a = Array.splitAt i a
+let splitAt index a = Array.splitAt index a
 
-let split_at i a = splitAt i a
+let split_at index a = splitAt index a
 
 let splitWhen f a =
   match findIndex (fun _index element -> f element) a with
@@ -219,7 +220,7 @@ let sliding step size a =
 
 let chunksOf size a = sliding size size a
 
-let chunks_of s a = chunksOf s a
+let chunks_of size a = chunksOf size a
 
 let maximum a = if length a = 0 then None else Some(Array.max a)
 

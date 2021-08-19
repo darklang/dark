@@ -87,7 +87,7 @@ let inRange (lower : int) (upper : int) (n : int) =
     n >= lower && n < upper
 
 
-let in_range l u n = inRange l u n
+let in_range lower upper n = inRange lower upper n
 
 let toFloat i = float i
 

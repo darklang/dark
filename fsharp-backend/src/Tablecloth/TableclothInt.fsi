@@ -309,7 +309,7 @@ val isOdd : t -> bool
 
 val is_odd : t -> bool
 
-val clamp : t -> lower: t -> upper: t -> t
+val clamp : lower: t -> upper: t -> t -> t
 (** Clamps [n] within the inclusive [lower] and [upper] bounds.
 
   {3 Exceptions}
@@ -318,14 +318,14 @@ val clamp : t -> lower: t -> upper: t -> t
 
   {2 Examples}
 
-  {[Int.clamp 0 8 5 = 5]}
+  {[Int.clamp 8 5 0 = 5]}
 
-  {[Int.clamp 0 8 9 = 8]}
+  {[Int.clamp 8 9 0 = 8]}
 
-  {[Int.clamp (-10) (-5) 5 = (-5)]}
+  {[Int.clamp (-5) 5 (-10) = (-5)]}
 *)
 
-val inRange : t -> lower: t -> upper: t -> bool
+val inRange : lower: t -> upper: t -> t -> bool
 (** Checks if [n] is between [lower] and up to, but not including, [upper].
 
     {3 Exceptions}
@@ -334,15 +334,15 @@ val inRange : t -> lower: t -> upper: t -> bool
 
     {2 Examples}
 
-    {[Int.inRange ~lower:2 ~upper:4 3 = true]}
+    {[Int.inRange 2 4 3 = true]}
 
-    {[Int.inRange ~lower:5 ~upper:8 4 = false]}
+    {[Int.inRange 5 8 4 = false]}
 
-    {[Int.inRange ~lower:(-6) ~upper:(-2) (-3) = true]}
+    {[Int.inRange (-6) (-2) (-3) = true]}
 
 *)
 
-val in_range : t -> lower: t -> upper: t -> bool
+val in_range : lower: t -> upper: t -> t -> bool
 
 (** {1 Convert} *)
 

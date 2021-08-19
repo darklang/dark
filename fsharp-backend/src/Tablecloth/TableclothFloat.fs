@@ -65,7 +65,7 @@ let multiply (a : t) (b : t) = a * b
 
 let (*) (a : t) (b : t) = a * b
 
-let divide (by : t) (n : t) = n / by
+let divide (n : t) (by : t) = n / by
 
 let (/) (a : t) (b : t) = a / b
 
@@ -117,7 +117,7 @@ let inRange (lower : t) (upper : t) (n : t) : bool =
     n >= lower && n < upper
 
 
-let in_range l u f = inRange l u f
+let in_range lower upper f = inRange lower upper f
 
 let squareRoot (f : t) = sqrt f
 

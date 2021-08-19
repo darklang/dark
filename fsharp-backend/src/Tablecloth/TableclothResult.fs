@@ -12,7 +12,7 @@ let fromOption error ma =
   | Some right -> Result.Ok right
 
 
-let from_option e o = fromOption e o
+let from_option error o = fromOption error o
 
 let isOk r =
   match r with
@@ -62,7 +62,7 @@ let unwrapError ``default`` r =
   | Error error -> error
 
 
-let unwrap_error d r = unwrapError d r
+let unwrap_error ``default`` r = unwrapError ``default`` r
 
 let map f r = Result.map f r
 
