@@ -131,6 +131,13 @@ let queryToDval (queryString : string) : RT.Dval =
   |> RT.Dval.obj
 
 
+let () =
+  // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
+  // idea, but it's a change (one that breaks all the tests), and so something we
+  // should do consciously.
+  System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
+
+
 // There has been quite a history of HTTPClient having problems in previous versions
 // of .NET, including socket exhaustion and DNS results not expiring. The history is
 // handled quite well in
@@ -499,11 +506,3 @@ let rec httpCall
 
 // FSTODO rawbytes
 //     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
-
-// Let's self-initialize, since there's no ordering constraints from this, we just
-// want it to be done before anything else in here runs.
-let init : unit =
-  // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
-  // idea, but it's a change (one that breaks all the tests), and so something we
-  // should do consciously.
-  System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
