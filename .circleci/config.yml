@@ -269,7 +269,8 @@ jobs:
       # so the ocamltestserver will load
       - run: touch backend/static/appsupport.js backend/static/app.js backend/static/analysis.js backend/static/app.css
       - run: scripts/support/generate-etags
-      - run: scripts/support/compile-project --test fsharp-backend
+      - run: scripts/support/compile-project fsharp-backend
+      - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
@@ -278,6 +279,7 @@ jobs:
             # Just enough for integration tests and deploy
             - fsharp-backend/Build/out/net6.0/publish/ApiServer
             - fsharp-backend/Build/out/net6.0/publish/BwdServer
+            - fsharp-backend/Build/out/net6.0/publish/QueueWorker
             - backend/static/BlazorWorker.js
             - backend/static/blazor
       - show-large-files-and-directories
