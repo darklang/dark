@@ -112,8 +112,9 @@ if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
   # sudo nginx &
   # echo "Started nginx"
 else
-  echo "Missing F# binaries (${BINPATH})"
-  ls -la "${BINPATH}"
+  echo "Missing F# binaries (${API_SERVER_BINPATH}, ${BWD_SERVER_BINPATH})"
+  ls -la "${API_SERVER_BINPATH}"
+  ls -la "${BWD_SERVER_BINPATH}"
   exit 1
 fi
 
