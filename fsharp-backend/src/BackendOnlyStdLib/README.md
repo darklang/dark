@@ -1,5 +1,4 @@
-# LibBackend
+# BackendOnlyStdLib
 
-The backend application around Dark. Everything from user management, web
-servers, logging, DBs, etc. Also includes functions which cannot be implemented
-in the client.
+Functions which need to be run on the backend, due to their connection to the DB,
+queues, etc.

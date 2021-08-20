@@ -1,5 +1,3 @@
-# LibBackend
+# LibRealExecution
 
-The backend application around Dark. Everything from user management, web
-servers, logging, DBs, etc. Also includes functions which cannot be implemented
-in the client.
+Pulls together the StdLibs and LibExecution and LibBackend to provide the actual context we use to execute Dark code in the various binaries.
