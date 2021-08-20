@@ -85,7 +85,7 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
-  wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/net6.0/wwwroot/_framework/ backend/static/blazor/")
+  wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/")
   return blazor and wwwroot
 
 def client_build():
@@ -217,16 +217,12 @@ def fsharp_paket_restore():
 # there but I'm not sure what.
 def fsharp_backend_quick_build():
   start = time.time()
-  # Debug symbols are removed because running the server in dev reads the debug
-  # symbols (.pdb files), which locks them for the build server. We work around
-  # it for the main binaries, but for now let's just not generate them.
   build = f"cd fsharp-backend \
     && unbuffer dotnet build \
       -graphBuild:true \
       --no-restore \
       --verbosity minimal \
-      --configuration Debug \
-      /p:SuppressTrimAnalysisWarnings=false"
+      --configuration Debug"
   return run_backend(start, build)
 
 
@@ -245,8 +241,7 @@ def fsharp_backend_full_build():
   build = f"cd fsharp-backend \
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
-      --configuration {configuration} \
-      /p:SuppressTrimAnalysisWarnings=false"
+      --configuration {configuration}"
   result = run_backend(start, build)
 
   # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
@@ -518,7 +513,8 @@ def mark(should, f):
     should.backend_build = True
 
   elif ("/fsharp-backend/global.json" in f or \
-        "/fsharp-backend/.config/dotnet-tools.json" in f):
+        "/fsharp-backend/.config/dotnet-tools.json" in f or \
+        "/fsharp-backend/Directory.Build.props" in f):
     should.fsharp_tool_restore = True
     should.fsharp_paket_restore = True
     should.fsharp_backend_full_build = True
@@ -530,7 +526,7 @@ def mark(should, f):
     should.fsharp_paket_restore = True
 
   elif ("/fsharp-backend/" in f) and \
-    (".fsproj" in f or ".sln" in f or "Directory.Build.props" in f):
+    (".fsproj" in f or ".sln" in f):
       should.fsharp_backend_full_build = True
 
   elif ("/fsharp-backend/" in f) and (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):

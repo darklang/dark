@@ -10,7 +10,7 @@
          using super-alpha versions of everything this might work. -->
     <IsPublishable>false</IsPublishable>
     <!-- <IsTrimmable>false</IsTrimmable> -->
-    <!-- <RuntimeIdentifier>browser-wasm</RuntimeIdentifier> -->
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />

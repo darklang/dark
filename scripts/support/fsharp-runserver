@@ -3,13 +3,10 @@
 
 set -euo pipefail
 
-BINPATH="fsharp-backend/Build/out/"
-# msbuild doesn't like to copy on top of a running server, so we have two files
-# for each
-API_SERVER_FILE="${BINPATH}/ApiServer.dll"
-BWD_SERVER_FILE="${BINPATH}/BwdServer.dll"
-API_SERVER_EXE="${BINPATH}/ApiServer2.dll"
-BWD_SERVER_EXE="${BINPATH}/BwdServer2.dll"
+API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
+API_SERVER_EXE="${API_SERVER_BINPATH}/ApiServer"
+BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
+BWD_SERVER_EXE="${BWD_SERVER_BINPATH}/BwdServer"
 TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 #FSTODO
 # QW_EXE="$BINPATH/QueueWorker"
@@ -19,10 +16,8 @@ TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 echo "Stopping servers"
 #sudo pkill -f nginx || true # FSTODO
 #FSTODO
-sudo pkill -f "dotnet ${API_SERVER_FILE}" || true
-sudo pkill -f "dotnet ${BWD_SERVER_FILE}" || true
-sudo pkill -f "dotnet ${API_SERVER_EXE}" || true
-sudo pkill -f "dotnet ${BWD_SERVER_EXE}" || true
+sudo pkill -f "${API_SERVER_EXE}2" || true
+sudo pkill -f "${BWD_SERVER_EXE}2" || true
 
 #FSTODO
 # pkill -f queue_worker.exe || true
@@ -51,12 +46,10 @@ echo "Waiting for postgres"
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
-  echo -n ""
-  #FSTODO
-  #if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
-  # if [[ ! -f "${BWD_SERVER_EXE}" || ! -f "${API_SERVER_EXE}" ]]; then
-  #   sleep 0.01
-  # fi
+  # if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
+  if [[ ! -f "${BWD_SERVER_EXE}" || ! -f "${API_SERVER_EXE}" ]]; then
+    sleep 0.01
+  fi
 done
 echo "Done waiting for compiled servers"
 
@@ -79,23 +72,23 @@ echo "Done waiting for compiled servers"
 #FSTODO
 #if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
 
-if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
+if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
   # msbuild won't compile onto files being run, so copy them first
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   ./scripts/support/runlegacyserver
-  cp "${API_SERVER_FILE}" "${API_SERVER_EXE}"
-  cp "${BINPATH}/ApiServer.deps.json" "${BINPATH}/ApiServer2.deps.json"
-  # cp "${BINPATH}/ApiServer.runtimeconfig.dev.json" "${BINPATH}/ApiServer2.runtimeconfig.dev.json"
-  cp "${BINPATH}/ApiServer.runtimeconfig.json" "${BINPATH}/ApiServer2.runtimeconfig.json"
-  cp "${BINPATH}/ApiServer.xml" "${BINPATH}/ApiServer2.xml"
-  cp "${BWD_SERVER_FILE}" "${BWD_SERVER_EXE}"
-  cp "${BINPATH}/BwdServer.deps.json" "${BINPATH}/BwdServer2.deps.json"
-  # cp "${BINPATH}/BwdServer.runtimeconfig.dev.json" "${BINPATH}/BwdServer2.runtimeconfig.dev.json"
-  cp "${BINPATH}/BwdServer.runtimeconfig.json" "${BINPATH}/BwdServer2.runtimeconfig.json"
-  cp "${BINPATH}/BwdServer.xml" "${BINPATH}/BwdServer2.xml"
+  cp "${API_SERVER_EXE}" "${API_SERVER_EXE}2"
+  # cp "${API_SERVER_BINPATH}/ApiServer.deps.json" "${BINPATH}/ApiServer2.deps.json"
+  # # cp "${BINPATH}/ApiServer.runtimeconfig.dev.json" "${BINPATH}/ApiServer2.runtimeconfig.dev.json"
+  # cp "${BINPATH}/ApiServer.runtimeconfig.json" "${BINPATH}/ApiServer2.runtimeconfig.json"
+  # cp "${BINPATH}/ApiServer.xml" "${BINPATH}/ApiServer2.xml"
+  cp "${BWD_SERVER_EXE}" "${BWD_SERVER_EXE}2"
+  # cp "${BINPATH}/BwdServer.deps.json" "${BINPATH}/BwdServer2.deps.json"
+  # # cp "${BINPATH}/BwdServer.runtimeconfig.dev.json" "${BINPATH}/BwdServer2.runtimeconfig.dev.json"
+  # cp "${BINPATH}/BwdServer.runtimeconfig.json" "${BINPATH}/BwdServer2.runtimeconfig.json"
+  # cp "${BINPATH}/BwdServer.xml" "${BINPATH}/BwdServer2.xml"
   echo "Running server"
-  dotnet "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
-  dotnet "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  "${API_SERVER_EXE}2" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+  "${BWD_SERVER_EXE}2" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
   #FSTODO
   # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
   # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
@@ -120,7 +113,7 @@ if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
   # echo "Started nginx"
 else
   echo "Missing F# binaries (${BINPATH})"
-  ls "${BINPATH}"
+  ls -la "${BINPATH}"
   exit 1
 fi
 
