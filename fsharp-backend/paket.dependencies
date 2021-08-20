@@ -43,8 +43,7 @@ nuget OpenTelemetry.Instrumentation.Http = 1.0.0-rc7
 
 // LibBackend
 nuget Npgsql.FSharp = 4.0.0
-//nuget Npgsql = 6.0.0-rc1 // not released yet
-git https://github.com/npgsql/npgsql 416e3965ce497eb76d67d440f7a62703bb873590
+nuget Npgsql = 6.0.0-preview7
 nuget Sodium.Core = 1.2.3
 
 

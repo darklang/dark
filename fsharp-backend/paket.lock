@@ -227,8 +227,8 @@ NUGET
     Newtonsoft.Json (13.0.1)
     Newtonsoft.Json.Bson (1.0.2)
       Newtonsoft.Json (>= 12.0.1)
-    Npgsql (5.0.7)
-      System.Runtime.CompilerServices.Unsafe (>= 4.6)
+    Npgsql (6.0.0-preview7)
+      System.Runtime.CompilerServices.Unsafe (>= 5.0)
     Npgsql.FSharp (4.0)
       FSharp.Core (>= 4.7.2)
       Npgsql (>= 5.0.3)
@@ -768,9 +768,7 @@ NUGET
       System.Reflection.Emit.Lightweight (>= 4.3)
       System.Threading.Tasks.Extensions (>= 4.4)
       System.ValueTuple (>= 4.4)
-GIT
-  remote: https://github.com/npgsql/npgsql
-     (416e3965ce497eb76d67d440f7a62703bb873590)
+
 GROUP Wasm
 NUGET
   remote: https://api.nuget.org/v3/index.json
