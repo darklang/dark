@@ -313,7 +313,11 @@ def reload_server():
 
 def reload_fsharp_server():
   start = time.time()
-  runserver = "scripts/support/fsharp-runserver"
+  if in_ci:
+    configuration = " --published"
+  else:
+    configuration = ""
+  runserver = f"scripts/support/fsharp-runserver {configuration}"
   return run_backend(start, runserver)
 
 
