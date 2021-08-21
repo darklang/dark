@@ -7,7 +7,7 @@ open System.Threading.Tasks
 
 [<EntryPoint>]
 let main (args : string array) : int =
-  LibBackend.Init.init "Tests" // Must go before Tests.BwdServer.init
+  LibRealExecution.RealExecution.init "Tests" // Must go before Tests.BwdServer.init
   let cancelationTokenSource = new System.Threading.CancellationTokenSource()
   let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
   // CLEANUP For now, migrations are run by the ocaml process in run-fsharp-tests

@@ -11,12 +11,17 @@ function ctrl_c() {
 }
 
 DEBUG=false
+PUBLISHED=false
 
 for i in "$@"
 do
   case "${i}" in
     --debug)
     DEBUG=true
+    shift
+    ;;
+    --published)
+    PUBLISHED=true
     shift
     ;;
   esac
@@ -42,6 +47,12 @@ createdb testdb
 # CLEANUP This is where the migrations are run for testdb at the moment
 DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8001 ./scripts/wait-until-server-ready
 
+if [[ "$PUBLISHED" == "true" ]]; then
+  EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests
+else
+  EXE=Build/out/Tests/Debug/net6.0/linux-x64/Tests
+fi
+
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the
 # spinner and not running the tests in parallel.
@@ -54,7 +65,7 @@ if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=eapnsdc \
-  lldb -- Build/out/Tests --no-spinner --sequenced "${@}"
+  lldb -- "${EXE}" --no-spinner --sequenced "${@}"
 else
   cd fsharp-backend
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
@@ -63,5 +74,6 @@ else
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=eapnsdc \
-  Build/out/Tests --no-spinner --sequenced "${@}"
+  "${EXE}" --no-spinner --sequenced "${@}"
 fi
+

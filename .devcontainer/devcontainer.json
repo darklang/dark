@@ -88,6 +88,11 @@
     "type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo",
     "type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target",
 
+    // Postgres
+    "type=volume,src=pgconf,dst=/etc/postgresql",
+    "type=volume,src=pglogs,dst=/var/log/postgresql",
+    "type=volume,src=pgdata,dst=/var/lib/postgresql",
+
     // VSCode extensions
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
     "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"

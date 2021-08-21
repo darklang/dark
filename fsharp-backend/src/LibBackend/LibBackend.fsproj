@@ -4,6 +4,11 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>5.0</LangVersion>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>false</IsTrimmable>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
@@ -40,25 +45,6 @@
     <Compile Include="Traces.fs" />
     <Compile Include="Stats.fs" />
     <Compile Include="Migrations.fs" />
-    <Compile Include="StdLib/LibCrypto.fs" />
-    <Compile Include="StdLib/LibDB.fs" />
-    <Compile Include="StdLib/LibDB2.fs" />
-    <Compile Include="StdLib/LibDarkInternal.fs" />
-    <Compile Include="StdLib/LibEvent.fs" />
-    <Compile Include="HttpClient.fs" />
-    <Compile Include="StdLib/LibHttpClient0.fs" />
-    <Compile Include="StdLib/LibHttpClient1.fs" />
-    <Compile Include="StdLib/LibHttpClient2.fs" />
-    <Compile Include="StdLib/LibHttpClient3.fs" />
-    <Compile Include="StdLib/LibHttpClient4.fs" />
-    <Compile Include="StdLib/LibHttpClient5.fs" />
-    <Compile Include="StdLib/LibJwt.fs" />
-    <Compile Include="StdLib/LibStaticAssets.fs" />
-    <Compile Include="StdLib/LibTwilio.fs" />
-    <Compile Include="StdLib/LibX509.fs" />
-    <Compile Include="StdLib/StdLib.fs" />
-    <Compile Include="RealExecution.fs" />
-    <Compile Include="QueueWorker.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

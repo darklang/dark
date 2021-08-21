@@ -5,7 +5,7 @@ open FSharp.Control.Tasks
 open FSharpPlus
 
 open Prelude
-open Tablecloth
+open VendoredTablecloth
 open RuntimeTypes
 
 let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =

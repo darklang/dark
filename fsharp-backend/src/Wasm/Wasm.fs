@@ -156,7 +156,7 @@ module Eval =
           secrets = [] }
 
       let stdlib =
-        LibExecution.StdLib.StdLib.fns
+        LibExecutionStdLib.StdLib.fns
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       // FSTODO: get packages from caller
@@ -275,4 +275,4 @@ type EvalWorker =
     }
     |> Task.map Json.OCamlCompatible.serialize
     |> Task.map EvalWorker.postMessage
-    |> ignore
+    |> ignore<Task<unit>>

@@ -1,9 +1,11 @@
 module LibBackend.Stats
 
+// Non-execution analysis
+
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 open Npgsql
 open Db
 
@@ -13,10 +15,6 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
-
-// -------------------------
-// Non-execution analysis
-// -------------------------
 
 type DBStat = { count : int; example : Option<RT.Dval * string> }
 

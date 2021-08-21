@@ -18,6 +18,7 @@
 #r "../../Build/out/Prelude.dll"
 #r "../../Build/out/LibBackend.dll"
 #r "../../Build/out/LibExecution.dll"
+#r "../../Build/out/LibExecutionStdLib.dll"
 
 let input = stdin.ReadToEnd().Split("\n")
 

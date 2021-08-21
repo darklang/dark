@@ -12,7 +12,7 @@ let canvasName =
     "canvasName.create"
     (fun c ->
       try
-        CanvasName.create c |> ignore
+        CanvasName.create c |> ignore<CanvasName.T>
         true
       with
       | e -> false)

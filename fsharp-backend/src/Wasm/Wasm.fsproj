@@ -3,16 +3,21 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>5.0</LangVersion>
+    <!-- Publishing configuration -->
+    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
+    <!-- <SelfContained>true</SelfContained> -->
+    <!-- Disable from the publishing step for now, as it fails. Maybe when we're not
+         using super-alpha versions of everything this might work. -->
+    <IsPublishable>false</IsPublishable>
+    <!-- <IsTrimmable>false</IsTrimmable> -->
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Wasm.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="5.0.7" />
-    <PackageReference Include="System.Net.Http.Json" Version="5.0.0" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

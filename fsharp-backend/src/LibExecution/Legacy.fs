@@ -1,7 +1,7 @@
 module LibExecution.Legacy
 
 open Prelude
-open Tablecloth
+open VendoredTablecloth
 open RuntimeTypes
 
 open Newtonsoft.Json

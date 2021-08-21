@@ -5,7 +5,7 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 open Npgsql
 open LibBackend.Db
 
@@ -155,7 +155,7 @@ let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 let libraries : Lazy<RT.Libraries> =
   lazy
     ({ stdlib =
-         (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
+         (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns @ LibTest.fns
           |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
        packageFns = Map.empty })

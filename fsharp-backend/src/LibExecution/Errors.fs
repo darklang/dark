@@ -78,7 +78,7 @@ let throw (str : string) : 'a = raise (StdlibException(StringError str))
 // When a function in called with the wrong number of arguments. Used in almost every function signature.
 let incorrectArgs () = raise (StdlibException IncorrectArgs)
 
-// FSTODO: add a test that this matches LibExecution.StdLib.infixFnMapping Int functions
+// FSTODO: add a test that this matches LibExecutionStdLib.infixFnMapping Int functions
 let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
 
 let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =

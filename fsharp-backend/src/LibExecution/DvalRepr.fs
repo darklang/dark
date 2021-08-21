@@ -11,7 +11,7 @@ module LibExecution.DvalRepr
 // general, we should avoid general purpose or reusable functions in this file.
 
 open Prelude
-open Tablecloth
+open VendoredTablecloth
 
 open RuntimeTypes
 
@@ -237,7 +237,7 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
         "{}"
       else
         let strs =
-          Map.fold [] (fun key value l -> (key + ": " + recurse value) :: l) o
+          Map.fold [] (fun l key value -> (key + ": " + recurse value) :: l) o
 
         "{ " + inl + String.concat ("," + inl) strs + nl + "}"
     | _ -> reprfn dv
@@ -899,7 +899,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
         "{}"
       else
         let strs =
-          Map.fold [] (fun key value l -> ($"{key}: {toRepr_ indent value}") :: l) o
+          Map.fold [] (fun l key value -> ($"{key}: {toRepr_ indent value}") :: l) o
 
         let elems = String.concat $",{inl}" strs
         // CLEANUP: this space makes no sense
@@ -1110,7 +1110,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
 
     [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ] |> Array.concat
   | DList l ->
-    if List.is_empty l then
+    if List.isEmpty l then
       "[]" |> toBytes
     else
       let body =
@@ -1132,7 +1132,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
         o
         |> Map.fold
              []
-             (fun key value l ->
+             (fun l key value ->
                (Array.concat [ toBytes (key + ": ")
                                toHashableRepr indent false value ]
                 :: l))

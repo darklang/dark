@@ -126,6 +126,8 @@ let configureServices (services : IServiceCollection) : unit =
 let main args =
   print "Starting ApiServer"
   LibBackend.Init.init "ApiServer"
+  // Breaks tests as they're being run simultaneously by the ocaml server
+  // LibBackend.Migrations.init ()
 
   let hcUrl = HealthCheck.url LibService.Config.apiServerHealthCheckPort
 

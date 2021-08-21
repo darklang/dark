@@ -3,9 +3,15 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>5.0</LangVersion>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>false</IsTrimmable>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="VendoredTablecloth.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="Shortcuts.fs" />
     <Compile Include="DvalRepr.fs" />
@@ -16,26 +22,6 @@
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
     <Compile Include="Legacy.fs" />
-    <Compile Include="StdLib/LibBool.fs" />
-    <Compile Include="StdLib/LibBytes.fs" />
-    <Compile Include="StdLib/LibChar.fs" />
-    <Compile Include="StdLib/LibDate.fs" />
-    <Compile Include="StdLib/LibDict.fs" />
-    <Compile Include="StdLib/LibFloat.fs" />
-    <Compile Include="StdLib/LibHttp.fs" />
-    <Compile Include="StdLib/LibHttpClient.fs" />
-    <Compile Include="StdLib/LibInt.fs" />
-    <Compile Include="StdLib/LibJson.fs" />
-    <Compile Include="StdLib/LibList.fs" />
-    <Compile Include="StdLib/LibMath.fs" />
-    <Compile Include="StdLib/LibMiddleware.fs" />
-    <Compile Include="StdLib/LibNoModule.fs" />
-    <Compile Include="StdLib/LibObject.fs" />
-    <Compile Include="StdLib/LibOption.fs" />
-    <Compile Include="StdLib/LibResult.fs" />
-    <Compile Include="StdLib/LibString.fs" />
-    <Compile Include="StdLib/LibUuid.fs" />
-    <Compile Include="StdLib/StdLib.fs" />
     <Compile Include="ParsedRequest.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="OCamlTypes.fs" />

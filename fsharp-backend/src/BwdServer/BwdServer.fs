@@ -15,9 +15,6 @@ open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
-open Microsoft.Extensions.Configuration
-open Microsoft.Extensions.Hosting
-open Microsoft.AspNetCore.Server.Kestrel.Core
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
@@ -29,7 +26,7 @@ open FSharpx
 module HealthCheck = LibService.HealthCheck
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module RealExe = LibBackend.RealExecution
+module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
@@ -410,13 +407,12 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
-  let (_ : IServiceCollection) =
-    services
-    |> LibService.Rollbar.AspNet.addRollbarToServices
-    |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
-    |> HealthCheck.configureServices
+  services
+  |> HealthCheck.configureServices
+  |> LibService.Rollbar.AspNet.addRollbarToServices
+  |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
+  |> ignore<IServiceCollection>
 
-  ()
 
 let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
   let hcUrl = HealthCheck.url healthCheckPort

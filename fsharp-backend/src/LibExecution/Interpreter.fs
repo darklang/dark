@@ -535,7 +535,7 @@ and callFn
                   |> Map.ofList
                   |> DObj
 
-              ignore (executeLambda state b [ sample ])
+              ignore<DvalTask> (executeLambda state b [ sample ])
             | _ -> ()
 
           match fnResult with

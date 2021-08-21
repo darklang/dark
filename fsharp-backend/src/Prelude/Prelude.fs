@@ -4,6 +4,15 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
+
+// ----------------------
+// Always use types with ignore
+// ----------------------
+
+[<RequiresExplicitTypeArgumentsAttribute>]
+let ignore<'a> (a : 'a) : unit = ignore<'a> a
+
+
 // ----------------------
 // Null
 // ----------------------
@@ -269,14 +278,9 @@ type System.DateTime with
 // https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
 // also use a single global value for the VM, so that users cannot be
 // guaranteed to get multiple consequetive values (as other requests may intervene)
-let random : System.Random = System.Random()
-
 let gid () : uint64 =
   try
-    // get enough bytes for an int64, trim it to an int31 for now to match the frontend
-    let bytes = Array.create 8 (byte 0)
-    random.NextBytes(bytes)
-    let rand64 : uint64 = System.BitConverter.ToUInt64(bytes, 0)
+    let rand64 : uint64 = uint64 (System.Random.Shared.NextInt64())
     // Keep 30 bits
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
@@ -286,7 +290,8 @@ let gid () : uint64 =
 
 let randomString (length : int) : string =
   let result =
-    Array.init length (fun _ -> char (random.Next(0x41, 0x5a))) |> System.String
+    Array.init length (fun _ -> char (System.Random.Shared.Next(0x41, 0x5a)))
+    |> System.String
 
   assertEq "randomString length is correct" result.Length length
   result
@@ -682,7 +687,7 @@ module Json =
           )
 
         let caseName : string =
-          reader.Read() |> ignore
+          reader.Read() |> ignore<bool>
           reader.Value :?> string
 
         let caseInfo =
@@ -698,10 +703,10 @@ module Json =
             | _ ->
               let value = serializer.Deserialize(reader, fields.[index].PropertyType)
 
-              reader.Read() |> ignore
+              reader.Read() |> ignore<bool>
               read (index + 1) (acc @ [ value ])
 
-          reader.Read() |> ignore
+          reader.Read() |> ignore<bool>
           read 0 List.empty
 
         let args = readElements () |> Array.ofList
@@ -754,7 +759,7 @@ module Json =
         serializer.Serialize(writer, values)
 
       override _.ReadJson(reader, t, existingValue, serializer) =
-        let advance = reader.Read >> ignore
+        let advance = reader.Read >> ignore<bool>
         let deserialize t = serializer.Deserialize(reader, t)
         let itemTypes = FSharpType.GetTupleElements(t)
 
@@ -994,19 +999,6 @@ module Tablecloth =
 
     let merge (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
       FSharpPlus.Map.union m1 m2
-
-  module Result =
-    // Returns `Ok ()` if no errors, or `Error list` otherwise
-    let combineErrorsUnit (l : List<Result<'ok, 'err>>) : Result<unit, List<'err>> =
-      List.fold
-        (fun l r ->
-          match l, r with
-          | _, Ok _ -> l
-          | Ok (), Error e -> Error [ e ]
-          | Error l, Error e -> Error(e :: l))
-        (Ok())
-        l
-
 
 
 // ----------------------

@@ -5,7 +5,7 @@ module LibBackend.EventQueue
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 open Npgsql
 open Db
 
@@ -15,6 +15,8 @@ open Tablecloth
 open LibService.Telemetry
 
 module RT = LibExecution.RuntimeTypes
+
+type Activity = System.Diagnostics.Activity
 
 
 type Status =
@@ -471,7 +473,7 @@ let putBack (parent : Span.T) (item : T) (status : Status) : Task<unit> =
     (Span.child "event_queue: put_back_transaction" parent)
       .AddTag("status", toString status)
       .AddTag("retries", item.retries)
-    |> ignore
+    |> ignore<Activity>
 
   match status with
   | OK ->

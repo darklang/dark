@@ -85,7 +85,10 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
-  wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/wwwroot/_framework/ backend/static/blazor/")
+  if in_ci:
+    wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/wwwroot/_framework/ backend/static/blazor/")
+  else:
+    wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/")
   return blazor and wwwroot
 
 def client_build():
@@ -172,12 +175,11 @@ def backend_test():
 def fsharp_backend_test():
   start = time.time()
   ci = "--verbosity detailed" if in_ci else "--verbosity normal"
-  # FSTODO: unused
   if in_ci:
-    configuration = "Release"
+    configuration = " --published"
   else:
-    configuration = "Debug"
-  build = f"scripts/run-fsharp-tests"
+    configuration = ""
+  build = f"scripts/run-fsharp-tests {configuration}"
   return run_test(start, build)
 
 def fsharp_tool_restore():
@@ -218,9 +220,6 @@ def fsharp_paket_restore():
 # there but I'm not sure what.
 def fsharp_backend_quick_build():
   start = time.time()
-  # Debug symbols are removed because running the server in dev reads the debug
-  # symbols (.pdb files), which locks them for the build server. We work around
-  # it for the main binaries, but for now let's just not generate them.
   build = f"cd fsharp-backend \
     && unbuffer dotnet build \
       -graphBuild:true \
@@ -232,23 +231,34 @@ def fsharp_backend_quick_build():
 
 def fsharp_backend_full_build():
   start = time.time()
-  #FSTODO: there is a bug in the .NET linker, come back to it later.
-  #https://github.com/mono/linker/issues/1508
   if in_ci:
     configuration = "Release"
-    verbosity = "normal"
+    verbosity = "minimal"
     command = "publish"
   else:
     configuration = "Debug"
     verbosity = "minimal"
     command = "build"
 
-  #FSTODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
+  # TODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
   build = f"cd fsharp-backend \
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
       --configuration {configuration}"
-  return run_backend(start, build)
+  result = run_backend(start, build)
+
+  # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
+  # ourselves for now.
+  if result and in_ci:
+    build = f"cd fsharp-backend \
+      && unbuffer dotnet build \
+        --verbosity {verbosity} \
+        --configuration {configuration} \
+        src/Wasm/Wasm.fsproj"
+    result = run_backend(start, build)
+  return result
+
+
 
 
 def rust_build(dir):
@@ -303,7 +313,11 @@ def reload_server():
 
 def reload_fsharp_server():
   start = time.time()
-  runserver = "scripts/support/fsharp-runserver"
+  if in_ci:
+    configuration = " --published"
+  else:
+    configuration = ""
+  runserver = f"scripts/support/fsharp-runserver {configuration}"
   return run_backend(start, runserver)
 
 
@@ -378,6 +392,7 @@ def execute(should):
     should.reload_browser |= success
 
   if should.fsharp_backend_full_build:
+    should.fsharp_backend_quick_build = False # no need to do both
     if not fsharp_backend_full_build(): success = False
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
@@ -505,7 +520,8 @@ def mark(should, f):
     should.backend_build = True
 
   elif ("/fsharp-backend/global.json" in f or \
-        "/fsharp-backend/.config/dotnet-tools.json" in f):
+        "/fsharp-backend/.config/dotnet-tools.json" in f or \
+        "/fsharp-backend/Directory.Build.props" in f):
     should.fsharp_tool_restore = True
     should.fsharp_paket_restore = True
     should.fsharp_backend_full_build = True
@@ -517,7 +533,7 @@ def mark(should, f):
     should.fsharp_paket_restore = True
 
   elif ("/fsharp-backend/" in f) and \
-    (".fsproj" in f or ".sln" in f or "Directory.Build.props" in f):
+    (".fsproj" in f or ".sln" in f):
       should.fsharp_backend_full_build = True
 
   elif ("/fsharp-backend/" in f) and (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):

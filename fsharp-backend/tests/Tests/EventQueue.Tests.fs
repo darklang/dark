@@ -16,7 +16,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module EQ = LibBackend.EventQueue
 module Canvas = LibBackend.Canvas
-module QW = LibBackend.QueueWorker
 module Serialize = LibBackend.Serialize
 module Span = LibService.Telemetry.Span
 
@@ -44,7 +43,7 @@ let testEventQueueRoundtrip =
     do! EQ.enqueue meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
 
     do! EQ.testingScheduleAll ()
-    let! result = QW.run executionID
+    let! result = QueueWorker.run executionID
 
     match result with
     | Ok (Some resultDval) ->

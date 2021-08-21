@@ -12,7 +12,7 @@ open FSharpPlus
 open Prelude
 open Tablecloth
 
-open Npgsql.FSharp.Tasks
+open Npgsql.FSharp
 open LibBackend.Db
 
 module PT = LibExecution.ProgramTypes

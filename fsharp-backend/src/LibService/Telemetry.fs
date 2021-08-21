@@ -4,6 +4,9 @@ open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 
+open OpenTelemetry
+open OpenTelemetry.Trace
+open Honeycomb.OpenTelemetry
 
 module Internal =
   // CLEANUP: can a DiagnosticSource be used here instead?
@@ -84,50 +87,46 @@ let init (serviceName : string) =
       version
     )
 
+let honeycombOptions : HoneycombOptions =
+  let options = HoneycombOptions()
+  options.ApiKey <- Config.honeycombApiKey
+  options.Dataset <- Config.honeycombDataset
+  options.Endpoint <- Config.honeycombEndpoint
+  options
+
+let addTelemetry (builder : TracerProviderBuilder) : TracerProviderBuilder =
+  builder.Configure(
+    (fun _ builder ->
+      builder
+      |> fun b ->
+           match Config.telemetryExporter with
+           | Config.Honeycomb -> b.UseHoneycomb(honeycombOptions)
+           | Config.NoExporter -> b
+           | Config.Console -> b.AddConsoleExporter()
+      |> fun b -> b.AddAspNetCoreInstrumentation()
+      |> fun b -> b.AddHttpClientInstrumentation()
+      |> ignore<TracerProviderBuilder>)
+  )
+
+
 module Console =
-  open OpenTelemetry
-  open OpenTelemetry.Trace
-
-  // For webservers, tracing is added by middlewares. For non-webservers, we also
-  // need to add tracing. This does that.
+  // For webservers, tracing is added by ASP.NET middlewares. For non-webservers, we
+  // also need to add tracing. This does that.
   let loadTelemetry () : unit =
-    let (_ : TracerProvider) =
-      Sdk
-        .CreateTracerProviderBuilder()
-        .SetSampler(new AlwaysOnSampler())
-        .AddSource("Dark.*")
-        .Build()
-
-    ()
+    Sdk
+      .CreateTracerProviderBuilder()
+      .SetSampler(new AlwaysOnSampler())
+      .AddSource("Dark.*")
+    |> addTelemetry
+    |> fun tp -> tp.Build()
+    |> ignore<TracerProvider>
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
-  open OpenTelemetry.Trace
-  open OpenTelemetry.Resources
-  open OpenTelemetry.Exporter
-
-  let configureHoneycomb (options : OtlpExporterOptions) =
-    let apiKey = Config.honeycombApiKey
-    let dataset = Config.honeycombDataset
-    options.Endpoint <- System.Uri Config.honeycombEndpoint
-    options.Headers <- $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}"
 
   let addTelemetryToServices
     (serviceName : string)
     (services : IServiceCollection)
     : IServiceCollection =
     services.AddOpenTelemetryTracing
-      (fun (builder : TracerProviderBuilder) ->
-        builder
-        |> fun b ->
-             b.SetResourceBuilder(
-               ResourceBuilder.CreateDefault().AddService(serviceName)
-             )
-        |> fun b -> b.AddAspNetCoreInstrumentation()
-        |> fun b -> b.AddHttpClientInstrumentation()
-        |> fun b ->
-             match Config.telemetryExporter with
-             | Config.Honeycomb -> b.AddOtlpExporter(fun o -> configureHoneycomb o)
-             | Config.NoExporter -> b
-             | Config.Console -> b.AddConsoleExporter()
-        |> fun b -> b.Build() |> ignore)
+      (fun builder -> addTelemetry builder |> ignore<TracerProviderBuilder>)

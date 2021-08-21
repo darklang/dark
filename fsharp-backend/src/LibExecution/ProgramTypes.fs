@@ -5,8 +5,7 @@ module LibExecution.ProgramTypes
 open FSharpPlus
 
 open Prelude
-// FSTODO shouldn't have tablecloth in here
-open Tablecloth
+open VendoredTablecloth
 
 // Used for conversion functions
 module RT = RuntimeTypes
