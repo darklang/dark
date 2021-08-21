@@ -4,12 +4,10 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>5.0</LangVersion>
     <!-- Publishing configuration -->
-    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
-    <!-- <SelfContained>true</SelfContained> -->
-    <!-- Disable from the publishing step for now, as it fails. Maybe when we're not
-         using super-alpha versions of everything this might work. -->
-    <IsPublishable>false</IsPublishable>
-    <!-- <IsTrimmable>false</IsTrimmable> -->
+    <RunAOTCompilation>true</RunAOTCompilation>
+    <SelfContained>true</SelfContained>
+    <IsPublishable>true</IsPublishable>
+    <IsTrimmable>false</IsTrimmable>
     <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>

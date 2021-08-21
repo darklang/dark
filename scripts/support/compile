@@ -245,18 +245,7 @@ def fsharp_backend_full_build():
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
       --configuration {configuration}"
-  result = run_backend(start, build)
-
-  # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
-  # ourselves for now.
-  if result and in_ci:
-    build = f"cd fsharp-backend \
-      && unbuffer dotnet build \
-        --verbosity {verbosity} \
-        --configuration {configuration} \
-        src/Wasm/Wasm.fsproj"
-    result = run_backend(start, build)
-  return result
+  return run_backend(start, build)
 
 
 
