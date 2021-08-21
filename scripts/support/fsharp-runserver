@@ -3,9 +3,27 @@
 
 set -euo pipefail
 
-API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
+PUBLISHED=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --published)
+    PUBLISHED=true
+    shift
+    ;;
+  esac
+done
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/"
+  BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/"
+else
+  API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
+  BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
+fi
+
 API_SERVER_EXE="${API_SERVER_BINPATH}/ApiServer"
-BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
 BWD_SERVER_EXE="${BWD_SERVER_BINPATH}/BwdServer"
 TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 #FSTODO
@@ -16,8 +34,8 @@ TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 echo "Stopping servers"
 #sudo pkill -f nginx || true # FSTODO
 #FSTODO
-sudo pkill -f "${API_SERVER_EXE}2" || true
-sudo pkill -f "${BWD_SERVER_EXE}2" || true
+sudo pkill -f "ApiServer2" || true
+sudo pkill -f "BwdServer2" || true
 
 #FSTODO
 # pkill -f queue_worker.exe || true
