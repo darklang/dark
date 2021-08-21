@@ -30,6 +30,7 @@ let runCode
 
 let runBenchmark (filename : string) (warmUpCount : uint) : Task<unit> =
   task {
+    let filename = if filename.EndsWith(".fs") then filename else filename + ".fs"
     let traceID = System.Guid.NewGuid()
     let! c = TestUtils.testCanvasInfo "benchmark"
     let program : RT.ProgramContext =
@@ -58,11 +59,32 @@ let runBenchmark (filename : string) (warmUpCount : uint) : Task<unit> =
     return ()
   }
 
+open Argu
+
+type Arguments =
+  | [<Mandatory; MainCommand; ExactlyOnce>] Filename of BENCHMARK : string
+  | [<AltCommandLine("-w")>] Warmups of COUNT : uint
+
+  interface IArgParserTemplate with
+    member this.Usage =
+      match this with
+      | Filename _ ->
+        "the name of the benchmark file to test (in src/Benchmarks/benchmarks)"
+      | Warmups _ -> "the number of warmups to run"
+
+let parser = ArgumentParser.Create<Arguments>(programName = "Benchmark")
+
 [<EntryPoint>]
-let main _ =
-  print "Starting Benchmark"
-  let filename = "fizzbuzz.fs"
-  let warmUps = 3u
-  LibBackend.Init.init "Benchmark"
-  (runBenchmark filename warmUps).GetAwaiter().GetResult()
-  0
+let main args : int =
+  try
+    let cliArgs = parser.ParseCommandLine args
+    print "Starting Benchmark"
+    LibBackend.Init.init "Benchmark"
+    let filename = cliArgs.GetResult Filename
+    let warmups = cliArgs.GetResult(Warmups, 3u)
+    (runBenchmark filename warmups).GetAwaiter().GetResult()
+    0
+  with
+  | e ->
+    print e.Message
+    1

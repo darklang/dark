@@ -47,6 +47,9 @@ nuget Npgsql = 5.0.7
 #git https://github.com/npgsql/npgsql
 nuget Sodium.Core = 1.2.3
 
+// Benchmarks
+nuget Argu = 6.1.1
+
 
 group Wasm
   source https://api.nuget.org/v3/index.json

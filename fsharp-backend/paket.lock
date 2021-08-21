@@ -2,6 +2,9 @@ STORAGE: NONE
 RESTRICTION: == net6.0
 NUGET
   remote: https://api.nuget.org/v3/index.json
+    Argu (6.1.1)
+      FSharp.Core (>= 4.3.2)
+      System.Configuration.ConfigurationManager (>= 4.4)
     AspNetCore.HealthChecks.NpgSql (5.0.2)
       Microsoft.Extensions.Diagnostics.HealthChecks (>= 5.0.1)
       Npgsql (>= 5.0.3)
