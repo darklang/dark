@@ -157,7 +157,7 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
               },
               list{},
             ),
-            Html.input'(
+            Html.textarea(
               list{
                 Attr.placeholder("secret value"),
                 Attr.name("secret-value"),
