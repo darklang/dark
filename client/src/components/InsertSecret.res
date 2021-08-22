@@ -162,7 +162,7 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
                 Attr.placeholder("secret value"),
                 Attr.name("secret-value"),
                 Attr.value(m.newSecretValue),
-                Html.classList(list{("modal-form-input", true), ("error", !m.isValueValid)}),
+                Html.classList(list{("modal-form-textarea", true), ("error", !m.isValueValid)}),
                 Events.onInput(str => Types.SecretMsg(OnUpdateValue(str))),
               },
               list{},
