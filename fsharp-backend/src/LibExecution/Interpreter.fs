@@ -244,7 +244,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
             let! result = eval state newSt expr
             matchResult := result
-            return! tvUnit
+            return ()
         }
 
       let traceIncompletes traces =
