@@ -46,7 +46,7 @@ let executeExpr
   (expr : RT.Expr)
   : Task<RT.Dval> =
   let symtable = Interpreter.withGlobals state inputVars
-  Interpreter.eval state symtable expr |> TaskOrValue.toTask
+  Interpreter.eval state symtable expr |> Ply.TplPrimitives.runPlyAsTask
 
 let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
   match result with
@@ -80,7 +80,7 @@ let executeHandler
   (expr : RT.Expr)
   : Task<RT.Dval> =
   let symtable = Interpreter.withGlobals state inputVars
-  Interpreter.eval state symtable expr |> TaskOrValue.toTask
+  Interpreter.eval state symtable expr |> Ply.TplPrimitives.runPlyAsTask
 
 let executeHttpHandler
   (state : RT.ExecutionState)
@@ -99,8 +99,7 @@ let executeFunction
   (name : RT.FQFnName.T)
   : Task<RT.Dval> =
   Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
-  |> TaskOrValue.toTask
-
+  |> Ply.TplPrimitives.runPlyAsTask
 
 
 // Return a function to trace TLIDs (add it to state via

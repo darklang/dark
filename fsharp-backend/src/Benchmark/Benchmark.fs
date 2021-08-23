@@ -37,7 +37,7 @@ let runFSharp
   task {
     let! state, _ = RealExe.createState traceID 7UL program
     let symtable = Interpreter.withGlobals state Map.empty
-    return! (Interpreter.eval state symtable expr)
+    return! (Interpreter.eval state symtable expr) |> Ply.TplPrimitives.runPlyAsTask
   }
 
 let runFSharpBenchmark

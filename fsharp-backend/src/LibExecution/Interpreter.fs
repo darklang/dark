@@ -2,6 +2,7 @@
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open FSharp.Control.Tasks.Affine.Unsafe
 open FSharpPlus
 
 open Prelude
@@ -29,8 +30,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
-  let preview st expr : TaskOrValue<unit> =
-    taskv {
+  let preview st expr : Ply.Ply<unit> =
+    uply {
       if state.tracing.realOrPreview = Preview then
         let state = { state with onExecutionPath = false }
         let! (_result : Dval) = eval state st expr
@@ -38,7 +39,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     }
 
 
-  taskv {
+  uply {
     match e with
     | EBlank id -> return (incomplete id)
     | EPartial (_, expr) -> return! eval state st expr
@@ -91,7 +92,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         pairs
         |> List.map_s
              (fun (k, v) ->
-               taskv {
+               uply {
                  match (k, v) with
                  | "", v ->
                    let! (_ : Dval) = eval state st v
@@ -156,7 +157,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             + ")."
           )
 
-      return! Value result
+      return result
     | EFeatureFlag (id, cond, oldcode, newcode) ->
       // True gives newcode, unlike in If statements
       //
@@ -180,7 +181,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         try
           eval state st cond
         with
-        | _ -> Value(DBool false)
+        | _ -> Ply.Ply(DBool false)
 
       if cond = DBool true then
         do! preview st oldcode
@@ -215,8 +216,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         (traces : (id * Dval) list)
         (st : DvalMap)
         (expr : Expr)
-        : TaskOrValue<unit> =
-        taskv {
+        : Ply.Ply<unit> =
+        uply {
           // Once a pattern is matched, this function is called to execute its
           // `expr`. It tracks whether this is the first pattern to execute,
           // and calls preview if it is not. Handles calling trace on the
@@ -258,8 +259,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         (traces : (id * Dval) list)
         (id : id)
         (value : Dval)
-        : TaskOrValue<unit> =
-        taskv {
+        : Ply.Ply<unit> =
+        uply {
           do! preview st expr
           traceIncompletes traces
           state.tracing.traceDval false id value
@@ -269,7 +270,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         dv
         (builtUpTraces : (id * Dval) list)
         (pattern, expr)
-        : TaskOrValue<unit> =
+        : Ply.Ply<unit> =
         // Compare `dv` to `pattern`, and execute the rhs `expr` of any
         // matches. Tracks whether a branch has already been executed and
         // will exceute later matches in preview mode.  Ensures all patterns
@@ -340,7 +341,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
            | "Nothing", [], _ ->
              traceNonMatch st expr builtUpTraces pid (DOption None)
            | _ ->
-             taskv {
+             uply {
                let error =
                  if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
                    incomplete pid
@@ -402,7 +403,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   }
 
 and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
-  taskv {
+  uply {
     let! (result : Dval) = eval' state st e
     state.tracing.traceDval state.onExecutionPath (Expr.toID e) result
     return result
@@ -421,12 +422,12 @@ and applyFn
   match fn, isInPipe with
   | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
   // Incompletes are allowed in pipes
-  | DIncomplete _, InPipe _ -> Value(Option.defaultValue fn (List.tryHead args))
+  | DIncomplete _, InPipe _ -> Ply.Ply(Option.defaultValue fn (List.tryHead args))
   | other, InPipe _ ->
     // CLEANUP: this matches the old pipe behaviour, no need to preserve that
-    Value(Option.defaultValue fn (List.tryHead args))
+    Ply.Ply(Option.defaultValue fn (List.tryHead args))
   | other, _ ->
-    Value(
+    Ply.Ply(
       Dval.errSStr
         sourceID
         $"Expected a function value, got something else: {DvalRepr.toDeveloperReprV0 other}"
@@ -457,7 +458,7 @@ and executeLambda
   let firstMarker = List.tryFind Dval.isFake args
 
   match firstMarker with
-  | Some dv -> Value dv
+  | Some dv -> Ply.Ply dv
   | None ->
     let parameters = List.map snd l.parameters
     // One of the reasons to take a separate list of params and args is to
@@ -465,7 +466,7 @@ and executeLambda
     // other places, and the alternative is just to provide incompletes
     // with no context
     if List.length l.parameters <> List.length args then
-      Value(
+      Ply.Ply(
         DError(
           SourceNone,
           $"Expected {List.length l.parameters} arguments, got {List.length args}"
@@ -490,7 +491,7 @@ and callFn
   (isInPipe : IsInPipe)
   (sendToRail : SendToRail)
   : DvalTask =
-  taskv {
+  uply {
     let sourceID id = SourceID(state.tlid, id) in
 
     let fn =
@@ -533,8 +534,8 @@ and callFn
             | _ -> ()
 
           match fnResult with
-          | Some (result, _ts) -> Value(result)
-          | _ -> Value(DIncomplete(sourceID callerID))
+          | Some (result, _ts) -> Ply.Ply(result)
+          | _ -> Ply.Ply(DIncomplete(sourceID callerID))
         | Some fn ->
           // equalize length
           let expectedLength = List.length fn.parameters in
@@ -548,7 +549,7 @@ and callFn
 
             execFn state desc callerID fn args isInPipe
           else
-            Value(
+            Ply.Ply(
               DError(
                 sourceID callerID,
                 $"{desc} has {expectedLength} parameters, but here was called"
@@ -578,7 +579,7 @@ and execFn
   (args : DvalMap)
   (isInPipe : IsInPipe)
   : DvalTask =
-  taskv {
+  uply {
     let sourceID = SourceID(state.tlid, id) in
 
     let typeErrorOrValue userTypes result =
@@ -659,11 +660,11 @@ and execFn
                 match (state.tracing.realOrPreview,
                        state.tracing.loadFnResult fnRecord arglist) with
                 | Preview, Some (result, _ts) ->
-                  Value(Dval.unwrapFromErrorRail result)
+                  Ply.Ply(Dval.unwrapFromErrorRail result)
                 | Preview, None when fn.previewable <> Pure ->
-                  Value(DIncomplete sourceID)
+                  Ply.Ply(DIncomplete sourceID)
                 | _ ->
-                  taskv {
+                  uply {
                     // It's okay to execute user functions in both Preview and
                     // Real contexts, But in Preview we might not have all the
                     // data we need

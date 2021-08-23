@@ -2,6 +2,7 @@ module Prelude
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open FSharp.Control.Tasks.Affine.Unsafe
 
 open System.Text.RegularExpressions
 
@@ -117,8 +118,8 @@ let print (string : string) : unit = NonBlockingConsole.WriteLine string
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
 // of operations.
-let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
-  task {
+let debugTask (msg : string) (a : Ply.Ply<'a>) : Ply.Ply<'a> =
+  uply {
     let! a = a
     NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
     return a
@@ -370,182 +371,76 @@ module Dictionary =
     result
 
 
-
-// ----------------------
-// TaskOrValue
-// ----------------------
-// A way of combining non-task values with tasks, complete with computation expressions
-
-type TaskOrValue<'T> =
-  | Task of Task<'T>
-  | Value of 'T
-
-// It seems from the docs that Delay needs to return a TaskOrValue<'T>, and
-// that other functions take a TaskOrValue<'T>. However, the truth is that
-// those functions (Run, Combine, While, at least), actually take the return
-// type of Delay, which can be anything.
-// https://fsharpforfunandprofit.com/posts/computation-expressions-builder-part3/
-type Delayed<'T> = unit -> TaskOrValue<'T>
-
-module TaskOrValue =
-  let rec toTask (v : TaskOrValue<'T>) : Task<'T> =
-    match v with
-    | Task t -> t
-    | Value v -> Task.FromResult v
-
-
-// https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-type TaskOrValueBuilder() =
-  member x.Bind(tv : TaskOrValue<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
-    match tv with
-    | Value v -> f v
-    | Task t ->
-      Task(
-        task {
-          let! v = t
-          let result = f v
-          return! TaskOrValue.toTask result
-        }
-      )
-
-  member x.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
-    Task(
-      task {
-        let! v = t
-        let result = f v
-        return! TaskOrValue.toTask result
-      }
-    )
-
-  member x.Bind(t : Task, f : unit -> TaskOrValue<'b>) : TaskOrValue<'b> =
-    Task(
-      task {
-        do! t
-        let result = f ()
-        return! TaskOrValue.toTask result
-      }
-    )
-
-  member x.Return(v : 'a) : TaskOrValue<'a> = Value v
-  member x.ReturnFrom(tv : TaskOrValue<'a>) : TaskOrValue<'a> = tv
-  member x.Zero() : TaskOrValue<unit> = Value()
-
-  // These lets us use try
-  member x.TryWith(tv : Delayed<'a>, f : exn -> TaskOrValue<'a>) : TaskOrValue<'a> =
-    try
-      match tv () with
-      | Value v -> Value v
-      | Task t ->
-        Task(
-          task {
-            try
-              let! x = t
-              return x
-            with
-            | e -> return! TaskOrValue.toTask (f e)
-          }
-        )
-    with
-    | e -> f e
-
-  member x.Delay(f : unit -> TaskOrValue<'a>) : Delayed<'a> = f
-
-  member x.Run(tv : Delayed<'a>) : TaskOrValue<'a> =
-    match tv () with
-    | Value v -> Value v
-    | Task t -> x.Bind(t, (fun v -> Value v))
-
-  member x.While(cond : unit -> bool, body : Delayed<'a>) : TaskOrValue<unit> =
-    if not (cond ()) then
-      // exit loop
-      x.Zero()
-    else
-      // evaluate the body function, and call recursively
-      x.Bind(body (), (fun _ -> x.While(cond, body)))
-
-  member x.Combine(v0 : TaskOrValue<unit>, v1 : Delayed<'a>) : TaskOrValue<'a> =
-    x.Bind(v0, (fun () -> v1 ()))
-
-
-
-let taskv = TaskOrValueBuilder()
-
 // Processes each item of the list in order, waiting for the previous one to
 // finish. This ensures each request in the list is processed to completion
 // before the next one is done, making sure that, for example, a HttpClient
 // call will finish before the next one starts. Will allow other requests to
 // run which waiting.
 module List =
-  let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> =
-    taskv {
+  let map_s (f : 'a -> Ply.Ply<'b>) (list : List<'a>) : Ply.Ply<List<'b>> =
+    uply {
       let! mapped =
         List.fold
-          (fun (accum : TaskOrValue<List<'b>>) (arg : 'a) ->
-            taskv {
+          (fun (accum : Ply.Ply<List<'b>>) (arg : 'a) ->
+            uply {
               let! accum = accum
               let! result = f arg
               return result :: accum
             })
-          (Value [])
+          (Ply.Ply [])
           list
 
       return List.rev mapped
     }
 
-  let iter_s (f : 'a -> TaskOrValue<unit>) (list : List<'a>) : TaskOrValue<unit> =
+  let iter_s (f : 'a -> Ply.Ply<unit>) (list : List<'a>) : Ply.Ply<unit> =
     List.fold
-      (fun (accum : TaskOrValue<unit>) (arg : 'a) ->
-        taskv {
+      (fun (accum : Ply.Ply<unit>) (arg : 'a) ->
+        uply {
           do! accum // resolve the previous task before doing this one
           return! f arg
         })
-      (Value())
+      (Ply.Ply(()))
       list
 
-  let filter_s
-    (f : 'a -> TaskOrValue<bool>)
-    (list : List<'a>)
-    : TaskOrValue<List<'a>> =
-    taskv {
+  let filter_s (f : 'a -> Ply.Ply<bool>) (list : List<'a>) : Ply.Ply<List<'a>> =
+    uply {
       let! filtered =
         List.fold
-          (fun (accum : TaskOrValue<List<'a>>) (arg : 'a) ->
-            taskv {
+          (fun (accum : Ply.Ply<List<'a>>) (arg : 'a) ->
+            uply {
               let! (accum : List<'a>) = accum
               let! keep = f arg
               return (if keep then (arg :: accum) else accum)
             })
-          (Value [])
+          (Ply.Ply [])
           list
 
       return List.rev filtered
     }
 
-  let find_s
-    (f : 'a -> TaskOrValue<bool>)
-    (list : List<'a>)
-    : TaskOrValue<Option<'a>> =
+  let find_s (f : 'a -> Ply.Ply<bool>) (list : List<'a>) : Ply.Ply<Option<'a>> =
     List.fold
-      (fun (accum : TaskOrValue<Option<'a>>) (arg : 'a) ->
-        taskv {
+      (fun (accum : Ply.Ply<Option<'a>>) (arg : 'a) ->
+        uply {
           match! accum with
           | Some v -> return Some v
           | None ->
             let! result = f arg
             return (if result then Some arg else None)
         })
-      (Value None)
+      (Ply.Ply None)
       list
 
   let filter_map
-    (f : 'a -> TaskOrValue<Option<'b>>)
+    (f : 'a -> Ply.Ply<Option<'b>>)
     (list : List<'a>)
-    : TaskOrValue<List<'b>> =
-    taskv {
+    : Ply.Ply<List<'b>> =
+    uply {
       let! filtered =
         List.fold
-          (fun (accum : TaskOrValue<List<'b>>) (arg : 'a) ->
-            taskv {
+          (fun (accum : Ply.Ply<List<'b>>) (arg : 'a) ->
+            uply {
               let! (accum : List<'b>) = accum
               let! keep = f arg
 
@@ -556,7 +451,7 @@ module List =
 
               return result
             })
-          (Value [])
+          (Ply.Ply [])
           list
 
       return List.rev filtered
@@ -564,26 +459,23 @@ module List =
 
 module Map =
   let fold_s
-    (f : 'state -> 'key -> 'a -> TaskOrValue<'state>)
+    (f : 'state -> 'key -> 'a -> Ply.Ply<'state>)
     (initial : 'state)
     (dict : Map<'key, 'a>)
-    : TaskOrValue<'state> =
+    : Ply.Ply<'state> =
     Map.fold
-      (fun (accum : TaskOrValue<'state>) (key : 'key) (arg : 'a) ->
-        taskv {
+      (fun (accum : Ply.Ply<'state>) (key : 'key) (arg : 'a) ->
+        uply {
           let! (accum : 'state) = accum
           return! f accum key arg
         })
-      (Value(initial))
+      (Ply.Ply(initial))
       dict
 
-  let map_s
-    (f : 'a -> TaskOrValue<'b>)
-    (dict : Map<'key, 'a>)
-    : TaskOrValue<Map<'key, 'b>> =
+  let map_s (f : 'a -> Ply.Ply<'b>) (dict : Map<'key, 'a>) : Ply.Ply<Map<'key, 'b>> =
     fold_s
       (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
-        taskv {
+        uply {
           let! result = f arg
           return Map.add key result accum
         })
@@ -591,12 +483,12 @@ module Map =
       dict
 
   let filter_s
-    (f : 'key -> 'a -> TaskOrValue<bool>)
+    (f : 'key -> 'a -> Ply.Ply<bool>)
     (dict : Map<'key, 'a>)
-    : TaskOrValue<Map<'key, 'a>> =
+    : Ply.Ply<Map<'key, 'a>> =
     fold_s
       (fun (accum : Map<'key, 'a>) (key : 'key) (arg : 'a) ->
-        taskv {
+        uply {
           let! keep = f key arg
           return (if keep then (Map.add key arg accum) else accum)
         })
@@ -604,12 +496,12 @@ module Map =
       dict
 
   let filter_map
-    (f : 'key -> 'a -> TaskOrValue<Option<'b>>)
+    (f : 'key -> 'a -> Ply.Ply<Option<'b>>)
     (dict : Map<'key, 'a>)
-    : TaskOrValue<Map<'key, 'b>> =
+    : Ply.Ply<Map<'key, 'b>> =
     fold_s
       (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
-        taskv {
+        uply {
           let! keep = f key arg
 
           let result =
@@ -1013,23 +905,23 @@ module Task =
   //
   // Why can't this be done in a simple map? We need to resolve element i in
   // element (i+1)'s task expression.
-  let mapSequentially (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
-    task {
+  let mapSequentially (f : 'a -> Ply.Ply<'b>) (list : List<'a>) : Ply.Ply<List<'b>> =
+    uply {
       let! result =
         match list with
-        | [] -> task { return [] }
+        | [] -> uply { return [] }
         | head :: tail ->
-          task {
+          uply {
             let firstComp =
-              task {
+              uply {
                 let! result = f head
                 return ([], result)
               }
 
             let! ((accum, lastcomp) : (List<'b> * 'b)) =
               List.fold
-                (fun (prevcomp : Task<List<'b> * 'b>) (arg : 'a) ->
-                  task {
+                (fun (prevcomp : Ply.Ply<List<'b> * 'b>) (arg : 'a) ->
+                  uply {
                     // Ensure the previous computation is done first
                     let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
                     let accum = prev :: accum
@@ -1047,23 +939,26 @@ module Task =
       return (result |> Seq.toList)
     }
 
-  let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
-    task {
+  let filterSequentially
+    (f : 'a -> Ply.Ply<bool>)
+    (list : List<'a>)
+    : Ply.Ply<List<'a>> =
+    uply {
       let! result =
         match list with
-        | [] -> task { return [] }
+        | [] -> uply { return [] }
         | head :: tail ->
-          task {
+          uply {
             let firstComp =
-              task {
+              uply {
                 let! keep = f head
                 return ([], (keep, head))
               }
 
             let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
               List.fold
-                (fun (prevcomp : Task<List<'a> * (bool * 'a)>) (arg : 'a) ->
-                  task {
+                (fun (prevcomp : Ply.Ply<List<'a> * (bool * 'a)>) (arg : 'a) ->
+                  uply {
                     // Ensure the previous computation is done first
                     let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
                       prevcomp
