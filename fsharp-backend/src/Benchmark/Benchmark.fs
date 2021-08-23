@@ -37,10 +37,14 @@ let runFSharp
   task {
     let! state, _ = RealExe.createState traceID 7UL program
     let symtable = Interpreter.withGlobals state Map.empty
-    return! (Interpreter.eval state symtable expr) |> TaskOrValue.toTask
+    return! (Interpreter.eval state symtable expr)
   }
 
-let runFSharpBenchmark (expr : RT.Expr) (warmUpCount : uint) : Task<unit> =
+let runFSharpBenchmark
+  (expr : RT.Expr)
+  (iterations : uint)
+  (warmUpCount : uint)
+  : Task<unit> =
   task {
     print "Running F# Benchmark"
     let traceID = System.Guid.NewGuid()
@@ -53,12 +57,15 @@ let runFSharpBenchmark (expr : RT.Expr) (warmUpCount : uint) : Task<unit> =
       stopWatch.Stop()
       print $"    Warmup {i}: {stopWatch.ElapsedMilliseconds}ms"
 
-    print "  Starting benchmark"
+    print $"  Starting F# benchmark ({iterations})"
     let stopWatch = System.Diagnostics.Stopwatch.StartNew()
     let! dval = runFSharp program traceID expr
+    for i = 1u to iterations - 1u do
+      let! (_ : RT.Dval) = runFSharp program traceID expr
+      ()
     stopWatch.Stop()
     print $"{dval}"
-    print $"  Done: {stopWatch.ElapsedMilliseconds}ms"
+    print $"  Done: {stopWatch.ElapsedMilliseconds / int64 iterations}ms"
     return ()
   }
 
@@ -80,7 +87,11 @@ let runOCaml (expr : PT.Expr) : Task<RT.Dval> =
     return result
   }
 
-let runOCamlBenchmark (expr : PT.Expr) (warmUpCount : uint) : Task<unit> =
+let runOCamlBenchmark
+  (expr : PT.Expr)
+  (iterations : uint)
+  (warmUpCount : uint)
+  : Task<unit> =
   task {
     print "Running OCaml Benchmark"
     print "  Running warmups"
@@ -90,27 +101,34 @@ let runOCamlBenchmark (expr : PT.Expr) (warmUpCount : uint) : Task<unit> =
       stopWatch.Stop()
       print $"    Warmup {i}: {stopWatch.ElapsedMilliseconds}ms"
 
-    print "  Starting benchmark"
+    print $"  Starting OCaml benchmark ({iterations})"
     let stopWatch = System.Diagnostics.Stopwatch.StartNew()
     let! dval = runOCaml expr
+    for i = 1u to iterations - 1u do
+      let! (dval : RT.Dval) = runOCaml expr
+      ()
     stopWatch.Stop()
     print $"{dval}"
-    print $"  Done: {stopWatch.ElapsedMilliseconds}ms"
+    print $"  Done: {stopWatch.ElapsedMilliseconds / int64 iterations}ms"
     return ()
   }
 
 
 
 
-let runBenchmark (filename : string) (warmUpCount : uint) : Task<unit> =
+let runBenchmark
+  (filename : string)
+  (iterations : uint)
+  (warmUpCount : uint)
+  : Task<unit> =
   task {
     let filename = if filename.EndsWith(".fs") then filename else filename + ".fs"
     let! code =
       System.IO.File.ReadAllTextAsync $"src/Benchmark/benchmarks/{filename}"
     let ptExpr = FSharpToExpr.parsePTExpr code
     let rtExpr = ptExpr.toRuntimeType ()
-    do! runOCamlBenchmark ptExpr warmUpCount
-    do! runFSharpBenchmark rtExpr warmUpCount
+    do! runOCamlBenchmark ptExpr iterations warmUpCount
+    do! runFSharpBenchmark rtExpr iterations warmUpCount
     return ()
   }
 
@@ -119,6 +137,7 @@ open Argu
 type Arguments =
   | [<Mandatory; MainCommand; ExactlyOnce>] Filename of BENCHMARK : string
   | [<AltCommandLine("-w")>] Warmups of COUNT : uint
+  | [<AltCommandLine("-i")>] Iterations of COUNT : uint
 
   interface IArgParserTemplate with
     member this.Usage =
@@ -126,6 +145,7 @@ type Arguments =
       | Filename _ ->
         "the name of the benchmark file to test (in src/Benchmarks/benchmarks)"
       | Warmups _ -> "the number of warmups to run"
+      | Iterations _ -> "the number of times to run the test (the mean is reported)"
 
 let parser = ArgumentParser.Create<Arguments>(programName = "Benchmark")
 
@@ -136,10 +156,12 @@ let main args : int =
     print "Starting Benchmark"
     LibBackend.Init.init "Benchmark"
     let filename = cliArgs.GetResult Filename
-    let warmups = cliArgs.GetResult(Warmups, 3u)
-    (runBenchmark filename warmups).GetAwaiter().GetResult()
+    let warmUpCount = cliArgs.GetResult(Warmups, 3u)
+    let iterations = cliArgs.GetResult(Iterations, 3u)
+    (runBenchmark filename iterations warmUpCount).GetAwaiter().GetResult()
     0
   with
   | e ->
     print e.Message
+    print e.StackTrace
     1
