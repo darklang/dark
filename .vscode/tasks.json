@@ -41,6 +41,22 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "build-benchmark",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "/property:GenerateFullPaths=true",
+        "--no-restore",
+        "/consoleloggerparameters:NoSummary",
+        "src/Benchmark/Benchmark.fsproj"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/fsharp-backend"
+      },
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "build-apiserver",
       "command": "dotnet",
       "args": [
