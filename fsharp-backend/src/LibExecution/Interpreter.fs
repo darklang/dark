@@ -207,166 +207,163 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
     | EMatch (id, matchExpr, cases) ->
-      return!
-        (taskv {
-          let hasMatched = ref false
-          let matchResult = ref (incomplete id)
+      let hasMatched = ref false
+      let matchResult = ref (incomplete id)
 
-          let executeMatch
-            (newDefs : (string * Dval) list)
-            (traces : (id * Dval) list)
-            (st : DvalMap)
-            (expr : Expr)
-            : TaskOrValue<unit> =
-            taskv {
-              // Once a pattern is matched, this function is called to execute its
-              // `expr`. It tracks whether this is the first pattern to execute,
-              // and calls preview if it is not. Handles calling trace on the
-              // traces that have been collected by pattern matching.
+      let executeMatch
+        (newDefs : (string * Dval) list)
+        (traces : (id * Dval) list)
+        (st : DvalMap)
+        (expr : Expr)
+        : TaskOrValue<unit> =
+        taskv {
+          // Once a pattern is matched, this function is called to execute its
+          // `expr`. It tracks whether this is the first pattern to execute,
+          // and calls preview if it is not. Handles calling trace on the
+          // traces that have been collected by pattern matching.
 
-              let newVars = Map.ofList newDefs
+          let newVars = Map.ofList newDefs
 
-              let newSt = Map.union newVars st
+          let newSt = Map.union newVars st
 
-              if !hasMatched then
-                // We matched, but we've already matched a pattern previously
-                List.iter
-                  (fun (id, dval) -> state.tracing.traceDval false id dval)
-                  traces
-
-                do! preview newSt expr
-                return ()
-              else
-                List.iter
-                  (fun (id, dval) ->
-                    state.tracing.traceDval state.onExecutionPath id dval)
-                  traces
-
-                hasMatched := true
-
-                let! result = eval state newSt expr
-                matchResult := result
-                return ()
-            }
-
-          let traceIncompletes traces =
+          if !hasMatched then
+            // We matched, but we've already matched a pattern previously
             List.iter
-              (fun (id, _) -> state.tracing.traceDval false id (incomplete id))
+              (fun (id, dval) -> state.tracing.traceDval false id dval)
               traces
 
-          let traceNonMatch
-            (st : DvalMap)
-            (expr : Expr)
-            (traces : (id * Dval) list)
-            (id : id)
-            (value : Dval)
-            : TaskOrValue<unit> =
-            taskv {
-              do! preview st expr
-              traceIncompletes traces
-              state.tracing.traceDval false id value
-            }
+            do! preview newSt expr
+            return ()
+          else
+            List.iter
+              (fun (id, dval) ->
+                state.tracing.traceDval state.onExecutionPath id dval)
+              traces
 
-          let rec matchAndExecute
-            dv
-            (builtUpTraces : (id * Dval) list)
-            (pattern, expr)
-            : TaskOrValue<unit> =
-            // Compare `dv` to `pattern`, and execute the rhs `expr` of any
-            // matches. Tracks whether a branch has already been executed and
-            // will exceute later matches in preview mode.  Ensures all patterns
-            // and branches are properly traced.  Recurse on partial matches
-            // (constructors); builtUpTraces is the set of traces that have been
-            // built up by recursing: they can only be matched when the pattern
-            // is ready to match.
-            match pattern with
-            | PInteger (pid, i) ->
-              let v = DInt i
+            hasMatched := true
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-            | PBool (pid, bool) ->
-              let v = DBool bool
+            let! result = eval state newSt expr
+            matchResult := result
+            return! tvUnit
+        }
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-            | PCharacter (pid, c) ->
-              let v = DChar(c)
+      let traceIncompletes traces =
+        List.iter
+          (fun (id, _) -> state.tracing.traceDval false id (incomplete id))
+          traces
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-            | PString (pid, str) ->
-              let v = DStr(str)
+      let traceNonMatch
+        (st : DvalMap)
+        (expr : Expr)
+        (traces : (id * Dval) list)
+        (id : id)
+        (value : Dval)
+        : TaskOrValue<unit> =
+        taskv {
+          do! preview st expr
+          traceIncompletes traces
+          state.tracing.traceDval false id value
+        }
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-            | PFloat (pid, v) ->
-              let v = DFloat v
+      let rec matchAndExecute
+        dv
+        (builtUpTraces : (id * Dval) list)
+        (pattern, expr)
+        : TaskOrValue<unit> =
+        // Compare `dv` to `pattern`, and execute the rhs `expr` of any
+        // matches. Tracks whether a branch has already been executed and
+        // will exceute later matches in preview mode.  Ensures all patterns
+        // and branches are properly traced.  Recurse on partial matches
+        // (constructors); builtUpTraces is the set of traces that have been
+        // built up by recursing: they can only be matched when the pattern
+        // is ready to match.
+        match pattern with
+        | PInteger (pid, i) ->
+          let v = DInt i
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-            | PNull (pid) ->
-              let v = DNull
+          if v = dv then
+            executeMatch [] ((pid, v) :: builtUpTraces) st expr
+          else
+            traceNonMatch st expr builtUpTraces pid v
+        | PBool (pid, bool) ->
+          let v = DBool bool
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-            | PVariable (pid, v) ->
-              // only matches allowed values
-              if Dval.isFake dv then
-                traceNonMatch st expr builtUpTraces pid dv
-              else
-                executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
-            | PBlank (pid) ->
-              // never matches
-              traceNonMatch st expr builtUpTraces pid (incomplete pid)
-            | PConstructor (pid, name, args) ->
-              (match (name, args, dv) with
-               | "Just", [ p ], DOption (Some v)
-               | "Ok", [ p ], DResult (Ok v)
-               | "Error", [ p ], DResult (Error v) ->
-                 matchAndExecute v ((pid, dv) :: builtUpTraces) (p, expr)
-               | "Nothing", [], DOption None ->
-                 executeMatch [] ((pid, dv) :: builtUpTraces) st expr
-               | "Nothing", [], _ ->
-                 traceNonMatch st expr builtUpTraces pid (DOption None)
-               | _ ->
-                 taskv {
-                   let error =
-                     if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
-                       incomplete pid
-                     else
-                       DError(sourceID pid, $"Invalid constructor: {name}")
+          if v = dv then
+            executeMatch [] ((pid, v) :: builtUpTraces) st expr
+          else
+            traceNonMatch st expr builtUpTraces pid v
+        | PCharacter (pid, c) ->
+          let v = DChar(c)
 
-                   do! traceNonMatch st expr builtUpTraces pid error
-                   // Trace each argument too. TODO: recurse
-                   List.iter
-                     (fun pat ->
-                       let id = Pattern.toID pat
-                       state.tracing.traceDval false id (incomplete id))
-                     args
-                 })
+          if v = dv then
+            executeMatch [] ((pid, v) :: builtUpTraces) st expr
+          else
+            traceNonMatch st expr builtUpTraces pid v
+        | PString (pid, str) ->
+          let v = DStr(str)
 
-          let! matchVal = eval state st matchExpr
+          if v = dv then
+            executeMatch [] ((pid, v) :: builtUpTraces) st expr
+          else
+            traceNonMatch st expr builtUpTraces pid v
+        | PFloat (pid, v) ->
+          let v = DFloat v
 
-          do!
-            List.iter_s
-              (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
-              cases
+          if v = dv then
+            executeMatch [] ((pid, v) :: builtUpTraces) st expr
+          else
+            traceNonMatch st expr builtUpTraces pid v
+        | PNull (pid) ->
+          let v = DNull
 
-          return !matchResult
-         })
+          if v = dv then
+            executeMatch [] ((pid, v) :: builtUpTraces) st expr
+          else
+            traceNonMatch st expr builtUpTraces pid v
+        | PVariable (pid, v) ->
+          // only matches allowed values
+          if Dval.isFake dv then
+            traceNonMatch st expr builtUpTraces pid dv
+          else
+            executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
+        | PBlank (pid) ->
+          // never matches
+          traceNonMatch st expr builtUpTraces pid (incomplete pid)
+        | PConstructor (pid, name, args) ->
+          (match (name, args, dv) with
+           | "Just", [ p ], DOption (Some v)
+           | "Ok", [ p ], DResult (Ok v)
+           | "Error", [ p ], DResult (Error v) ->
+             matchAndExecute v ((pid, dv) :: builtUpTraces) (p, expr)
+           | "Nothing", [], DOption None ->
+             executeMatch [] ((pid, dv) :: builtUpTraces) st expr
+           | "Nothing", [], _ ->
+             traceNonMatch st expr builtUpTraces pid (DOption None)
+           | _ ->
+             taskv {
+               let error =
+                 if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
+                   incomplete pid
+                 else
+                   DError(sourceID pid, $"Invalid constructor: {name}")
+
+               do! traceNonMatch st expr builtUpTraces pid error
+               // Trace each argument too. TODO: recurse
+               List.iter
+                 (fun pat ->
+                   let id = Pattern.toID pat
+                   state.tracing.traceDval false id (incomplete id))
+                 args
+             })
+
+      let! matchVal = eval state st matchExpr
+
+      do!
+        List.iter_s
+          (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
+          cases
+
+      return !matchResult
 
     | EIf (_id, cond, thenbody, elsebody) ->
       match! eval state st cond with
@@ -420,25 +417,22 @@ and applyFn
   (isInPipe : IsInPipe)
   (ster : SendToRail)
   : DvalTask =
-  taskv {
-    let sourceID = SourceID(state.tlid, id)
+  let sourceID = SourceID(state.tlid, id)
+  match fn, isInPipe with
+  | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
+  // Incompletes are allowed in pipes
+  | DIncomplete _, InPipe _ -> Value(Option.defaultValue fn (List.tryHead args))
+  | other, InPipe _ ->
+    // CLEANUP: this matches the old pipe behaviour, no need to preserve that
+    Value(Option.defaultValue fn (List.tryHead args))
+  | other, _ ->
+    Value(
+      Dval.errSStr
+        sourceID
+        $"Expected a function value, got something else: {DvalRepr.toDeveloperReprV0 other}"
+    )
 
-    return!
-      match fn, isInPipe with
-      | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
-      // Incompletes are allowed in pipes
-      | DIncomplete _, InPipe _ -> Value(Option.defaultValue fn (List.tryHead args))
-      | other, InPipe _ ->
-        // CLEANUP: this matches the old pipe behaviour, no need to preserve that
-        Value(Option.defaultValue fn (List.tryHead args))
-      | other, _ ->
-        Value(
-          Dval.errSStr
-            sourceID
-            $"Expected a function value, got something else: {DvalRepr.toDeveloperReprV0 other}"
-        )
 
-  }
 
 and applyFnVal
   (state : ExecutionState)
