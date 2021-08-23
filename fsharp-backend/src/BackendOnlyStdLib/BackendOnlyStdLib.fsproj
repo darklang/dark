@@ -18,7 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="LibCrypto.fs" />
+    <!-- <Compile Include="LibCrypto.fs" />
     <Compile Include="LibDB.fs" />
     <Compile Include="LibDB2.fs" />
     <Compile Include="LibDarkInternal.fs" />
@@ -33,7 +33,7 @@
     <Compile Include="LibJwt.fs" />
     <Compile Include="LibStaticAssets.fs" />
     <Compile Include="LibTwilio.fs" />
-    <Compile Include="LibX509.fs" />
+    <Compile Include="LibX509.fs" /> -->
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

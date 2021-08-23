@@ -12,7 +12,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply.Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
       description = "Generate a new UUID v4 according to RFC 4122"
       fn =
         (function
-        | _, [] -> Value(DUuid(System.Guid.NewGuid()))
+        | _, [] -> Ply.Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       // similarly to Date::now, it's not particularly fun for this to change

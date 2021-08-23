@@ -5,7 +5,7 @@ open LibExecution.RuntimeTypes
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply.Ply(Dval.errStr str)
 
 let removedFunction = LibExecution.Errors.removedFunction
 let incorrectArgs = LibExecution.Errors.incorrectArgs

@@ -15,7 +15,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply.Ply(Dval.errStr str)
 
 let incorrectArgs = Errors.incorrectArgs
 
