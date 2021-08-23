@@ -36,9 +36,6 @@ killall -9 Benchmark || true
 # can't connect to these servers.
 ./scripts/support/runlegacyserver
 
-# CLEANUP This is where the migrations are run for testdb at the moment
-DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8001 ./scripts/wait-until-server-ready
-
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Benchmark/Release/net6.0/linux-x64/Benchmark
 else
