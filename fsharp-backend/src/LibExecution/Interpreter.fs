@@ -30,7 +30,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
-  let preview st expr : Ply.Ply<unit> =
+  let preview st expr : Ply<unit> =
     uply {
       if state.tracing.realOrPreview = Preview then
         let state = { state with onExecutionPath = false }
@@ -181,7 +181,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         try
           eval state st cond
         with
-        | _ -> Ply.Ply(DBool false)
+        | _ -> Ply(DBool false)
 
       if cond = DBool true then
         do! preview st oldcode
@@ -216,7 +216,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         (traces : (id * Dval) list)
         (st : DvalMap)
         (expr : Expr)
-        : Ply.Ply<unit> =
+        : Ply<unit> =
         uply {
           // Once a pattern is matched, this function is called to execute its
           // `expr`. It tracks whether this is the first pattern to execute,
@@ -259,7 +259,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         (traces : (id * Dval) list)
         (id : id)
         (value : Dval)
-        : Ply.Ply<unit> =
+        : Ply<unit> =
         uply {
           do! preview st expr
           traceIncompletes traces
@@ -270,7 +270,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         dv
         (builtUpTraces : (id * Dval) list)
         (pattern, expr)
-        : Ply.Ply<unit> =
+        : Ply<unit> =
         // Compare `dv` to `pattern`, and execute the rhs `expr` of any
         // matches. Tracks whether a branch has already been executed and
         // will exceute later matches in preview mode.  Ensures all patterns
@@ -422,12 +422,12 @@ and applyFn
   match fn, isInPipe with
   | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
   // Incompletes are allowed in pipes
-  | DIncomplete _, InPipe _ -> Ply.Ply(Option.defaultValue fn (List.tryHead args))
+  | DIncomplete _, InPipe _ -> Ply(Option.defaultValue fn (List.tryHead args))
   | other, InPipe _ ->
     // CLEANUP: this matches the old pipe behaviour, no need to preserve that
-    Ply.Ply(Option.defaultValue fn (List.tryHead args))
+    Ply(Option.defaultValue fn (List.tryHead args))
   | other, _ ->
-    Ply.Ply(
+    Ply(
       Dval.errSStr
         sourceID
         $"Expected a function value, got something else: {DvalRepr.toDeveloperReprV0 other}"
@@ -459,7 +459,7 @@ and executeLambda
   let firstMarker = List.tryFind Dval.isFake args
 
   match firstMarker with
-  | Some dv -> Ply.Ply dv
+  | Some dv -> Ply dv
   | None ->
     let parameters = List.map snd l.parameters
     // One of the reasons to take a separate list of params and args is to
@@ -467,7 +467,7 @@ and executeLambda
     // other places, and the alternative is just to provide incompletes
     // with no context
     if List.length l.parameters <> List.length args then
-      Ply.Ply(
+      Ply(
         DError(
           SourceNone,
           $"Expected {List.length l.parameters} arguments, got {List.length args}"
@@ -536,8 +536,8 @@ and callFn
             | _ -> ()
 
           match fnResult with
-          | Some (result, _ts) -> Ply.Ply(result)
-          | _ -> Ply.Ply(DIncomplete(sourceID callerID))
+          | Some (result, _ts) -> Ply(result)
+          | _ -> Ply(DIncomplete(sourceID callerID))
         | Some fn ->
           // equalize length
           let expectedLength = List.length fn.parameters in
@@ -551,7 +551,7 @@ and callFn
 
             execFn state desc callerID fn args isInPipe
           else
-            Ply.Ply(
+            Ply(
               DError(
                 sourceID callerID,
                 $"{desc} has {expectedLength} parameters, but here was called"
@@ -660,10 +660,9 @@ and execFn
               let! result =
                 match (state.tracing.realOrPreview,
                        state.tracing.loadFnResult fnRecord arglist) with
-                | Preview, Some (result, _ts) ->
-                  Ply.Ply(Dval.unwrapFromErrorRail result)
+                | Preview, Some (result, _ts) -> Ply(Dval.unwrapFromErrorRail result)
                 | Preview, None when fn.previewable <> Pure ->
-                  Ply.Ply(DIncomplete sourceID)
+                  Ply(DIncomplete sourceID)
                 | _ ->
                   uply {
                     // It's okay to execute user functions in both Preview and

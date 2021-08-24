@@ -31,12 +31,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DInt v; DInt m as mdv ] ->
           if m <= bigint 0 then
-            Ply.Ply(err (Errors.argumentWasnt "positive" "b" mdv))
+            Ply(err (Errors.argumentWasnt "positive" "b" mdv))
           else
             // dotnet returns negative mods, but OCaml did positive ones
             let result = v % m
             let result = if result < 0I then m + result else result
-            Ply.Ply(DInt(result))
+            Ply(DInt(result))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure

@@ -273,7 +273,7 @@ and Dval =
   | DResult of Result<Dval, Dval>
   | DBytes of byte array
 
-and DvalTask = Ply.Ply<Dval>
+and DvalTask = Ply<Dval>
 
 and Symtable = Map<string, Dval>
 

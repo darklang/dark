@@ -11,7 +11,7 @@ open LibExecution.RuntimeTypes
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply.Ply(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       returnType = TStr
       fn =
         (function
-        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Ply.Ply
+        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ a; b ] ->
           // TODO: support fn value equality
-          (a = b) |> DBool |> Ply.Ply
+          (a = b) |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure

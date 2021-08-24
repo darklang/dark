@@ -16,11 +16,11 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = Errors.incorrectArgs
 
-let err (str : string) = Ply.Ply(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 // Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
 module Sort =
-  type Comparer = Dval -> Dval -> Ply.Ply<int>
+  type Comparer = Dval -> Dval -> Ply<int>
   type Array = array<Dval>
 
   let copy
@@ -39,7 +39,7 @@ module Sort =
     (halfLen : int)
     (length : int)
     (comparer : Comparer)
-    : Ply.Ply<unit> =
+    : Ply<unit> =
     uply {
       let mutable leftHalfIndex = 0
       let mutable rightHalfIndex = index + halfLen
@@ -86,7 +86,7 @@ module Sort =
     (length : int)
     (comparer : Comparer)
     (scratchSpace : Array)
-    : Ply.Ply<unit> =
+    : Ply<unit> =
     uply {
       if length <= 1 then
         return ()
@@ -116,13 +116,13 @@ module Sort =
     (index : int)
     (length : int)
     (comparer : Comparer)
-    : Ply.Ply<unit> =
+    : Ply<unit> =
     let scratchSpace =
       System.Array.CreateInstance(typeof<Dval>, arrayToSort.Length / 2) :?> Array
 
     mergeSortHelper arrayToSort index length comparer scratchSpace
 
-  let sort (comparer : Comparer) (arrayToSort : Array) : Ply.Ply<unit> =
+  let sort (comparer : Comparer) (arrayToSort : Array) : Ply<unit> =
     sequentialSort arrayToSort 0 arrayToSort.Length comparer
 
 
@@ -415,7 +415,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt start; DInt stop ] ->
-          [ start .. stop ] |> List.map DInt |> DList |> Ply.Ply
+          [ start .. stop ] |> List.map DInt |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
