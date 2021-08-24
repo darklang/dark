@@ -445,6 +445,7 @@ and applyFnVal
   : DvalTask =
   match fnVal with
   | Lambda l -> executeLambda state l argList
+  // CLEANUP: fetch the name when we load it, then we won't need to find it again
   | FnName name -> callFn state callerID name argList isInPipe ster
 
 and executeLambda
@@ -497,6 +498,7 @@ and callFn
     let fn =
       match desc with
       | FQFnName.Stdlib std ->
+        // CLEANUP: do this when the libraries are loaded
         state.libraries.stdlib.TryFind desc |> Option.map builtInFnToFn
       | FQFnName.User name ->
         state.program.userFns.TryFind name |> Option.map userFnToFn
