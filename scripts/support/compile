@@ -225,7 +225,7 @@ def fsharp_backend_quick_build():
       -graphBuild:true \
       --no-restore \
       --verbosity minimal \
-      --configuration Debug src/Benchmark"
+      --configuration Debug"
   return run_backend(start, build)
 
 
@@ -244,7 +244,7 @@ def fsharp_backend_full_build():
   build = f"cd fsharp-backend \
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
-      --configuration {configuration} src/Benchmark"
+      --configuration {configuration}"
   result = run_backend(start, build)
 
   # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
@@ -621,7 +621,6 @@ def mark(should, f):
 def ignore(filename):
   # substring
   ignores = [
-      "fizzboom",
       ".git",
       ".merlin",
       ".browser-trigger",
