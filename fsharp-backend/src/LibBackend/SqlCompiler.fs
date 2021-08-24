@@ -359,7 +359,7 @@ let partiallyEvaluate
               let! next = r next
               return ELet(id, name, rhs, next)
             | EApply (id, name, exprs, inPipe, ster) ->
-              let! exprs = List.map_s r exprs
+              let! exprs = Ply.List.mapSequentially r exprs
               return EApply(id, name, exprs, inPipe, ster)
             | EIf (id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
@@ -373,13 +373,13 @@ let partiallyEvaluate
               let! expr = r expr
               return ELambda(id, names, expr)
             | EList (id, exprs) ->
-              let! exprs = List.map_s r exprs
+              let! exprs = Ply.List.mapSequentially r exprs
               return EList(id, exprs)
             | EMatch (id, mexpr, pairs) ->
               let! mexpr = r mexpr
 
               let! pairs =
-                List.map_s
+                Ply.List.mapSequentially
                   (fun (name, expr) ->
                     uply {
                       let! expr = r expr
@@ -390,7 +390,7 @@ let partiallyEvaluate
               return EMatch(id, mexpr, pairs)
             | ERecord (id, fields) ->
               let! fields =
-                List.map_s
+                Ply.List.mapSequentially
                   (fun (name, expr) ->
                     uply {
                       let! expr = r expr
@@ -400,7 +400,7 @@ let partiallyEvaluate
 
               return ERecord(id, fields)
             | EConstructor (id, name, exprs) ->
-              let! exprs = List.map_s r exprs
+              let! exprs = Ply.List.mapSequentially r exprs
               return EConstructor(id, name, exprs)
             | EPartial (id, oldExpr) ->
               let! oldExpr = r oldExpr

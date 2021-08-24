@@ -371,149 +371,6 @@ module Dictionary =
     result
 
 
-// Processes each item of the list in order, waiting for the previous one to
-// finish. This ensures each request in the list is processed to completion
-// before the next one is done, making sure that, for example, a HttpClient
-// call will finish before the next one starts. Will allow other requests to
-// run which waiting.
-module List =
-  let map_s (f : 'a -> Ply.Ply<'b>) (list : List<'a>) : Ply.Ply<List<'b>> =
-    uply {
-      let! mapped =
-        List.fold
-          (fun (accum : Ply.Ply<List<'b>>) (arg : 'a) ->
-            uply {
-              let! accum = accum
-              let! result = f arg
-              return result :: accum
-            })
-          (Ply.Ply [])
-          list
-
-      return List.rev mapped
-    }
-
-  let iter_s (f : 'a -> Ply.Ply<unit>) (list : List<'a>) : Ply.Ply<unit> =
-    List.fold
-      (fun (accum : Ply.Ply<unit>) (arg : 'a) ->
-        uply {
-          do! accum // resolve the previous task before doing this one
-          return! f arg
-        })
-      (Ply.Ply(()))
-      list
-
-  let filter_s (f : 'a -> Ply.Ply<bool>) (list : List<'a>) : Ply.Ply<List<'a>> =
-    uply {
-      let! filtered =
-        List.fold
-          (fun (accum : Ply.Ply<List<'a>>) (arg : 'a) ->
-            uply {
-              let! (accum : List<'a>) = accum
-              let! keep = f arg
-              return (if keep then (arg :: accum) else accum)
-            })
-          (Ply.Ply [])
-          list
-
-      return List.rev filtered
-    }
-
-  let find_s (f : 'a -> Ply.Ply<bool>) (list : List<'a>) : Ply.Ply<Option<'a>> =
-    List.fold
-      (fun (accum : Ply.Ply<Option<'a>>) (arg : 'a) ->
-        uply {
-          match! accum with
-          | Some v -> return Some v
-          | None ->
-            let! result = f arg
-            return (if result then Some arg else None)
-        })
-      (Ply.Ply None)
-      list
-
-  let filter_map
-    (f : 'a -> Ply.Ply<Option<'b>>)
-    (list : List<'a>)
-    : Ply.Ply<List<'b>> =
-    uply {
-      let! filtered =
-        List.fold
-          (fun (accum : Ply.Ply<List<'b>>) (arg : 'a) ->
-            uply {
-              let! (accum : List<'b>) = accum
-              let! keep = f arg
-
-              let result =
-                match keep with
-                | Some v -> v :: accum
-                | None -> accum
-
-              return result
-            })
-          (Ply.Ply [])
-          list
-
-      return List.rev filtered
-    }
-
-module Map =
-  let fold_s
-    (f : 'state -> 'key -> 'a -> Ply.Ply<'state>)
-    (initial : 'state)
-    (dict : Map<'key, 'a>)
-    : Ply.Ply<'state> =
-    Map.fold
-      (fun (accum : Ply.Ply<'state>) (key : 'key) (arg : 'a) ->
-        uply {
-          let! (accum : 'state) = accum
-          return! f accum key arg
-        })
-      (Ply.Ply(initial))
-      dict
-
-  let map_s (f : 'a -> Ply.Ply<'b>) (dict : Map<'key, 'a>) : Ply.Ply<Map<'key, 'b>> =
-    fold_s
-      (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
-        uply {
-          let! result = f arg
-          return Map.add key result accum
-        })
-      Map.empty
-      dict
-
-  let filter_s
-    (f : 'key -> 'a -> Ply.Ply<bool>)
-    (dict : Map<'key, 'a>)
-    : Ply.Ply<Map<'key, 'a>> =
-    fold_s
-      (fun (accum : Map<'key, 'a>) (key : 'key) (arg : 'a) ->
-        uply {
-          let! keep = f key arg
-          return (if keep then (Map.add key arg accum) else accum)
-        })
-      Map.empty
-      dict
-
-  let filter_map
-    (f : 'key -> 'a -> Ply.Ply<Option<'b>>)
-    (dict : Map<'key, 'a>)
-    : Ply.Ply<Map<'key, 'b>> =
-    fold_s
-      (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
-        uply {
-          let! keep = f key arg
-
-          let result =
-            match keep with
-            | Some v -> Map.add key v accum
-            | None -> accum
-
-          return result
-        })
-      Map.empty
-      dict
-
 
 // ----------------------
 // Lazy utilities
@@ -892,124 +749,210 @@ module Tablecloth =
     let merge (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
       FSharpPlus.Map.union m1 m2
 
+type Ply<'a> = Ply.Ply<'a>
+
+module Ply =
+
+  // These functions are sequential versions of List/Map functions like map/iter/etc.
+  // They await each list item before they process the next.  This ensures each
+  // request in the list is processed to completion before the next one is done,
+  // making sure that, for example, a HttpClient call will finish before the next one
+  // starts. Will allow other requests to run which waiting.
+
+  module List =
+    let flatten (list : List<Ply<'a>>) : Ply<List<'a>> =
+      let rec loop (acc : Ply<List<'a>>) (xs : List<Ply<'a>>) =
+        uply {
+          let! acc = acc
+
+          match xs with
+          | [] -> return List.rev acc
+          | x :: xs ->
+            let! x = x
+            return! loop (uply { return (x :: acc) }) xs
+        }
+
+      loop (uply { return [] }) list
+
+    let map (f : 'a -> 'b) (v : Ply<'a>) : Ply<'b> =
+      uply {
+        let! v = v
+        return f v
+      }
+
+    let bind (f : 'a -> Ply<'b>) (v : Ply<'a>) : Ply<'b> =
+      uply {
+        let! v = v
+        return! f v
+      }
+
+    let foldSequentially
+      (f : 'state -> 'a -> Ply<'state>)
+      (initial : 'state)
+      (list : List<'a>)
+      : Ply<'state> =
+      List.fold
+        (fun (accum : Ply<'state>) (arg : 'a) ->
+          uply {
+            let! accum = accum
+            return! f accum arg
+          })
+        (Ply initial)
+        list
+
+    let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
+
+      list
+      |> foldSequentially
+           (fun (accum : List<'b>) (arg : 'a) ->
+             uply {
+               let! result = f arg
+               return result :: accum
+             })
+           []
+      |> map List.rev
+
+    let filterSequentially (f : 'a -> Ply<bool>) (list : List<'a>) : Ply<List<'a>> =
+      uply {
+        let! filtered =
+          List.fold
+            (fun (accum : Ply<List<'a>>) (arg : 'a) ->
+              uply {
+                let! (accum : List<'a>) = accum
+                let! keep = f arg
+                return (if keep then (arg :: accum) else accum)
+              })
+            (Ply [])
+            list
+
+        return List.rev filtered
+      }
+
+    let iterSequentially (f : 'a -> Ply<unit>) (list : List<'a>) : Ply<unit> =
+      List.fold
+        (fun (accum : Ply<unit>) (arg : 'a) ->
+          uply {
+            do! accum // resolve the previous task before doing this one
+            return! f arg
+          })
+        (Ply(()))
+        list
+
+    let findSequentially (f : 'a -> Ply<bool>) (list : List<'a>) : Ply<Option<'a>> =
+      List.fold
+        (fun (accum : Ply<Option<'a>>) (arg : 'a) ->
+          uply {
+            match! accum with
+            | Some v -> return Some v
+            | None ->
+              let! result = f arg
+              return (if result then Some arg else None)
+          })
+        (Ply None)
+        list
+
+    let filterMapSequentially
+      (f : 'a -> Ply<Option<'b>>)
+      (list : List<'a>)
+      : Ply<List<'b>> =
+      uply {
+        let! filtered =
+          List.fold
+            (fun (accum : Ply<List<'b>>) (arg : 'a) ->
+              uply {
+                let! (accum : List<'b>) = accum
+                let! keep = f arg
+
+                let result =
+                  match keep with
+                  | Some v -> v :: accum
+                  | None -> accum
+
+                return result
+              })
+            (Ply [])
+            list
+
+        return List.rev filtered
+      }
+
+
+
+  module Map =
+    let foldSequentially
+      (f : 'state -> 'key -> 'a -> Ply<'state>)
+      (initial : 'state)
+      (dict : Map<'key, 'a>)
+      : Ply<'state> =
+      Map.fold
+        (fun (accum : Ply<'state>) (key : 'key) (arg : 'a) ->
+          uply {
+            let! (accum : 'state) = accum
+            return! f accum key arg
+          })
+        (Ply(initial))
+        dict
+
+    let mapSequentially
+      (f : 'a -> Ply<'b>)
+      (dict : Map<'key, 'a>)
+      : Ply<Map<'key, 'b>> =
+      foldSequentially
+        (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
+          uply {
+            let! result = f arg
+            return Map.add key result accum
+          })
+        Map.empty
+        dict
+
+    let filterSequentially
+      (f : 'key -> 'a -> Ply<bool>)
+      (dict : Map<'key, 'a>)
+      : Ply<Map<'key, 'a>> =
+      foldSequentially
+        (fun (accum : Map<'key, 'a>) (key : 'key) (arg : 'a) ->
+          uply {
+            let! keep = f key arg
+            return (if keep then (Map.add key arg accum) else accum)
+          })
+        Map.empty
+        dict
+
+    let filterMapSequentially
+      (f : 'key -> 'a -> Ply<Option<'b>>)
+      (dict : Map<'key, 'a>)
+      : Ply<Map<'key, 'b>> =
+      foldSequentially
+        (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
+          uply {
+            let! keep = f key arg
+
+            let result =
+              match keep with
+              | Some v -> Map.add key v accum
+              | None -> accum
+
+            return result
+          })
+        Map.empty
+        dict
+
 
 // ----------------------
-// Task list processing
+// Task utility functions
 // ----------------------
 module Task =
-  // Processes each item of the list in order, waiting for the previous one to
-  // finish. This ensures each request in the list is processed to completion
-  // before the next one is done, making sure that, for example, a HttpClient
-  // call will finish before the next one starts. Will allow other requests to
-  // run which waiting.
-  //
-  // Why can't this be done in a simple map? We need to resolve element i in
-  // element (i+1)'s task expression.
-  let mapSequentially (f : 'a -> Ply.Ply<'b>) (list : List<'a>) : Ply.Ply<List<'b>> =
-    uply {
-      let! result =
-        match list with
-        | [] -> uply { return [] }
-        | head :: tail ->
-          uply {
-            let firstComp =
-              uply {
-                let! result = f head
-                return ([], result)
-              }
-
-            let! ((accum, lastcomp) : (List<'b> * 'b)) =
-              List.fold
-                (fun (prevcomp : Ply.Ply<List<'b> * 'b>) (arg : 'a) ->
-                  uply {
-                    // Ensure the previous computation is done first
-                    let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                    let accum = prev :: accum
-
-                    let! result = (f arg)
-
-                    return (accum, result)
-                  })
-                firstComp
-                tail
-
-            return List.rev (lastcomp :: accum)
-          }
-
-      return (result |> Seq.toList)
-    }
-
-  let filterSequentially
-    (f : 'a -> Ply.Ply<bool>)
-    (list : List<'a>)
-    : Ply.Ply<List<'a>> =
-    uply {
-      let! result =
-        match list with
-        | [] -> uply { return [] }
-        | head :: tail ->
-          uply {
-            let firstComp =
-              uply {
-                let! keep = f head
-                return ([], (keep, head))
-              }
-
-            let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
-              List.fold
-                (fun (prevcomp : Ply.Ply<List<'a> * (bool * 'a)>) (arg : 'a) ->
-                  uply {
-                    // Ensure the previous computation is done first
-                    let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
-                      prevcomp
-
-                    let accum = if prevkeep then prev :: accum else accum
-
-                    let! keep = (f arg)
-
-                    return (accum, (keep, arg))
-                  })
-                firstComp
-                tail
-
-            let (lastkeep, lastval) = lastcomp
-            let accum = if lastkeep then lastval :: accum else accum
-            return List.rev accum
-          }
-
-      return (result |> Seq.toList)
-    }
-
   let iterSequentially (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
-    task {
-      match list with
-      | [] -> return ()
-      | head :: tail ->
-        let firstComp =
-          task {
-            let! result = f head
-            return ([], result)
-          }
+    List.fold
+      (fun (accum : Task<unit>) (arg : 'a) ->
+        task {
+          do! accum // resolve the previous task before doing this one
+          return! f arg
+        })
+      (Task.FromResult(()))
+      list
 
-        let! ((accum, lastcomp) : (List<unit> * unit)) =
-          List.fold
-            (fun (prevcomp : Task<List<unit> * unit>) (arg : 'a) ->
-              task {
-                // Ensure the previous computation is done first
-                let! ((accum, prev) : (List<unit> * unit)) = prevcomp
-                let accum = prev :: accum
-
-                let! result = f arg
-
-                return (accum, result)
-              })
-            firstComp
-            tail
-
-        return List.head (lastcomp :: accum)
-    }
-
-  // takes a list of tasks and calls f on it, turning it into a single task
   let flatten (list : List<Task<'a>>) : Task<List<'a>> =
     let rec loop (acc : Task<List<'a>>) (xs : List<Task<'a>>) =
       task {

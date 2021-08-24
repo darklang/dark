@@ -1038,7 +1038,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList l; DFnVal b ] ->
           uply {
             let! result =
-              List.map_s
+              Ply.List.mapSequentially
                 (fun dv ->
                   Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                 l

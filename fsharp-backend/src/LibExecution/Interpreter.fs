@@ -65,7 +65,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // We ignore incompletes but not error rail.
       // CLEANUP: Other places where lists are created propagate incompletes
       // instead of ignoring, this is probably a mistake.
-      let! results = List.map_s (eval state st) exprs
+      let! results = Ply.List.mapSequentially (eval state st) exprs
 
       let filtered =
         List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
@@ -90,7 +90,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ERecord (id, pairs) ->
       let! evaluated =
         pairs
-        |> List.map_s
+        |> Ply.List.mapSequentially
              (fun (k, v) ->
                uply {
                  match (k, v) with
@@ -114,7 +114,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | EApply (id, fnVal, exprs, inPipe, ster) ->
       let! fnVal = eval state st fnVal
-      let! args = List.map_s (eval state st) exprs
+      let! args = Ply.List.mapSequentially (eval state st) exprs
       let! result = applyFn state id fnVal (Seq.toList args) inPipe ster
 
       do
@@ -360,7 +360,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let! matchVal = eval state st matchExpr
 
       do!
-        List.iter_s
+        Ply.List.iterSequentially
           (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
           cases
 
