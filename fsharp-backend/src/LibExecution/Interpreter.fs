@@ -599,6 +599,7 @@ and execFn
       // in the editor. If we do, we'll recurse forever and blow the stack. *)
       return DIncomplete(SourceID(state.tlid, id))
     else
+      // CLEANUP: optimization opp
       let state =
         { state with
             executingFnName = Some fnDesc
@@ -616,6 +617,7 @@ and execFn
       let badArg =
         List.tryFind
           (function
+          // CLEANUP: does anyone use Bool.isError?
           | DError _ when fnDesc = FQFnName.stdlibFqName "Bool" "isError" 0 -> false
           | DError _
           | DIncomplete _ -> true

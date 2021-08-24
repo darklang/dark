@@ -864,10 +864,10 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
     parameters = fn.parameters
     returnType = fn.returnType
-    description = ""
-    previewable = Impure
-    deprecated = NotDeprecated
-    sqlSpec = NotQueryable
+    description = fn.description
+    previewable = fn.previewable
+    deprecated = fn.deprecated
+    sqlSpec = fn.sqlSpec
     fn = StdLib fn.fn }
 
 let userFnToFn (fn : UserFunction.T) : Fn =
@@ -891,8 +891,12 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     parameters = fn.parameters |> List.map toParam
 
     returnType = fn.returnType
-    description = ""
+    description = fn.description
     previewable = Impure
-    deprecated = NotDeprecated
+    deprecated =
+      if fn.deprecated then
+        DeprecatedBecause("a new version of the function exists")
+      else
+        NotDeprecated
     sqlSpec = NotQueryable
     fn = PackageFunction(fn.tlid, fn.body) }
