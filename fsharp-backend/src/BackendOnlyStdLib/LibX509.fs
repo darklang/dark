@@ -51,14 +51,14 @@ let fns : List<BuiltInFn> =
             let label = System.ReadOnlySpan<char>("PUBLIC KEY".ToCharArray())
             let chars = PemEncoding.Write(label, data)
             let str = new System.String(chars) ++ "\n"
-            str |> DStr |> Ok |> DResult |> Value
+            str |> DStr |> Ok |> DResult |> Ply
           with
           | e ->
             // The OCaml version seems to support anything starting in BEGIN
             // CERTIFICATE. If it doesn't find that, it errors with No certificates. If
             // it does find that, it tries to parse it, returning X509: failed to parse
             // certificate if it fails (either data is bullshit or it's not an RSA cert).
-            Value(DResult(Error(DStr "No certificates")))
+            Ply(DResult(Error(DStr "No certificates")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

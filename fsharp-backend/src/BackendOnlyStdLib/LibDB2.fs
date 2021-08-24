@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj value; DStr key; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! _id = UserDB.set state true db key value
             return DObj value
@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj value; DDB dbname ] ->
-          taskv {
+          uply {
             let key = System.Guid.NewGuid() |> toString
             let db = state.program.dbs.[dbname]
             let! _id = UserDB.set state true db key value
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! result = UserDB.getOption state db key
             return Dval.option result
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! result = UserDB.getOption state db key
             return Dval.option result
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
 
             let skeys =
@@ -129,7 +129,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
 
             let skeys =
@@ -154,7 +154,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
 
             let skeys =
@@ -183,7 +183,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
 
             let skeys =
@@ -208,7 +208,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
 
             let skeys =
@@ -234,7 +234,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList keys; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
 
             let skeys =
@@ -258,7 +258,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr key; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! _result = UserDB.delete state db key
             return DNull
@@ -274,7 +274,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! _result = UserDB.deleteAll state db
             return DNull
@@ -292,7 +292,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
 
@@ -311,7 +311,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
             return results |> List.map snd |> Dval.list
@@ -328,7 +328,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
             return results |> List.map snd |> Dval.list
@@ -345,7 +345,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
             return results |> List.map (fun (k, v) -> v) |> Dval.list
@@ -363,7 +363,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
 
             let! result = UserDB.queryExactFields state db fields
@@ -383,7 +383,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! result = UserDB.queryExactFields state db fields
             return result |> Map.ofList |> DObj
@@ -401,7 +401,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! result = UserDB.queryExactFields state db fields
             return result |> Map.ofList |> DObj
@@ -418,7 +418,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
 
@@ -438,7 +438,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
 
@@ -458,7 +458,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
 
@@ -478,7 +478,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
 
@@ -498,7 +498,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj fields; DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
 
@@ -518,7 +518,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ (DObj fields); DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryExactFields state db fields
 
@@ -539,7 +539,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.getAll state db
 
@@ -556,7 +556,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.getAll state db
             return results |> List.map snd |> DList
@@ -572,7 +572,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.getAll state db
             return results |> List.map snd |> Dval.list
@@ -590,7 +590,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! result = UserDB.getAll state db
 
@@ -608,7 +608,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! result = UserDB.getAll state db
             return result |> Map.ofList |> DObj
@@ -624,7 +624,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! (count : int) = UserDB.count state db
             return count |> bigint |> DInt
@@ -647,7 +647,7 @@ let fns : List<BuiltInFn> =
           |> List.filter (fun (k, v) -> k <> "")
           |> List.map (fun (k, v) -> DStr k)
           |> DList
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -666,7 +666,7 @@ let fns : List<BuiltInFn> =
           |> List.filter (fun (k, v) -> k <> "")
           |> List.map (fun (k, v) -> (k, (v.toOldString () |> DStr)))
           |> Dval.obj
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -677,7 +677,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, [] -> System.Guid.NewGuid().ToString() |> DStr |> Value
+        | _, [] -> System.Guid.NewGuid().ToString() |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -690,7 +690,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.getAllKeys state db
             return results |> List.map (fun k -> DStr k) |> DList
@@ -707,7 +707,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.queryValues state db b
             return results |> Dval.list
@@ -724,7 +724,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.query state db b
             return results |> Map.ofList |> DObj
@@ -741,7 +741,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.query state db b
 
@@ -761,7 +761,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.query state db b
 
@@ -781,7 +781,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! results = UserDB.query state db b
 
@@ -801,7 +801,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-          taskv {
+          uply {
             let db = state.program.dbs.[dbname]
             let! result = UserDB.queryCount state db b
             return Dval.int result

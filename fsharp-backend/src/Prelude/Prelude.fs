@@ -750,6 +750,7 @@ module Tablecloth =
       FSharpPlus.Map.union m1 m2
 
 type Ply<'a> = Ply.Ply<'a>
+let uply = FSharp.Control.Tasks.Affine.Unsafe.uply
 
 module Ply =
 

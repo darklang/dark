@@ -20,12 +20,11 @@ let execute (code : string) : RT.Dval =
     task {
       let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
       let prog = FSharpToExpr.parseRTExpr code
-      return Exe.executeExpr state Map.empty prog
+      return! Exe.executeExpr state Map.empty prog
     }
 
-  RT.DNull
-// Task.WaitAll [| t :> Task |]
-// t.GetAwaiter().GetResult()
+  Task.WaitAll [| t :> Task |]
+  t.Result
 
 let executeOCaml (code : string) : RT.Dval =
   let t =
@@ -38,8 +37,7 @@ let executeOCaml (code : string) : RT.Dval =
     }
 
   Task.WaitAll [| t :> Task |]
-  RT.DNull
-// t.GetAwaiter().GetResult()
+  t.Result
 
 
 let toBytes (dv : RT.Dval) : string =

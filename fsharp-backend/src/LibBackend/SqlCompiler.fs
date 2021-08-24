@@ -337,7 +337,7 @@ let partiallyEvaluate
         | _ -> return expr
       }
 
-    // This is a copy of Ast.postTraversal, made to  work with taskvs
+    // This is a copy of Ast.postTraversal, made to  work with uplys
     let rec postTraversal (expr : Expr) : Ply.Ply<Expr> =
       let r = postTraversal in
 

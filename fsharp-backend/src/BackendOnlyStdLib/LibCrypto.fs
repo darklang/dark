@@ -15,7 +15,6 @@ module Errors = LibExecution.Errors
 let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
@@ -57,7 +56,7 @@ let fns : List<BuiltInFn> =
           |> toBytes
           |> Password
           |> DPassword
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -74,7 +73,7 @@ let fns : List<BuiltInFn> =
         | _, [ DPassword (Password existingpw); DStr rawpw ] ->
           Sodium.PasswordHash.ArgonHashStringVerify(existingpw, toBytes rawpw)
           |> DBool
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -85,7 +84,7 @@ let fns : List<BuiltInFn> =
       description = "Computes the SHA-256 digest of the given `data`."
       fn =
         (function
-        | _, [ DBytes data ] -> SHA256.HashData(ReadOnlySpan data) |> DBytes |> Value
+        | _, [ DBytes data ] -> SHA256.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
@@ -96,7 +95,7 @@ let fns : List<BuiltInFn> =
       description = "Computes the SHA-384 digest of the given `data`."
       fn =
         (function
-        | _, [ DBytes data ] -> SHA384.HashData(ReadOnlySpan data) |> DBytes |> Value
+        | _, [ DBytes data ] -> SHA384.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
@@ -108,7 +107,7 @@ let fns : List<BuiltInFn> =
         "Computes the md5 digest of the given `data`. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
       fn =
         (function
-        | _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Value
+        | _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
@@ -122,7 +121,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBytes key; DBytes data ] ->
           let hmac = new HMACSHA256(key)
-          data |> hmac.ComputeHash |> DBytes |> Value
+          data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
@@ -136,7 +135,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBytes key; DBytes data ] ->
           let hmac = new HMACSHA1(key)
-          data |> hmac.ComputeHash |> DBytes |> Value
+          data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
