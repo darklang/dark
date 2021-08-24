@@ -753,6 +753,20 @@ type Ply<'a> = Ply.Ply<'a>
 let uply = FSharp.Control.Tasks.Affine.Unsafe.uply
 
 module Ply =
+  let map (f : 'a -> 'b) (v : Ply<'a>) : Ply<'b> =
+    uply {
+      let! v = v
+      return f v
+    }
+
+  let bind (f : 'a -> Ply<'b>) (v : Ply<'a>) : Ply<'b> =
+    uply {
+      let! v = v
+      return! f v
+    }
+
+  let toTask (v : Ply<'a>) : Task<'a> = Ply.TplPrimitives.runPlyAsTask v
+
 
   // These functions are sequential versions of List/Map functions like map/iter/etc.
   // They await each list item before they process the next.  This ensures each
@@ -774,18 +788,6 @@ module Ply =
         }
 
       loop (uply { return [] }) list
-
-    let map (f : 'a -> 'b) (v : Ply<'a>) : Ply<'b> =
-      uply {
-        let! v = v
-        return f v
-      }
-
-    let bind (f : 'a -> Ply<'b>) (v : Ply<'a>) : Ply<'b> =
-      uply {
-        let! v = v
-        return! f v
-      }
 
     let foldSequentially
       (f : 'state -> 'a -> Ply<'state>)
