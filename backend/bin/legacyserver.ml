@@ -37,6 +37,8 @@ let server () =
       match path with
       | ["execute"] ->
           Some F.execute
+      | ["benchmark"] ->
+          Some F.benchmark
       | ["bs"; fnname] ->
         ( match fnname with
         | "user_fn_bin2json" ->

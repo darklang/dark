@@ -382,3 +382,23 @@ let execute (json : string) : string =
   with e ->
     print_endline (Exception.to_string e) ;
     Libexecution.Exception.reraise e
+
+let benchmark (json : string) : string =
+  try
+    let account_id, canvas_id, program, args, dbs, user_fns =
+      json
+      |> Yojson.Safe.from_string
+      |> execute_type_of_yojson
+      |> Result.ok_or_failwith
+    in
+    let exec_state = {exec_state with account_id; canvas_id; dbs; user_fns} in
+    let startTime = Time.now() |> Time.to_span_since_epoch in
+    let dval = Ast.execute_ast ~input_vars:args ~state:exec_state program in
+    let endTime = Time.now() |> Time.to_span_since_epoch in
+    let timeTaken = Time.Span.(-) endTime startTime |> Time.Span.to_ms in
+    (`List [`Float timeTaken ; Types.RuntimeT.dval_to_yojson dval])
+    |> Yojson.Safe.to_string
+  with e ->
+    print_endline (Exception.to_string e) ;
+    Libexecution.Exception.reraise e
+

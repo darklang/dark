@@ -71,20 +71,17 @@ let runFSharpBenchmark
 
 
 
-let runOCaml (expr : PT.Expr) : Task<RT.Dval> =
+let runOCaml (expr : PT.Expr) : Task<float * RT.Dval> =
   task {
     let! program = programContext ()
-    let! result =
-      // FSTODO: Even though this goes through serialization and a HTTP call, this is
-      // still massively faster than the F# version, but we should remove that at some point.
-      LibBackend.OCamlInterop.execute
+    return!
+      LibBackend.OCamlInterop.benchmark
         program.accountID
         program.canvasID
         expr
         Map.empty
         []
         []
-    return result
   }
 
 let runOCamlBenchmark
@@ -96,20 +93,18 @@ let runOCamlBenchmark
     print "Running OCaml Benchmark"
     print "  Running warmups"
     for i = 1u to warmUpCount do
-      let stopWatch = System.Diagnostics.Stopwatch.StartNew()
-      do! runOCaml expr |> Task.map (ignore<RT.Dval>)
-      stopWatch.Stop()
-      print $"    Warmup {i}: {stopWatch.ElapsedMilliseconds}ms"
+      let! (elapsed : float, _ : RT.Dval) = runOCaml expr
+      print $"    Warmup {i}: {elapsed}ms"
 
     print $"  Starting OCaml benchmark ({iterations})"
-    let stopWatch = System.Diagnostics.Stopwatch.StartNew()
-    let! dval = runOCaml expr
+    let! (elapsed, dval) = runOCaml expr
+    let mutable elapsedTotal = elapsed
     for i = 1u to iterations - 1u do
-      let! (dval : RT.Dval) = runOCaml expr
+      let! (elapsed, _dval : RT.Dval) = runOCaml expr
+      elapsedTotal <- elapsed + elapsedTotal
       ()
-    stopWatch.Stop()
     print $"{dval}"
-    print $"  Done: {stopWatch.ElapsedMilliseconds / int64 iterations}ms"
+    print $"  Done: {int64 elapsedTotal / int64 iterations}ms"
     return ()
   }
 
