@@ -161,11 +161,10 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
               list{
                 Attr.placeholder("secret value"),
                 Attr.name("secret-value"),
-                Attr.value(m.newSecretValue),
                 Html.classList(list{("modal-form-input", true), ("error", !m.isValueValid)}),
                 Events.onInput(str => Types.SecretMsg(OnUpdateValue(str))),
               },
-              list{},
+              list{Html.text(m.newSecretValue)},
             ),
             Html.button(
               list{
