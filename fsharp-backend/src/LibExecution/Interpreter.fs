@@ -647,11 +647,8 @@ and execFn
             else
               let! result = f (state, arglist)
               // there's no point storing data we'll never ask for
-              let! () =
-                if fn.previewable <> Pure then
-                  state.tracing.storeFnResult fnRecord arglist result
-                else
-                  task { return () }
+              if fn.previewable <> Pure then
+                do! state.tracing.storeFnResult fnRecord arglist result
 
               return result
           | PackageFunction (tlid, body) ->
@@ -688,11 +685,8 @@ and execFn
                       |> typeErrorOrValue Map.empty
                   }
               // there's no point storing data we'll never ask for *)
-              let! () =
-                if fn.previewable <> Pure then
-                  state.tracing.storeFnResult fnRecord arglist result
-                else
-                  task { return () }
+              if fn.previewable <> Pure then
+                do! state.tracing.storeFnResult fnRecord arglist result
 
               return result
             | Error errs ->
