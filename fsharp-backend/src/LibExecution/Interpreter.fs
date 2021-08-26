@@ -642,7 +642,7 @@ and execFn
         try
           match fn.fn with
           | StdLib f ->
-            if state.tracing.realOrPreview = Preview && fn.previewable = Pure then
+            if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
               match state.tracing.loadFnResult fnRecord arglist with
               | Some (result, _ts) -> return result
               | None -> return DIncomplete sourceID
