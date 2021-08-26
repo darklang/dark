@@ -14,7 +14,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
-          taskv {
+          uply {
             match o with
             | Some dv ->
               let! result =
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
-          taskv {
+          uply {
             match o with
             | Some dv ->
               let! result =
@@ -79,7 +79,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DOption o1; DOption o2; DFnVal b ] ->
-          taskv {
+          uply {
             match (o1, o2) with
             | None, _ -> return DOption None
             | _, None -> return DOption None
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DOption o; DFnVal b ] ->
-          taskv {
+          uply {
             match o with
             | Some dv ->
               let! result =
@@ -129,8 +129,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DOption o; default' ] ->
           (match o with
-           | Some dv -> Value dv
-           | None -> Value default')
+           | Some dv -> Ply dv
+           | None -> Ply default')
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

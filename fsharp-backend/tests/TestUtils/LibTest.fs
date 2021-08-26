@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
       description = "Return an errorRail wrapping nothing."
       fn =
         (function
-        | state, [] -> Value(DErrorRail(DOption None))
+        | state, [] -> Ply(DErrorRail(DOption None))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -35,7 +35,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | state, [ DStr errorString ] -> Value(DError(SourceNone, errorString))
+        | state, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr errorString ] ->
           let msg = LibExecution.Errors.queryCompilerErrorTemplate ++ errorString
-          Value(DError(SourceNone, msg))
+          Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
       description = "Return a NaN"
       fn =
         (function
-        | _, [] -> Value(DFloat(System.Double.NaN))
+        | _, [] -> Ply(DFloat(System.Double.NaN))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
       description = "Returns positive infitity"
       fn =
         (function
-        | _, [] -> Value(DFloat(System.Double.PositiveInfinity))
+        | _, [] -> Ply(DFloat(System.Double.PositiveInfinity))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -85,11 +85,9 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars
-            |> Seq.toList
-            |> fun l -> l.[0] |> DChar |> Some |> DOption |> Value
+            chars |> Seq.toList |> fun l -> l.[0] |> DChar |> Some |> DOption |> Ply
           else
-            Value(DOption None)
+            Ply(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -100,7 +98,7 @@ let fns : List<BuiltInFn> =
       description = "Returns negative infinity"
       fn =
         (function
-        | _, [] -> Value(DFloat(System.Double.NegativeInfinity))
+        | _, [] -> Ply(DFloat(System.Double.NegativeInfinity))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -115,14 +113,14 @@ let fns : List<BuiltInFn> =
         | state, [ arg ] ->
           // CLEANUP this function is no longer needed once we remove ocaml
           state.test.sideEffectCount <- 0
-          Value(arg)
+          Ply(arg)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
-        [ Param.make "passThru" (TVariable "a") "Value which will be returned" ]
+        [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
       returnType = TVariable "a"
       description =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
@@ -130,7 +128,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ arg ] ->
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
-          Value(arg)
+          Ply(arg)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -141,7 +139,7 @@ let fns : List<BuiltInFn> =
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, [] -> Value(Dval.int state.test.sideEffectCount)
+        | state, [] -> Ply(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -154,7 +152,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ v; DStr msg ] ->
           print $"{msg}: {v}"
-          Value v
+          Ply v
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -165,7 +163,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Just"
       fn =
         (function
-        | _, [ DStr msg ] -> Value(DOption(Some(DError(SourceNone, msg))))
+        | _, [ DStr msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -176,7 +174,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in an OK"
       fn =
         (function
-        | _, [ DStr msg ] -> Value(DResult(Ok(DError(SourceNone, msg))))
+        | _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -187,7 +185,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Result.Error"
       fn =
         (function
-        | _, [ DStr msg ] -> Value(DResult(Ok(DError(SourceNone, msg))))
+        | _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

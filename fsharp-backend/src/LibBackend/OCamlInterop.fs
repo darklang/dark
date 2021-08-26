@@ -302,3 +302,36 @@ let execute
     with
     | e -> return (RT.DError(RT.SourceNone, e.Message))
   }
+
+type BenchmarkResult = (float * OCamlTypes.RuntimeT.dval)
+
+let benchmark
+  (ownerID : UserID)
+  (canvasID : CanvasID)
+  (program : PT.Expr)
+  (symtable : Map<string, RT.Dval>)
+  (dbs : List<PT.DB.T>)
+  (fns : List<PT.UserFunction.T>)
+  : Task<float * RT.Dval> =
+  let program = Convert.pt2ocamlExpr program
+
+  let args =
+    symtable |> Map.toList |> List.map (fun (k, dv) -> (k, Convert.rt2ocamlDval dv))
+
+  let dbs = List.map Convert.pt2ocamlDB dbs
+  let fns = List.map Convert.pt2ocamlUserFunction fns
+
+  let str =
+    Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
+
+  task {
+    try
+      let! resultStr = str |> toBytes |> legacyStringReq "benchmark"
+      let (timing, dval) =
+        Json.OCamlCompatible.deserialize<BenchmarkResult> resultStr
+
+      return (timing, Convert.ocamlDval2rt dval)
+    with
+    | e ->
+      return (System.Double.PositiveInfinity, RT.DError(RT.SourceNone, e.Message))
+  }

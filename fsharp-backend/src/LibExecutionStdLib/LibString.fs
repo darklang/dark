@@ -31,7 +31,7 @@ module Errors = LibExecution.Errors
 //   DResult(ResError(DStr msg))
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `true` if `s` is the empty string \"\"."
       fn =
         (function
-        | _, [ DStr s ] -> Value(DBool(s = ""))
+        | _, [ DStr s ] -> Ply(DBool(s = ""))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
         | state, [ DStr s; DFnVal b ] ->
           (String.toEgcSeq s
            |> Seq.toList
-           |> List.map_s
+           |> Ply.List.mapSequentially
                 (fun te ->
                   (LibExecution.Interpreter.applyFnVal
                     state
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
                     NotInPipe
                     NoRail))
            |> (fun dvals ->
-             (taskv {
+             (uply {
                let! (dvals : List<Dval>) = dvals
 
                match List.tryFind (fun dv -> Dval.isIncomplete dv) dvals with
@@ -115,7 +115,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a string containing a single '\n'"
       fn =
         (function
-        | _, [] -> Value(DStr "\n")
+        | _, [] -> Ply(DStr "\n")
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -143,7 +143,7 @@ let fns : List<BuiltInFn> =
            |> Seq.map (fun c -> DChar c)
            |> Seq.toList
            |> DList
-           |> Value)
+           |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DStr search; DStr replace ] ->
           if search = "" then
             if s = "" then
-              Value(DStr replace)
+              Ply(DStr replace)
             else
               // .Net Replace doesn't allow empty string, but we do.
               String.toEgcSeq s
@@ -169,9 +169,9 @@ let fns : List<BuiltInFn> =
               |> (fun l -> replace :: l @ [ replace ])
               |> String.concat ""
               |> DStr
-              |> Value
+              |> Ply
           else
-            Value(DStr(s.Replace(search, replace)))
+            Ply(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "replace"
       previewable = Pure
@@ -188,7 +188,7 @@ let fns : List<BuiltInFn> =
 
             if int < -4611686018427387904I then failwith "goto exception case"
             else if int >= 4611686018427387904I then failwith "goto exception case"
-            else int |> DInt |> Value
+            else int |> DInt |> Ply
            with
            | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
         | _ -> incorrectArgs ())
@@ -209,14 +209,14 @@ let fns : List<BuiltInFn> =
 
             if int < -4611686018427387904I then failwith "goto exception case"
             else if int >= 4611686018427387904I then failwith "goto exception case"
-            else int |> DInt |> Ok |> DResult |> Value
+            else int |> DInt |> Ok |> DResult |> Ply
           with
           | e ->
             $"Expected to parse string with only numbers, instead got \"{s}\""
             |> DStr
             |> Error
             |> DResult
-            |> Value
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -229,7 +229,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s as dv ] ->
           (try
-            float (s) |> DFloat |> Value
+            float (s) |> DFloat |> Ply
            with
            | e ->
              err (
@@ -247,14 +247,14 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            float (s) |> DFloat |> Ok |> DResult |> Value
+            float (s) |> DFloat |> Ok |> DResult |> Ply
            with
            | e ->
              "Expected a string representation of an IEEE float"
              |> DStr
              |> Error
              |> DResult
-             |> Value)
+             |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -273,7 +273,7 @@ let fns : List<BuiltInFn> =
           |> Array.map (fun c -> if int c < 128 then Char.ToUpper c else c)
           |> System.String
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -284,7 +284,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, uppercased"
       fn =
         (function
-        | _, [ DStr s ] -> Value(DStr(String.toUpper s))
+        | _, [ DStr s ] -> Ply(DStr(String.toUpper s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -303,7 +303,7 @@ let fns : List<BuiltInFn> =
           |> Array.map (fun c -> if int c < 128 then Char.ToLower c else c)
           |> System.String
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -314,7 +314,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, lowercased"
       fn =
         (function
-        | _, [ DStr s ] -> Value(DStr(String.toLower s))
+        | _, [ DStr s ] -> Ply(DStr(String.toLower s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -326,7 +326,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-          s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Value
+          s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "length"
       previewable = Pure
@@ -337,7 +337,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Value
+        | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO // there isn't a unicode version of length
       previewable = Pure
@@ -358,7 +358,7 @@ let fns : List<BuiltInFn> =
           // This is a problem because it breaks our guarantees about strings always being normalized;
           // concatenating two normalized strings does not always result in a normalized string.
           // replicating known broken behaviour feels wrong, but maybe necessary
-          Value(
+          Ply(
             DStr(
               System.Text.Encoding.UTF8.GetString(
                 Array.append
@@ -379,7 +379,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, [ DStr s1; DStr s2 ] -> Value(DStr((s1 + s2).Normalize()))
+        | _, [ DStr s1; DStr s2 ] -> Ply(DStr((s1 + s2).Normalize()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -391,7 +391,7 @@ let fns : List<BuiltInFn> =
         "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
       fn =
         (function
-        | _, [ DStr s1; DStr s2 ] -> Value(DStr(s2 + s1))
+        | _, [ DStr s1; DStr s2 ] -> Ply(DStr(s2 + s1))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -416,7 +416,7 @@ let fns : List<BuiltInFn> =
           |> replace spaces "-"
           |> String.toLower
           |> DStr
-          |> Value
+          |> Ply
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -442,7 +442,7 @@ let fns : List<BuiltInFn> =
           |> replace newSpaces "-"
           |> String.toLower
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -469,7 +469,7 @@ let fns : List<BuiltInFn> =
           |> fun s -> s.Trim()
           |> replace toBeHyphenated "-"
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -481,7 +481,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-          String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Value
+          String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "reverse"
       previewable = Pure
@@ -495,7 +495,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s; DStr sep ] ->
           if sep = "" then
-            s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Value
+            s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
           else
             // CLEANUP
             // This behaviour is the worst. This mimics what OCaml did: There
@@ -517,7 +517,7 @@ let fns : List<BuiltInFn> =
             |> List.rev
             |> List.map DStr
             |> DList
-            |> Value
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -538,7 +538,7 @@ let fns : List<BuiltInFn> =
               l
 
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
-          Value(DStr((String.concat sep strs)))
+          Ply(DStr((String.concat sep strs)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -569,7 +569,7 @@ let fns : List<BuiltInFn> =
                  | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
             |> String.concat ""
           )
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -591,7 +591,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a char to a string"
       fn =
         (function
-        | _, [ DChar c ] -> Value(DStr(c))
+        | _, [ DChar c ] -> Ply(DStr(c))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -603,7 +603,7 @@ let fns : List<BuiltInFn> =
         "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
       fn =
         (function
-        | _, [ DStr s ] -> s |> toBytes |> base64UrlEncode |> DStr |> Value
+        | _, [ DStr s ] -> s |> toBytes |> base64UrlEncode |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -627,7 +627,7 @@ let fns : List<BuiltInFn> =
 
           if s = "" then
             // This seems like we should allow it
-            Value(DStr "")
+            Ply(DStr "")
           // dotnet ignores whitespace but we don't allow it
           else
 
@@ -641,7 +641,7 @@ let fns : List<BuiltInFn> =
               |> System.Text.Encoding.UTF8.GetString
               |> String.normalize
               |> DStr
-              |> Value
+              |> Ply
             with
             | e -> err "Not a valid base64 string"
         | _ -> incorrectArgs ())
@@ -665,7 +665,7 @@ let fns : List<BuiltInFn> =
 
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -685,7 +685,7 @@ let fns : List<BuiltInFn> =
 
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -705,7 +705,7 @@ let fns : List<BuiltInFn> =
 
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -733,7 +733,7 @@ let fns : List<BuiltInFn> =
               |> List.map (fun i -> i.ToString())
               |> String.concat ""
 
-            randomString (int l) |> DStr |> Value
+            randomString (int l) |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -746,7 +746,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt l ] ->
           if l < 0I then
-            "l should be a positive integer" |> DStr |> Error |> DResult |> Value
+            "l should be a positive integer" |> DStr |> Error |> DResult |> Ply
           else
             let randomString length =
               let gen () =
@@ -761,7 +761,7 @@ let fns : List<BuiltInFn> =
               |> List.map (fun i -> i.ToString())
               |> String.concat ""
 
-            randomString (int l) |> DStr |> Ok |> DResult |> Value
+            randomString (int l) |> DStr |> Ok |> DResult |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -779,7 +779,7 @@ let fns : List<BuiltInFn> =
             |> DStr
             |> Error
             |> DResult
-            |> Value
+            |> Ply
           else
             let randomString length =
               let gen () =
@@ -794,7 +794,7 @@ let fns : List<BuiltInFn> =
               |> List.map (fun i -> i.ToString())
               |> String.concat ""
 
-            randomString (int l) |> DStr |> Ok |> DResult |> Value
+            randomString (int l) |> DStr |> Ok |> DResult |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -824,7 +824,7 @@ let fns : List<BuiltInFn> =
               (Seq.toList html)
             |> String.concat ""
 
-          Value(DStr(htmlEscape s))
+          Ply(DStr(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -838,7 +838,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           match Guid.TryParse s with
-          | true, x -> x |> DUuid |> Value
+          | true, x -> x |> DUuid |> Ply
           | _ ->
             err (
               "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
@@ -857,13 +857,13 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           match Guid.TryParse s with
-          | true, x -> x |> DUuid |> Ok |> DResult |> Value
+          | true, x -> x |> DUuid |> Ok |> DResult |> Ply
           | _ ->
             "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             |> DStr
             |> Error
             |> DResult
-            |> Value
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -875,8 +875,7 @@ let fns : List<BuiltInFn> =
       description = "Checks if `lookingIn` contains `searchingFor`"
       fn =
         (function
-        | _, [ DStr needle; DStr haystack ] ->
-          DBool(haystack.Contains needle) |> Value
+        | _, [ DStr needle; DStr haystack ] -> DBool(haystack.Contains needle) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -888,8 +887,7 @@ let fns : List<BuiltInFn> =
       description = "Checks if `lookingIn` contains `searchingFor`"
       fn =
         (function
-        | _, [ DStr haystack; DStr needle ] ->
-          DBool(haystack.Contains needle) |> Value
+        | _, [ DStr haystack; DStr needle ] -> DBool(haystack.Contains needle) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec =
         SqlCallback2
@@ -905,7 +903,7 @@ let fns : List<BuiltInFn> =
       description = "Checks if `lookingIn` contains `searchingFor`"
       fn =
         (function
-        | _, [ DStr haystack; DStr needle ] -> Value(DBool(haystack.Contains needle))
+        | _, [ DStr haystack; DStr needle ] -> Ply(DBool(haystack.Contains needle))
         | _ -> incorrectArgs ())
       sqlSpec =
         SqlCallback2
@@ -948,7 +946,7 @@ let fns : List<BuiltInFn> =
           |> List.take (l - f)
           |> String.concat ""
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -971,7 +969,7 @@ let fns : List<BuiltInFn> =
           |> String.concat ""
           |> fun s -> s.Normalize()
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1017,7 +1015,7 @@ let fns : List<BuiltInFn> =
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
             stringBuilder.ToString()
 
-          Value(DStr(lastN s n))
+          Ply(DStr(lastN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1061,7 +1059,7 @@ let fns : List<BuiltInFn> =
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
             stringBuilder.ToString()
 
-          Value(DStr(dropLastN s n))
+          Ply(DStr(dropLastN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1098,7 +1096,7 @@ let fns : List<BuiltInFn> =
             // under substringing (see https://unicode.org/reports/tr15/#Concatenation).
             stringBuilder.ToString()
 
-          Value(DStr(dropFirstN s n))
+          Ply(DStr(dropFirstN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1129,7 +1127,7 @@ let fns : List<BuiltInFn> =
 
             stringBuilder.Append(s) |> ignore<StringBuilder>
 
-            stringBuilder.ToString().Normalize() |> DStr |> Value
+            stringBuilder.ToString().Normalize() |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1159,7 +1157,7 @@ let fns : List<BuiltInFn> =
             for _ = 1 to requiredPads do
               stringBuilder.Append(padWith) |> ignore<StringBuilder>
 
-            stringBuilder.ToString().Normalize() |> DStr |> Value
+            stringBuilder.ToString().Normalize() |> DStr |> Ply
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1172,7 +1170,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
       fn =
         (function
-        | _, [ DStr toTrim ] -> Value(DStr(toTrim.Trim()))
+        | _, [ DStr toTrim ] -> Ply(DStr(toTrim.Trim()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure
@@ -1184,7 +1182,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
       fn =
         (function
-        | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimStart()))
+        | _, [ DStr toTrim ] -> Ply(DStr(toTrim.TrimStart()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "ltrim"
       previewable = Pure
@@ -1196,7 +1194,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
       fn =
         (function
-        | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimEnd()))
+        | _, [ DStr toTrim ] -> Ply(DStr(toTrim.TrimEnd()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "rtrim"
       previewable = Pure
@@ -1210,7 +1208,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Value(DBytes theBytes)
+          Ply(DBytes theBytes)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1222,7 +1220,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr subject; DStr prefix ] ->
-          Value(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
+          Ply(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1236,7 +1234,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr subject; DStr suffix ] ->
-          Value(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
+          Ply(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

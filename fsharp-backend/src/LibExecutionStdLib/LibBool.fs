@@ -21,7 +21,7 @@ let fns : List<BuiltInFn> =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
       fn =
         (function
-        | _, [ DBool b ] -> Value(DBool(not b))
+        | _, [ DBool b ] -> Ply(DBool(not b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "not"
       previewable = Pure
@@ -32,7 +32,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if both a and b are true"
       fn =
         (function
-        | _, [ DBool a; DBool b ] -> Value(DBool(a && b))
+        | _, [ DBool a; DBool b ] -> Ply(DBool(a && b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "AND"
       previewable = Pure
@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if either a is true or b is true"
       fn =
         (function
-        | _, [ DBool a; DBool b ] -> Value(DBool(a || b))
+        | _, [ DBool a; DBool b ] -> Ply(DBool(a || b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "OR"
       previewable = Pure
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
         "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
       fn =
         (function
-        | _, [ DBool a; DBool b ] -> Value(DBool(a <> b))
+        | _, [ DBool a; DBool b ] -> Ply(DBool(a <> b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ value ] ->
-          Value(
+          Ply(
             match value with
             | DNull -> DBool true
             | _ -> DBool false
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ value ] ->
-          Value(
+          Ply(
             match value with
             | DError _ -> DBool true
             | _ -> DBool false

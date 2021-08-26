@@ -24,9 +24,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            Value(DDate(System.DateTime.ofIsoString s))
+            Ply(DDate(System.DateTime.ofIsoString s))
            with
-           | e -> Value(DError(SourceNone, "Invalid date format")))
+           | e -> Ply(DError(SourceNone, "Invalid date format")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -40,9 +40,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            Value(DResult(Ok(DDate(System.DateTime.ofIsoString s))))
+            Ply(DResult(Ok(DDate(System.DateTime.ofIsoString s))))
            with
-           | e -> Value(DResult(Error(DStr "Invalid date format"))))
+           | e -> Ply(DResult(Error(DStr "Invalid date format"))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -56,9 +56,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            Value(Dval.resultOk (DDate(System.DateTime.ofIsoString s)))
+            Ply(Dval.resultOk (DDate(System.DateTime.ofIsoString s)))
            with
-           | e -> Value(Dval.resultError (DStr "Invalid date format")))
+           | e -> Ply(Dval.resultError (DStr "Invalid date format")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
         "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
       fn =
         (function
-        | _, [ DDate d ] -> d.toIsoString () |> DStr |> Value
+        | _, [ DDate d ] -> d.toIsoString () |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
         "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
       fn =
         (function
-        | _, [ DDate d ] -> d.ToString("yyyyMMddTHHmmssZ") |> DStr |> Value
+        | _, [ DDate d ] -> d.ToString("yyyyMMddTHHmmssZ") |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
       fn =
         (function
-        | _, [ DDate d ] -> d.ToString("yyyyMMdd") |> DStr |> Value
+        | _, [ DDate d ] -> d.ToString("yyyyMMdd") |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the current time."
       fn =
         (function
-        | _, [] -> Value(DDate(System.DateTime.Now))
+        | _, [] -> Ply(DDate(System.DateTime.Now))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -117,7 +117,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] ->
           let now = System.DateTime.Now
-          Value(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
+          Ply(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a new Date `seconds` seconds after `d`"
       fn =
         (function
-        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float s))))
+        | _, [ DDate d; DInt s ] -> (Ply(DDate(d.AddSeconds(float s))))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -139,7 +139,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a new Date `seconds` seconds before `d`"
       fn =
         (function
-        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
+        | _, [ DDate d; DInt s ] -> (Ply(DDate(d.AddSeconds(float -s))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable // As the OCaml one wasn't
       previewable = Pure
@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a new Date `seconds` seconds before `d`"
       fn =
         (function
-        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
+        | _, [ DDate d; DInt s ] -> (Ply(DDate(d.AddSeconds(float -s))))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether `d1` > ` d2`"
       fn =
         (function
-        | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 > d2))
+        | _, [ DDate d1; DDate d2 ] -> Ply(DBool(d1 > d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -172,7 +172,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether `d1` < ` d2`"
       fn =
         (function
-        | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 < d2))
+        | _, [ DDate d1; DDate d2 ] -> Ply(DBool(d1 < d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp("<")
       previewable = Pure
@@ -183,7 +183,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether `d1` >= ` d2`"
       fn =
         (function
-        | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 >= d2))
+        | _, [ DDate d1; DDate d2 ] -> Ply(DBool(d1 >= d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp(">=")
       previewable = Pure
@@ -194,7 +194,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether `d1` <= ` d2`"
       fn =
         (function
-        | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 <= d2))
+        | _, [ DDate d1; DDate d2 ] -> Ply(DBool(d1 <= d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp("<=")
       previewable = Pure
@@ -212,7 +212,7 @@ let fns : List<BuiltInFn> =
           |> (fun dto -> dto.ToUnixTimeSeconds())
           |> bigint
           |> DInt
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -232,7 +232,7 @@ let fns : List<BuiltInFn> =
           |> System.DateTimeOffset.FromUnixTimeSeconds
           |> (fun dto -> dto.DateTime)
           |> DDate
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -287,7 +287,7 @@ let fns : List<BuiltInFn> =
 
           let diff = f time
           let result = if diff = "" then "less than a minute" else diff
-          Value(DStr result)
+          Ply(DStr result)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -298,7 +298,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the year portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] -> d.Year |> Dval.int |> Value
+        | _, [ DDate d ] -> d.Year |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
@@ -310,7 +310,7 @@ let fns : List<BuiltInFn> =
         "Returns the month portion of the Date as an int between 1 and 12"
       fn =
         (function
-        | _, [ DDate d ] -> d.Month |> Dval.int |> Value
+        | _, [ DDate d ] -> d.Month |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
@@ -321,7 +321,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the day portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] -> d.Day |> Dval.int |> Value
+        | _, [ DDate d ] -> d.Day |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
@@ -336,7 +336,7 @@ let fns : List<BuiltInFn> =
         | _, [ DDate d ] ->
           let day = d.DayOfWeek
           let day = if day = System.DayOfWeek.Sunday then 7 else int day
-          day |> Dval.int |> Value
+          day |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -352,7 +352,7 @@ let fns : List<BuiltInFn> =
           ((d - System.DateTime.UnixEpoch).TotalHours % 60.0)
           |> int
           |> Dval.int
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -366,7 +366,7 @@ let fns : List<BuiltInFn> =
         | _, [ DDate d ] ->
           // CLEANUP - this was made bug-for-bug compatible
           let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
-          Value(Dval.int s)
+          Ply(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -385,7 +385,7 @@ let fns : List<BuiltInFn> =
             else
               d.Minute
 
-          Value(Dval.int s)
+          Ply(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -399,7 +399,7 @@ let fns : List<BuiltInFn> =
         | _, [ DDate d ] ->
           // CLEANUP - this was made bug-for-bug compatible
           let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
-          Value(Dval.int s)
+          Ply(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
@@ -411,7 +411,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          System.DateTime(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Value
+          System.DateTime(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
       previewable = Pure

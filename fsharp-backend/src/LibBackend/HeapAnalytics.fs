@@ -58,7 +58,7 @@ let _payloadForEvent
 //   ; ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
 //   ; ("event", event)
 //   ; ("userid", Some (user_id |> Uuidm.to_string)) ]
-//   |> List.filter_map ~f:(fun (k, v) ->
+//   |> Ply.List.filterMapSequentially ~f:(fun (k, v) ->
 //          match v with Some v -> Some (k, v) | _ -> None)
 
 // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core

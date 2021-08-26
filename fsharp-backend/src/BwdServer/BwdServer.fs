@@ -253,7 +253,7 @@ let runHttp
           ) ]
         RT.NotInPipe
         RT.NoRail
-      |> TaskOrValue.toTask
+      |> Ply.TplPrimitives.runPlyAsTask
 
     return (Exe.extractHttpErrorRail result, touchedTLIDs)
   }

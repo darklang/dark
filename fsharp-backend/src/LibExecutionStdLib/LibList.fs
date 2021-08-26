@@ -12,11 +12,12 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = Errors.incorrectArgs
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 // Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
 module Sort =
-  type Comparer = Dval -> Dval -> TaskOrValue<int>
+  type Comparer = Dval -> Dval -> Ply<int>
+
   type Array = array<Dval>
 
   let copy
@@ -35,8 +36,8 @@ module Sort =
     (halfLen : int)
     (length : int)
     (comparer : Comparer)
-    : TaskOrValue<unit> =
-    taskv {
+    : Ply<unit> =
+    uply {
       let mutable leftHalfIndex = 0
       let mutable rightHalfIndex = index + halfLen
       let rightHalfEnd = index + length
@@ -82,8 +83,8 @@ module Sort =
     (length : int)
     (comparer : Comparer)
     (scratchSpace : Array)
-    : TaskOrValue<unit> =
-    taskv {
+    : Ply<unit> =
+    uply {
       if length <= 1 then
         return ()
       elif length = 2 then
@@ -112,13 +113,13 @@ module Sort =
     (index : int)
     (length : int)
     (comparer : Comparer)
-    : TaskOrValue<unit> =
+    : Ply<unit> =
     let scratchSpace =
       System.Array.CreateInstance(typeof<Dval>, arrayToSort.Length / 2) :?> Array
 
     mergeSortHelper arrayToSort index length comparer scratchSpace
 
-  let sort (comparer : Comparer) (arrayToSort : Array) : TaskOrValue<unit> =
+  let sort (comparer : Comparer) (arrayToSort : Array) : Ply<unit> =
     sequentialSort arrayToSort 0 arrayToSort.Length comparer
 
 
@@ -133,7 +134,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a one-element list containing the given `val`."
       fn =
         (function
-        | _, [ v ] -> Value(DList [ v ])
+        | _, [ v ] -> Ply(DList [ v ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -145,7 +146,7 @@ let fns : List<BuiltInFn> =
         "Returns the head of a list. Returns null if the empty list is passed."
       fn =
         (function
-        | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Value
+        | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -156,7 +157,7 @@ let fns : List<BuiltInFn> =
       description = "Fetches the head of the list and returns an option"
       fn =
         (function
-        | _, [ DList l ] -> Value(DOption(List.tryHead l))
+        | _, [ DList l ] -> Ply(DOption(List.tryHead l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -168,7 +169,7 @@ let fns : List<BuiltInFn> =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Value
+        | _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -184,7 +185,7 @@ let fns : List<BuiltInFn> =
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
         | _, [ DList l ] ->
-          (if List.isEmpty l then None else Some(DList l.Tail)) |> DOption |> Value
+          (if List.isEmpty l then None else Some(DList l.Tail)) |> DOption |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -195,7 +196,7 @@ let fns : List<BuiltInFn> =
       description = "Returns an empty list."
       fn =
         (function
-        | _, [] -> Value(DList [])
+        | _, [] -> Ply(DList [])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -207,7 +208,7 @@ let fns : List<BuiltInFn> =
       fn =
         // fakeval handled by call
         (function
-        | _, [ DList l; i ] -> Value(DList(i :: l))
+        | _, [ DList l; i ] -> Ply(DList(i :: l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -218,7 +219,7 @@ let fns : List<BuiltInFn> =
       description = "Add element `val` to back of list `list`"
       fn =
         (function
-        | _, [ DList l; i ] -> Value(DList(l @ [ i ]))
+        | _, [ DList l; i ] -> Ply(DList(l @ [ i ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -230,7 +231,7 @@ let fns : List<BuiltInFn> =
         "Returns the last value in `list`. Returns null if the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> (if List.isEmpty l then DNull else List.last l) |> Value
+        | _, [ DList l ] -> (if List.isEmpty l then DNull else List.last l) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -242,7 +243,7 @@ let fns : List<BuiltInFn> =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
       fn =
         (function
-        | _, [ DList l ] -> Value(DOption(List.tryLast l))
+        | _, [ DList l ] -> Ply(DOption(List.tryLast l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -254,7 +255,7 @@ let fns : List<BuiltInFn> =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
       fn =
         (function
-        | _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Value
+        | _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -265,7 +266,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a reversed copy of `list`."
       fn =
         (function
-        | _, [ DList l ] -> Value(DList(List.rev l))
+        | _, [ DList l ] -> Ply(DList(List.rev l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -281,16 +282,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
-          taskv {
-            let f (dv : Dval) : TaskOrValue<bool> =
-              taskv {
+          uply {
+            let f (dv : Dval) : Ply<bool> =
+              uply {
                 let! result =
                   Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
                 return result = DBool true
               }
 
-            let! result = List.find_s f l
+            let! result = Ply.List.findSequentially f l
             return Option.defaultValue DNull result
           }
         | _ -> incorrectArgs ())
@@ -307,16 +308,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
-          taskv {
-            let f (dv : Dval) : TaskOrValue<bool> =
-              taskv {
+          uply {
+            let f (dv : Dval) : Ply<bool> =
+              uply {
                 let! result =
                   Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
                 return result = DBool true
               }
 
-            let! result = List.find_s f l
+            let! result = Ply.List.findSequentially f l
             return DOption result
           }
         | _ -> incorrectArgs ())
@@ -333,16 +334,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
-          taskv {
-            let f (dv : Dval) : TaskOrValue<bool> =
-              taskv {
+          uply {
+            let f (dv : Dval) : Ply<bool> =
+              uply {
                 let! result =
                   Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
                 return result = DBool true
               }
 
-            let! result = List.find_s f l
+            let! result = Ply.List.findSequentially f l
             return Dval.option result
           }
         | _ -> incorrectArgs ())
@@ -355,7 +356,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `true` if `val` is in the list."
       fn =
         (function
-        | _, [ DList l; i ] -> Value(DBool(List.contains i l))
+        | _, [ DList l; i ] -> Ply(DBool(List.contains i l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -367,7 +368,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `true` if `val` is in the list."
       fn =
         (function
-        | _, [ DList l; i ] -> Value(DBool(List.contains i l))
+        | _, [ DList l; i ] -> Ply(DBool(List.contains i l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -384,7 +385,7 @@ let fns : List<BuiltInFn> =
           else if times > 2147483647I then
             err (Errors.argumentWasnt "less than 2147483647" "times" (DInt times))
           else
-            List.replicate (int times) v |> DList |> Value
+            List.replicate (int times) v |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -395,7 +396,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the number of values in `list`."
       fn =
         (function
-        | _, [ DList l ] -> Value(Dval.int (l.Length))
+        | _, [ DList l ] -> Ply(Dval.int (l.Length))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -410,7 +411,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt start; DInt stop ] ->
-          [ start .. stop ] |> List.map DInt |> DList |> Value
+          [ start .. stop ] |> List.map DInt |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -429,9 +430,9 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; init; DFnVal b ] ->
           (* Fake cf should be propagated by the blocks so we dont need to check *)
-          taskv {
+          uply {
             let f (accum : DvalTask) (item : Dval) : DvalTask =
-              taskv {
+              uply {
                 let! accum = accum
 
                 return!
@@ -444,7 +445,7 @@ let fns : List<BuiltInFn> =
                     NoRail
               }
 
-            return! List.fold f (Value init) l
+            return! List.fold f (Ply init) l
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -463,7 +464,7 @@ let fns : List<BuiltInFn> =
             | DList l -> List.append acc l
             | _ -> Errors.throw "Flattening non-lists"
 
-          List.fold f [] l |> DList |> Value
+          List.fold f [] l |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -484,7 +485,7 @@ let fns : List<BuiltInFn> =
                | [] -> [ h ]
                | t -> [ h ] @ [ i ] @ join t)
 
-          Value(DList(join l))
+          Ply(DList(join l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -506,7 +507,7 @@ let fns : List<BuiltInFn> =
                | [] -> l1
                | y :: ys -> x :: y :: f xs ys)
 
-          Value(DList(f l1 l2))
+          Ply(DList(f l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -521,11 +522,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
-          taskv {
+          uply {
             let! projected =
-              List.map_s
+              Ply.List.mapSequentially
                 (fun dv ->
-                  taskv {
+                  uply {
                     let! key =
                       Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
@@ -547,7 +548,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if `list` has no values."
       fn =
         (function
-        | _, [ DList l ] -> Value(DBool(List.isEmpty l))
+        | _, [ DList l ] -> Ply(DBool(List.isEmpty l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -560,7 +561,7 @@ let fns : List<BuiltInFn> =
          Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
       fn =
         (function
-        | _, [ DList list ] -> list |> List.sort |> DList |> Value
+        | _, [ DList list ] -> list |> List.sort |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -577,14 +578,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList list; DFnVal b ] ->
-          taskv {
+          uply {
             let fn dv = Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe NoRail
             // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
             let! withKeys =
               list
-              |> List.map_s
+              |> Ply.List.mapSequentially
                    (fun v ->
-                     taskv {
+                     uply {
                        let! key = fn v
                        return (key, v)
                      })
@@ -607,8 +608,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList list; DFnVal f ] ->
-          let fn (dv1 : Dval) (dv2 : Dval) : TaskOrValue<int> =
-            taskv {
+          let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
+            uply {
               let! result =
                 Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe NoRail
 
@@ -619,16 +620,17 @@ let fns : List<BuiltInFn> =
                   Errors.throw (Errors.expectedLambdaValue "f" "-1, 0, 1" result)
             }
 
-          try
-            taskv {
+          uply {
+            try
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Ok |> DResult
-            }
-          with
-          | Errors.StdlibException (Errors.StringError m) ->
-            Value(DResult(Error(DStr m)))
+            with
+            | Errors.StdlibException (Errors.StringError m) as e ->
+              return DResult(Error(DStr m))
+            | e -> return DResult(Error(DStr e.Message))
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -642,7 +644,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l1; DList l2 ] ->
-          Value(DList(List.append l1 l2)) (* no checking for fake cf required *)
+          Ply(DList(List.append l1 l2)) (* no checking for fake cf required *)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -657,11 +659,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
-          taskv {
+          uply {
             let incomplete = ref false
 
-            let f (dv : Dval) : TaskOrValue<bool> =
-              taskv {
+            let f (dv : Dval) : Ply<bool> =
+              uply {
                 let! result =
                   Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
@@ -676,7 +678,7 @@ let fns : List<BuiltInFn> =
             if !incomplete then
               return DIncomplete SourceNone
             else
-              let! result = List.filter_s f l
+              let! result = Ply.List.filterSequentially f l
               return DList(result)
           }
         | _ -> incorrectArgs ())
@@ -696,11 +698,11 @@ let fns : List<BuiltInFn> =
     //   fn =
     //     (function
     //     | state, [ DList l; DFnVal b ] ->
-    //         taskv {
+    //         uply {
     //           let incomplete = ref false
     //
-    //           let f (dv : Dval) : TaskOrValue<bool> =
-    //             taskv {
+    //           let f (dv : Dval) : Ply<bool> =
+    //             uply {
     //               let! r =
     //                 LibExecution.Interpreter.applyFnVal
     //                   state
@@ -723,7 +725,7 @@ let fns : List<BuiltInFn> =
     //           if !incomplete then
     //             return DIncomplete SourceNone
     //           else
-    //             let! result = List.filter_s f l
+    //             let! result = Ply.List.filterSequentially f l
     //             return DBool((result.Length) = (l.Length))
     //         }
     //     | _ -> incorrectArgs ())
@@ -742,11 +744,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
-          taskv {
+          uply {
             let fakecf = ref None
 
-            let f (dv : Dval) : TaskOrValue<bool> =
-              taskv {
+            let f (dv : Dval) : Ply<bool> =
+              uply {
                 let run = !fakecf = None
 
                 if run then
@@ -764,7 +766,7 @@ let fns : List<BuiltInFn> =
                   return false
               }
 
-            let! result = List.filter_s f l
+            let! result = Ply.List.filterSequentially f l
 
             match !fakecf with
             | None -> return DList(result)
@@ -786,11 +788,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
-          taskv {
+          uply {
             let abortReason = ref None
 
-            let f (dv : Dval) : TaskOrValue<bool> =
-              taskv {
+            let f (dv : Dval) : Ply<bool> =
+              uply {
                 let run = !abortReason = None
 
                 if run then
@@ -809,7 +811,7 @@ let fns : List<BuiltInFn> =
                   return false
               }
 
-            let! result = List.filter_s f l
+            let! result = Ply.List.filterSequentially f l
 
             match !abortReason with
             | None -> return DList(result)
@@ -833,11 +835,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
-          taskv {
+          uply {
             let abortReason = ref None
 
-            let f (dv : Dval) : TaskOrValue<Dval option> =
-              taskv {
+            let f (dv : Dval) : Ply<Dval option> =
+              uply {
                 let run = !abortReason = None
 
                 if run then
@@ -859,7 +861,7 @@ let fns : List<BuiltInFn> =
                   return None
               }
 
-            let! result = List.filter_map f l
+            let! result = Ply.List.filterMapSequentially f l
 
             match !abortReason with
             | None -> return DList result
@@ -876,9 +878,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DInt c ] ->
-          if c < 0I then Value(DList l)
-          elif c > bigint (List.length l) then Value(DList [])
-          else Value(DList(List.skip (int c) l))
+          if c < 0I then Ply(DList l)
+          elif c > bigint (List.length l) then Ply(DList [])
+          else Ply(DList(List.skip (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -893,14 +895,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
-          taskv {
+          uply {
             let abortReason = ref None
 
-            let rec f : List<Dval> -> TaskOrValue<List<Dval>> =
+            let rec f : List<Dval> -> Ply<List<Dval>> =
               function
-              | [] -> Value []
+              | [] -> Ply []
               | dv :: dvs ->
-                taskv {
+                uply {
                   let run = !abortReason = None
 
                   if run then
@@ -938,9 +940,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DInt c ] ->
-          if c < 0I then Value(DList [])
-          elif c >= bigint (List.length l) then Value(DList l)
-          else Value(DList(List.take (int c) l))
+          if c < 0I then Ply(DList [])
+          elif c >= bigint (List.length l) then Ply(DList l)
+          else Ply(DList(List.take (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -955,14 +957,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
-          taskv {
+          uply {
             let abortReason = ref None
 
-            let rec f : List<Dval> -> TaskOrValue<List<Dval>> =
+            let rec f : List<Dval> -> Ply<List<Dval>> =
               function
-              | [] -> Value []
+              | [] -> Ply []
               | dv :: dvs ->
-                taskv {
+                uply {
                   let run = !abortReason = None
 
                   if run then
@@ -1007,9 +1009,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
-          taskv {
+          uply {
             let! result =
-              List.map_s
+              Ply.List.mapSequentially
                 (fun dv ->
                   Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                 l
@@ -1031,9 +1033,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
-          taskv {
+          uply {
             let! result =
-              List.map_s
+              Ply.List.mapSequentially
                 (fun dv ->
                   Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                 l
@@ -1055,11 +1057,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
-          taskv {
+          uply {
             let list = List.mapi (fun i v -> (i, v)) l
 
             let! result =
-              List.map_s
+              Ply.List.mapSequentially
                 (fun ((i, dv) : int * Dval) ->
                   Interpreter.applyFnVal
                     state
@@ -1090,7 +1092,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l1; DList l2; DFnVal b ] ->
-          taskv {
+          uply {
             let len = min (List.length l1) (List.length l2)
             let l1 = List.take (int len) l1
             let l2 = List.take (int len) l2
@@ -1098,7 +1100,7 @@ let fns : List<BuiltInFn> =
             let list = List.zip l1 l2
 
             let! result =
-              List.map_s
+              Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
                   Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail)
                 list
@@ -1123,14 +1125,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l1; DList l2; DFnVal b ] ->
-          taskv {
+          uply {
             if List.length l1 <> List.length l2 then
               return DOption None
             else
               let list = List.zip l1 l2
 
               let! result =
-                List.map_s
+                Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
                     Interpreter.applyFnVal
                       state
@@ -1169,7 +1171,7 @@ let fns : List<BuiltInFn> =
           List.zip l1 l2
           |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
           |> Dval.list
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1187,14 +1189,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l1; DList l2 ] ->
           if List.length l1 <> List.length l2 then
-            Value(DOption None)
+            Ply(DOption None)
           else
             List.zip l1 l2
             |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
             |> Dval.list
             |> Some
             |> DOption
-            |> Value
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1231,7 +1233,7 @@ let fns : List<BuiltInFn> =
           let result = l |> List.rev |> List.fold f ([], [])
 
           match result with
-          | (l, l2) -> Value(DList [ DList l; DList l2 ])
+          | (l, l2) -> Ply(DList [ DList l; DList l2 ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1246,9 +1248,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList l; DInt index ] ->
           if index > bigint (List.length l) then
-            Value(DOption None)
+            Ply(DOption None)
           else
-            Value(DOption(List.tryItem (int index) l))
+            Ply(DOption(List.tryItem (int index) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1262,9 +1264,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList l; DInt index ] ->
           if index > bigint (List.length l) then
-            Value(DOption None)
+            Ply(DOption None)
           else
-            (List.tryItem (int index) l) |> Dval.option |> Value
+            (List.tryItem (int index) l) |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1277,9 +1279,9 @@ let fns : List<BuiltInFn> =
       fn =
 
         (function
-        | _, [ DList [] ] -> Value(DOption None)
+        | _, [ DList [] ] -> Ply(DOption None)
         | _, [ DList l ] ->
-          Value(Dval.optionJust l.[System.Random.Shared.Next l.Length])
+          Ply(Dval.optionJust l.[System.Random.Shared.Next l.Length])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

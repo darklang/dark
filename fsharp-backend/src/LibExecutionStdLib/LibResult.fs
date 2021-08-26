@@ -14,7 +14,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = Errors.incorrectArgs
 
@@ -35,7 +35,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
-          taskv {
+          uply {
             match r with
             | Ok dv ->
               let! result =
@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal d ] ->
-          taskv {
+          uply {
             match r with
             | Ok dv ->
               let! result =
@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
-          taskv {
+          uply {
             match r with
             | Ok _ -> return DResult r
             | Error err ->
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r; DFnVal b ] ->
-          taskv {
+          uply {
             match r with
             | Ok _ -> return DResult r
             | Error err ->
@@ -128,8 +128,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DResult o; default' ] ->
           match o with
-          | Ok dv -> Value dv
-          | Error _ -> Value default'
+          | Ok dv -> Ply dv
+          | Error _ -> Ply default'
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -144,8 +144,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DOption o; DStr error ] ->
           match o with
-          | Some dv -> Value(DResult(Ok dv))
-          | None -> Value(DResult(Error(DStr error)))
+          | Some dv -> Ply(DResult(Ok dv))
+          | None -> Ply(DResult(Error(DStr error)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -160,8 +160,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DOption o; DStr error ] ->
           match o with
-          | Some dv -> Value(Dval.resultOk dv)
-          | None -> Value(DResult(Error(DStr error)))
+          | Some dv -> Ply(Dval.resultOk dv)
+          | None -> Ply(DResult(Error(DStr error)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -174,8 +174,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DResult o ] ->
           match o with
-          | Ok dv -> Value(DOption(Some dv))
-          | Error _ -> Value(DOption None)
+          | Ok dv -> Ply(DOption(Some dv))
+          | Error _ -> Ply(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -188,8 +188,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DResult o ] ->
           match o with
-          | Ok dv -> Value(Dval.optionJust dv)
-          | Error _ -> Value(DOption None)
+          | Ok dv -> Ply(Dval.optionJust dv)
+          | Error _ -> Ply(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -205,7 +205,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult r1; DResult r2; DFnVal b ] ->
-          taskv {
+          uply {
             match (r1, r2) with
             | Error e1, _ -> return DResult(Error e1)
             | Ok _, Error e2 -> return DResult(Error e2)
@@ -229,7 +229,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult o; DFnVal b ] ->
-          taskv {
+          uply {
             match o with
             | Ok dv ->
               let! result =
@@ -258,7 +258,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DResult o; DFnVal b ] ->
-          taskv {
+          uply {
             match o with
             | Ok dv ->
               let! result =

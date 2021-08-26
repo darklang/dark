@@ -12,7 +12,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
         "Returns an approximation for the mathematical constant π, the ratio of a circle's circumference to its diameter."
       fn =
         (function
-        | _, [] -> Value(DFloat System.Math.PI)
+        | _, [] -> Ply(DFloat System.Math.PI)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
         "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply Math::pi 2`."
       fn =
         (function
-        | _, [] -> Value(DFloat System.Math.Tau)
+        | _, [] -> Ply(DFloat System.Math.Tau)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
          There are 360 degrees in a circle."
       fn =
         (function
-        | _, [ DFloat degrees ] -> Value(DFloat(degrees * System.Math.PI / 180.0))
+        | _, [ DFloat degrees ] -> Ply(DFloat(degrees * System.Math.PI / 180.0))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
          There is 1 turn in a circle."
       fn =
         (function
-        | _, [ DFloat turns ] -> Value(DFloat(System.Math.Tau * turns))
+        | _, [ DFloat turns ] -> Ply(DFloat(System.Math.Tau * turns))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
         There are `Float::multiply 2 Math::pi` radians in a circle."
       fn =
         (function
-        | _, [ DFloat rads ] -> Value(DFloat rads)
+        | _, [ DFloat rads ] -> Ply(DFloat rads)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
          One interpretation of the result relates to a right triangle: the cosine is the ratio of the lengths of the side adjacent to the angle and the hypotenuse."
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(System.Math.Cos a))
+        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cos a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
          One interpretation of the result relates to a right triangle: the sine is the ratio of the lengths of the side opposite the angle and the hypotenuse."
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(System.Math.Sin a))
+        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sin a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -117,7 +117,7 @@ let fns : List<BuiltInFn> =
          One interpretation of the result relates to a right triangle: the tangent is the ratio of the lengths of the side opposite the angle and the side adjacent to the angle."
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(System.Math.Tan a))
+        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Tan a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -136,9 +136,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Value(DOption None)
+            Ply(DOption None)
           else
-            Value(DOption(Some(DFloat res)))
+            Ply(DOption(Some(DFloat res)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -157,9 +157,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Value(DOption None)
+            Ply(DOption None)
           else
-            Value(DOption(Some(DFloat res)))
+            Ply(DOption(Some(DFloat res)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -172,7 +172,7 @@ let fns : List<BuiltInFn> =
          This function is the inverse of `Math::tan`. Use `Math::atan2` to expand the output range, if you know the numerator and denominator of `ratio`."
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(System.Math.Atan a))
+        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Atan a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
          The result is in radians and is between `-Math::pi` and `Math::pi`. Consider `Math::atan` if you know the value of `y / x` but not the individual values `x` and `y`."
       fn =
         (function
-        | _, [ DFloat y; DFloat x ] -> Value(DFloat(System.Math.Atan2(y, x)))
+        | _, [ DFloat y; DFloat x ] -> Ply(DFloat(System.Math.Atan2(y, x)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -196,7 +196,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hyperbolic cosine of `angleInRadians`."
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(System.Math.Cosh a))
+        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cosh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -207,7 +207,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hyperbolic sine of `angleInRadians`."
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(System.Math.Sinh a))
+        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hyperbolic tangent of `angleInRadians`."
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(System.Math.Sinh a))
+        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a new dictionary with a single entry `key`: `value`."
       fn =
         (function
-        | _, [ DStr k; v ] -> Value(DObj(Map.ofList [ (k, v) ]))
+        | _, [ DStr k; v ] -> Ply(DObj(Map.ofList [ (k, v) ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
         "Returns the number of entries in `dict` (the number of key-value pairs)."
       fn =
         (function
-        | _, [ DObj o ] -> Value(DInt(bigint (Map.count o)))
+        | _, [ DObj o ] -> Ply(DInt(bigint (Map.count o)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -54,7 +54,7 @@ let fns : List<BuiltInFn> =
           |> Seq.map (fun k -> DStr k)
           |> Seq.toList
           |> fun l -> DList l
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `dict`'s values in a list, in an arbitrary order."
       fn =
         (function
-        | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> fun l -> DList l |> Value
+        | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> fun l -> DList l |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
           Map.toList o
           |> List.map (fun (k, v) -> DList [ DStr k; v ])
           |> DList
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
             | _ -> Errors.throw "All list items must be `[key, value]`"
 
           let result = List.fold f Map.empty l
-          Value((DObj(result)))
+          Ply((DObj(result)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -140,8 +140,8 @@ let fns : List<BuiltInFn> =
           let result = List.fold f (Some Map.empty) l
 
           match result with
-          | Some map -> Value(DOption(Some(DObj(map))))
-          | None -> Value(DOption None)
+          | Some map -> Ply(DOption(Some(DObj(map))))
+          | None -> Ply(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -155,8 +155,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o; DStr s ] ->
           (match Map.tryFind s o with
-           | Some d -> Value(d)
-           | None -> Value(DNull))
+           | Some d -> Ply(d)
+           | None -> Ply(DNull))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -167,7 +167,7 @@ let fns : List<BuiltInFn> =
       description = "Looks up `key` in object `dict` and returns an option"
       fn =
         (function
-        | _, [ DObj o; DStr s ] -> Value(DOption(Map.tryFind s o))
+        | _, [ DObj o; DStr s ] -> Ply(DOption(Map.tryFind s o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -179,7 +179,7 @@ let fns : List<BuiltInFn> =
         "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
       fn =
         (function
-        | _, [ DObj o; DStr s ] -> Map.tryFind s o |> Dval.option |> Value
+        | _, [ DObj o; DStr s ] -> Map.tryFind s o |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -191,7 +191,7 @@ let fns : List<BuiltInFn> =
         "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
       fn =
         (function
-        | _, [ DObj o; DStr s ] -> Value(DBool(Map.containsKey s o))
+        | _, [ DObj o; DStr s ] -> Ply(DBool(Map.containsKey s o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -206,9 +206,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-          taskv {
+          uply {
             let! result =
-              Map.map_s
+              Ply.Map.mapSequentially
                 (fun dv ->
                   Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                 o
@@ -230,11 +230,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-          taskv {
+          uply {
             let mapped = Map.map (fun i v -> (i, v)) o
 
             let! result =
-              Map.map_s
+              Ply.Map.mapSequentially
                 (fun ((key, dv) : string * Dval) ->
                   Interpreter.applyFnVal
                     state
@@ -262,11 +262,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-          taskv {
+          uply {
             let incomplete = ref false
 
-            let f (key : string) (dv : Dval) : TaskOrValue<bool> =
-              taskv {
+            let f (key : string) (dv : Dval) : Ply<bool> =
+              uply {
                 let! result =
                   Interpreter.applyFnVal
                     state
@@ -287,7 +287,7 @@ let fns : List<BuiltInFn> =
             if !incomplete then
               return DIncomplete SourceNone (*TODO(ds) source info *)
             else
-              let! result = Map.filter_s f o
+              let! result = Ply.Map.filterSequentially f o
               return DObj result
           }
         | _ -> incorrectArgs ())
@@ -304,16 +304,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-          taskv {
+          uply {
             let filter_propagating_errors
               (acc : Result<DvalMap, Dval>)
               (key : string)
               (data : Dval)
-              : TaskOrValue<Result<DvalMap, Dval>> =
+              : Ply<Result<DvalMap, Dval>> =
               match acc with
-              | Error dv -> Value(Error dv)
+              | Error dv -> Ply(Error dv)
               | Ok m ->
-                taskv {
+                uply {
                   let! result =
                     Interpreter.applyFnVal
                       state
@@ -333,7 +333,7 @@ let fns : List<BuiltInFn> =
                 }
 
             let! filtered_result =
-              Map.fold_s filter_propagating_errors (Ok Map.empty) o
+              Ply.Map.foldSequentially filter_propagating_errors (Ok Map.empty) o
 
             match filtered_result with
             | Ok o -> return DObj o
@@ -360,11 +360,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DObj o; DFnVal b ] ->
-          taskv {
+          uply {
             let abortReason = ref None
 
-            let f (key : string) (data : Dval) : TaskOrValue<Dval option> =
-              taskv {
+            let f (key : string) (data : Dval) : Ply<Dval option> =
+              uply {
                 let run = !abortReason = None
 
                 if run then
@@ -394,7 +394,7 @@ let fns : List<BuiltInFn> =
                   return None
               }
 
-            let! result = Map.filter_map f o
+            let! result = Ply.Map.filterMapSequentially f o
 
             match !abortReason with
             | None -> return DObj result
@@ -410,7 +410,7 @@ let fns : List<BuiltInFn> =
       description = "Returns an empty dictionary."
       fn =
         (function
-        | _, [] -> Value(DObj Map.empty)
+        | _, [] -> Ply(DObj Map.empty)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -421,7 +421,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `true` if the `dict` contains no entries."
       fn =
         (function
-        | _, [ DObj dict ] -> Value(DBool(Map.isEmpty dict))
+        | _, [ DObj dict ] -> Ply(DBool(Map.isEmpty dict))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -434,7 +434,7 @@ let fns : List<BuiltInFn> =
         "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
       fn =
         (function
-        | _, [ DObj l; DObj r ] -> Value(DObj(Map.union r l))
+        | _, [ DObj l; DObj r ] -> Ply(DObj(Map.union r l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -447,7 +447,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o ] ->
           // CLEANUP: this prints invalid JSON for infinity and NaN
-          DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
+          DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -461,7 +461,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a copy of `dict` with the `key` set to `val`."
       fn =
         (function
-        | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
+        | _, [ DObj o; DStr k; v ] -> Ply(DObj(Map.add k v o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -473,7 +473,7 @@ let fns : List<BuiltInFn> =
         "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
       fn =
         (function
-        | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
+        | _, [ DObj o; DStr k ] -> Ply(DObj(Map.remove k o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

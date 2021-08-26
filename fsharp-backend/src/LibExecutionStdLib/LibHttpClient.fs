@@ -12,7 +12,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] ->
-          Value(
+          Ply(
             // CLEANUP why no charset?
             DObj(
               Map.ofList [ "Content-Type", DStr "application/x-www-form-urlencoded" ]
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] ->
-          Value(
+          Ply(
             DObj(
               Map.ofList [ "Content-Type", DStr "application/json; charset=utf-8" ]
             )
@@ -61,9 +61,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] ->
-          Value(
-            DObj(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ])
-          )
+          Ply(DObj(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -75,7 +73,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] ->
-          Value(DObj(Map.ofList [ "Content-Type", DStr "text/html; charset=utf-8" ]))
+          Ply(DObj(Map.ofList [ "Content-Type", DStr "text/html; charset=utf-8" ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -88,7 +86,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr token ] ->
           let authString = "Bearer " + token
-          Value(DObj(Map.ofList [ "Authorization", DStr authString ]))
+          Ply(DObj(Map.ofList [ "Authorization", DStr authString ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -101,7 +99,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr token ] ->
           let authString = "Bearer " + token
-          Value(DObj(Map.ofList [ "Authorization", DStr authString ]))
+          Ply(DObj(Map.ofList [ "Authorization", DStr authString ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

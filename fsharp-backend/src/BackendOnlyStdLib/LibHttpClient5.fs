@@ -15,7 +15,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = Errors.incorrectArgs
 
@@ -163,7 +163,7 @@ let sendRequest
 let call (method : HttpMethod) =
   (function
   | _, [ DStr uri; body; query; headers ] ->
-    taskv {
+    uply {
       let! response = sendRequest uri method (Some body) query headers
       return response
     }
@@ -172,7 +172,7 @@ let call (method : HttpMethod) =
 let callNoBody (method : HttpMethod) : BuiltInFnSig =
   (function
   | _, [ DStr uri; query; headers ] ->
-    taskv {
+    uply {
       let! response = sendRequest uri method None query headers
       return response
     }

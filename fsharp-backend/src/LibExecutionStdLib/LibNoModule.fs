@@ -8,7 +8,7 @@ open LibExecution.RuntimeTypes
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       returnType = TStr
       fn =
         (function
-        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Value
+        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
         "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
       fn =
         (function
-        | _, [ a ] -> Value(DStr(DvalRepr.toDeveloperReprV0 a))
+        | _, [ a ] -> Ply(DStr(DvalRepr.toDeveloperReprV0 a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -48,7 +48,9 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, [ a; b ] -> (Value(DBool(a = b))) // TODO: support fn value equality
+        | _, [ a; b ] ->
+          // TODO: support fn value equality
+          (a = b) |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -59,7 +61,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, [ a; b ] -> Value(DBool(not (a = b)))
+        | _, [ a; b ] -> Ply(DBool(not (a = b)))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
@@ -73,7 +75,7 @@ let fns : List<BuiltInFn> =
       description = "Return a copy of `obj` with the `key` set to `val`."
       fn =
         (function
-        | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
+        | _, [ DObj o; DStr k; v ] -> Ply(DObj(Map.add k v o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -84,7 +86,7 @@ let fns : List<BuiltInFn> =
       description = "Return a copy of `obj` with `key` unset."
       fn =
         (function
-        | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
+        | _, [ DObj o; DStr k ] -> Ply(DObj(Map.remove k o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -107,7 +109,7 @@ let fns : List<BuiltInFn> =
 
           let inputs = o |> Map.toList |> List.map toInput |> String.concat "\n"
 
-          Value(
+          Ply(
             DStr(
               Printf.sprintf
                 "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
@@ -125,7 +127,7 @@ let fns : List<BuiltInFn> =
       description = "Return a string representing the error"
       fn =
         (function
-        | _, [ DError (_, err) ] -> Value(DStr err)
+        | _, [ DError (_, err) ] -> Ply(DStr err)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -182,7 +184,7 @@ let fns : List<BuiltInFn> =
               sb.Append(c |> char |> int |> sprintf "%%%X")
               |> ignore<Text.StringBuilder>
 
-          sb.ToString() |> DStr |> Value
+          sb.ToString() |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -193,7 +195,7 @@ let fns : List<BuiltInFn> =
       description = "Url encode a string per Twitter's requirements"
       fn =
         (function
-        | _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Value
+        | _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -14,7 +14,7 @@ module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = Errors.incorrectArgs
 
@@ -118,7 +118,7 @@ let fns : List<BuiltInFn> =
           |> List.concat
           |> Map
           |> DObj
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
 
                  ())
 
-          result |> string |> DStr |> Value
+          result |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -265,7 +265,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // FSTODO
-        | _, [] -> Value(DObj(Map []))
+        | _, [] -> Ply(DObj(Map []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -281,7 +281,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // FSTODO
-        | _, [] -> Value(DObj(Map []))
+        | _, [] -> Ply(DObj(Map []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -300,8 +300,8 @@ let fns : List<BuiltInFn> =
           | Response (code, headers, responseVal) ->
             Response(code, headers ++ [ name, value ], responseVal)
             |> DHttpResponse
-            |> Value
-          | Redirect _ -> Value(DHttpResponse response)
+            |> Ply
+          | Redirect _ -> Ply(DHttpResponse response)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -328,8 +328,8 @@ let fns : List<BuiltInFn> =
               else
                 headers
 
-            Response(code, headers, responseVal) |> DHttpResponse |> Value
-          | Redirect _ -> Value(DHttpResponse response)
+            Response(code, headers, responseVal) |> DHttpResponse |> Ply
+          | Redirect _ -> Ply(DHttpResponse response)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -343,8 +343,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DHttpResponse response ] ->
           match response with
-          | Redirect _ -> Value DNull
-          | Response (_, _, dv) -> Value dv
+          | Redirect _ -> Ply DNull
+          | Response (_, _, dv) -> Ply dv
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -411,7 +411,7 @@ let fns : List<BuiltInFn> =
           |> Map.add "jsonBody" jsonBody
 
           |> DObj
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -482,13 +482,13 @@ let fns : List<BuiltInFn> =
                 dv |> DvalRepr.toEnduserReadableTextV0 |> toBytes
               | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
 
-            Value(DHttpResponse(Response(code, headers, DBytes asBytes)))
-          | DHttpResponse (Redirect _) as resp -> Value resp
+            Ply(DHttpResponse(Response(code, headers, DBytes asBytes)))
+          | DHttpResponse (Redirect _) as resp -> Ply resp
           | response ->
             let bytes = response |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
 
             let headers = [ "content-type", inferContentType response ]
-            Value(DHttpResponse(Response(200I, headers, DBytes bytes)))
+            Ply(DHttpResponse(Response(200I, headers, DBytes bytes)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -663,7 +663,7 @@ let fns : List<BuiltInFn> =
       description = "Returns an empty Bytes value"
       fn =
         (function
-        | _, [] -> Value(DBytes [||])
+        | _, [] -> Ply(DBytes [||])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

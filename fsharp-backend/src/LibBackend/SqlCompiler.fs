@@ -2,6 +2,7 @@ module LibBackend.SqlCompiler
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open FSharp.Control.Tasks.Affine.Unsafe
 
 open Npgsql.FSharp
 open Npgsql
@@ -294,23 +295,23 @@ let partiallyEvaluate
   (paramName : string)
   (symtable : Symtable)
   (body : Expr)
-  : TaskOrValue<DvalMap * Expr> =
-  taskv {
+  : Ply.Ply<DvalMap * Expr> =
+  uply {
 
     // This isn't really a good implementation, but right now we only do
     // straight-line code here, so it should work *)
     let symtable = ref symtable
 
-    let exec (expr : Expr) : TaskOrValue<Expr> =
-      taskv {
+    let exec (expr : Expr) : Ply.Ply<Expr> =
+      uply {
         let newName = "dark_generated_" + randomString 8
         let! value = LibExecution.Interpreter.eval state !symtable expr
         symtable := Map.add newName value !symtable
         return (EVariable(gid (), newName))
       }
 
-    let f (expr : Expr) : TaskOrValue<Expr> =
-      taskv {
+    let f (expr : Expr) : Ply.Ply<Expr> =
+      uply {
         // We list any construction that we think is safe to evaluate
         match expr with
         | EFieldAccess (_, EVariable (_, name), _) when name <> paramName ->
@@ -336,13 +337,13 @@ let partiallyEvaluate
         | _ -> return expr
       }
 
-    // This is a copy of Ast.postTraversal, made to  work with taskvs
-    let rec postTraversal (expr : Expr) : TaskOrValue<Expr> =
+    // This is a copy of Ast.postTraversal, made to  work with uplys
+    let rec postTraversal (expr : Expr) : Ply.Ply<Expr> =
       let r = postTraversal in
 
-      taskv {
+      uply {
         let! result =
-          taskv {
+          uply {
             match expr with
             | EInteger _
             | EBlank _
@@ -358,7 +359,7 @@ let partiallyEvaluate
               let! next = r next
               return ELet(id, name, rhs, next)
             | EApply (id, name, exprs, inPipe, ster) ->
-              let! exprs = List.map_s r exprs
+              let! exprs = Ply.List.mapSequentially r exprs
               return EApply(id, name, exprs, inPipe, ster)
             | EIf (id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
@@ -372,15 +373,15 @@ let partiallyEvaluate
               let! expr = r expr
               return ELambda(id, names, expr)
             | EList (id, exprs) ->
-              let! exprs = List.map_s r exprs
+              let! exprs = Ply.List.mapSequentially r exprs
               return EList(id, exprs)
             | EMatch (id, mexpr, pairs) ->
               let! mexpr = r mexpr
 
               let! pairs =
-                List.map_s
+                Ply.List.mapSequentially
                   (fun (name, expr) ->
-                    taskv {
+                    uply {
                       let! expr = r expr
                       return (name, expr)
                     })
@@ -389,9 +390,9 @@ let partiallyEvaluate
               return EMatch(id, mexpr, pairs)
             | ERecord (id, fields) ->
               let! fields =
-                List.map_s
+                Ply.List.mapSequentially
                   (fun (name, expr) ->
-                    taskv {
+                    uply {
                       let! expr = r expr
                       return (name, expr)
                     })
@@ -399,7 +400,7 @@ let partiallyEvaluate
 
               return ERecord(id, fields)
             | EConstructor (id, name, exprs) ->
-              let! exprs = List.map_s r exprs
+              let! exprs = Ply.List.mapSequentially r exprs
               return EConstructor(id, name, exprs)
             | EPartial (id, oldExpr) ->
               let! oldExpr = r oldExpr
@@ -438,7 +439,7 @@ let compileLambda
       // Replace expressions which can be calculated now with their result. See
       // comment for more details.
       |> partiallyEvaluate state paramName symtable
-      |> TaskOrValue.toTask
+      |> Ply.TplPrimitives.runPlyAsTask
 
     return lambdaToSql state.libraries.stdlib symtable paramName dbFields TBool body
   }

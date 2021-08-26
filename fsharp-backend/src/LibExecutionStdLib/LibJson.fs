@@ -13,7 +13,7 @@ module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -31,9 +31,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr json ] ->
           (try
-            json |> DvalRepr.ofUnknownJsonV0 |> Value
+            json |> DvalRepr.ofUnknownJsonV0 |> Ply
            with
-           | _ -> Value DNull)
+           | _ -> Ply DNull)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
       fn =
         (function
-        | _, [ DStr json ] -> json |> DvalRepr.ofUnknownJsonV1 |> Value
+        | _, [ DStr json ] -> json |> DvalRepr.ofUnknownJsonV1 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -59,9 +59,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr json ] ->
           try
-            json |> DvalRepr.ofUnknownJsonV1 |> Value
+            json |> DvalRepr.ofUnknownJsonV1 |> Ply
           with
-          | e -> Value(DError(SourceNone, e.Message))
+          | e -> Ply(DError(SourceNone, e.Message))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -76,9 +76,9 @@ let fns : List<BuiltInFn> =
         | _, [ DStr json ] ->
           (try
             let dval = json |> DvalRepr.ofUnknownJsonV1
-            Value(DResult(Ok dval))
+            Ply(DResult(Ok dval))
            with
-           | Failure (e) -> e.ToString() |> DStr |> Error |> DResult |> Value)
+           | Failure (e) -> e.ToString() |> DStr |> Error |> DResult |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

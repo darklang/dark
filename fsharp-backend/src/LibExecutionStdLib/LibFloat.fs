@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Value
+        | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Value
+        | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Value
+        | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Value
+        | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Round a) |> DInt |> Value
+        | _, [ DFloat a ] -> bigint (Math.Round a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
         "Discard the fractional portion of the float, rounding towards zero."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Value
+        | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
       fn =
         (function
-        | _, [ DFloat a ] -> DFloat(Math.Abs a) |> Value
+        | _, [ DFloat a ] -> DFloat(Math.Abs a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -109,7 +109,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the negation of `a`, `-a`."
       fn =
         (function
-        | _, [ DFloat a ] -> DFloat(a * -1.0) |> Value
+        | _, [ DFloat a ] -> DFloat(a * -1.0) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -120,7 +120,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of a float"
       fn =
         (function
-        | _, [ DFloat a ] -> Value(DFloat(Math.Sqrt a))
+        | _, [ DFloat a ] -> Ply(DFloat(Math.Sqrt a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -131,7 +131,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `base` raised to the power of `exponent`"
       fn =
         (function
-        | _, [ DFloat base_; DFloat exp ] -> Value(DFloat(base_ ** exp))
+        | _, [ DFloat base_; DFloat exp ] -> Ply(DFloat(base_ ** exp))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -142,7 +142,7 @@ let fns : List<BuiltInFn> =
       description = "Divide float `a` by float `b`"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DFloat(a / b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -153,7 +153,7 @@ let fns : List<BuiltInFn> =
       description = "Add float `a` to float `b`"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DFloat(a + b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -164,7 +164,7 @@ let fns : List<BuiltInFn> =
       description = "Multiply float `a` by float `b`"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DFloat(a * b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -175,7 +175,7 @@ let fns : List<BuiltInFn> =
       description = "Subtract float `b` from float `a`"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DFloat(a - b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -186,7 +186,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is greater than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DBool(a > b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -197,7 +197,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is greater than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DBool(a >= b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -208,7 +208,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is less than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DBool(a < b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -219,7 +219,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is less than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DBool(a <= b))
+        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -240,7 +240,7 @@ let fns : List<BuiltInFn> =
               l
 
           let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats
-          Value(DFloat sum)
+          Ply(DFloat sum)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -251,7 +251,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the lesser of float `a` and float `b`"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DFloat(Math.Min(a, b)))
+        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Min(a, b)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -262,7 +262,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the greater of float `a` and float `b`"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Value(DFloat(Math.Max(a, b)))
+        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Max(a, b)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -281,10 +281,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DFloat v; DFloat a; DFloat b ] ->
           if System.Double.IsNaN a || System.Double.IsNaN b then
-            Value(DError(SourceNone, "clamp requires arguments to be valid numbers"))
+            Ply(DError(SourceNone, "clamp requires arguments to be valid numbers"))
           else
             let min, max = if a < b then (a, b) else (b, a)
-            Value(DFloat(Math.Clamp(v, min, max)))
+            Ply(DFloat(Math.Clamp(v, min, max)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -296,7 +296,7 @@ let fns : List<BuiltInFn> =
         "Discard the fractional portion of the float, rounding towards zero."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Value
+        | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

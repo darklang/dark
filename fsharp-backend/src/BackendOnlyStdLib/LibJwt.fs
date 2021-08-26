@@ -12,7 +12,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; payload ] ->
-          signAndEncode key Map.empty payload |> DStr |> Value
+          signAndEncode key Map.empty payload |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -324,7 +324,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
-          signAndEncode key headers payload |> DStr |> Value
+          signAndEncode key headers payload |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -338,9 +338,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr key; payload ] ->
           try
-            signAndEncode key Map.empty payload |> DStr |> Ok |> DResult |> Value
+            signAndEncode key Map.empty payload |> DStr |> Ok |> DResult |> Ply
           with
-          | e -> Value(DResult(Error(DStr e.Message)))
+          | e -> Ply(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -357,9 +357,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr key; DObj headers; payload ] ->
           try
-            signAndEncode key headers payload |> DStr |> Ok |> DResult |> Value
+            signAndEncode key headers payload |> DStr |> Ok |> DResult |> Ply
           with
-          | e -> Value(DResult(Error(DStr e.Message)))
+          | e -> Ply(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -385,8 +385,8 @@ let fns : List<BuiltInFn> =
               |> DObj
               |> Some
               |> DOption
-              |> Value
-            | None -> Value(DOption None)
+              |> Ply
+            | None -> Ply(DOption None)
           with
           | _ ->
             Errors.throw
@@ -416,10 +416,10 @@ let fns : List<BuiltInFn> =
               |> DObj
               |> Ok
               |> DResult
-              |> Value
-            | Error msg -> Value(DResult(Error(DStr msg)))
+              |> Ply
+            | Error msg -> Ply(DResult(Error(DStr msg)))
           with
-          | _ -> Value(DResult(Error(DStr "Invalid public key")))
+          | _ -> Ply(DResult(Error(DStr "Invalid public key")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

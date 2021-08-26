@@ -12,7 +12,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
             // dotnet returns negative mods, but OCaml did positive ones
             let result = v % m
             let result = if result < 0I then m + result else result
-            Value(DInt(result))
+            Ply(DInt(result))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
@@ -85,11 +85,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt v; DInt d ] ->
           (try
-            BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Value
+            BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Ply
            with
            | e ->
              if d = bigint 0 then
-               Value(DResult(Error(DStr($"`divisor` must be non-zero"))))
+               Ply(DResult(Error(DStr($"`divisor` must be non-zero"))))
 
              else // In case there's another failure mode, rollbar
                raise e)
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
       description = "Adds two integers together"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
+        | _, [ DInt a; DInt b ] -> Ply(DInt(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -114,7 +114,7 @@ let fns : List<BuiltInFn> =
       description = "Subtracts two integers"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
+        | _, [ DInt a; DInt b ] -> Ply(DInt(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -125,7 +125,7 @@ let fns : List<BuiltInFn> =
       description = "Multiplies two integers"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
+        | _, [ DInt a; DInt b ] -> Ply(DInt(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -145,13 +145,13 @@ let fns : List<BuiltInFn> =
             // below int63. This only matters for 1 or -1, and otherwise a
             // number raised to an int63 exponent wouldn't fit in an int63
             else if number = 1I then
-              Value(DInt(1I))
+              Ply(DInt(1I))
             else if number = -1I && exp.IsEven then
-              Value(DInt(1I))
+              Ply(DInt(1I))
             else if number = -1I then
-              Value(DInt(-1I))
+              Ply(DInt(-1I))
             else
-              Value(DInt(number ** (int exp)))
+              Ply(DInt(number ** (int exp)))
            with
            | _ -> err "Error raising to exponent")
         | _ -> incorrectArgs ())
@@ -165,7 +165,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-          if b = 0I then err "Division by zero" else Value(DInt(a / b))
+          if b = 0I then err "Division by zero" else Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -177,7 +177,7 @@ let fns : List<BuiltInFn> =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
       fn =
         (function
-        | _, [ DInt a ] -> Value(DInt(abs a))
+        | _, [ DInt a ] -> Ply(DInt(abs a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -188,7 +188,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the negation of `a`, `-a`."
       fn =
         (function
-        | _, [ DInt a ] -> Value(DInt(-a))
+        | _, [ DInt a ] -> Ply(DInt(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -199,7 +199,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is greater than b"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
+        | _, [ DInt a; DInt b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -210,7 +210,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is greater than or equal to b"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
+        | _, [ DInt a; DInt b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -221,7 +221,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is less than b"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
+        | _, [ DInt a; DInt b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -232,7 +232,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is less than or equal to b"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
+        | _, [ DInt a; DInt b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-          a + bigint (System.Random.Shared.Next((b - a) |> int)) |> DInt |> Value
+          a + bigint (System.Random.Shared.Next((b - a) |> int)) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -260,7 +260,7 @@ let fns : List<BuiltInFn> =
 
           lower + (System.Random.Shared.Next((upper - lower) |> int) |> bigint)
           |> DInt
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -271,7 +271,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of an Int"
       fn =
         (function
-        | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
+        | _, [ DInt a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -282,7 +282,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int to a Float"
       fn =
         (function
-        | _, [ DInt a ] -> Value(DFloat(float a))
+        | _, [ DInt a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -303,7 +303,7 @@ let fns : List<BuiltInFn> =
               l
 
           let sum = List.fold (fun acc elem -> acc + elem) (bigint 0) ints
-          Value(DInt sum)
+          Ply(DInt sum)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -314,7 +314,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the higher of a and b"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(max a b))
+        | _, [ DInt a; DInt b ] -> Ply(DInt(max a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -325,7 +325,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the lower of `a` and `b`"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(min a b))
+        | _, [ DInt a; DInt b ] -> Ply(DInt(min a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -345,9 +345,9 @@ let fns : List<BuiltInFn> =
         | _, [ DInt v; DInt a; DInt b ] ->
           let min, max = if a < b then (a, b) else (b, a)
 
-          if v < min then Value(DInt min)
-          else if v > max then Value(DInt max)
-          else Value(DInt v)
+          if v < min then Ply(DInt min)
+          else if v > max then Ply(DInt max)
+          else Ply(DInt v)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

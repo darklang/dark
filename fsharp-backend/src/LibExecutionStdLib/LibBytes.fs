@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes bytes ] ->
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
-          |> Value
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
               .Append(hexUppercaseLookup.[(byte &&& 0xF)])
             |> ignore<StringBuilder>
 
-          buf.ToString() |> DStr |> Value
+          buf.ToString() |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
       description = "Length of encoded byte string"
       fn =
         (function
-        | _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Value
+        | _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

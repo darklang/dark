@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# Old benchmark script to run against production.
+
 import requests
 import time
 import random

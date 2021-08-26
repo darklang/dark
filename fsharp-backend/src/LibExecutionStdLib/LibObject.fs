@@ -14,7 +14,7 @@ module Legacy = LibExecution.Legacy
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       description = "Return an empty object"
       fn =
         (function
-        | _, [] -> Value(DObj(Map.empty))
+        | _, [] -> Ply(DObj(Map.empty))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
         "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
       fn =
         (function
-        | _, [ DObj l; DObj r ] -> Value(DObj(Map.union r l))
+        | _, [ DObj l; DObj r ] -> Ply(DObj(Map.union r l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -53,10 +53,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-          DObj o
-          |> Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0
-          |> DStr
-          |> Value
+          DObj o |> Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -68,7 +65,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-          DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
+          DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

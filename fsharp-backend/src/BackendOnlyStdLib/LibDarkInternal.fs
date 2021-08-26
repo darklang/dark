@@ -12,7 +12,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Value(Dval.errStr str)
+let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
@@ -471,7 +471,7 @@ let fns : List<BuiltInFn> = []
 //                 let db =
 //                   !c.dbs
 //                   |> IDMap.data
-//                   |> List.filter_map Libexecution.Toplevel.as_db
+//                   |> Ply.List.filterMapSequentially Libexecution.Toplevel.as_db
 //                   |> List.find (fun d ->
 //                          Libexecution.Types.string_of_id d.tlid = tlid)
 //                 in
@@ -521,7 +521,7 @@ let fns : List<BuiltInFn> = []
 //                 in
 //                 !c.handlers
 //                 |> IDMap.data
-//                 |> List.filter_map Libexecution.Toplevel.as_handler
+//                 |> Ply.List.filterMapSequentially Libexecution.Toplevel.as_handler
 //                 |> List.map (fun h ->
 //                        DStr
 //                          (Libexecution.Types.string_of_id h.tlid))
@@ -783,7 +783,7 @@ let fns : List<BuiltInFn> = []
 //                 let desc =
 //                   !canvas.handlers
 //                   |> IDMap.data
-//                   |> List.filter_map Toplevel.as_handler
+//                   |> Ply.List.filterMapSequentially Toplevel.as_handler
 //                   |> List.filter (fun h -> h.tlid = tlid)
 //                   |> List.hd
 //                   |> Option.bind Handler.event_desc_for
@@ -1133,8 +1133,8 @@ let fns : List<BuiltInFn> = []
 //                   |> Tablecloth.Tuple2.second
 //                 in
 //                 ops
-//                 |> List.filter_map Op.ast_of
-//                 |> List.filter_map (fun ast ->
+//                 |> Ply.List.filterMapSequentially Op.ast_of
+//                 |> Ply.List.filterMapSequentially (fun ast ->
 //                        ast
 //                        |> Internal_analysis.find_functions
 //                        |> List.map DStr
@@ -1164,8 +1164,8 @@ let fns : List<BuiltInFn> = []
 //                   |> Tablecloth.Tuple2.second
 //                 in
 //                 ops
-//                 |> List.filter_map Op.ast_of
-//                 |> List.filter_map (fun ast ->
+//                 |> Ply.List.filterMapSequentially Op.ast_of
+//                 |> Ply.List.filterMapSequentially (fun ast ->
 //                        ast
 //                        |> Internal_analysis.find_fields
 //                        |> List.map DStr
