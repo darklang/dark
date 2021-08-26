@@ -620,16 +620,17 @@ let fns : List<BuiltInFn> =
                   Errors.throw (Errors.expectedLambdaValue "f" "-1, 0, 1" result)
             }
 
-          try
-            uply {
+          uply {
+            try
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Ok |> DResult
-            }
-          with
-          | Errors.StdlibException (Errors.StringError m) ->
-            Ply(DResult(Error(DStr m)))
+            with
+            | Errors.StdlibException (Errors.StringError m) as e ->
+              return DResult(Error(DStr m))
+            | e -> return DResult(Error(DStr e.Message))
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
