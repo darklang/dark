@@ -12,6 +12,10 @@ import signal
 
 run_tests = False
 
+# When compiling code, use the optimized version of the build. This causes
+# --optimize to be passed to the compile script.
+optimize = False
+
 # Make io unbuffered
 def flush(fn):
   def newfn(x):
@@ -38,10 +42,11 @@ def compile_project(name):
 
 def compile(files):
   global run_tests
+  test = ""
   if run_tests:
-    test = "--test "
-  else:
-    test = ""
+    test += " --test"
+  if optimize:
+    test += " --optimize "
   fileStr = " ".join(files)
   try:
     return run(f"scripts/support/compile {test} {fileStr}")
@@ -77,6 +82,7 @@ def main():
   # like --watch does.
   should_serve = False
 
+
   for f in sys.argv[1:]:
     if f == "--compile":
       should_compile = True
@@ -87,6 +93,9 @@ def main():
     elif f == "--serve":
       should_serve = True
       should_compile = True
+    elif f == "--optimize":
+      global optimize
+      optimize = True
     elif f == "--test":
       global should_run_tests
       should_run_tests = True
