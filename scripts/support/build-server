@@ -16,6 +16,16 @@ run_tests = False
 # --optimize to be passed to the compile script.
 optimize = False
 
+def getFlags():
+  global run_tests
+  global optimize
+  flags = ""
+  if run_tests:
+    flags += " --test"
+  if optimize:
+    flags += " --optimize "
+  return flags
+
 # Make io unbuffered
 def flush(fn):
   def newfn(x):
@@ -38,21 +48,18 @@ def run(bash):
   return proc.returncode == 0
 
 def compile_project(name):
-  return run(f"scripts/support/compile-project {name}")
+  flags = getFlags()
+  return run(f"scripts/support/compile-project {name} {flags}")
+
 
 def compile(files):
-  global run_tests
-  test = ""
-  if run_tests:
-    test += " --test"
-  if optimize:
-    test += " --optimize "
   fileStr = " ".join(files)
+  flags = getFlags()
   try:
-    return run(f"scripts/support/compile {test} {fileStr}")
+    return run(f"scripts/support/compile {flags} {fileStr}")
   except:
     print(f"Tried to compile too many files. Length was {len(fileStr)}")
-    return compile_project(f"all {test}")
+    return compile_project("all")
 
 def run_server():
   exit = compile(["scripts/support/runserver"])
