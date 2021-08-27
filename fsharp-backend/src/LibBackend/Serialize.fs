@@ -110,7 +110,7 @@ let loadOnlyRenderedTLIDs
        (fun read -> (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
   |> Task.bind
        (fun list ->
-         list |> List.map OCamlInterop.toplevelOfCachedBinary |> Task.flatten)
+         list |> List.map OCamlInterop.toplevelBin2Json |> Task.flatten)
 
 
 

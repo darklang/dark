@@ -84,6 +84,29 @@ let user_tipe_to_binary_string (ut : Types.RuntimeT.user_tipe) : string =
   |> Core_extended.Bin_io_utils.to_line SF.RuntimeT.bin_user_tipe
   |> Bigstring.to_string
 
+(* Move this here to avoid 4 separate HTTP calls to legacyserver *)
+type toplevel =
+  | Handler of Types.RuntimeT.HandlerT.handler
+  | DB of Types.RuntimeT.DbT.db
+  | UserType of Types.RuntimeT.user_tipe
+  | UserFn of Types.RuntimeT.user_fn
+  [@@deriving yojson]
+
+let toplevel_of_binary_string (str : string) : toplevel =
+  try
+    handler_of_binary_string str |> Handler
+  with e1 ->
+    try
+      db_of_binary_string str |> DB
+    with e2 ->
+      try
+        user_fn_of_binary_string str |> UserFn
+      with e3 ->
+        try
+          user_tipe_of_binary_string str |> UserType
+        with e4 ->
+          failwith ("could not parse binary toplevel")
+
 
 let oplist_to_binary_string (ops : Types.oplist) : string =
   ops
