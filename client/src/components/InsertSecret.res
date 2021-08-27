@@ -119,6 +119,7 @@ let onKeydown = (evt: Web.Node.event): option<Types.msg> =>
   switch FluidKeyboard.eventToKeyEvent(evt) {
   | Some({FluidKeyboard.key: FluidKeyboard.Enter, _}) =>
     evt["stopPropagation"]()
+    evt["preventDefault"]()
     /* prevents omnibox from opening */
     Some(Types.SecretMsg(SaveNewSecret))
   | _ => None
@@ -157,15 +158,14 @@ let view = (m: ST.insertModal): Html.html<Types.msg> =>
               },
               list{},
             ),
-            Html.input'(
+            Html.textarea(
               list{
                 Attr.placeholder("secret value"),
                 Attr.name("secret-value"),
-                Attr.value(m.newSecretValue),
                 Html.classList(list{("modal-form-input", true), ("error", !m.isValueValid)}),
                 Events.onInput(str => Types.SecretMsg(OnUpdateValue(str))),
               },
-              list{},
+              list{Html.text(m.newSecretValue)},
             ),
             Html.button(
               list{
