@@ -33,7 +33,8 @@ let server () =
       |> String.rstrip ~drop:(( = ) '/')
       |> String.split ~on:'/'
     in
-    print_endline ("got request: " ^ Uri.path uri ^ " and body\n: " ^ body_string ) ;
+    print_endline
+      ("got request: " ^ Uri.path uri ^ " and body\n: " ^ body_string) ;
     let fn =
       match path with
       | ["execute"] ->
@@ -121,13 +122,17 @@ let server () =
       ( try
           let result = body_string |> fn in
           (* FSTODO reduce debugging info *)
-          print_endline ("\n\n") ;
+          print_endline "\n\n" ;
           respond_json_ok result
         with e ->
           let headers = Header.init () in
           let message = Libexecution.Exception.exn_to_string e in
           print_endline
-            ("error while calling " ^ Uri.to_string uri ^ "\n" ^ message ^ "\n\n") ;
+            ( "error while calling "
+            ^ Uri.to_string uri
+            ^ "\n"
+            ^ message
+            ^ "\n\n" ) ;
           S.respond_string ~status:`Bad_request ~body:message ~headers () )
     | _ ->
         let headers = Header.init () in

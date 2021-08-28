@@ -584,12 +584,15 @@ module Convert =
       | UserFn of ORT.user_fn<ORT.fluidExpr>
 
 
-  let ocamlBinarySerializationToplevel2PT (pos : pos) (tl : BSTypes.tl) : PT.Toplevel =
+  let ocamlBinarySerializationToplevel2PT
+    (pos : pos)
+    (tl : BSTypes.tl)
+    : PT.Toplevel =
     match tl with
-    | BSTypes.Handler h -> PT.TLHandler (ocamlHandler2PT pos h)
-    | BSTypes.DB db -> PT.TLDB (ocamlDB2PT pos db)
-    | BSTypes.UserType ut -> PT.TLType (ocamlUserType2PT ut)
-    | BSTypes.UserFn uf -> PT.TLFunction (ocamlUserFunction2PT uf)
+    | BSTypes.Handler h -> PT.TLHandler(ocamlHandler2PT pos h)
+    | BSTypes.DB db -> PT.TLDB(ocamlDB2PT pos db)
+    | BSTypes.UserType ut -> PT.TLType(ocamlUserType2PT ut)
+    | BSTypes.UserFn uf -> PT.TLFunction(ocamlUserFunction2PT uf)
 
 
 
