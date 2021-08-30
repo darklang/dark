@@ -107,6 +107,16 @@ let server () =
             Some F.to_safe_pretty_machine_yojson_v1
         | "to_url_string" ->
             Some F.to_url_string
+        | "dval_to_query" ->
+            Some F.dval_to_query
+        | "query_to_dval" ->
+            Some F.query_to_dval
+        | "dval_to_form_encoding" ->
+            Some F.dval_to_form_encoding
+        | "query_string_to_params" ->
+            Some F.query_string_to_params
+        | "params_to_query_string" ->
+            Some F.params_to_query_string
         | "hash_v0" ->
             Some F.hash_v0
         | "hash_v1" ->

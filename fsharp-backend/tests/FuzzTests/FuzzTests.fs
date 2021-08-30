@@ -414,6 +414,74 @@ module DeveloperRepr =
       "toDeveloperRepr"
       [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
 
+module HttpClient =
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      // FSTODO: add in unicode
+      // G.string () |> Arb.fromGen
+      Arb.Default.String() |> Arb.filter G.safeOCamlString
+
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false
+           | _ -> true)
+
+  type QueryStringGenerator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter G.safeOCamlString
+    static member String() : Arbitrary<string> =
+      Gen.listOf (Gen.listOf (G.string ()))
+      |> Gen.map (List.map (String.concat "="))
+      |> Gen.map (String.concat "&")
+      |> Arb.fromGen
+
+
+  let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
+    let dv = RT.DObj(Map l)
+
+    BackendOnlyStdLib.HttpClient.dvalToUrlStringExn dv
+    .=. (OCamlInterop.toUrlString dv).Result
+
+  let dvalToQuery (l : List<string * RT.Dval>) : bool =
+    let dv = RT.DObj(Map l)
+    BackendOnlyStdLib.HttpClient.dvalToQuery dv
+    .=. (OCamlInterop.dvalToQuery dv).Result
+
+  let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
+    let dv = RT.DObj(Map l)
+    (BackendOnlyStdLib.HttpClient.dvalToFormEncoding dv).ToString()
+    .=. (OCamlInterop.dvalToFormEncoding dv).Result
+
+  let queryStringToParams (s : string) : bool =
+    BackendOnlyStdLib.HttpClient.parseQueryString s
+    .=. (OCamlInterop.queryStringToParams s).Result
+
+
+  let queryToDval (q : List<string * List<string>>) : bool =
+    BackendOnlyStdLib.HttpClient.queryToDval q
+    .=. (OCamlInterop.queryToDval q).Result
+
+  let toQueryString (q : List<string * List<string>>) : bool =
+    BackendOnlyStdLib.HttpClient.toEncodedString q
+    .=. (OCamlInterop.paramsToQueryString q).Result
+
+  let tests =
+    let test name fn = testPropertyWithGenerator typeof<Generator> name fn
+    testList
+      "FuzzHttpClient"
+      [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
+        test "dvalToQuery" dvalToQuery
+        test "dvalToFormEncoding" dvalToFormEncoding
+        testPropertyWithGenerator
+          typeof<QueryStringGenerator>
+          "queryStringToParams"
+          queryStringToParams // only &=& fails
+        test "queryToDval" queryToDval
+        test "toQueryString" toQueryString ]
+
+
 module EndUserReadable =
   type Generator =
     static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
@@ -1246,6 +1314,7 @@ let knownGood =
     ([ Roundtrippable.tests
        Queryable.tests
        DeveloperRepr.tests
+       HttpClient.tests
        EndUserReadable.tests
        Hashing.tests
        PrettyMachineJson.tests

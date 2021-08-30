@@ -80,7 +80,7 @@ let encodeRequestBody
       // for more information. *)
       HttpClient.StringContent s
     | DObj _ when contentType = HttpClient.formContentType ->
-      HttpClient.dvalToFormEncoding dv
+      HttpClient.FormContent(HttpClient.dvalToFormEncoding dv)
     | dv when contentType = HttpClient.textContentType ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // when contentType = jsonContentType
@@ -126,7 +126,7 @@ let sendRequest
         // CLEANUP: form header never triggers. But is it even needed?
         if HttpClient.hasFormHeader response.headers then
           try
-            HttpClient.queryToDval response.body
+            HttpClient.queryStringToDval response.body
           with
           | _ -> DStr "form decoding error"
         elif HttpClient.hasJsonHeader response.headers then

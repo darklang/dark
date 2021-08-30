@@ -49,6 +49,37 @@ let fuzzedTests =
                { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
              ) }) ]
     testListUsingProperty
+      "queryStringToParams"
+      FuzzTests.All.HttpClient.queryStringToParams
+      [ "empty", ""
+        "newline", "\n"
+        "newline with value", "\n=6"
+        "just equals", "="
+        "equals and", "c=&"
+        // "and equals and", "&=&" // OCAMLONLY
+        "hash", "#"
+        "hash with value", "#=6"
+        "question mark", "?"
+        "question mark with value", "?=6"
+        "question mark later", "x=5&?"
+        "question mark later with value", "x=5&?=6"
+        "question mark surrounded", "x?x"
+        "question mark surrounded with value", "x?x=6"
+        "question mark surrounded later", "x=5&y?y"
+        "question mark surrounded later with value", "x=5&y?y=6" ]
+    testListUsingProperty
+      "toQueryString"
+      FuzzTests.All.HttpClient.toQueryString
+      [ "empty", [ "", [] ]
+        "empty string value", [ "", [ "" ] ]
+        "empty value", [ "a", [] ]
+        "empty value and empty string value", [ "a", [ "" ] ] ]
+    testListUsingProperty
+      "queryToDval"
+      FuzzTests.All.HttpClient.queryToDval
+      [ "empty", [ "", [] ] ]
+
+    testListUsingProperty
       "OCamlInterop Binary handler tests"
       FuzzTests.All.OCamlInterop.binaryHandlerRoundtrip
       [] ]

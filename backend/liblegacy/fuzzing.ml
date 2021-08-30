@@ -116,6 +116,62 @@ let to_url_string (json : string) : string =
   Dval.to_url_string_exn dval
 
 
+type query_params = (string * string list) list [@@deriving yojson]
+
+type just_string = string [@@deriving yojson]
+
+let dval_to_query (json : string) : string =
+  json
+  |> Yojson.Safe.from_string
+  |> Types.RuntimeT.dval_of_yojson
+  |> Result.ok_or_failwith
+  |> Dval.dval_to_query
+  |> query_params_to_yojson
+  |> Yojson.Safe.to_string
+
+
+let query_to_dval (json : string) : string =
+  json
+  |> Yojson.Safe.from_string
+  |> query_params_of_yojson
+  |> Result.ok_or_failwith
+  |> Dval.query_to_dval
+  |> Types.RuntimeT.dval_to_yojson
+  |> Yojson.Safe.to_string
+
+
+let dval_to_form_encoding (json : string) : string =
+  json
+  |> Yojson.Safe.from_string
+  |> Types.RuntimeT.dval_of_yojson
+  |> Result.ok_or_failwith
+  |> Dval.to_form_encoding
+
+
+let query_string_to_params (json : string) : string =
+  if json = ""
+  then Uri.empty |> Uri.query |> query_params_to_yojson |> Yojson.Safe.to_string
+  else
+    json
+    |> Uri.query_of_encoded
+    |> query_params_to_yojson
+    |> Yojson.Safe.to_string
+
+
+let params_to_query_string (json : string) : string =
+  let query_params =
+    json
+    |> Yojson.Safe.from_string
+    |> query_params_of_yojson
+    |> Result.ok_or_failwith
+  in
+  Uri.of_string "http://google.com"
+  |> Uri.with_uri ~query:(Some query_params)
+  |> Uri.path_and_query
+  (* drop / and ? *)
+  |> fun s -> String.drop_prefix s 2
+
+
 let hash_v0 (json : string) : string =
   let dvallist =
     json
