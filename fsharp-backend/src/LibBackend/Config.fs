@@ -50,7 +50,7 @@ let cookieDomain = string "DARK_CONFIG_COOKIE_DOMAIN"
 let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
 
 // -------------------------
-// Kubernetes *)
+// Kubernetes
 // -------------------------
 
 let curlTunnelUrl = string "DARK_CONFIG_CURL_TUNNEL_URL"
@@ -155,18 +155,14 @@ let rollbarClientAccessToken =
   | item -> Some item
 
 
-let rollbarEnabled = LibService.Config.rollbarEnabled
-
-let rollbarEnvironment = LibService.Config.rollbarEnvironment
-
 let rollbarJs =
   match rollbarClientAccessToken with
   | Some token ->
     Printf.sprintf
       "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
-      (if rollbarEnabled then "true" else "false")
+      (if LibService.Config.rollbarEnabled then "true" else "false")
       token
-      rollbarEnvironment
+      LibService.Config.rollbarEnvironment
   | _ -> "{enabled:false}"
 
 
