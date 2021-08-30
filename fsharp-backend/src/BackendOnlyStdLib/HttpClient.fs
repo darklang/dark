@@ -79,7 +79,6 @@ let rec dvalToUrlStringExn (dv : RT.Dval) : string =
   | RT.DResult (Ok v) -> r v
   | RT.DBytes bytes -> base64Encode bytes
 
-// FSTODO: fuzz this against OCAML
 let dvalToQuery (dv : RT.Dval) : (string * string list) list =
   match dv with
   | RT.DObj kvs ->
@@ -207,7 +206,6 @@ let hasTextHeader (headers : Headers) : bool =
 let toQueryString (queryParams : (List<string * List<string>>)) : string =
   let urlEncodeValue (s : string) : string =
     let encodeByte (b : byte) : byte array =
-      // FSTODO: fuzz this against OCaml version
       // CLEANUP make a nicer version of this that's designed for this use case
       // We do want to escape the following: []+&^%#@"<>/;
       // We don't want to escape the following: *$@!:?,.-_'
@@ -235,7 +233,6 @@ let toQueryString (queryParams : (List<string * List<string>>)) : string =
 
   let urlEncodeKey (s : string) : string =
     let encodeByte (b : byte) : byte array =
-      // FSTODO: fuzz this against OCaml version
       // CLEANUP make a nicer version of this that's designed for this use case
       // We do want to escape the following: []+&^%#@"<>/;
       // We don't want to escape the following: *$@!:?,.-_'
@@ -502,8 +499,6 @@ let rec httpCall
   }
 
 
-// FSTODO rawbytes
-//     if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY
 let init (serviceName : string) =
   print $"Initing HttpClient in {serviceName}"
   // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
