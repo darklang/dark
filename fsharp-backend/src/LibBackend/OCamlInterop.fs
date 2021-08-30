@@ -242,6 +242,29 @@ let toSafePrettyMachineYojsonV1 (dv : RT.Dval) : Task<string> =
 let toUrlString (dv : RT.Dval) : Task<string> =
   dvalToStringReq "fuzzing/to_url_string" dv
 
+let dvalToQuery (dv : RT.Dval) : Task<List<string * List<string>>> =
+  dvalToStringReq "fuzzing/dval_to_query" dv
+  |> Task.map (Json.OCamlCompatible.deserialize<List<string * List<string>>>)
+
+let queryToDval (p : List<string * List<string>>) : Task<RT.Dval> =
+  p |> Json.OCamlCompatible.serialize |> stringToDvalReq "fuzzing/query_to_dval"
+
+let dvalToFormEncoding (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/dval_to_form_encoding" dv
+
+let queryStringToParams (s : string) : Task<List<string * List<string>>> =
+  s
+  |> toBytes
+  |> legacyStringReq "fuzzing/query_string_to_params"
+  |> Task.map (Json.OCamlCompatible.deserialize<List<string * List<string>>>)
+
+let paramsToQueryString (p : List<string * List<string>>) : Task<string> =
+  p
+  |> Json.OCamlCompatible.serialize
+  |> toBytes
+  |> legacyStringReq "fuzzing/params_to_query_string"
+
+
 let hashV0 (l : List<RT.Dval>) : Task<string> =
   dvalListToStringReq "fuzzing/hash_v0" l
 

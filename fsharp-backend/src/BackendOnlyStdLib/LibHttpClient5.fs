@@ -126,7 +126,7 @@ let sendRequest
         // CLEANUP: form header never triggers. But is it even needed?
         if HttpClient.hasFormHeader response.headers then
           try
-            HttpClient.queryToDval response.body
+            HttpClient.queryStringToDval response.body
           with
           | _ -> DStr "form decoding error"
         elif HttpClient.hasJsonHeader response.headers then
