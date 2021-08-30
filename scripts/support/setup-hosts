@@ -7,3 +7,4 @@ echo 127.0.0.1 darklang.localhost | sudo tee -a /etc/hosts
 echo 127.0.0.1 static.darklang.localhost | sudo tee -a /etc/hosts
 echo 127.0.0.1 builtwithdark.localhost | sudo tee -a /etc/hosts
 echo 127.0.0.1 test.builtwithdark.localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 dark.builtwithdark.localhost | sudo tee -a /etc/hosts
