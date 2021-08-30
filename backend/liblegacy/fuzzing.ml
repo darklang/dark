@@ -167,7 +167,8 @@ let params_to_query_string (json : string) : string =
   Uri.of_string "http://google.com"
   |> Uri.with_uri ~query:(Some query_params)
   |> Uri.path_and_query
-  |> (fun s -> String.drop_prefix s 1)
+  (* drop / and ? *)
+  |> (fun s -> String.drop_prefix s 2)
 
 
 

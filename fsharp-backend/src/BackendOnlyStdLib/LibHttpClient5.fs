@@ -80,7 +80,7 @@ let encodeRequestBody
       // for more information. *)
       HttpClient.StringContent s
     | DObj _ when contentType = HttpClient.formContentType ->
-      HttpClient.dvalToFormEncoding dv
+      HttpClient.FormContent(HttpClient.dvalToFormEncoding dv)
     | dv when contentType = HttpClient.textContentType ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // when contentType = jsonContentType

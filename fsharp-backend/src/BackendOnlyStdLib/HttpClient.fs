@@ -26,22 +26,88 @@ type HttpResult = { body : string; code : int; headers : Headers; error : string
 
 type ClientError = { url : string; error : string; code : int }
 
-// HttpContent is consumed by the Http request, but we may need to reuse it on redirect, so use an immutable value instead.
+let urlEncodeValue (s : string) : string =
+  let encodeByte (b : byte) : byte array =
+    // CLEANUP make a nicer version of this that's designed for this use case
+    // We do want to escape the following: []+&^%#@"<>/;
+    // We don't want to escape the following: *$@!:?,.-_'
+    match b with
+    | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+    | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+    | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+    | b when b = (byte '*') -> [| b |]
+    | b when b = (byte '$') -> [| b |]
+    | b when b = (byte '@') -> [| b |]
+    | b when b = (byte '!') -> [| b |]
+    | b when b = (byte ':') -> [| b |]
+    | b when b = (byte '(') -> [| b |]
+    | b when b = (byte ')') -> [| b |]
+    | b when b = (byte '~') -> [| b |]
+    | b when b = (byte '?') -> [| b |]
+    | b when b = (byte '/') -> [| b |]
+    | b when b = (byte '.') -> [| b |]
+    | b when b = (byte '-') -> [| b |]
+    | b when b = (byte '_') -> [| b |]
+    | b when b = (byte '=') -> [| b |] // not the same for key
+    | b when b = (byte '\'') -> [| b |]
+    | _ -> toBytes ("%" + b.ToString("X2"))
+  s |> toBytes |> Array.collect encodeByte |> ofBytes
+
+let urlEncodeKey (s : string) : string =
+  let encodeByte (b : byte) : byte array =
+    // CLEANUP make a nicer version of this that's designed for this use case
+    // We do want to escape the following: []+&^%#@"<>/;
+    // We don't want to escape the following: *$@!:?,.-_'
+    match b with
+    | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+    | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+    | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+    | b when b = (byte '*') -> [| b |]
+    | b when b = (byte '$') -> [| b |]
+    | b when b = (byte '@') -> [| b |]
+    | b when b = (byte '!') -> [| b |]
+    | b when b = (byte ':') -> [| b |]
+    | b when b = (byte '(') -> [| b |]
+    | b when b = (byte ')') -> [| b |]
+    | b when b = (byte '~') -> [| b |]
+    | b when b = (byte '?') -> [| b |]
+    | b when b = (byte '/') -> [| b |]
+    | b when b = (byte '.') -> [| b |]
+    | b when b = (byte ',') -> [| b |] // only in keys
+    | b when b = (byte '-') -> [| b |]
+    | b when b = (byte '_') -> [| b |]
+    | b when b = (byte '\'') -> [| b |]
+
+    | _ -> toBytes ("%" + b.ToString("X2"))
+  s |> toBytes |> Array.collect encodeByte |> ofBytes
+
+
+// Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
+let toEncodedString (queryParams : (List<string * List<string>>)) : string =
+  match queryParams with
+  | [ key, [] ] -> urlEncodeKey key
+  | _ ->
+    queryParams
+    |> List.map
+         (fun (k, vs) ->
+           let k = k |> urlEncodeKey
+           vs
+           |> List.map urlEncodeValue
+           |> fun vs ->
+                if vs = [] then
+                  k
+                else
+                  let vs = String.concat "," vs
+                  $"{k}={vs}")
+    |> String.concat "&"
+
+let toQueryString (queryParams : (List<string * List<string>>)) : string =
+  toEncodedString queryParams
+
 type Content =
-  | FormContent of (string * string list) list
+  | FormContent of string
   | StringContent of string
   | NoContent
-
-  member this.toHttpContent() : HttpContent =
-    match this with
-    | FormContent content ->
-      content
-      |> List.map (fun (k, v) -> KeyValuePair(k, String.concat "," v))
-      |> (fun pairs -> new FormUrlEncodedContent(pairs))
-      :> HttpContent
-    | StringContent content -> new StringContent(content) :> HttpContent
-    | NoContent -> new ByteArrayContent([||]) :> HttpContent
-
 // -------------------------
 // Forms and queries Functions
 // -------------------------
@@ -93,10 +159,11 @@ let dvalToQuery (dv : RT.Dval) : (string * string list) list =
   | _ -> failwith "attempting to use non-object as query param" // CODE exception
 
 // https://secretgeek.net/uri_enconding
-let dvalToFormEncoding (dv : RT.Dval) : Content = dvalToQuery dv |> FormContent
+let dvalToFormEncoding (dv : RT.Dval) : string = dvalToQuery dv |> toEncodedString
 
+// The queryString passed in should not include the leading '?' from the URL
 let queryStringToParams (queryString : string) : List<string * List<string>> =
-  // Add a ? onto the front or it will strip off question marks
+  // This will eat any intended question mark, so add one
   let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
   nvc.AllKeys
   |> Array.map
@@ -202,80 +269,7 @@ let hasTextHeader (headers : Headers) : bool =
   |> Option.map (fun s -> s.Contains textContentType)
   |> Option.defaultValue false
 
-// Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
-let toQueryString (queryParams : (List<string * List<string>>)) : string =
-  let urlEncodeValue (s : string) : string =
-    let encodeByte (b : byte) : byte array =
-      // CLEANUP make a nicer version of this that's designed for this use case
-      // We do want to escape the following: []+&^%#@"<>/;
-      // We don't want to escape the following: *$@!:?,.-_'
-      match b with
-      | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
-      | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
-      | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
-      | b when b = (byte '*') -> [| b |]
-      | b when b = (byte '$') -> [| b |]
-      | b when b = (byte '@') -> [| b |]
-      | b when b = (byte '!') -> [| b |]
-      | b when b = (byte ':') -> [| b |]
-      | b when b = (byte '(') -> [| b |]
-      | b when b = (byte ')') -> [| b |]
-      | b when b = (byte '~') -> [| b |]
-      | b when b = (byte '?') -> [| b |]
-      | b when b = (byte '/') -> [| b |]
-      | b when b = (byte '.') -> [| b |]
-      | b when b = (byte '-') -> [| b |]
-      | b when b = (byte '_') -> [| b |]
-      | b when b = (byte '=') -> [| b |] // not the same for key
-      | b when b = (byte '\'') -> [| b |]
-      | _ -> toBytes ("%" + b.ToString("X2"))
-    s |> toBytes |> Array.collect encodeByte |> ofBytes
 
-  let urlEncodeKey (s : string) : string =
-    let encodeByte (b : byte) : byte array =
-      // CLEANUP make a nicer version of this that's designed for this use case
-      // We do want to escape the following: []+&^%#@"<>/;
-      // We don't want to escape the following: *$@!:?,.-_'
-      match b with
-      | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
-      | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
-      | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
-      | b when b = (byte '*') -> [| b |]
-      | b when b = (byte '$') -> [| b |]
-      | b when b = (byte '@') -> [| b |]
-      | b when b = (byte '!') -> [| b |]
-      | b when b = (byte ':') -> [| b |]
-      | b when b = (byte '(') -> [| b |]
-      | b when b = (byte ')') -> [| b |]
-      | b when b = (byte '~') -> [| b |]
-      | b when b = (byte '?') -> [| b |]
-      | b when b = (byte '/') -> [| b |]
-      | b when b = (byte '.') -> [| b |]
-      | b when b = (byte ',') -> [| b |] // only in keys
-      | b when b = (byte '-') -> [| b |]
-      | b when b = (byte '_') -> [| b |]
-      | b when b = (byte '\'') -> [| b |]
-
-      | _ -> toBytes ("%" + b.ToString("X2"))
-    s |> toBytes |> Array.collect encodeByte |> ofBytes
-
-  match queryParams with
-  | [ key, [] ] -> "?" + urlEncodeKey key
-  | _ ->
-    queryParams
-    |> List.map
-         (fun (k, vs) ->
-           let k = k |> urlEncodeKey
-           vs
-           |> List.map urlEncodeValue
-           |> fun vs ->
-                if vs = [] then
-                  k
-                else
-                  let vs = String.concat "," vs
-                  $"{k}={vs}")
-    |> String.concat "&"
-    |> fun s -> if s = "" then "" else "?" + s
 
 // Convert .NET HttpHeaders into Dark-style headers
 let convertHeaders (headers : HttpHeaders) : List<string * string> =
@@ -310,7 +304,9 @@ let makeHttpCall
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
-        reqUri.Query <- toQueryString (queryParams @ queryStringToParams uri.Query)
+        // Remove leading '?'
+        let queryString = if uri.Query = "" then "" else uri.Query.Substring 1
+        reqUri.Query <- toQueryString (queryParams @ queryStringToParams queryString)
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -335,7 +331,15 @@ let makeHttpCall
             )
 
         // content
-        req.Content <- reqBody.toHttpContent ()
+        let utf8 = System.Text.Encoding.UTF8
+        match reqBody with
+        | FormContent s ->
+          req.Content <-
+            new StringContent(s, utf8, "application/x-www-form-urlencoded")
+        | StringContent str ->
+          req.Content <- new StringContent(str, utf8, "text/plain")
+        | NoContent -> req.Content <- new ByteArrayContent [||]
+
 
         // headers
         List.iter
