@@ -169,7 +169,7 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
   AT.check (AT.option AT.string) msg None e
 
 
-(* Keep scripts/ocaml-find-unused happy *)
+(* Keep scripts/linting/ocaml-find-unused happy *)
 let _ = check_exception
 
 let check_error_contains (name : string) (result : dval) (substring : string) =

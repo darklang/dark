@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
 

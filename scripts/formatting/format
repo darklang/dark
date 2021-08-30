@@ -1,0 +1,309 @@
+#! /usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+CHECK=0 # (0 mean check, 1 means format)
+OCAML=0 # (0 means check ocaml files, 1 means don't)
+PRETTIER=0 # (0 means check prettier files, 1 means don't)
+RUST=0 # (0 means check rust files, 1 means don't)
+FSHARP=0 # (0 means check fsharp files, 1 means don't)
+FILES=()
+
+#######################
+# --help
+#######################
+function print_help ()
+{
+	printf '%s\n' "All formatting across Dark"
+	printf 'Usage: %s [check|format] <files|dirs...> [--help] \n' "$0"
+	printf '\t%s\n' "check: Error if files are not formatted. No argument means check all files. Does not error if file is not supported."
+	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
+  printf '\t%s\n' "--ocaml-only: Only check ocaml files (mli, ml)"
+  printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
+  printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
+  printf '\t%s\n' "--rust-only: Only check rust files (rs)"
+}
+
+FILES=()
+
+# check for flags
+for val in "${@}"; do
+  case "$val" in
+    --help)
+        print_help
+        exit 0
+        ;;
+    --prettier-only)
+        OCAML=1
+        RUST=1
+        FSHARP=1
+        ;;
+    --ocaml-only)
+        PRETTIER=1
+        RUST=1
+        FSHARP=1
+        ;;
+    --fsharp-only)
+        OCAML=1
+        PRETTIER=1
+        RUST=1
+        ;;
+    --rust-only)
+        OCAML=1
+        PRETTIER=1
+        FSHARP=1
+        ;;
+    check)
+      CHECK=0
+      ;;
+    format)
+      CHECK=1
+      ;;
+    *)
+      FILES+=("$val")
+      ;;
+  esac
+done
+
+#######################
+# Parse rest of arguments
+#######################
+if [[ ${#FILES[@]} -eq 0 ]]; then
+  FILES=(".")
+fi
+
+#######################
+# functions
+#######################
+is_dir() {
+  [[ -d "$1" ]]
+}
+
+is_ocaml() {
+  [[ $1 == *.mli || $1 == *.ml ]]
+}
+
+is_rust() {
+  [[ $1 == *.rs ]]
+}
+
+is_fsharp() {
+  [[ $1 == *.fs || $1 == *.fsi ]]
+}
+
+is_allowed() {
+  [[ $1 == *.fs || $1 == *.fsi || $1 == *.mli || $1 == *.ml || $1 == *.css || $1 == *.scss || $1 == *.js || $1 == *.html || $1 == *.rs ]]
+}
+
+all_prettier_files() {
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    -o -path "backend/static" \
+    -o -path "./backend/static" \
+    -o -path "client/static/vendor" \
+    -o -path "./client/static/vendor" \
+    -o -path "lib" \
+    -o -path "./lib" \
+    -o -path "fsharp-backend/.paket" \
+    -o -path "./fsharp-backend/.paket" \
+    -o -path "fsharp-backend/Build" \
+    -o -path "./fsharp-backend/Build" \
+    \) -prune -false \
+    \
+    -o -type f \
+    \( -name "*.css" \
+    -o -name "*.scss" \
+    -o -name "*.js" \
+    -o -name "*.html" \
+    -o -path "bsconfig.json" \
+    -o -path "package.json" \
+    -o -path "esy.json" \
+    \) -print0 \
+    | grep --null-data --invert-match reset-normalize
+}
+
+all_ocaml_files() {
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    \) -prune -false \
+    \
+    -o -type f \
+    \( -name "*.ml" \
+    -o -name "*.mli" \
+    \) -print0
+}
+
+all_fsharp_files() {
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    -o -path "fsharp-backend/.paket" \
+    -o -path "./fsharp-backend/.paket" \
+    -o -path "fsharp-backend/Build" \
+    -o -path "./fsharp-backend/Build" \
+    \) -prune -false \
+    \
+    -o -type f \
+    \( -name "*.fs" \
+    -o -name "*.fsi" \
+    \) -print
+}
+
+all_rust_files() {
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    -o -path "containers/stroller/target" \
+    -o -path "./containers/stroller/target" \
+    -o -path "containers/queue-scheduler/target" \
+    -o -path "./containers/queue-scheduler/target" \
+    \) -prune -false \
+    \
+    -o -type f \
+    -name "*.rs" \
+    -print0
+}
+
+check_ocamlformat() {
+  xargs -0 ocamlformat --check
+}
+
+check_fantomas () {
+  xargs fantomas --check
+}
+
+check_prettier () {
+  xargs -0 npx prettier --list-different
+}
+
+check_rustfmt () {
+  xargs -0 rustfmt --files-with-diff --check
+}
+
+format_ocamlformat() {
+  xargs -0 ocamlformat --inplace
+}
+
+format_fantomas() {
+  xargs fantomas
+}
+
+format_prettier() {
+  xargs -0 npx prettier --write
+}
+
+format_rustfmt() {
+  xargs -0 rustfmt
+}
+
+do_ocamlformat() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_ocamlformat
+  else
+    format_ocamlformat
+  fi
+}
+
+do_fantomas() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_fantomas
+  else
+    format_fantomas
+  fi
+}
+
+do_prettier() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_prettier
+  else
+    format_prettier
+  fi
+}
+
+do_rustfmt() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_rustfmt
+  else
+    format_rustfmt
+  fi
+}
+
+# TODO sqlfmt for sql
+# TODO add python
+# TODO bash formatter
+
+#######################
+# action files/dirs
+#######################
+for i in "${FILES[@]}"; do
+  if [[ -d "$i" ]]; then
+    if [[ 0 -eq "$OCAML" ]]; then
+      all_ocaml_files "$i" | do_ocamlformat
+    fi
+    if [[ 0 -eq "$FSHARP" ]]; then
+      all_fsharp_files $i | do_fantomas
+    fi
+    if [[ 0 -eq "$PRETTIER" ]]; then
+      all_prettier_files "$i" | do_prettier
+    fi
+    if [[ 0 -eq "$RUST" ]]; then
+      all_rust_files "$i" | do_rustfmt
+    fi
+  elif is_allowed "$i"; then
+    if is_ocaml "$i"; then
+      if [[ 0 -eq "$OCAML" ]]; then
+        echo "$i" | do_ocamlformat
+      fi
+    elif is_fsharp "$i"; then
+      if [[ 0 -eq "$FSHARP" ]]; then
+        echo "$i" | do_fantomas
+      fi
+    elif is_rust "$1"; then
+      if [[ 0 -eq "$RUST" ]]; then
+        echo "$i" | do_rustfmt
+      fi
+    else
+      if [[ 0 -eq "$PRETTIER" ]]; then
+        echo "$i" | do_prettier
+      fi
+    fi
+  else
+    echo "ignored : $i"
+  fi
+done
+

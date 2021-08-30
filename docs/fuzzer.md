@@ -16,6 +16,7 @@ that into a test.
 ## Is Fuzz-testing right for me?
 
 This is applicable if:
+
 - there are lots of edge cases and you struggle to find them all
 - or you keep seeing bugs in one product area
 - you can think of a unit test which would correctly test any input
@@ -31,7 +32,6 @@ Some examples:
 - Test the left key: the position after pressing left should be less than
   the start position.
 
-
 ## How to use
 
 Write a test that will work for any input, and add it to
@@ -39,12 +39,12 @@ client/test/fuzz_tests.ml. See the existing examples there.
 
 To test it, call:
 
-  scripts/runfuzzer
+scripts/run-client-fuzzer
 
 The fuzzer will generate programs until it finds one that breaks. After that, it will automatically reduce the program to try and find the smallest representative program that maintains that behaviour.
 
 Once you've found a failure, add that test to the test suite to prevent
-regression. 
+regression.
 
 Use `--help` to see how to control the output and what tests are run.
 
@@ -54,4 +54,3 @@ The tests generated deterministic. You can edit the constants in Fluid_fuzzer.ml
 
 Fuzz testing is a work in progress, and you'll probably have to talk to Paul
 to get it to work for you.
-

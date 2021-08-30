@@ -16,7 +16,12 @@
     "remote.containers.cacheVolume": true,
     "remote.containers.workspaceMountConsistency": "delegated",
     "editor.tabSize": 2,
-    "files.trimTrailingWhitespace": true
+    "files.trimTrailingWhitespace": true,
+    "python.formatting.provider": "yapf",
+    "python.formatting.yapfArgs": [
+      "--style",
+      "{based_on_style: pep8, indent_width: 2}"
+    ]
   },
 
   // Add the IDs of extensions you want installed when the container is created.
@@ -54,7 +59,7 @@
     "--env",
     "HOST_PWD=${localWorkspaceFolder}",
     "--security-opt",
-    "seccomp=scripts/support/chrome-seccomp.json",
+    "seccomp=scripts/devcontainer/chrome-seccomp.json",
     "--security-opt",
     "seccomp=unconfined",
     "--label",
@@ -109,14 +114,14 @@
   // container, the bootstrap container used by the Remote Containers extension
   // doesn't have bash, which is needed to interpolate string values here
   "initializeCommand": [
-    "./scripts/support/initialize-vscode",
+    "./scripts/devcontainer/_initialize-vscode",
     "${localEnv:USERPROFILE}${localEnv:HOME}"
   ],
 
   // Run one build-server, and keep it running for the life of the
   // devcontainer. This is in postStart rather than postAttach as postAttach would
   // add a new build-server each time and we only want one.
-  "postStartCommand": "./scripts/support/vscode-post-start-command",
+  "postStartCommand": "./scripts/devcontainer/_vscode-post-start-command",
 
   // Show the build-server output in a terminal
   // Use -F as it the build-server might not have output by the time this starts

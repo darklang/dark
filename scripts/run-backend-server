@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+
+BINPATH="_build/default/backend/bin"
+SERVER_EXE="$BINPATH/server.exe"
+QW_EXE="$BINPATH/queue_worker.exe"
+CRON_EXE="$BINPATH/cron_checker.exe"
+TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
+
+# Stop the server processes
+echo "Stopping servers"
+sudo pkill -f nginx || true
+sudo pkill -f server.exe || true
+pkill -f queue_worker.exe || true
+pkill -f cron_checker.exe || true
+
+# tunnel cleanup
+echo "pkill tunnel"
+sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
+echo "rm tunnel"
+sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
+echo "pkill sleep"
+sudo pkill -f sleep.infinity || true
+# end tunnel cleanup
+
+echo "Waiting for postgres"
+./scripts/devcontainer/_wait-for-background-services postgresql
+
+# Run tunnel
+sudo mkdir -p /run/sshd
+echo "Starting tunnel"
+# shellcheck disable=SC2024
+sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
+echo "Started tunnel"
+
+# if it hasn't been compiled yet, wait for it
+echo "Waiting for compiled servers"
+for ((i=1;i<=1000;i++));
+do
+  if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
+    sleep 0.01
+  fi
+done
+echo "Done waiting for compiled servers"
+
+# symlink so nginx logs are visible on the host
+if [[ ! -f "/home/dark/app/rundir/logs/nginx-access.log" ]]; then
+  sudo rm /var/log/nginx/access.log
+  touch /home/dark/app/rundir/logs/nginx-access.log
+  ln -s /home/dark/app/rundir/logs/nginx-access.log /var/log/nginx/access.log
+fi
+
+# symlink so nginx logs are visible on the host
+if [[ ! -f "/home/dark/app/rundir/logs/nginx-error.log" ]]; then
+  sudo rm /var/log/nginx/error.log
+  touch /home/dark/app/rundir/logs/nginx-error.log
+  ln -s /home/dark/app/rundir/logs/nginx-error.log /var/log/nginx/error.log
+fi
+
+if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
+  LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  echo "Running server"
+  # shellcheck disable=SC2024
+  sudo --preserve-env "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
+  "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+  "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
+
+  sudo rm -f /etc/nginx/nginx.conf
+  sudo rm -f /etc/nginx/conf.d/nginx.conf
+
+  sudo ln -s \
+     /home/dark/app/containers/ocaml-nginx/base-nginx.conf \
+     /etc/nginx/nginx.conf
+
+  sudo ln -s \
+    /home/dark/app/containers/ocaml-nginx/nginx.conf \
+    /etc/nginx/conf.d/nginx.conf
+
+  echo "Starting nginx"
+  sudo nginx &
+  echo "Started nginx"
+else
+  echo "Missing OCaml binaries"
+  exit 1
+fi
+
+echo "Finished loading server"

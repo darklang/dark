@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container "$0" "${@}"
+. ./scripts/devcontainer/_assert-in-container "$0" "${@}"
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ set -euo pipefail
 
 DIR=$1
 
-cp scripts/support/check-linked-libs "$DIR/"
+cp scripts/linting/_check-linked-libs "$DIR/"
 cp -R backend/templates "$DIR/"
 cp -R scripts "$DIR/"
 

@@ -1,0 +1,176 @@
+#!/usr/bin/env python3.8
+
+# This is used, in concert with scripts/builder, to run Dark inside the dev
+# container. There is a strong connection between these files and
+# .circleci/config.yml. Generally, if you add something to one of these
+# files, there's an equivalent to be added in .circleci/config.yml.
+
+import subprocess
+import sys
+import threading
+import signal
+
+run_tests = False
+
+# When compiling code, use the optimized version of the build. This causes
+# --optimize to be passed to the compile script.
+optimize = False
+
+
+def getFlags():
+  global run_tests
+  global optimize
+  flags = ""
+  if run_tests:
+    flags += " --test"
+  if optimize:
+    flags += " --optimize "
+  return flags
+
+
+# Make io unbuffered
+def flush(fn):
+  def newfn(x):
+    fn(x)
+    sys.stdout.flush()
+
+  return newfn
+
+
+sys.stdout.write = flush(sys.stdout.write)
+sys.stdout.writelines = flush(sys.stdout.writelines)
+
+
+def run_or_fail(bash):
+  if not run(bash):
+    print("Failed during call: " + bash)
+    sys.exit(-1)
+
+
+def run(bash):
+  proc = subprocess.run(bash, shell=True)
+  return proc.returncode == 0
+
+
+def compile_project(name):
+  flags = getFlags()
+  return run(f"scripts/build/compile-project {name} {flags}")
+
+
+def compile(files):
+  fileStr = " ".join(files)
+  flags = getFlags()
+  try:
+    return run(f"scripts/build/compile {flags} {fileStr}")
+  except:
+    print(f"Tried to compile too many files. Length was {len(fileStr)}")
+    return compile_project("all")
+
+
+def run_server():
+  exit = compile(["scripts/run-backend-server"])
+  print("--------------------------")
+  print("-- Started server ")
+  print("--------------------------")
+  return exit
+
+
+def background_task(fn, name):
+  t = threading.Thread(target=fn)
+  t.name = name
+  t.start()
+
+
+def main():
+  # Recompile on file changes til infinity. This is our primary dev
+  # mode. this is also used in scripts/builder.
+  # See also run_tests (--test) which runs the tests too.
+  should_watch = False
+
+  # Compile it once - you usually want this to have full built code.
+  # See also run_tests (--test) which runs the tests too.
+  should_compile = False
+
+  # Run the Dark webserver and keep the container open to serve it.
+  # Useful for demoing without draining your battery. Will not recompile
+  # like --watch does.
+  should_serve = False
+
+  for f in sys.argv[1:]:
+    if f == "--compile":
+      should_compile = True
+    elif f == "--watch":
+      should_watch = True
+    elif f == "--ci-serve":
+      should_serve = True
+    elif f == "--serve":
+      should_serve = True
+      should_compile = True
+    elif f == "--optimize":
+      global optimize
+      optimize = True
+    elif f == "--test":
+      global should_run_tests
+      should_run_tests = True
+
+  def initial_compile():
+    success = compile_project("all")
+    print("--------------------------")
+    if success:
+      print("-- Initial compile succeeded")
+    else:
+      print("-- Initial compile failed")
+    print("--------------------------")
+
+    return success
+
+  run_or_fail("scripts/devcontainer/_write-config-file")
+  run_or_fail("scripts/devcontainer/_allow-docker-access")
+  run_or_fail("scripts/devcontainer/_create-app-directories")
+  run_or_fail("scripts/devcontainer/_create-cache-directories")
+  run_or_fail("scripts/devcontainer/_setup-hosts")
+  run_or_fail("scripts/devcontainer/_start-background-services postgresql")
+  if should_compile:
+    if should_watch or should_serve:
+      background_task(initial_compile, "initial_compile")
+    else:
+      if initial_compile():
+        sys.exit(0)
+      else:
+        sys.exit(1)
+  else:
+    if should_serve:
+      #FSTODO
+      run_server()
+
+  if should_watch:
+    import watchgod
+    # watchgod scans the file system on a loop. This is extremely
+    # fast so long as we list directory trees we don't want to go
+    # into. We prefer this to notification based systems as we've
+    # struggled to get them to work with our fun docker-based
+    # setup.
+    ignored = [
+        ".git",
+        "_build",
+        "_esy",
+        "node_modules",
+        "backend/static",
+        "containers/stroller/target",
+        "containers/queue-scheduler/target",
+        "lib",
+        "fsharp-backend/Build",
+    ]
+    ignored = set(["/home/dark/app/" + f for f in ignored])
+    for changes in watchgod.watch("/home/dark/app/",
+                                  watcher_cls=watchgod.AllWatcher,
+                                  watcher_kwargs=dict(ignored_paths=ignored)):
+      changes = [f for (_, f) in changes]
+      compile(changes)
+
+  elif should_serve:
+    # pause to allow the server stay up
+    signal.pause()
+
+
+main()

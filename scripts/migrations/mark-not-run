@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+NAME=$1
+
+psql -d "$DARK_CONFIG_DB_DBNAME" -c "DELETE FROM system_migrations WHERE name LIKE '%$NAME.sql';"

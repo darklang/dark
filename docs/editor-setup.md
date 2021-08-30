@@ -46,7 +46,7 @@ this in an alias or something).
 
 You will also want to support formatting in your client. Dark uses Prettier for
 JS/HTML/CSS, OCamlformat for ReScript, and Fantomas for F#. The script
-`script/format` can be used to format or check formatting, and there is a
+`script/formatting/format` can be used to format or check formatting, and there is a
 pre-commit hook you can use to run it automatically.
 
 For emacs, see [the
@@ -58,11 +58,9 @@ For vim:
 - Add to your `.vimrc` (with an appropriate path-to-dark replacement):
 
 ```
-set rtp+=~/[path to dark]/dark/scripts/ocamlformat
-let g:ale_javascript_prettier_executable= '~/path to dark]/dark/scripts/prettier'
+let g:ale_javascript_prettier_executable= '~/path to dark]/dark/scripts/formatting/prettier'
 let g:ale_fixers =
 \ {'rust': ['rustfmt'],
-\  'ocaml':['ocamlformat'],
 \  'javascript': ['prettier'],
 \  'js': ['prettier'],
 \  'html': ['prettier'],
@@ -74,4 +72,4 @@ let g:ale_fixers =
 
 You probably also want to install a pre-commit hook that the formatters for
 you.
-`cp scripts/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+`cp scripts/formatting/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`

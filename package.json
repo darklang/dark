@@ -38,8 +38,8 @@
     "validator": "^13.6.0"
   },
   "scripts": {
-    "clean": "./scripts/rescript-wrapper.sh -clean-world",
-    "build:rescript": "./scripts/rescript-wrapper.sh -make-world",
+    "clean": "./scripts/build/_rescript-wrapper.sh -clean-world",
+    "build:rescript": "./scripts/build/_rescript-wrapper.sh -make-world",
     "build:app": "browserifyinc --cachefile lib/browserify-app-cache.json lib/js/client/src/app/Main.bs.js --standalone app -o backend/static/app.js",
     "build:appsupport": "browserifyinc --cachefile lib/browserify-cache.json client/src/appsupport.js --standalone appsupport -o backend/static/appsupport.js",
     "build:unsupportedBrowser": "browserifyinc --cachefile lib/browserify-cache.json client/src/unsupportedBrowser.js --standalone unsupportedBrowser -o backend/static/unsupportedBrowser.js",

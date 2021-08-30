@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -25,7 +25,7 @@ done
 sudo killall legacyserver.exe || true
 killall -9 Benchmark || true
 
-./scripts/support/wait-for-background-services postgresql
+./scripts/devcontainer/_wait-for-background-services postgresql
 #dropdb --if-exists testdb
 #createdb testdb
 
@@ -34,7 +34,7 @@ killall -9 Benchmark || true
 # you want to run the debugger in Visual Studio. However, if they script is run from
 # the Docker host, they do not stay running, and then tests fail because the tests
 # can't connect to these servers.
-./scripts/support/runlegacyserver
+./scripts/run-ocaml-legacy-server
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Benchmark/Release/net6.0/linux-x64/Benchmark

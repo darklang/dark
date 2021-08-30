@@ -1,0 +1,740 @@
+#!/usr/bin/env python3.8
+
+import sys
+import subprocess
+import glob
+import time
+import os
+from pathlib import Path
+
+run_tests = False
+in_ci = os.getenv("CI") == "true"
+optimize = in_ci
+
+
+# Make io unbuffered
+def flush(fn):
+  def newfn(x):
+    fn(x)
+    sys.stdout.flush()
+
+  return newfn
+
+
+sys.stdout.write = flush(sys.stdout.write)
+sys.stdout.writelines = flush(sys.stdout.writelines)
+
+
+def run(start, bash):
+  proc = subprocess.run(bash, shell=True)
+  stop = time.time()
+  success = proc.returncode == 0
+  if success:
+    print(f">> Success in {str(stop - start)}s")
+  else:
+    print(f">> Failed in {str(stop - start)}s")
+
+  return success
+
+
+###################
+# Build logic
+###################
+def pretty_print(msg, color):
+  print(f"\x1b[6;30;{str(color)}m\n$ {msg}\x1b[0m")
+
+
+def run_frontend(start, bash):
+  pretty_print(bash, 44)
+  return run(start, bash)
+
+
+def run_backend(start, bash):
+  pretty_print(bash, 42)
+  return run(start, bash)
+
+
+def run_test(start, bash):
+  if run_tests:
+    pretty_print(bash, 45)
+    return run(start, bash)
+  else:
+    print("skipping tests")
+    return True
+
+
+def run_other(start, bash):
+  pretty_print(bash, 46)
+  return run(start, bash)
+
+
+def is_script(f):
+  filetype = subprocess.check_output(["file", f], encoding="utf-8")
+  return "Bourne-Again" in filetype
+
+
+def sass_compile():
+  start = time.time()
+  return run_frontend(
+      start, "npx node-sass client/styles/app.scss > backend/static/app.css")
+
+
+def copy_static():
+  # For changing static files (esp icons)
+  start = time.time()
+  return run_frontend(start, "npm run copy:static")
+
+
+def copy_fsharp_static():
+  start = time.time()
+  blazor = run_backend(
+      start,
+      "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
+  if optimize:
+    wwwroot = run_backend(
+        start,
+        "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/wwwroot/_framework/ backend/static/blazor/"
+    )
+  else:
+    wwwroot = run_backend(
+        start,
+        "rsync -a fsharp-backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
+    )
+  return blazor and wwwroot
+
+
+def client_build():
+  start = time.time()
+  build = "unbuffer ./scripts/build/_npm-run-build-with-retry"
+  result = run_frontend(start, build)
+  return result
+
+
+def npm_install():
+  start = time.time()
+  build = "unbuffer ./scripts/build/_npm-install-with-retry"
+  return run_frontend(start, build)
+
+
+def esy_install():
+  start = time.time()
+  build = "unbuffer esy install && esy build --release"
+  return run_backend(start, build)
+
+
+def client_test():
+  start = time.time()
+  flags = ""
+  if in_ci:
+    flags = "--verbose --dom"
+  result = run_test(start, f"./scripts/run-client-tests {flags}")
+  return result
+
+
+def shellcheck(f):
+  start = time.time()
+  result = run_backend(start, "scripts/linting/shellchecker " + f)
+  return result
+
+
+def yamllint(f):
+  start = time.time()
+  result = run_backend(start, "scripts/linting/yamllinter " + f)
+  return result
+
+
+def test_nginx():
+  start = time.time()
+  result = run_backend(start, "sudo nginx -t")
+  return result
+
+
+def backend_build():
+  start = time.time()
+
+  # Get all the ml files in backend/bin, and build executables This is less
+  # technically correct than "parse the sexp in backend/bin/dune", but it
+  # is also much simpler.
+  def rename(mlfile):
+    return "backend/bin/" + mlfile.replace(".ml", ".exe")
+
+  exes = [rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml")]
+  exes.append("@analysis.js")
+  exes = " ".join(exes)
+  if optimize:
+    compilation_profile = "release"
+  else:
+    compilation_profile = "dev"
+
+  build = "unbuffer" \
+        + " scripts/build/_dune-wrapper.sh build" \
+        + f" --profile {compilation_profile}" \
+        + " --display short" \
+        + " -j 8 " \
+        + exes
+  return run_backend(start, build)
+
+
+def backend_test():
+  start = time.time()
+  ci = "--verbose" if in_ci else "--quick"
+  return run_test(start,
+          f"unbuffer scripts/build/_dune-wrapper.sh build backend/test/test.exe" \
+          f" && unbuffer scripts/run-backend-tests --show-errors {ci}" \
+          f" 2>&1")
+
+
+###########
+# F#
+###########
+
+
+def fsharp_backend_test():
+  start = time.time()
+  ci = "--verbosity detailed" if in_ci else "--verbosity normal"
+  if optimize:
+    configuration = " --published"
+  else:
+    configuration = ""
+  build = f"scripts/run-fsharp-tests {configuration}"
+  return run_test(start, build)
+
+
+def fsharp_tool_restore():
+  start = time.time()
+  build = "cd fsharp-backend && unbuffer dotnet tool restore"
+  return run_backend(start, build)
+
+
+def fsharp_paket_install():
+  start = time.time()
+  build = "cd fsharp-backend && unbuffer dotnet paket install"
+  return run_backend(start, build)
+
+
+def fsharp_paket_restore():
+  start = time.time()
+  # We run paket restore to match the lock file
+  ci = "--verbose" if in_ci else ""
+  build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
+  return run_backend(start, build)
+
+
+# Builds are split into
+# - dotnet tool restore: installs build tooling (paket)
+# - dotnet paket restore: installs dependencies from paket.lock
+# - dotnet paket install: installs dependencies from the internet, updates paket.lock
+# - dotnet build: builds executables
+
+# dotnet build is extremely slow by default. You can determine where time is
+# spent by passing `/clp:PerformanceSummary` to `dotnet build`. When I ran it,
+# most of the time was in determining dependencies between projects which can
+# be disabled with `--no-dependencies`. Some time is also spent in "restoring"
+# something - not quite sure what that does but it's clearly needed sometimes.
+
+# The solution I went with was to try and figure out the places that need
+# restore and dependencies; so far it's when changing an fsproj or sln file.
+# Apart from that, we can build with these disabled.
+
+# I found there was good speedup from using `-graph:True`. However, that makes
+# the msbuild only build one project, afaict. There's something to be done
+# there but I'm not sure what.
+
+
+def fsharp_backend_quick_build():
+  start = time.time()
+  if optimize:
+    configuration = "Release"
+    verbosity = "minimal"
+    command = "publish"
+  else:
+    configuration = "Debug"
+    verbosity = "minimal"
+    command = "build"
+
+  build = f"cd fsharp-backend \
+    && unbuffer dotnet {command} \
+      -graphBuild:true \
+      --no-restore \
+      --verbosity {verbosity} \
+      --configuration {configuration}"
+
+  return run_backend(start, build)
+
+
+def fsharp_backend_full_build():
+  start = time.time()
+  if optimize:
+    configuration = "Release"
+    verbosity = "minimal"
+    command = "publish"
+  else:
+    configuration = "Debug"
+    verbosity = "minimal"
+    command = "build"
+
+  # TODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
+  build = f"cd fsharp-backend \
+    && unbuffer dotnet {command} \
+      --verbosity {verbosity} \
+      --configuration {configuration}"
+
+  result = run_backend(start, build)
+
+  # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
+  # ourselves for now.
+  if result and optimize:
+    build = f"cd fsharp-backend \
+      && unbuffer dotnet build \
+        --verbosity {verbosity} \
+        --configuration {configuration} \
+        src/Wasm/Wasm.fsproj"
+
+    result = run_backend(start, build)
+  return result
+
+
+def rust_build(dir):
+  if optimize:
+    build_flags = " --release"
+  else:
+    build_flags = ""
+
+  start = time.time()
+  build = f"cd {dir} && unbuffer cargo build{build_flags}"
+  return run_backend(start, build)
+
+
+def rust_reload(dir):
+  start = time.time()
+  return run_backend(start, f"scripts/run-rust {dir}")
+
+
+def test_db_env():
+  return "DARK_CONFIG_DB_HOST=localhost" \
+    " DARK_CONFIG_DB_DBNAME=testdb" \
+    " DARK_CONFIG_DB_USER=dark" \
+    " DARK_CONFIG_DB_PASSWORD=eapnsdc"
+
+
+def rust_test(dir):
+  start = time.time()
+  result = run_test(
+      start,
+      f"cd {dir} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test -- --test-threads=1"
+  )
+  if not result:
+    return result
+
+  start = time.time()
+  if in_ci:
+    clippy_flags = "-D warnings"
+  else:
+    clippy_flags = ""
+  name = os.path.basename(dir)
+  return run_test(
+      start, f"cd {dir}" +
+      f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- "
+      + clippy_flags)
+
+
+def reload_server():
+  start = time.time()
+  runserver = "scripts/run-backend-server"
+  return run_backend(start, runserver)
+
+
+def reload_fsharp_server():
+  start = time.time()
+  if optimize:
+    configuration = " --published"
+  else:
+    configuration = ""
+  runserver = f"scripts/run-fsharp-server {configuration}"
+  return run_backend(start, runserver)
+
+
+def generate_etags():
+  start = time.time()
+  return run_frontend(start, "./scripts/build/_generate-etags")
+
+
+def reload_browser():
+  start = time.time()
+  # Sends a signal to another fswatch on your mac
+  return run_frontend(start, "touch .browser-trigger")
+
+
+class Should:
+  def __init__(self):
+    self.esy_install = False
+    self.backend_build = False
+    self.backend_test = False
+    self.stroller_build = False
+    self.stroller_test = False
+    self.scheduler_build = False
+    self.scheduler_test = False
+    self.fsharp_tool_restore = False
+    self.fsharp_paket_restore = False
+    self.fsharp_paket_install = False
+    self.fsharp_backend_quick_build = False
+    self.fsharp_backend_full_build = False
+    self.fsharp_backend_test = False
+    self.npm_install = False
+    self.client_build = False
+    self.client_test = False
+    self.sass_compile = False
+    self.copy_static = False
+    self.copy_fsharp_static = False
+    self.test_nginx = False
+    self.reload_browser = False
+    self.reload_server = False
+    self.reload_fsharp_server = False
+    self.reload_stroller = False
+    self.reload_scheduler = False
+    self.generate_etags = False
+    self.shellcheck = []
+    self.yamllint = []
+
+
+def execute(should):
+  success = True
+  # Fast path: get the important stuff built first
+  if should.esy_install:
+    if not esy_install(): success = False
+    should.backend_build |= success
+
+  if should.fsharp_tool_restore:
+    if not fsharp_tool_restore(): success = False
+    should.fsharp_paket_restore |= success
+    should.fsharp_backend_full_build |= success
+
+  if should.fsharp_paket_restore:
+    if not fsharp_paket_restore(): success = False
+    should.fsharp_backend_full_build |= success
+
+  if should.fsharp_paket_install:
+    if not fsharp_paket_install(): success = False
+    should.fsharp_backend_full_build |= success
+
+  if should.backend_build:
+    if not backend_build(): success = False
+    should.generate_etags |= success
+    should.backend_test |= success
+    should.reload_server |= success
+    should.reload_browser |= success
+
+  if should.fsharp_backend_full_build:
+    should.fsharp_backend_quick_build = False  # no need to do both
+    if not fsharp_backend_full_build(): success = False
+    should.copy_fsharp_static |= success
+    should.fsharp_backend_test |= success
+    should.reload_fsharp_server |= success
+
+  if should.fsharp_backend_quick_build:
+    if not fsharp_backend_quick_build(): success = False
+    should.copy_fsharp_static |= success
+    should.fsharp_backend_test |= success
+    should.reload_fsharp_server |= success
+
+  if should.npm_install:
+    if not npm_install(): success = False
+    should.client_build |= success
+
+  if should.client_build:
+    if not client_build(): success = False
+    should.client_test |= success
+    should.generate_etags |= success
+    should.reload_browser |= success
+
+    should.generate_etags |= success
+    should.reload_browser |= success
+
+  if should.sass_compile:
+    if not sass_compile(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
+
+  if should.copy_static:
+    if not copy_static(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
+
+  if should.copy_fsharp_static:
+    if not copy_fsharp_static(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
+
+  if should.generate_etags:
+    if not generate_etags(): success = False
+    should.reload_browser |= success
+    # This should probably cause a restart, but it breaks CI atm
+    # should.reload_server |= success
+
+  if should.test_nginx:
+    if not test_nginx(): success = False
+
+  if should.reload_server:
+    if not reload_server(): success = False
+    should.reload_browser |= success
+
+  if should.reload_fsharp_server:
+    if not reload_fsharp_server(): success = False
+    should.reload_browser |= success
+
+  if should.reload_browser:
+    if not reload_browser(): success = False
+
+  # After the fast path get tests run
+  if should.client_test:
+    if not client_test(): success = False
+
+  if should.backend_test:
+    if not backend_test(): success = False
+
+  if should.fsharp_backend_test:
+    if not fsharp_backend_test(): success = False
+
+  # Rust projects
+  if should.stroller_build:
+    if not rust_build('containers/stroller'): success = False
+    should.stroller_test |= success
+    should.reload_stroller |= success
+  if should.reload_stroller:
+    if not rust_reload('containers/stroller'): success = False
+  if should.stroller_test:
+    if not rust_test('containers/stroller'): success = False
+
+  if should.scheduler_build:
+    if not rust_build('containers/queue-scheduler'): success = False
+    should.scheduler_test |= success
+    should.reload_scheduler |= success
+  if should.reload_scheduler:
+    if not rust_reload('containers/queue-scheduler'): success = False
+  if should.scheduler_test:
+    if not rust_test('containers/queue-scheduler'): success = False
+
+  if should.shellcheck != []:
+    if not all([shellcheck(f) for f in should.shellcheck]):
+      success = False
+
+  if should.yamllint:
+    if not all([yamllint(f) for f in should.yamllint]):
+      success = False
+
+  return success
+
+
+def mark(should, f):
+  # Ocaml
+  if "/esy.json" in f:
+    should.esy_install = True
+
+  elif ("/backend/test/" in f) \
+          and ((".mli" in f) \
+                  or (".ml" in f)):
+    should.backend_test = True
+
+  elif ("/backend/" in f) \
+          and ((".mli" in f) \
+                  or (".ml" in f) \
+                  or ("_tags" in f) \
+                  or ("libtarget.js" in f)) \
+          or ("dune" in f):
+    should.backend_build = True
+
+  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f) or
+                               ("legacyserver" in f)):
+    should.backend_build = True
+    if in_ci:
+      should.fsharp_backend_full_build = True
+    else:
+      should.fsharp_backend_quick_build = True
+
+  elif ("/backend/templates/" in f) and (".html" in f):
+    should.backend_build = True
+
+  elif ("/fsharp-backend/global.json" in f or \
+        "/fsharp-backend/.config/dotnet-tools.json" in f or \
+        "/fsharp-backend/Directory.Build.props" in f):
+    should.fsharp_tool_restore = True
+    should.fsharp_paket_restore = True
+    should.fsharp_backend_full_build = True
+
+  elif ("/fsharp-backend/paket.dependencies" in f):
+    should.fsharp_paket_install = True
+
+  elif ("/fsharp-backend/" in f and "paket.references" in f):
+    should.fsharp_paket_restore = True
+
+  elif ("/fsharp-backend/" in f) and \
+    (".fsproj" in f or ".sln" in f):
+    should.fsharp_backend_full_build = True
+
+  elif ("/fsharp-backend/" in f) and \
+       ("src/Benchmark/benchmarks" not in f) and \
+       (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):
+    if in_ci:
+      should.fsharp_backend_full_build = True
+    else:
+      should.fsharp_backend_quick_build = True
+
+  elif ("/fsharp-backend/" in f) and ("/tests/" in f):
+    should.fsharp_backend_test = True
+
+  #FSTODO
+  elif "/containers/ocaml-nginx/" in f and ".conf" in f:
+    should.reload_server = True
+    should.test_nginx = True
+
+  # Touch this to rerun the server
+  elif "/scripts/run-backend-server" in f:
+    should.reload_server = True
+    should.generate_etags = True
+
+  elif "/scripts/run-fsharp-server" in f:
+    should.reload_fsharp_server = True
+    should.generate_etags = True
+
+  # Rust
+  # Touch this to rerun all rust programs
+  elif "/scripts/run-rust" in f:
+    should.reload_stroller = True
+    should.reload_scheduler = True
+
+  elif ("/stroller/" in f) \
+          and (("Cargo.toml" in f) \
+                  or ("Cargo.lock" in f) \
+                  or (".rs" in f)):
+    should.stroller_build = True
+
+  elif ("/queue-scheduler/" in f) \
+          and (("Cargo.toml" in f) \
+                  or ("Cargo.lock" in f) \
+                  or (".rs" in f)):
+    should.scheduler_build = True
+
+  # JS
+  elif "/package.json" in f:
+    should.npm_install = True
+
+  elif ("/client/" in f) \
+          and ((".resi" in f) \
+                  or (".res" in f)
+                  or (".js" in f)):
+    # This correctly handles tests and other dirs, which need to be built
+    # as part of this step.
+    should.client_build = True
+
+  elif "/bsconfig.json" in f:
+    should.client_build = True
+
+  elif ".scss" in f:
+    should.sass_compile = True
+
+  elif "/client/static/" in f:
+    should.copy_static = True
+
+  elif "/fsharp-backend/src/Wasm/static/" in f:
+    should.copy_fsharp_static = True
+
+  elif ("/scripts" in f or ".sh" in f) and is_script(f):
+    should.shellcheck += [f]
+
+  elif (".yml" in f or ".yaml" in f):
+    should.yamllint += [f]
+
+  elif ".html" in f:
+    should.reload_browser = True
+
+  else:
+    print("non-build file: " + f, end='')
+
+  return should
+
+
+def ignore(filename):
+  # substring
+  ignores = [
+      ".git",
+      ".merlin",
+      ".browser-trigger",
+      "scripts/build/compile",
+      "integration-tests/tests.js",
+      "rundir/",
+      "_build/",
+      "dark.install",
+      "gmon.out",
+      "backend/serialization/",
+      "backend/static/",
+      "_esy/",
+      "esy.lock",
+      "/home/dark/.esy",
+      "node_modules",
+      "fsharp-backend/Build",
+      "build.ninja",
+      "containers/stroller/target",
+      "containers/queue-scheduler/target",
+      "paket-files",
+      ".paket/load",
+      ".bs.js",
+      ".bsdeps",
+      ".bsbuild",
+      "/obj/fsac.cache",
+      ".sourcedirs.json",
+      "/obj",
+      ".processlock",
+      ".md",
+      ".sw",
+  ]
+  if "runserver" in filename:
+    return False
+  for i in ignores:
+    if i in filename:
+      return True
+  # ocaml build temporary
+  if filename[-10:-8] == "/C":
+    return True
+  # emacs thing
+  if "/.#" in filename:
+    return True
+  # vim thing
+  if filename[-1] == "~":
+    return True
+  return False
+
+
+files = []
+
+
+def main():
+  for f in sys.argv[1:]:
+    if f == "--test":
+      global run_tests
+      run_tests = True
+    elif f == "--optimize":
+      global optimize
+      optimize = True
+    else:
+      f = os.path.abspath(f)  # the ignore patterns rely on absolute dirs
+      if not ignore(f):
+        files.append(f)
+
+  if len(files) > 0:
+    pretty_files = [file[15:] for file in files]  # trim /home/dark/app/
+    pretty_print("Compiling: " + ", ".join(pretty_files), 43)
+
+    should = Should()
+    for f in files:
+      mark(should, f)
+
+    if execute(should):
+      sys.exit(0)
+    else:
+      sys.exit(1)
+  else:
+    # Don't print as it can be overwhelming
+    sys.exit(1)
+
+
+main()

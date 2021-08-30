@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -10,7 +10,7 @@ function ctrl_c() {
   exit 1
 }
 
-./scripts/support/runlegacyserver
+./scripts/run-ocaml-legacy-server
 
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "${@}"
+
+set -euo pipefail
+
+# Build the docker containers for the services we run on GCP
+
+PREFIX=""
+
+for i in "$@"
+do
+  case "${i}" in
+    --prefix=*)
+      PREFIX="${i/--prefix=/''}-"
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      exit 1
+      ;;
+  esac
+done
+
+GIT_COMMIT=$(git rev-parse --short HEAD)
+
+# Build the base ocaml docker image ('-' means no build context)
+echo -e "\nBuild dark-base-service container"
+time docker build \
+  --build-arg GIT_COMMIT="${GIT_COMMIT}" \
+  --tag "dark-base-service:latest" \
+  - \
+  < containers/base-service-Dockerfile
+
+# Build the base ocaml docker image ('-' means no build context)
+echo -e "\nBuild dark-ocaml-service container"
+time docker build \
+  --build-arg GIT_COMMIT="${GIT_COMMIT}" \
+  --tag "dark-ocaml-service:latest" \
+  - \
+  < containers/ocaml-service-Dockerfile
+
+# Build all the directories in containers/. If there's a prep.sh file, run it
+# first and then build the container in the directory it echos. If there is
+# no dockerfile, then do nothing (sometimes we use vendor containers and so we
+# just need to store config files).
+for dir in containers/*/; do
+  c=$(basename $dir)
+  if [[ -e "${dir}/Dockerfile" ]]; then
+    echo -e "\nBuild container: $c"
+
+    BUILD_DIR="${dir}"
+    if [[ -e "${dir}prep.sh" ]]; then
+      BUILD_DIR=$(time ${dir}prep.sh)
+    fi
+
+    ( cd $BUILD_DIR \
+      && echo "Building in $BUILD_DIR" \
+      && time docker build \
+           --tag "${PREFIX}${c}:latest" \
+           .
+      )
+  else
+    echo -e "\nNo dockerfile, skipping $c"
+  fi
+done

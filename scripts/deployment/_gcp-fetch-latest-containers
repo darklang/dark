@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# Fetch all the latest production containers from GCR
+
+PREFIX=""
+PROJECT=""
+for i in "$@"
+do
+  case "${i}" in
+    --prefix=*)
+      PREFIX="${i/--prefix=/''}-"
+      ;;
+    --project=*)
+      PROJECT="${i/--project=/''}"
+      ;;
+    *)
+      echo "Unexpected argument: $i"
+      exit 1
+      ;;
+  esac
+done
+
+#################################
+# Fetch latest containers from GCR
+#################################
+
+echo "Fetching latest containers from GCR"
+
+gcloud auth configure-docker
+for dir in containers/*/; do
+  if [[ -e "${dir}/Dockerfile" ]]; then
+    c=$(basename $dir)
+    IMAGE="gcr.io/$PROJECT/${PREFIX}$c:latest"
+    docker pull $IMAGE
+  fi
+done

@@ -169,7 +169,7 @@ let translate_user_tipe_as_binary_string
  * led to a lot of problems. All data should be in the same format (the
  * `digest` field in the DB should tell us what format it is). Data is
  * migrated by calling the /check-all-oplists endpoint. You should
- * check that it works locally first using scripts/download-gcp-db).
+ * check that it works locally first using scripts/production/download-gcp-db).
  * Write the code to do the migration in Canvas.check_all_hosts.
  *)
 

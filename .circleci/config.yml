@@ -2,7 +2,7 @@ version: 2.1
 
 # There is a strong connection between this file and the equivalent files for
 # running Dark in dev, which are scripts/builder and
-# scripts/support/build-server. Generally, if you add something to this file,
+# scripts/build/_build-server. Generally, if you add something to this file,
 # there's an equivalent to be added in one of those files.
 
 executors:
@@ -68,11 +68,11 @@ commands:
           name: Setup build environment
           command: |
             set -x
-            scripts/support/setup-circleci-environment
-            scripts/support/create-app-directories
-            scripts/support/create-cache-directories
-            scripts/support/setup-hosts
-            scripts/support/start-background-services postgresql
+            scripts/devcontainer/_setup-circleci-environment
+            scripts/devcontainer/_create-app-directories
+            scripts/devcontainer/_create-cache-directories
+            scripts/devcontainer/_setup-hosts
+            scripts/devcontainer/_start-background-services postgresql
             env
 
   ##########################
@@ -146,17 +146,17 @@ commands:
 
   build-gcp-containers:
     steps:
-      - run: scripts/support/yamllinter
+      - run: scripts/linting/yamllinter
       - prep-container-creation
       - run:
           name: Regenerate combined ETags
           command: |
-            scripts/support/generate-etags
+            scripts/build/_generate-etags
             cat backend/static/etags.json
-            scripts/support/check-etags
+            scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
-      - run: scripts/gcp-build-containers
+      - run: scripts/deployment/_gcp-build-containers
 
   ##########################
   # misc
@@ -185,9 +185,9 @@ jobs:
             - v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
             - v2-client-{{ checksum "package-lock.json" }}
             - v2-client
-      - run: scripts/support/compile-project client --test
+      - run: scripts/build/compile-project client --test
       - assert-clean-worktree
-      - run: scripts/support/shellchecker # run here cause its the fastest
+      - run: scripts/linting/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
@@ -215,10 +215,10 @@ jobs:
       # tests.
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
-      - run: scripts/support/compile-project --test backend
+      - run: scripts/build/compile-project --test backend
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
-      - run: scripts/ocaml-find-unused backend/test
+      - run: scripts/linting/ocaml-find-unused backend/test
       - persist_to_workspace:
           # Do this before reducing size of cache
           root: "."
@@ -268,8 +268,8 @@ jobs:
       - show-large-files-and-directories
       # so the ocamltestserver will load
       - run: touch backend/static/appsupport.js backend/static/app.js backend/static/analysis.js backend/static/app.css
-      - run: scripts/support/generate-etags
-      - run: scripts/support/compile-project fsharp-backend --test
+      - run: scripts/build/_generate-etags
+      - run: scripts/build/compile-project fsharp-backend --test
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
@@ -292,14 +292,14 @@ jobs:
     executor: in-rust-container
     steps:
       - darkcheckout
-      - run: scripts/format check
+      - run: scripts/formatting/format check
 
   build-stroller:
     executor: in-rust-container
     steps:
       - darkcheckout
       - rust-setup: { project: "stroller", dir: "containers/stroller" }
-      - run: scripts/support/compile-project stroller --test
+      - run: scripts/build/compile-project stroller --test
       - assert-clean-worktree
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
 
@@ -309,7 +309,7 @@ jobs:
       - darkcheckout
       - rust-setup: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
       # tests are run in rust-integration-tests
-      - run: scripts/support/compile-project queue-scheduler
+      - run: scripts/build/compile-project queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
 
@@ -326,7 +326,7 @@ jobs:
       - darkcheckout
       - prep-container-creation
       - run: apk add --update bash jq python3 py3-pip && pip install yq
-      - run: bash -c scripts/support/test-honeycomb-config.sh
+      - run: bash -c scripts/linting/test-honeycomb-config.sh
 
   integration-tests:
     executor: in-container
@@ -344,8 +344,8 @@ jobs:
       - run:
           name: Run integration tests
           command: |
-            scripts/support/generate-etags
-            scripts/support/runserver
+            scripts/build/_generate-etags
+            scripts/run-backend-server
 
             # get full list of tests
             grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
@@ -355,7 +355,7 @@ jobs:
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
             PATTERN=${PATTERN%?}
-            scripts/wait-until-server-ready
+            scripts/devcontainer/_wait-until-server-ready
             integration-tests/run.sh --pattern="$PATTERN"
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
@@ -372,9 +372,9 @@ jobs:
           name: Trigger migrations with runserver
           command: |
             # Run the server long enough to ensure it runs the migrations
-            scripts/support/generate-etags
-            scripts/support/runserver
-            scripts/wait-until-server-ready
+            scripts/build/_generate-etags
+            scripts/run-backend-server
+            scripts/devcontainer/_wait-until-server-ready
       - run:
           name: Run queue-scheduler tests
           command: scripts/run-rust-tests containers/queue-scheduler
@@ -399,8 +399,8 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - run: scripts/push-assets-to-cdn
-      - run: scripts/gcp-push-images-to-gcr
+      - run: scripts/deployment/_push-assets-to-cdn
+      - run: scripts/deployment/_gcp-push-images-to-gcr
       # Save the image IDs for deployment later
       - run:
           name: Save image IDs
@@ -427,7 +427,7 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - run: |
-          scripts/gke-deploy       \
+          scripts/deployment/gke-deploy       \
             --server-image-id=`            cat gcr-image-ids/server` \
             --qw-image-id=`                cat gcr-image-ids/qw`     \
             --cron-image-id=`              cat gcr-image-ids/cron`   \
@@ -436,7 +436,7 @@ jobs:
             --queue-scheduler-image-id=`   cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`            cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
-          scripts/honeymarker.sh
+          scripts/deployment/_honeymarker.sh
 
 workflows:
   version: 2

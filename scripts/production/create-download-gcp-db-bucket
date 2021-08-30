@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+## Create the bucket for use by replace-pg-from-gcp
+
+set -euo pipefail
+
+BUCKET=gs://download-gcp-db
+
+###########################
+echo "Creating bucket"
+###########################
+gsutil mb -c regional -l us-west1 "$BUCKET"
+
+###########################
+echo "Adding cloud sql permissions"
+###########################
+SERVICE_ADDRESS=$(gcloud sql instances describe dark-west --format=json | jq '.serviceAccountEmailAddress' --raw-output)
+gsutil acl ch -u "$SERVICE_ADDRESS:W" "$BUCKET"
+
+
+echo "Done"

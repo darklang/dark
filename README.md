@@ -80,10 +80,12 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 
 ### Using Dark scripts
 
-The [`scripts/`](/scripts) directory is full of scripts. They automatically
-execute in the dev container, even if they are run on the host (see
-[`/scripts/support/assert-in-container`](/scripts/support/assert-in-container)
-for how this works).
+The [`scripts/`](/scripts) directory is full of scripts. They automatically execute
+in the dev container, even if they are run on the host (see
+[`/scripts/devcontainer/_assert-in-container`](/scripts/devcontainer/_assert-in-container)
+for how this works). Scripts starting with an underscore are primarily intended to be
+run by other scripts. Scripts without an underscore are usually intended to be called
+by a human, though they are often also called by other scripts as well.
 
 ## Read the contributor docs
 
@@ -145,7 +147,7 @@ Formatters".
 
 You can get a REPL with all of the Dark libraries loaded by running:
 
-- `scripts/dotnet-fsi`
+- `scripts/build/dotnet-fsi`
 
 ### Segfaults and crashes
 
@@ -163,7 +165,7 @@ the dev container.
 The app is split into [backend/](backend) (being converted into
 [fsharp-backend](fsharp-backend)) and [client/](client). Part of the backend is
 used in the client ([jsanalysis](backend/jsanalysis), and in F#:
-[Wasm](fsharp-backend/src/Wasm)), and one directory is shared ([libshared](libshared)).
+[Wasm](fsharp-backend/src/Wasm))).
 These are compiled to create libraries and binaries.
 
 These are put into containers, whose definitions are in [containers/](containers). We also

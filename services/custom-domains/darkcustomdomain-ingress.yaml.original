@@ -2,7 +2,7 @@
 #
 # This was the original version of the file. However, the file is a way to
 # communicate to cert-manager, and we add to it using `kubectl patch` as part
-# of scripts/custom-domain-add-to-cert-manager.
+# of scripts/custom-domains/add-to-cert-manager.
 #
 # As such, this file is only kept around as documentation for how we originally
 # set this up, though we have also been updating it when we change the config

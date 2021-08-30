@@ -11,7 +11,7 @@
 //   that (eg use `x |> y` instead of `y x`)
 
 // If there's a problem, you need to run:
-// $ ./scripts/support/dotnet-regen-fsi
+// $ ./scripts/build/dotnet-regen-fsi
 #load "../../.paket/load/net60/main.group.fsx"
 #r "../../Build/out/Tests.dll"
 #r "../../Build/out/TestUtils.dll"

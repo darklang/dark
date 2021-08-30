@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+PUBLISHED=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --published)
+    PUBLISHED=true
+    shift
+    ;;
+  esac
+done
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/"
+  BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/"
+else
+  API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
+  BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
+fi
+
+API_SERVER_EXE="${API_SERVER_BINPATH}/ApiServer"
+BWD_SERVER_EXE="${BWD_SERVER_BINPATH}/BwdServer"
+TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
+#FSTODO
+# QW_EXE="$BINPATH/QueueWorker"
+# CRON_EXE="$BINPATH/CronChecker"
+
+# Stop the server processes
+echo "Stopping servers"
+#sudo pkill -f nginx || true # FSTODO
+#FSTODO
+sudo pkill -f "ApiServer2" || true
+sudo pkill -f "BwdServer2" || true
+
+#FSTODO
+# pkill -f queue_worker.exe || true
+# pkill -f cron_checker.exe || true
+
+# tunnel cleanup
+echo "pkill tunnel"
+sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
+echo "rm tunnel"
+sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
+echo "pkill sleep"
+sudo pkill -f sleep.infinity || true
+# end tunnel cleanup
+
+# Run tunnel
+sudo mkdir -p /run/sshd
+echo "Starting tunnel"
+# shellcheck disable=SC2024
+sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
+echo "Started tunnel"
+
+echo "Waiting for postgres"
+./scripts/devcontainer/_wait-for-background-services postgresql
+
+# if it hasn't been compiled yet, wait for it
+echo "Waiting for compiled servers"
+for ((i=1;i<=1000;i++));
+do
+  # if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
+  if [[ ! -f "${BWD_SERVER_EXE}" || ! -f "${API_SERVER_EXE}" ]]; then
+    sleep 0.01
+  fi
+done
+echo "Done waiting for compiled servers"
+
+#FSTODO
+# symlink so nginx logs are visible on the host
+# if [[ ! -f "/home/dark/app/rundir/logs/nginx-access.log" ]]; then
+#   sudo rm /var/log/nginx/access.log
+#   touch /home/dark/app/rundir/logs/nginx-access.log
+#   ln -s /home/dark/app/rundir/logs/nginx-access.log /var/log/nginx/access.log
+# fi
+
+#FSTODO
+# symlink so nginx logs are visible on the host
+# if [[ ! -f "/home/dark/app/rundir/logs/nginx-error.log" ]]; then
+#   sudo rm /var/log/nginx/error.log
+#   touch /home/dark/app/rundir/logs/nginx-error.log
+#   ln -s /home/dark/app/rundir/logs/nginx-error.log /var/log/nginx/error.log
+# fi
+
+#FSTODO
+#if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
+
+if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
+  # msbuild won't compile onto files being run, so copy them first
+  LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  ./scripts/run-ocaml-legacy-server
+  cp "${API_SERVER_EXE}" "${API_SERVER_EXE}2"
+  # cp "${API_SERVER_BINPATH}/ApiServer.deps.json" "${BINPATH}/ApiServer2.deps.json"
+  # # cp "${BINPATH}/ApiServer.runtimeconfig.dev.json" "${BINPATH}/ApiServer2.runtimeconfig.dev.json"
+  # cp "${BINPATH}/ApiServer.runtimeconfig.json" "${BINPATH}/ApiServer2.runtimeconfig.json"
+  # cp "${BINPATH}/ApiServer.xml" "${BINPATH}/ApiServer2.xml"
+  cp "${BWD_SERVER_EXE}" "${BWD_SERVER_EXE}2"
+  # cp "${BINPATH}/BwdServer.deps.json" "${BINPATH}/BwdServer2.deps.json"
+  # # cp "${BINPATH}/BwdServer.runtimeconfig.dev.json" "${BINPATH}/BwdServer2.runtimeconfig.dev.json"
+  # cp "${BINPATH}/BwdServer.runtimeconfig.json" "${BINPATH}/BwdServer2.runtimeconfig.json"
+  # cp "${BINPATH}/BwdServer.xml" "${BINPATH}/BwdServer2.xml"
+  echo "Running server"
+  "${API_SERVER_EXE}2" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+  "${BWD_SERVER_EXE}2" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  #FSTODO
+  # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+  # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
+
+  #FSTODO
+  # sudo rm -f /etc/nginx/nginx.conf
+  # sudo rm -f /etc/nginx/conf.d/nginx.conf
+
+  #FSTODO
+  # sudo ln -s \
+  #    /home/dark/app/containers/ocaml-nginx/base-nginx.conf \
+  #    /etc/nginx/nginx.conf
+
+  #FSTODO
+  # sudo ln -s \
+  #   /home/dark/app/containers/ocaml-nginx/nginx.conf \
+  #   /etc/nginx/conf.d/nginx.conf
+
+  #FSTODO
+  # echo "Starting nginx"
+  # sudo nginx &
+  # echo "Started nginx"
+else
+  echo "Missing F# binaries (${API_SERVER_BINPATH}, ${BWD_SERVER_BINPATH})"
+  ls -la "${API_SERVER_BINPATH}"
+  ls -la "${BWD_SERVER_BINPATH}"
+  exit 1
+fi
+
+echo "Finished loading server"

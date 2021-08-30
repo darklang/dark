@@ -29,7 +29,7 @@ Paul.
 ## Make it accessible to containers
 
 To add the secret to a container, add an `env` stanza to the kubernetes
-templates in scripts/support/kubernetes.
+templates in services/\*\*/\*.yaml.
 
 For example:
 
