@@ -4,7 +4,15 @@
   "tools": {
     "paket": {
       "version": "6.0.6",
-      "commands": ["paket"]
+      "commands": [
+        "paket"
+      ]
+    },
+    "dotnet-trace": {
+      "version": "5.0.236902",
+      "commands": [
+        "dotnet-trace"
+      ]
     }
   }
 }
