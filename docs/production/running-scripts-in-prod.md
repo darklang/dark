@@ -37,7 +37,7 @@ You should use this approach if you have a script that you _always_ want availab
 box, maybe to aid debugging a live process.
 
 Simply copy the binary into the directory that gets mounted into the containers
-when being built in `scripts/deployment/gcp-build-containers`. It'll look something like a
+when being built in `scripts/deployment/_gcp-build-containers`. It'll look something like a
 
 `cp -f _build/default/backend/bin/foo.exe "$DIR/bin"` command before the invocation of `docker build` that's relevant to you. At time of writing, there's an
 example in `gcp-build-containers` of `emergency_login_script.exe` doing this.

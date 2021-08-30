@@ -124,12 +124,12 @@ def main():
 
     return success
 
-  run_or_fail("scripts/devcontainer/write-config-file")
-  run_or_fail("scripts/devcontainer/allow-docker-access")
-  run_or_fail("scripts/devcontainer/create-app-directories")
-  run_or_fail("scripts/devcontainer/create-cache-directories")
-  run_or_fail("scripts/devcontainer/setup-hosts")
-  run_or_fail("scripts/devcontainer/start-background-services postgresql")
+  run_or_fail("scripts/devcontainer/_write-config-file")
+  run_or_fail("scripts/devcontainer/_allow-docker-access")
+  run_or_fail("scripts/devcontainer/_create-app-directories")
+  run_or_fail("scripts/devcontainer/_create-cache-directories")
+  run_or_fail("scripts/devcontainer/_setup-hosts")
+  run_or_fail("scripts/devcontainer/_start-background-services postgresql")
   if should_compile:
     if should_watch or should_serve:
       background_task(initial_compile, "initial_compile")

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. ./scripts/devcontainer/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 NAME=$1
 DATE=$(date -u +%Y%m%d_%H%M%S)

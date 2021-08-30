@@ -105,14 +105,14 @@ def copy_fsharp_static():
 
 def client_build():
   start = time.time()
-  build = "unbuffer ./scripts/build/npm-run-build-with-retry"
+  build = "unbuffer ./scripts/build/_npm-run-build-with-retry"
   result = run_frontend(start, build)
   return result
 
 
 def npm_install():
   start = time.time()
-  build = "unbuffer ./scripts/build/npm-install-with-retry"
+  build = "unbuffer ./scripts/build/_npm-install-with-retry"
   return run_frontend(start, build)
 
 
@@ -356,7 +356,7 @@ def reload_fsharp_server():
 
 def generate_etags():
   start = time.time()
-  return run_frontend(start, "./scripts/build/generate-etags")
+  return run_frontend(start, "./scripts/build/_generate-etags")
 
 
 def reload_browser():

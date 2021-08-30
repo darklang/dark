@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/devcontainer/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 ## Create the bucket for use by replace-pg-from-gcp
 

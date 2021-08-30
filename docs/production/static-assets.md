@@ -7,13 +7,13 @@ Of note:
 
 - gcloud can do "decompressive transcoding", which means that what we upload must
   already be gzipped, and the 'Content-Encoding: gzip' header attached (see:
-  `scripts/deployment/push-assets-to-cdn` script for details). Assuming that is done,
+  `scripts/deployment/_push-assets-to-cdn` script for details). Assuming that is done,
   gcloud cloud cdn will handle sending either gzipped or decompressed files depending
   on whether the request headers include 'Content-Encoding: gzip'.
   - NOTE: if you do one but not the other (`gsutil cp -h 'Content-Encoding: gzip'`,
     but with decompressed files), Chrome will give you CONTENT_ENCODING errors. To fix:
     re-upload with `gsutil cp` and bust the cache in GCloud Console. You are not likely
-    to run into this, because `scripts/deployment/push-assets-to-cdn` does the work.
+    to run into this, because `scripts/deployment/_push-assets-to-cdn` does the work.
 - The bucket must send appropriate Access-Control-Allow-Origin headers, or the
   browser won't be able to load some things. (We've seen this with
   `vendor/fontawesome-*/css/all.css`, and with `*.{woff,ttf}`.) - To fix: create a file

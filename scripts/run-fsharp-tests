@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/devcontainer/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -31,7 +31,7 @@ sudo killall legacyserver.exe || true
 sudo killall ocamltestserver.exe || true
 killall -9 Tests || true
 
-./scripts/devcontainer/wait-for-background-services postgresql
+./scripts/devcontainer/_wait-for-background-services postgresql
 dropdb --if-exists testdb
 createdb testdb
 
@@ -45,7 +45,7 @@ createdb testdb
 ./scripts/run-ocaml-test-server
 
 # CLEANUP This is where the migrations are run for testdb at the moment
-DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8001 ./scripts/devcontainer/wait-until-server-ready
+DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8001 ./scripts/devcontainer/_wait-until-server-ready
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests

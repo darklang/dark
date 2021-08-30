@@ -32,7 +32,7 @@ your currently authenticated user at start time.
 
 Push the production container to Google Cloud Registry:
 
-- `./scripts/deployment/gcp-push-images-to-gcr`
+- `./scripts/deployment/_gcp-push-images-to-gcr`
 
 Trigger the deploy:
 

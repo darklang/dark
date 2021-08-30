@@ -2,7 +2,7 @@ version: 2.1
 
 # There is a strong connection between this file and the equivalent files for
 # running Dark in dev, which are scripts/builder and
-# scripts/build/build-server. Generally, if you add something to this file,
+# scripts/build/_build-server. Generally, if you add something to this file,
 # there's an equivalent to be added in one of those files.
 
 executors:
@@ -69,10 +69,10 @@ commands:
           command: |
             set -x
             scripts/devconainer/setup-circleci-environment
-            scripts/devcontainer/create-app-directories
-            scripts/devcontainer/create-cache-directories
-            scripts/devcontainer/setup-hosts
-            scripts/devcontainer/start-background-services postgresql
+            scripts/devcontainer/_create-app-directories
+            scripts/devcontainer/_create-cache-directories
+            scripts/devcontainer/_setup-hosts
+            scripts/devcontainer/_start-background-services postgresql
             env
 
   ##########################
@@ -151,12 +151,12 @@ commands:
       - run:
           name: Regenerate combined ETags
           command: |
-            scripts/build/generate-etags
+            scripts/build/_generate-etags
             cat backend/static/etags.json
-            scripts/linting/check-etags
+            scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
-      - run: scripts/deployment/gcp-build-containers
+      - run: scripts/deployment/_gcp-build-containers
 
   ##########################
   # misc
@@ -268,7 +268,7 @@ jobs:
       - show-large-files-and-directories
       # so the ocamltestserver will load
       - run: touch backend/static/appsupport.js backend/static/app.js backend/static/analysis.js backend/static/app.css
-      - run: scripts/build/generate-etags
+      - run: scripts/build/_generate-etags
       - run: scripts/build/compile-project fsharp-backend --test
       - assert-clean-worktree
       - persist_to_workspace:
@@ -344,7 +344,7 @@ jobs:
       - run:
           name: Run integration tests
           command: |
-            scripts/build/generate-etags
+            scripts/build/_generate-etags
             scripts/run-backend-server
 
             # get full list of tests
@@ -355,7 +355,7 @@ jobs:
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
             PATTERN=${PATTERN%?}
-            scripts/devcontainer/wait-until-server-ready
+            scripts/devcontainer/_wait-until-server-ready
             integration-tests/run.sh --pattern="$PATTERN"
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
@@ -372,9 +372,9 @@ jobs:
           name: Trigger migrations with runserver
           command: |
             # Run the server long enough to ensure it runs the migrations
-            scripts/build/generate-etags
+            scripts/build/_generate-etags
             scripts/run-backend-server
-            scripts/devcontainer/wait-until-server-ready
+            scripts/devcontainer/_wait-until-server-ready
       - run:
           name: Run queue-scheduler tests
           command: scripts/run-rust-tests containers/queue-scheduler
@@ -399,8 +399,8 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - run: scripts/deployment/push-assets-to-cdn
-      - run: scripts/deployment/gcp-push-images-to-gcr
+      - run: scripts/deployment/_push-assets-to-cdn
+      - run: scripts/deployment/_gcp-push-images-to-gcr
       # Save the image IDs for deployment later
       - run:
           name: Save image IDs
@@ -436,7 +436,7 @@ jobs:
             --queue-scheduler-image-id=`   cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`            cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
-          scripts/deployment/honeymarker.sh
+          scripts/deployment/_honeymarker.sh
 
 workflows:
   version: 2

@@ -8,8 +8,8 @@ fi
 
 sudo chown dark "$DARK_CONFIG_RUNDIR"
 
-./scripts/devcontainer/write-config-file
-./scripts/devcontainer/create-app-directories
+./scripts/devcontainer/_write-config-file
+./scripts/devcontainer/_create-app-directories
 
 echo "Starting garbage collector"
 sudo --preserve-env ./bin/garbage_collector_worker.exe

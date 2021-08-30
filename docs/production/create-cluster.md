@@ -17,8 +17,8 @@ Once this is done, you can build containers locally and deploy them to the
 cluster:
 
 ```
-./scripts/deployment/gcp-build-containers
-./scripts/deployment/gcp-push-images-to-gcr
+./scripts/deployment/_gcp-build-containers
+./scripts/deployment/_gcp-push-images-to-gcr
 ./scripts/deployment/gke-deploy --cluster=darkcluster1570566003 --skip-rollbar
 ```
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/devcontainer/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -58,7 +58,7 @@ sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
 echo "Started tunnel"
 
 echo "Waiting for postgres"
-./scripts/devcontainer/wait-for-background-services postgresql
+./scripts/devcontainer/_wait-for-background-services postgresql
 
 # if it hasn't been compiled yet, wait for it
 echo "Waiting for compiled servers"

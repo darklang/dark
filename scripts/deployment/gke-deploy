@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/devcontainer/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -114,7 +114,7 @@ if [[ -v CI ]]; then
   echo "On CI: not fetching latest containers"
 else
   echo "Not on CI: fetching latest containers"
-  ./scripts/deployment/gcp-fetch-latest-containers ${PREFIX:+"--prefix=${PREFIX}"} "--project=${DARK_PROJECT}"
+  ./scripts/deployment/_gcp-fetch-latest-containers ${PREFIX:+"--prefix=${PREFIX}"} "--project=${DARK_PROJECT}"
 fi
 
 #########################
@@ -268,7 +268,7 @@ done
 #############################
 # Check that the prod cluster matches our view of the world, before we deploy
 #############################
-./scripts/deployment/gke-check-predeployed-yaml
+./scripts/deployment/_gke-check-predeployed-yaml
 
 #############################
 # Actually do the deploy

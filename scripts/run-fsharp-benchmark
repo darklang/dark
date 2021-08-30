@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/devcontainer/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -25,7 +25,7 @@ done
 sudo killall legacyserver.exe || true
 killall -9 Benchmark || true
 
-./scripts/devcontainer/wait-for-background-services postgresql
+./scripts/devcontainer/_wait-for-background-services postgresql
 #dropdb --if-exists testdb
 #createdb testdb
 
