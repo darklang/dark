@@ -115,6 +115,7 @@ let to_url_string (json : string) : string =
   in
   Dval.to_url_string_exn dval
 
+
 type query_params = (string * string list) list [@@deriving yojson]
 
 type just_string = string [@@deriving yojson]
@@ -128,6 +129,7 @@ let dval_to_query (json : string) : string =
   |> query_params_to_yojson
   |> Yojson.Safe.to_string
 
+
 let query_to_dval (json : string) : string =
   json
   |> Yojson.Safe.from_string
@@ -137,6 +139,7 @@ let query_to_dval (json : string) : string =
   |> Types.RuntimeT.dval_to_yojson
   |> Yojson.Safe.to_string
 
+
 let dval_to_form_encoding (json : string) : string =
   json
   |> Yojson.Safe.from_string
@@ -144,18 +147,16 @@ let dval_to_form_encoding (json : string) : string =
   |> Result.ok_or_failwith
   |> Dval.to_form_encoding
 
+
 let query_string_to_params (json : string) : string =
   if json = ""
-  then
-    Uri.empty
-    |> Uri.query
-    |> query_params_to_yojson
-    |> Yojson.Safe.to_string
+  then Uri.empty |> Uri.query |> query_params_to_yojson |> Yojson.Safe.to_string
   else
     json
     |> Uri.query_of_encoded
     |> query_params_to_yojson
     |> Yojson.Safe.to_string
+
 
 let params_to_query_string (json : string) : string =
   let query_params =
@@ -168,8 +169,7 @@ let params_to_query_string (json : string) : string =
   |> Uri.with_uri ~query:(Some query_params)
   |> Uri.path_and_query
   (* drop / and ? *)
-  |> (fun s -> String.drop_prefix s 2)
-
+  |> fun s -> String.drop_prefix s 2
 
 
 let hash_v0 (json : string) : string =
