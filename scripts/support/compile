@@ -11,6 +11,7 @@ run_tests = False
 in_ci = os.getenv("CI") == "true"
 optimize = in_ci
 
+
 # Make io unbuffered
 def flush(fn):
   def newfn(x):
@@ -83,14 +84,24 @@ def copy_static():
   start = time.time()
   return run_frontend(start, "npm run copy:static")
 
+
 def copy_fsharp_static():
   start = time.time()
-  blazor = run_backend(start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
+  blazor = run_backend(
+      start,
+      "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
   if optimize:
-    wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/wwwroot/_framework/ backend/static/blazor/")
+    wwwroot = run_backend(
+        start,
+        "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/wwwroot/_framework/ backend/static/blazor/"
+    )
   else:
-    wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/")
+    wwwroot = run_backend(
+        start,
+        "rsync -a fsharp-backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
+    )
   return blazor and wwwroot
+
 
 def client_build():
   start = time.time()
@@ -131,19 +142,23 @@ def yamllint(f):
   result = run_backend(start, "scripts/support/yamllinter " + f)
   return result
 
+
 def test_nginx():
   start = time.time()
   result = run_backend(start, "sudo nginx -t")
   return result
 
+
 def backend_build():
   start = time.time()
+
   # Get all the ml files in backend/bin, and build executables This is less
   # technically correct than "parse the sexp in backend/bin/dune", but it
   # is also much simpler.
   def rename(mlfile):
     return "backend/bin/" + mlfile.replace(".ml", ".exe")
-  exes = [ rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml") ]
+
+  exes = [rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml")]
   exes.append("@analysis.js")
   exes = " ".join(exes)
   if optimize:
@@ -173,6 +188,7 @@ def backend_test():
 # F#
 ###########
 
+
 def fsharp_backend_test():
   start = time.time()
   ci = "--verbosity detailed" if in_ci else "--verbosity normal"
@@ -183,15 +199,18 @@ def fsharp_backend_test():
   build = f"scripts/run-fsharp-tests {configuration}"
   return run_test(start, build)
 
+
 def fsharp_tool_restore():
   start = time.time()
   build = "cd fsharp-backend && unbuffer dotnet tool restore"
   return run_backend(start, build)
 
+
 def fsharp_paket_install():
   start = time.time()
   build = "cd fsharp-backend && unbuffer dotnet paket install"
   return run_backend(start, build)
+
 
 def fsharp_paket_restore():
   start = time.time()
@@ -199,6 +218,7 @@ def fsharp_paket_restore():
   ci = "--verbose" if in_ci else ""
   build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
   return run_backend(start, build)
+
 
 # Builds are split into
 # - dotnet tool restore: installs build tooling (paket)
@@ -219,6 +239,8 @@ def fsharp_paket_restore():
 # I found there was good speedup from using `-graph:True`. However, that makes
 # the msbuild only build one project, afaict. There's something to be done
 # there but I'm not sure what.
+
+
 def fsharp_backend_quick_build():
   start = time.time()
   if optimize:
@@ -236,6 +258,7 @@ def fsharp_backend_quick_build():
       --no-restore \
       --verbosity {verbosity} \
       --configuration {configuration}"
+
   return run_backend(start, build)
 
 
@@ -255,6 +278,7 @@ def fsharp_backend_full_build():
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
       --configuration {configuration}"
+
   result = run_backend(start, build)
 
   # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
@@ -265,10 +289,9 @@ def fsharp_backend_full_build():
         --verbosity {verbosity} \
         --configuration {configuration} \
         src/Wasm/Wasm.fsproj"
+
     result = run_backend(start, build)
   return result
-
-
 
 
 def rust_build(dir):
@@ -402,7 +425,7 @@ def execute(should):
     should.reload_browser |= success
 
   if should.fsharp_backend_full_build:
-    should.fsharp_backend_quick_build = False # no need to do both
+    should.fsharp_backend_quick_build = False  # no need to do both
     if not fsharp_backend_full_build(): success = False
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
@@ -501,6 +524,7 @@ def execute(should):
 
   return success
 
+
 def mark(should, f):
   # Ocaml
   if "/esy.json" in f:
@@ -519,7 +543,8 @@ def mark(should, f):
           or ("dune" in f):
     should.backend_build = True
 
-  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f) or ("legacyserver" in f)):
+  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f) or
+                               ("legacyserver" in f)):
     should.backend_build = True
     if in_ci:
       should.fsharp_backend_full_build = True
@@ -544,7 +569,7 @@ def mark(should, f):
 
   elif ("/fsharp-backend/" in f) and \
     (".fsproj" in f or ".sln" in f):
-      should.fsharp_backend_full_build = True
+    should.fsharp_backend_full_build = True
 
   elif ("/fsharp-backend/" in f) and \
        ("src/Benchmark/benchmarks" not in f) and \
@@ -555,7 +580,7 @@ def mark(should, f):
       should.fsharp_backend_quick_build = True
 
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):
-      should.fsharp_backend_test = True
+    should.fsharp_backend_test = True
 
   #FSTODO
   elif "/containers/ocaml-nginx/" in f and ".conf" in f:
@@ -691,12 +716,12 @@ def main():
       global optimize
       optimize = True
     else:
-      f = os.path.abspath(f) # the ignore patterns rely on absolute dirs
+      f = os.path.abspath(f)  # the ignore patterns rely on absolute dirs
       if not ignore(f):
         files.append(f)
 
   if len(files) > 0:
-    pretty_files = [ file[15:] for file in files ] # trim /home/dark/app/
+    pretty_files = [file[15:] for file in files]  # trim /home/dark/app/
     pretty_print("Compiling: " + ", ".join(pretty_files), 43)
 
     should = Should()
