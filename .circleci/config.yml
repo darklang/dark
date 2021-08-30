@@ -68,7 +68,7 @@ commands:
           name: Setup build environment
           command: |
             set -x
-            scripts/devconainer/setup-circleci-environment
+            scripts/devcontainer/_setup-circleci-environment
             scripts/devcontainer/_create-app-directories
             scripts/devcontainer/_create-cache-directories
             scripts/devcontainer/_setup-hosts
