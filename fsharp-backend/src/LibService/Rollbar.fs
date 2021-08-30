@@ -85,12 +85,32 @@ module AspNet =
   open Microsoft.AspNetCore.Builder
   open Microsoft.AspNetCore.Http.Abstractions
 
+  // Rollbar's ASP.NET core middleware requires an IHttpContextAccessor, which
+  // supposedly costs significant performance (couldn't see a cost in practice
+  // though). AFAICT, this allows HTTP vars to be shared across the Task using an
+  // AsyncContext. This would make sense for a lot of ways to use Rollbar, but we use
+  // telemetry for our context and only want to use rollbar for exception tracking.
+  type DarkRollbarMiddleware(nextRequestProcessor : RequestDelegate) =
+    member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
+    member this.Invoke(ctx : HttpContext) : Task =
+      task {
+        try
+          do! this._nextRequestProcessor.Invoke(ctx)
+        with
+        | e ->
+          send (Telemetry.executionID ()) [] e
+          raise e
+      }
+      :> Task
+
+
+
   let addRollbarToServices (services : IServiceCollection) : IServiceCollection =
-    // https://jsnelders.com/Blog/2989/adding-rollbar-to-asp-net-core-2-some-services-are-not-able-to-be-constructed-and-unable-to-resolve-service-for-type-microsoft-aspnetcore-http-ihttpcontextaccessor/
-    services.AddHttpContextAccessor().AddRollbarLogger()
+    // Nothing to do here, as rollbar is initialized above
+    services
 
   let addRollbarToApp (app : IApplicationBuilder) : IApplicationBuilder =
-    app.UseRollbarMiddleware()
+    app.UseMiddleware<DarkRollbarMiddleware>()
 
 
 

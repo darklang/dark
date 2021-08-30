@@ -371,7 +371,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     | None -> return! canvasNotFoundResponse ctx
   }
 
-
 // ---------------
 // Configure Kestrel/ASP.NET
 // ---------------
@@ -386,7 +385,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
           return! runDarkHandler ctx
       with
       | LoadException (msg, code) ->
-        // FSTODO log/honeycomb, rollbar
+        // FSTODO log/honeycomb
         let bytes = System.Text.Encoding.UTF8.GetBytes msg
         ctx.Response.StatusCode <- code
         if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
