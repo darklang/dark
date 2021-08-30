@@ -22,8 +22,8 @@ https://www.notion.so/darklang/Custom-domains-take-2-c9f04210ec94422695f91bc870b
 
 ## Dark ops instructions
 
-- Make sure you have run `scripts/gcp-authorize-kubectl` (if you have not, you might get `The connection to the server localhost:8080 was refused - did you specify the right host or port?` in the next step)
-- Run `scripts/custom-domain-add` and provide the domain (eg `api.example.com`); we'll get the canvas
+- Make sure you have run `scripts/production/gcp-authorize-kubectl` (if you have not, you might get `The connection to the server localhost:8080 was refused - did you specify the right host or port?` in the next step)
+- Run `scripts/custom-domains/add` and provide the domain (eg `api.example.com`); we'll get the canvas
   name from the CNAME, which also verifies that the CNAME DNS record is in
   place.
   Make sure to supply the DOMAIN without the `https://` prefix.
@@ -49,14 +49,14 @@ array element with this value" command).
 
 These actions are scripted, split into two parts:
 
-- scripts/custom-domain-delete-from-cert-manager
-- scripts/custom-domain-delete-from-db
+- scripts/custom-domains/delete-from-cert-manager
+- scripts/custom-domains/delete-from-db
 
 You need to do both and they're interactive (reflecting the risky nature).
 
 ## Implementation details
 
-See `scripts/custom-domain-add` for a high level overview.
+See `scripts/custom-domains/add` for a high level overview.
 
 If you're wondering about the `cert-manager-*` yamls in
 `services/cert-manager/`, see the [cert-manager

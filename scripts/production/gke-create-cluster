@@ -204,7 +204,7 @@ elif [[ "${WITH_NEW_DATABASE}" == "true" ]]; then
     echo "When creating a new database with a cluster, --cloudsql-pass is required"
     exit 1
   fi
-  ./scripts/gcp-create-db \
+  ./scripts/production/gcp-create-db \
     --region=$DARK_CLUSTER_REGION \
     --cloudsql-instance-name=$CLOUDSQL_INSTANCE_NAME \
     --cloudsql-pass=$DARK_CLUSTER_CLOUDSQL_PASS
@@ -446,7 +446,7 @@ kubectl create clusterrolebinding cert-manager-admin-binding \
 
 print_step "deploying code and containers"
 
-./scripts/gke-deploy \
+./scripts/deployment/gke-deploy \
   "--region=${DARK_CLUSTER_REGION}" \
   "--project=${DARK_CLUSTER_PROJECT}" \
   "--cluster=${DARK_CLUSTER}" \

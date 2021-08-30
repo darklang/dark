@@ -24,12 +24,12 @@ if [[ $# -eq 1 && "$1" == '--help' ]]; then
 fi
 
 # This tmpfile crap is because for some reason gcp-psql hangs when put into a
-# subshell ( foo=$(... | ./scripts/gcp-psql) ) or when its output is piped to
-# another command (... | ./scripts/gcp-psql | grep ...)
+# subshell ( foo=$(... | ./scripts/production/gcp-psql) ) or when its output is piped to
+# another command (... | ./scripts/production/gcp-psql | grep ...)
 tmpfile=$(mktemp /tmp/custom_domain.XXXXXX)
 select_query="SELECT host FROM custom_domains"
 echo "\\copy (${select_query}) TO ${tmpfile}" \
-    | ./scripts/gcp-psql --production
+    | ./scripts/production/gcp-psql --production
 DBHOSTS=$(sort ${tmpfile})
 
 CERTMANAGER_JSON=$(kubectl get ingress darkcustomdomain-l4-ingress -o json)

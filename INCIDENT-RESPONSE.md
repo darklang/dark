@@ -4,19 +4,21 @@ hello friendly neighbourhood L3 responder! the engineering team is extremely sor
 for L1+L2 response being AWOL.
 
 ### Things to check:
-  * Is google cloud down? https://status.cloud.google.com/
-    - If so, there's not much we can do unfortunately. Restarting our services will not help
-  * The pingdom service which determines if we're up or not hits https://dabblefox-shelf.builtwithdark.com/ping, so you can check this yourself to determine if we're totally down, or only partially down.
+
+- Is google cloud down? https://status.cloud.google.com/
+  - If so, there's not much we can do unfortunately. Restarting our services will not help
+- The pingdom service which determines if we're up or not hits https://dabblefox-shelf.builtwithdark.com/ping, so you can check this yourself to determine if we're totally down, or only partially down.
 
 ### Resolving Issues:
 
 #### Google Cloud Shell
 
 Google helpfully have a web-based shell that you can use anywhere for incident response.
-* Go to https://console.cloud.google.com/home/dashboard?project=balmy-ground-195100
-* Click "Active Google Cloud Shell" button in top right (it's this button: https://www.dropbox.com/s/q042csiq1ebgzqs/Screenshot%202018-07-17%2016.20.11.png?dl=0)
-* Wait for the shell to boot
-* Run the following command to finish setup
+
+- Go to https://console.cloud.google.com/home/dashboard?project=balmy-ground-195100
+- Click "Active Google Cloud Shell" button in top right (it's this button: https://www.dropbox.com/s/q042csiq1ebgzqs/Screenshot%202018-07-17%2016.20.11.png?dl=0)
+- Wait for the shell to boot
+- Run the following command to finish setup
 
 ```
 $ gcloud container clusters get-credentials "$(< current-cluster)" --zone=us-west1 --project=balmy-ground-195100
@@ -36,14 +38,11 @@ https://www.dropbox.com/s/nt9vd579eiyq3kh/Screenshot%202018-07-17%2016.28.36.png
 
 ##### Interpreting the 'Status' column
 
-* If everything is mostly 'Running' then Kubernetes thinks the system is healthy. If we're still down, you should try to restart the pods via the section below
-* Anything else like Terminating, CrashLoopBackOff etc. indicates that kubernetes knows that the system is unhealthy and is working to fix it
+- If everything is mostly 'Running' then Kubernetes thinks the system is healthy. If we're still down, you should try to restart the pods via the section below
+- Anything else like Terminating, CrashLoopBackOff etc. indicates that kubernetes knows that the system is unhealthy and is working to fix it
 
 #### Restarting Kubernetes pods:
 
- Run the following command:
+Run the following command:
 
-```
-$ curl -L https://gist.githubusercontent.com/IanConnolly/5cc6625a54ad7b2c49eff61b52729602/raw/21d7d1af8b2c933669b1cd585af120b31281b96c/force-system-restart | bash
-```
-
+`scripts/production/force-system-restart`

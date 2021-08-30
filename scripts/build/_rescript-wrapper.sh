@@ -29,8 +29,8 @@ set -e
 if [[ "$error" == 1 ]]; then
   echo "Ran into a weird rescript bug: $errorline"
   echo "Cleaning"
-  ./scripts/clear-rescript-cache
-  ./scripts/clear-node-modules
+  ./scripts/build/clear-rescript-cache
+  ./scripts/build/clear-node-modules
   echo "Running again"
   ./scripts/npm-install-with-retry
   unbuffer bsb "$@"

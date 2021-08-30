@@ -12,7 +12,7 @@ set -euo pipefail
 files=$(git diff --cached --name-only --diff-filter=ACM)
 
 # format all staged files
-echo "$files" | xargs scripts/format check --quiet
+echo "$files" | xargs scripts/formatting/format check --quiet
 # Add back the modified/formatted files to staging
 echo "$files" | xargs git add
 

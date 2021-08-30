@@ -38,7 +38,7 @@ done
 
 INVIDEO=$1
 INSUBS=$2
-CCOVERLAY=$(dirname "$0")/support/cc.png
+CCOVERLAY=$(dirname "$0")/cc.png
 
 if ( ! command -v ffmpeg ); then
   echo "This script depends on ffmpeg."

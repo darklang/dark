@@ -20,7 +20,7 @@ if [[ "${username}" = "" ]]; then
     exit 1
 fi
 
-./scripts/gcp-authorize-kubectl
+./scripts/production/gcp-authorize-kubectl
 pod="$(kubectl get pods \
     | grep "bwd.*Running" \
     | head -n 1 \

@@ -23,12 +23,12 @@ fi
 DOMAIN=$1
 
 # This tmpfile crap is because for some reason gcp-psql hangs when put into a
-# subshell ( foo=$(... | ./scripts/gcp-psql) ) or when its output is piped to
-# another command (... | ./scripts/gcp-psql | grep ...)
+# subshell ( foo=$(... | ./scripts/production/gcp-psql) ) or when its output is piped to
+# another command (... | ./scripts/production/gcp-psql | grep ...)
 tmpfile=$(mktemp /tmp/custom_domain.XXXXXX)
 delete_query="DELETE FROM custom_domains WHERE host = '${DOMAIN}'"
 echo "\\copy (${delete_query} RETURNING (host, canvas)) TO ${tmpfile}" \
-    | ./scripts/gcp-psql --production
+    | ./scripts/production/gcp-psql --production
 if ( grep . < "${tmpfile}" > /dev/null ); then
     echo "Deleted ${DOMAIN} from custom_domains table."
 else

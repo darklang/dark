@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-# A script to run prettier within the container
-set +x
-
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-"$DIR/run-in-docker" npx prettier "${@}" <&0

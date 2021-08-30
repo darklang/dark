@@ -145,7 +145,7 @@ Formatters".
 
 You can get a REPL with all of the Dark libraries loaded by running:
 
-- `scripts/dotnet-fsi`
+- `scripts/build/dotnet-fsi`
 
 ### Segfaults and crashes
 

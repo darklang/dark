@@ -156,7 +156,7 @@ commands:
             scripts/support/check-etags
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
-      - run: scripts/gcp-build-containers
+      - run: scripts/deployment/gcp-build-containers
 
   ##########################
   # misc
@@ -218,7 +218,7 @@ jobs:
       - run: scripts/support/compile-project --test backend
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
-      - run: scripts/ocaml-find-unused backend/test
+      - run: scripts/linting/ocaml-find-unused backend/test
       - persist_to_workspace:
           # Do this before reducing size of cache
           root: "."
@@ -292,7 +292,7 @@ jobs:
     executor: in-rust-container
     steps:
       - darkcheckout
-      - run: scripts/format check
+      - run: scripts/formatting/format check
 
   build-stroller:
     executor: in-rust-container
@@ -355,7 +355,7 @@ jobs:
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
             PATTERN=${PATTERN%?}
-            scripts/wait-until-server-ready
+            scripts/devcontainer/wait-until-server-ready
             integration-tests/run.sh --pattern="$PATTERN"
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
@@ -374,7 +374,7 @@ jobs:
             # Run the server long enough to ensure it runs the migrations
             scripts/support/generate-etags
             scripts/support/runserver
-            scripts/wait-until-server-ready
+            scripts/devcontainer/wait-until-server-ready
       - run:
           name: Run queue-scheduler tests
           command: scripts/run-rust-tests containers/queue-scheduler
@@ -399,8 +399,8 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - run: scripts/push-assets-to-cdn
-      - run: scripts/gcp-push-images-to-gcr
+      - run: scripts/deployment/push-assets-to-cdn
+      - run: scripts/deployment/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
       - run:
           name: Save image IDs
@@ -427,7 +427,7 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - run: |
-          scripts/gke-deploy       \
+          scripts/deployment/gke-deploy       \
             --server-image-id=`            cat gcr-image-ids/server` \
             --qw-image-id=`                cat gcr-image-ids/qw`     \
             --cron-image-id=`              cat gcr-image-ids/cron`   \
@@ -436,7 +436,7 @@ jobs:
             --queue-scheduler-image-id=`   cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`            cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
-          scripts/honeymarker.sh
+          scripts/deployment/honeymarker.sh
 
 workflows:
   version: 2

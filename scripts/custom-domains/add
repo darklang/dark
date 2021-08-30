@@ -32,11 +32,11 @@ fi
 DOMAIN=$1
 
 echo "Checking if $DOMAIN has a CNAME pointing at <something>.darkcustomdomain.com..."
-CANVAS=$(./scripts/custom-domain-get-canvas "$DOMAIN")
+CANVAS=$(./scripts/custom-domains/get-canvas "$DOMAIN")
 echo "Found it: ${CANVAS}"
 echo "Adding the domain to the DB"
-./scripts/custom-domain-add-to-db "${DOMAIN}" "${CANVAS}"
+./scripts/custom-domains/_add-to-db "${DOMAIN}" "${CANVAS}"
 echo "Adding the domain to cert manager"
-./scripts/custom-domain-add-to-cert-manager "${DOMAIN}"
-./scripts/custom-domain-check-consistency
-./scripts/custom-domain-check-cert-added "${DOMAIN}"
+./scripts/custom-domains/_add-to-cert-manager "${DOMAIN}"
+./scripts/custom-domains/check-consistency
+./scripts/custom-domains/_check-cert-added "${DOMAIN}"

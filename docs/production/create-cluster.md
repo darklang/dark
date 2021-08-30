@@ -7,7 +7,7 @@ To do this:
 
 ```
 # assuming you want to use the existing DB
-./scripts/gke-create-cluster --with-new-database=false
+./scripts/production/gke-create-cluster --with-new-database=false
 ```
 
 If the hardcoded cluster version (of gke) is no longer available, that script
@@ -17,9 +17,9 @@ Once this is done, you can build containers locally and deploy them to the
 cluster:
 
 ```
-./scripts/gcp-build-containers
-./scripts/gcp-push-images-to-gcr
-./scripts/gke-deploy --cluster=darkcluster1570566003 --skip-rollbar
+./scripts/deployment/gcp-build-containers
+./scripts/deployment/gcp-push-images-to-gcr
+./scripts/deployment/gke-deploy --cluster=darkcluster1570566003 --skip-rollbar
 ```
 
 Note: the cluster argument can be had by running `kubectl config get-contexts`;

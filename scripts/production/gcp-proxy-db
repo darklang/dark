@@ -55,6 +55,6 @@ echo "Setting up proxy to ${INSTANCE}"
 
 cloud_sql_proxy \
     -verbose=false \
-    -instances "${INSTANCE}=tcp:${PORT}" 
+    -instances "${INSTANCE}=tcp:${PORT}"
 
 

@@ -114,7 +114,7 @@ if [[ -v CI ]]; then
   echo "On CI: not fetching latest containers"
 else
   echo "Not on CI: fetching latest containers"
-  ./scripts/gcp-fetch-latest-containers ${PREFIX:+"--prefix=${PREFIX}"} "--project=${DARK_PROJECT}"
+  ./scripts/deployment/gcp-fetch-latest-containers ${PREFIX:+"--prefix=${PREFIX}"} "--project=${DARK_PROJECT}"
 fi
 
 #########################
@@ -268,7 +268,7 @@ done
 #############################
 # Check that the prod cluster matches our view of the world, before we deploy
 #############################
-./scripts/gke-check-predeployed-yaml
+./scripts/deployment/gke-check-predeployed-yaml
 
 #############################
 # Actually do the deploy

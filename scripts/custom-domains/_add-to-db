@@ -7,7 +7,7 @@ Usage: $0 DOMAIN CANVASNAME
 
 Add a custom domain to the DB, resolving DOMAIN to CANVASNAME.
 
-(This is a low-level script, you should probably use scripts/custom-domain-add)
+(This is a low-level script, you should probably use scripts/custom-domains/add)
 
 For more docs, see docs/custom-domains.md.
 EOF
@@ -23,12 +23,12 @@ CANVAS=$2
 
 echo "Adding (host,canvas)=(${DOMAIN},${CANVAS}) to custom_domains to configure routing..."
 # This tmpfile crap is because for some reason gcp-psql hangs when put into a
-# subshell ( foo=$(... | ./scripts/gcp-psql) ) or when its output is piped to
-# another command (... | ./scripts/gcp-psql | grep ...)
+# subshell ( foo=$(... | ./scripts/production/gcp-psql) ) or when its output is piped to
+# another command (... | ./scripts/production/gcp-psql | grep ...)
 tmpfile=$(mktemp /tmp/custom_domain.XXXXXX)
 insert_query="INSERT INTO custom_domains (host, canvas) VALUES ('${DOMAIN}', '${CANVAS}')"
 echo "\\copy (${insert_query} returning (host, canvas)) TO ${tmpfile}" \
-    | ./scripts/gcp-psql --production
+    | ./scripts/production/gcp-psql --production
 if ( grep . < "${tmpfile}" > /dev/null ); then
     echo "Added (${DOMAIN}, ${CANVAS}) to custom_domains table."
 else
