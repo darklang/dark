@@ -130,16 +130,12 @@ let dval_to_query (json : string) : string =
 
 let query_to_dval (json : string) : string =
   json
-  |> Libcommon.Log.inspect "the query as string"
   |> Yojson.Safe.from_string
   |> query_params_of_yojson
   |> Result.ok_or_failwith
-  |> Libcommon.Log.inspect "the query decoded"
   |> Dval.query_to_dval
-  |> Libcommon.Log.inspect "the query as a dval"
   |> Types.RuntimeT.dval_to_yojson
   |> Yojson.Safe.to_string
-  |> Libcommon.Log.inspect "the query back as json"
 
 let dval_to_form_encoding (json : string) : string =
   json
@@ -157,12 +153,9 @@ let query_string_to_params (json : string) : string =
     |> Yojson.Safe.to_string
   else
     json
-    |> Libcommon.Log.inspect "2query_string input"
     |> Uri.query_of_encoded
-    |> Libcommon.Log.inspect "2query_params query_of_encoded"
     |> query_params_to_yojson
     |> Yojson.Safe.to_string
-    |> Libcommon.Log.inspect "2query_string output"
 
 let params_to_query_string (json : string) : string =
   let query_params =
@@ -170,15 +163,11 @@ let params_to_query_string (json : string) : string =
     |> Yojson.Safe.from_string
     |> query_params_of_yojson
     |> Result.ok_or_failwith
-    |> Libcommon.Log.inspect "got query params"
   in
   Uri.of_string "http://google.com"
   |> Uri.with_uri ~query:(Some query_params)
-  |> Libcommon.Log.inspect "uri with query params"
   |> Uri.path_and_query
-  |> Libcommon.Log.inspect "just the path and query"
   |> (fun s -> String.drop_prefix s 1)
-  |> Libcommon.Log.inspect "just the query"
 
 
 
