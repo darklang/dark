@@ -265,7 +265,7 @@ module OCamlInterop =
     |> toplevelToCachedBinary
     |> result
     |> (fun bin -> bin, None)
-    |> toplevelOfCachedBinary
+    |> toplevelBin2Json
     |> result
     .=. h
 

@@ -22,6 +22,7 @@ for v in "${files[@]}"; do
 done
 
 test=""
+optimize=""
 testfiles=""
 
 for cmd in "$@"; do
@@ -31,6 +32,9 @@ for cmd in "$@"; do
       ;;
     --test )
       test="--test"
+      ;;
+    --optimize )
+      optimize="--optimize"
       ;;
     -h | --help )
       usage
@@ -43,4 +47,4 @@ for cmd in "$@"; do
   esac
 done
 
-./scripts/support/compile $testfiles $test
+./scripts/support/compile $testfiles $test $optimize

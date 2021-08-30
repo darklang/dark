@@ -153,45 +153,17 @@ let userTypeBin2Json (data : byte array) : Task<PT.UserType.T> =
   |> Task.map Convert.ocamlUserType2PT
 
 
-let toplevelOfCachedBinary
+let toplevelBin2Json
   ((data, pos) : (byte array * string option))
   : Task<PT.Toplevel> =
   let pos =
     pos
     |> Option.map Json.OCamlCompatible.deserialize<pos>
     |> Option.unwrap { x = 0; y = 0 }
-
-  task {
-    try
-      return! handlerBin2Json data pos |> Task.map PT.TLHandler
-    with
-    | e1 ->
-      try
-        return! dbBin2Json data pos |> Task.map PT.TLDB
-      with
-      | e2 ->
-        try
-          return! userFnBin2Json data |> Task.map PT.TLFunction
-        with
-        | e3 ->
-          try
-            return! userTypeBin2Json data |> Task.map PT.TLType
-          with
-          | e4 ->
-            failwith
-              $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
-
-            let (ids : PT.Handler.ids) =
-              { moduleID = id 0; nameID = id 0; modifierID = id 0 }
-
-            return
-              PT.TLHandler
-                { tlid = id 0
-                  pos = pos
-                  ast = PT.EBlank(id 0)
-                  spec = PT.Handler.REPL("somename", ids) }
-  }
-
+  data
+  |> bytesToStringReq "bs/toplevel_bin2json"
+  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.Convert.BSTypes.tl>
+  |> Task.map (Convert.ocamlBinarySerializationToplevel2PT pos)
 
 let handlerJson2Bin (h : PT.Handler.T) : Task<byte array> =
   h

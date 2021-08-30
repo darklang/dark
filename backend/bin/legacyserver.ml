@@ -33,6 +33,8 @@ let server () =
       |> String.rstrip ~drop:(( = ) '/')
       |> String.split ~on:'/'
     in
+    print_endline
+      ("got request: " ^ Uri.path uri ^ " and body\n: " ^ body_string) ;
     let fn =
       match path with
       | ["execute"] ->
@@ -57,6 +59,8 @@ let server () =
             Some BS.expr_bin2json
         | "expr_tlid_pair_bin2json" ->
             Some BS.expr_tlid_pair_bin2json
+        | "toplevel_bin2json" ->
+            Some BS.toplevel_bin2json
         | "user_fn_json2bin" ->
             Some BS.user_fn_json2bin
         | "user_tipe_json2bin" ->
@@ -117,16 +121,18 @@ let server () =
     | `POST, Some fn ->
       ( try
           let result = body_string |> fn in
-          print_endline ("success calling " ^ Uri.to_string uri) ;
           (* FSTODO reduce debugging info *)
-          print_endline ("body was: \n" ^ body_string) ;
-          print_endline ("result was: \n " ^ result) ;
+          print_endline "\n\n" ;
           respond_json_ok result
         with e ->
           let headers = Header.init () in
           let message = Libexecution.Exception.exn_to_string e in
           print_endline
-            ("error while calling " ^ Uri.to_string uri ^ "\n" ^ message) ;
+            ( "error while calling "
+            ^ Uri.to_string uri
+            ^ "\n"
+            ^ message
+            ^ "\n\n" ) ;
           S.respond_string ~status:`Bad_request ~body:message ~headers () )
     | _ ->
         let headers = Header.init () in
