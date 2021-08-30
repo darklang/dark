@@ -26,6 +26,8 @@ type HttpResult = { body : string; code : int; headers : Headers; error : string
 
 type ClientError = { url : string; error : string; code : int }
 
+// urlEncode values in a query string. Note that the encoding is slightly different
+// to urlEncoding keys.
 let urlEncodeValue (s : string) : string =
   let encodeByte (b : byte) : byte array =
     // CLEANUP make a nicer version of this that's designed for this use case
@@ -53,6 +55,8 @@ let urlEncodeValue (s : string) : string =
     | _ -> toBytes ("%" + b.ToString("X2"))
   s |> toBytes |> Array.collect encodeByte |> ofBytes
 
+// urlEncode keys in a query string. Note that the encoding is slightly different to
+// query string values
 let urlEncodeKey (s : string) : string =
   let encodeByte (b : byte) : byte array =
     // CLEANUP make a nicer version of this that's designed for this use case
@@ -101,16 +105,16 @@ let toEncodedString (queryParams : (List<string * List<string>>)) : string =
                   $"{k}={vs}")
     |> String.concat "&"
 
-let toQueryString (queryParams : (List<string * List<string>>)) : string =
-  toEncodedString queryParams
 
+// -------------------------
+// Forms and queries Functions
+// -------------------------
+
+// includes an implicit content-type
 type Content =
   | FormContent of string
   | StringContent of string
   | NoContent
-// -------------------------
-// Forms and queries Functions
-// -------------------------
 
 // For putting into URLs as query params
 let rec dvalToUrlStringExn (dv : RT.Dval) : string =
@@ -162,7 +166,7 @@ let dvalToQuery (dv : RT.Dval) : (string * string list) list =
 let dvalToFormEncoding (dv : RT.Dval) : string = dvalToQuery dv |> toEncodedString
 
 // The queryString passed in should not include the leading '?' from the URL
-let queryStringToParams (queryString : string) : List<string * List<string>> =
+let parseQueryString (queryString : string) : List<string * List<string>> =
   // This will eat any intended question mark, so add one
   let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
   nvc.AllKeys
@@ -195,7 +199,7 @@ let queryToDval (query : List<string * List<string>>) : RT.Dval =
 
 
 let queryStringToDval (queryString : string) : RT.Dval =
-  queryString |> queryStringToParams |> queryToDval
+  queryString |> parseQueryString |> queryToDval
 
 
 // There has been quite a history of HTTPClient having problems in previous versions
@@ -304,9 +308,10 @@ let makeHttpCall
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
-        // Remove leading '?'
-        let queryString = if uri.Query = "" then "" else uri.Query.Substring 1
-        reqUri.Query <- toQueryString (queryParams @ queryStringToParams queryString)
+        let queryString =
+          // Remove leading '?'
+          if uri.Query = "" then "" else uri.Query.Substring 1
+        reqUri.Query <- toEncodedString (queryParams @ parseQueryString queryString)
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in

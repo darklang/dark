@@ -455,7 +455,7 @@ module HttpClient =
     .=. (OCamlInterop.dvalToFormEncoding dv).Result
 
   let queryStringToParams (s : string) : bool =
-    BackendOnlyStdLib.HttpClient.queryStringToParams s
+    BackendOnlyStdLib.HttpClient.parseQueryString s
     .=. (OCamlInterop.queryStringToParams s).Result
 
 
@@ -464,7 +464,7 @@ module HttpClient =
     .=. (OCamlInterop.queryToDval q).Result
 
   let toQueryString (q : List<string * List<string>>) : bool =
-    BackendOnlyStdLib.HttpClient.toQueryString q
+    BackendOnlyStdLib.HttpClient.toEncodedString q
     .=. (OCamlInterop.paramsToQueryString q).Result
 
   let tests =
@@ -477,9 +477,9 @@ module HttpClient =
         testPropertyWithGenerator
           typeof<QueryStringGenerator>
           "queryStringToParams"
-          queryStringToParams // done, only &=& fails
-        test "queryToDval" queryToDval // done
-        test "toQueryString" toQueryString ] // done
+          queryStringToParams // only &=& fails
+        test "queryToDval" queryToDval
+        test "toQueryString" toQueryString ]
 
 
 module EndUserReadable =
