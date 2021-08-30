@@ -184,12 +184,6 @@ let pusherCluster = string "DARK_CONFIG_PUSHER_CLUSTER"
 
 
 // -------------------------
-// Heap
-// -------------------------
-let heapioId = string "DARK_CONFIG_HEAPIO_ID"
-
-
-// -------------------------
 // Infra
 // -------------------------
 let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"

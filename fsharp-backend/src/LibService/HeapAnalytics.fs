@@ -1,4 +1,4 @@
-module LibBackend.HeapAnalytics
+module LibService.HeapAnalytics
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -9,6 +9,8 @@ open System.Net.Http.Headers
 
 open Prelude
 open Tablecloth
+
+type ExecutionID = Telemetry.ExecutionID
 
 type IdentifyPayload =
   { identity : string
@@ -28,7 +30,7 @@ type Type =
 
 
 let _payloadForEvent
-  (executionID : id)
+  (executionID : ExecutionID)
   (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (event : string)
@@ -72,7 +74,7 @@ let httpClient () : HttpClient = new HttpClient(_socketsHandler)
 
 
 let heapioEvent
-  (executionID : id)
+  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
   (owner : System.Guid)
@@ -131,7 +133,7 @@ let heapioEvent
 
 // CLEANUP do bulk track
 let track
-  (executionID : id)
+  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
   (owner : System.Guid)
