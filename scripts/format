@@ -167,6 +167,7 @@ all_fsharp_files() {
     -o -path "fsharp-backend/.paket" \
     -o -path "./fsharp-backend/.paket" \
     -o -path "fsharp-backend/Build" \
+    -o -path "./fsharp-backend/Build" \
     \) -prune -false \
     \
     -o -type f \
@@ -203,7 +204,7 @@ check_ocamlformat() {
 }
 
 check_fantomas () {
-  fantomas --check --recurse $1
+  xargs fantomas --check
 }
 
 check_prettier () {
@@ -219,7 +220,7 @@ format_ocamlformat() {
 }
 
 format_fantomas() {
-  fantomas --recurse $1
+  xargs fantomas
 }
 
 format_prettier() {
@@ -238,25 +239,11 @@ do_ocamlformat() {
   fi
 }
 
-# Unlike all the other formatters, fantomas does not like a list of files on
-# the command line: https://github.com/fsprojects/fantomas/issues/1696
 do_fantomas() {
-  file=$1
-  # Only run in the fsharp-backend directory, to avoid scanning everything
-  if [[ "${file}" == "." ]]; then
-    file="fsharp-backend"
-  fi
-  if [[ "${file}x" == *"fsharp-backend"* ]]; then
-    cd fsharp-backend
-    if [[ 0 -eq "$CHECK" ]]; then
-      check_fantomas "../$file"
-      result=$?
-    else
-      format_fantomas "../$file"
-      result=$?
-    fi
-    cd -
-    return $result
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_fantomas
+  else
+    format_fantomas
   fi
 }
 
@@ -289,7 +276,7 @@ for i in "${FILES[@]}"; do
       all_ocaml_files "$i" | do_ocamlformat
     fi
     if [[ 0 -eq "$FSHARP" ]]; then
-      do_fantomas $i
+      all_fsharp_files $i | do_fantomas
     fi
     if [[ 0 -eq "$PRETTIER" ]]; then
       all_prettier_files "$i" | do_prettier
@@ -304,7 +291,7 @@ for i in "${FILES[@]}"; do
       fi
     elif is_fsharp "$i"; then
       if [[ 0 -eq "$FSHARP" ]]; then
-        do_fantomas $i
+        echo "$i" | do_fantomas
       fi
     elif is_rust "$1"; then
       if [[ 0 -eq "$RUST" ]]; then
