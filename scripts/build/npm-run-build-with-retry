@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# . ../scripts/support/assert-in-container "$0" "$@"
+# . ../scripts/devcontainer/assert-in-container "$0" "$@"
 
 # note: no set -e
 set -uo pipefail
@@ -26,7 +26,7 @@ set -e
 if [[ "$error" == 1 ]]; then
   echo "Ran into an error running npm build: $errorline"
   echo "Running again"
-  ./scripts/support/npm-install-with-retry
+  ./scripts/build/npm-install-with-retry
   unbuffer npm run build --silent
 else
   exit $result

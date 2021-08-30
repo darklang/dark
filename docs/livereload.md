@@ -20,4 +20,4 @@ Install Python 3:
 
 From your machine (not the devcontainer), run:
 
-`./scripts/support/reload-browser`
+`./scripts/build/reload-browser`

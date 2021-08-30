@@ -54,21 +54,21 @@ def run(bash):
 
 def compile_project(name):
   flags = getFlags()
-  return run(f"scripts/support/compile-project {name} {flags}")
+  return run(f"scripts/build/compile-project {name} {flags}")
 
 
 def compile(files):
   fileStr = " ".join(files)
   flags = getFlags()
   try:
-    return run(f"scripts/support/compile {flags} {fileStr}")
+    return run(f"scripts/build/compile {flags} {fileStr}")
   except:
     print(f"Tried to compile too many files. Length was {len(fileStr)}")
     return compile_project("all")
 
 
 def run_server():
-  exit = compile(["scripts/support/runserver"])
+  exit = compile(["scripts/run-backend-server"])
   print("--------------------------")
   print("-- Started server ")
   print("--------------------------")
@@ -124,12 +124,12 @@ def main():
 
     return success
 
-  run_or_fail("scripts/support/write-config-file")
-  run_or_fail("scripts/support/allow-docker-access")
-  run_or_fail("scripts/support/create-app-directories")
-  run_or_fail("scripts/support/create-cache-directories")
-  run_or_fail("scripts/support/setup-hosts")
-  run_or_fail("scripts/support/start-background-services postgresql")
+  run_or_fail("scripts/devcontainer/write-config-file")
+  run_or_fail("scripts/devcontainer/allow-docker-access")
+  run_or_fail("scripts/devcontainer/create-app-directories")
+  run_or_fail("scripts/devcontainer/create-cache-directories")
+  run_or_fail("scripts/devcontainer/setup-hosts")
+  run_or_fail("scripts/devcontainer/start-background-services postgresql")
   if should_compile:
     if should_watch or should_serve:
       background_task(initial_compile, "initial_compile")

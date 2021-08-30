@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-. ./scripts/support/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/assert-in-container "$0" "$@"
 
 # Output looks like:
 # ```

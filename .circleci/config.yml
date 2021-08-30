@@ -2,7 +2,7 @@ version: 2.1
 
 # There is a strong connection between this file and the equivalent files for
 # running Dark in dev, which are scripts/builder and
-# scripts/support/build-server. Generally, if you add something to this file,
+# scripts/build/build-server. Generally, if you add something to this file,
 # there's an equivalent to be added in one of those files.
 
 executors:
@@ -68,11 +68,11 @@ commands:
           name: Setup build environment
           command: |
             set -x
-            scripts/support/setup-circleci-environment
-            scripts/support/create-app-directories
-            scripts/support/create-cache-directories
-            scripts/support/setup-hosts
-            scripts/support/start-background-services postgresql
+            scripts/devconainer/setup-circleci-environment
+            scripts/devcontainer/create-app-directories
+            scripts/devcontainer/create-cache-directories
+            scripts/devcontainer/setup-hosts
+            scripts/devcontainer/start-background-services postgresql
             env
 
   ##########################
@@ -146,14 +146,14 @@ commands:
 
   build-gcp-containers:
     steps:
-      - run: scripts/support/yamllinter
+      - run: scripts/linting/yamllinter
       - prep-container-creation
       - run:
           name: Regenerate combined ETags
           command: |
-            scripts/support/generate-etags
+            scripts/build/generate-etags
             cat backend/static/etags.json
-            scripts/support/check-etags
+            scripts/linting/check-etags
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
       - run: scripts/deployment/gcp-build-containers
@@ -185,9 +185,9 @@ jobs:
             - v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
             - v2-client-{{ checksum "package-lock.json" }}
             - v2-client
-      - run: scripts/support/compile-project client --test
+      - run: scripts/build/compile-project client --test
       - assert-clean-worktree
-      - run: scripts/support/shellchecker # run here cause its the fastest
+      - run: scripts/linting/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
@@ -215,7 +215,7 @@ jobs:
       # tests.
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
-      - run: scripts/support/compile-project --test backend
+      - run: scripts/build/compile-project --test backend
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
       - run: scripts/linting/ocaml-find-unused backend/test
@@ -268,8 +268,8 @@ jobs:
       - show-large-files-and-directories
       # so the ocamltestserver will load
       - run: touch backend/static/appsupport.js backend/static/app.js backend/static/analysis.js backend/static/app.css
-      - run: scripts/support/generate-etags
-      - run: scripts/support/compile-project fsharp-backend --test
+      - run: scripts/build/generate-etags
+      - run: scripts/build/compile-project fsharp-backend --test
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
@@ -299,7 +299,7 @@ jobs:
     steps:
       - darkcheckout
       - rust-setup: { project: "stroller", dir: "containers/stroller" }
-      - run: scripts/support/compile-project stroller --test
+      - run: scripts/build/compile-project stroller --test
       - assert-clean-worktree
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
 
@@ -309,7 +309,7 @@ jobs:
       - darkcheckout
       - rust-setup: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
       # tests are run in rust-integration-tests
-      - run: scripts/support/compile-project queue-scheduler
+      - run: scripts/build/compile-project queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
 
@@ -326,7 +326,7 @@ jobs:
       - darkcheckout
       - prep-container-creation
       - run: apk add --update bash jq python3 py3-pip && pip install yq
-      - run: bash -c scripts/support/test-honeycomb-config.sh
+      - run: bash -c scripts/linting/test-honeycomb-config.sh
 
   integration-tests:
     executor: in-container
@@ -344,8 +344,8 @@ jobs:
       - run:
           name: Run integration tests
           command: |
-            scripts/support/generate-etags
-            scripts/support/runserver
+            scripts/build/generate-etags
+            scripts/run-backend-server
 
             # get full list of tests
             grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
@@ -372,8 +372,8 @@ jobs:
           name: Trigger migrations with runserver
           command: |
             # Run the server long enough to ensure it runs the migrations
-            scripts/support/generate-etags
-            scripts/support/runserver
+            scripts/build/generate-etags
+            scripts/run-backend-server
             scripts/devcontainer/wait-until-server-ready
       - run:
           name: Run queue-scheduler tests

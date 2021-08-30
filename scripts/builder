@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# This is used, in concert with scripts/support/build-server, to run Dark
+# This is used, in concert with scripts/build/build-server, to run Dark
 # inside the dev container. There is a strong connection between these files
 # and .circleci/config.yml. Generally, if you add something to one of these
 # files, there's an equivalent to be added in .circleci/config.yml.
@@ -62,7 +62,7 @@ done
 if [ -n "$RELOAD_BROWSER" ]; then
     echo "Starting the browser reload script"
     mkdir -p rundir/logs
-    scripts/support/reload-browser > rundir/logs/browser.log 2>&1 &
+    scripts/build/reload-browser > rundir/logs/browser.log 2>&1 &
 fi
 
 # --------------
@@ -111,7 +111,7 @@ echo "Using env: $ENV_FILE"
 # --------------
 # create the network
 # --------------
-./scripts/support/create-dark-dev-network
+./scripts/devcontainer/create-dark-dev-network
 
 # --------------
 # --------------
@@ -149,11 +149,11 @@ docker run \
   -p 9001:9001 \
   -p 5433:5432 \
   -p 2345:2345 \
-  --security-opt seccomp=scripts/support/chrome-seccomp.json \
+  --security-opt seccomp=scripts/devcontainer/chrome-seccomp.json \
   -w /home/dark/app \
   --user "$(id -u):$gid" \
   --cap-add=ALL \
   --security-opt seccomp=unconfined \
   $MOUNTS \
   dark \
-  scripts/support/build-server "${@}"
+  scripts/build/build-server "${@}"

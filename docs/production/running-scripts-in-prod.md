@@ -1,6 +1,6 @@
 # Running scripts/one-off binaries in production
 
-_We're rethinkng how this works after we switch to F#. Maybe .fsx files?_
+_We're rethinking how this works after we switch to F#. Maybe .fsx files?_
 
 Sometimes, hopefully rarely, you want to interactively run some code against the production
 database. This is generally to facilitate/backfill a data migration. The most common

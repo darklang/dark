@@ -8,8 +8,8 @@ fi
 
 sudo chown dark "$DARK_CONFIG_RUNDIR"
 
-./scripts/support/write-config-file
-./scripts/support/create-app-directories
+./scripts/devcontainer/write-config-file
+./scripts/devcontainer/create-app-directories
 
 echo "Starting server"
 sudo --preserve-env ./bin/server.exe

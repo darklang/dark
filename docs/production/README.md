@@ -59,11 +59,6 @@ Access it:
 
 - `scripts/builder --compile --watch [etc] --prodclone`
 
-You can reset the clone to a pristine production clone (at the time of
-download) with:
-
-- `scripts/reset-prodclone`
-
 And access it directly with:
 
 - `scripts/run-in-docker psql -d prodclone`

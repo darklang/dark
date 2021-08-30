@@ -82,7 +82,7 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 
 The [`scripts/`](/scripts) directory is full of scripts. They automatically
 execute in the dev container, even if they are run on the host (see
-[`/scripts/support/assert-in-container`](/scripts/support/assert-in-container)
+[`/scripts/devcontainer/assert-in-container`](/scripts/devcontainer/assert-in-container)
 for how this works).
 
 ## Read the contributor docs

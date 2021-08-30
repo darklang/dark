@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Disable useless-use-of-cat
 # shellcheck disable=SC2002
-. ./scripts/support/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/assert-in-container "$0" "$@"
 
 # Collects the results of integration tests and sends to honeycomb. See
-# scripts/support/process-integration-test-results.sh for what gets sent.
+# scripts/deployment/process-integration-test-results.sh for what gets sent.
 
 set -euo pipefail
 
@@ -16,7 +16,7 @@ test_results=rundir/test_results/integration_tests.json
 timestamp="$(cat $test_results | jq -r '.endTime')"
 
 cat $test_results \
-    | scripts/support/process-integration-test-results.sh \
+    | scripts/deployment/process-integration-test-results.sh \
     | honeytail --parser=json \
                 --writekey="${HONEYCOMB_API_KEY}" \
                 --dataset="integration-tests" \

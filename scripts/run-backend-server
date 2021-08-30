@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./scripts/support/assert-in-container "$0" "$@"
+. ./scripts/devcontainer/assert-in-container "$0" "$@"
 
 set -euo pipefail
 
@@ -27,7 +27,7 @@ sudo pkill -f sleep.infinity || true
 # end tunnel cleanup
 
 echo "Waiting for postgres"
-./scripts/support/wait-for-background-services postgresql
+./scripts/devcontainer/wait-for-background-services postgresql
 
 # Run tunnel
 sudo mkdir -p /run/sshd

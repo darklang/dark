@@ -3,7 +3,7 @@
 // Load program code
 
 printfn
-  "Loading program; if something wrong run ./scripts/support/dotnet-regen-fsi"
+  "Loading program; if something wrong run ./scripts/build/dotnet-regen-fsi"
 
 #I "../../fsharp-backend"
 #I "../../fsharp-backend/Build/out"
