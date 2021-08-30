@@ -437,25 +437,20 @@ module HttpClient =
       |> Gen.map (String.concat "&")
       |> Arb.fromGen
 
-  type ObjOnlyGenerator =
 
-    static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           | RT.DObj _ -> true
-           | _ -> false)
+  let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
+    let dv = RT.DObj(Map l)
 
-
-  let dvalToUrlStringExn (dv : RT.Dval) : bool =
     BackendOnlyStdLib.HttpClient.dvalToUrlStringExn dv
     .=. (OCamlInterop.toUrlString dv).Result
 
-  let dvalToQuery (dv : RT.Dval) : bool =
+  let dvalToQuery (l : List<string * RT.Dval>) : bool =
+    let dv = RT.DObj(Map l)
     BackendOnlyStdLib.HttpClient.dvalToQuery dv
     .=. (OCamlInterop.dvalToQuery dv).Result
 
-  let dvalToFormEncoding (dv : RT.Dval) : bool =
+  let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
+    let dv = RT.DObj(Map l)
     (BackendOnlyStdLib.HttpClient.dvalToFormEncoding dv).ToString()
     .=. (OCamlInterop.dvalToFormEncoding dv).Result
 
@@ -474,18 +469,16 @@ module HttpClient =
 
   let tests =
     let test name fn = testPropertyWithGenerator typeof<Generator> name fn
-    let testObjOnly name fn =
-      testPropertyWithGenerator typeof<ObjOnlyGenerator> name fn
     testList
       "FuzzHttpClient"
       [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
-        testObjOnly "dvalToQuery" dvalToQuery // FSTODO: hangs
-        testObjOnly "dvalToFormEncoding" dvalToFormEncoding // FSTODO: hangs
-        testPropertyWithGenerator // done, only &=& fails
+        test "dvalToQuery" dvalToQuery
+        test "dvalToFormEncoding" dvalToFormEncoding
+        testPropertyWithGenerator
           typeof<QueryStringGenerator>
           "queryStringToParams"
-          queryStringToParams
-        test "queryToDval" queryToDval
+          queryStringToParams // done, only &=& fails
+        test "queryToDval" queryToDval // done
         test "toQueryString" toQueryString ] // done
 
 
