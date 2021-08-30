@@ -1,5 +1,14 @@
 module LibService.Rollbar
 
+open FSharp.Control.Tasks
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
+open Microsoft.AspNetCore.Http
+
+type ExecutionID = Telemetry.ExecutionID
+
+
 open Prelude
 open Tablecloth
 
@@ -28,10 +37,9 @@ type HoneycombJson =
     limit : int
     time_range : int }
 
-let honeycombLinkOfExecutionID (executionID : id) : string =
+let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
   let query =
-    { filters =
-        [ { column = "execution_id"; op = "="; value = toString executionID } ]
+    { filters = [ { column = "execution_id"; op = "="; value = string executionID } ]
       limit = 100
       // 604800 is 7 days
       time_range = 604800 }
@@ -45,14 +53,18 @@ let honeycombLinkOfExecutionID (executionID : id) : string =
 
   toString uri
 
-let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit =
+let send
+  (executionID : ExecutionID)
+  (metadata : List<string * string>)
+  (e : exn)
+  : unit =
   assert initialized
 
   try
     print "sending exception to rollbar"
     let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
     state.["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
-    state.["execution_id"] <- executionID
+    state.["execution_id"] <- string executionID
     List.iter
       (fun (k, v) ->
         Dictionary.add k (v :> obj) state |> ignore<Dictionary.T<string, obj>>)

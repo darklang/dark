@@ -20,7 +20,9 @@ open LibService.Telemetry
 
 type Activity = System.Diagnostics.Activity
 
-let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
+let dequeueAndProcess
+  (executionID : ExecutionID)
+  : Task<Result<Option<RT.Dval>, exn>> =
   use root = Span.root "dequeue_and_process"
   root.AddTag("meta.process_id", toString executionID) |> ignore<Activity>
 
@@ -158,7 +160,8 @@ let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
         | Error e -> return Error e
       })
 
-let run (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
+let run (executionID : ExecutionID) : Task<Result<Option<RT.Dval>, exn>> =
+  // CLEANUP put in its own config item
   if String.toLowercase LibService.Config.postgresSettings.dbname = "prodclone" then
     use (span : Span.T) = Span.root "Pointing at prodclone; will not dequeue"
     Task.FromResult(Ok None)

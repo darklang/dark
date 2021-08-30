@@ -3,6 +3,8 @@ module LibBackend.Pusher
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+type ExecutionID = LibService.Telemetry.ExecutionID
+
 open Prelude
 open Tablecloth
 
@@ -31,7 +33,7 @@ let pusherClient : Lazy<PusherServer.Pusher> =
 // Send an event to pusher. Note: this is fired in the backgroup, and does not
 // take any time from the current thread. You cannot wait for it, by design.
 let push
-  (executionID : id)
+  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (eventName : string)
   (payload : 'x)
@@ -69,7 +71,7 @@ let push
 
 
 let pushNewTraceID
-  (executionID : id)
+  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   (tlids : tlid list)
@@ -77,12 +79,16 @@ let pushNewTraceID
   push executionID canvasID "new_trace" (traceID, tlids)
 
 
-let pushNew404 (executionID : id) (canvasID : CanvasID) (f404 : TraceInputs.F404) =
+let pushNew404
+  (executionID : ExecutionID)
+  (canvasID : CanvasID)
+  (f404 : TraceInputs.F404)
+  =
   push executionID canvasID "new_404" f404
 
 
 let pushNewStaticDeploy
-  (executionID : id)
+  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (asset : StaticAssets.StaticDeploy)
   =
@@ -90,11 +96,15 @@ let pushNewStaticDeploy
 
 
 // For exposure as a DarkInternal function
-let pushAddOpEvent (executionID : id) (canvasID : CanvasID) (event : Op.AddOpEvent) =
+let pushAddOpEvent
+  (executionID : ExecutionID)
+  (canvasID : CanvasID)
+  (event : Op.AddOpEvent)
+  =
   push executionID canvasID "add_op" event
 
 let pushWorkerStates
-  (executionID : id)
+  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (ws : EventQueue.WorkerStates.T)
   : unit =

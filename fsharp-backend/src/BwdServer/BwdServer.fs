@@ -261,6 +261,8 @@ let runHttp
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     setHeader ctx "Server" "Darklang"
+    let executionID = LibService.Telemetry.executionID ()
+    setHeader ctx "x-darklang-execution-id" (string executionID)
 
     let msg (code : int) (msg : string) =
       task {
@@ -279,8 +281,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
       // CLEANUP: move execution ID header up
-      let executionID = gid ()
-      setHeader ctx "x-darklang-execution-id" (toString executionID)
       let ownerName = Account.ownerNameFromCanvasName canvasName
       let ownerUsername = UserName.create (toString ownerName)
 
