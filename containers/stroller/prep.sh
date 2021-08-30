@@ -15,6 +15,6 @@ DIR=$(mktemp -d --suffix _gcp-stroller-builddir)
 mkdir -p "$DIR/bin"
 cp containers/stroller/Dockerfile "$DIR/Dockerfile"
 cp containers/stroller/target/release/dark-stroller "$DIR/bin/"
-cp scripts/linting/check-linked-libs "$DIR/"
+cp scripts/linting/_check-linked-libs "$DIR/"
 
 echo "${DIR}"

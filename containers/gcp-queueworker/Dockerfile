@@ -4,6 +4,6 @@ FROM dark-ocaml-service:latest
 
 COPY --chown=dark . ./
 
-RUN ./scripts/linting/check-linked-libs bin/queue_worker.exe
+RUN ./scripts/linting/_check-linked-libs bin/queue_worker.exe
 
 CMD "./gcp-run-queueworker"

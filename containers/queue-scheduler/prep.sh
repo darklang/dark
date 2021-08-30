@@ -15,6 +15,6 @@ DIR=$(mktemp -d --suffix _gcp-scheduler-builddir)
 mkdir -p "$DIR/bin"
 cp containers/queue-scheduler/Dockerfile "$DIR/Dockerfile"
 cp containers/queue-scheduler/target/release/dark-queue-scheduler "$DIR/bin/"
-cp scripts/linting/check-linked-libs "$DIR/"
+cp scripts/linting/_check-linked-libs "$DIR/"
 
 echo "${DIR}"

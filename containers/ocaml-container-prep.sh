@@ -8,7 +8,7 @@ set -euo pipefail
 
 DIR=$1
 
-cp scripts/linting/check-linked-libs "$DIR/"
+cp scripts/linting/_check-linked-libs "$DIR/"
 cp -R backend/templates "$DIR/"
 cp -R scripts "$DIR/"
 
