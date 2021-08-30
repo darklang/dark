@@ -47,7 +47,6 @@ type Content =
 // -------------------------
 
 // For putting into URLs as query params
-// FSTODO: fuzz against OCaml
 let rec dvalToUrlStringExn (dv : RT.Dval) : string =
   let r = dvalToUrlStringExn
   match dv with
@@ -94,13 +93,12 @@ let dvalToQuery (dv : RT.Dval) : (string * string list) list =
            | _ -> (k, [ dvalToUrlStringExn value ]))
   | _ -> failwith "attempting to use non-object as query param" // CODE exception
 
-// FSTODO: fuzz against OCaml
 // https://secretgeek.net/uri_enconding
 let dvalToFormEncoding (dv : RT.Dval) : Content = dvalToQuery dv |> FormContent
 
-// FSTODO: fuzz against OCaml
 let queryStringToParams (queryString : string) : List<string * List<string>> =
-  let nvc = System.Web.HttpUtility.ParseQueryString queryString
+  // Add a ? onto the front or it will strip off question marks
+  let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
   nvc.AllKeys
   |> Array.map
        (fun key ->
@@ -117,11 +115,8 @@ let queryStringToParams (queryString : string) : List<string * List<string>> =
            [ (key, split) ])
   |> List.concat
 
-
-// FSTODO: fuzz against OCaml
-let queryToDval (queryString : string) : RT.Dval =
-  queryString
-  |> queryStringToParams
+let queryToDval (query : List<string * List<string>>) : RT.Dval =
+  query
   |> List.map
        (fun (k, v) ->
          match v with
@@ -129,8 +124,12 @@ let queryToDval (queryString : string) : RT.Dval =
          | [ "" ] -> k, RT.DNull // CLEANUP this should be a string
          | [ v ] -> k, RT.DStr v
          | list -> k, RT.DList(List.map RT.DStr list))
-  |> RT.Dval.obj
+  |> Map
+  |> RT.DObj
 
+
+let queryStringToDval (queryString : string) : RT.Dval =
+  queryString |> queryStringToParams |> queryToDval
 
 
 // There has been quite a history of HTTPClient having problems in previous versions
@@ -272,8 +271,12 @@ let toQueryString (queryParams : (List<string * List<string>>)) : string =
            let k = k |> urlEncodeKey
            vs
            |> List.map urlEncodeValue
-           |> String.concat ","
-           |> fun vs -> $"{k}={vs}")
+           |> fun vs ->
+                if vs = [] then
+                  k
+                else
+                  let vs = String.concat "," vs
+                  $"{k}={vs}")
     |> String.concat "&"
     |> fun s -> if s = "" then "" else "?" + s
 
