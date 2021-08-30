@@ -32,7 +32,6 @@ let testEventQueueRoundtrip =
     let name = "test-event_queue"
     do! clearCanvasData (CanvasName.create name)
     let! (meta : Canvas.Meta) = testCanvasInfo name
-    let executionID = gid ()
 
     let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
     let oplists = [ hop h ]
@@ -43,7 +42,7 @@ let testEventQueueRoundtrip =
     do! EQ.enqueue meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
 
     do! EQ.testingScheduleAll ()
-    let! result = QueueWorker.run executionID
+    let! result = QueueWorker.run (LibService.Telemetry.ExecutionID "traceID")
 
     match result with
     | Ok (Some resultDval) ->

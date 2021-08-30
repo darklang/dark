@@ -13,11 +13,12 @@
     <None Include="paket.references" />
     <Compile Include="ConfigDsl.fs" />
     <Compile Include="Config.fs" />
+    <Compile Include="Telemetry.fs" />
     <Compile Include="Rollbar.fs" />
     <Compile Include="DBConnection.fs" />
     <Compile Include="HealthCheck.fs" />
+    <Compile Include="HeapAnalytics.fs" />
     <Compile Include="Kestrel.fs" />
-    <Compile Include="Telemetry.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

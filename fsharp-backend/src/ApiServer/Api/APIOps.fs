@@ -135,7 +135,7 @@ let addOp (ctx : HttpContext) : Task<T> =
          | _ -> true)
     |> List.iter
          (fun op ->
-           LibBackend.HeapAnalytics.track
+           LibService.HeapAnalytics.track
              executionID
              canvasInfo.id
              canvasInfo.name

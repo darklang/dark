@@ -80,6 +80,9 @@ module Span =
 // Call, passing with serviceName for this service, such as "ApiServer"
 let init (serviceName : string) =
   let version = Config.buildHash
+  // Not enabled by default - https://jimmybogard.com/building-end-to-end-diagnostics-and-tracing-a-primer-trace-context/
+  System.Diagnostics.Activity.DefaultIdFormat <-
+    System.Diagnostics.ActivityIdFormat.W3C
 
   Internal._source <-
     new System.Diagnostics.ActivitySource(
@@ -108,6 +111,21 @@ let addTelemetry (builder : TracerProviderBuilder) : TracerProviderBuilder =
       |> ignore<TracerProviderBuilder>)
   )
 
+// An execution ID was an ID in the OCaml version, but sine we're using OpenTelemetry
+// from the start, we use the Activity ID instead (note that ASP.NET has
+// HttpContext.TraceIdentifier. It's unclear to me why that's different than the
+// Activity.ID
+type ExecutionID =
+  | ExecutionID of string
+
+  override this.ToString() : string =
+    let (ExecutionID str) = this
+    str
+
+// gets an executionID. The execution ID it returns will change as new
+// Activitys/Events are created, so the correct way to use this is to call it at the
+// root of execution and pass the result down.
+let executionID () = ExecutionID System.Diagnostics.Activity.Current.Id
 
 module Console =
   // For webservers, tracing is added by ASP.NET middlewares. For non-webservers, we

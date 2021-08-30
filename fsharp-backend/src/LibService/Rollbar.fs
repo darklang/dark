@@ -1,5 +1,14 @@
 module LibService.Rollbar
 
+open FSharp.Control.Tasks
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
+open Microsoft.AspNetCore.Http
+
+type ExecutionID = Telemetry.ExecutionID
+
+
 open Prelude
 open Tablecloth
 
@@ -28,10 +37,9 @@ type HoneycombJson =
     limit : int
     time_range : int }
 
-let honeycombLinkOfExecutionID (executionID : id) : string =
+let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
   let query =
-    { filters =
-        [ { column = "execution_id"; op = "="; value = toString executionID } ]
+    { filters = [ { column = "execution_id"; op = "="; value = string executionID } ]
       limit = 100
       // 604800 is 7 days
       time_range = 604800 }
@@ -45,14 +53,18 @@ let honeycombLinkOfExecutionID (executionID : id) : string =
 
   toString uri
 
-let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit =
+let send
+  (executionID : ExecutionID)
+  (metadata : List<string * string>)
+  (e : exn)
+  : unit =
   assert initialized
 
   try
     print "sending exception to rollbar"
     let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
     state.["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
-    state.["execution_id"] <- executionID
+    state.["execution_id"] <- string executionID
     List.iter
       (fun (k, v) ->
         Dictionary.add k (v :> obj) state |> ignore<Dictionary.T<string, obj>>)
@@ -73,12 +85,32 @@ module AspNet =
   open Microsoft.AspNetCore.Builder
   open Microsoft.AspNetCore.Http.Abstractions
 
+  // Rollbar's ASP.NET core middleware requires an IHttpContextAccessor, which
+  // supposedly costs significant performance (couldn't see a cost in practice
+  // though). AFAICT, this allows HTTP vars to be shared across the Task using an
+  // AsyncContext. This would make sense for a lot of ways to use Rollbar, but we use
+  // telemetry for our context and only want to use rollbar for exception tracking.
+  type DarkRollbarMiddleware(nextRequestProcessor : RequestDelegate) =
+    member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
+    member this.Invoke(ctx : HttpContext) : Task =
+      task {
+        try
+          do! this._nextRequestProcessor.Invoke(ctx)
+        with
+        | e ->
+          send (Telemetry.executionID ()) [] e
+          raise e
+      }
+      :> Task
+
+
+
   let addRollbarToServices (services : IServiceCollection) : IServiceCollection =
-    // https://jsnelders.com/Blog/2989/adding-rollbar-to-asp-net-core-2-some-services-are-not-able-to-be-constructed-and-unable-to-resolve-service-for-type-microsoft-aspnetcore-http-ihttpcontextaccessor/
-    services.AddHttpContextAccessor().AddRollbarLogger()
+    // Nothing to do here, as rollbar is initialized above
+    services
 
   let addRollbarToApp (app : IApplicationBuilder) : IApplicationBuilder =
-    app.UseRollbarMiddleware()
+    app.UseMiddleware<DarkRollbarMiddleware>()
 
 
 

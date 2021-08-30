@@ -26,6 +26,11 @@ let rollbarEnabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
 
 let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 
+// -------------------------
+// Heap
+// -------------------------
+let heapioId = string "DARK_CONFIG_HEAPIO_ID"
+
 
 // --------------------
 // honeycomb

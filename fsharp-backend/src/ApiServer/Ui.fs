@@ -29,7 +29,7 @@ let adminUiTemplate : Lazy<string> =
      uiHtml
        .Replace("{{ENVIRONMENT_NAME}}", LibService.Config.envDisplayName)
        .Replace("{{LIVERELOADJS}}", liveReloadJs)
-       .Replace("{{HEAPIO_ID}}", Config.heapioId)
+       .Replace("{{HEAPIO_ID}}", LibService.Config.heapioId)
        .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
        .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
        .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
