@@ -1,7 +1,6 @@
 module BackendOnlyStdLib.LibHttpClient5
 
 open System.Threading.Tasks
-open System.Numerics
 open FSharp.Control.Tasks
 open FSharpPlus
 open System.Net.Http
@@ -94,8 +93,8 @@ let sendRequest
   (requestBody : Dval option)
   (query : Dval)
   (requestHeaders : Dval)
-  : Task<Dval> =
-  task {
+  : Ply<Dval> =
+  uply {
     let encodedQuery = HttpClient.dvalToQuery query
 
     // Headers
@@ -163,19 +162,12 @@ let sendRequest
 let call (method : HttpMethod) =
   (function
   | _, [ DStr uri; body; query; headers ] ->
-    uply {
-      let! response = sendRequest uri method (Some body) query headers
-      return response
-    }
+    sendRequest uri method (Some body) query headers
   | _ -> incorrectArgs ())
 
 let callNoBody (method : HttpMethod) : BuiltInFnSig =
   (function
-  | _, [ DStr uri; query; headers ] ->
-    uply {
-      let! response = sendRequest uri method None query headers
-      return response
-    }
+  | _, [ DStr uri; query; headers ] -> sendRequest uri method None query headers
   | _ -> incorrectArgs ())
 
 
