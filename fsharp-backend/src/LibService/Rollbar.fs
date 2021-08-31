@@ -51,7 +51,7 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
       $"https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={queryStr}"
     )
 
-  toString uri
+  string uri
 
 let send
   (executionID : ExecutionID)

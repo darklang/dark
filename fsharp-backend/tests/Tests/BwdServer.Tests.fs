@@ -126,8 +126,7 @@ let t filename =
       (bodyLength : int)
       : (string * string) list =
       hs
-      |> List.map
-           (fun (k, v) -> (k, FsRegEx.replace "LENGTH" (toString bodyLength) v))
+      |> List.map (fun (k, v) -> (k, FsRegEx.replace "LENGTH" (string bodyLength) v))
       |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
       // Json can be different lengths, this plugs in the expected length
       |> List.sortBy Tuple2.first
@@ -222,8 +221,8 @@ let t filename =
           match asJson with
           | Some (aJson, eJson) ->
             Expect.equal
-              (actual.status, aHeaders, toString aJson)
-              (expected.status, eHeaders, toString eJson)
+              (actual.status, aHeaders, string aJson)
+              (expected.status, eHeaders, string eJson)
               $"({server} as json)"
           | None ->
             Expect.equal

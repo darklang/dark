@@ -179,7 +179,7 @@ let rec lambdaToSql
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
     match Map.get name fns with
     | Some fn ->
-      typecheck (toString name) fn.returnType expectedType
+      typecheck (string name) fn.returnType expectedType
 
       let argSqls, sqlVars =
         let paramCount = List.length fn.parameters

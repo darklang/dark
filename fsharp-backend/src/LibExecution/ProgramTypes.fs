@@ -778,7 +778,7 @@ module Handler =
       | Worker (_name, _ids) -> "_"
       | OldWorker (_modulename, _name, _ids) -> "_"
       | Cron (_name, interval, _ids) ->
-        interval |> Option.map toString |> Option.defaultValue ""
+        interval |> Option.map string |> Option.defaultValue ""
       | REPL (_name, _ids) -> "_"
 
     member this.module'() =

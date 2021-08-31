@@ -57,8 +57,8 @@ let setUserAccess
            AND u.username = @username
            AND a.access_account = u.id
            AND a.organization_account = o.id"
-    |> Sql.parameters [ "username", username |> toString |> Sql.string
-                        "orgName", orgName |> toString |> Sql.string ]
+    |> Sql.parameters [ "username", username |> string |> Sql.string
+                        "orgName", orgName |> string |> Sql.string ]
     |> Sql.executeStatementAsync
   | Some p ->
     Sql.query
@@ -69,9 +69,9 @@ let setUserAccess
          WHERE o.username = @orgName
            AND u.username = @username
          ON CONFLICT (access_account, organization_account) DO UPDATE SET permission = EXCLUDED.permission"
-    |> Sql.parameters [ "username", username |> toString |> Sql.string
-                        "orgName", orgName |> toString |> Sql.string
-                        "permission", p |> toString |> Sql.string ]
+    |> Sql.parameters [ "username", username |> string |> Sql.string
+                        "orgName", orgName |> string |> Sql.string
+                        "permission", p |> string |> Sql.string ]
     |> Sql.executeStatementAsync
 
 
@@ -126,8 +126,8 @@ let grantedPermission
      INNER JOIN accounts org ON access.organization_account = org.id
      WHERE org.username = @ownerName
        AND user_.username = @username"
-  |> Sql.parameters [ "username", Sql.string (username |> toString)
-                      "ownerName", Sql.string (ownerName |> toString) ]
+  |> Sql.parameters [ "username", Sql.string (username |> string)
+                      "ownerName", Sql.string (ownerName |> string) ]
   |> Sql.executeRowOptionAsync
        (fun read -> read.string "permission" |> Permission.parse)
 

@@ -21,12 +21,12 @@ let testTraceIDsOfTlidsMatch : Test =
   test "traceIDs from tlids are as expected" {
     Expect.equal
       "e170d0d5-14de-530e-8dd0-a445aee7ca81"
-      (Traces.traceIDofTLID 325970458UL |> toString)
+      (Traces.traceIDofTLID 325970458UL |> string)
       "traceisasexpected"
 
     Expect.equal
       "1d10dd39-9638-53c8-86ca-643c267efe44"
-      (Traces.traceIDofTLID 1539654774UL |> toString)
+      (Traces.traceIDofTLID 1539654774UL |> string)
       "traceisasexpected"
   }
 

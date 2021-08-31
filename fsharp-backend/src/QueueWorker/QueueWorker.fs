@@ -24,7 +24,7 @@ let dequeueAndProcess
   (executionID : ExecutionID)
   : Task<Result<Option<RT.Dval>, exn>> =
   use root = Span.root "dequeue_and_process"
-  root.AddTag("meta.process_id", toString executionID) |> ignore<Activity>
+  root.AddTag("meta.process_id", string executionID) |> ignore<Activity>
 
   Sql.withTransaction
     (fun () ->
@@ -75,7 +75,7 @@ let dequeueAndProcess
             let desc = EQ.toEventDesc event
 
             root
-            |> Span.addTag "canvas" (toString host)
+            |> Span.addTag "canvas" (string host)
             |> Span.addTagUUID "trace_id" traceID
             |> Span.addTagUUID "canvas_id" canvasID
             |> Span.addTag "module" event.space
@@ -93,8 +93,8 @@ let dequeueAndProcess
                 |> List.head
 
               root
-              |> Span.addTag "host" (toString host)
-              |> Span.addTag "event" (toString desc)
+              |> Span.addTag "host" (string host)
+              |> Span.addTag "event" (string desc)
               |> Span.addTagID' "event_id" event.id
 
               match h with
@@ -153,7 +153,7 @@ let dequeueAndProcess
               try
                 do! EQ.putBack root event EQ.Err
               with
-              | e -> Span.addTag' "error.msg" (toString e) root
+              | e -> Span.addTag' "error.msg" (string e) root
 
               return Error e
           | Error e -> return Error e

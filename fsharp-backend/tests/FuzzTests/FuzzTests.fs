@@ -557,12 +557,12 @@ module PrettyMachineJson =
       dv
       |> DvalRepr.toPrettyMachineJsonStringV1
       |> Newtonsoft.Json.Linq.JToken.Parse
-      |> toString
+      |> string
 
     let expected =
       (OCamlInterop.toPrettyMachineJsonV1 dv).Result
       |> Newtonsoft.Json.Linq.JToken.Parse
-      |> toString
+      |> string
 
     actual .=. expected
 
@@ -1032,17 +1032,17 @@ module ExecutePureFunctions =
                 // meaningful testing, generate them here.
                 let specific =
                   gen {
-                    match toString name, i with
+                    match string name, i with
                     | "String::toInt_v1", 0
                     | "String::toInt", 0 ->
                       let! v = Arb.generate<bigint>
-                      return v |> toString |> RT.DStr
+                      return v |> string |> RT.DStr
                     | "String::toFloat", 0 ->
                       let! v = Arb.generate<float>
-                      return v |> toString |> RT.DStr
+                      return v |> string |> RT.DStr
                     | "String::toUUID", 0 ->
                       let! v = Arb.generate<System.Guid>
-                      return v |> toString |> RT.DStr
+                      return v |> string |> RT.DStr
                     | "String::padStart", 1
                     | "String::padEnd", 1 ->
                       let! v = Generators.char ()

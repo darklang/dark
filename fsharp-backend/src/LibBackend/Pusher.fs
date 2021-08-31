@@ -60,7 +60,7 @@ let push
 
         LibService.Rollbar.send
           executionID
-          [ "canvasID", toString canvasID; "event", eventName; "context", "pusher" ]
+          [ "canvasID", string canvasID; "event", eventName; "context", "pusher" ]
           e
 
       return ()

@@ -109,7 +109,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
   |> List.filter
-       (fun fn -> not (Set.contains (toString fn.name) (Lazy.force fsharpOnlyFns)))
+       (fun fn -> not (Set.contains (string fn.name) (Lazy.force fsharpOnlyFns)))
   |> List.map convertFn
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize

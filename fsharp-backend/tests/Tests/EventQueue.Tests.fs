@@ -127,8 +127,8 @@ let testGetWorkerSchedulesForCanvas =
     let! result = EQ.getWorkerSchedules meta.id
 
     let check (name : string) (value : EQ.WorkerStates.State) =
-      let actual = Map.get name result |> Option.unwrapUnsafe |> toString
-      let expected = toString value
+      let actual = Map.get name result |> Option.unwrapUnsafe |> string
+      let expected = string value
       Expect.equal actual expected ($"{name} is {expected}")
 
     check "apple" EQ.WorkerStates.Paused

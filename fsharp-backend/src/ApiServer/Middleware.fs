@@ -214,7 +214,7 @@ let sessionDataMiddleware : HttpHandler =
         if ctx.Request.Method = "GET" then
           Session.getNoCSRF sessionKey
         else
-          let csrfToken = ctx.Request.Headers.Item Session.csrfHeader |> toString
+          let csrfToken = ctx.Request.Headers.Item Session.csrfHeader |> string
           Session.get sessionKey csrfToken
 
       match session with

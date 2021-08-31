@@ -84,7 +84,7 @@ let uiHtml
     System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds()
     // CLEANUP strip milliseconds to make it identical to ocaml
     |> fun x -> (x / 1000L) * 1000L
-    |> toString
+    |> string
 
   let staticHost =
     match localhostAssets with

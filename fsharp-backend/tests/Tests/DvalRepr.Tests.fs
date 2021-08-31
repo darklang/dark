@@ -158,9 +158,9 @@ module ToHashableRepr =
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> toBytes |> System.BitConverter.ToString
-          print "expected: {p expected}"
-          print "ocaml   : {p ocamlVersion}"
-          print "fsharp  : {p fsharpVersion}"
+          print $"expected: {p expected}"
+          print $"ocaml   : {p ocamlVersion}"
+          print $"fsharp  : {p fsharpVersion}"
 
         Expect.equal ocamlVersion expected "wrong test value"
         Expect.equal fsharpVersion expected "bad fsharp impl"

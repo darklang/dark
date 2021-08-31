@@ -39,7 +39,7 @@ let writeJson (f : JsonWriter -> unit) : string =
   // Match yojson
   w.FloatFormatHandling <- FloatFormatHandling.Symbol
   f w
-  stream.ToString()
+  string stream
 
 let writePrettyJson (f : JsonWriter -> unit) : string =
   let stream = new System.IO.StringWriter()
@@ -48,7 +48,7 @@ let writePrettyJson (f : JsonWriter -> unit) : string =
   w.FloatFormatHandling <- FloatFormatHandling.Symbol
   w.Formatting <- Formatting.Indented
   f w
-  stream.ToString()
+  string stream
 
 
 
@@ -695,7 +695,7 @@ let ofInternalRoundtrippableJsonV0 (j : JToken) : Result<Dval, string> =
   try
     unsafeDvalOfJsonV1 j |> Ok
   with
-  | e -> Error(e.ToString())
+  | e -> Error(string e)
 
 let ofInternalRoundtrippableV0 (str : string) : Dval =
   // cleanup: we know the types here, so we should probably do type directed parsing and simplify what's stored
@@ -1079,13 +1079,13 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
 
   match dv with
   | DDB dbname -> ("<db: " + dbname + ">") |> toBytes
-  | DInt i -> toString i |> toBytes
+  | DInt i -> string i |> toBytes
   | DBool true -> "true" |> toBytes
   | DBool false -> "false" |> toBytes
   | DFloat f -> ocamlStringOfFloat f |> toBytes
   | DNull -> "null" |> toBytes
-  | DStr s -> "\"" + toString s + "\"" |> toBytes
-  | DChar c -> "'" + toString c + "'" |> toBytes
+  | DStr s -> "\"" + string s + "\"" |> toBytes
+  | DChar c -> "'" + string c + "'" |> toBytes
   | DIncomplete _ ->
     "<incomplete: <incomplete>>" |> toBytes (* Can't be used anyway *)
   | DFnVal _ ->
@@ -1094,7 +1094,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
   | DError (_, msg) -> "<error: " + msg + ">" |> toBytes
   | DDate d -> "<date: " + d.toIsoString () + ">" |> toBytes
   | DPassword _ -> "<password: <password>>" |> toBytes
-  | DUuid id -> "<uuid: " + toString id + ">" |> toBytes
+  | DUuid id -> "<uuid: " + string id + ">" |> toBytes
   | DHttpResponse d ->
     let formatted, hdv =
       match d with
@@ -1106,7 +1106,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
           |> String.concat ","
           |> fun s -> "{ " + s + " }"
 
-        (toString c + " " + stringOfHeaders hs, hdv)
+        (string c + " " + stringOfHeaders hs, hdv)
 
     [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ] |> Array.concat
   | DList l ->

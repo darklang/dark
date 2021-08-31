@@ -29,41 +29,41 @@ module Error =
     | TypeUnificationFailure of UnificationError
     | MismatchedRecordFields of MismatchedFields
 
-  let toString (t : T) : string =
-    match t with
-    | TypeLookupFailure (lookupName, lookupVersion) ->
-      let lookupString = $"({lookupName}, v{lookupVersion})"
-      $"Type {lookupString} could not be found on the canvas"
-    | TypeUnificationFailure uf ->
-      let expected = DvalRepr.typeToDeveloperReprV0 uf.expectedType
-      let actual = DvalRepr.prettyTypename uf.actualValue
-      $"Expected to see a value of type {expected} but found a {actual}"
-    | MismatchedRecordFields mrf ->
-      let expected = mrf.expectedFields
-      let actual = mrf.actualFields
-      // More or less wholesale from User_db's type checker
-      let missingFields = Set.difference expected actual in
-      let extraFields = Set.difference actual expected in
+    override this.ToString() : string =
+      match this with
+      | TypeLookupFailure (lookupName, lookupVersion) ->
+        let lookupString = $"({lookupName}, v{lookupVersion})"
+        $"Type {lookupString} could not be found on the canvas"
+      | TypeUnificationFailure uf ->
+        let expected = DvalRepr.typeToDeveloperReprV0 uf.expectedType
+        let actual = DvalRepr.prettyTypename uf.actualValue
+        $"Expected to see a value of type {expected} but found a {actual}"
+      | MismatchedRecordFields mrf ->
+        let expected = mrf.expectedFields
+        let actual = mrf.actualFields
+        // More or less wholesale from User_db's type checker
+        let missingFields = Set.difference expected actual in
+        let extraFields = Set.difference actual expected in
 
-      let missingMsg =
-        "Expected but did not find: ["
-        + (missingFields |> Set.toList |> String.concat ", ")
-        + "]"
+        let missingMsg =
+          "Expected but did not find: ["
+          + (missingFields |> Set.toList |> String.concat ", ")
+          + "]"
 
-      let extraMsg =
-        "Found but did not expect: ["
-        + (extraFields |> Set.toList |> String.concat ", ")
-        + "]"
+        let extraMsg =
+          "Found but did not expect: ["
+          + (extraFields |> Set.toList |> String.concat ", ")
+          + "]"
 
-      (match (Set.isEmpty missingFields, Set.isEmpty extraFields) with
-       | false, false -> $"{missingMsg} & {extraMsg}"
-       | false, true -> missingMsg
-       | true, false -> extraMsg
-       | true, true ->
-         "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
+        (match (Set.isEmpty missingFields, Set.isEmpty extraFields) with
+         | false, false -> $"{missingMsg} & {extraMsg}"
+         | false, true -> missingMsg
+         | true, false -> extraMsg
+         | true, true ->
+           "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
 
 
-  let listToString ts = ts |> List.map toString |> String.concat ", "
+  let listToString ts = ts |> List.map string |> String.concat ", "
 
 open Error
 

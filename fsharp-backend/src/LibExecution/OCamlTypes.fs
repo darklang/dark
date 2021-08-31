@@ -783,7 +783,7 @@ module Convert =
         name = string2bo ids.nameID name
         modifier =
           interval
-          |> Option.map toString
+          |> Option.map string
           |> Option.defaultValue ""
           |> string2bo ids.modifierID
         types = types }
