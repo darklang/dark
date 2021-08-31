@@ -20,6 +20,7 @@ let fns : List<RT.BuiltInFn> =
                 LibHttpClient3.fns
                 LibHttpClient4.fns
                 LibHttpClient5.fns
+                LibHttpClientAuth.fns
                 LibJwt.fns
                 LibStaticAssets.fns
                 LibTwilio.fns

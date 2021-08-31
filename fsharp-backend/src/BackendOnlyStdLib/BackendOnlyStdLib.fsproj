@@ -30,6 +30,7 @@
     <Compile Include="LibHttpClient3.fs" />
     <Compile Include="LibHttpClient4.fs" />
     <Compile Include="LibHttpClient5.fs" />
+    <Compile Include="LibHttpClientAuth.fs" />
     <Compile Include="LibJwt.fs" />
     <Compile Include="LibStaticAssets.fs" />
     <Compile Include="LibTwilio.fs" />
