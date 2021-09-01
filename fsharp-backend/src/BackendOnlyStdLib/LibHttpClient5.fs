@@ -89,30 +89,23 @@ let encodeRequestBody
 let sendRequest
   (uri : string)
   (verb : HttpMethod)
-  (requestBody : Dval option)
+  (reqBody : Dval option)
   (query : Dval)
-  (requestHeaders : Dval)
+  (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let encodedQuery = HttpClient.dvalToQuery query
+    let query = HttpClient.dvalToQuery query
 
     // Headers
-    let encodedRequestHeaders = DvalRepr.toStringPairsExn requestHeaders
+    let encodedReqHeaders = DvalRepr.toStringPairsExn reqHeaders
     let contentType =
-      HttpClient.getHeader "content-type" encodedRequestHeaders
-      |> Option.defaultValue (guessContentType requestBody)
+      HttpClient.getHeader "content-type" encodedReqHeaders
+      |> Option.defaultValue (guessContentType reqBody)
+    let reqHeaders =
+      Map.add "Content-Type" contentType (Map encodedReqHeaders) |> Map.toList
+    let encodedReqBody = encodeRequestBody reqBody contentType
 
-    let requestHeaders =
-      Map.add "Content-Type" contentType (Map encodedRequestHeaders)
-    let encodedRequestBody = encodeRequestBody requestBody contentType
-    match! HttpClient.httpCall
-             0
-             false
-             uri
-             encodedQuery
-             verb
-             (Map.toList requestHeaders)
-             encodedRequestBody with
+    match! HttpClient.httpCall 0 false uri query verb reqHeaders encodedReqBody with
     | Ok response ->
       let parsedResponseBody =
         // CLEANUP: form header never triggers. But is it even needed?
@@ -129,7 +122,6 @@ let sendRequest
         else
           DStr response.body
 
-      // FSTODO: test redirects
       let parsedResponseHeaders =
         response.headers
         |> List.map (fun (k, v) -> (k.Trim(), DStr(v.Trim())))
@@ -140,7 +132,6 @@ let sendRequest
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
                    ("headers", parsedResponseHeaders)
-                   // FSTODO: what about bad utf8?
                    ("raw", DStr response.body)
                    ("code", DInt(bigint response.code))
                    ("error", DStr response.error) ]
