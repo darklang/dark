@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
           // Percent encode the path as s3 wants it. Uri doesn't
           // encode $, or the other sep characters in a path.
           // If upstream allows that we can nix this function
-          let bytes = toBytes s
+          let bytes = UTF8.toBytes s
           let n = Array.length bytes
 
           let is_hex (ch : byte) =

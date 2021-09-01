@@ -29,8 +29,8 @@ let (.=.) actual expected : bool =
     Expect.equal actual expected ""
     true
   else
-    let o = actual.ToString() |> toBytes
-    let e = expected.ToString() |> toBytes
+    let o = string actual |> UTF8.toBytes
+    let e = string expected |> UTF8.toBytes
     Expect.equal (actual, o) (expected, e) ""
     false
 
@@ -518,7 +518,7 @@ module Hashing =
   // The format here is used to get values from the DB, so this has to be 100% identical
   let equalsOCamlToHashable (dv : RT.Dval) : bool =
     let ocamlVersion = (OCamlInterop.toHashableRepr dv).Result
-    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> ofBytes
+    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
     ocamlVersion .=. fsharpVersion
 
   let equalsOCamlV0 (l : List<RT.Dval>) : bool =

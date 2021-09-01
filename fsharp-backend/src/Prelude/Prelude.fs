@@ -201,34 +201,39 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
   with
   | e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
 
-// System.Text.Encoding.UTF8 replaces invalid bytes on error. We want to throw instead.
-let utf8EncodingWithErrors = System.Text.UTF8Encoding(false, true)
+// The default System.Text.Encoding.UTF8 replaces invalid bytes on error. We
+// sometimes want this, but often we want to assert that the bytes we can are valid
+// and throw if they aren't.
+module UTF8 =
 
-let toBytesUnsafe (input : string) : byte array =
-  utf8EncodingWithErrors.GetBytes input
+  // This encoding throws errors on invalid bytes
+  let utf8EncodingWithExceptions = System.Text.UTF8Encoding(false, true)
 
-let ofBytesUnsafe (input : byte array) : string =
-  utf8EncodingWithErrors.GetString input
+  // Throws if the bytes are not valid UTF8
+  let ofBytesUnsafe (input : byte array) : string =
+    utf8EncodingWithExceptions.GetString input
 
-let toBytesOpt (input : string) : byte array option =
-  try
-    Some(toBytesUnsafe input)
-  with
-  | e -> None
+  // I'm assuming if it makes it into a UTF8 string it must be valid? That might be
+  // an incorrect assumption.
+  let toBytes (input : string) : byte array =
+    utf8EncodingWithExceptions.GetBytes input
 
-let ofBytesOpt (input : byte array) : string option =
-  try
-    Some(ofBytesUnsafe input)
-  with
-  | e -> None
+  let toBytesOpt (input : string) : byte array option =
+    try
+      Some(toBytes input)
+    with
+    | e -> None
 
-// FSTODO mark this one safe and audit all uses
-// Use this to ignore errors
-let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
+  let ofBytesOpt (input : byte array) : string option =
+    try
+      Some(ofBytesUnsafe input)
+    with
+    | e -> None
 
-// FSTODO mark this one safe and audit all uses
-// Use this to ignore errors
-let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
+
+  // Use this to ignore errors
+  let ofBytesWithReplacement (input : byte array) : string =
+    System.Text.Encoding.UTF8.GetString input
 
 
 // Base64 comes in various flavors, typically URLsafe (has '-' amd '_' with no
@@ -306,7 +311,7 @@ module Base64 =
 
 let sha1digest (input : string) : byte [] =
   use sha1 = System.Security.Cryptography.SHA1.Create()
-  input |> toBytes |> sha1.ComputeHash
+  input |> UTF8.toBytes |> sha1.ComputeHash
 
 let truncateToInt32 (v : bigint) : int32 =
   try
@@ -616,7 +621,7 @@ module Json =
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
         failwith "unsupported deserialization of password"
-        Password(toBytes "password should never be read here")
+        Password(UTF8.toBytes "password should never be read here")
 
       override _.WriteJson
         (

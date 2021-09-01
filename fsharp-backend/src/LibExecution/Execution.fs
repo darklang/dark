@@ -59,7 +59,7 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
         [ "Content-Length", "9"
           "Server", "darklang"
           "Content-Type", "text/plain; charset=utf-8" ],
-        RT.DBytes(toBytes "Not found")
+        RT.DBytes(UTF8.toBytes "Not found")
       )
     ))
   | RT.DErrorRail _ ->
@@ -69,7 +69,7 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
         [ "Content-Length", "33"
           "Server", "darklang"
           "Content-Type", "text/plain; charset=utf-8" ],
-        RT.DBytes(toBytes "Invalid conversion from errorrail")
+        RT.DBytes(UTF8.toBytes "Invalid conversion from errorrail")
       )
     ))
   | dv -> dv

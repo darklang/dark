@@ -5,18 +5,15 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open System.Net.Sockets
 open System.IO
 open System.IO.Compression
 open System.Text.RegularExpressions
-open FSharpPlus
 
 type ConcurrentDictionary<'a, 'b> =
   System.Collections.Concurrent.ConcurrentDictionary<'a, 'b>
 
 open Prelude
 open Tablecloth
-open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes

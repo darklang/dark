@@ -18,7 +18,7 @@ type T =
 let fromPlaintext (password : string) : T =
   password
   |> Sodium.PasswordHash.ArgonHashString
-  |> toBytes
+  |> UTF8.toBytes
   |> Base64.defaultEncodeToString
   |> Pw
 

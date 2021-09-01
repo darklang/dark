@@ -52,8 +52,8 @@ let urlEncodeValue (s : string) : string =
     | b when b = (byte '_') -> [| b |]
     | b when b = (byte '=') -> [| b |] // not the same for key
     | b when b = (byte '\'') -> [| b |]
-    | _ -> toBytes ("%" + b.ToString("X2"))
-  s |> toBytes |> Array.collect encodeByte |> ofBytes
+    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
+  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
 
 // urlEncode keys in a query string. Note that the encoding is slightly different to
 // query string values
@@ -82,8 +82,8 @@ let urlEncodeKey (s : string) : string =
     | b when b = (byte '_') -> [| b |]
     | b when b = (byte '\'') -> [| b |]
 
-    | _ -> toBytes ("%" + b.ToString("X2"))
-  s |> toBytes |> Array.collect encodeByte |> ofBytes
+    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
+  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
 
 
 // Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
@@ -332,7 +332,7 @@ let makeHttpCall
           req.Headers.Authorization <-
             AuthenticationHeaderValue(
               "Basic",
-              System.Convert.ToBase64String(toBytes authString)
+              System.Convert.ToBase64String(UTF8.toBytes authString)
             )
 
         // content
@@ -406,7 +406,7 @@ let makeHttpCall
           if latin1 then
             System.Text.Encoding.Latin1.GetString respBody
           else
-            ofBytes respBody
+            UTF8.ofBytesUnsafe respBody
 
         let code = int response.StatusCode
 

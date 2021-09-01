@@ -1078,23 +1078,23 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
   let indent = indent + 2 in
 
   match dv with
-  | DDB dbname -> ("<db: " + dbname + ">") |> toBytes
-  | DInt i -> string i |> toBytes
-  | DBool true -> "true" |> toBytes
-  | DBool false -> "false" |> toBytes
-  | DFloat f -> ocamlStringOfFloat f |> toBytes
-  | DNull -> "null" |> toBytes
-  | DStr s -> "\"" + string s + "\"" |> toBytes
-  | DChar c -> "'" + string c + "'" |> toBytes
+  | DDB dbname -> ("<db: " + dbname + ">") |> UTF8.toBytes
+  | DInt i -> string i |> UTF8.toBytes
+  | DBool true -> "true" |> UTF8.toBytes
+  | DBool false -> "false" |> UTF8.toBytes
+  | DFloat f -> ocamlStringOfFloat f |> UTF8.toBytes
+  | DNull -> "null" |> UTF8.toBytes
+  | DStr s -> "\"" + string s + "\"" |> UTF8.toBytes
+  | DChar c -> "'" + string c + "'" |> UTF8.toBytes
   | DIncomplete _ ->
-    "<incomplete: <incomplete>>" |> toBytes (* Can't be used anyway *)
+    "<incomplete: <incomplete>>" |> UTF8.toBytes (* Can't be used anyway *)
   | DFnVal _ ->
     (* See docs/dblock-serialization.ml *)
-    "<block: <block>>" |> toBytes
-  | DError (_, msg) -> "<error: " + msg + ">" |> toBytes
-  | DDate d -> "<date: " + d.toIsoString () + ">" |> toBytes
-  | DPassword _ -> "<password: <password>>" |> toBytes
-  | DUuid id -> "<uuid: " + string id + ">" |> toBytes
+    "<block: <block>>" |> UTF8.toBytes
+  | DError (_, msg) -> "<error: " + msg + ">" |> UTF8.toBytes
+  | DDate d -> "<date: " + d.toIsoString () + ">" |> UTF8.toBytes
+  | DPassword _ -> "<password: <password>>" |> UTF8.toBytes
+  | DUuid id -> "<uuid: " + string id + ">" |> UTF8.toBytes
   | DHttpResponse d ->
     let formatted, hdv =
       match d with
@@ -1108,48 +1108,50 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
 
         (string c + " " + stringOfHeaders hs, hdv)
 
-    [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ] |> Array.concat
+    [ (formatted + nl) |> UTF8.toBytes; toHashableRepr indent false hdv ]
+    |> Array.concat
   | DList l ->
     if List.isEmpty l then
-      "[]" |> toBytes
+      "[]" |> UTF8.toBytes
     else
       let body =
         l
         |> List.map (toHashableRepr indent false)
-        |> List.intersperse (toBytes ", ")
+        |> List.intersperse (UTF8.toBytes ", ")
         |> Array.concat
 
-      Array.concat [ "[ " |> toBytes
-                     inl |> toBytes
+      Array.concat [ "[ " |> UTF8.toBytes
+                     inl |> UTF8.toBytes
                      body
-                     nl |> toBytes
-                     "]" |> toBytes ]
+                     nl |> UTF8.toBytes
+                     "]" |> UTF8.toBytes ]
   | DObj o ->
     if Map.isEmpty o then
-      "{}" |> toBytes
+      "{}" |> UTF8.toBytes
     else
       let rows =
         o
         |> Map.fold
              []
              (fun l key value ->
-               (Array.concat [ toBytes (key + ": ")
+               (Array.concat [ UTF8.toBytes (key + ": ")
                                toHashableRepr indent false value ]
                 :: l))
-        |> List.intersperse (toBytes ("," + inl))
+        |> List.intersperse (UTF8.toBytes ("," + inl))
 
       Array.concat (
-        [ toBytes "{ "; toBytes inl ] @ rows @ [ toBytes nl; toBytes "}" ]
+        [ UTF8.toBytes "{ "; UTF8.toBytes inl ]
+        @ rows @ [ UTF8.toBytes nl; UTF8.toBytes "}" ]
       )
-  | DOption None -> "Nothing" |> toBytes
+  | DOption None -> "Nothing" |> UTF8.toBytes
   | DOption (Some dv) ->
-    Array.concat [ "Just " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "Just " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DErrorRail dv ->
-    Array.concat [ "ErrorRail: " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ErrorRail: " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DResult (Ok dv) ->
-    Array.concat [ "ResultOk " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ResultOk " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DResult (Error dv) ->
-    Array.concat [ "ResultError " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ResultError " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DBytes bytes ->
     if oldBytes then
       bytes
@@ -1157,7 +1159,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
       bytes
       |> System.Security.Cryptography.SHA384.HashData
       |> Base64.urlEncodeToString
-      |> toBytes
+      |> UTF8.toBytes
 
 
 let supportedHashVersions : int list = [ 0; 1 ]
