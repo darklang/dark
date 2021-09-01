@@ -406,7 +406,8 @@ let makeHttpCall
           if latin1 then
             System.Text.Encoding.Latin1.GetString respBody
           else
-            UTF8.ofBytesUnsafe respBody
+            // CLEANUP there are other options here, and this is a bad error message
+            UTF8.ofBytesOpt respBody |> Option.defaultValue "utf-8 decoding error"
 
         let code = int response.StatusCode
 
