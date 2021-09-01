@@ -36,6 +36,7 @@ module Map =
   let get (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m
 
 module Tuple2 =
+  let make (a : 'a) (b : 'b) : 'a * 'b = (a, b)
   let first (v1 : 'a, _ : 'b) : 'a = v1
   let second (_ : 'a, v2 : 'b) : 'b = v2
   let mapFirst (f : 'x -> 'r) (x : 'x, y : 'y) : 'r * 'y = (f x, y)

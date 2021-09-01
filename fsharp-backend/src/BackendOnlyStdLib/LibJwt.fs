@@ -250,13 +250,17 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
         rsaDeformatter.SetHashAlgorithm "SHA256"
 
         if rsaDeformatter.VerifySignature(hash, signature) then
-          let header = header |> Base64.fromUrlEncoded |> Base64.decodeOpt
-          let payload = payload |> Base64.fromUrlEncoded |> Base64.decodeOpt
-
-          match (header, payload) with
-          | Some header, Some payload ->
-            Some(UTF8.ofBytesUnsafe header, UTF8.ofBytesUnsafe payload)
-          | _ -> None
+          let header =
+            header
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
+          let payload =
+            payload
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
+          Option.map2 Tuple2.make header payload
         else
           None
     with
@@ -285,12 +289,19 @@ let verifyAndExtractV1
         rsaDeformatter.SetHashAlgorithm "SHA256"
 
         if rsaDeformatter.VerifySignature(hash, signature) then
-          let header = header |> Base64.fromUrlEncoded |> Base64.decodeOpt
-          let payload = payload |> Base64.fromUrlEncoded |> Base64.decodeOpt
+          let header =
+            header
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
+          let payload =
+            payload
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
 
           match (header, payload) with
-          | Some header, Some payload ->
-            Ok(UTF8.ofBytesUnsafe header, UTF8.ofBytesUnsafe payload)
+          | Some header, Some payload -> Ok(header, payload)
           | Some _, None -> Error "Unable to base64-decode header"
           | _ -> Error "Unable to base64-decode payload"
         else
