@@ -24,7 +24,7 @@ let equalsOCaml =
     "equalsOCaml"
     (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
     [ ((RT.FQFnName.stdlibFnName "List" "fold" 0,
-        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0I) ]
+        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
           RT.DList []
           RT.DFnVal(
             RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }

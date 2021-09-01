@@ -379,9 +379,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt times; v ] ->
-          if times < 0I then
+          if times < 0L then
             err (Errors.argumentWasnt "positive" "times" (DInt times))
-          else if times > 2147483647I then
+          else if times > 2147483647L then
             err (Errors.argumentWasnt "less than 2147483647" "times" (DInt times))
           else
             List.replicate (int times) v |> DList |> Ply
@@ -613,7 +613,7 @@ let fns : List<BuiltInFn> =
                 Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe NoRail
 
               match result with
-              | DInt i when i = 1I || i = 0I || i = -1I -> return int i
+              | DInt i when i = 1L || i = 0L || i = -1L -> return int i
               | _ ->
                 return
                   Errors.throw (Errors.expectedLambdaValue "f" "-1, 0, 1" result)
@@ -877,8 +877,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DInt c ] ->
-          if c < 0I then Ply(DList l)
-          elif c > bigint (List.length l) then Ply(DList [])
+          if c < 0L then Ply(DList l)
+          elif c > int64 (List.length l) then Ply(DList [])
           else Ply(DList(List.skip (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -939,8 +939,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DInt c ] ->
-          if c < 0I then Ply(DList [])
-          elif c >= bigint (List.length l) then Ply(DList l)
+          if c < 0L then Ply(DList [])
+          elif c >= int64 (List.length l) then Ply(DList l)
           else Ply(DList(List.take (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1066,7 +1066,7 @@ let fns : List<BuiltInFn> =
                     state
                     (id 0)
                     b
-                    [ DInt(bigint i); dv ]
+                    [ DInt(int64 i); dv ]
                     NotInPipe
                     NoRail)
                 list
@@ -1246,7 +1246,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DInt index ] ->
-          if index > bigint (List.length l) then
+          if index > int64 (List.length l) then
             Ply(DOption None)
           else
             Ply(DOption(List.tryItem (int index) l))
@@ -1262,7 +1262,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DInt index ] ->
-          if index > bigint (List.length l) then
+          if index > int64 (List.length l) then
             Ply(DOption None)
           else
             (List.tryItem (int index) l) |> Dval.option |> Ply

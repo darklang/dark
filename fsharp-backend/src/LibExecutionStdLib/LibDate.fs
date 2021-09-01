@@ -209,7 +209,6 @@ let fns : List<BuiltInFn> =
           d
           |> System.DateTimeOffset
           |> (fun dto -> dto.ToUnixTimeSeconds())
-          |> bigint
           |> DInt
           |> Ply
         | _ -> incorrectArgs ())

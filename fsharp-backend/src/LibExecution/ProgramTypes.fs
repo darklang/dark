@@ -76,7 +76,7 @@ module FQFnName =
 
 // Expressions - the main part of the language.
 type Expr =
-  | EInteger of id * bigint
+  | EInteger of id * int64
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
@@ -285,7 +285,7 @@ and SendToRail =
 and Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
-  | PInteger of id * bigint
+  | PInteger of id * int64
   | PBool of id * bool
   | PCharacter of id * string
   | PString of id * string
@@ -483,9 +483,9 @@ module Shortcuts =
     eBinOp' module_ function_ version arg1 arg2 Rail
 
   let eStr (str : string) : Expr = EString(gid (), str)
-  let eInt (i : int) : Expr = EInteger(gid (), bigint i)
+  let eInt (i : int) : Expr = EInteger(gid (), int64 i)
 
-  let eIntStr (i : string) : Expr = EInteger(gid (), parseBigint i)
+  let eIntStr (i : string) : Expr = EInteger(gid (), parseInt64 i)
 
   let eChar (c : char) : Expr = ECharacter(gid (), string c)
   let eCharStr (c : string) : Expr = ECharacter(gid (), c)
@@ -547,10 +547,10 @@ module Shortcuts =
     EMatch(gid (), cond, matches)
 
 
-  let pInt (int : int) : Pattern = PInteger(gid (), bigint int)
+  let pInt (int : int) : Pattern = PInteger(gid (), int64 int)
 
 
-  let pIntStr (int : string) : Pattern = PInteger(gid (), parseBigint int)
+  let pIntStr (int : string) : Pattern = PInteger(gid (), parseInt64 int)
 
   let pVar (name : string) : Pattern = PVariable(gid (), name)
 

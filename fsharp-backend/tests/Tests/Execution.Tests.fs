@@ -71,7 +71,7 @@ let testExecFunctionTLIDs : Test =
     let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
-    Expect.equal value (DInt 5I) "sanity check"
+    Expect.equal value (DInt 5L) "sanity check"
   }
 
 
@@ -80,7 +80,7 @@ let testErrorRailUsedInAnalysis : Test =
 
     let! state = executionStateFor "test" Map.empty Map.empty
 
-    let loadTraceResults _ _ = Some(DOption(Some(DInt 12345I)), System.DateTime.Now)
+    let loadTraceResults _ _ = Some(DOption(Some(DInt 12345L)), System.DateTime.Now)
 
     let state =
       { state with
@@ -94,7 +94,7 @@ let testErrorRailUsedInAnalysis : Test =
 
     let! result = Exe.executeExpr state inputVars ast
 
-    Expect.equal result (DInt 12345I) "is on the error rail"
+    Expect.equal result (DInt 12345L) "is on the error rail"
   }
 
 let testOtherDbQueryFunctionsHaveAnalysis : Test =
@@ -158,7 +158,7 @@ let testRecursionInEditor : Test =
 
     Expect.equal
       (Dictionary.get callerID results)
-      (Some(AT.ExecutedResult(DInt 0I)))
+      (Some(AT.ExecutedResult(DInt 0L)))
       "result is there as expected"
 
     Expect.equal
@@ -329,7 +329,7 @@ let testMatchPreview : Test =
       EMatch(
         mid,
         arg,
-        [ (PInteger(pIntId, 5I), EInteger(intRhsId, 17I))
+        [ (PInteger(pIntId, 5L), EInteger(intRhsId, 17L))
           (PFloat(pFloatId, 5.6), EString(floatRhsId, "float"))
           (PBool(pBoolId, false), EString(boolRhsId, "bool"))
           (PString(pStrId, "myStr"), EString(strRhsId, "str"))
@@ -405,17 +405,17 @@ let testMatchPreview : Test =
       check
         "int match"
         (eInt 5)
-        [ (pIntId, "matching pat", er (DInt 5I))
-          (intRhsId, "matching rhs", er (DInt 17I))
-          (pVarId, "2nd matching pat", ner (DInt 5I))
-          (varRhsId, "2nd matching rhs", ner (DInt 5I)) ]
+        [ (pIntId, "matching pat", er (DInt 5L))
+          (intRhsId, "matching rhs", er (DInt 17L))
+          (pVarId, "2nd matching pat", ner (DInt 5L))
+          (varRhsId, "2nd matching rhs", ner (DInt 5L)) ]
 
     do!
       check
         "non match"
         (eInt 6)
-        [ (pIntId, "non matching pat", ner (DInt 5I))
-          (intRhsId, "non matching rhs", ner (DInt 17I))
+        [ (pIntId, "non matching pat", ner (DInt 5L))
+          (intRhsId, "non matching rhs", ner (DInt 17L))
           (pFloatId, "float", ner (DFloat 5.6))
           (floatRhsId, "float rhs", ner (DStr "float"))
           (pBoolId, "bool", ner (DBool false))
@@ -432,8 +432,8 @@ let testMatchPreview : Test =
           (pOkBlankOkId, "ok pat", ner (inc pOkBlankOkId))
           (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
           (okBlankRhsId, "rhs", ner (DStr "ok blank"))
-          (pVarId, "catch all pat", er (DInt 6I))
-          (varRhsId, "catch all rhs", er (DInt 6I)) ]
+          (pVarId, "catch all pat", er (DInt 6L))
+          (varRhsId, "catch all rhs", er (DInt 6L)) ]
 
     do!
       check

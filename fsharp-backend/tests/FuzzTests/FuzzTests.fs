@@ -619,11 +619,11 @@ module ExecutePureFunctions =
     | f when f >= 1e+308 -> false
     | _ -> true
 
-  let ocamlIntUpperLimit = 4611686018427387903I
+  let ocamlIntUpperLimit = 4611686018427387903L
 
-  let ocamlIntLowerLimit = -4611686018427387904I
+  let ocamlIntLowerLimit = -4611686018427387904L
 
-  let isValidOCamlInt (i : bigint) : bool =
+  let isValidOCamlInt (i : int64) : bool =
     i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
 
 
@@ -661,7 +661,7 @@ module ExecutePureFunctions =
         Arb.shrinkNumber
       )
 
-    static member BigInt() : Arbitrary<bigint> =
+    static member Int64() : Arbitrary<int64> =
       Arb.fromGenShrink (
         gen {
           let specials =
@@ -671,7 +671,7 @@ module ExecutePureFunctions =
             |> List.map Gen.constant
             |> Gen.oneof
 
-          let v = Gen.frequency [ (5, specials); (5, Arb.generate<bigint>) ]
+          let v = Gen.frequency [ (5, specials); (5, Arb.generate<int64>) ]
           return! Gen.filter isValidOCamlInt v
         },
         Arb.shrinkNumber
@@ -746,7 +746,7 @@ module ExecutePureFunctions =
           gen {
             match typ with
             | RT.TInt ->
-              let! v = Arb.generate<bigint>
+              let! v = Arb.generate<int64>
               return RT.EInteger(gid (), v)
             | RT.TStr ->
               let! v = Generators.string ()
@@ -863,7 +863,7 @@ module ExecutePureFunctions =
           gen {
             match typ with
             | RT.TInt ->
-              let! v = Arb.generate<bigint>
+              let! v = Arb.generate<int64>
               return RT.DInt v
             | RT.TStr ->
               let! v = Generators.string ()
@@ -954,7 +954,7 @@ module ExecutePureFunctions =
               return! Gen.map RT.DObj map
             | RT.THttpResponse typ ->
               let! url = Arb.generate<string>
-              let! code = Arb.generate<bigint>
+              let! code = Arb.generate<int64>
               let! headers = Arb.generate<List<string * string>>
               let! body = genDval' typ s
 
@@ -1035,7 +1035,7 @@ module ExecutePureFunctions =
                     match string name, i with
                     | "String::toInt_v1", 0
                     | "String::toInt", 0 ->
-                      let! v = Arb.generate<bigint>
+                      let! v = Arb.generate<int64>
                       return v |> string |> RT.DStr
                     | "String::toFloat", 0 ->
                       let! v = Arb.generate<float>
@@ -1071,15 +1071,15 @@ module ExecutePureFunctions =
                        | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" ->
                          false
                        | 1, RT.DInt i, _, "Int", "power", 0
-                       | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false
+                       | 1, RT.DInt i, _, "", "^", 0 when i < 0L -> false
                        // Int Overflow
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
-                         i <> 1I
-                         && i <> (-1I)
+                         i <> 1L
+                         && i <> (-1L)
                          && isValidOCamlInt i
-                         && i <= 2000I
-                         && isValidOCamlInt (e ** (int i))
+                         && i <= 2000L
+                         && isValidOCamlInt (int64 (bigint e ** (int i)))
                        | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
                          isValidOCamlInt (e * i)
@@ -1094,8 +1094,8 @@ module ExecutePureFunctions =
                          |> List.map
                               (function
                               | RT.DInt i -> i
-                              | _ -> 0I)
-                         |> List.fold 0I (+)
+                              | _ -> 0L)
+                         |> List.fold 0L (+)
                          |> isValidOCamlInt
                        // Int overflow converting from Floats
                        | 0, RT.DFloat f, _, "Float", "floor", 0
@@ -1105,17 +1105,17 @@ module ExecutePureFunctions =
                        | 0, RT.DFloat f, _, "Float", "ceiling", 0
                        | 0, RT.DFloat f, _, "Float", "roundUp", 0
                        | 0, RT.DFloat f, _, "Float", "truncate", 0 ->
-                         f |> bigint |> isValidOCamlInt
+                         f |> int64 |> isValidOCamlInt
                        // gmtime out of range
                        | 1, RT.DInt i, _, "Date", "sub", 0
                        | 1, RT.DInt i, _, "Date", "subtract", 0
                        | 1, RT.DInt i, _, "Date", "add", 0
-                       | 0, RT.DInt i, _, "Date", "fromSeconds", 0 -> i < 10000000I
+                       | 0, RT.DInt i, _, "Date", "fromSeconds", 0 -> i < 10000000L
                        // Out of memory
                        | _, RT.DInt i, _, "List", "range", 0
                        | 0, RT.DInt i, _, "List", "repeat", 0
                        | 2, RT.DInt i, _, "String", "padEnd", 0
-                       | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000I
+                       | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000L
                        // Exception
                        | 0, _, _, "", "toString", 0 -> not (containsBytes dv)
                        | _ -> true)

@@ -327,7 +327,7 @@ module Convert =
     | ORT.FPVariable (_, id, str) -> PT.PVariable(id, str)
     | ORT.FPConstructor (_, id, name, pats) ->
       PT.PConstructor(id, name, List.map r pats)
-    | ORT.FPInteger (_, id, i) -> PT.PInteger(id, parseBigint i)
+    | ORT.FPInteger (_, id, i) -> PT.PInteger(id, parseInt64 i)
     | ORT.FPBool (_, id, b) -> PT.PBool(id, b)
     | ORT.FPString fp -> PT.PString(fp.patternID, fp.str)
     | ORT.FPFloat (_, id, w, f) ->
@@ -347,7 +347,7 @@ module Convert =
 
     match o with
     | ORT.EBlank id -> PT.EBlank id
-    | ORT.EInteger (id, num) -> PT.EInteger(id, parseBigint num)
+    | ORT.EInteger (id, num) -> PT.EInteger(id, parseInt64 num)
     | ORT.EString (id, str) -> PT.EString(id, str)
     | ORT.EFloat (id, w, f) ->
       let whole = parseBigint w
@@ -1034,7 +1034,7 @@ module Convert =
     match p with
     | ORT.DStr s -> RT.DStr s
     | ORT.DCharacter c -> RT.DChar c
-    | ORT.DInt i -> RT.DInt(bigint i)
+    | ORT.DInt i -> RT.DInt i
     | ORT.DBool true -> RT.DBool true
     | ORT.DBool false -> RT.DBool false
     | ORT.DFloat f -> RT.DFloat f
@@ -1058,7 +1058,7 @@ module Convert =
     | ORT.DPassword bytes -> RT.DPassword(Password bytes)
     | ORT.DResp (ORT.Redirect url, _) -> RT.DHttpResponse(RT.Redirect url)
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
-      RT.DHttpResponse(RT.Response(bigint code, headers, c hdv))
+      RT.DHttpResponse(RT.Response(code, headers, c hdv))
     | ORT.DList l -> RT.DList(List.map c l)
     | ORT.DObj o -> RT.DObj(Map.map c o)
     | ORT.DOption ORT.OptNothing -> RT.DOption None

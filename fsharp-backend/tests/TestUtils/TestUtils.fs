@@ -700,20 +700,20 @@ let interestingFloats : List<string * float> =
        (fun (doc, v) ->
          [ ($"{doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
 
-let interestingInts : List<string * bigint> =
-  [ ("int0", 0I)
-    ("int1", 1I)
-    ("int-1", -1I)
-    ("int_max_31_bits", 1073741824I)
-    ("int_above_31_bits", 1073741825I)
-    ("int_max_32_bits", 2147483647I)
-    ("int_above_32_bits", 2147483648I)
-    ("int_max_53_bits", 4503599627370496I)
-    ("int_above_53_bits", 4503599627370497I)
-    ("int_max_63_bits", 4611686018427387903I) ]
+let interestingInts : List<string * int64> =
+  [ ("int0", 0L)
+    ("int1", 1L)
+    ("int-1", -1L)
+    ("int_max_31_bits", 1073741824L)
+    ("int_above_31_bits", 1073741825L)
+    ("int_max_32_bits", 2147483647L)
+    ("int_above_32_bits", 2147483648L)
+    ("int_max_53_bits", 4503599627370496L)
+    ("int_above_53_bits", 4503599627370497L)
+    ("int_max_63_bits", 4611686018427387903L) ]
   |> List.flatMap
        (fun (doc, v) ->
-         [ ($"{doc} - 1", v - 1I); ($"{doc} + 0", v); ($"{doc} + 1", v + 1I) ])
+         [ ($"{doc} - 1", v - 1L); ($"{doc} + 0", v); ($"{doc} + 1", v + 1L) ])
 
 let sampleDvals : List<string * Dval> =
   (List.map (fun (doc, i) -> ($"int {doc}", DInt i)) interestingInts)
@@ -722,7 +722,7 @@ let sampleDvals : List<string * Dval> =
         ("float2", DFloat -7.2)
         ("float3", DFloat 15.0)
         ("float4", DFloat -15.0)
-        ("int5", RT.DInt 5I)
+        ("int5", RT.DInt 5L)
         ("true", DBool true)
         ("false", DBool false)
         ("null", DNull)
@@ -755,7 +755,7 @@ let sampleDvals : List<string * Dval> =
          DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
         ("redirect", DHttpResponse(Redirect "/home"))
         ("httpresponse",
-         DHttpResponse(Response(200I, [ "content-length", "9" ], DStr "success")))
+         DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
         ("db", DDB "Visitors")
         ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
         ("password", DPassword(Password(UTF8.toBytes "somebytes")))

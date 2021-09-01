@@ -134,7 +134,7 @@ let sendRequest
         Dval.obj [ ("body", parsedResponseBody)
                    ("headers", parsedResponseHeaders)
                    ("raw", DStr response.body)
-                   ("code", DInt(bigint response.code))
+                   ("code", DInt(int64 response.code))
                    ("error", DStr response.error) ]
       if response.code >= 200 && response.code <= 299 then
         return DResult(Ok obj)

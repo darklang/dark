@@ -186,9 +186,9 @@ let ePipeAndRailApply (fnVal : Expr) (args : List<Expr>) : Expr =
 
 let eStr (str : string) : Expr = EString(gid (), str)
 
-let eInt (i : int) : Expr = EInteger(gid (), bigint i)
+let eInt (i : int) : Expr = EInteger(gid (), int64 i)
 
-let eIntStr (i : string) : Expr = EInteger(gid (), parseBigint i)
+let eIntStr (i : string) : Expr = EInteger(gid (), parseInt64 i)
 
 let eChar (c : char) : Expr = ECharacter(gid (), string c)
 let eCharStr (c : string) : Expr = ECharacter(gid (), c)
@@ -240,9 +240,9 @@ let eOk (arg : Expr) : Expr = EConstructor(gid (), "Ok", [ arg ])
 let eMatch (cond : Expr) (matches : List<Pattern * Expr>) : Expr =
   EMatch(gid (), cond, matches)
 
-let pInt (int : int) : Pattern = PInteger(gid (), bigint int)
+let pInt (int : int) : Pattern = PInteger(gid (), int64 int)
 
-let pIntStr (int : string) : Pattern = PInteger(gid (), parseBigint int)
+let pIntStr (int : string) : Pattern = PInteger(gid (), parseInt64 int)
 
 let pVar (name : string) : Pattern = PVariable(gid (), name)
 

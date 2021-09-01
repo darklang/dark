@@ -55,7 +55,7 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
     // CLEANUP: result should become a 500 error
     (RT.DHttpResponse(
       RT.Response(
-        404I,
+        404L,
         [ "Content-Length", "9"
           "Server", "darklang"
           "Content-Type", "text/plain; charset=utf-8" ],
@@ -65,7 +65,7 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
   | RT.DErrorRail _ ->
     (RT.DHttpResponse(
       RT.Response(
-        500I,
+        500L,
         [ "Content-Length", "33"
           "Server", "darklang"
           "Content-Type", "text/plain; charset=utf-8" ],

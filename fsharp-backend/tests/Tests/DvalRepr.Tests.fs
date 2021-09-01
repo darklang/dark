@@ -42,7 +42,7 @@ let testDvalRoundtrippableRoundtrips =
 
 let testDvalOptionQueryableSpecialCase =
   test "dval Option Queryable Special Case" {
-    let dvm = Map.ofList [ ("type", RT.DStr "option"); ("value", RT.DInt 5I) ]
+    let dvm = Map.ofList [ ("type", RT.DStr "option"); ("value", RT.DInt 5L) ]
 
     Expect.equal
       (RT.DObj dvm)
@@ -57,7 +57,7 @@ let testToDeveloperRepr =
         "toDeveloperRepr string"
         DvalRepr.toDeveloperReprV0
         // Most of this is just the OCaml output and not really what the output should be
-        [ RT.DHttpResponse(RT.Response(0I, [], RT.DNull)), "0 {  }\nnull"
+        [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
           RT.DFloat(infinity), "inf"
           RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
@@ -76,7 +76,7 @@ let testToEnduserReadable =
       RT.DFloat(-5.1), "-5.1"
       RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
       RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull"
-      RT.DHttpResponse(RT.Response(0I, [ "a header", "something" ], RT.DNull)),
+      RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
       "0 { a header: something }\nnull" ]
 
 module ToHashableRepr =
@@ -106,7 +106,7 @@ module ToHashableRepr =
         t
           (DObj(
             Map.ofList [ ("", DNull)
-                         ("-", DInt 0I)
+                         ("-", DInt 0L)
                          ("j", DFloat -1.797693135e+308) ]
           ))
           "{ \n  j: -inf,\n  -: 0,\n  : null\n}"
@@ -118,7 +118,7 @@ module ToHashableRepr =
         t
           (DList [ DUuid(System.Guid.Parse "3e64631e-f455-5d61-30f7-2be5794ebb19")
                    DStr "6"
-                   DResult(Ok(DHttpResponse(Response(0I, [], DChar "")))) ])
+                   DResult(Ok(DHttpResponse(Response(0L, [], DChar "")))) ])
           "[ \n  <uuid: 3e64631e-f455-5d61-30f7-2be5794ebb19>, \"6\", ResultOk 0 {  }\n    ''\n]"
 
         t
@@ -196,7 +196,7 @@ let allRoundtrips =
          // rest of the file so lets not confuse these tests.
          | (_, RT.DPassword _) -> false
          // These can't be parsed by the roundtrip tests so skip
-         | (_, RT.DInt i) -> i > -4611686018427387904I && i < 4611686018427387904I
+         | (_, RT.DInt i) -> i > -4611686018427387904L && i < 4611686018427387904L
          | _ -> true)
 
   let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
@@ -384,7 +384,7 @@ module LibJwt =
          ) ]
        @ (sampleDvals
           |> List.map Tuple2.second
-          |> List.filter ((<>) (RT.DInt 4611686018427387904I)))
+          |> List.filter ((<>) (RT.DInt 4611686018427387904L)))
        |> List.map (fun x -> x, true))
 
 

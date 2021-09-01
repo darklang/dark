@@ -145,7 +145,7 @@ module FQFnName =
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
-  | EInteger of id * bigint
+  | EInteger of id * int64
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
@@ -188,7 +188,7 @@ and IsInPipe =
 and Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
-  | PInteger of id * bigint
+  | PInteger of id * int64
   | PBool of id * bool
   | PCharacter of id * string
   | PString of id * string
@@ -207,10 +207,10 @@ and FnValImpl =
 
 and DHTTP =
   | Redirect of string
-  | Response of bigint * List<string * string> * Dval
+  | Response of int64 * List<string * string> * Dval
 
 and Dval =
-  | DInt of bigint
+  | DInt of int64
   | DFloat of double
   | DBool of bool
   | DNull
@@ -535,8 +535,8 @@ module Dval =
     | DObj _, _ -> false
 
 
-  let int (i : int) = DInt(bigint i)
-  let parseInt (i : string) = DInt(parseBigint i)
+  let int (i : int) = DInt(int64 i)
+  let parseInt (i : string) = DInt(parseInt64 i)
 
   let floatParts (sign : Sign, whole : bigint, fraction : bigint) : Dval =
     // FSTODO - add sourceID to errors

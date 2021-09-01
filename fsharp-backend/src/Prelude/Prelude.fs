@@ -313,12 +313,12 @@ let sha1digest (input : string) : byte [] =
   use sha1 = System.Security.Cryptography.SHA1.Create()
   input |> UTF8.toBytes |> sha1.ComputeHash
 
-let truncateToInt32 (v : bigint) : int32 =
+let truncateToInt32 (v : int64) : int32 =
   try
     int32 v
   with
   | :? System.OverflowException ->
-    if v > 0I then System.Int32.MaxValue else System.Int32.MinValue
+    if v > 0L then System.Int32.MaxValue else System.Int32.MinValue
 
 let truncateToInt64 (v : bigint) : int64 =
   try
@@ -487,21 +487,6 @@ module Json =
   module AutoSerialize =
     open Newtonsoft.Json
     open Microsoft.FSharp.Reflection
-
-    // Serialize bigints as strings
-    type BigIntConverter() =
-      inherit JsonConverter<bigint>()
-
-      override _.ReadJson(reader : JsonReader, _, _, _, s) : bigint =
-        reader.Value |> string |> parseBigint
-
-      override _.WriteJson
-        (
-          writer : JsonWriter,
-          value : bigint,
-          serializer : JsonSerializer
-        ) =
-        value |> string |> writer.WriteRawValue
 
     type FSharpDuConverter() =
       inherit JsonConverter()
@@ -751,7 +736,6 @@ module Json =
       settings.TypeNameHandling <- TypeNameHandling.None
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
-      settings.Converters.Add(AutoSerialize.BigIntConverter())
       settings.Converters.Add(AutoSerialize.TLIDConverter())
       settings.Converters.Add(AutoSerialize.PasswordConverter())
       settings.Converters.Add(AutoSerialize.FSharpListConverter())
@@ -790,7 +774,6 @@ module Json =
        settings.TypeNameHandling <- TypeNameHandling.None
        // dont deserialize date-looking string as dates
        settings.DateParseHandling <- DateParseHandling.None
-       settings.Converters.Add(AutoSerialize.BigIntConverter())
        settings.Converters.Add(AutoSerialize.TLIDConverter())
        settings.Converters.Add(AutoSerialize.PasswordConverter())
        settings.Converters.Add(AutoSerialize.FSharpListConverter())

@@ -52,25 +52,25 @@ let testUndo : Test =
       }
 
     let! v = exe ops
-    Expect.equal v (RT.DInt 5I) "check assumptions"
+    Expect.equal v (RT.DInt 5L) "check assumptions"
 
     let! v = exe (ops @ [ u ])
-    Expect.equal v (RT.DInt 4I) "first undo"
+    Expect.equal v (RT.DInt 4L) "first undo"
 
     let! v = exe (ops @ [ u; u ])
-    Expect.equal v (RT.DInt 3I) "second undo"
+    Expect.equal v (RT.DInt 3L) "second undo"
 
     let! v = exe (ops @ [ u; u; r ])
-    Expect.equal v (RT.DInt 4I) "2 undos and a redo"
+    Expect.equal v (RT.DInt 4L) "2 undos and a redo"
 
     let! v = exe (ops @ [ u; u; r; r ])
-    Expect.equal v (RT.DInt 5I) "2 undos and 2 redos"
+    Expect.equal v (RT.DInt 5L) "2 undos and 2 redos"
 
     let! v = exe (ops @ [ u; u; r; r; u ])
-    Expect.equal v (RT.DInt 4I) "2 undos and 2 redos, then another undo"
+    Expect.equal v (RT.DInt 4L) "2 undos and 2 redos, then another undo"
 
     let! v = exe (ops @ [ u; u; r; r; u; r ])
-    Expect.equal v (RT.DInt 5I) "2 undos and 2 redos, then another undo + redo"
+    Expect.equal v (RT.DInt 5L) "2 undos and 2 redos, then another undo + redo"
   }
 
 let testCanvasVerificationUndoRenameDupedName : Test =

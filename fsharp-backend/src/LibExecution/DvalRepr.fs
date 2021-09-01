@@ -375,7 +375,7 @@ let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
            | JList [ JString k; JString v ] -> (k, v)
            | _ -> failwith "Invalid DHttpResponse headers")
 
-    Response(bigint code, headers, dv)
+    Response(code, headers, dv)
   | _ -> failwith "invalid response json"
 
 #nowarn "104" // ignore warnings about enums out of range
@@ -389,7 +389,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
   let convert = unsafeDvalOfJsonV0
 
   match json with
-  | JInteger i -> DInt(bigint i)
+  | JInteger i -> DInt i
   | JFloat f -> DFloat f
   | JBoolean b -> DBool b
   | JNull -> DNull
@@ -460,7 +460,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   let convert = unsafeDvalOfJsonV1
 
   match json with
-  | JInteger i -> DInt(bigint i)
+  | JInteger i -> DInt i
   | JFloat f -> DFloat f
   | JBoolean b -> DBool b
   | JNull -> DNull
@@ -753,7 +753,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
 
   and convert (json : JToken) : Dval =
     match json with
-    | JInteger i -> DInt(bigint i)
+    | JInteger i -> DInt i
     | JFloat f -> DFloat f
     | JBoolean b -> DBool b
     | JNull -> DNull
@@ -926,7 +926,7 @@ let ofUnknownJsonV1 str =
   // might be better to switch to STJ
   let rec convert json =
     match json with
-    | JInteger i -> DInt(bigint i)
+    | JInteger i -> DInt i
     | JFloat f -> DFloat f
     | JBoolean b -> DBool b
     | JNull -> DNull
