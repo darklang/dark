@@ -34,6 +34,7 @@ ENV \
     # Configure web servers to bind to port 80 when present
     ASPNETCORE_URLS=http://+:80 \
     DOTNET_SDK_VERSION=6.0.100-rc.1.21417.9 \
-    DOTNET_RUNNING_IN_CONTAINER=true
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_EnableDiagnostics=0
 
 COPY --from=installer ["/dotnet", "/usr/share/dotnet"]
