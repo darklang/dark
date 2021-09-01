@@ -6,11 +6,6 @@ WORKDIR /home/dark
 
 COPY --chown=dark . ./
 
-RUN ls -laR
-RUN pwd
-
-
-
 RUN ./scripts/linting/_check-linked-libs app/ApiServer
 # FSTODO
 #RUN ./scripts/linting/_check-linked-libs bin/emergency_login_script.exe
