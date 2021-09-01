@@ -312,7 +312,7 @@ open LibExecution.RuntimeTypes
 let rec debugDval (v : Dval) : string =
   match v with
   | DStr s ->
-    $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+    $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
   | DObj obj ->
     obj
@@ -758,7 +758,7 @@ let sampleDvals : List<string * Dval> =
          DHttpResponse(Response(200I, [ "content-length", "9" ], DStr "success")))
         ("db", DDB "Visitors")
         ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
-        ("password", DPassword(Password(toBytes "somebytes")))
+        ("password", DPassword(Password(UTF8.toBytes "somebytes")))
         ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
         ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
         ("option", DOption None)
@@ -823,7 +823,7 @@ module Http =
       if line = [] then
         (headers, remaining)
       else
-        let str = line |> Array.ofList |> ofBytes
+        let str = line |> Array.ofList |> UTF8.ofBytesUnsafe
         consumeHeaders (str :: headers) remaining
 
     let bytes = Array.toList response
@@ -843,6 +843,6 @@ module Http =
              | _ -> failwith $"not a valid header: {s}")
 
 
-    { status = status |> List.toArray |> ofBytes
+    { status = status |> List.toArray |> UTF8.ofBytesUnsafe
       headers = headers
       body = List.toArray body }

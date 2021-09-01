@@ -3,7 +3,6 @@ module LibExecutionStdLib.LibDate
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
-open FSharpPlus
 open Prelude
 
 let fn = FQFnName.stdlibFnName

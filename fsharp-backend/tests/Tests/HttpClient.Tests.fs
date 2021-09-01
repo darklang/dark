@@ -5,18 +5,15 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open System.Net.Sockets
 open System.IO
 open System.IO.Compression
 open System.Text.RegularExpressions
-open FSharpPlus
 
 type ConcurrentDictionary<'a, 'b> =
   System.Collections.Concurrent.ConcurrentDictionary<'a, 'b>
 
 open Prelude
 open Tablecloth
-open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -44,6 +41,25 @@ let normalizeHeaders
          (key, string body.Length)
        | other -> other)
 
+let randomBytes =
+  [ 0x2euy; 0x0Auy; 0xE8uy; 0xE6uy; 0xF1uy; 0xE0uy; 0x9Buy; 0xA6uy; 0xEuy ]
+
+// We can't add bytes to the test cases cause they're parsed a strings, so allow the
+// string RANDOM_BYTES which will be replaced with the pre-selected bytes chosen at
+// random.
+
+let updateBody (body : byte array) : byte array =
+  let rec find (bytes : byte list) : byte list =
+    match bytes with
+    | 0x52uy :: 0x41uy :: 0x4Euy :: 0x44uy :: 0x4Fuy :: 0x4Duy :: 0x5Fuy :: 0x42uy :: 0x59uy :: 0x54uy :: 0x45uy :: 0x53uy :: tail ->
+      randomBytes @ find tail
+    | [] -> []
+    | head :: tail -> head :: find tail
+
+  body |> List.fromArray |> find |> List.toArray
+
+
+
 
 
 
@@ -55,7 +71,7 @@ let t filename =
 
   let filename = $"tests/httpclienttestfiles/{filename}"
   let contents = System.IO.File.ReadAllBytes filename
-  let content = ofBytes contents
+  let content = UTF8.ofBytesUnsafe contents
 
   let expectedRequest, response, code =
     let m =
@@ -70,12 +86,19 @@ let t filename =
 
     (g.[2].Value, g.[3].Value, g.[4].Value)
 
-  let expected = expectedRequest |> toBytes |> Http.setHeadersToCRLF |> Http.split
   let expected =
-    { expected with headers = normalizeHeaders expected.body expected.headers }
-  let response = response |> toBytes |> Http.setHeadersToCRLF |> Http.split
+    expectedRequest |> UTF8.toBytes |> Http.setHeadersToCRLF |> Http.split
+  let newExpectedBody = updateBody expected.body
+  let expected =
+    { expected with
+        headers = normalizeHeaders newExpectedBody expected.headers
+        body = newExpectedBody }
+  let response = response |> UTF8.toBytes |> Http.setHeadersToCRLF |> Http.split
+  let newResponseBody = updateBody response.body
   let response =
-    { response with headers = normalizeHeaders response.body response.headers }
+    { response with
+        headers = normalizeHeaders newResponseBody response.headers
+        body = newResponseBody }
 
   testCases.[name] <- { expected = expected; result = response }
 
@@ -270,11 +293,11 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
             expectedStatus = expectedStatus
             actualStatus = actualStatus
             expectedHeaders = expectedHeaders
-            expectedBody = ofBytes expectedBody
+            expectedBody = UTF8.ofBytesUnsafe expectedBody
             actualHeaders = actualHeaders
-            actualBody = ofBytes actualBody }
+            actualBody = UTF8.ofBytesUnsafe actualBody }
           |> Json.Vanilla.prettySerialize
-          |> toBytes
+          |> UTF8.toBytes
 
         ctx.Response.StatusCode <- 400
         ctx.Response.ContentLength <- int64 body.Length

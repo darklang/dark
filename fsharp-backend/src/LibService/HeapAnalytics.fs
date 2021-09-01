@@ -105,7 +105,8 @@ let heapioEvent
     requestMessage.Content <- JsonContent.Create payload
 
     // auth
-    let authenticationString = $":{Config.heapioId}" |> toBytes |> base64Encode
+    let authenticationString =
+      $":{Config.heapioId}" |> UTF8.toBytes |> Base64.defaultEncodeToString
 
     requestMessage.Headers.Authorization <-
       AuthenticationHeaderValue("Basic", authenticationString)

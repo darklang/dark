@@ -3,11 +3,11 @@ module LibExecutionStdLib.LibHttp
 open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
-open FSharpPlus
-
-open LibExecution.RuntimeTypes
-open Prelude
 open System
+
+open Prelude
+open LibExecution.VendoredTablecloth
+open LibExecution.RuntimeTypes
 
 module Errors = LibExecution.Errors
 module DvalRepr = LibExecution.DvalRepr
@@ -271,7 +271,7 @@ let fns : List<BuiltInFn> =
           |> Map.toList
           |> List.map
                (fun (x, y) ->
-                 match (String.toLower x, y) with
+                 match (String.toLowercase x, y) with
                  // Single boolean set-cookie params
                  | "secure", DBool b
                  | "httponly", DBool b -> if b then [ x ] else []
@@ -316,7 +316,7 @@ let fns : List<BuiltInFn> =
           |> Map.toList
           |> List.map
                (fun (x, y) ->
-                 match (String.toLower x, y) with
+                 match (String.toLowercase x, y) with
                  // Single boolean set-cookie params
                  | "secure", DBool b
                  | "httponly", DBool b -> if b then [ x ] else []
@@ -365,7 +365,7 @@ let fns : List<BuiltInFn> =
         | state, [ DStr name; DStr value; DObj o ] ->
 
           let fold_cookie_params acc key value =
-            match (String.toLower key, value) with
+            match (String.toLowercase key, value) with
             // Bubble up errors for values that are invalid for all params
             | _,
               ((DIncomplete _
@@ -392,7 +392,7 @@ let fns : List<BuiltInFn> =
             | "samesite", v ->
               (match v with
                | DStr str when
-                 List.contains (String.toLower str) [ "strict"; "lax"; "none" ]
+                 List.contains (String.toLowercase str) [ "strict"; "lax"; "none" ]
                  ->
                  (sprintf "%s=%s" key str :: acc)
                | _ ->
@@ -432,7 +432,7 @@ let fns : List<BuiltInFn> =
           //
           // If you really want to shield against invalid
           // cookie-name/cookie-value strings, go read RFC6265 first.
-          let cookieParams = Map.fold fold_cookie_params [] o
+          let cookieParams = Map.fold [] fold_cookie_params o
 
           nameValue :: cookieParams
           |> String.concat "; "

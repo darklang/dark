@@ -2,7 +2,6 @@ module LibExecution.Ast
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open Prelude
 open VendoredTablecloth

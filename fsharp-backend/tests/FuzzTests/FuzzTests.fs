@@ -29,8 +29,8 @@ let (.=.) actual expected : bool =
     Expect.equal actual expected ""
     true
   else
-    let o = actual.ToString() |> toBytes
-    let e = expected.ToString() |> toBytes
+    let o = string actual |> UTF8.toBytes
+    let e = string expected |> UTF8.toBytes
     Expect.equal (actual, o) (expected, e) ""
     false
 
@@ -60,7 +60,7 @@ module Generators =
   let string () =
     let isValid (s : string) : bool =
       try
-        let (_ : string) = s.Normalize()
+        String.normalize s |> ignore<string>
         true
       with
       | e ->
@@ -518,7 +518,7 @@ module Hashing =
   // The format here is used to get values from the DB, so this has to be 100% identical
   let equalsOCamlToHashable (dv : RT.Dval) : bool =
     let ocamlVersion = (OCamlInterop.toHashableRepr dv).Result
-    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> ofBytes
+    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
     ocamlVersion .=. fsharpVersion
 
   let equalsOCamlV0 (l : List<RT.Dval>) : bool =
@@ -557,12 +557,12 @@ module PrettyMachineJson =
       dv
       |> DvalRepr.toPrettyMachineJsonStringV1
       |> Newtonsoft.Json.Linq.JToken.Parse
-      |> toString
+      |> string
 
     let expected =
       (OCamlInterop.toPrettyMachineJsonV1 dv).Result
       |> Newtonsoft.Json.Linq.JToken.Parse
-      |> toString
+      |> string
 
     actual .=. expected
 
@@ -830,7 +830,7 @@ module ExecutePureFunctions =
             | RT.TBytes ->
               // FSTODO: this doesn't really do anything useful
               let! bytes = Arb.generate<byte []>
-              let v = RT.EString(gid (), base64Encode bytes)
+              let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
               return call "String" "toBytes" 0 [ v ]
             | RT.TDB _ ->
               let! name = Generators.string ()
@@ -1032,17 +1032,17 @@ module ExecutePureFunctions =
                 // meaningful testing, generate them here.
                 let specific =
                   gen {
-                    match toString name, i with
+                    match string name, i with
                     | "String::toInt_v1", 0
                     | "String::toInt", 0 ->
                       let! v = Arb.generate<bigint>
-                      return v |> toString |> RT.DStr
+                      return v |> string |> RT.DStr
                     | "String::toFloat", 0 ->
                       let! v = Arb.generate<float>
-                      return v |> toString |> RT.DStr
+                      return v |> string |> RT.DStr
                     | "String::toUUID", 0 ->
                       let! v = Arb.generate<System.Guid>
-                      return v |> toString |> RT.DStr
+                      return v |> string |> RT.DStr
                     | "String::padStart", 1
                     | "String::padEnd", 1 ->
                       let! v = Generators.char ()

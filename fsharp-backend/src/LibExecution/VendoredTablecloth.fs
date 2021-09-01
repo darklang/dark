@@ -9,14 +9,22 @@ module LibExecution.VendoredTablecloth
 module Map =
   let keys (map : Map<'k, 'v>) : List<'k> =
     seq {
-      for KeyValue (key, value) in map do
+      for KeyValue (key, _) in map do
         yield key
+    }
+    |> List.ofSeq
+
+  let values (map : Map<'k, 'v>) : List<'v> =
+    seq {
+      for KeyValue (_, value) in map do
+        yield value
     }
     |> List.ofSeq
 
   let all (f : 'v -> bool) (m : Map<'k, 'v>) : bool = Map.forall (fun _ v -> f v) m
 
-  let map f m = Map.map (fun _ v -> f v) m
+  let map (f : 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map (fun _ v -> f v) m
+  let mapWithIndex (f : 'k -> 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map f m
 
   let fold
     (initial : 'state)
@@ -28,17 +36,29 @@ module Map =
   let get (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m
 
 module Tuple2 =
+  let make (a : 'a) (b : 'b) : 'a * 'b = (a, b)
   let first (v1 : 'a, _ : 'b) : 'a = v1
   let second (_ : 'a, v2 : 'b) : 'b = v2
+  let mapFirst (f : 'x -> 'r) (x : 'x, y : 'y) : 'r * 'y = (f x, y)
+  let mapSecond (f : 'y -> 'r) (x : 'x, y : 'y) : 'x * 'r = (x, f y)
+
 
 module String =
   let toLowercase (s : string) : string = s.ToLower()
   let toUppercase (s : string) : string = s.ToUpper()
   let startsWith (prefix : string) (s : string) : bool = s.StartsWith(prefix)
+  let endsWith (suffix : string) (s : string) : bool = s.EndsWith(suffix)
   let includes (substring : string) (s : string) : bool = s.Contains(substring)
   let split (on : string) (s : string) : List<string> = s.Split(on) |> List.ofArray
+
+  let trim (s : string) : string = s.Trim()
   let dropLeft (count : int) (s : string) : string = s.[count..]
   let dropRight (count : int) (s : string) : string = s.[0..(s.Length - (count + 1))]
+
+  let replace (old : string) (newStr : string) (s : string) : string =
+    s.Replace(old, newStr)
+
+  let toArray (s : string) : char array = s.ToCharArray()
 
 module List =
   let filterMap (f : 'a -> Option<'b>) (xs : List<'a>) : List<'b> = List.choose f xs

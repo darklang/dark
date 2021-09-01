@@ -33,7 +33,7 @@ let store
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "traceID", Sql.uuid traceID
                       "tlid", Sql.tlid tlid
-                      "fnName", Sql.string (toString fnDesc)
+                      "fnName", Sql.string (string fnDesc)
                       "id", Sql.id id
                       ("hash",
                        arglist

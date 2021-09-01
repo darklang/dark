@@ -1,11 +1,11 @@
 module BackendOnlyStdLib.LibJwt
 
-open FSharpPlus
 open System.Security.Cryptography
 open System.Text
 
 open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
@@ -92,7 +92,7 @@ module Legacy =
     | DErrorRail dv -> toYojson dv
     | DResult (Ok dv) -> toYojson dv
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
-    | DBytes bytes -> bytes |> base64Encode |> String
+    | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> String
 
   // We are adding bytes to match the OCaml implementation. Don't use strings
   // or characters as those are different sizes: OCaml strings are literally
@@ -102,7 +102,7 @@ module Legacy =
   type Vector = System.Collections.Generic.List<byte>
 
   let append (v : Vector) (s : string) : unit =
-    let bytes = toBytes s
+    let bytes = UTF8.toBytes s
     v.Capacity <- v.Capacity + bytes.Length // avoid resizing multiple times
     Array.iter (fun b -> v.Add b) bytes
 
@@ -117,7 +117,7 @@ module Legacy =
 
   and appendString (v : Vector) (s : string) : unit =
     s
-    |> toBytes
+    |> UTF8.toBytes
     |> Array.iter
          (fun b ->
            match b with
@@ -193,7 +193,7 @@ module Legacy =
   let toString (j : Yojson) : string =
     let v = Vector 10
     toString' v j
-    v.ToArray() |> ofBytes
+    v.ToArray() |> UTF8.ofBytesUnsafe
 
 
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
@@ -201,21 +201,19 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     extraHeaders
     |> Map.add "alg" (DStr "RS256")
     |> Map.add "type" (DStr "JWT")
-    |> Map.map (fun k v -> Legacy.toYojson v)
+    |> Map.mapWithIndex (fun k v -> Legacy.toYojson v)
     |> Map.toList
     |> Legacy.Assoc
     |> Legacy.toString
-    |> toBytes
-    |> base64Encode
-    |> base64ToUrlEncoded
+    |> UTF8.toBytes
+    |> Base64.urlEncodeToString
 
   let payload =
     payload
     |> Legacy.toYojson
     |> Legacy.toString
-    |> toBytes
-    |> base64Encode
-    |> base64ToUrlEncoded
+    |> UTF8.toBytes
+    |> Base64.urlEncodeToString
 
   let body = header + "." + payload
 
@@ -227,37 +225,42 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     let sha256 = SHA256.Create()
 
     body
-    |> toBytes
+    |> UTF8.toBytes
     |> sha256.ComputeHash
     |> RSAFormatter.CreateSignature
-    |> base64Encode
-    |> base64ToUrlEncoded
+    |> Base64.urlEncodeToString
 
   body + "." + signature
 
 let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
-  match Seq.toList (String.split [| "." |] token) with
+  match Seq.toList (String.split "." token) with
   | [ header; payload; signature ] ->
     // do the minimum of parsing and decoding before verifying signature.
     // c.f. "cryptographic doom principle".
     try
-      let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
+      let signature = signature |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
       match signature with
       | None -> None
       | Some signature ->
-        let hash = (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
+        let hash =
+          (header + "." + payload) |> UTF8.toBytes |> SHA256.Create().ComputeHash
 
         let rsaDeformatter = RSAPKCS1SignatureDeformatter key
         rsaDeformatter.SetHashAlgorithm "SHA256"
 
         if rsaDeformatter.VerifySignature(hash, signature) then
-          let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-          let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
-
-          match (header, payload) with
-          | Some header, Some payload -> Some(ofBytes header, ofBytes payload)
-          | _ -> None
+          let header =
+            header
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
+          let payload =
+            payload
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
+          Option.map2 Tuple2.make header payload
         else
           None
     with
@@ -269,27 +272,36 @@ let verifyAndExtractV1
   (token : string)
   : Result<string * string, string> =
 
-  match Seq.toList (String.split [| "." |] token) with
+  match String.split "." token with
   | [ header; payload; signature ] ->
     //do the minimum of parsing and decoding before verifying signature.
     //c.f. "cryptographic doom principle".
     try
-      let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
+      let signature = signature |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
       match signature with
       | None -> Error "Unable to base64-decode signature"
       | Some signature ->
-        let hash = (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
+        let hash =
+          (header + "." + payload) |> UTF8.toBytes |> SHA256.Create().ComputeHash
 
         let rsaDeformatter = RSAPKCS1SignatureDeformatter key
         rsaDeformatter.SetHashAlgorithm "SHA256"
 
         if rsaDeformatter.VerifySignature(hash, signature) then
-          let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-          let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+          let header =
+            header
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
+          let payload =
+            payload
+            |> Base64.fromUrlEncoded
+            |> Base64.decodeOpt
+            |> Option.bind UTF8.ofBytesOpt
 
           match (header, payload) with
-          | Some header, Some payload -> Ok(ofBytes header, ofBytes payload)
+          | Some header, Some payload -> Ok(header, payload)
           | Some _, None -> Error "Unable to base64-decode header"
           | _ -> Error "Unable to base64-decode payload"
         else

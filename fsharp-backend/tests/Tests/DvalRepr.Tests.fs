@@ -86,10 +86,10 @@ module ToHashableRepr =
     let t (dv : Dval) (expected : string) : Test =
       testTask $"toHashableRepr: {dv}" {
         let! ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
-        let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> ofBytes
+        let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
-          let p str = str |> toBytes |> System.BitConverter.ToString
+          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
           print "expected: {p expected}"
           print "ocaml   : {p ocamlVersion}"
           print "fsharp  : {p fsharpVersion}"
@@ -132,7 +132,7 @@ module ToHashableRepr =
         let fsharpVersion = DvalRepr.hash 0 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
-          let p str = str |> toBytes |> System.BitConverter.ToString
+          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
           print "expected: {p expected}"
           print "ocaml   : {p ocamlVersion}"
           print "fsharp  : {p fsharpVersion}"
@@ -157,10 +157,10 @@ module ToHashableRepr =
         let fsharpVersion = DvalRepr.hash 1 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
-          let p str = str |> toBytes |> System.BitConverter.ToString
-          print "expected: {p expected}"
-          print "ocaml   : {p ocamlVersion}"
-          print "fsharp  : {p fsharpVersion}"
+          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
+          print $"expected: {p expected}"
+          print $"ocaml   : {p ocamlVersion}"
+          print $"fsharp  : {p fsharpVersion}"
 
         Expect.equal ocamlVersion expected "wrong test value"
         Expect.equal fsharpVersion expected "bad fsharp impl"
@@ -236,7 +236,7 @@ let allRoundtrips =
 module Password =
   let testJsonRoundtripForwards =
     test "json roundtrips forward" {
-      let password = RT.DPassword(Password(toBytes "x"))
+      let password = RT.DPassword(Password(UTF8.toBytes "x"))
 
       Expect.equalDval
         password
@@ -251,19 +251,21 @@ module Password =
   let testSerialization =
     test "password serialization" {
       let testSerialize expected name f =
-        let bytes = toBytes "encryptedbytes"
+        let bytes = UTF8.toBytes "encryptedbytes"
         let password = RT.DPassword(Password bytes)
 
         Expect.equal
           expected
-          (String.includes ("encryptedbytes" |> toBytes |> base64Encode) (f password))
+          (String.includes
+            ("encryptedbytes" |> UTF8.toBytes |> Base64.defaultEncodeToString)
+            (f password))
           ($"Passwords serialize in non-redaction function: {name}")
 
       let doesSerialize = testSerialize true
       let doesntSerialize = testSerialize false
 
       let roundtrips name serialize deserialize =
-        let bytes = toBytes "encryptedbytes"
+        let bytes = UTF8.toBytes "encryptedbytes"
         let password = RT.DPassword(Password bytes)
 
         Expect.equalDval
@@ -299,7 +301,7 @@ module Password =
   let testSerialization2 =
     test "serialization in object" {
       let roundtrips name serialize deserialize =
-        let bytes = toBytes "encryptedbytes" in
+        let bytes = UTF8.toBytes "encryptedbytes" in
         let password = RT.DObj(Map.ofList [ "x", RT.DPassword(Password bytes) ])
 
         let wrappedSerialize dval =

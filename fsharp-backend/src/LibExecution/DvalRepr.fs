@@ -39,7 +39,7 @@ let writeJson (f : JsonWriter -> unit) : string =
   // Match yojson
   w.FloatFormatHandling <- FloatFormatHandling.Symbol
   f w
-  stream.ToString()
+  string stream
 
 let writePrettyJson (f : JsonWriter -> unit) : string =
   let stream = new System.IO.StringWriter()
@@ -48,7 +48,7 @@ let writePrettyJson (f : JsonWriter -> unit) : string =
   w.FloatFormatHandling <- FloatFormatHandling.Symbol
   w.Formatting <- Formatting.Indented
   f w
-  stream.ToString()
+  string stream
 
 
 
@@ -410,7 +410,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
     | [ ("type", JString "date"); ("value", JString v) ] ->
       DDate(System.DateTime.ofIsoString v)
     | [ ("type", JString "password"); ("value", JString v) ] ->
-      v |> base64Decode |> Password |> DPassword
+      v |> Base64.fromDefaultEncoded |> Base64.decode |> Password |> DPassword
     | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
     | [ ("type", JString "bytes"); ("value", JString v) ] ->
       // Note that the OCaml version uses the non-url-safe b64 encoding here
@@ -480,7 +480,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
     | [ ("type", JString "date"); ("value", JString v) ] ->
       DDate(System.DateTime.ofIsoString v)
     | [ ("type", JString "password"); ("value", JString v) ] ->
-      v |> base64Decode |> Password |> DPassword
+      v |> Base64.fromEncoded |> Base64.decode |> Password |> DPassword
     | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
     | [ ("type", JString "bytes"); ("value", JString v) ] ->
       // Note that the OCaml version uses the non-url-safe b64 encoding here
@@ -613,8 +613,8 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
     if redact then
       wrapNullValue "password"
     else
-      hashed |> base64Encode |> wrapStringValue "password"
-  | DUuid uuid -> wrapStringValue "uuid" (uuid.ToString())
+      hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
+  | DUuid uuid -> wrapStringValue "uuid" (string uuid)
   | DOption opt ->
     (match opt with
      | None -> wrapNullValue "option"
@@ -695,7 +695,7 @@ let ofInternalRoundtrippableJsonV0 (j : JToken) : Result<Dval, string> =
   try
     unsafeDvalOfJsonV1 j |> Ok
   with
-  | e -> Error(e.ToString())
+  | e -> Error(string e)
 
 let ofInternalRoundtrippableV0 (str : string) : Dval =
   // cleanup: we know the types here, so we should probably do type directed parsing and simplify what's stored
@@ -770,7 +770,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
       | [ ("type", JString "date"); ("value", JString v) ] ->
         DDate(System.DateTime.ofIsoString v)
       | [ ("type", JString "password"); ("value", JString v) ] ->
-        v |> base64Decode |> Password |> DPassword
+        v |> Base64.decodeFromString |> Password |> DPassword
       | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     // Json.NET does a bunch of magic based on the contents of various types.
@@ -1078,23 +1078,23 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
   let indent = indent + 2 in
 
   match dv with
-  | DDB dbname -> ("<db: " + dbname + ">") |> toBytes
-  | DInt i -> toString i |> toBytes
-  | DBool true -> "true" |> toBytes
-  | DBool false -> "false" |> toBytes
-  | DFloat f -> ocamlStringOfFloat f |> toBytes
-  | DNull -> "null" |> toBytes
-  | DStr s -> "\"" + toString s + "\"" |> toBytes
-  | DChar c -> "'" + toString c + "'" |> toBytes
+  | DDB dbname -> ("<db: " + dbname + ">") |> UTF8.toBytes
+  | DInt i -> string i |> UTF8.toBytes
+  | DBool true -> "true" |> UTF8.toBytes
+  | DBool false -> "false" |> UTF8.toBytes
+  | DFloat f -> ocamlStringOfFloat f |> UTF8.toBytes
+  | DNull -> "null" |> UTF8.toBytes
+  | DStr s -> "\"" + string s + "\"" |> UTF8.toBytes
+  | DChar c -> "'" + string c + "'" |> UTF8.toBytes
   | DIncomplete _ ->
-    "<incomplete: <incomplete>>" |> toBytes (* Can't be used anyway *)
+    "<incomplete: <incomplete>>" |> UTF8.toBytes (* Can't be used anyway *)
   | DFnVal _ ->
     (* See docs/dblock-serialization.ml *)
-    "<block: <block>>" |> toBytes
-  | DError (_, msg) -> "<error: " + msg + ">" |> toBytes
-  | DDate d -> "<date: " + d.toIsoString () + ">" |> toBytes
-  | DPassword _ -> "<password: <password>>" |> toBytes
-  | DUuid id -> "<uuid: " + toString id + ">" |> toBytes
+    "<block: <block>>" |> UTF8.toBytes
+  | DError (_, msg) -> "<error: " + msg + ">" |> UTF8.toBytes
+  | DDate d -> "<date: " + d.toIsoString () + ">" |> UTF8.toBytes
+  | DPassword _ -> "<password: <password>>" |> UTF8.toBytes
+  | DUuid id -> "<uuid: " + string id + ">" |> UTF8.toBytes
   | DHttpResponse d ->
     let formatted, hdv =
       match d with
@@ -1106,58 +1106,60 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
           |> String.concat ","
           |> fun s -> "{ " + s + " }"
 
-        (toString c + " " + stringOfHeaders hs, hdv)
+        (string c + " " + stringOfHeaders hs, hdv)
 
-    [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ] |> Array.concat
+    [ (formatted + nl) |> UTF8.toBytes; toHashableRepr indent false hdv ]
+    |> Array.concat
   | DList l ->
     if List.isEmpty l then
-      "[]" |> toBytes
+      "[]" |> UTF8.toBytes
     else
       let body =
         l
         |> List.map (toHashableRepr indent false)
-        |> List.intersperse (toBytes ", ")
+        |> List.intersperse (UTF8.toBytes ", ")
         |> Array.concat
 
-      Array.concat [ "[ " |> toBytes
-                     inl |> toBytes
+      Array.concat [ "[ " |> UTF8.toBytes
+                     inl |> UTF8.toBytes
                      body
-                     nl |> toBytes
-                     "]" |> toBytes ]
+                     nl |> UTF8.toBytes
+                     "]" |> UTF8.toBytes ]
   | DObj o ->
     if Map.isEmpty o then
-      "{}" |> toBytes
+      "{}" |> UTF8.toBytes
     else
       let rows =
         o
         |> Map.fold
              []
              (fun l key value ->
-               (Array.concat [ toBytes (key + ": ")
+               (Array.concat [ UTF8.toBytes (key + ": ")
                                toHashableRepr indent false value ]
                 :: l))
-        |> List.intersperse (toBytes ("," + inl))
+        |> List.intersperse (UTF8.toBytes ("," + inl))
 
       Array.concat (
-        [ toBytes "{ "; toBytes inl ] @ rows @ [ toBytes nl; toBytes "}" ]
+        [ UTF8.toBytes "{ "; UTF8.toBytes inl ]
+        @ rows @ [ UTF8.toBytes nl; UTF8.toBytes "}" ]
       )
-  | DOption None -> "Nothing" |> toBytes
+  | DOption None -> "Nothing" |> UTF8.toBytes
   | DOption (Some dv) ->
-    Array.concat [ "Just " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "Just " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DErrorRail dv ->
-    Array.concat [ "ErrorRail: " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ErrorRail: " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DResult (Ok dv) ->
-    Array.concat [ "ResultOk " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ResultOk " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DResult (Error dv) ->
-    Array.concat [ "ResultError " |> toBytes; toHashableRepr indent false dv ]
+    Array.concat [ "ResultError " |> UTF8.toBytes; toHashableRepr indent false dv ]
   | DBytes bytes ->
     if oldBytes then
       bytes
     else
       bytes
       |> System.Security.Cryptography.SHA384.HashData
-      |> base64UrlEncode
-      |> toBytes
+      |> Base64.urlEncodeToString
+      |> UTF8.toBytes
 
 
 let supportedHashVersions : int list = [ 0; 1 ]
@@ -1168,7 +1170,9 @@ let currentHashVersion : int = 1
 // size of the data stored by only storing a hash
 let hash (version : int) (arglist : List<Dval>) : string =
   let hashStr (bytes : byte []) : string =
-    bytes |> System.Security.Cryptography.SHA384.HashData |> base64UrlEncode
+    bytes
+    |> System.Security.Cryptography.SHA384.HashData
+    |> Base64.urlEncodeToString
 
   // Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
   // [b"ab"; b"c"]

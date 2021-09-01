@@ -1,13 +1,12 @@
 module BackendOnlyStdLib.LibHttpClient5
 
 open System.Threading.Tasks
-open System.Numerics
 open FSharp.Control.Tasks
-open FSharpPlus
 open System.Net.Http
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
 
@@ -91,36 +90,23 @@ let encodeRequestBody
 let sendRequest
   (uri : string)
   (verb : HttpMethod)
-  (requestBody : Dval option)
+  (reqBody : Dval option)
   (query : Dval)
-  (requestHeaders : Dval)
-  : Task<Dval> =
-  task {
-    let encodedQuery = HttpClient.dvalToQuery query
+  (reqHeaders : Dval)
+  : Ply<Dval> =
+  uply {
+    let query = HttpClient.dvalToQuery query
 
     // Headers
-    let encodedRequestHeaders = DvalRepr.toStringPairsExn requestHeaders
+    let encodedReqHeaders = DvalRepr.toStringPairsExn reqHeaders
     let contentType =
-      HttpClient.getHeader "content-type" encodedRequestHeaders
-      |> Option.defaultValue (guessContentType requestBody)
+      HttpClient.getHeader "content-type" encodedReqHeaders
+      |> Option.defaultValue (guessContentType reqBody)
+    let reqHeaders =
+      Map.add "Content-Type" contentType (Map encodedReqHeaders) |> Map.toList
+    let encodedReqBody = encodeRequestBody reqBody contentType
 
-    let defaultHeaders =
-      [ "Accept", "*/*"
-        "Accept-Encoding", "deflate, gzip, br"
-        "Content-Type", contentType ]
-
-    let requestHeaders =
-      // Prioritize the users' headers over the defaults
-      Map.union (Map defaultHeaders) (Map encodedRequestHeaders)
-    let encodedRequestBody = encodeRequestBody requestBody contentType
-    match! HttpClient.httpCall
-             0
-             false
-             uri
-             encodedQuery
-             verb
-             (Map.toList requestHeaders)
-             encodedRequestBody with
+    match! HttpClient.httpCall 0 false uri query verb reqHeaders encodedReqBody with
     | Ok response ->
       let parsedResponseBody =
         // CLEANUP: form header never triggers. But is it even needed?
@@ -137,10 +123,9 @@ let sendRequest
         else
           DStr response.body
 
-      // FSTODO: test redirects
       let parsedResponseHeaders =
         response.headers
-        |> List.map (fun (k, v) -> (k.Trim(), DStr(v.Trim())))
+        |> List.map (fun (k, v) -> (String.trim k, DStr(String.trim v)))
         |> List.filter (fun (k, _) -> String.length k > 0)
         |> Map.ofList
         |> DObj // in old version, this was Dval.obj, however we want to allow duplicates
@@ -148,7 +133,6 @@ let sendRequest
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
                    ("headers", parsedResponseHeaders)
-                   // FSTODO: what about bad utf8?
                    ("raw", DStr response.body)
                    ("code", DInt(bigint response.code))
                    ("error", DStr response.error) ]
@@ -163,19 +147,12 @@ let sendRequest
 let call (method : HttpMethod) =
   (function
   | _, [ DStr uri; body; query; headers ] ->
-    uply {
-      let! response = sendRequest uri method (Some body) query headers
-      return response
-    }
+    sendRequest uri method (Some body) query headers
   | _ -> incorrectArgs ())
 
 let callNoBody (method : HttpMethod) : BuiltInFnSig =
   (function
-  | _, [ DStr uri; query; headers ] ->
-    uply {
-      let! response = sendRequest uri method None query headers
-      return response
-    }
+  | _, [ DStr uri; query; headers ] -> sendRequest uri method None query headers
   | _ -> incorrectArgs ())
 
 

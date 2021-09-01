@@ -3,7 +3,6 @@ module LibExecutionStdLib.LibJson
 open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -78,7 +77,7 @@ let fns : List<BuiltInFn> =
             let dval = json |> DvalRepr.ofUnknownJsonV1
             Ply(DResult(Ok dval))
            with
-           | Failure (e) -> e.ToString() |> DStr |> Error |> DResult |> Ply)
+           | Failure e -> e |> string |> DStr |> Error |> DResult |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

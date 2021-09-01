@@ -69,16 +69,17 @@ module SchedulingRule =
       | Block
       | Pause
 
+      override this.ToString() : string =
+        match this with
+        | Block -> "block"
+        | Pause -> "pause"
+
+
     let parse (r : string) : Option<T> =
       match r with
       | "block" -> Some Block
       | "pause" -> Some Pause
       | _ -> None
-
-    let toString r : string =
-      match r with
-      | Block -> "block"
-      | Pause -> "pause"
 
   type T =
     { id : int
@@ -90,7 +91,7 @@ module SchedulingRule =
 
   let toDval (r : T) : RT.Dval =
     RT.Dval.obj [ ("id", RT.Dval.int r.id)
-                  ("rule_type", r.ruleType |> RuleType.toString |> RT.Dval.DStr)
+                  ("rule_type", r.ruleType |> string |> RT.Dval.DStr)
                   ("canvas_id", RT.Dval.DUuid r.canvasID)
                   ("handler_name", RT.Dval.DStr r.handlerName)
                   ("event_space", RT.Dval.DStr r.eventSpace)
@@ -104,11 +105,11 @@ module WorkerStates =
     | Blocked
     | Paused
 
-  let toString (s : State) : string =
-    match s with
-    | Running -> "run"
-    | Blocked -> "block"
-    | Paused -> "pause"
+    override this.ToString() : string =
+      match this with
+      | Running -> "run"
+      | Blocked -> "block"
+      | Paused -> "pause"
 
   let parse (str : string) : State =
     match str with
@@ -138,7 +139,7 @@ module WorkerStates =
           value : State,
           _ : JsonSerializer
         ) =
-        writer.WriteValue(toString value)
+        writer.WriteValue(string value)
 
   let find (k : string) (m : T) = Map.get k m
 
@@ -471,7 +472,7 @@ let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pau
 let putBack (parent : Span.T) (item : T) (status : Status) : Task<unit> =
   let span =
     (Span.child "event_queue: put_back_transaction" parent)
-      .AddTag("status", toString status)
+      .AddTag("status", string status)
       .AddTag("retries", item.retries)
     |> ignore<Activity>
 

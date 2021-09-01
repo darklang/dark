@@ -4,7 +4,6 @@ module LibBackend.Account
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open Npgsql.FSharp
 open Npgsql
 
@@ -124,7 +123,7 @@ let validateEmail (email : string) : Result<unit, string> =
 
 
 let validateAccount (account : Account) : Result<unit, string> =
-  validateUserName (toString account.username)
+  validateUserName (string account.username)
   |> Result.and_ (validateEmail account.email)
 
 // Passwords set here are only valid locally, production uses auth0 to check
@@ -151,12 +150,11 @@ let upsertAccount
                            email = EXCLUDED.email,
                            password = EXCLUDED.password"
         |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                            "username", Sql.string (toString account.username)
+                            "username", Sql.string (string account.username)
                             "admin", Sql.bool admin
                             "name", Sql.string account.name
                             "email", Sql.string account.email
-                            ("password",
-                             account.password |> Password.toString |> Sql.string) ]
+                            ("password", account.password |> string |> Sql.string) ]
         |> Sql.executeStatementAsync
         |> Task.map Ok
     | Error _ -> return result
@@ -177,7 +175,7 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
       "SELECT id
        FROM accounts
        WHERE accounts.username = @username"
-    |> Sql.parameters [ "username", Sql.string (toString username) ]
+    |> Sql.parameters [ "username", Sql.string (string username) ]
     |> Sql.executeRowAsync (fun read -> read.uuid "id")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
@@ -194,7 +192,7 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
     "SELECT name, email, admin, id
      FROM accounts
      WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (toString username) ]
+  |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync
        (fun read ->
          { username = username
@@ -208,7 +206,7 @@ let getUserCreatedAt (username : UserName.T) : Task<System.DateTime> =
     "SELECT created_at
      FROM accounts
      WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (toString username) ]
+  |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
 
 let getUserAndCreatedAtAndAnalyticsMetadata
@@ -218,7 +216,7 @@ let getUserAndCreatedAtAndAnalyticsMetadata
     "SELECT name, email, admin, created_at, id, segment_metadata
      FROM accounts
      WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (toString username) ]
+  |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync
        (fun read ->
          { username = username
@@ -255,7 +253,7 @@ let isAdmin (username : UserName.T) : Task<bool> =
      FROM accounts
      WHERE accounts.username = @username
        AND admin = true"
-  |> Sql.parameters [ "username", Sql.string (toString username) ]
+  |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeExistsAsync
 
 let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
@@ -263,7 +261,7 @@ let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
     "UPDATE accounts
         SET admin = @admin where username = @username"
   |> Sql.parameters [ "admin", Sql.bool admin
-                      "username", Sql.string (toString username) ]
+                      "username", Sql.string (string username) ]
   |> Sql.executeStatementAsync
 
 // Returns None if no valid user, or Some username _from the db_ if valid.
@@ -292,7 +290,8 @@ let authenticate
   |> Task.map (
     Option.andThen
       (fun (username, password) ->
-        let dbHash = password |> base64Decode |> ofBytes
+        let dbHash =
+          password |> Base64.decodeFromString |> UTF8.ofBytesWithReplacement
 
         if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
           Some(username)
@@ -304,9 +303,9 @@ let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
 // formerly called auth_domain_for
 let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
-  match String.split "-" (toString host) with
+  match String.split "-" (string host) with
   | owner :: _ -> OwnerName.create owner
-  | _ -> OwnerName.create (toString host)
+  | _ -> OwnerName.create (string host)
 
 // **********************
 // What user has access to

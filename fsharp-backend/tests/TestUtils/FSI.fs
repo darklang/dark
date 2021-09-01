@@ -41,4 +41,4 @@ let executeOCaml (code : string) : RT.Dval =
 
 
 let toBytes (dv : RT.Dval) : string =
-  dv |> toString |> toBytes |> System.BitConverter.ToString
+  dv |> string |> UTF8.toBytes |> System.BitConverter.ToString

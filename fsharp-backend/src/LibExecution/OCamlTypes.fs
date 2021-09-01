@@ -13,7 +13,6 @@ module LibExecution.OCamlTypes
 
 // fsharplint:disable FL0038
 
-open FSharpPlus
 
 open Prelude
 open VendoredTablecloth
@@ -370,7 +369,7 @@ module Convert =
     | ORT.ERightPartial (id, str, oldExpr) -> PT.ERightPartial(id, str, r oldExpr)
     | ORT.ELeftPartial (id, str, oldExpr) -> PT.ELeftPartial(id, str, r oldExpr)
     | ORT.EList (id, exprs) -> PT.EList(id, List.map r exprs)
-    | ORT.ERecord (id, pairs) -> PT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | ORT.ERecord (id, pairs) -> PT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | ORT.EPipe (id, expr1 :: expr2 :: rest) ->
       PT.EPipe(id, r expr1, r expr2, List.map r rest)
     | ORT.EPipe (id, [ expr ]) -> r expr
@@ -381,7 +380,7 @@ module Convert =
       PT.EMatch(
         id,
         r mexpr,
-        List.map ((Tuple2.mapItem1 ocamlPattern2PT) << (Tuple2.mapItem2 r)) pairs
+        List.map ((Tuple2.mapFirst ocamlPattern2PT) << (Tuple2.mapSecond r)) pairs
       )
     | ORT.EPipeTarget id -> PT.EPipeTarget id
     | ORT.EFeatureFlag (id, name, cond, caseA, caseB) ->
@@ -562,7 +561,7 @@ module Convert =
   let ocamlTLIDOplist2PT
     (tlidOplist : tlid_oplist<ORT.fluidExpr>)
     : tlid * PT.Oplist =
-    Tuple2.mapItem2 ocamlOplist2PT tlidOplist
+    Tuple2.mapSecond ocamlOplist2PT tlidOplist
 
 
   let ocamlToplevel2PT
@@ -614,13 +613,12 @@ module Convert =
     | PT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
     | PT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
-    | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, i.ToString())
+    | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
     | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | PT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | PT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
-    | PT.PFloat (id, Positive, w, f) ->
-      ORT.FPFloat(mid, id, w.ToString(), f.ToString())
-    | PT.PFloat (id, Negative, w, f) -> ORT.FPFloat(mid, id, $"-{w}", f.ToString())
+    | PT.PFloat (id, Positive, w, f) -> ORT.FPFloat(mid, id, string w, string f)
+    | PT.PFloat (id, Negative, w, f) -> ORT.FPFloat(mid, id, $"-{w}", string f)
     | PT.PNull (id) -> ORT.FPNull(mid, id)
     | PT.PBlank (id) -> ORT.FPBlank(mid, id)
 
@@ -631,7 +629,7 @@ module Convert =
     | RT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
     | RT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
-    | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, i.ToString())
+    | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
     | RT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
@@ -660,7 +658,7 @@ module Convert =
 
     match p with
     | PT.EBlank id -> ORT.EBlank id
-    | PT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
+    | PT.EInteger (id, num) -> ORT.EInteger(id, string num)
     | PT.ECharacter (id, num) -> failwith "Characters not supported"
     | PT.EString (id, str) -> ORT.EString(id, str)
     | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, string w, string f)
@@ -681,7 +679,7 @@ module Convert =
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
       ORT.EBinOp(
         id,
-        name.ToString() |> String.replace "_v0" "",
+        name |> string |> String.replace "_v0" "",
         r arg1,
         r arg2,
         pt2ocamlSter ster
@@ -694,7 +692,7 @@ module Convert =
     | PT.ERightPartial (id, str, oldExpr) -> ORT.ERightPartial(id, str, r oldExpr)
     | PT.ELeftPartial (id, str, oldExpr) -> ORT.ELeftPartial(id, str, r oldExpr)
     | PT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
-    | PT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | PT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | PT.EPipe (id, expr1, expr2, rest) ->
       ORT.EPipe(id, r expr1 :: r expr2 :: List.map r rest)
     | PT.EConstructor (id, name, exprs) ->
@@ -704,7 +702,7 @@ module Convert =
         id,
         r mexpr,
         List.map
-          ((Tuple2.mapItem1 (pt2ocamlPattern id)) << (Tuple2.mapItem2 r))
+          ((Tuple2.mapFirst (pt2ocamlPattern id)) << (Tuple2.mapSecond r))
           pairs
       )
     | PT.EPipeTarget id -> ORT.EPipeTarget id
@@ -716,7 +714,7 @@ module Convert =
 
     match e with
     | RT.EBlank id -> ORT.EBlank id
-    | RT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
+    | RT.EInteger (id, num) -> ORT.EInteger(id, string num)
     | RT.ECharacter (id, num) -> failwith "Characters not supported"
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
@@ -732,7 +730,7 @@ module Convert =
       ORT.EIf(id, r cond, r thenExpr, r elseExpr)
     | RT.EPartial (id, oldExpr) -> ORT.EPartial(id, "partial", r oldExpr)
     | RT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
-    | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | RT.EConstructor (id, name, exprs) ->
       ORT.EConstructor(id, name, List.map r exprs)
     | RT.EMatch (id, mexpr, pairs) ->
@@ -740,7 +738,7 @@ module Convert =
         id,
         r mexpr,
         List.map
-          ((Tuple2.mapItem1 (rt2ocamlPattern id)) << (Tuple2.mapItem2 r))
+          ((Tuple2.mapFirst (rt2ocamlPattern id)) << (Tuple2.mapSecond r))
           pairs
       )
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
@@ -783,7 +781,7 @@ module Convert =
         name = string2bo ids.nameID name
         modifier =
           interval
-          |> Option.map toString
+          |> Option.map string
           |> Option.defaultValue ""
           |> string2bo ids.modifierID
         types = types }

@@ -2,7 +2,6 @@ module LibBackend.Session
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open Npgsql.FSharp
 open Npgsql
 

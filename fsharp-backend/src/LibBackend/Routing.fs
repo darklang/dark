@@ -33,7 +33,7 @@ let routeToPostgresPattern (route : string) : string =
        (function
        | '%' -> "\\%"
        | '_' -> "\\_"
-       | other -> other.ToString())
+       | other -> string other)
   |> splitUriPath
   |> Array.map
        (fun segment -> if String.startsWith ":" segment then "%" else segment)

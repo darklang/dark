@@ -7,7 +7,6 @@ open FSharp.Control.Tasks
 
 open System.Net.Sockets
 open System.Text.RegularExpressions
-open FSharpPlus
 
 open Prelude
 open Tablecloth
@@ -126,8 +125,7 @@ let t filename =
       (bodyLength : int)
       : (string * string) list =
       hs
-      |> List.map
-           (fun (k, v) -> (k, FsRegEx.replace "LENGTH" (toString bodyLength) v))
+      |> List.map (fun (k, v) -> (k, FsRegEx.replace "LENGTH" (string bodyLength) v))
       |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
       // Json can be different lengths, this plugs in the expected length
       |> List.sortBy Tuple2.first
@@ -213,8 +211,8 @@ let t filename =
           let asJson =
             try
               Some(
-                LibExecution.DvalRepr.parseJson (ofBytes actual.body),
-                LibExecution.DvalRepr.parseJson (ofBytes expected.body)
+                LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe actual.body),
+                LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe expected.body)
               )
             with
             | e -> None
@@ -222,13 +220,13 @@ let t filename =
           match asJson with
           | Some (aJson, eJson) ->
             Expect.equal
-              (actual.status, aHeaders, toString aJson)
-              (expected.status, eHeaders, toString eJson)
+              (actual.status, aHeaders, string aJson)
+              (expected.status, eHeaders, string eJson)
               $"({server} as json)"
           | None ->
             Expect.equal
-              (actual.status, aHeaders, ofBytes actual.body)
-              (expected.status, eHeaders, ofBytes expected.body)
+              (actual.status, aHeaders, UTF8.ofBytesUnsafe actual.body)
+              (expected.status, eHeaders, UTF8.ofBytesUnsafe expected.body)
               $"({server} as string)"
 
       }

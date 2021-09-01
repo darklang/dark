@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
               .Append(hexUppercaseLookup.[(byte &&& 0xF)])
             |> ignore<StringBuilder>
 
-          buf.ToString() |> DStr |> Ply
+          buf |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

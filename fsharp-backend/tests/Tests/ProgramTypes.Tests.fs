@@ -11,7 +11,7 @@ module S = LibExecution.Shortcuts
 let rtFQFnName =
   testMany
     "FQFnName.ToString"
-    (fun (name : RT.FQFnName.T) -> name.ToString())
+    string
     [ (RT.FQFnName.stdlibFqName "" "++" 0), "++"
       (RT.FQFnName.stdlibFqName "" "!=" 0), "!="
       (RT.FQFnName.stdlibFqName "" "&&" 0), "&&"
@@ -23,7 +23,7 @@ let rtFQFnName =
 let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
-    (fun (name : PT.FQFnName.T) -> name.ToString())
+    string
     [ (PT.FQFnName.stdlibFqName "" "++" 0), "++"
       (PT.FQFnName.stdlibFqName "" "!=" 0), "!="
       (PT.FQFnName.stdlibFqName "" "&&" 0), "&&"

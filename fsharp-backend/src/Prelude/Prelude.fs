@@ -201,42 +201,117 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
   with
   | e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
 
-let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
+// The default System.Text.Encoding.UTF8 replaces invalid bytes on error. We
+// sometimes want this, but often we want to assert that the bytes we can are valid
+// and throw if they aren't.
+module UTF8 =
 
-let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
+  // This encoding throws errors on invalid bytes
+  let utf8EncodingWithExceptions = System.Text.UTF8Encoding(false, true)
 
-let base64Encode (input : byte []) : string = input |> System.Convert.ToBase64String
+  // Throws if the bytes are not valid UTF8
+  let ofBytesUnsafe (input : byte array) : string =
+    utf8EncodingWithExceptions.GetString input
 
-// Convert a base64 encoded string to one that is url-safe
-let base64ToUrlEncoded (str : string) : string =
-  str.Replace('+', '-').Replace('/', '_').Replace("=", "")
+  // I'm assuming if it makes it into a UTF8 string it must be valid? That might be
+  // an incorrect assumption.
+  let toBytes (input : string) : byte array =
+    utf8EncodingWithExceptions.GetBytes input
 
-// Convert a url-safe base64 string to one that uses the more traditional format
-let base64FromUrlEncoded (str : string) : string =
-  let initial = str.Replace('-', '+').Replace('_', '/')
-  let length = initial.Length
+  let toBytesOpt (input : string) : byte array option =
+    try
+      Some(toBytes input)
+    with
+    | e -> None
 
-  if length % 4 = 2 then $"{initial}=="
-  else if length % 4 = 3 then $"{initial}="
-  else initial
+  let ofBytesOpt (input : byte array) : string option =
+    try
+      Some(ofBytesUnsafe input)
+    with
+    | e -> None
 
-let base64UrlEncode (bytes : byte []) : string =
-  bytes |> base64Encode |> base64ToUrlEncoded
 
-let base64Decode (encoded : string) : byte [] =
-  encoded |> System.Convert.FromBase64String
+  // Use this to ignore errors
+  let ofBytesWithReplacement (input : byte array) : string =
+    System.Text.Encoding.UTF8.GetString input
 
-let base64DecodeOpt (encoded : string) : byte [] option =
-  try
-    encoded |> System.Convert.FromBase64String |> Some
-  with
-  | _ -> None
+
+// Base64 comes in various flavors, typically URLsafe (has '-' amd '_' with no
+// padding) or regular (has + and / and has '=' padding at the end)
+module Base64 =
+
+  type Base64UrlEncoded = Base64UrlEncoded of string
+  type Base64DefaultEncoded = Base64DefaultEncoded of string
+
+  type T =
+    | UrlEncoded of Base64UrlEncoded
+    | DefaultEncoded of Base64DefaultEncoded
+
+    override this.ToString() =
+      match this with
+      | UrlEncoded (Base64UrlEncoded s) -> s
+      | DefaultEncoded (Base64DefaultEncoded s) -> s
+
+  // Convert to string with default base64 encoding
+  let defaultEncodeToString (input : byte array) : string =
+    System.Convert.ToBase64String input
+
+  // Convert to base64 string
+  let encode (input : byte array) : T =
+    input |> defaultEncodeToString |> Base64DefaultEncoded |> DefaultEncoded
+
+  // Convert to string with url-flavored base64 encoding
+
+
+
+  // type-safe wrapper for an already-encoded urlEncoded string
+  let fromUrlEncoded (string : string) : T = string |> Base64UrlEncoded |> UrlEncoded
+
+  // type-safe wrapper for an already-encoded defaultEncoded string
+  let fromDefaultEncoded (string : string) : T =
+    string |> Base64DefaultEncoded |> DefaultEncoded
+
+  // If we don't know how it's encoded, covert to urlEncoded as we can be certain then.
+  let fromEncoded (string : string) : T =
+    string.Replace('+', '-').Replace('/', '_').Replace("=", "")
+    |> Base64UrlEncoded
+    |> UrlEncoded
+
+  let asUrlEncodedString (b64 : T) : string =
+    match b64 with
+    | UrlEncoded (Base64UrlEncoded s) -> s
+    | DefaultEncoded (Base64DefaultEncoded s) ->
+      s.Replace('+', '-').Replace('/', '_').Replace("=", "")
+
+  let asDefaultEncodedString (b64 : T) : string =
+    match b64 with
+    | DefaultEncoded (Base64DefaultEncoded s) -> s
+    | UrlEncoded (Base64UrlEncoded s) ->
+      let initial = s.Replace('-', '+').Replace('_', '/')
+      let length = initial.Length
+
+      if length % 4 = 2 then $"{initial}=="
+      else if length % 4 = 3 then $"{initial}="
+      else initial
+
+  let urlEncodeToString (input : byte array) : string =
+    input |> encode |> asUrlEncodedString
+
+  // Takes an already-encoded base64 string, and decodes it to bytes
+  let decode (b64 : T) : byte [] =
+    b64 |> asDefaultEncodedString |> System.Convert.FromBase64String
+
+  let decodeFromString (input : string) : byte array = input |> fromEncoded |> decode
+
+  let decodeOpt (b64 : T) : byte [] option =
+    try
+      b64 |> decode |> Some
+    with
+    | _ -> None
 
 let sha1digest (input : string) : byte [] =
   use sha1 = System.Security.Cryptography.SHA1.Create()
-  input |> toBytes |> sha1.ComputeHash
-
-let toString (v : 'a) : string = v.ToString()
+  input |> UTF8.toBytes |> sha1.ComputeHash
 
 let truncateToInt32 (v : bigint) : int32 =
   try
@@ -315,6 +390,7 @@ module String =
   let splitOnNewline (str : string) : List<string> =
     str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
+
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
@@ -322,6 +398,18 @@ module String =
 
   let equalsCaseInsensitive (s1 : string) (s2 : string) : bool =
     System.String.Equals(s1, s2, System.StringComparison.InvariantCultureIgnoreCase)
+
+  let replace (old : string) (newStr : string) (s : string) : string =
+    s.Replace(old, newStr)
+
+
+module Map =
+  let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
+    FSharpPlus.Map.union m2 m1
+
+  let mergeFavoringLeft (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
+    FSharpPlus.Map.union m1 m2
+
 
 module HashSet =
   type T<'v> = System.Collections.Generic.HashSet<'v>
@@ -405,7 +493,7 @@ module Json =
       inherit JsonConverter<bigint>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, s) : bigint =
-        reader.Value.ToString() |> parseBigint
+        reader.Value |> string |> parseBigint
 
       override _.WriteJson
         (
@@ -413,7 +501,7 @@ module Json =
           value : bigint,
           serializer : JsonSerializer
         ) =
-        writer.WriteRawValue(value.ToString())
+        value |> string |> writer.WriteRawValue
 
     type FSharpDuConverter() =
       inherit JsonConverter()
@@ -535,7 +623,7 @@ module Json =
       inherit JsonConverter<tlid>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        let rawToken = reader.Value.ToString()
+        let rawToken = string reader.Value
         parseUInt64 rawToken
 
       override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
@@ -546,7 +634,7 @@ module Json =
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
         failwith "unsupported deserialization of password"
-        Password(toBytes "password should never be read here")
+        Password(UTF8.toBytes "password should never be read here")
 
       override _.WriteJson
         (
@@ -606,7 +694,7 @@ module Json =
       inherit JsonConverter<double>()
 
       override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        let rawToken = reader.Value.ToString()
+        let rawToken = string reader.Value
 
         match rawToken with
         | "Infinity" -> System.Double.PositiveInfinity
@@ -637,9 +725,7 @@ module Json =
       // arrays, but I think this is the only user. If not, we'll need to add a
       // RawBytes type.
       override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        reader.Value :?> string
-        |> base64FromUrlEncoded
-        |> System.Convert.FromBase64String
+        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode
 
       override _.WriteJson
         (
@@ -647,10 +733,7 @@ module Json =
           value : byte [],
           _ : JsonSerializer
         ) =
-        value
-        |> System.Convert.ToBase64String
-        |> base64ToUrlEncoded
-        |> writer.WriteValue
+        value |> Base64.urlEncodeToString |> writer.WriteValue
 
   // This is used for "normal" JSON conversion, such as converting Pos into
   // json. It does not feature anything for conversion to OCaml-compatible
@@ -745,9 +828,6 @@ module Tablecloth =
   module Map =
     let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
       List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
-
-    let merge (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
-      FSharpPlus.Map.union m1 m2
 
 type Ply<'a> = Ply.Ply<'a>
 let uply = FSharp.Control.Tasks.Affine.Unsafe.uply
@@ -1031,7 +1111,7 @@ module OwnerName =
     | OwnerName of string
 
     override this.ToString() = let (OwnerName name) = this in name
-    member this.toUserName() : UserName.T = UserName.create (this.ToString())
+    member this.toUserName() : UserName.T = UserName.create (string this)
 
   let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
 

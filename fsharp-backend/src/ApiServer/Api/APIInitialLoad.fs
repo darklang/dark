@@ -8,7 +8,6 @@ open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open Prelude
 open Tablecloth
 
@@ -121,13 +120,13 @@ let initialLoad (ctx : HttpContext) : Task<T> =
         unlocked_dbs = unlocked
         assets = List.map toApiStaticDeploys staticAssets
         op_ctrs = opCtrs
-        canvas_list = List.map toString canvasList
-        org_canvas_list = List.map toString orgCanvasList
+        canvas_list = List.map string canvasList
+        org_canvas_list = List.map string orgCanvasList
         permission = permission
-        orgs = List.map toString orgList
+        orgs = List.map string orgList
         worker_schedules = workerSchedules
         account =
-          { username = user.username.ToString()
+          { username = string user.username
             name = user.name
             email = user.email
             admin = user.admin

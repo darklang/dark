@@ -277,7 +277,7 @@ let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
              Some AllOrigins
            | System.Text.Json.JsonValueKind.Array ->
              json.RootElement.EnumerateArray()
-             |> Seq.map (fun e -> e.ToString())
+             |> Seq.map string
              |> Seq.toList
              |> Origins
              |> Some
@@ -890,12 +890,11 @@ let canvasIDForCanvasName
   (owner : UserID)
   (canvasName : CanvasName.T)
   : Task<CanvasID> =
-  let canvasName = canvasName.ToString()
   // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
   Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
   |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
                       "owner", Sql.uuid owner
-                      "canvasName", Sql.string canvasName ]
+                      "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
 let toProgram (c : T) : RT.ProgramContext =

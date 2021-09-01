@@ -195,7 +195,7 @@ let canonicalizeURL (toHttps : bool) (url : string) =
   if toHttps then
     let uri = System.UriBuilder url
     uri.Scheme <- "https"
-    uri.ToString()
+    string uri
   else
     url
 
@@ -282,7 +282,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     | Some canvasName ->
       // CLEANUP: move execution ID header up
       let ownerName = Account.ownerNameFromCanvasName canvasName
-      let ownerUsername = UserName.create (toString ownerName)
+      let ownerUsername = UserName.create (string ownerName)
 
       let! ownerID =
         catch "user not found" 404 Account.userIDForUserName ownerUsername
@@ -352,7 +352,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | None -> // vars didnt parse
           return!
             msg 500 $"The request ({requestPath}) does not match the route ({route})"
-      | [] when toString ctx.Request.Path = "/favicon.ico" ->
+      | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
       | [] ->
         // FSTODO: The request body is created in the pipeline. Should we run this through the pipeline to a handler that returns 404?

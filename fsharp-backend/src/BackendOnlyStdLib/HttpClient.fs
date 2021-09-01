@@ -13,6 +13,7 @@ open System.IO
 open Prelude
 open LibExecution
 open LibBackend
+open VendoredTablecloth
 
 module RT = RuntimeTypes
 
@@ -52,8 +53,8 @@ let urlEncodeValue (s : string) : string =
     | b when b = (byte '_') -> [| b |]
     | b when b = (byte '=') -> [| b |] // not the same for key
     | b when b = (byte '\'') -> [| b |]
-    | _ -> toBytes ("%" + b.ToString("X2"))
-  s |> toBytes |> Array.collect encodeByte |> ofBytes
+    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
+  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
 
 // urlEncode keys in a query string. Note that the encoding is slightly different to
 // query string values
@@ -82,8 +83,8 @@ let urlEncodeKey (s : string) : string =
     | b when b = (byte '_') -> [| b |]
     | b when b = (byte '\'') -> [| b |]
 
-    | _ -> toBytes ("%" + b.ToString("X2"))
-  s |> toBytes |> Array.collect encodeByte |> ofBytes
+    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
+  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
 
 
 // Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
@@ -141,13 +142,13 @@ let rec dvalToUrlStringExn (dv : RT.Dval) : string =
   | RT.DHttpResponse (RT.Response (_, _, hdv)) -> r hdv
   | RT.DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
   | RT.DObj o ->
-    let strs = Map.fold (fun l key value -> (key + ": " + r value) :: l) [] o
+    let strs = Map.fold [] (fun l key value -> (key + ": " + r value) :: l) o
     "{ " + (String.concat ", " strs) + " }"
   | RT.DOption None -> "none"
   | RT.DOption (Some v) -> r v
   | RT.DResult (Error v) -> "error=" + r v
   | RT.DResult (Ok v) -> r v
-  | RT.DBytes bytes -> base64Encode bytes
+  | RT.DBytes bytes -> Base64.defaultEncodeToString bytes
 
 let dvalToQuery (dv : RT.Dval) : (string * string list) list =
   match dv with
@@ -332,7 +333,7 @@ let makeHttpCall
           req.Headers.Authorization <-
             AuthenticationHeaderValue(
               "Basic",
-              System.Convert.ToBase64String(toBytes authString)
+              System.Convert.ToBase64String(UTF8.toBytes authString)
             )
 
         // content
@@ -347,23 +348,26 @@ let makeHttpCall
 
 
         // headers
-        List.iter
-          (fun (k, v) ->
-            if v = "" then
-              // CLEANUP: OCaml doesn't send empty headers, but no reason not to
-              ()
-            elif String.equalsCaseInsensitive k "content-type" then
-              req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
-            else
-              // Dark headers can only be added once, as they use a Dict. Remove them
-              // so they don't get added twice (eg via Authorization headers above)
-              req.Headers.Remove(k) |> ignore<bool>
-              let added = req.Headers.TryAddWithoutValidation(k, v)
-              // Headers are split between req.Headers and req.Content.Headers so just try both
-              if not added then
-                req.Content.Headers.Remove(k) |> ignore<bool>
-                req.Content.Headers.Add(k, v))
-          reqHeaders
+        let defaultHeaders =
+          Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
+        Map reqHeaders
+        |> Map.mergeFavoringRight defaultHeaders
+        |> Map.iter
+             (fun k v ->
+               if v = "" then
+                 // CLEANUP: OCaml doesn't send empty headers, but no reason not to
+                 ()
+               elif String.equalsCaseInsensitive k "content-type" then
+                 req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
+               else
+                 // Dark headers can only be added once, as they use a Dict. Remove them
+                 // so they don't get added twice (eg via Authorization headers above)
+                 req.Headers.Remove(k) |> ignore<bool>
+                 let added = req.Headers.TryAddWithoutValidation(k, v)
+                 // Headers are split between req.Headers and req.Content.Headers so just try both
+                 if not added then
+                   req.Content.Headers.Remove(k) |> ignore<bool>
+                   req.Content.Headers.Add(k, v))
 
         // send request
         use! response = httpClient.SendAsync req
@@ -378,7 +382,7 @@ let makeHttpCall
           let decompress = CompressionMode.Decompress
           // The version of Curl we used in OCaml does not support zstd, so omitting
           // that won't break anything.
-          match encoding.ToLower() with
+          match String.toLowercase encoding with
           | "br" -> new BrotliStream(responseStream, decompress) :> Stream
           | "gzip" -> new GZipStream(responseStream, decompress) :> Stream
           | "deflate" -> new DeflateStream(responseStream, decompress) :> Stream
@@ -406,7 +410,8 @@ let makeHttpCall
           if latin1 then
             System.Text.Encoding.Latin1.GetString respBody
           else
-            ofBytes respBody
+            // CLEANUP there are other options here, and this is a bad error message
+            UTF8.ofBytesOpt respBody |> Option.defaultValue "utf-8 decoding error"
 
         let code = int response.StatusCode
 
@@ -428,7 +433,7 @@ let makeHttpCall
         // control over this, so make this lowercase by default
         let headers =
           if isHttp2 then
-            List.map (fun (k : string, v) -> (k.ToLower(), v)) headers
+            List.map (fun (k : string, v) -> (String.toLowercase k, v)) headers
           else
             headers
 

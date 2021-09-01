@@ -3,7 +3,6 @@ module LibExecutionStdLib.LibResult
 open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open LibExecution.RuntimeTypes
 

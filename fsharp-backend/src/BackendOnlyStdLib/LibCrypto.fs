@@ -5,7 +5,6 @@ open System.Threading.Tasks
 open System.Numerics
 open System.Security.Cryptography
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -53,7 +52,7 @@ let fns : List<BuiltInFn> =
                calls eventually, transparently salts:
                https://github.com/jedisct1/libsodium/blob/d49d7e8d4f4dd8df593beb9e715e7bc87bc74108/src/libsodium/crypto_pwhash/argon2/pwhash_argon2i.c#L187 *)
           |> Sodium.PasswordHash.ArgonHashString
-          |> toBytes
+          |> UTF8.toBytes
           |> Password
           |> DPassword
           |> Ply
@@ -71,7 +70,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DPassword (Password existingpw); DStr rawpw ] ->
-          Sodium.PasswordHash.ArgonHashStringVerify(existingpw, toBytes rawpw)
+          Sodium.PasswordHash.ArgonHashStringVerify(existingpw, UTF8.toBytes rawpw)
           |> DBool
           |> Ply
         | _ -> incorrectArgs ())

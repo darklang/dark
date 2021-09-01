@@ -3,7 +3,6 @@
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharp.Control.Tasks.Affine.Unsafe
-open FSharpPlus
 
 open Prelude
 open RuntimeTypes
@@ -15,12 +14,12 @@ let globalsFor (state : ExecutionState) : Symtable =
     |> Map.ofList
 
   let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
-  Map.union secrets dbs
+  Map.mergeFavoringLeft secrets dbs
 
 
 let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
   let globals = globalsFor state
-  Map.union globals symtable
+  Map.mergeFavoringRight globals symtable
 
 
 
@@ -55,7 +54,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | _ ->
         let st = if lhs <> "" then Map.add lhs rhs st else st
         return! eval state st body
-    | EString (_id, s) -> return DStr(s.Normalize())
+    | EString (_id, s) -> return DStr(String.normalize s)
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
@@ -225,7 +224,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
           let newVars = Map.ofList newDefs
 
-          let newSt = Map.union newVars st
+          let newSt = Map.mergeFavoringRight st newVars
 
           if !hasMatched then
             // We matched, but we've already matched a pattern previously
@@ -480,7 +479,7 @@ and executeLambda
 
       let paramSyms = List.zip parameters args |> Map
       // paramSyms is higher priority
-      let newSymtable = Map.union paramSyms l.symtable
+      let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
 
       eval state newSymtable l.body
 

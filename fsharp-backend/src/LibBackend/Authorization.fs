@@ -57,8 +57,8 @@ let setUserAccess
            AND u.username = @username
            AND a.access_account = u.id
            AND a.organization_account = o.id"
-    |> Sql.parameters [ "username", username |> toString |> Sql.string
-                        "orgName", orgName |> toString |> Sql.string ]
+    |> Sql.parameters [ "username", username |> string |> Sql.string
+                        "orgName", orgName |> string |> Sql.string ]
     |> Sql.executeStatementAsync
   | Some p ->
     Sql.query
@@ -69,9 +69,9 @@ let setUserAccess
          WHERE o.username = @orgName
            AND u.username = @username
          ON CONFLICT (access_account, organization_account) DO UPDATE SET permission = EXCLUDED.permission"
-    |> Sql.parameters [ "username", username |> toString |> Sql.string
-                        "orgName", orgName |> toString |> Sql.string
-                        "permission", p |> toString |> Sql.string ]
+    |> Sql.parameters [ "username", username |> string |> Sql.string
+                        "orgName", orgName |> string |> Sql.string
+                        "permission", p |> string |> Sql.string ]
     |> Sql.executeStatementAsync
 
 
@@ -126,8 +126,8 @@ let grantedPermission
      INNER JOIN accounts org ON access.organization_account = org.id
      WHERE org.username = @ownerName
        AND user_.username = @username"
-  |> Sql.parameters [ "username", Sql.string (username |> toString)
-                      "ownerName", Sql.string (ownerName |> toString) ]
+  |> Sql.parameters [ "username", Sql.string (username |> string)
+                      "ownerName", Sql.string (ownerName |> string) ]
   |> Sql.executeRowOptionAsync
        (fun read -> read.string "permission" |> Permission.parse)
 
@@ -162,11 +162,11 @@ let matchPermission
   (username : UserName.T)
   (ownerName : OwnerName.T)
   : Option<Permission> =
-  if (username.ToString()) = (ownerName.ToString()) then Some ReadWrite else None
+  if string username = string ownerName then Some ReadWrite else None
 
 // Everyone should have read-access to 'sample'.
 let samplePermission (owner : OwnerName.T) : Option<Permission> =
-  if "sample" = (owner.ToString()) then Some Read else None
+  if "sample" = (string owner) then Some Read else None
 
 // What's the highest level of access a particular user has to a
 // particular user's canvas

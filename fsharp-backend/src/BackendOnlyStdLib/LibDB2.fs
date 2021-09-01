@@ -54,7 +54,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DObj value; DDB dbname ] ->
           uply {
-            let key = System.Guid.NewGuid() |> toString
+            let key = System.Guid.NewGuid() |> string
             let db = state.program.dbs.[dbname]
             let! _id = UserDB.set state true db key value
             return DStr(key)
@@ -677,7 +677,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, [] -> System.Guid.NewGuid().ToString() |> DStr |> Ply
+        | _, [] -> System.Guid.NewGuid() |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -56,11 +56,11 @@ let push
       with
       | e ->
         // swallow this error
-        print $"Error Sending push to Pusher {eventName}: {canvasID}: {e.ToString()}"
+        print $"Error Sending push to Pusher {eventName}: {canvasID}: {e}"
 
         LibService.Rollbar.send
           executionID
-          [ "canvasID", toString canvasID; "event", eventName; "context", "pusher" ]
+          [ "canvasID", string canvasID; "event", eventName; "context", "pusher" ]
           e
 
       return ()

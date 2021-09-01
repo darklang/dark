@@ -8,11 +8,11 @@ open System.Text
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open FSharpPlus
 open System.Text.RegularExpressions
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
@@ -165,7 +165,7 @@ let fns : List<BuiltInFn> =
               // .Net Replace doesn't allow empty string, but we do.
               String.toEgcSeq s
               |> Seq.toList
-              |> List.intersperse replace
+              |> FSharpPlus.List.intersperse replace
               |> (fun l -> replace :: l @ [ replace ])
               |> String.concat ""
               |> DStr
@@ -284,7 +284,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, uppercased"
       fn =
         (function
-        | _, [ DStr s ] -> Ply(DStr(String.toUpper s))
+        | _, [ DStr s ] -> Ply(DStr(String.toUppercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -314,7 +314,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, lowercased"
       fn =
         (function
-        | _, [ DStr s ] -> Ply(DStr(String.toLower s))
+        | _, [ DStr s ] -> Ply(DStr(String.toLowercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -379,7 +379,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, [ DStr s1; DStr s2 ] -> Ply(DStr((s1 + s2).Normalize()))
+        | _, [ DStr s1; DStr s2 ] -> (s1 + s2) |> String.normalize |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -414,7 +414,7 @@ let fns : List<BuiltInFn> =
           |> replace toRemove ""
           |> replace trim ""
           |> replace spaces "-"
-          |> String.toLower
+          |> String.toLowercase
           |> DStr
           |> Ply
 
@@ -440,7 +440,7 @@ let fns : List<BuiltInFn> =
           |> replace toRemove ""
           |> replace trim ""
           |> replace newSpaces "-"
-          |> String.toLower
+          |> String.toLowercase
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
@@ -464,9 +464,9 @@ let fns : List<BuiltInFn> =
             Regex.Replace(input, pattern, replacement)
 
           s
-          |> String.toLower
+          |> String.toLowercase
           |> replace toRemove ""
-          |> fun s -> s.Trim()
+          |> String.trim
           |> replace toBeHyphenated "-"
           |> DStr
           |> Ply
@@ -603,7 +603,12 @@ let fns : List<BuiltInFn> =
         "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
       fn =
         (function
-        | _, [ DStr s ] -> s |> toBytes |> base64UrlEncode |> DStr |> Ply
+        | _, [ DStr s ] ->
+          let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
+          // Inlined version of Base64.urlEncodeToString
+          defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
+          |> DStr
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -628,10 +633,8 @@ let fns : List<BuiltInFn> =
           if s = "" then
             // This seems like we should allow it
             Ply(DStr "")
-          // dotnet ignores whitespace but we don't allow it
-          else
-
-          if Regex.IsMatch(s, @"\s") then
+          elif Regex.IsMatch(s, @"\s") then
+            // dotnet ignores whitespace but we don't allow it
             err "Not a valid base64 string"
           else
             try
@@ -730,7 +733,7 @@ let fns : List<BuiltInFn> =
               let gen _ = char (gen ()) in
 
               (Array.toList (Array.init length gen))
-              |> List.map (fun i -> i.ToString())
+              |> List.map string
               |> String.concat ""
 
             randomString (int l) |> DStr |> Ply
@@ -758,7 +761,7 @@ let fns : List<BuiltInFn> =
               let gen _ = char (gen ()) in
 
               (Array.toList (Array.init length gen))
-              |> List.map (fun i -> i.ToString())
+              |> List.map string
               |> String.concat ""
 
             randomString (int l) |> DStr |> Ok |> DResult |> Ply
@@ -791,7 +794,7 @@ let fns : List<BuiltInFn> =
               let gen _ = char (gen ()) in
 
               (Array.toList (Array.init length gen))
-              |> List.map (fun i -> i.ToString())
+              |> List.map string
               |> String.concat ""
 
             randomString (int l) |> DStr |> Ok |> DResult |> Ply
@@ -927,7 +930,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DInt first; DInt last ] ->
 
           let chars = String.toEgcSeq s
-          let length = length chars |> bigint
+          let length = Seq.length chars |> bigint
 
           let normalize (i : bigint) =
             i
@@ -942,8 +945,8 @@ let fns : List<BuiltInFn> =
 
           chars
           |> Seq.toList
-          |> List.drop f
-          |> List.take (l - f)
+          |> FSharpPlus.List.drop f
+          |> List.truncate (l - f)
           |> String.concat ""
           |> DStr
           |> Ply
@@ -965,9 +968,10 @@ let fns : List<BuiltInFn> =
           let n = String.lengthInEgcs s |> bigint |> min n |> max 0I |> int
 
           String.toEgcSeq s
-          |> List.take n
+          |> Seq.toList
+          |> List.truncate n
           |> String.concat ""
-          |> fun s -> s.Normalize()
+          |> String.normalize
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
@@ -986,7 +990,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s; DInt n ] ->
           let egcSeq = String.toEgcSeq s
-          let stringEgcCount = length egcSeq
+          let stringEgcCount = Seq.length egcSeq
 
           let lastN s (numEgcs : bigint) =
             let stringBuilder = new StringBuilder(String.length s) in
@@ -1032,7 +1036,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s; DInt n ] ->
           let egcSeq = String.toEgcSeq s
-          let stringEgcCount = length egcSeq
+          let stringEgcCount = Seq.length egcSeq
 
           let dropLastN s (numEgcs : bigint) =
             let stringBuilder = new StringBuilder(String.length s) in
@@ -1127,7 +1131,7 @@ let fns : List<BuiltInFn> =
 
             stringBuilder.Append(s) |> ignore<StringBuilder>
 
-            stringBuilder.ToString().Normalize() |> DStr |> Ply
+            stringBuilder |> string |> String.normalize |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1157,7 +1161,7 @@ let fns : List<BuiltInFn> =
             for _ = 1 to requiredPads do
               stringBuilder.Append(padWith) |> ignore<StringBuilder>
 
-            stringBuilder.ToString().Normalize() |> DStr |> Ply
+            stringBuilder |> string |> String.normalize |> DStr |> Ply
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1170,7 +1174,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
       fn =
         (function
-        | _, [ DStr toTrim ] -> Ply(DStr(toTrim.Trim()))
+        | _, [ DStr toTrim ] -> toTrim |> String.trim |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure

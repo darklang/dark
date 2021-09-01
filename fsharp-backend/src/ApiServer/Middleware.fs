@@ -19,7 +19,6 @@ type ServerTiming = Lib.AspNetCore.ServerTiming.IServerTiming
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open Prelude
 open Tablecloth
 
@@ -172,7 +171,7 @@ type dataID =
 type ExecutionID = LibService.Telemetry.ExecutionID
 
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
-  ctx.Items.[id.ToString()] <- value
+  ctx.Items.[string id] <- value
   ctx
 
 let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items.[$"{id}"] :?> 'a
@@ -214,7 +213,7 @@ let sessionDataMiddleware : HttpHandler =
         if ctx.Request.Method = "GET" then
           Session.getNoCSRF sessionKey
         else
-          let csrfToken = ctx.Request.Headers.Item Session.csrfHeader |> toString
+          let csrfToken = ctx.Request.Headers.Item Session.csrfHeader |> string
           Session.get sessionKey csrfToken
 
       match session with
