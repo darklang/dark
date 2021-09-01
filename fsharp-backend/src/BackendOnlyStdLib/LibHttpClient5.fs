@@ -102,14 +102,8 @@ let sendRequest
       HttpClient.getHeader "content-type" encodedRequestHeaders
       |> Option.defaultValue (guessContentType requestBody)
 
-    let defaultHeaders =
-      [ "Accept", "*/*"
-        "Accept-Encoding", "deflate, gzip, br"
-        "Content-Type", contentType ]
-
     let requestHeaders =
-      // Prioritize the users' headers over the defaults
-      Map.mergeFavoringRight (Map defaultHeaders) (Map encodedRequestHeaders)
+      Map.add "Content-Type" contentType (Map encodedRequestHeaders)
     let encodedRequestBody = encodeRequestBody requestBody contentType
     match! HttpClient.httpCall
              0

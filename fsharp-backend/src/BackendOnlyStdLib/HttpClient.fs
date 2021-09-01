@@ -347,23 +347,26 @@ let makeHttpCall
 
 
         // headers
-        List.iter
-          (fun (k, v) ->
-            if v = "" then
-              // CLEANUP: OCaml doesn't send empty headers, but no reason not to
-              ()
-            elif String.equalsCaseInsensitive k "content-type" then
-              req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
-            else
-              // Dark headers can only be added once, as they use a Dict. Remove them
-              // so they don't get added twice (eg via Authorization headers above)
-              req.Headers.Remove(k) |> ignore<bool>
-              let added = req.Headers.TryAddWithoutValidation(k, v)
-              // Headers are split between req.Headers and req.Content.Headers so just try both
-              if not added then
-                req.Content.Headers.Remove(k) |> ignore<bool>
-                req.Content.Headers.Add(k, v))
-          reqHeaders
+        let defaultHeaders =
+          Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
+        Map reqHeaders
+        |> Map.mergeFavoringRight defaultHeaders
+        |> Map.iter
+             (fun k v ->
+               if v = "" then
+                 // CLEANUP: OCaml doesn't send empty headers, but no reason not to
+                 ()
+               elif String.equalsCaseInsensitive k "content-type" then
+                 req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
+               else
+                 // Dark headers can only be added once, as they use a Dict. Remove them
+                 // so they don't get added twice (eg via Authorization headers above)
+                 req.Headers.Remove(k) |> ignore<bool>
+                 let added = req.Headers.TryAddWithoutValidation(k, v)
+                 // Headers are split between req.Headers and req.Content.Headers so just try both
+                 if not added then
+                   req.Content.Headers.Remove(k) |> ignore<bool>
+                   req.Content.Headers.Add(k, v))
 
         // send request
         use! response = httpClient.SendAsync req
