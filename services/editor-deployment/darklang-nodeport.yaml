@@ -1,3 +1,4 @@
+# CLEANUP don't delete this, it's needed for F# too. Move to apiserver directory
 kind: Service
 apiVersion: v1
 metadata:
