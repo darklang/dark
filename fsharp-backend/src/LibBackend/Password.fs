@@ -7,12 +7,20 @@ open Prelude
 // Crypto::password function use the same algorithm so we do need to get this
 // right.
 
-type T = private Pw of string
+type T =
+  private
+  | Pw of string
 
-let toString (Pw pw : T) : string = pw
+  override this.ToString() : string =
+    let (Pw pw) = this
+    pw
 
 let fromPlaintext (password : string) : T =
-  password |> Sodium.PasswordHash.ArgonHashString |> toBytes |> base64Encode |> Pw
+  password
+  |> Sodium.PasswordHash.ArgonHashString
+  |> toBytes
+  |> Base64.defaultEncodeToString
+  |> Pw
 
 let invalid : T = Pw ""
 

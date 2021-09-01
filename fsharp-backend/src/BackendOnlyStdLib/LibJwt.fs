@@ -92,7 +92,7 @@ module Legacy =
     | DErrorRail dv -> toYojson dv
     | DResult (Ok dv) -> toYojson dv
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
-    | DBytes bytes -> bytes |> base64Encode |> String
+    | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> String
 
   // We are adding bytes to match the OCaml implementation. Don't use strings
   // or characters as those are different sizes: OCaml strings are literally
@@ -206,16 +206,14 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> Legacy.Assoc
     |> Legacy.toString
     |> toBytes
-    |> base64Encode
-    |> base64ToUrlEncoded
+    |> Base64.urlEncodeToString
 
   let payload =
     payload
     |> Legacy.toYojson
     |> Legacy.toString
     |> toBytes
-    |> base64Encode
-    |> base64ToUrlEncoded
+    |> Base64.urlEncodeToString
 
   let body = header + "." + payload
 
@@ -230,8 +228,7 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> toBytes
     |> sha256.ComputeHash
     |> RSAFormatter.CreateSignature
-    |> base64Encode
-    |> base64ToUrlEncoded
+    |> Base64.urlEncodeToString
 
   body + "." + signature
 
@@ -241,7 +238,7 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
     // do the minimum of parsing and decoding before verifying signature.
     // c.f. "cryptographic doom principle".
     try
-      let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
+      let signature = signature |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
       match signature with
       | None -> None
@@ -252,8 +249,8 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
         rsaDeformatter.SetHashAlgorithm "SHA256"
 
         if rsaDeformatter.VerifySignature(hash, signature) then
-          let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-          let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+          let header = header |> Base64.fromUrlEncoded |> Base64.decodeOpt
+          let payload = payload |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
           match (header, payload) with
           | Some header, Some payload -> Some(ofBytes header, ofBytes payload)
@@ -274,7 +271,7 @@ let verifyAndExtractV1
     //do the minimum of parsing and decoding before verifying signature.
     //c.f. "cryptographic doom principle".
     try
-      let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
+      let signature = signature |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
       match signature with
       | None -> Error "Unable to base64-decode signature"
@@ -285,8 +282,8 @@ let verifyAndExtractV1
         rsaDeformatter.SetHashAlgorithm "SHA256"
 
         if rsaDeformatter.VerifySignature(hash, signature) then
-          let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-          let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+          let header = header |> Base64.fromUrlEncoded |> Base64.decodeOpt
+          let payload = payload |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
           match (header, payload) with
           | Some header, Some payload -> Ok(ofBytes header, ofBytes payload)

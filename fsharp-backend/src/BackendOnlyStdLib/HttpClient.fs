@@ -147,7 +147,7 @@ let rec dvalToUrlStringExn (dv : RT.Dval) : string =
   | RT.DOption (Some v) -> r v
   | RT.DResult (Error v) -> "error=" + r v
   | RT.DResult (Ok v) -> r v
-  | RT.DBytes bytes -> base64Encode bytes
+  | RT.DBytes bytes -> Base64.defaultEncodeToString bytes
 
 let dvalToQuery (dv : RT.Dval) : (string * string list) list =
   match dv with

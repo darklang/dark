@@ -603,7 +603,12 @@ let fns : List<BuiltInFn> =
         "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
       fn =
         (function
-        | _, [ DStr s ] -> s |> toBytes |> base64UrlEncode |> DStr |> Ply
+        | _, [ DStr s ] ->
+          let defaultEncoded = s |> toBytes |> Convert.ToBase64String
+          // Inlined version of Base64.urlEncodeToString
+          defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
+          |> DStr
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -628,10 +633,8 @@ let fns : List<BuiltInFn> =
           if s = "" then
             // This seems like we should allow it
             Ply(DStr "")
-          // dotnet ignores whitespace but we don't allow it
-          else
-
-          if Regex.IsMatch(s, @"\s") then
+          elif Regex.IsMatch(s, @"\s") then
+            // dotnet ignores whitespace but we don't allow it
             err "Not a valid base64 string"
           else
             try

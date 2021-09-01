@@ -410,7 +410,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
     | [ ("type", JString "date"); ("value", JString v) ] ->
       DDate(System.DateTime.ofIsoString v)
     | [ ("type", JString "password"); ("value", JString v) ] ->
-      v |> base64Decode |> Password |> DPassword
+      v |> Base64.fromDefaultEncoded |> Base64.decode |> Password |> DPassword
     | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
     | [ ("type", JString "bytes"); ("value", JString v) ] ->
       // Note that the OCaml version uses the non-url-safe b64 encoding here
@@ -480,7 +480,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
     | [ ("type", JString "date"); ("value", JString v) ] ->
       DDate(System.DateTime.ofIsoString v)
     | [ ("type", JString "password"); ("value", JString v) ] ->
-      v |> base64Decode |> Password |> DPassword
+      v |> Base64.fromEncoded |> Base64.decode |> Password |> DPassword
     | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
     | [ ("type", JString "bytes"); ("value", JString v) ] ->
       // Note that the OCaml version uses the non-url-safe b64 encoding here
@@ -613,8 +613,8 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
     if redact then
       wrapNullValue "password"
     else
-      hashed |> base64Encode |> wrapStringValue "password"
-  | DUuid uuid -> wrapStringValue "uuid" (uuid.ToString())
+      hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
+  | DUuid uuid -> wrapStringValue "uuid" (string uuid)
   | DOption opt ->
     (match opt with
      | None -> wrapNullValue "option"
@@ -770,7 +770,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
       | [ ("type", JString "date"); ("value", JString v) ] ->
         DDate(System.DateTime.ofIsoString v)
       | [ ("type", JString "password"); ("value", JString v) ] ->
-        v |> base64Decode |> Password |> DPassword
+        v |> Base64.decodeFromString |> Password |> DPassword
       | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     // Json.NET does a bunch of magic based on the contents of various types.
@@ -1156,7 +1156,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
     else
       bytes
       |> System.Security.Cryptography.SHA384.HashData
-      |> base64UrlEncode
+      |> Base64.urlEncodeToString
       |> toBytes
 
 
@@ -1168,7 +1168,9 @@ let currentHashVersion : int = 1
 // size of the data stored by only storing a hash
 let hash (version : int) (arglist : List<Dval>) : string =
   let hashStr (bytes : byte []) : string =
-    bytes |> System.Security.Cryptography.SHA384.HashData |> base64UrlEncode
+    bytes
+    |> System.Security.Cryptography.SHA384.HashData
+    |> Base64.urlEncodeToString
 
   // Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
   // [b"ab"; b"c"]

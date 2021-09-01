@@ -830,7 +830,7 @@ module ExecutePureFunctions =
             | RT.TBytes ->
               // FSTODO: this doesn't really do anything useful
               let! bytes = Arb.generate<byte []>
-              let v = RT.EString(gid (), base64Encode bytes)
+              let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
               return call "String" "toBytes" 0 [ v ]
             | RT.TDB _ ->
               let! name = Generators.string ()

@@ -256,7 +256,9 @@ module Password =
 
         Expect.equal
           expected
-          (String.includes ("encryptedbytes" |> toBytes |> base64Encode) (f password))
+          (String.includes
+            ("encryptedbytes" |> toBytes |> Base64.defaultEncodeToString)
+            (f password))
           ($"Passwords serialize in non-redaction function: {name}")
 
       let doesSerialize = testSerialize true

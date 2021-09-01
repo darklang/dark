@@ -205,38 +205,83 @@ let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes i
 
 let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
 
-let base64Encode (input : byte []) : string = input |> System.Convert.ToBase64String
 
-// Convert a base64 encoded string to one that is url-safe
-let base64ToUrlEncoded (str : string) : string =
-  str.Replace('+', '-').Replace('/', '_').Replace("=", "")
+// Base64 comes in various flavors, typically URLsafe (has '-' amd '_' with no
+// padding) or regular (has + and / and has '=' padding at the end)
+module Base64 =
 
-// Convert a url-safe base64 string to one that uses the more traditional format
-let base64FromUrlEncoded (str : string) : string =
-  let initial = str.Replace('-', '+').Replace('_', '/')
-  let length = initial.Length
+  type Base64UrlEncoded = Base64UrlEncoded of string
+  type Base64DefaultEncoded = Base64DefaultEncoded of string
 
-  if length % 4 = 2 then $"{initial}=="
-  else if length % 4 = 3 then $"{initial}="
-  else initial
+  type T =
+    | UrlEncoded of Base64UrlEncoded
+    | DefaultEncoded of Base64DefaultEncoded
 
-let base64UrlEncode (bytes : byte []) : string =
-  bytes |> base64Encode |> base64ToUrlEncoded
+    override this.ToString() =
+      match this with
+      | UrlEncoded (Base64UrlEncoded s) -> s
+      | DefaultEncoded (Base64DefaultEncoded s) -> s
 
-let base64Decode (encoded : string) : byte [] =
-  encoded |> System.Convert.FromBase64String
+  // Convert to string with default base64 encoding
+  let defaultEncodeToString (input : byte array) : string =
+    System.Convert.ToBase64String input
 
-let base64DecodeOpt (encoded : string) : byte [] option =
-  try
-    encoded |> System.Convert.FromBase64String |> Some
-  with
-  | _ -> None
+  // Convert to base64 string
+  let encode (input : byte array) : T =
+    input |> defaultEncodeToString |> Base64DefaultEncoded |> DefaultEncoded
+
+  // Convert to string with url-flavored base64 encoding
+
+
+
+  // type-safe wrapper for an already-encoded urlEncoded string
+  let fromUrlEncoded (string : string) : T = string |> Base64UrlEncoded |> UrlEncoded
+
+  // type-safe wrapper for an already-encoded defaultEncoded string
+  let fromDefaultEncoded (string : string) : T =
+    string |> Base64DefaultEncoded |> DefaultEncoded
+
+  // If we don't know how it's encoded, covert to urlEncoded as we can be certain then.
+  let fromEncoded (string : string) : T =
+    string.Replace('+', '-').Replace('/', '_').Replace("=", "")
+    |> Base64UrlEncoded
+    |> UrlEncoded
+
+  let asUrlEncodedString (b64 : T) : string =
+    match b64 with
+    | UrlEncoded (Base64UrlEncoded s) -> s
+    | DefaultEncoded (Base64DefaultEncoded s) ->
+      s.Replace('+', '-').Replace('/', '_').Replace("=", "")
+
+  let asDefaultEncodedString (b64 : T) : string =
+    match b64 with
+    | DefaultEncoded (Base64DefaultEncoded s) -> s
+    | UrlEncoded (Base64UrlEncoded s) ->
+      let initial = s.Replace('-', '+').Replace('_', '/')
+      let length = initial.Length
+
+      if length % 4 = 2 then $"{initial}=="
+      else if length % 4 = 3 then $"{initial}="
+      else initial
+
+  let urlEncodeToString (input : byte array) : string =
+    input |> encode |> asUrlEncodedString
+
+  // Takes an already-encoded base64 string, and decodes it to bytes
+  let decode (b64 : T) : byte [] =
+    b64 |> asDefaultEncodedString |> System.Convert.FromBase64String
+
+  let decodeFromString (input : string) : byte array = input |> fromEncoded |> decode
+
+  let decodeOpt (b64 : T) : byte [] option =
+    try
+      b64 |> decode |> Some
+    with
+    | _ -> None
 
 let sha1digest (input : string) : byte [] =
   use sha1 = System.Security.Cryptography.SHA1.Create()
   input |> toBytes |> sha1.ComputeHash
-
-let toString (v : 'a) : string = v.ToString()
 
 let truncateToInt32 (v : bigint) : int32 =
   try
@@ -637,9 +682,7 @@ module Json =
       // arrays, but I think this is the only user. If not, we'll need to add a
       // RawBytes type.
       override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        reader.Value :?> string
-        |> base64FromUrlEncoded
-        |> System.Convert.FromBase64String
+        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode
 
       override _.WriteJson
         (
@@ -647,10 +690,7 @@ module Json =
           value : byte [],
           _ : JsonSerializer
         ) =
-        value
-        |> System.Convert.ToBase64String
-        |> base64ToUrlEncoded
-        |> writer.WriteValue
+        value |> Base64.urlEncodeToString |> writer.WriteValue
 
   // This is used for "normal" JSON conversion, such as converting Pos into
   // json. It does not feature anything for conversion to OCaml-compatible
