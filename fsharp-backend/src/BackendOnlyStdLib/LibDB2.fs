@@ -627,7 +627,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs.[dbname]
             let! (count : int) = UserDB.count state db
-            return count |> bigint |> DInt
+            return count |> int64 |> DInt
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

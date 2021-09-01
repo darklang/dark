@@ -40,14 +40,14 @@ let testBasicTypecheckWorks : Test =
   testMany
     "basic type checking"
     t
-    [ ("Int::add_v0", [ ("a", RT.DInt 5I); ("b", RT.DInt 4I) ]), Ok()
-      (("Int::add_v0", [ ("a", RT.DInt 5I); ("b", RT.DBool true) ]),
+    [ ("Int::add_v0", [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
+      (("Int::add_v0", [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
        Error(
          [ TypeChecker.Error.TypeUnificationFailure
              { expectedType = RT.TInt; actualValue = RT.DBool true } ]
        ))
 
-      ("toString_v0", [ ("v", RT.DInt 5I) ]), Ok() ]
+      ("toString_v0", [ ("v", RT.DInt 5L) ]), Ok() ]
 
 let testErrorNotWrappedByErrorRail =
   testTask "error not wrapped by errorRail" {
@@ -93,7 +93,7 @@ let testArguments : Test =
          "Type error(s) in return type: Expected to see a value of type String but found a Int"
        ))
       (("myGoodFn", RT.TStr, S.eStr "test"), RT.DStr "test")
-      (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5I) ]
+      (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]
 
 
 

@@ -31,7 +31,7 @@ let encodeBasicAuthBroken (u : string) (p : string) : string =
          (System.Text.Encoding.UTF8.GetBytes p) ]
        |> Array.concat)
 
-  $"Basic {base64Encode input}"
+  $"Basic {Base64.defaultEncodeToString input}"
 
 
 let encodeBasicAuth (u : string) (p : string) : string =
@@ -42,7 +42,7 @@ let encodeBasicAuth (u : string) (p : string) : string =
     else
       toBytes $"{u}:{p}"
 
-  $"Basic {base64Encode input}"
+  $"Basic {Base64.defaultEncodeToString input}"
 
 // CLEANUP move to libexecution functions
 let fns : List<BuiltInFn> =

@@ -184,10 +184,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            let int = s |> System.Numerics.BigInteger.Parse
+            let int = s |> parseInt64
 
-            if int < -4611686018427387904I then failwith "goto exception case"
-            else if int >= 4611686018427387904I then failwith "goto exception case"
+            if int < -4611686018427387904L then failwith "goto exception case"
+            else if int >= 4611686018427387904L then failwith "goto exception case"
             else int |> DInt |> Ply
            with
            | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
@@ -205,10 +205,10 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s ] ->
           try
             // CLEANUP: These constants represent how high the OCaml parsers would go
-            let int = s |> System.Numerics.BigInteger.Parse
+            let int = s |> parseInt64
 
-            if int < -4611686018427387904I then failwith "goto exception case"
-            else if int >= 4611686018427387904I then failwith "goto exception case"
+            if int < -4611686018427387904L then failwith "goto exception case"
+            else if int >= 4611686018427387904L then failwith "goto exception case"
             else int |> DInt |> Ok |> DResult |> Ply
           with
           | e ->
@@ -720,7 +720,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l as dv ] ->
-          if l < 0I then
+          if l < 0L then
             err "l should be a positive integer"
           else
             let randomString length =
@@ -748,7 +748,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l ] ->
-          if l < 0I then
+          if l < 0L then
             "l should be a positive integer" |> DStr |> Error |> DResult |> Ply
           else
             let randomString length =
@@ -776,7 +776,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l as dv ] ->
-          if l < 0I then
+          if l < 0L then
             dv
             |> Errors.argumentWasnt "positive" "length"
             |> DStr
@@ -930,13 +930,13 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DInt first; DInt last ] ->
 
           let chars = String.toEgcSeq s
-          let length = Seq.length chars |> bigint
+          let length = Seq.length chars |> int64
 
-          let normalize (i : bigint) =
+          let normalize (i : int64) =
             i
-            |> fun i -> if i < 0I then length + i else i // account for - values
+            |> fun i -> if i < 0L then length + i else i // account for - values
             |> min length
-            |> max 0I
+            |> max 0L
 
 
           let f = normalize first |> int
@@ -965,7 +965,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-          let n = String.lengthInEgcs s |> bigint |> min n |> max 0I |> int
+          let n = String.lengthInEgcs s |> int64 |> min n |> max 0L |> int
 
           String.toEgcSeq s
           |> Seq.toList
@@ -992,7 +992,7 @@ let fns : List<BuiltInFn> =
           let egcSeq = String.toEgcSeq s
           let stringEgcCount = Seq.length egcSeq
 
-          let lastN s (numEgcs : bigint) =
+          let lastN s (numEgcs : int64) =
             let stringBuilder = new StringBuilder(String.length s) in
             (* We iterate through every EGC, adding it to the buffer
                 * if its [idx] >= ([stringEgcCount] - [numEgcs]).
@@ -1000,20 +1000,20 @@ let fns : List<BuiltInFn> =
                 * [stringEgcCount] = 5; 5-2 = 3. The index of "d" is 3 and
                 * we want to keep it and everything after it so we end up with "de". *)
 
-            let startIdx = bigint stringEgcCount - numEgcs in
+            let startIdx = int64 stringEgcCount - numEgcs in
 
-            let lastFunc (idx : bigint) (seg : string) =
+            let lastFunc (idx : int64) (seg : string) =
               if idx >= startIdx then
                 stringBuilder.Append seg |> ignore<StringBuilder>
               else
                 ()
 
-              1I + idx
+              1L + idx
 
-            ignore<List<bigint>> (
+            ignore<List<int64>> (
               egcSeq
               |> Seq.toList
-              |> List.mapi (fun index value -> (lastFunc (bigint index) value))
+              |> List.mapi (fun index value -> (lastFunc (int64 index) value))
             )
             (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
@@ -1038,26 +1038,26 @@ let fns : List<BuiltInFn> =
           let egcSeq = String.toEgcSeq s
           let stringEgcCount = Seq.length egcSeq
 
-          let dropLastN s (numEgcs : bigint) =
+          let dropLastN s (numEgcs : int64) =
             let stringBuilder = new StringBuilder(String.length s) in
             // We iterate through every EGC, adding it to the buffer
             // if its [idx] < ([stringEgcCount] - [numEgcs]).
             // This works by the inverse of the logic for [lastN].
 
-            let startIdx = bigint stringEgcCount - numEgcs in
+            let startIdx = int64 stringEgcCount - numEgcs in
 
-            let lastFunc (idx : bigint) (seg : string) =
+            let lastFunc (idx : int64) (seg : string) =
               if idx < startIdx then
                 stringBuilder.Append seg |> ignore<StringBuilder>
               else
                 ()
 
-              1I + idx
+              1L + idx
 
-            ignore<List<bigint>> (
+            ignore<List<int64>> (
               egcSeq
               |> Seq.toList
-              |> List.mapi (fun index value -> (lastFunc (bigint index) value))
+              |> List.mapi (fun index value -> (lastFunc (int64 index) value))
             )
             (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
@@ -1079,22 +1079,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-          let dropFirstN s (numEgcs : bigint) =
+          let dropFirstN s (numEgcs : int64) =
             let stringBuilder = new StringBuilder(String.length s) in
             // We iterate through every EGC, adding it to the buffer
             // if its index >= numEgcs. This works by the inverse of the logic for [first_n]:
-            let firstFunc (idx : bigint) (seg : string) =
+            let firstFunc (idx : int64) (seg : string) =
               if idx >= numEgcs then
                 stringBuilder.Append seg |> ignore<StringBuilder>
               else
                 ()
 
-              1I + idx
+              1L + idx
 
-            ignore<List<bigint>> (
+            ignore<List<int64>> (
               String.toEgcSeq s
               |> Seq.toList
-              |> List.mapi (fun index value -> (firstFunc (bigint index) value))
+              |> List.mapi (fun index value -> (firstFunc (int64 index) value))
             )
             // We don't need to renormalize because all normalization forms are closed
             // under substringing (see https://unicode.org/reports/tr15/#Concatenation).

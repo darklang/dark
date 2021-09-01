@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
         "Returns the number of entries in `dict` (the number of key-value pairs)."
       fn =
         (function
-        | _, [ DObj o ] -> Ply(DInt(bigint (Map.count o)))
+        | _, [ DObj o ] -> Ply(DInt(int64 (Map.count o)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

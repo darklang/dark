@@ -53,7 +53,7 @@ let testEventQueueRoundtrip =
       let! functionResults = TFR.load meta.id traceID h.tlid
 
       Expect.equal (List.length functionResults) 1 "should have stored fn result"
-      Expect.equal (RT.DInt 123I) resultDval "Round tripped value"
+      Expect.equal (RT.DInt 123L) resultDval "Round tripped value"
     | Ok None -> failwith "Failed: expected Some, got None"
     | Error e -> failwith $"Failed: got error: {e}"
   }
@@ -72,16 +72,16 @@ let testEventQueueIsFifo =
        |> List.map (fun h -> (h.tlid, [ hop h ], PT.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
-    let enqueue (name : string) (i : bigint) =
+    let enqueue (name : string) (i : int64) =
       EQ.enqueue meta.id meta.owner "WORKER" name "_" (RT.DInt i)
 
-    do! enqueue "apple" 1I
-    do! enqueue "apple" 2I
-    do! enqueue "banana" 3I
-    do! enqueue "apple" 4I
+    do! enqueue "apple" 1L
+    do! enqueue "apple" 2L
+    do! enqueue "banana" 3L
+    do! enqueue "apple" 4L
     do! EQ.testingScheduleAll ()
 
-    let checkDequeue span (i : bigint) exname : Task<unit> =
+    let checkDequeue span (i : int64) exname : Task<unit> =
       task {
         let! evt = EQ.dequeue span
         let evt = Option.unwrapUnsafe evt
@@ -98,10 +98,10 @@ let testEventQueueIsFifo =
       Sql.withTransaction
         (fun () ->
           task {
-            do! checkDequeue span 1I "apple"
-            do! checkDequeue span 2I "apple"
-            do! checkDequeue span 3I "banana"
-            do! checkDequeue span 4I "apple"
+            do! checkDequeue span 1L "apple"
+            do! checkDequeue span 2L "apple"
+            do! checkDequeue span 3L "banana"
+            do! checkDequeue span 4L "apple"
             return Ok(Some RT.DNull)
           })
   }

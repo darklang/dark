@@ -76,9 +76,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | SynPat.Named (name, _, _, _) -> pVar name.idText
     | SynPat.Wild _ -> pVar "_" // wildcard, not blank
     | SynPat.Const (SynConst.Int32 n, _) -> pInt n
-    | SynPat.Const (SynConst.Int64 n, _) -> PT.PInteger(gid (), bigint n)
+    | SynPat.Const (SynConst.Int64 n, _) -> PT.PInteger(gid (), int64 n)
     | SynPat.Const (SynConst.UserNum (n, "I"), _) ->
-      PT.PInteger(gid (), parseBigint n)
+      PT.PInteger(gid (), parseInt64 n)
     | SynPat.Const (SynConst.Char c, _) -> pChar c
     | SynPat.Const (SynConst.Bool b, _) -> pBool b
     | SynPat.Null _ -> pNull ()
@@ -135,9 +135,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
-  | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(gid (), bigint n)
-  | SynExpr.Const (SynConst.UserNum (n, "I"), _) ->
-    PT.EInteger(gid (), parseBigint n)
+  | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(gid (), int64 n)
+  | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInteger(gid (), parseInt64 n)
   | SynExpr.Null _ -> eNull ()
   | SynExpr.Const (SynConst.Char c, _) -> eChar c
   | SynExpr.Const (SynConst.Bool b, _) -> eBool b

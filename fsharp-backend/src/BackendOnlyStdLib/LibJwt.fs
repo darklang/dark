@@ -58,7 +58,7 @@ module Legacy =
 
   // This is the subset of Yojson.Safe that we used
   type Yojson =
-    | Int of bigint
+    | Int of int64
     | Float of float
     | String of string
     | Bool of bool
@@ -69,7 +69,7 @@ module Legacy =
   // Direct clone of OCaml Dval.to_pretty_machine_yojson_v1
   let rec toYojson (dval : Dval) : Yojson =
     match dval with
-    | DInt i -> Int i // FSTODO larger put in a string
+    | DInt i -> Int i
     | DFloat f -> Float f
     | DBool b -> Bool b
     | DNull -> Null

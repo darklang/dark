@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Ply
+        | _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Ply
+        | _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Ply
+        | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Ply
+        | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Round a) |> DInt |> Ply
+        | _, [ DFloat a ] -> a |> Math.Round |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
         "Discard the fractional portion of the float, rounding towards zero."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Ply
+        | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -296,7 +296,7 @@ let fns : List<BuiltInFn> =
         "Discard the fractional portion of the float, rounding towards zero."
       fn =
         (function
-        | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Ply
+        | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -29,12 +29,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DInt v; DInt m as mdv ] ->
-          if m <= bigint 0 then
+          if m <= 0L then
             err (Errors.argumentWasnt "positive" "b" mdv)
           else
             // dotnet returns negative mods, but OCaml did positive ones
             let result = v % m
-            let result = if result < 0I then m + result else result
+            let result = if result < 0L then m + result else result
             Ply(DInt(result))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
@@ -84,10 +84,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt v; DInt d ] ->
           (try
-            BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Ply
+            v % d |> DInt |> Ok |> DResult |> Ply
            with
            | e ->
-             if d = bigint 0 then
+             if d = 0L then
                Ply(DResult(Error(DStr($"`divisor` must be non-zero"))))
 
              else // In case there's another failure mode, rollbar
@@ -137,20 +137,20 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt number; DInt exp as expdv ] ->
           (try
-            if exp < bigint 0 then
+            if exp < 0L then
               err (Errors.argumentWasnt "positive" "exponent" expdv)
             // Handle some edge cases around 1. We want to make this match
             // OCaml, so we have to support an exponent above int32, but
             // below int63. This only matters for 1 or -1, and otherwise a
             // number raised to an int63 exponent wouldn't fit in an int63
-            else if number = 1I then
-              Ply(DInt(1I))
-            else if number = -1I && exp.IsEven then
-              Ply(DInt(1I))
-            else if number = -1I then
-              Ply(DInt(-1I))
+            else if number = 1L then
+              Ply(DInt(1L))
+            else if number = -1L && exp % 2L = 0L then
+              Ply(DInt(1L))
+            else if number = -1L then
+              Ply(DInt(-1L))
             else
-              Ply(DInt(number ** (int exp)))
+              (bigint number) ** (int exp) |> int64 |> DInt |> Ply
            with
            | _ -> err "Error raising to exponent")
         | _ -> incorrectArgs ())
@@ -164,7 +164,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-          if b = 0I then err "Division by zero" else Ply(DInt(a / b))
+          if b = 0L then err "Division by zero" else Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -243,7 +243,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-          a + bigint (System.Random.Shared.Next((b - a) |> int)) |> DInt |> Ply
+          a + System.Random.Shared.NextInt64(b - a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -257,9 +257,7 @@ let fns : List<BuiltInFn> =
         | _, [ DInt a; DInt b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
-          lower + (System.Random.Shared.Next((upper - lower) |> int) |> bigint)
-          |> DInt
-          |> Ply
+          lower + System.Random.Shared.NextInt64(upper - lower) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -301,7 +299,7 @@ let fns : List<BuiltInFn> =
                 | t -> Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
               l
 
-          let sum = List.fold (fun acc elem -> acc + elem) (bigint 0) ints
+          let sum = List.fold (fun acc elem -> acc + elem) 0L ints
           Ply(DInt sum)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
