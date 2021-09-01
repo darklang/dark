@@ -86,7 +86,6 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   let actualType = Dval.toType actual
   let actualTypeRepr = DvalRepr.typeToDeveloperReprV0 actualType
   let expectedTypeRepr = DvalRepr.typeToDeveloperReprV0 p.typ
-  let fnname = name.ToString()
 
   let conversionMsg =
     match p.typ, actualType, name with
@@ -96,7 +95,7 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
       ->
       let altfn = { std with module_ = "Float" }
 
-      $" Try using {altfn.ToString()}, or use Float::truncate to truncate Floats to Ints."
+      $" Try using {altfn}, or use Float::truncate to truncate Floats to Ints."
     | TInt, TStr, FQFnName.Stdlib std when
       (std.module_ = "Int" && std.function_ = "add")
       || (std.module_ = "" && std.function_ = "+")
@@ -104,7 +103,7 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
       " Use ++ to concatenate"
     | _ -> ""
 
-  $"{fnname} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
+  $"{name} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
   + $"a {expectedTypeRepr}.{conversionMsg}"
 
 

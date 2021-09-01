@@ -184,7 +184,7 @@ let fns : List<BuiltInFn> =
               sb.Append(c |> char |> int |> sprintf "%%%X")
               |> ignore<Text.StringBuilder>
 
-          sb.ToString() |> DStr |> Ply
+          sb |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -171,7 +171,7 @@ type dataID =
 type ExecutionID = LibService.Telemetry.ExecutionID
 
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
-  ctx.Items.[id.ToString()] <- value
+  ctx.Items.[string id] <- value
   ctx
 
 let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items.[$"{id}"] :?> 'a

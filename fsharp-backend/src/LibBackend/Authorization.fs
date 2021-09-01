@@ -162,11 +162,11 @@ let matchPermission
   (username : UserName.T)
   (ownerName : OwnerName.T)
   : Option<Permission> =
-  if (username.ToString()) = (ownerName.ToString()) then Some ReadWrite else None
+  if string username = string ownerName then Some ReadWrite else None
 
 // Everyone should have read-access to 'sample'.
 let samplePermission (owner : OwnerName.T) : Option<Permission> =
-  if "sample" = (owner.ToString()) then Some Read else None
+  if "sample" = (string owner) then Some Read else None
 
 // What's the highest level of access a particular user has to a
 // particular user's canvas

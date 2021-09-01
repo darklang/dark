@@ -77,7 +77,7 @@ let fns : List<BuiltInFn> =
             let dval = json |> DvalRepr.ofUnknownJsonV1
             Ply(DResult(Ok dval))
            with
-           | Failure (e) -> e.ToString() |> DStr |> Error |> DResult |> Ply)
+           | Failure e -> e |> string |> DStr |> Error |> DResult |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

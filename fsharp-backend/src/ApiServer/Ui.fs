@@ -101,14 +101,14 @@ let uiHtml
     .Replace("{{ALLFUNCTIONS}}", (Functions.functions user.admin).Force())
     .Replace("{{STATIC}}", staticHost)
     .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
-    .Replace("{{USER_USERNAME}}", user.username.ToString())
+    .Replace("{{USER_USERNAME}}", string user.username)
     .Replace("{{USER_EMAIL}}", user.email)
     .Replace("{{USER_FULLNAME}}", user.name)
     .Replace("{{USER_CREATED_AT_UNIX_MSTS}}", accountCreatedMsTs)
     .Replace("{{USER_IS_ADMIN}}", (if user.admin then "true" else "false"))
-    .Replace("{{USER_ID}}", user.id.ToString())
-    .Replace("{{CANVAS_ID}}", (canvasID.ToString()))
-    .Replace("{{CANVAS_NAME}}", canvasName.ToString())
+    .Replace("{{USER_ID}}", string user.id)
+    .Replace("{{CANVAS_ID}}", string canvasID)
+    .Replace("{{CANVAS_NAME}}", string canvasName)
     .Replace("{{STATIC}}", staticHost)
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
@@ -122,7 +122,7 @@ let uiHtml
          (fun filename hash ->
            t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
 
-  t.ToString()
+  string t
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {

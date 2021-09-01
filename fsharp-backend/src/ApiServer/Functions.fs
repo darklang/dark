@@ -41,7 +41,7 @@ let allFunctions = LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
 let fsharpOnlyFns : Lazy<Set<string>> =
   lazy
     (LibExecutionStdLib.LibMiddleware.fns
-     |> List.map (fun (fn : RT.BuiltInFn) -> (fn.name).ToString())
+     |> List.map (fun (fn : RT.BuiltInFn) -> string fn.name)
      |> Set)
 
 
@@ -84,7 +84,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
   { name =
       // CLEANUP: this is difficult to change in OCaml, but is trivial in F# (we
       // should just be able to remove this line with no other change)
-      let n = fn.name.ToString()
+      let n = string fn.name
 
       if n = "DB::add" then "DB::add_v0"
       else if n = "JSON::parse" then "JSON::parse_v0"

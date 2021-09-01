@@ -514,7 +514,7 @@ module Json =
       inherit JsonConverter<bigint>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, s) : bigint =
-        reader.Value.ToString() |> parseBigint
+        reader.Value |> string |> parseBigint
 
       override _.WriteJson
         (
@@ -522,7 +522,7 @@ module Json =
           value : bigint,
           serializer : JsonSerializer
         ) =
-        writer.WriteRawValue(value.ToString())
+        value |> string |> writer.WriteRawValue
 
     type FSharpDuConverter() =
       inherit JsonConverter()
@@ -644,7 +644,7 @@ module Json =
       inherit JsonConverter<tlid>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        let rawToken = reader.Value.ToString()
+        let rawToken = string reader.Value
         parseUInt64 rawToken
 
       override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
@@ -715,7 +715,7 @@ module Json =
       inherit JsonConverter<double>()
 
       override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        let rawToken = reader.Value.ToString()
+        let rawToken = string reader.Value
 
         match rawToken with
         | "Infinity" -> System.Double.PositiveInfinity
@@ -1132,7 +1132,7 @@ module OwnerName =
     | OwnerName of string
 
     override this.ToString() = let (OwnerName name) = this in name
-    member this.toUserName() : UserName.T = UserName.create (this.ToString())
+    member this.toUserName() : UserName.T = UserName.create (string this)
 
   let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
 

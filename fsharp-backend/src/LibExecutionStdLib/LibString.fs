@@ -732,7 +732,7 @@ let fns : List<BuiltInFn> =
               let gen _ = char (gen ()) in
 
               (Array.toList (Array.init length gen))
-              |> List.map (fun i -> i.ToString())
+              |> List.map string
               |> String.concat ""
 
             randomString (int l) |> DStr |> Ply
@@ -760,7 +760,7 @@ let fns : List<BuiltInFn> =
               let gen _ = char (gen ()) in
 
               (Array.toList (Array.init length gen))
-              |> List.map (fun i -> i.ToString())
+              |> List.map string
               |> String.concat ""
 
             randomString (int l) |> DStr |> Ok |> DResult |> Ply
@@ -793,7 +793,7 @@ let fns : List<BuiltInFn> =
               let gen _ = char (gen ()) in
 
               (Array.toList (Array.init length gen))
-              |> List.map (fun i -> i.ToString())
+              |> List.map string
               |> String.concat ""
 
             randomString (int l) |> DStr |> Ok |> DResult |> Ply
@@ -1130,7 +1130,7 @@ let fns : List<BuiltInFn> =
 
             stringBuilder.Append(s) |> ignore<StringBuilder>
 
-            stringBuilder.ToString().Normalize() |> DStr |> Ply
+            stringBuilder |> string |> String.normalize |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1160,7 +1160,7 @@ let fns : List<BuiltInFn> =
             for _ = 1 to requiredPads do
               stringBuilder.Append(padWith) |> ignore<StringBuilder>
 
-            stringBuilder.ToString().Normalize() |> DStr |> Ply
+            stringBuilder |> string |> String.normalize |> DStr |> Ply
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

@@ -75,8 +75,8 @@ module FQFnName =
     override this.ToString() : string =
       match this with
       | User name -> name
-      | Stdlib std -> std.ToString()
-      | Package pkg -> pkg.ToString()
+      | Stdlib std -> string std
+      | Package pkg -> string pkg
 
     member this.isDBQueryFn() : bool =
       match this with

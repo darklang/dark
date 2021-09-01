@@ -677,7 +677,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, [] -> System.Guid.NewGuid().ToString() |> DStr |> Ply
+        | _, [] -> System.Guid.NewGuid() |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

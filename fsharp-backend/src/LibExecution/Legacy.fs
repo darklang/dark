@@ -121,7 +121,7 @@ module PrettyResponseJsonV0 =
         wrapNullValue "password"
       else
         hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
-    | DUuid uuid -> wrapStringValue "uuid" (uuid.ToString())
+    | DUuid uuid -> wrapStringValue "uuid" (string uuid)
     | DOption opt ->
       (match opt with
        | None -> wrapNullValue "option"

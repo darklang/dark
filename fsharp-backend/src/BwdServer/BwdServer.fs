@@ -195,7 +195,7 @@ let canonicalizeURL (toHttps : bool) (url : string) =
   if toHttps then
     let uri = System.UriBuilder url
     uri.Scheme <- "https"
-    uri.ToString()
+    string uri
   else
     url
 

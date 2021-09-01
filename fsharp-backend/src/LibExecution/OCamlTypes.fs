@@ -613,13 +613,12 @@ module Convert =
     | PT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
     | PT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
-    | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, i.ToString())
+    | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
     | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | PT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | PT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
-    | PT.PFloat (id, Positive, w, f) ->
-      ORT.FPFloat(mid, id, w.ToString(), f.ToString())
-    | PT.PFloat (id, Negative, w, f) -> ORT.FPFloat(mid, id, $"-{w}", f.ToString())
+    | PT.PFloat (id, Positive, w, f) -> ORT.FPFloat(mid, id, string w, string f)
+    | PT.PFloat (id, Negative, w, f) -> ORT.FPFloat(mid, id, $"-{w}", string f)
     | PT.PNull (id) -> ORT.FPNull(mid, id)
     | PT.PBlank (id) -> ORT.FPBlank(mid, id)
 
@@ -630,7 +629,7 @@ module Convert =
     | RT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
     | RT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
-    | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, i.ToString())
+    | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
     | RT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
@@ -659,7 +658,7 @@ module Convert =
 
     match p with
     | PT.EBlank id -> ORT.EBlank id
-    | PT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
+    | PT.EInteger (id, num) -> ORT.EInteger(id, string num)
     | PT.ECharacter (id, num) -> failwith "Characters not supported"
     | PT.EString (id, str) -> ORT.EString(id, str)
     | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, string w, string f)
@@ -680,7 +679,7 @@ module Convert =
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
       ORT.EBinOp(
         id,
-        name.ToString() |> String.replace "_v0" "",
+        name |> string |> String.replace "_v0" "",
         r arg1,
         r arg2,
         pt2ocamlSter ster
@@ -715,7 +714,7 @@ module Convert =
 
     match e with
     | RT.EBlank id -> ORT.EBlank id
-    | RT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
+    | RT.EInteger (id, num) -> ORT.EInteger(id, string num)
     | RT.ECharacter (id, num) -> failwith "Characters not supported"
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
