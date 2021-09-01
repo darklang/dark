@@ -1,7 +1,6 @@
 module LibExecutionStdLib.LibList
 
 open LibExecution.RuntimeTypes
-open FSharpPlus
 open Prelude
 
 module Interpreter = LibExecution.Interpreter

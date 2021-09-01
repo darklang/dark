@@ -2,7 +2,6 @@ module BackendOnlyStdLib.LibHttpClient5
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open System.Net.Http
 
 open Prelude
@@ -110,7 +109,7 @@ let sendRequest
 
     let requestHeaders =
       // Prioritize the users' headers over the defaults
-      Map.union (Map defaultHeaders) (Map encodedRequestHeaders)
+      Map.mergeFavoringRight (Map defaultHeaders) (Map encodedRequestHeaders)
     let encodedRequestBody = encodeRequestBody requestBody contentType
     match! HttpClient.httpCall
              0

@@ -19,7 +19,6 @@ type ServerTiming = Lib.AspNetCore.ServerTiming.IServerTiming
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open Prelude
 open Tablecloth
 

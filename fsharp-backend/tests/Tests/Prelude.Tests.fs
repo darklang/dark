@@ -62,5 +62,24 @@ let asyncTests =
         Expect.equal !state [ 5; 4; 3; 2 ] ""
       } ]
 
+let mapTests =
+  testList
+    "map"
+    [ testMany2
+        "Map.mergeFavoringRight"
+        Map.mergeFavoringRight
+        [ Map.empty, Map.empty, Map.empty
+          (Map.ofList [ (1, 1); (2, 2); (3, 3) ],
+           Map.ofList [ (1, -1); (2, -2); (3, -3) ],
+           Map.ofList [ (1, -1); (2, -2); (3, -3) ]) ]
+      testMany2
+        "Map.mergeFavoringLeft"
+        Map.mergeFavoringLeft
+        [ Map.empty, Map.empty, Map.empty
+          (Map.ofList [ (1, 1); (2, 2); (3, 3) ],
+           Map.ofList [ (1, -1); (2, -2); (3, -3) ],
+           Map.ofList [ (1, 1); (2, 2); (3, 3) ]) ] ]
 
-let tests = testList "prelude" [ canvasName; asyncTests ]
+
+
+let tests = testList "prelude" [ canvasName; asyncTests; mapTests ]

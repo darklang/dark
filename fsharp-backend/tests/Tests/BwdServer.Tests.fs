@@ -7,7 +7,6 @@ open FSharp.Control.Tasks
 
 open System.Net.Sockets
 open System.Text.RegularExpressions
-open FSharpPlus
 
 open Prelude
 open Tablecloth
@@ -212,8 +211,8 @@ let t filename =
           let asJson =
             try
               Some(
-                LibExecution.DvalRepr.parseJson (ofBytes actual.body),
-                LibExecution.DvalRepr.parseJson (ofBytes expected.body)
+                LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe actual.body),
+                LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe expected.body)
               )
             with
             | e -> None

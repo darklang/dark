@@ -3,7 +3,6 @@ module LibExecutionStdLib.LibObject
 open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -41,7 +40,7 @@ let fns : List<BuiltInFn> =
         "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
       fn =
         (function
-        | _, [ DObj l; DObj r ] -> Ply(DObj(Map.union r l))
+        | _, [ DObj l; DObj r ] -> Ply(DObj(Map.mergeFavoringRight l r))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

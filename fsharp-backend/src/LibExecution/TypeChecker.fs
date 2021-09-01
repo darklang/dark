@@ -1,6 +1,5 @@
 module LibExecution.TypeChecker
 
-open FSharpPlus
 
 open Prelude
 open VendoredTablecloth

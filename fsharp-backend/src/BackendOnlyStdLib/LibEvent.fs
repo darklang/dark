@@ -3,7 +3,6 @@ module BackendOnlyStdLib.LibEvent
 open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open LibExecution.RuntimeTypes
 open Prelude

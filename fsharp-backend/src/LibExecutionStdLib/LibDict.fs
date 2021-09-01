@@ -3,7 +3,6 @@ module LibExecutionStdLib.LibDict
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
-open FSharpPlus
 open Prelude
 
 module Interpreter = LibExecution.Interpreter
@@ -434,7 +433,7 @@ let fns : List<BuiltInFn> =
         "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
       fn =
         (function
-        | _, [ DObj l; DObj r ] -> Ply(DObj(Map.union r l))
+        | _, [ DObj l; DObj r ] -> Ply(DObj(Map.mergeFavoringRight l r))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

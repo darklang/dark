@@ -8,7 +8,6 @@ open System.Text
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open FSharpPlus
 open System.Text.RegularExpressions
 
 open Prelude
@@ -165,7 +164,7 @@ let fns : List<BuiltInFn> =
               // .Net Replace doesn't allow empty string, but we do.
               String.toEgcSeq s
               |> Seq.toList
-              |> List.intersperse replace
+              |> FSharpPlus.List.intersperse replace
               |> (fun l -> replace :: l @ [ replace ])
               |> String.concat ""
               |> DStr
@@ -604,7 +603,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-          let defaultEncoded = s |> toBytes |> Convert.ToBase64String
+          let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
           // Inlined version of Base64.urlEncodeToString
           defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
           |> DStr
@@ -930,7 +929,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DInt first; DInt last ] ->
 
           let chars = String.toEgcSeq s
-          let length = length chars |> bigint
+          let length = Seq.length chars |> bigint
 
           let normalize (i : bigint) =
             i
@@ -945,8 +944,8 @@ let fns : List<BuiltInFn> =
 
           chars
           |> Seq.toList
-          |> List.drop f
-          |> List.take (l - f)
+          |> FSharpPlus.List.drop f
+          |> List.truncate (l - f)
           |> String.concat ""
           |> DStr
           |> Ply
@@ -968,7 +967,8 @@ let fns : List<BuiltInFn> =
           let n = String.lengthInEgcs s |> bigint |> min n |> max 0I |> int
 
           String.toEgcSeq s
-          |> List.take n
+          |> Seq.toList
+          |> List.truncate n
           |> String.concat ""
           |> fun s -> s.Normalize()
           |> DStr
@@ -989,7 +989,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s; DInt n ] ->
           let egcSeq = String.toEgcSeq s
-          let stringEgcCount = length egcSeq
+          let stringEgcCount = Seq.length egcSeq
 
           let lastN s (numEgcs : bigint) =
             let stringBuilder = new StringBuilder(String.length s) in
@@ -1035,7 +1035,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s; DInt n ] ->
           let egcSeq = String.toEgcSeq s
-          let stringEgcCount = length egcSeq
+          let stringEgcCount = Seq.length egcSeq
 
           let dropLastN s (numEgcs : bigint) =
             let stringBuilder = new StringBuilder(String.length s) in

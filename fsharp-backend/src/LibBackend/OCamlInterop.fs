@@ -11,7 +11,6 @@ module LibBackend.OCamlInterop
 // We also use these types to convert to the types the API uses, which are
 // typically direct deserializations of these types.
 
-open FSharpPlus
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -72,20 +71,21 @@ let legacyBytesReq (endpoint : string) (data : byte array) : Task<byte array> =
     return! content.ReadAsByteArrayAsync()
   }
 
-let serialize (v : 'a) : byte array = v |> Json.OCamlCompatible.serialize |> toBytes
+let serialize (v : 'a) : byte array =
+  v |> Json.OCamlCompatible.serialize |> UTF8.toBytes
 
 let stringToBytesReq (endpoint : string) (str : string) : Task<byte array> =
-  str |> toBytes |> legacyBytesReq endpoint
+  str |> UTF8.toBytes |> legacyBytesReq endpoint
 
 let bytesToStringReq (endpoint : string) (data : byte array) : Task<string> =
   data |> legacyStringReq endpoint
 
 let stringToStringReq (endpoint : string) (str : string) : Task<string> =
-  str |> toBytes |> legacyStringReq endpoint
+  str |> UTF8.toBytes |> legacyStringReq endpoint
 
 let stringToDvalReq (endpoint : string) (str : string) : Task<RT.Dval> =
   str
-  |> toBytes
+  |> UTF8.toBytes
   |> legacyStringReq endpoint
   |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval>
   |> Task.map Convert.ocamlDval2rt
@@ -254,14 +254,14 @@ let dvalToFormEncoding (dv : RT.Dval) : Task<string> =
 
 let queryStringToParams (s : string) : Task<List<string * List<string>>> =
   s
-  |> toBytes
+  |> UTF8.toBytes
   |> legacyStringReq "fuzzing/query_string_to_params"
   |> Task.map (Json.OCamlCompatible.deserialize<List<string * List<string>>>)
 
 let paramsToQueryString (p : List<string * List<string>>) : Task<string> =
   p
   |> Json.OCamlCompatible.serialize
-  |> toBytes
+  |> UTF8.toBytes
   |> legacyStringReq "fuzzing/params_to_query_string"
 
 
@@ -321,7 +321,7 @@ let benchmark
 
   task {
     try
-      let! resultStr = str |> toBytes |> legacyStringReq "benchmark"
+      let! resultStr = str |> UTF8.toBytes |> legacyStringReq "benchmark"
       let (timing, dval) =
         Json.OCamlCompatible.deserialize<BenchmarkResult> resultStr
 

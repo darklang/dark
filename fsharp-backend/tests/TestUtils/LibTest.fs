@@ -5,7 +5,6 @@ module LibTest
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -46,8 +45,8 @@ let fns : List<BuiltInFn> =
       description = "Return a value that matches errors thrown by the SqlCompiler"
       fn =
         (function
-        | state, [ DStr errorString ] ->
-          let msg = LibExecution.Errors.queryCompilerErrorTemplate ++ errorString
+        | _, [ DStr errorString ] ->
+          let msg = LibExecution.Errors.queryCompilerErrorTemplate + errorString
           Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

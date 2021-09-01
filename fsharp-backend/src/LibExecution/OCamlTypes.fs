@@ -13,7 +13,6 @@ module LibExecution.OCamlTypes
 
 // fsharplint:disable FL0038
 
-open FSharpPlus
 
 open Prelude
 open VendoredTablecloth
@@ -370,7 +369,7 @@ module Convert =
     | ORT.ERightPartial (id, str, oldExpr) -> PT.ERightPartial(id, str, r oldExpr)
     | ORT.ELeftPartial (id, str, oldExpr) -> PT.ELeftPartial(id, str, r oldExpr)
     | ORT.EList (id, exprs) -> PT.EList(id, List.map r exprs)
-    | ORT.ERecord (id, pairs) -> PT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | ORT.ERecord (id, pairs) -> PT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | ORT.EPipe (id, expr1 :: expr2 :: rest) ->
       PT.EPipe(id, r expr1, r expr2, List.map r rest)
     | ORT.EPipe (id, [ expr ]) -> r expr
@@ -381,7 +380,7 @@ module Convert =
       PT.EMatch(
         id,
         r mexpr,
-        List.map ((Tuple2.mapItem1 ocamlPattern2PT) << (Tuple2.mapItem2 r)) pairs
+        List.map ((Tuple2.mapFirst ocamlPattern2PT) << (Tuple2.mapSecond r)) pairs
       )
     | ORT.EPipeTarget id -> PT.EPipeTarget id
     | ORT.EFeatureFlag (id, name, cond, caseA, caseB) ->
@@ -562,7 +561,7 @@ module Convert =
   let ocamlTLIDOplist2PT
     (tlidOplist : tlid_oplist<ORT.fluidExpr>)
     : tlid * PT.Oplist =
-    Tuple2.mapItem2 ocamlOplist2PT tlidOplist
+    Tuple2.mapSecond ocamlOplist2PT tlidOplist
 
 
   let ocamlToplevel2PT
@@ -694,7 +693,7 @@ module Convert =
     | PT.ERightPartial (id, str, oldExpr) -> ORT.ERightPartial(id, str, r oldExpr)
     | PT.ELeftPartial (id, str, oldExpr) -> ORT.ELeftPartial(id, str, r oldExpr)
     | PT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
-    | PT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | PT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | PT.EPipe (id, expr1, expr2, rest) ->
       ORT.EPipe(id, r expr1 :: r expr2 :: List.map r rest)
     | PT.EConstructor (id, name, exprs) ->
@@ -704,7 +703,7 @@ module Convert =
         id,
         r mexpr,
         List.map
-          ((Tuple2.mapItem1 (pt2ocamlPattern id)) << (Tuple2.mapItem2 r))
+          ((Tuple2.mapFirst (pt2ocamlPattern id)) << (Tuple2.mapSecond r))
           pairs
       )
     | PT.EPipeTarget id -> ORT.EPipeTarget id
@@ -732,7 +731,7 @@ module Convert =
       ORT.EIf(id, r cond, r thenExpr, r elseExpr)
     | RT.EPartial (id, oldExpr) -> ORT.EPartial(id, "partial", r oldExpr)
     | RT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
-    | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | RT.EConstructor (id, name, exprs) ->
       ORT.EConstructor(id, name, List.map r exprs)
     | RT.EMatch (id, mexpr, pairs) ->
@@ -740,7 +739,7 @@ module Convert =
         id,
         r mexpr,
         List.map
-          ((Tuple2.mapItem1 (rt2ocamlPattern id)) << (Tuple2.mapItem2 r))
+          ((Tuple2.mapFirst (rt2ocamlPattern id)) << (Tuple2.mapSecond r))
           pairs
       )
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->

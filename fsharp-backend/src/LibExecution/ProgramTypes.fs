@@ -2,7 +2,6 @@ module LibExecution.ProgramTypes
 
 // These are the types that are serialized for the program.
 
-open FSharpPlus
 
 open Prelude
 open VendoredTablecloth
@@ -216,7 +215,7 @@ type Expr =
     | ERightPartial (id, _, oldExpr)
     | ELeftPartial (id, _, oldExpr) -> RT.EPartial(id, r oldExpr)
     | EList (id, exprs) -> RT.EList(id, List.map r exprs)
-    | ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | EPipe (pipeID, expr1, expr2, rest) ->
       // Convert v |> fn1 a |> fn2 |> fn3 b c
       // into fn3 (fn2 (fn1 v a)) b c
@@ -265,8 +264,8 @@ type Expr =
         id,
         r mexpr,
         List.map
-          ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
-           << (Tuple2.mapItem2 r))
+          ((Tuple2.mapFirst (fun (p : Pattern) -> p.toRuntimeType ()))
+           << (Tuple2.mapSecond r))
           pairs
       )
     | EPipeTarget id -> failwith "No EPipeTargets should remain"
@@ -376,7 +375,7 @@ module Shortcuts =
   // | ERightPartial (_, _, oldExpr)
   // | ELeftPartial (_, _, oldExpr) -> R.EPartial(id, r oldExpr)
   // | EList (_, exprs) -> R.EList(id, List.map r exprs)
-  // | ERecord (_, pairs) -> R.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+  // | ERecord (_, pairs) -> R.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
   // | EPipe (_, expr1, expr2, rest) ->
   //     // Convert v |> fn1 a |> fn2 |> fn3 b c
   //     // into fn3 (fn2 (fn1 v a)) b c
@@ -415,8 +414,8 @@ module Shortcuts =
   //       (id,
   //        r mexpr,
   //        List.map
-  //          ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
-  //           << (Tuple2.mapItem2 r))
+  //          ((Tuple2.mapFirst (fun (p : Pattern) -> p.toRuntimeType ()))
+  //           << (Tuple2.mapSecond r))
   //          pairs)
   // | EPipeTarget _ -> failwith "No EPipeTargets should remain"
   // | EFeatureFlag (_, name, cond, caseA, caseB) ->

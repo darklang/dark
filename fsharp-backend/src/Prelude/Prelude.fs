@@ -390,6 +390,11 @@ module String =
   let splitOnNewline (str : string) : List<string> =
     str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
+  let split (sep : string) (str : string) : List<string> =
+    str.Split([| sep |], System.StringSplitOptions.None) |> Array.toList
+
+  let toArray (str : string) : char array = str.ToCharArray()
+
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
@@ -397,6 +402,35 @@ module String =
 
   let equalsCaseInsensitive (s1 : string) (s2 : string) : bool =
     System.String.Equals(s1, s2, System.StringComparison.InvariantCultureIgnoreCase)
+
+  let toLower (s : string) : string = s.ToLower()
+  let toUpper (s : string) : string = s.ToUpper()
+
+  let length (s : string) : int = s.Length
+
+  let endsWith (suffix : string) (s : string) : bool = s.EndsWith(suffix)
+  let startsWith (prefix : string) (s : string) : bool = s.StartsWith(prefix)
+
+  let replace (old : string) (newStr : string) (s : string) : string =
+    s.Replace(old, newStr)
+
+module Tuple2 =
+  let first (x : 'x, y : 'y) : 'x = x
+  let second (x : 'x, y : 'y) : 'y = y
+  let mapFirst (f : 'x -> 'r) (x : 'x, y : 'y) : 'r * 'y = (f x, y)
+  let mapSecond (f : 'y -> 'r) (x : 'x, y : 'y) : 'x * 'r = (x, f y)
+
+module Map =
+  let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
+    FSharpPlus.Map.union m2 m1
+
+  let mergeFavoringLeft (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
+    FSharpPlus.Map.union m1 m2
+
+  let keys (m : Map<'k, 'v>) : seq<'k> = FSharpPlus.Map.keys m
+  let values (m : Map<'k, 'v>) : seq<'v> = FSharpPlus.Map.values m
+
+
 
 module HashSet =
   type T<'v> = System.Collections.Generic.HashSet<'v>
@@ -815,9 +849,6 @@ module Tablecloth =
   module Map =
     let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
       List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
-
-    let merge (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
-      FSharpPlus.Map.union m1 m2
 
 type Ply<'a> = Ply.Ply<'a>
 let uply = FSharp.Control.Tasks.Affine.Unsafe.uply

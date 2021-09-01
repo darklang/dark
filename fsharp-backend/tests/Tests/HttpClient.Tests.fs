@@ -71,7 +71,7 @@ let t filename =
 
   let filename = $"tests/httpclienttestfiles/{filename}"
   let contents = System.IO.File.ReadAllBytes filename
-  let content = ofBytes contents
+  let content = UTF8.ofBytesUnsafe contents
 
   let expectedRequest, response, code =
     let m =
@@ -86,13 +86,14 @@ let t filename =
 
     (g.[2].Value, g.[3].Value, g.[4].Value)
 
-  let expected = expectedRequest |> toBytes |> Http.setHeadersToCRLF |> Http.split
+  let expected =
+    expectedRequest |> UTF8.toBytes |> Http.setHeadersToCRLF |> Http.split
   let newExpectedBody = updateBody expected.body
   let expected =
     { expected with
         headers = normalizeHeaders newExpectedBody expected.headers
         body = newExpectedBody }
-  let response = response |> toBytes |> Http.setHeadersToCRLF |> Http.split
+  let response = response |> UTF8.toBytes |> Http.setHeadersToCRLF |> Http.split
   let newResponseBody = updateBody response.body
   let response =
     { response with
@@ -292,11 +293,11 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
             expectedStatus = expectedStatus
             actualStatus = actualStatus
             expectedHeaders = expectedHeaders
-            expectedBody = ofBytes expectedBody
+            expectedBody = UTF8.ofBytesUnsafe expectedBody
             actualHeaders = actualHeaders
-            actualBody = ofBytes actualBody }
+            actualBody = UTF8.ofBytesUnsafe actualBody }
           |> Json.Vanilla.prettySerialize
-          |> toBytes
+          |> UTF8.toBytes
 
         ctx.Response.StatusCode <- 400
         ctx.Response.ContentLength <- int64 body.Length

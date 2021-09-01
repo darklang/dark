@@ -2,7 +2,6 @@ module LibExecutionStdLib.LibMiddleware
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -99,10 +98,7 @@ let fns : List<BuiltInFn> =
                  let values = nvc.GetValues key
 
                  let value =
-                   let split =
-                     values.[values.Length - 1]
-                     |> String.split [| "," |]
-                     |> Seq.toList
+                   let split = values.[values.Length - 1] |> String.split ","
 
                    match split with
                    | [] -> DNull
@@ -166,7 +162,7 @@ let fns : List<BuiltInFn> =
             "/?:@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-~=,&"
 
            let mutable safe = (Array.init 256 (fun _ -> false))
-           Array.iter (fun b -> safe.[int b] <- true) (toBytes allowed)
+           Array.iter (fun b -> safe.[int b] <- true) (UTF8.toBytes allowed)
            safe)
 
         (function
@@ -174,7 +170,7 @@ let fns : List<BuiltInFn> =
           let result = System.Text.StringBuilder()
           // What if there;s a urlencoded ',' or '=' in the values?
           queryParams
-          |> toBytes
+          |> UTF8.toBytes
           |> Array.iter
                (fun b ->
                  let (_ : System.Text.StringBuilder) =
@@ -298,7 +294,7 @@ let fns : List<BuiltInFn> =
         | _, [ DHttpResponse response; DStr name; DStr value ] ->
           match response with
           | Response (code, headers, responseVal) ->
-            Response(code, headers ++ [ name, value ], responseVal)
+            Response(code, headers @ [ name, value ], responseVal)
             |> DHttpResponse
             |> Ply
           | Redirect _ -> Ply(DHttpResponse response)
@@ -397,7 +393,7 @@ let fns : List<BuiltInFn> =
             headers
             |> Map.toList
             |> List.map (fun (k, v) -> (String.toLower k, v))
-            |> (++) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
+            |> (@) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
             |> Map.ofList
             |> DObj
 
@@ -470,7 +466,7 @@ let fns : List<BuiltInFn> =
               existingContentType
               |> Option.map (fun (k, v) -> v)
               |> Option.defaultValue inferredCT
-              |> String.split [| ";" |]
+              |> String.split ";"
               |> Seq.tryHead
 
             let asBytes =
@@ -479,13 +475,14 @@ let fns : List<BuiltInFn> =
               | _, Some "text/plain"
               | _, Some "application/xml"
               | _, Some "text/html" ->
-                dv |> DvalRepr.toEnduserReadableTextV0 |> toBytes
-              | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
+                dv |> DvalRepr.toEnduserReadableTextV0 |> UTF8.toBytes
+              | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> UTF8.toBytes
 
             Ply(DHttpResponse(Response(code, headers, DBytes asBytes)))
           | DHttpResponse (Redirect _) as resp -> Ply resp
           | response ->
-            let bytes = response |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
+            let bytes =
+              response |> DvalRepr.toPrettyMachineJsonStringV1 |> UTF8.toBytes
 
             let headers = [ "content-type", inferContentType response ]
             Ply(DHttpResponse(Response(200I, headers, DBytes bytes)))

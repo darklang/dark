@@ -1,6 +1,5 @@
 module BackendOnlyStdLib.LibJwt
 
-open FSharpPlus
 open System.Security.Cryptography
 open System.Text
 
@@ -102,7 +101,7 @@ module Legacy =
   type Vector = System.Collections.Generic.List<byte>
 
   let append (v : Vector) (s : string) : unit =
-    let bytes = toBytes s
+    let bytes = UTF8.toBytes s
     v.Capacity <- v.Capacity + bytes.Length // avoid resizing multiple times
     Array.iter (fun b -> v.Add b) bytes
 
@@ -117,7 +116,7 @@ module Legacy =
 
   and appendString (v : Vector) (s : string) : unit =
     s
-    |> toBytes
+    |> UTF8.toBytes
     |> Array.iter
          (fun b ->
            match b with
@@ -193,7 +192,7 @@ module Legacy =
   let toString (j : Yojson) : string =
     let v = Vector 10
     toString' v j
-    v.ToArray() |> ofBytes
+    v.ToArray() |> UTF8.ofBytesUnsafe
 
 
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
@@ -205,14 +204,14 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> Map.toList
     |> Legacy.Assoc
     |> Legacy.toString
-    |> toBytes
+    |> UTF8.toBytes
     |> Base64.urlEncodeToString
 
   let payload =
     payload
     |> Legacy.toYojson
     |> Legacy.toString
-    |> toBytes
+    |> UTF8.toBytes
     |> Base64.urlEncodeToString
 
   let body = header + "." + payload
@@ -225,7 +224,7 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     let sha256 = SHA256.Create()
 
     body
-    |> toBytes
+    |> UTF8.toBytes
     |> sha256.ComputeHash
     |> RSAFormatter.CreateSignature
     |> Base64.urlEncodeToString
@@ -233,7 +232,7 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
   body + "." + signature
 
 let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
-  match Seq.toList (String.split [| "." |] token) with
+  match Seq.toList (String.split "." token) with
   | [ header; payload; signature ] ->
     // do the minimum of parsing and decoding before verifying signature.
     // c.f. "cryptographic doom principle".
@@ -243,7 +242,8 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
       match signature with
       | None -> None
       | Some signature ->
-        let hash = (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
+        let hash =
+          (header + "." + payload) |> UTF8.toBytes |> SHA256.Create().ComputeHash
 
         let rsaDeformatter = RSAPKCS1SignatureDeformatter key
         rsaDeformatter.SetHashAlgorithm "SHA256"
@@ -253,7 +253,8 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
           let payload = payload |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
           match (header, payload) with
-          | Some header, Some payload -> Some(ofBytes header, ofBytes payload)
+          | Some header, Some payload ->
+            Some(UTF8.ofBytesUnsafe header, UTF8.ofBytesUnsafe payload)
           | _ -> None
         else
           None
@@ -266,7 +267,7 @@ let verifyAndExtractV1
   (token : string)
   : Result<string * string, string> =
 
-  match Seq.toList (String.split [| "." |] token) with
+  match String.split "." token with
   | [ header; payload; signature ] ->
     //do the minimum of parsing and decoding before verifying signature.
     //c.f. "cryptographic doom principle".
@@ -276,7 +277,8 @@ let verifyAndExtractV1
       match signature with
       | None -> Error "Unable to base64-decode signature"
       | Some signature ->
-        let hash = (header + "." + payload) |> toBytes |> SHA256.Create().ComputeHash
+        let hash =
+          (header + "." + payload) |> UTF8.toBytes |> SHA256.Create().ComputeHash
 
         let rsaDeformatter = RSAPKCS1SignatureDeformatter key
         rsaDeformatter.SetHashAlgorithm "SHA256"
@@ -286,7 +288,8 @@ let verifyAndExtractV1
           let payload = payload |> Base64.fromUrlEncoded |> Base64.decodeOpt
 
           match (header, payload) with
-          | Some header, Some payload -> Ok(ofBytes header, ofBytes payload)
+          | Some header, Some payload ->
+            Ok(UTF8.ofBytesUnsafe header, UTF8.ofBytesUnsafe payload)
           | Some _, None -> Error "Unable to base64-decode header"
           | _ -> Error "Unable to base64-decode payload"
         else

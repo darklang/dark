@@ -65,7 +65,7 @@ let rec toStringRepr (e : Expr) : string =
 // | EPartial (_, _, oldExpr)
 // | ERightPartial (_, _, oldExpr)
 // | ELeftPartial (_, _, oldExpr) -> R.EPartial(id, r oldExpr)
-// | ERecord (_, pairs) -> R.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+// | ERecord (_, pairs) -> R.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
 // | EPipe (_, expr1, expr2, rest) ->
 //     // Convert v |> fn1 a |> fn2 |> fn3 b c
 //     // into fn3 (fn2 (fn1 v a)) b c
@@ -104,8 +104,8 @@ let rec toStringRepr (e : Expr) : string =
 //       (id,
 //        r mexpr,
 //        List.map
-//          ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
-//           << (Tuple2.mapItem2 r))
+//          ((Tuple2.mapFirst (fun (p : Pattern) -> p.toRuntimeType ()))
+//           << (Tuple2.mapSecond r))
 //          pairs)
 // | EPipeTarget _ -> failwith "No EPipeTargets should remain"
 // | EFeatureFlag (_, name, cond, caseA, caseB) ->

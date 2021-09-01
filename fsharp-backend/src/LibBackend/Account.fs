@@ -4,7 +4,6 @@ module LibBackend.Account
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open Npgsql.FSharp
 open Npgsql
 
@@ -291,7 +290,8 @@ let authenticate
   |> Task.map (
     Option.andThen
       (fun (username, password) ->
-        let dbHash = password |> Base64.decodeFromString |> ofBytes
+        let dbHash =
+          password |> Base64.decodeFromString |> System.Text.Encoding.ASCII.GetString
 
         if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
           Some(username)
