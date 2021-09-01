@@ -12,6 +12,7 @@ open System.Text.RegularExpressions
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
@@ -283,7 +284,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, uppercased"
       fn =
         (function
-        | _, [ DStr s ] -> Ply(DStr(String.toUpper s))
+        | _, [ DStr s ] -> Ply(DStr(String.toUppercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -313,7 +314,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, lowercased"
       fn =
         (function
-        | _, [ DStr s ] -> Ply(DStr(String.toLower s))
+        | _, [ DStr s ] -> Ply(DStr(String.toLowercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -378,7 +379,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, [ DStr s1; DStr s2 ] -> Ply(DStr((s1 + s2).Normalize()))
+        | _, [ DStr s1; DStr s2 ] -> (s1 + s2) |> String.normalize |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -413,7 +414,7 @@ let fns : List<BuiltInFn> =
           |> replace toRemove ""
           |> replace trim ""
           |> replace spaces "-"
-          |> String.toLower
+          |> String.toLowercase
           |> DStr
           |> Ply
 
@@ -439,7 +440,7 @@ let fns : List<BuiltInFn> =
           |> replace toRemove ""
           |> replace trim ""
           |> replace newSpaces "-"
-          |> String.toLower
+          |> String.toLowercase
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
@@ -463,9 +464,9 @@ let fns : List<BuiltInFn> =
             Regex.Replace(input, pattern, replacement)
 
           s
-          |> String.toLower
+          |> String.toLowercase
           |> replace toRemove ""
-          |> fun s -> s.Trim()
+          |> String.trim
           |> replace toBeHyphenated "-"
           |> DStr
           |> Ply
@@ -970,7 +971,7 @@ let fns : List<BuiltInFn> =
           |> Seq.toList
           |> List.truncate n
           |> String.concat ""
-          |> fun s -> s.Normalize()
+          |> String.normalize
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
@@ -1173,7 +1174,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
       fn =
         (function
-        | _, [ DStr toTrim ] -> Ply(DStr(toTrim.Trim()))
+        | _, [ DStr toTrim ] -> toTrim |> String.trim |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure

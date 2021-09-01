@@ -5,6 +5,7 @@ open System.Text
 
 open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
@@ -200,7 +201,7 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     extraHeaders
     |> Map.add "alg" (DStr "RS256")
     |> Map.add "type" (DStr "JWT")
-    |> Map.map (fun k v -> Legacy.toYojson v)
+    |> Map.mapWithIndex (fun k v -> Legacy.toYojson v)
     |> Map.toList
     |> Legacy.Assoc
     |> Legacy.toString

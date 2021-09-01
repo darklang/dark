@@ -2,8 +2,11 @@ module LibExecutionStdLib.LibDict
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.RuntimeTypes
+
 open Prelude
+open LibExecution.VendoredTablecloth
+
+open LibExecution.RuntimeTypes
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
@@ -106,7 +109,7 @@ let fns : List<BuiltInFn> =
             | DError _) as dv -> Errors.foundFakeDval (dv)
             | _ -> Errors.throw "All list items must be `[key, value]`"
 
-          let result = List.fold f Map.empty l
+          let result = List.fold Map.empty f l
           Ply((DObj(result)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -136,7 +139,7 @@ let fns : List<BuiltInFn> =
             | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
             | None, _ -> None
 
-          let result = List.fold f (Some Map.empty) l
+          let result = List.fold (Some Map.empty) f l
 
           match result with
           | Some map -> Ply(DOption(Some(DObj(map))))
@@ -230,7 +233,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DObj o; DFnVal b ] ->
           uply {
-            let mapped = Map.map (fun i v -> (i, v)) o
+            let mapped = Map.mapWithIndex (fun i v -> (i, v)) o
 
             let! result =
               Ply.Map.mapSequentially

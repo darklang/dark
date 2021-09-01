@@ -32,7 +32,7 @@ let bool (name : string) : bool =
 
 
 let lowercase (name : string) (v : string) =
-  if v = v.ToLower() then
+  if v = String.toLowercase v then
     v
   else
     failwith ($"Env vars must be lowercased but {name}={v} is not")

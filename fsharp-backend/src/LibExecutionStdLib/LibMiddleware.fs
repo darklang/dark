@@ -4,6 +4,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open LibExecution.VendoredTablecloth
 open LibExecution.RuntimeTypes
 open LibExecution.Shortcuts
 
@@ -316,7 +317,7 @@ let fns : List<BuiltInFn> =
           | Response (code, headers, responseVal) ->
             let existingHeader =
               headers
-              |> List.tryFind (fun (name, _) -> String.toLower name = headerName)
+              |> List.tryFind (fun (name, _) -> String.toLowercase name = headerName)
 
             let headers =
               if existingHeader = None then
@@ -392,7 +393,7 @@ let fns : List<BuiltInFn> =
           let headers =
             headers
             |> Map.toList
-            |> List.map (fun (k, v) -> (String.toLower k, v))
+            |> List.map (fun (k, v) -> (String.toLowercase k, v))
             |> (@) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
             |> Map.ofList
             |> DObj
@@ -454,7 +455,7 @@ let fns : List<BuiltInFn> =
 
             let existingContentType =
               headers
-              |> List.tryFind (fun (name, _) -> String.toLower name = "content-type")
+              |> List.tryFind (fun (name, _) -> String.toLowercase name = "content-type")
 
             let headers =
               if existingContentType = None then

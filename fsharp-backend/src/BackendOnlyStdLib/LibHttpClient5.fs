@@ -6,6 +6,7 @@ open System.Net.Http
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
 
@@ -124,7 +125,7 @@ let sendRequest
 
       let parsedResponseHeaders =
         response.headers
-        |> List.map (fun (k, v) -> (k.Trim(), DStr(v.Trim())))
+        |> List.map (fun (k, v) -> (String.trim k, DStr(String.trim v)))
         |> List.filter (fun (k, _) -> String.length k > 0)
         |> Map.ofList
         |> DObj // in old version, this was Dval.obj, however we want to allow duplicates

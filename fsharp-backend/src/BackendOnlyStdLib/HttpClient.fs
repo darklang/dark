@@ -13,6 +13,7 @@ open System.IO
 open Prelude
 open LibExecution
 open LibBackend
+open VendoredTablecloth
 
 module RT = RuntimeTypes
 
@@ -141,7 +142,7 @@ let rec dvalToUrlStringExn (dv : RT.Dval) : string =
   | RT.DHttpResponse (RT.Response (_, _, hdv)) -> r hdv
   | RT.DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
   | RT.DObj o ->
-    let strs = Map.fold (fun l key value -> (key + ": " + r value) :: l) [] o
+    let strs = Map.fold [] (fun l key value -> (key + ": " + r value) :: l) o
     "{ " + (String.concat ", " strs) + " }"
   | RT.DOption None -> "none"
   | RT.DOption (Some v) -> r v
@@ -381,7 +382,7 @@ let makeHttpCall
           let decompress = CompressionMode.Decompress
           // The version of Curl we used in OCaml does not support zstd, so omitting
           // that won't break anything.
-          match encoding.ToLower() with
+          match String.toLowercase encoding with
           | "br" -> new BrotliStream(responseStream, decompress) :> Stream
           | "gzip" -> new GZipStream(responseStream, decompress) :> Stream
           | "deflate" -> new DeflateStream(responseStream, decompress) :> Stream
@@ -432,7 +433,7 @@ let makeHttpCall
         // control over this, so make this lowercase by default
         let headers =
           if isHttp2 then
-            List.map (fun (k : string, v) -> (k.ToLower(), v)) headers
+            List.map (fun (k : string, v) -> (String.toLowercase k, v)) headers
           else
             headers
 

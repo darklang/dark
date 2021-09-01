@@ -60,7 +60,7 @@ module Generators =
   let string () =
     let isValid (s : string) : bool =
       try
-        let (_ : string) = s.Normalize()
+        String.normalize s |> ignore<string>
         true
       with
       | e ->

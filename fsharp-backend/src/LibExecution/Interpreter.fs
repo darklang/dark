@@ -54,7 +54,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | _ ->
         let st = if lhs <> "" then Map.add lhs rhs st else st
         return! eval state st body
-    | EString (_id, s) -> return DStr(s.Normalize())
+    | EString (_id, s) -> return DStr(String.normalize s)
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value

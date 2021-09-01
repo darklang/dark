@@ -291,7 +291,7 @@ let authenticate
     Option.andThen
       (fun (username, password) ->
         let dbHash =
-          password |> Base64.decodeFromString |> System.Text.Encoding.ASCII.GetString
+          password |> Base64.decodeFromString |> UTF8.ofBytesWithReplacement
 
         if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
           Some(username)

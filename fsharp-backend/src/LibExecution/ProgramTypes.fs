@@ -653,7 +653,7 @@ type DType =
   static member parse(str : string) : DType =
     let any = TVariable "a"
 
-    match String.toLower str with
+    match String.toLowercase str with
     | "any" -> any
     | "int" -> TInt
     | "integer" -> TInt
@@ -681,7 +681,7 @@ type DType =
     | "dict" -> TDict any
     | _ ->
       let parseListTyp (listTyp : string) : DType =
-        match String.toLower listTyp with
+        match String.toLowercase listTyp with
         | "str" -> TDbList TStr
         | "string" -> TDbList TStr
         | "int" -> TDbList TInt
