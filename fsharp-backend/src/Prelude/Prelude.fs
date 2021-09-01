@@ -201,8 +201,33 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
   with
   | e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
 
+// System.Text.Encoding.UTF8 replaces invalid bytes on error. We want to throw instead.
+let utf8EncodingWithErrors = System.Text.UTF8Encoding(false, true)
+
+let toBytesUnsafe (input : string) : byte array =
+  utf8EncodingWithErrors.GetBytes input
+
+let ofBytesUnsafe (input : byte array) : string =
+  utf8EncodingWithErrors.GetString input
+
+let toBytesOpt (input : string) : byte array option =
+  try
+    Some(toBytesUnsafe input)
+  with
+  | e -> None
+
+let ofBytesOpt (input : byte array) : string option =
+  try
+    Some(ofBytesUnsafe input)
+  with
+  | e -> None
+
+// FSTODO mark this one safe and audit all uses
+// Use this to ignore errors
 let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
 
+// FSTODO mark this one safe and audit all uses
+// Use this to ignore errors
 let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
 
 
