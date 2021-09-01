@@ -455,7 +455,8 @@ let fns : List<BuiltInFn> =
 
             let existingContentType =
               headers
-              |> List.tryFind (fun (name, _) -> String.toLowercase name = "content-type")
+              |> List.tryFind
+                   (fun (name, _) -> String.toLowercase name = "content-type")
 
             let headers =
               if existingContentType = None then
