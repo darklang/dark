@@ -36,6 +36,7 @@ fsharp-backend/.paket/load/
 ###############
 
 # Templates for these are in services/*/*.template.yaml
+services/apiserver-deployment/apiserver-deployment.yaml
 services/bwd-deployment/bwd-deployment.yaml
 services/editor-deployment/editor-deployment.yaml
 services/cron-deployment/cron-deployment.yaml

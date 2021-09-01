@@ -5,6 +5,7 @@ metadata:
 spec:
   type: NodePort
   selector:
+    # FSTODO: this would point to apiserver-app when it's ready
     app: editor-app
   ports:
     - name: darklang-nodeport-port
