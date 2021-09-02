@@ -58,6 +58,7 @@ for dir in containers/*/; do
     echo -e "\nBuild container: $c"
 
     BUILD_DIR="${dir}"
+    # CLEANUP the prep work here could pretty much always go in the dockerfile
     if [[ -e "${dir}prep.sh" ]]; then
       BUILD_DIR=$(time ${dir}prep.sh)
     fi

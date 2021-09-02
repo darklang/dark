@@ -55,9 +55,9 @@ let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 // k8s
 // --------------------
 // Don't use DARK_CONFIG_HEALTH_CHECK_PORT as that's part of the ocaml service
-let bwdServerHealthCheckPort = int "DARK_CONFIG_BWDSERVER_HEALTHCHECK_PORT"
+let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 
-let apiServerHealthCheckPort = int "DARK_CONFIG_APISERVER_HEALTHCHECK_PORT"
+let apiServerKubernetesPort = int "DARK_CONFIG_APISERVER_KUBERNETES_PORT"
 
 let apiServerPort = int "DARK_CONFIG_APISERVER_PORT"
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_PORT"

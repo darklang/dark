@@ -1,50 +1,49 @@
-module LibService.HealthCheck
+module LibService.Kubernetes
+
+// ASP.net healthchecks, mapping to k8s routes
+// See https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks
 
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Abstractions
+open Microsoft.AspNetCore.Diagnostics.HealthChecks
 
 let url (port : int) : string = $"http://*:{port}"
 
+let livenessTag = "liveness"
+let readinessTag = "readiness"
+let startupTag = "startup"
+
 let configureServices (services : IServiceCollection) : IServiceCollection =
-  let (_ : IHealthChecksBuilder) =
-    services.AddHealthChecks().AddNpgSql(DBConnection.connectionString)
+  // each healthcheck is tagged according to the probes it is used in
+  let allProbes = [| livenessTag; readinessTag; startupTag |]
+  services
+    .AddHealthChecks()
+    .AddNpgSql(DBConnection.connectionString, tags = allProbes)
+  |> ignore<IHealthChecksBuilder>
 
   services
 
 let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder =
+  let taggedWith (tag : string) =
+    HealthCheckOptions(Predicate = fun hcr -> hcr.Tags.Contains(tag))
   app
-    .UseHealthChecks(PathString("/"), port)
+    .UseHealthChecks(PathString(""), port) // Just filter on port, allow any path
     .UseEndpoints(
       (fun endpoints ->
-        let (_ : IEndpointConventionBuilder) =
-          endpoints.MapHealthChecks("/healthz").RequireHost($"*:{port}")
-
-        ())
+        endpoints.MapHealthChecks("/k8s/livenessProbe", taggedWith livenessTag)
+        |> ignore<IEndpointConventionBuilder>
+        endpoints.MapHealthChecks("/k8s/startupProbe", taggedWith startupTag)
+        |> ignore<IEndpointConventionBuilder>
+        endpoints.MapHealthChecks("/k8s/readinessProbe", taggedWith readinessTag)
+        |> ignore<IEndpointConventionBuilder>)
     )
 
 //FSTODO: things to check
 
 // CLEANUP add support for https://devblogs.microsoft.com/dotnet/introducing-dotnet-monitor/
 
-
-//FSTODO run a health-check service on another port
-// let run ~shutdown ~execution_id =
-//   let callback _conn req body =
-//     match req |> CRequest.uri |> Uri.path with
-//     | "/" ->
-//       ( match Dbconnection.status () with
-//       | `Healthy ->
-//           Server.respond_string
-//             ~status:`OK
-//             ~body:"Hello internal overlord from qw"
-//             ()
-//       | `Disconnected ->
-//           Server.respond_string
-//             ~status:`Service_unavailable
-//             ~body:"Sorry internal overlord from qw"
-//             () )
 //     | "/pkill" ->
 //         if !shutdown (* note: this is a ref, not a boolean `not` *)
 //         then (
@@ -63,10 +62,3 @@ let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder 
 //     | _ ->
 //         Server.respond_string ~status:`Not_found ~body:"Not found" ()
 //   in
-//   (* As we're intended to be in an async thread, no reason to use a `~stop` variable for
-//    * the server when we receive /pkill -- we simply need to tell our parent that it should
-//    * begin shutting down *)
-//   Server.create
-//     ~mode:(`TCP (`Port Config.health_check_port))
-//     (Server.make ~callback ())
-//

@@ -23,7 +23,7 @@ open Prelude
 open Tablecloth
 open FSharpx
 
-module HealthCheck = LibService.HealthCheck
+module Kubernetes = LibService.Kubernetes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module RealExe = LibRealExecution.RealExecution
@@ -402,19 +402,19 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> HealthCheck.configureApp healthCheckPort
+  |> Kubernetes.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> HealthCheck.configureServices
+  |> Kubernetes.configureServices
   |> LibService.Rollbar.AspNet.addRollbarToServices
   |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
   |> ignore<IServiceCollection>
 
 
 let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
-  let hcUrl = HealthCheck.url healthCheckPort
+  let hcUrl = Kubernetes.url healthCheckPort
 
   WebHost.CreateDefaultBuilder()
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
@@ -432,7 +432,7 @@ let main _ =
   (webserver
     true
     LibService.Config.bwdServerPort
-    LibService.Config.bwdServerHealthCheckPort)
+    LibService.Config.bwdServerKubernetesPort)
     .Run()
 
   0

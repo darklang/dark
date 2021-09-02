@@ -18,7 +18,7 @@ module Auth = LibBackend.Authorization
 open Prelude
 open Tablecloth
 
-module HealthCheck = LibService.HealthCheck
+module Kubernetes = LibService.Kubernetes
 module Config = LibBackend.Config
 
 // --------------------
@@ -86,7 +86,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> HealthCheck.configureApp LibService.Config.apiServerHealthCheckPort
+  |> Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
   |> fun app ->
        if Config.apiServerServeStaticContent then
          app.UseStaticFiles(
@@ -110,7 +110,7 @@ let configureServices (services : IServiceCollection) : unit =
     services
     |> LibService.Rollbar.AspNet.addRollbarToServices
     |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
-    |> HealthCheck.configureServices
+    |> Kubernetes.configureServices
     |> fun s -> s.AddServerTiming()
     |> fun s -> s.AddGiraffe()
     |> fun s ->
@@ -129,7 +129,7 @@ let main args =
   // Breaks tests as they're being run simultaneously by the ocaml server
   // LibBackend.Migrations.init ()
 
-  let hcUrl = HealthCheck.url LibService.Config.apiServerHealthCheckPort
+  let hcUrl = Kubernetes.url LibService.Config.apiServerKubernetesPort
 
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
