@@ -1,5 +1,4 @@
 FSharp.Core
-Giraffe
 Rollbar
 Rollbar.NetCore.AspNet
 Honeycomb.OpenTelemetry
