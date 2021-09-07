@@ -1,6 +1,29 @@
-## Coding guide / style guide
+# Coding guide / style guide
 
-# F#
+## File layout
+
+- Every file should start with a comment describing it (this is currently not done
+  very much at all).
+
+- all files have a formatter, which should be setup automatically in VSCode. Use
+  `scripts/format format` to format otherwise. Unformatted files fail in CI.
+
+- imports should be ordered:
+  - first the `Prelude` library and `tablecloth`
+  - then stdlib and language builtins
+  - then other Dark modules
+
+## Comments
+
+- All files should begin with a comment explaining the purpose of the file
+
+- All directories should have a README describing their purpose
+
+- All types, fields in records, constructors, functions, and modules, should have a
+  comment unless extremely obvious. If unsure, add a comment. The comment does not need
+  to be long, describing the purpose of the thing is usually enough.
+
+## F#
 
 - `ignore` should always use a type signature (this should be enforced by the
   compiler)
