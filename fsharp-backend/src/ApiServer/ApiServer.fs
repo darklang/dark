@@ -31,7 +31,10 @@ let endpoints : Endpoint list =
   let R = Auth.Read
   let RW = Auth.ReadWrite
 
-  let api (name : string) fn =
+  let api
+    (name : string)
+    (fn : string -> HttpFunc -> HttpContext -> HttpFuncResult)
+    =
     // FSTODO: trace is_admin, username, and canvas
     routef (PrintfFormat<_, _, _, _, _>("/api/%s/" + name)) fn
 
@@ -78,6 +81,20 @@ let errorHandler (ex : Exception) (logger : ILogger) =
 // --------------------
 // Setup web server
 // --------------------
+
+let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
+  if Config.apiServerServeStaticContent then
+    app.UseStaticFiles(
+      StaticFileOptions(
+        ServeUnknownFileTypes = true,
+        FileProvider = new PhysicalFileProvider(Config.webrootDir),
+        OnPrepareResponse =
+          (fun ctx -> ctx.Context.SetHttpHeader("Access-Control-Allow-Origin", "*"))
+      )
+    )
+  else
+    app
+
 let configureApp (appBuilder : IApplicationBuilder) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
@@ -87,40 +104,27 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
-  |> fun app ->
-       if Config.apiServerServeStaticContent then
-         app.UseStaticFiles(
-           StaticFileOptions(
-             ServeUnknownFileTypes = true,
-             FileProvider = new PhysicalFileProvider(Config.webrootDir),
-             OnPrepareResponse =
-               (fun ctx ->
-                 ctx.Context.SetHttpHeader("Access-Control-Allow-Origin", "*"))
-           )
-         )
-       else
-         app
-
+  |> configureStaticContent
   |> fun app -> app.UseGiraffeErrorHandler(errorHandler)
   |> fun app -> app.UseGiraffe(endpoints)
   |> fun app -> app.UseGiraffe(notFoundHandler)
 
 let configureServices (services : IServiceCollection) : unit =
-  let (_ : IServiceCollection) =
-    services
-    |> LibService.Rollbar.AspNet.addRollbarToServices
-    |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
-    |> Kubernetes.configureServices
-    |> fun s -> s.AddServerTiming()
-    |> fun s -> s.AddGiraffe()
-    |> fun s ->
-         // this should say `s.AddSingleton<Json.ISerializer>(`. Fantomas has a habit of stripping
-         // the `<Json.ISerializer>` part, which causes the serializer not to load.
-         s.AddSingleton<Json.ISerializer>(
-           NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
-         )
+  services
+  |> LibService.Rollbar.AspNet.addRollbarToServices
+  |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
+  |> Kubernetes.configureServices
+  |> fun s -> s.AddServerTiming()
+  |> fun s -> s.AddGiraffe()
+  |> fun s ->
+       // this should say `s.AddSingleton<Json.ISerializer>(`. Fantomas has a habit of stripping
+       // the `<Json.ISerializer>` part, which causes the serializer not to load.
+       s.AddSingleton<Json.ISerializer>(
+         NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
+       )
+  |> ignore<IServiceCollection>
 
-  ()
+
 
 [<EntryPoint>]
 let main args =
