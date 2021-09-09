@@ -35,11 +35,11 @@ spec:
           ports:
             - name: apiserver-ctr-port
               containerPort: 9000
-          lifecycle:
-            # preStop:
-              # We implement the SIGTERM handler instead (even if we used preStop we'd
-              # still need to check how SIGTERM works so may as well simplify it to one
-              # concept)
+          # lifecycle:
+          #   preStop:
+          #     We implement the SIGTERM handler instead (even if we used preStop we'd
+          #     still need to check how SIGTERM works so may as well simplify it to one
+          #     concept)
           startupProbe: # has it started? Allows other probes
             httpGet:
               path: /k8s/startupProbe
@@ -97,6 +97,65 @@ spec:
                   name: dark-static-assets
                   key: balmy-ground-195100-d9b0f3de3013.json
         #########################
+        # Legacyserver
+        #########################
+        - name: legacy-ctr
+          image: "gcr.io/balmy-ground-195100/gcp-legacyserver:{IMAGE}"
+          # Resource limits + requests are intentionally the same, to ensure
+          # this pod is a 'Guaranteed' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "1000Mi"
+              cpu: "125m"
+            limits:
+              memory: "1000Mi"
+              cpu: "125m"
+          ports:
+            - name: bwd-legacy-port
+              containerPort: 5000
+          lifecycle:
+            preStop:
+              httpGet:
+                # ???? https://github.com/kubernetes/kubernetes/issues/56770
+                path: /k8s/pkill
+                port: 5000
+          readinessProbe:
+            httpGet:
+              path: /k8s/readinessProbe
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /k8s/livenessProbe
+              port: 5000
+            # Giving 2 minutes grace here, there's an outstanding k8s issue
+            # preventing you from specifying "start checking liveness after an
+            # ok from readiness", which is what you'd expect.
+            # https://github.com/kubernetes/kubernetes/issues/27114
+            initialDelaySeconds: 120
+            periodSeconds: 10 # every 10 seconds
+            timeoutSeconds: 10 # time out after 10 seconds
+            failureThreshold: 3 # kill container after 3 successive time outs
+          envFrom:
+            - configMapRef:
+                name: gke-dark-prod
+          env:
+            - name: DARK_CONFIG_RUNNING_IN_GKE
+              value: "true"
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar
+                  key: post_token
+            - name: DARK_CONFIG_PUSHER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: key
+
+        #########################
         # Postgres proxy config
         # To connect to postgres from kubernetes, we need to add a proxy. See
         # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
@@ -121,6 +180,9 @@ spec:
               mountPath: /secrets/cloudsql
               readOnly: true
 
+        #########################
+        # Nginx proxy
+        #########################
         - name: http-proxy
           image: nginx:1.16.1
           resources:
