@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-missing=`ldd $1`
+missing=$(ldd $1)
 
 if (echo "$missing" | grep not.found) ; then
   echo "Missing libraries!"
