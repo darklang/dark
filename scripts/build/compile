@@ -681,6 +681,7 @@ def ignore(filename):
       ".bsdeps",
       ".bsbuild",
       "/obj/fsac.cache",
+      "/fsharp-backend/packages/wasm",
       ".sourcedirs.json",
       "/obj",
       ".processlock",
