@@ -13,7 +13,7 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1 # FSTODO
+      maxUnavailable: 0 # FSTODO
   template:
     metadata:
       labels:
@@ -36,11 +36,10 @@ spec:
             - name: apiserver-ctr-port
               containerPort: 9000
           lifecycle:
-            preStop:
-              httpGet:
-                # ???? https://github.com/kubernetes/kubernetes/issues/56770
-                path: /k8s/preStop
-                port: 6000
+            # preStop:
+              # We implement the SIGTERM handler instead (even if we used preStop we'd
+              # still need to check how SIGTERM works so may as well simplify it to one
+              # concept)
           startupProbe: # has it started? Allows other probes
             httpGet:
               path: /k8s/startupProbe

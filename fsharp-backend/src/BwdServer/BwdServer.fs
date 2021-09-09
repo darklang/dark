@@ -21,9 +21,7 @@ type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Prelude
 open Tablecloth
-open FSharpx
 
-module Kubernetes = LibService.Kubernetes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module RealExe = LibRealExecution.RealExecution
@@ -402,21 +400,22 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> Kubernetes.configureApp healthCheckPort
+  |> LibService.Kubernetes.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> Kubernetes.configureServices
+  |> LibService.Kubernetes.configureServices
   |> LibService.Rollbar.AspNet.addRollbarToServices
   |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
   |> ignore<IServiceCollection>
 
 
 let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
-  let hcUrl = Kubernetes.url healthCheckPort
+  let hcUrl = LibService.Kubernetes.url healthCheckPort
 
   WebHost.CreateDefaultBuilder()
+  |> LibService.Kubernetes.registerServerTimeout
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> fun wh -> wh.ConfigureServices(configureServices)

@@ -13,12 +13,14 @@ open Microsoft.Extensions.Hosting
 open Giraffe
 open Giraffe.EndpointRouting
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 module Auth = LibBackend.Authorization
 
 open Prelude
 open Tablecloth
 
-module Kubernetes = LibService.Kubernetes
 module Config = LibBackend.Config
 
 // --------------------
@@ -103,7 +105,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
+  |> LibService.Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
   |> configureStaticContent
   |> fun app -> app.UseGiraffeErrorHandler(errorHandler)
   |> fun app -> app.UseGiraffe(endpoints)
@@ -113,7 +115,7 @@ let configureServices (services : IServiceCollection) : unit =
   services
   |> LibService.Rollbar.AspNet.addRollbarToServices
   |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
-  |> Kubernetes.configureServices
+  |> LibService.Kubernetes.configureServices
   |> fun s -> s.AddServerTiming()
   |> fun s -> s.AddGiraffe()
   |> fun s ->
@@ -133,10 +135,11 @@ let main args =
   // Breaks tests as they're being run simultaneously by the ocaml server
   // LibBackend.Migrations.init ()
 
-  let hcUrl = Kubernetes.url LibService.Config.apiServerKubernetesPort
+  let hcUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
 
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+  |> LibService.Kubernetes.registerServerTimeout
   |> fun wh ->
        wh.UseUrls(
          hcUrl,
