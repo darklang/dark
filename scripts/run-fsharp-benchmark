@@ -22,7 +22,8 @@ do
   esac
 done
 
-sudo killall legacyserver.exe || true
+sudo killall legacy_serialization_server.exe || true
+sudo killall legacy_fuzzing_server.exe || true
 killall -9 Benchmark || true
 
 ./scripts/devcontainer/_wait-for-background-services postgresql

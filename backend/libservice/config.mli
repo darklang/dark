@@ -10,7 +10,9 @@ val rollbar_environment : string
 
 val health_check_port : int
 
-val legacyserver_port : int
+val legacy_fuzzing_server_port : int
+
+val legacy_serialization_server_port : int
 
 type postgres_config =
   { host : string

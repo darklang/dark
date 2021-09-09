@@ -11,6 +11,6 @@ DIR=$(mktemp -d --suffix _gcp-builddir)
 
 cp containers/legacyserver/Dockerfile "$DIR/Dockerfile"
 cp containers/legacyserver/gcp-run-legacyserver "$DIR/"
-cp _build/default/backend/bin/legacyserver.exe "$DIR/bin/"
+cp _build/default/backend/bin/legacy_serialization_server.exe "$DIR/bin/"
 
 echo "${DIR}"

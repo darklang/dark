@@ -27,7 +27,8 @@ do
   esac
 done
 
-sudo killall legacyserver.exe || true
+sudo killall legacy_serializtion_server.exe || true
+sudo killall legacy_fuzzing_server.exe || true
 sudo killall ocamltestserver.exe || true
 killall -9 Tests || true
 

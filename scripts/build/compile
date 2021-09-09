@@ -544,7 +544,8 @@ def mark(should, f):
     should.backend_build = True
 
   elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f) or
-                               ("legacyserver" in f)):
+                               ("legacy_fuzzing_server" in f) or
+                               ("legacy_serialization_server" in f)):
     should.backend_build = True
     if in_ci:
       should.fsharp_backend_full_build = True

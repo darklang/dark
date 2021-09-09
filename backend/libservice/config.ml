@@ -16,7 +16,11 @@ let rollbar_environment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 
 let health_check_port = int "DARK_CONFIG_HEALTH_CHECK_PORT"
 
-let legacyserver_port = int "DARK_CONFIG_LEGACYSERVER_PORT"
+let legacy_fuzzing_server_port = int "DARK_CONFIG_LEGACY_FUZZING_SERVER_PORT"
+
+let legacy_serialization_server_port =
+  int "DARK_CONFIG_LEGACY_SERIALIZATION_SERVER_PORT"
+
 
 (* -------------------- *)
 (* db *)

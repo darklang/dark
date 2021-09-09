@@ -61,7 +61,8 @@ let apiServerKubernetesPort = int "DARK_CONFIG_APISERVER_KUBERNETES_PORT"
 
 let apiServerPort = int "DARK_CONFIG_APISERVER_PORT"
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_PORT"
-let legacyServerPort = int "DARK_CONFIG_LEGACYSERVER_PORT"
+let legacyFuzzingServerPort = int "DARK_CONFIG_LEGACY_FUZZING_SERVER_PORT"
+let legacySerializtionServerPort = int "DARK_CONFIG_LEGACY_SERIALIZATION_SERVER_PORT"
 
 // --------------------
 // db
