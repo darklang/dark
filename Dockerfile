@@ -319,7 +319,7 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 # (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src
 
-ENV DOTNET_SDK_VERSION=6.0.100-rc.1.21417.9 \
+ENV DOTNET_SDK_VERSION=6.0.100-rc.2.21460.33 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
@@ -332,9 +332,9 @@ ENV DOTNET_SDK_VERSION=6.0.100-rc.1.21417.9 \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
-#RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
-RUN curl -SL --output dotnet.tar.gz https://storage.googleapis.com/dotnet6-rc1/dotnet-sdk-linux-x64.tar.gz \
-    && dotnet_sha512='6A93D9F092D8DC3FE1FFFE784028D6C4BA62868C8AF64F97BA403242F9360C772F6A32A907BE580561FB0EFF901640B9895076E000F53A1CA4250CD16F1AB1B2' \
+#RUN curl -SL --output dotnet.tar.gz https://storage.googleapis.com/dotnet6-rc1/dotnet-sdk-linux-x64.tar.gz \
+RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
+    && dotnet_sha512='66FCB9E11B5958D554C9744BDA402F52499B9BF6A6AF28F4E1541359F1A473EC5A05F3921663FF1C76E69C6EC89B18D282A79A71653130A1C1BA32DFB6E1C821' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && sudo mkdir -p /usr/share/dotnet \
     && sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz . \
