@@ -146,7 +146,6 @@ commands:
 
   build-gcp-containers:
     steps:
-      - run: scripts/linting/yamllinter
       - prep-container-creation
       - run:
           name: Regenerate combined ETags
@@ -187,7 +186,6 @@ jobs:
             - v2-client
       - run: scripts/build/compile-project client --test
       - assert-clean-worktree
-      - run: scripts/linting/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
@@ -292,6 +290,8 @@ jobs:
     executor: in-rust-container
     steps:
       - darkcheckout
+      - run: scripts/linting/shellchecker
+      - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
 
   build-stroller:
