@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
+# Deploy all the new containers to production, with a deploy lock.
+
 set -euo pipefail
 
 # Deploy Dark to production

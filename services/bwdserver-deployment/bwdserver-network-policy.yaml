@@ -1,3 +1,6 @@
+# Network policy for BwdServer. This prevents access directly to local IPs from Dark
+# code, which would be a security problem.
+
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

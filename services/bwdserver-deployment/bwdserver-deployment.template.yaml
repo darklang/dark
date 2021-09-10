@@ -1,3 +1,5 @@
+# Config file for k8s deployment of BwdServer, the granduser facing part of Dark
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:

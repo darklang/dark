@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+# Check that k8s yaml files match the ones in production.
+
 # Most of the yaml files are configuration, we're supposed to deploy them
 # manually and watch them go out. So the goal here is to make sure they are
 # already deployed and what we have in the repo matches what we have in prod.
