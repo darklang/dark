@@ -187,7 +187,7 @@ spec:
         #########################
         # Nginx proxy
         #########################
-        - name: http-proxy
+        - name: apiserver-http-proxy
           image: nginx:1.16.1
           resources:
             requests:
@@ -197,7 +197,7 @@ spec:
               memory: "50Mi"
               cpu: "100m"
           ports:
-            - name: http-proxy-port
+            - name: apiserver-http-proxy-port
               containerPort: 8000
           volumeMounts:
             - mountPath: /etc/nginx/nginx.conf
@@ -217,7 +217,7 @@ spec:
             secretName: cloudsql-instance-credentials
         - name: base-nginx-conf
           configMap:
-            name: base-nginx
+            name: nginx-base
         - name: nginx-conf
           configMap:
-            name: nginx
+            name: nginx-apiserver
