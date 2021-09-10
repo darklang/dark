@@ -583,8 +583,7 @@ def mark(should, f):
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):
     should.fsharp_backend_test = True
 
-  #FSTODO
-  elif "/containers/ocaml-nginx/" in f and ".conf" in f:
+  elif "/containers/" in f and "nginx" in f and ".conf" in f:
     should.reload_server = True
     should.test_nginx = True
 
