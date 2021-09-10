@@ -5,7 +5,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: apiserver-app
+      app: apiserver-service
   policyTypes:
     - Egress
     - Ingress
@@ -21,4 +21,4 @@ spec:
   ingress:
     - ports:
         - protocol: TCP
-          port: 8000
+          port: 9000
