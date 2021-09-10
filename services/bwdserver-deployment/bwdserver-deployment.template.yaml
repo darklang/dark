@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bwd-deployment
+  name: bwdserver-deployment
   annotations:
     kubernetes.io/change-cause: "{CHANGE_CAUSE}"
 spec:
@@ -9,15 +9,19 @@ spec:
   selector:
     matchLabels:
       app: bwdserver-service
-  replicas: 36
+  replicas: 1 # FSTODO
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # FSTODO
   template:
     metadata:
       labels:
         app: bwdserver-service
     spec:
       containers:
-        - name: bwd-ctr
-          image: "gcr.io/balmy-ground-195100/gcp-server:{IMAGE}"
+        - name: bwdserver-ctr
+          image: "gcr.io/balmy-ground-195100/gcp-fsharp-bwdserver:{IMAGE}"
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -29,32 +33,35 @@ spec:
               memory: "1000Mi"
               cpu: "125m"
           ports:
-            - name: bwd-ctr-port
-              containerPort: 80
-          lifecycle:
-            preStop:
-              httpGet:
-                # ???? https://github.com/kubernetes/kubernetes/issues/56770
-                path: pkill
-                port: 80
+            - name: bwdserver-ctr-port
+              containerPort: 9001
+          # lifecycle:
+          #   preStop:
+          #     We implement the SIGTERM handler instead (even if we used preStop we'd
+          #     still need to check how SIGTERM works so may as well simplify it to one
+          #     concept)
+          startupProbe: # has it started? Allows other probes
+            httpGet:
+              path: /k8s/startupProbe
+              port: 6000
+            failureThreshold: 24 # kill container after 2 minutes (24x5s checks)
+            timeoutSeconds: 10
+            periodSeconds: 5
           readinessProbe:
             httpGet:
-              path: /ready
-              port: 80
-            initialDelaySeconds: 5
+              path: /k8s/readinessProbe
+              port: 6000
+            initialDelaySeconds: 0
             periodSeconds: 5
+            successThreshold: 3
           livenessProbe:
             httpGet:
-              path: /
-              port: 80
-            # Giving 2 minutes grace here, there's an outstanding k8s issue
-            # preventing you from specifying "start checking liveness after an
-            # ok from readiness", which is what you'd expect.
-            # https://github.com/kubernetes/kubernetes/issues/27114
-            initialDelaySeconds: 120
-            periodSeconds: 10 # every 10 seconds
-            timeoutSeconds: 10 # time out after 10 seconds
-            failureThreshold: 3 # kill container after 3 successive time outs
+              path: /k8s/livenessProbe
+              port: 6000
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
@@ -71,7 +78,6 @@ spec:
                 secretKeyRef:
                   name: pusher-account-credentials
                   key: key
-
             # connect to sql proxy in the same pod
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1
@@ -90,6 +96,68 @@ spec:
                 secretKeyRef:
                   name: dark-static-assets
                   key: balmy-ground-195100-d9b0f3de3013.json
+
+        #########################
+        # Legacyserver
+        #########################
+        - name: legacy-ctr
+          image: "gcr.io/balmy-ground-195100/gcp-legacyserver:{IMAGE}"
+          # Resource limits + requests are intentionally the same, to ensure
+          # this pod is a 'Guaranteed' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "1000Mi"
+              cpu: "125m"
+            limits:
+              memory: "1000Mi"
+              cpu: "125m"
+          ports:
+            - name: bwd-legacy-port
+              containerPort: 5000
+          lifecycle:
+            preStop:
+              httpGet:
+                # ???? https://github.com/kubernetes/kubernetes/issues/56770
+                path: /k8s/pkill
+                port: 5000
+          readinessProbe:
+            httpGet:
+              path: /k8s/readinessProbe
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /k8s/livenessProbe
+              port: 5000
+            # Giving 2 minutes grace here, there's an outstanding k8s issue
+            # preventing you from specifying "start checking liveness after an
+            # ok from readiness", which is what you'd expect.
+            # https://github.com/kubernetes/kubernetes/issues/27114
+            initialDelaySeconds: 120
+            periodSeconds: 10 # every 10 seconds
+            timeoutSeconds: 10 # time out after 10 seconds
+            failureThreshold: 3 # kill container after 3 successive time outs
+          envFrom:
+            - configMapRef:
+                name: gke-dark-prod
+          env:
+            - name: DARK_CONFIG_RUNNING_IN_GKE
+              value: "true"
+            # FSTODO: make rollbar work in legacyserver
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar
+                  key: post_token
+            # FSTODO: remove unused config
+            - name: DARK_CONFIG_PUSHER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: key
+
         #########################
         # Postgres proxy config
         # To connect to postgres from kubernetes, we need to add a proxy. See
@@ -116,60 +184,8 @@ spec:
               readOnly: true
 
         #########################
-        # Stroller (push proxy) config
+        # Nginx proxy
         #########################
-        - name: stroller
-          image: "gcr.io/balmy-ground-195100/stroller:{STROLLER_IMAGE}"
-          resources:
-            requests:
-              memory: "250Mi"
-              cpu: "150m"
-            limits:
-              memory: "250Mi"
-              cpu: "150m"
-          envFrom:
-            - configMapRef:
-                name: gke-dark-prod
-          env:
-            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
-              valueFrom:
-                secretKeyRef:
-                  name: rollbar
-                  key: post_token
-            - name: DARK_CONFIG_PUSHER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: pusher-account-credentials
-                  key: key
-            - name: DARK_CONFIG_PUSHER_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: pusher-account-credentials
-                  key: secret
-          lifecycle:
-            preStop:
-              httpGet:
-                path: pkill
-                port: 3001
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 3001
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 3001
-            # Giving 2 minutes grace here, there's an outstanding k8s issue
-            # preventing you from specifying "start checking liveness after an
-            # ok from readiness", which is what you'd expect.
-            # https://github.com/kubernetes/kubernetes/issues/27114
-            initialDelaySeconds: 120
-            periodSeconds: 10 # every 10 seconds
-            timeoutSeconds: 10 # time out after 10 seconds
-            failureThreshold: 3 # kill container after 3 successive time outs
-
         - name: http-proxy
           image: nginx:1.16.1
           resources:

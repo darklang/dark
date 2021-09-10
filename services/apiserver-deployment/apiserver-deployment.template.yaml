@@ -97,6 +97,7 @@ spec:
                 secretKeyRef:
                   name: dark-static-assets
                   key: balmy-ground-195100-d9b0f3de3013.json
+
         #########################
         # Legacyserver
         #########################
@@ -145,11 +146,13 @@ spec:
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
+            # FSTODO: make rollbar work in legacyserver
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
                   name: rollbar
                   key: post_token
+            # FSTODO: remove unused config
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
@@ -195,7 +198,7 @@ spec:
               cpu: "100m"
           ports:
             - name: http-proxy-port
-              containerPort: 9000
+              containerPort: 8000
           volumeMounts:
             - mountPath: /etc/nginx/nginx.conf
               name: base-nginx-conf
