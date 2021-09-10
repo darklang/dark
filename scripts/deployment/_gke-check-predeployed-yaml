@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-set -euo pipefail
-
 # Check that k8s yaml files match the ones in production.
 
 # Most of the yaml files are configuration, we're supposed to deploy them
@@ -12,9 +10,12 @@ set -euo pipefail
 # If you need to change something here, you'll need to ask someone with
 # permissions (that is, Paul) to apply it before merging.
 
+set -euo pipefail
+
 #FSTODO
 kubectl diff \
   -f services/apiserver-deployment/apiserver-network-policy.yaml \
+  -f services/bwdserver-deployment/bwdserver-network-policy.yaml \
   -f services/bwd-deployment/builtwithdark.com-tls.yaml \
   -f services/bwd-deployment/bwd-ingress.yaml \
   -f services/bwd-deployment/bwd-network-policy.yaml \
