@@ -10,26 +10,6 @@ metrics:
     - pod
     - container
 watchers:
-  - dataset: kubernetes-logs
-    labelSelector: component=kube-controller-manager
-    namespace: kube-system
-    parser: glog
-  - dataset: kubernetes-logs
-    labelSelector: component=kube-scheduler
-    namespace: kube-system
-    parser: glog
-  - dataset: kubernetes-logs
-    labelSelector: component=apiserver
-    namespace: kube-system
-    parser: glog
-  - dataset: kubernetes-logs
-    labelSelector: component=kube-proxy
-    namespace: kube-system
-    parser: glog
-  - dataset: kubernetes-logs
-    labelSelector: k8s-app=dns
-    namespace: kube-system
-    parser: glog
   - labelSelector: "app in (bwd-app, editor-app, qw-worker)"
     containerName: stroller
     dataset: kubernetes-stroller
