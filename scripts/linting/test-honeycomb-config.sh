@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
 
-set -eu
-set pipefail
+set -euo pipefail
 
-YAML=services/honeycomb-agent/honeycomb.yaml
-IMAGE=$(yq -sr '.[4].spec.template.spec.containers[0].image' $YAML)
+YAML=services/honeycomb-agent/honeycomb-agent-config.yaml
 
-TMP_CONFIG=tmp_honeycomb_config.yaml
-TMP_DOCKERFILE=tmp_honeycomb_config.Dockerfile
-yq -sr '.[3].data."config.yaml"' $YAML > $TMP_CONFIG
+set -x
 
-# This is a little silly, but easier than figuring out how to put
-# tmp_honeycomb_config.yaml in a volume for circle
-echo "FROM $IMAGE" > $TMP_DOCKERFILE
-echo "COPY $TMP_CONFIG /etc/honeycomb/config.yaml" >> $TMP_DOCKERFILE
-docker build -t test-honeycomb -f $TMP_DOCKERFILE .
-
-docker run -it test-honeycomb --validate
-
-rm $TMP_CONFIG
-rm $TMP_DOCKERFILE
+docker run -v $(pwd)/$YAML:/etc/honeycomb/config.yaml honeycombio/honeycomb-kubernetes-agent:head --validate
