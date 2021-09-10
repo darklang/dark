@@ -72,11 +72,11 @@ if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   sudo rm -f /etc/nginx/conf.d/nginx.conf
 
   sudo ln -s \
-     /home/dark/app/containers/ocaml-nginx/base-nginx.conf \
+     /home/dark/app/containers/nginx-base/nginx-base.conf \
      /etc/nginx/nginx.conf
 
   sudo ln -s \
-    /home/dark/app/containers/ocaml-nginx/nginx.conf \
+    /home/dark/app/containers/nginx-ocaml/nginx-ocaml.conf \
     /etc/nginx/conf.d/nginx.conf
 
   echo "Starting nginx"
