@@ -409,6 +409,7 @@ jobs:
           command: |
             mkdir gcr-image-ids
             time docker images gcr.io/balmy-ground-195100/gcp-server -q | head -n 1 > gcr-image-ids/server
+            time docker images gcr.io/balmy-ground-195100/gcp-fsharp-apiserver -q | head -n 1 > gcr-image-ids/fsharp-apiserver
             time docker images gcr.io/balmy-ground-195100/gcp-queueworker -q | head -n 1 > gcr-image-ids/qw
             time docker images gcr.io/balmy-ground-195100/gcp-cronchecker -q | head -n 1 > gcr-image-ids/cron
             time docker images gcr.io/balmy-ground-195100/gcp-garbagecollector -q | head -n 1 > gcr-image-ids/garbagecollector
@@ -431,6 +432,7 @@ jobs:
       - run: |
           scripts/deployment/gke-deploy       \
             --server-image-id=`            cat gcr-image-ids/server` \
+            --apiserver-image-id=`         cat gcr-image-ids/fsharp-apiserver` \
             --qw-image-id=`                cat gcr-image-ids/qw`     \
             --cron-image-id=`              cat gcr-image-ids/cron`   \
             --garbagecollector-image-id=`  cat gcr-image-ids/garbagecollector`   \
