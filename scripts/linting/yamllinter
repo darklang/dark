@@ -4,14 +4,14 @@
 set -euo pipefail
 
 function check {
-  if [[ "$1" == *"/services/"* ]]; then
+  if [[ "$1" == *"/services/"* && "$1" != *"/services/honeycomb-agent/honeycomb-agent-config.yaml" ]]; then
     echo "kubeval $1"
     kubeval \
       --strict \
       --additional-schema-locations \
         https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master \
       --skip-kinds=StorageBucket,ConfigConnector,Certificate,Issuer,CustomResourceDefinition \
-      --kubernetes-version=1.19.9 \
+      --kubernetes-version=1.19.12 \
       --force-color \
       "$1"
   else
@@ -46,11 +46,13 @@ else
     -o -path "./esy.lock" -prune \
     -o -path "rundir" -prune \
     -o -path "./rundir" -prune \
+    -o -path "fsharp-backend/paket-files" -prune \
+    -o -path "./fsharp-backend/paket-files" -prune \
     -o -path "containers/stroller/target" -prune \
     -o -path "./containers/stroller/target" -prune \
     -o -path "containers/queue-scheduler/target" -prune \
     -o -path "./containers/queue-scheduler/target" -prune \
-    | grep -v circleci)
+    -o -path ".circleci/config.yml" -prune)
     for i in $FILES; do
       check $i
     done

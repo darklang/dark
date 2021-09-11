@@ -31,14 +31,18 @@ kubectl diff \
   -f services/editor-deployment/darklang.com-tls.yaml \
   -f services/editor-deployment/editor-network-policy.yaml \
   -f services/editor-deployment/static.darklang.com-tls.yaml \
-  -f services/honeycomb-agent/honeycomb-heapster.yaml \
-  -f services/honeycomb-agent/honeycomb.yaml \
   -f services/qw-deployment/qw-network-policy.yaml \
   -f services/reloader-reloader/reloader.yaml \
   -f services/static-assets/darksa.com-tls.yaml \
   -f services/static-assets/darkstaticassets.com-tls.yaml \
   -f services/tunnel-deployment/isolate-tunnel.yaml \
   -f services/tunnel-deployment/tunnel-service.yaml
+
+# We don't have the full file checked in for this:
+kubectl create configmap honeycomb-agent \
+  --from-file=config.yaml=services/honeycomb-agent/honeycomb-agent-config.yaml \
+  --dry-run=client -o json \
+  | kubectl diff -f -
 
 # Note that services/custom-domains/darkcustomdomain-ingress.yaml is NOT checked!
 #

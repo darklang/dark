@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 
-set -eu
-set pipefail
+# Validate the honeycomb agent config
 
-YAML=services/honeycomb-agent/honeycomb.yaml
-IMAGE=$(yq -sr '.[4].spec.template.spec.containers[0].image' $YAML)
+# Creates a docker container with the agent and the config in it and runs it to
+# validate the config. The honeycomb docs suggest using docker volumes, but that
+# doesn't work with remote docker hosts, like we use in CI.
 
-TMP_CONFIG=tmp_honeycomb_config.yaml
+set -euo pipefail
+
+YAML=services/honeycomb-agent/honeycomb-agent-config.yaml
+
+IMAGE=honeycombio/honeycomb-kubernetes-agent:head
+
 TMP_DOCKERFILE=tmp_honeycomb_config.Dockerfile
-yq -sr '.[3].data."config.yaml"' $YAML > $TMP_CONFIG
 
 # This is a little silly, but easier than figuring out how to put
 # tmp_honeycomb_config.yaml in a volume for circle
 echo "FROM $IMAGE" > $TMP_DOCKERFILE
-echo "COPY $TMP_CONFIG /etc/honeycomb/config.yaml" >> $TMP_DOCKERFILE
+echo "COPY $YAML /etc/honeycomb/config.yaml" >> $TMP_DOCKERFILE
 docker build -t test-honeycomb -f $TMP_DOCKERFILE .
 
 docker run -it test-honeycomb --validate
 
-rm $TMP_CONFIG
 rm $TMP_DOCKERFILE

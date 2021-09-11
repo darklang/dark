@@ -396,20 +396,9 @@ kubectl create -f - <<EOF
 }
 EOF
 
-# Honeycomb write key for honeycomb-heapster
-kubectl create --namespace=kube-system -f - <<EOF
-{
-  "apiVersion": "v1",
-  "kind": "Secret",
-  "type": "Opaque",
-  "data": {
-    "key": "$DARK_CLUSTER_HONEYCOMB_WRITE_KEY"
-  },
-  "metadata": {
-    "name": "honeycomb-writekey"
-  }
-}
-EOF
+# TODO: install honeycomb agent via helm
+# helm repo add honeycomb https://honeycombio.github.io/helm-charts
+# helm install honeycomb honeycomb/honeycomb --set honeycomb.apiKey=YOUR_API_KEY
 
 kubectl create -f - <<EOF
 {
