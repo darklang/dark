@@ -1,5 +1,5 @@
 (library
-  (name liblegacy)
+  (name liblegacyfuzzing)
   (modes native)
   (flags (-warn-error +A -w +9))
   (preprocess (pps

@@ -1,3 +1,4 @@
+# CLEANUP don't delete this, it's needed for F# too. Move to apiserver directory
 kind: Service
 apiVersion: v1
 metadata:
@@ -5,6 +6,7 @@ metadata:
 spec:
   type: NodePort
   selector:
+    # FSTODO: this would point to apiserver-app when it's ready
     app: editor-app
   ports:
     - name: darklang-nodeport-port

@@ -37,7 +37,17 @@ let legacyReq
   (data : byte array)
   : Task<System.Net.Http.HttpContent> =
   task {
-    let url = $"http://localhost:{LibService.Config.legacyServerPort}/{endpoint}"
+    let port =
+      if endpoint.StartsWith("bs") then
+        LibService.Config.legacySerializtionServerPort
+      elif
+        endpoint = "execute" || endpoint = "benchmark"
+        || endpoint.StartsWith("fuzzing")
+      then
+        LibService.Config.legacyFuzzingServerPort
+      else
+        failwith "unexpected endpoint"
+    let url = $"http://localhost:{port}/{endpoint}"
 
     use message =
       new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)

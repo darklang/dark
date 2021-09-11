@@ -1,7 +1,7 @@
 module BwdServer
 
 // This is the webserver for builtwithdark.com. It uses ASP.NET directly,
-// instead of a web framework, so we can tuen the exact behaviour of headers
+// instead of a web framework, so we can tune the exact behaviour of headers
 // and such.
 
 open FSharp.Control.Tasks
@@ -21,9 +21,7 @@ type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Prelude
 open Tablecloth
-open FSharpx
 
-module HealthCheck = LibService.HealthCheck
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module RealExe = LibRealExecution.RealExecution
@@ -402,21 +400,22 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> HealthCheck.configureApp healthCheckPort
+  |> LibService.Kubernetes.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> HealthCheck.configureServices
+  |> LibService.Kubernetes.configureServices
   |> LibService.Rollbar.AspNet.addRollbarToServices
   |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
   |> ignore<IServiceCollection>
 
 
 let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
-  let hcUrl = HealthCheck.url healthCheckPort
+  let hcUrl = LibService.Kubernetes.url healthCheckPort
 
   WebHost.CreateDefaultBuilder()
+  |> LibService.Kubernetes.registerServerTimeout
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> fun wh -> wh.ConfigureServices(configureServices)
@@ -432,7 +431,7 @@ let main _ =
   (webserver
     true
     LibService.Config.bwdServerPort
-    LibService.Config.bwdServerHealthCheckPort)
+    LibService.Config.bwdServerKubernetesPort)
     .Run()
 
   0

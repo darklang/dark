@@ -12,6 +12,7 @@ set -euo pipefail
 
 #FSTODO
 kubectl diff \
+  -f services/apiserver-deployment/apiserver-network-policy.yaml \
   -f services/bwd-deployment/builtwithdark.com-tls.yaml \
   -f services/bwd-deployment/bwd-ingress.yaml \
   -f services/bwd-deployment/bwd-network-policy.yaml \

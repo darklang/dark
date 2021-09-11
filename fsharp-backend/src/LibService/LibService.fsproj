@@ -16,7 +16,7 @@
     <Compile Include="Telemetry.fs" />
     <Compile Include="Rollbar.fs" />
     <Compile Include="DBConnection.fs" />
-    <Compile Include="HealthCheck.fs" />
+    <Compile Include="Kubernetes.fs" />
     <Compile Include="HeapAnalytics.fs" />
     <Compile Include="Kestrel.fs" />
   </ItemGroup>

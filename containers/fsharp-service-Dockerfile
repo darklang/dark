@@ -1,0 +1,40 @@
+# Base docker image for the FSharp containers we run in production on GCP
+
+# FSharp installer image
+# Copied from https://github.com/dotnet/dotnet-docker/blob/main/src/runtime/6.0/focal/amd64/Dockerfile
+FROM amd64/buildpack-deps:focal-curl as installer
+
+# Retrieve .NET
+RUN curl -SL --output dotnet.tar.gz https://storage.googleapis.com/dotnet6-rc1/dotnet-sdk-linux-x64.tar.gz \
+    && dotnet_sha512='6A93D9F092D8DC3FE1FFFE784028D6C4BA62868C8AF64F97BA403242F9360C772F6A32A907BE580561FB0EFF901640B9895076E000F53A1CA4250CD16F1AB1B2' \
+    && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
+    && mkdir -p /dotnet \
+    && tar -ozxf dotnet.tar.gz -C /dotnet \
+    && rm dotnet.tar.gz
+
+
+# Our container
+FROM dark-base-service:latest
+
+RUN sudo apt-get update \
+    && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends \
+        ca-certificates \
+        \
+        # .NET Core dependencies
+        libc6 \
+        libgcc1 \
+        libgssapi-krb5-2 \
+        libicu66 \
+        libssl1.1 \
+        libstdc++6 \
+        zlib1g \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+ENV \
+    # Configure web servers to bind to port 80 when present
+    ASPNETCORE_URLS=http://+:80 \
+    DOTNET_SDK_VERSION=6.0.100-rc.1.21417.9 \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_EnableDiagnostics=0
+
+COPY --from=installer ["/dotnet", "/usr/share/dotnet"]

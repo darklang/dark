@@ -227,7 +227,8 @@ jobs:
             - _build/default/backend/bin/garbage_collector_worker.exe
             - _build/default/backend/bin/queue_worker.exe
             - _build/default/backend/bin/cron_checker.exe
-            - _build/default/backend/bin/legacyserver.exe
+            - _build/default/backend/bin/legacy_serialization_server.exe
+            - _build/default/backend/bin/legacy_fuzzing_server.exe
             - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
@@ -274,9 +275,10 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/net6.0/publish/ApiServer
-            - fsharp-backend/Build/out/net6.0/publish/BwdServer
-            - fsharp-backend/Build/out/net6.0/publish/QueueWorker
+            - fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
+            - fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
+            - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
+            - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
             - backend/static/BlazorWorker.js
             - backend/static/blazor
       - show-large-files-and-directories

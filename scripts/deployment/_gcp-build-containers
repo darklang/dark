@@ -38,6 +38,16 @@ time docker build \
   - \
   < containers/ocaml-service-Dockerfile
 
+# Build the base fsharp docker image ('-' means no build context)
+echo -e "\nBuild dark-fsharp-service container"
+time docker build \
+  --build-arg GIT_COMMIT="${GIT_COMMIT}" \
+  --tag "dark-fsharp-service:latest" \
+  - \
+  < containers/fsharp-service-Dockerfile
+
+
+
 # Build all the directories in containers/. If there's a prep.sh file, run it
 # first and then build the container in the directory it echos. If there is
 # no dockerfile, then do nothing (sometimes we use vendor containers and so we
@@ -48,6 +58,7 @@ for dir in containers/*/; do
     echo -e "\nBuild container: $c"
 
     BUILD_DIR="${dir}"
+    # CLEANUP the prep work here could pretty much always go in the dockerfile
     if [[ -e "${dir}prep.sh" ]]; then
       BUILD_DIR=$(time ${dir}prep.sh)
     fi

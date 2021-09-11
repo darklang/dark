@@ -98,8 +98,8 @@
 )
 
 (executable
-  (name legacyserver)
-  (modules legacyserver)
+  (name legacy_serialization_server)
+  (modules legacy_serialization_server)
   (modes native)
   (preprocess (pps
                lwt_ppx
@@ -113,5 +113,24 @@
                ))
 
   (flags (-warn-error +A -w +9))
-  (libraries liblegacy lwt cohttp-lwt)
+  (libraries liblegacyserialization lwt cohttp-lwt)
+)
+
+(executable
+  (name legacy_fuzzing_server)
+  (modules legacy_fuzzing_server)
+  (modes native)
+  (preprocess (pps
+               lwt_ppx
+               ppx_bin_prot
+               ppx_deriving.std
+               ppx_deriving_yojson
+               ppx_fields_conv
+               ppx_sexp_conv
+               ppx_pipebang
+               ppx_let
+               ))
+
+  (flags (-warn-error +A -w +9))
+  (libraries liblegacyfuzzing lwt cohttp-lwt)
 )

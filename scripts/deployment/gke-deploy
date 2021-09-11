@@ -53,6 +53,9 @@ do
     --cluster=*)
       DARK_CLUSTER="${i/--cluster=/''}"
       ;;
+    --apiserver-image-id=*)
+      APISERVER_IMAGE_ID="${i/--apiserver-image-id=/''}"
+      ;;
     --server-image-id=*)
       SERVER_IMAGE_ID="${i/--server-image-id=/''}"
       ;;
@@ -120,6 +123,10 @@ fi
 #########################
 # Update the newly-built deployment containers
 #########################
+if [[ ! -v APISERVER_IMAGE_ID ]]; then
+  APISERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-fsharp-apiserver -q | head -n 1)"
+  echo "APISERVER_IMAGE_ID: $APISERVER_IMAGE_ID"
+fi
 if [[ ! -v SERVER_IMAGE_ID ]]; then
   SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-server -q | head -n 1)"
   echo "SERVER_IMAGE_ID: $SERVER_IMAGE_ID"
@@ -153,7 +160,7 @@ if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
   echo "POSTGRES_HONEYTAIL_IMAGE_ID: $POSTGRES_HONEYTAIL_IMAGE_ID"
 fi
 
-if [[ "$SERVER_IMAGE_ID" == "" || "$QW_IMAGE_ID" == "" || "$CRON_IMAGE_ID" == "" || "$GARBAGE_COLLECTOR_IMAGE_ID" == "" || "$STROLLER_IMAGE_ID" == "" || "$QUEUE_SCHEDULER_IMAGE_ID" == "" || "$TUNNEL_IMAGE_ID" == "" || "$POSTGRES_HONEYTAIL_IMAGE_ID" == "" ]]; then
+if [[ "$APISERVER_IMAGE_ID" == "" || "$SERVER_IMAGE_ID" == "" || "$QW_IMAGE_ID" == "" || "$CRON_IMAGE_ID" == "" || "$GARBAGE_COLLECTOR_IMAGE_ID" == "" || "$STROLLER_IMAGE_ID" == "" || "$QUEUE_SCHEDULER_IMAGE_ID" == "" || "$TUNNEL_IMAGE_ID" == "" || "$POSTGRES_HONEYTAIL_IMAGE_ID" == "" ]]; then
   echo "Missing image IDs"
   exit 1
 fi
@@ -166,6 +173,11 @@ sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
   services/bwd-deployment/bwd-deployment.template.yaml > services/bwd-deployment/bwd-deployment.yaml
+
+sed -e "s!{IMAGE}!${APISERVER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  services/apiserver-deployment/apiserver-deployment.template.yaml > services/apiserver-deployment/apiserver-deployment.yaml
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
@@ -283,6 +295,7 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
 kubectl apply -f services/cron-deployment/cron-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-deployment.yaml
+kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml
 kubectl apply -f services/qw-deployment/qw-deployment.yaml
 kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
 kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
