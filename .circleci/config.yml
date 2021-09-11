@@ -437,12 +437,13 @@ jobs:
           name: Save image IDs
           command: |
             mkdir gcr-image-ids
-            time docker images gcr.io/balmy-ground-195100/gcp-server -q | head -n 1 > gcr-image-ids/server
             time docker images gcr.io/balmy-ground-195100/gcp-fsharp-apiserver -q | head -n 1 > gcr-image-ids/fsharp-apiserver
+            time docker images gcr.io/balmy-ground-195100/gcp-fsharp-bwdserver -q | head -n 1 > gcr-image-ids/fsharp-bwdserver
+            time docker images gcr.io/balmy-ground-195100/legacyserver -q | head -n 1 > gcr-image-ids/legacyserver
+            time docker images gcr.io/balmy-ground-195100/gcp-server -q | head -n 1 > gcr-image-ids/server
             time docker images gcr.io/balmy-ground-195100/gcp-queueworker -q | head -n 1 > gcr-image-ids/qw
             time docker images gcr.io/balmy-ground-195100/gcp-cronchecker -q | head -n 1 > gcr-image-ids/cron
             time docker images gcr.io/balmy-ground-195100/gcp-garbagecollector -q | head -n 1 > gcr-image-ids/garbagecollector
-            time docker images gcr.io/balmy-ground-195100/legacyserver -q | head -n 1 > gcr-image-ids/legacyserver
             time docker images gcr.io/balmy-ground-195100/stroller -q | head -n 1 > gcr-image-ids/stroller
             time docker images gcr.io/balmy-ground-195100/queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
             time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
@@ -463,6 +464,7 @@ jobs:
       - run: |
           scripts/deployment/gke-deploy       \
             --apiserver-image-id=`         cat gcr-image-ids/fsharp-apiserver` \
+            --bwdserver-image-id=`         cat gcr-image-ids/fsharp-bwdserver` \
             --legacyserver-image-id=`      cat gcr-image-ids/legacyserver` \
             --server-image-id=`            cat gcr-image-ids/server` \
             --qw-image-id=`                cat gcr-image-ids/qw`     \
