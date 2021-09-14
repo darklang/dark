@@ -56,6 +56,9 @@ do
     --apiserver-image-id=*)
       APISERVER_IMAGE_ID="${i/--apiserver-image-id=/''}"
       ;;
+    --legacyserver-image-id=*)
+      LEGACYSERVER_IMAGE_ID="${i/--legacyserver-image-id=/''}"
+      ;;
     --server-image-id=*)
       SERVER_IMAGE_ID="${i/--server-image-id=/''}"
       ;;
@@ -127,6 +130,10 @@ if [[ ! -v APISERVER_IMAGE_ID ]]; then
   APISERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-fsharp-apiserver -q | head -n 1)"
   echo "APISERVER_IMAGE_ID: $APISERVER_IMAGE_ID"
 fi
+if [[ ! -v LEGACYSERVER_IMAGE_ID ]]; then
+  APISERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}legacyserver -q | head -n 1)"
+  echo "LEGACYSERVER_IMAGE_ID: $LEGACYSERVER_IMAGE_ID"
+fi
 if [[ ! -v SERVER_IMAGE_ID ]]; then
   SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-server -q | head -n 1)"
   echo "SERVER_IMAGE_ID: $SERVER_IMAGE_ID"
@@ -160,7 +167,7 @@ if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
   echo "POSTGRES_HONEYTAIL_IMAGE_ID: $POSTGRES_HONEYTAIL_IMAGE_ID"
 fi
 
-if [[ "$APISERVER_IMAGE_ID" == "" || "$SERVER_IMAGE_ID" == "" || "$QW_IMAGE_ID" == "" || "$CRON_IMAGE_ID" == "" || "$GARBAGE_COLLECTOR_IMAGE_ID" == "" || "$STROLLER_IMAGE_ID" == "" || "$QUEUE_SCHEDULER_IMAGE_ID" == "" || "$TUNNEL_IMAGE_ID" == "" || "$POSTGRES_HONEYTAIL_IMAGE_ID" == "" ]]; then
+if [[ "$APISERVER_IMAGE_ID" == "" || "$LEGACYSERVER_IMAGE_ID" == "" || "$SERVER_IMAGE_ID" == "" || "$QW_IMAGE_ID" == "" || "$CRON_IMAGE_ID" == "" || "$GARBAGE_COLLECTOR_IMAGE_ID" == "" || "$STROLLER_IMAGE_ID" == "" || "$QUEUE_SCHEDULER_IMAGE_ID" == "" || "$TUNNEL_IMAGE_ID" == "" || "$POSTGRES_HONEYTAIL_IMAGE_ID" == "" ]]; then
   echo "Missing image IDs"
   exit 1
 fi
@@ -176,6 +183,7 @@ sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
 
 sed -e "s!{IMAGE}!${APISERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{LEGACYSERVER_IMAGE}!${LEGACYSERVER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
   services/apiserver-deployment/apiserver-deployment.template.yaml > services/apiserver-deployment/apiserver-deployment.yaml
 
@@ -285,10 +293,10 @@ done
 #############################
 # Check that the everything can be deployed
 #############################
+kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml --dry-run=server
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml --dry-run=server
 kubectl apply -f services/cron-deployment/cron-deployment.yaml --dry-run=server
 kubectl apply -f services/editor-deployment/editor-deployment.yaml --dry-run=server
-kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml --dry-run=server
 kubectl apply -f services/qw-deployment/qw-deployment.yaml --dry-run=server
 kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml --dry-run=server
 kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml --dry-run=server
@@ -305,10 +313,10 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 
 # these files deploy the newly-created deployment containers
 #FSTODO
+kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
 kubectl apply -f services/cron-deployment/cron-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-deployment.yaml
-kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml
 kubectl apply -f services/qw-deployment/qw-deployment.yaml
 kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
 kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
