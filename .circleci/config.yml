@@ -354,7 +354,6 @@ jobs:
     steps:
       - darkcheckout
       - prep-container-creation
-      - run: apk add --update bash jq python3 py3-pip && pip install yq
       - run: bash -c scripts/linting/test-honeycomb-config.sh
       - notify-job-failure
 
