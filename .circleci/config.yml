@@ -507,7 +507,6 @@ workflows:
           context: Default
       - build-queue-scheduler:
           context: Default
-
       - build-fsharp-backend:
           context: Default
           requires:
@@ -559,6 +558,7 @@ workflows:
             - integration-tests
             - rust-integration-tests
             - push-to-gcp
+            - static-checks
 
       - notify-non-deploy:
           context: Default
