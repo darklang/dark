@@ -481,7 +481,11 @@ jobs:
     executor: simple-executor
     steps:
       - slack/notify:
-          event: always
+          event: pass
+          template: basic_success_1
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
 
 
 workflows:
