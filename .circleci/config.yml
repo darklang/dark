@@ -541,6 +541,7 @@ workflows:
             - push-to-gcp
 
       - notify-non-deploy:
+          context: default
           filters:
             branches:
               ignore: main
