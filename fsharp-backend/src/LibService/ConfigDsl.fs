@@ -9,7 +9,9 @@ let getEnv (name : string) : Option<string> =
   if var = null then None else Some var
 
 let getEnvExn (name : string) : string =
-  name |> getEnv |> Tablecloth.Option.unwrapUnsafe
+  match getEnv name with
+  | Some s -> s
+  | None -> failwith $"Environment variable {name} not set"
 
 
 let absoluteDir (name : string) : string =
