@@ -69,17 +69,24 @@ spec:
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
+            # rollbar
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
                   name: rollbar
                   key: post_token
+            # pusher
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
                   name: pusher-account-credentials
-                  key: key
-            # connect to sql proxy in the same pod
+                 key: key
+            - name: DARK_CONFIG_PUSHER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: secret
+            # database (sql server in the same pod)
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1
             - name: DARK_CONFIG_DB_USER
@@ -92,11 +99,13 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
+            # static assets
             - name: GOOGLE_APPLICATION_CREDENTIALS_JSON
               valueFrom:
                 secretKeyRef:
                   name: dark-static-assets
                   key: balmy-ground-195100-d9b0f3de3013.json
+            # honeycomb
             - name: DARK_CONFIG_HONEYCOMB_API_KEY
               valueFrom:
                 secretKeyRef:
