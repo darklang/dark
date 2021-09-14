@@ -80,7 +80,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: pusher-account-credentials
-                 key: key
+                  key: key
             - name: DARK_CONFIG_PUSHER_SECRET
               valueFrom:
                 secretKeyRef:
