@@ -183,9 +183,8 @@ commands:
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
             gcloud auth activate-service-account --key-file gcloud-service-key.json
-      - run:
-          name: Auth kubectl
-          command: ./scripts/production/gcp-authorize-kubectl
+            gcloud auth configure-docker
+            ./scripts/production/gcp-authorize-kubectl
 
 ##########################
 # Actual workflow
