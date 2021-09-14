@@ -13,7 +13,7 @@ orbs:
 executors:
   simple-executor:
     docker:
-      - image: docker:stable-git
+      - image: cimg/base:2021.04
   in-container:
     working_directory: ~/app
     environment:
