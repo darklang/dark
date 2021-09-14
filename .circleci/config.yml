@@ -312,6 +312,7 @@ jobs:
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
+      - auth-with-gcp: { background: false }
       - run: scripts/deployment/_gke-check-predeployed-yaml
       - run: scripts/linting/dry-run-yaml-files
       - notify-job-failure
