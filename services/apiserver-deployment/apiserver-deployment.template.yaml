@@ -33,7 +33,8 @@ spec:
               memory: "1000Mi"
               cpu: "125m"
           ports:
-            - name: apiserver-ctr-port
+            # Name length limit is 15 chars.
+            - name: apisvr-ctr-port
               containerPort: 9000
           # lifecycle:
           #   preStop:

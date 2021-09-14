@@ -283,6 +283,19 @@ done
 ./scripts/deployment/_gke-check-predeployed-yaml
 
 #############################
+# Check that the everything can be deployed
+#############################
+kubectl apply -f services/bwd-deployment/bwd-deployment.yaml --dry-run=server
+kubectl apply -f services/cron-deployment/cron-deployment.yaml --dry-run=server
+kubectl apply -f services/editor-deployment/editor-deployment.yaml --dry-run=server
+kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml --dry-run=server
+kubectl apply -f services/qw-deployment/qw-deployment.yaml --dry-run=server
+kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml --dry-run=server
+kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml --dry-run=server
+kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml --dry-run=server
+kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml --dry-run=server
+
+#############################
 # Actually do the deploy
 #############################
 # env vars (replace existing configmap)

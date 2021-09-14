@@ -1,14 +1,19 @@
 version: 2.1
 
+# Config for CI/CD pipeline
+
 # There is a strong connection between this file and the equivalent files for
 # running Dark in dev, which are scripts/builder and
 # scripts/build/_build-server. Generally, if you add something to this file,
 # there's an equivalent to be added in one of those files.
 
+orbs:
+  slack: circleci/slack@4.4.4
+
 executors:
-  my-executor:
+  simple-executor:
     docker:
-      - image: docker:stable-git
+      - image: cimg/base:2021.04
   in-container:
     working_directory: ~/app
     environment:
@@ -74,6 +79,15 @@ commands:
             scripts/devcontainer/_setup-hosts
             scripts/devcontainer/_start-background-services postgresql
             env
+
+  ##########################
+  # Slack
+  ##########################
+  notify-job-failure:
+    steps:
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
 
   ##########################
   # Rust
@@ -169,6 +183,9 @@ commands:
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
             gcloud auth activate-service-account --key-file gcloud-service-key.json
+      - run:
+          name: Auth kubectl
+          command: ./scripts/production/gcp-authorize-kubectl
 
 ##########################
 # Actual workflow
@@ -198,6 +215,7 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
+      - notify-job-failure
 
   build-backend:
     executor: in-container
@@ -252,6 +270,7 @@ jobs:
           key: v9-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
+      - notify-job-failure
 
   build-fsharp-backend:
     executor: in-container
@@ -287,14 +306,19 @@ jobs:
           key: v3-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
+      - notify-job-failure
 
-  check-formatting:
+  static-checks:
     executor: in-rust-container
     steps:
       - darkcheckout
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
+      - auth-with-gcp: { background: false }
+      - run: scripts/deployment/gke-dry-run
+      - run: scripts/deployment/_gke-check-predeployed-yaml
+      - notify-job-failure
 
   build-stroller:
     executor: in-rust-container
@@ -304,6 +328,7 @@ jobs:
       - run: scripts/build/compile-project stroller --test
       - assert-clean-worktree
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
+      - notify-job-failure
 
   build-queue-scheduler:
     executor: in-rust-container
@@ -314,21 +339,23 @@ jobs:
       - run: scripts/build/compile-project queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
+      - notify-job-failure
 
   build-postgres-honeytail:
-    executor: my-executor
+    executor: simple-executor
     steps:
       - darkcheckout
       - prep-container-creation
       - run: cd containers/postgres-honeytail && docker build -t postgres-honeytail .
+      - notify-job-failure
 
   validate-honeycomb-config:
-    executor: my-executor
+    executor: simple-executor
     steps:
       - darkcheckout
       - prep-container-creation
-      - run: apk add --update bash jq python3 py3-pip && pip install yq
       - run: bash -c scripts/linting/test-honeycomb-config.sh
+      - notify-job-failure
 
   integration-tests:
     executor: in-container
@@ -362,6 +389,7 @@ jobs:
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
+      - notify-job-failure
 
   rust-integration-tests:
     executor: in-rust-container
@@ -382,6 +410,7 @@ jobs:
           command: scripts/run-rust-tests containers/queue-scheduler
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
+      - notify-job-failure
 
   gcp-containers-test:
     executor: in-container
@@ -391,6 +420,7 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - build-gcp-containers
+      - notify-job-failure
 
   push-to-gcp:
     executor: in-container
@@ -420,6 +450,7 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths: [gcr-image-ids]
+      - notify-job-failure
 
   deploy:
     executor: in-container
@@ -440,36 +471,62 @@ jobs:
             --queue-scheduler-image-id=`   cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`            cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
-          scripts/deployment/_honeymarker.sh
+      - run: scripts/deployment/_honeymarker.sh
+      - notify-job-failure
+      - slack/notify:
+          event: pass
+          template: success_tagged_deploy_1
+
+  notify-non-deploy:
+    executor: simple-executor
+    steps:
+      - slack/notify:
+          event: pass
+          template: basic_success_1
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+
 
 workflows:
   version: 2
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - check-formatting
-      - build-postgres-honeytail
-      - validate-honeycomb-config
-      - build-backend
-      - build-client
-      - build-stroller
-      - build-queue-scheduler
+      - static-checks:
+          context: Default
+      - build-postgres-honeytail:
+          context: Default
+      - validate-honeycomb-config:
+          context: Default
+      - build-backend:
+          context: Default
+      - build-client:
+          context: Default
+      - build-stroller:
+          context: Default
+      - build-queue-scheduler:
+          context: Default
 
       - build-fsharp-backend:
+          context: Default
           requires:
             - build-backend
 
       # expensive tests
       - rust-integration-tests:
+          context: Default
           requires:
             - build-backend
             - build-client
             - build-queue-scheduler
       - integration-tests:
+          context: Default
           requires:
             - build-backend
             - build-client
       - gcp-containers-test:
+          context: Default
           requires:
             - build-client # to rebuild etags
             - build-backend
@@ -479,6 +536,7 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
+          context: Default
           filters:
             branches:
               only: main
@@ -492,6 +550,7 @@ workflows:
 
       # actual deploy
       - deploy:
+          context: Default
           filters:
             branches:
               only: main
@@ -500,3 +559,21 @@ workflows:
             - integration-tests
             - rust-integration-tests
             - push-to-gcp
+
+      - notify-non-deploy:
+          context: Default
+          filters:
+            branches:
+              ignore: main
+          requires:
+            - build-backend
+            - build-client
+            - build-fsharp-backend
+            - build-postgres-honeytail
+            - build-queue-scheduler
+            - build-stroller
+            - gcp-containers-test
+            - integration-tests
+            - rust-integration-tests
+            - static-checks
+            - validate-honeycomb-config
