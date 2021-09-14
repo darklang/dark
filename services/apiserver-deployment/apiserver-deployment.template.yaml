@@ -97,6 +97,11 @@ spec:
                 secretKeyRef:
                   name: dark-static-assets
                   key: balmy-ground-195100-d9b0f3de3013.json
+            - name: DARK_CONFIG_HONEYCOMB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: honeycomb
+                  key: api-key
         #########################
         # Legacyserver
         #########################
