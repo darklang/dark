@@ -101,7 +101,7 @@ spec:
         # Legacyserver
         #########################
         - name: legacy-ctr
-          image: "gcr.io/balmy-ground-195100/gcp-legacyserver:{IMAGE}"
+          image: "gcr.io/balmy-ground-195100/legacyserver:{IMAGE}"
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
