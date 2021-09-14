@@ -442,6 +442,7 @@ jobs:
             time docker images gcr.io/balmy-ground-195100/gcp-queueworker -q | head -n 1 > gcr-image-ids/qw
             time docker images gcr.io/balmy-ground-195100/gcp-cronchecker -q | head -n 1 > gcr-image-ids/cron
             time docker images gcr.io/balmy-ground-195100/gcp-garbagecollector -q | head -n 1 > gcr-image-ids/garbagecollector
+            time docker images gcr.io/balmy-ground-195100/legacyserver -q | head -n 1 > gcr-image-ids/legacyserver
             time docker images gcr.io/balmy-ground-195100/stroller -q | head -n 1 > gcr-image-ids/stroller
             time docker images gcr.io/balmy-ground-195100/queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
             time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
