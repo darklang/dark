@@ -14,6 +14,10 @@ function check {
       --kubernetes-version=1.19.12 \
       --force-color \
       "$1"
+    # Do a dry run on kubernetes files to get known errors
+    if [[ "$1" != "./services/configconnector/config-connector-experiment-ingress.yaml" ]]; then
+      kubectl apply -f "$1" --dry-run=client
+    fi
   else
     echo "not kubernetes so no kubeval: $1"
   fi
