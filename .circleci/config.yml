@@ -486,29 +486,40 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - static-checks
-      - build-postgres-honeytail
-      - validate-honeycomb-config
-      - build-backend
-      - build-client
-      - build-stroller
-      - build-queue-scheduler
+      - static-checks:
+          context: default
+      - build-postgres-honeytail:
+          context: default
+      - validate-honeycomb-config:
+          context: default
+      - build-backend:
+          context: default
+      - build-client:
+          context: default
+      - build-stroller:
+          context: default
+      - build-queue-scheduler:
+          context: default
 
       - build-fsharp-backend:
+          context: default
           requires:
             - build-backend
 
       # expensive tests
       - rust-integration-tests:
+          context: default
           requires:
             - build-backend
             - build-client
             - build-queue-scheduler
       - integration-tests:
+          context: default
           requires:
             - build-backend
             - build-client
       - gcp-containers-test:
+          context: default
           requires:
             - build-client # to rebuild etags
             - build-backend
@@ -518,6 +529,7 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
+          context: default
           filters:
             branches:
               only: main
@@ -531,6 +543,7 @@ workflows:
 
       # actual deploy
       - deploy:
+          context: default
           filters:
             branches:
               only: main
