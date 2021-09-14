@@ -11,7 +11,7 @@ kubernetes-bwd-nginx
 kubernetes-bwd-ocaml
 kubernetes-cluster-events
 kubernetes-garbagecollector
-kubernetes-resource-metrics
+kubernetes-metrics
 kubernetes-scheduler
 kubernetes-stroller
 postgres"
