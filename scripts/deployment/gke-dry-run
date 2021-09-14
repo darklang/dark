@@ -6,10 +6,8 @@
 set -euo pipefail
 
 function check {
-  if [[ "$1" == *config* ]]; then
-    echo "checking $1"
-    kubectl apply -f "$1" --dry-run=client
-  fi
+  echo "checking $1"
+  kubectl apply -f "$1" --dry-run=client
 }
 
 if [[ "$#" -eq 1 ]]; then
