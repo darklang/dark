@@ -159,17 +159,25 @@ spec:
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
+            # database - we don't use it, but we need to connect to it
+            - name: DARK_CONFIG_DB_HOST
+              value: 127.0.0.1
+            - name: DARK_CONFIG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: username
+            - name: DARK_CONFIG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: password
+            # rollbar
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
                   name: rollbar
                   key: post_token
-            - name: DARK_CONFIG_PUSHER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: pusher-account-credentials
-                  key: key
-
         #########################
         # Postgres proxy config
         # To connect to postgres from kubernetes, we need to add a proxy. See
