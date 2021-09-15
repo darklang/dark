@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Update production honeycomb config to match the stored config file
+
+set -euo pipefail
+
+# Update the production configmap
+kubectl create configmap honeycomb-agent \
+  --from-file=config.yaml=services/honeycomb-agent/honeycomb-agent-config.yaml \
+  --dry-run=client -o json \
+  | kubectl replace --filename=-
+
+kubectl delete pod --selector k8s-app=honeycomb-agent
+# Or should it be
+#kubectl rollout restart ds/honeycomb-agent

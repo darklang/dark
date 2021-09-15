@@ -39,7 +39,7 @@ kubectl diff \
   -f services/tunnel-deployment/isolate-tunnel.yaml \
   -f services/tunnel-deployment/tunnel-service.yaml
 
-# We don't have the full file checked in for this:
+# We don't have the full file checked in for this
 kubectl create configmap honeycomb-agent \
   --from-file=config.yaml=services/honeycomb-agent/honeycomb-agent-config.yaml \
   --dry-run=client -o json \
