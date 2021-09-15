@@ -33,7 +33,6 @@ kubectl diff \
   -f services/editor-deployment/editor-network-policy.yaml \
   -f services/editor-deployment/static.darklang.com-tls.yaml \
   -f services/qw-deployment/qw-network-policy.yaml \
-  -f services/reloader-reloader/reloader.yaml \
   -f services/static-assets/darksa.com-tls.yaml \
   -f services/static-assets/darkstaticassets.com-tls.yaml \
   -f services/tunnel-deployment/isolate-tunnel.yaml \
