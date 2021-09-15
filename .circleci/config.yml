@@ -314,6 +314,12 @@ jobs:
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
+      - notify-job-failure
+
+  predeployment-checks:
+    executor: in-container
+    steps:
+      - darkcheckout
       - auth-with-gcp: { background: false }
       - run: scripts/deployment/gke-dry-run
       - run: scripts/deployment/_gke-check-predeployed-yaml
@@ -496,6 +502,8 @@ workflows:
       # initial builds & tests
       - static-checks:
           context: Default
+      - predeployment-checks:
+          context: Default
       - build-postgres-honeytail:
           context: Default
       - validate-honeycomb-config:
@@ -560,6 +568,7 @@ workflows:
             - rust-integration-tests
             - push-to-gcp
             - static-checks
+            - predeployment-checks
 
       - notify-non-deploy:
           context: Default
@@ -577,4 +586,5 @@ workflows:
             - integration-tests
             - rust-integration-tests
             - static-checks
+            - predeployment-checks
             - validate-honeycomb-config

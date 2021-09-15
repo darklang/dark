@@ -63,7 +63,13 @@ watchers:
     containerName: qw-ctr
     dataset: kubernetes-bwd-ocaml
     parser: json
-  - labelSelector: "app in (bwd-app, editor-app)"
+  # the apiserver itself uses opentelemetry to write directly, but the legacyserver
+  # still uses json logs like the rest of ocaml containers
+  - labelSelector: "app=apiserver"
+    containerName: legacy-ctr
+    dataset: kubernetes-bwd-ocaml
+    parser: json
+  - labelSelector: "app in (bwd-app, editor-app, apiserver)"
     containerName: http-proxy
     dataset: kubernetes-bwd-nginx
     parser:

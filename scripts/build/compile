@@ -142,6 +142,9 @@ def yamllint(f):
   result = run_backend(start, "scripts/linting/yamllinter " + f)
   return result
 
+def circleci_validate():
+  start = time.time()
+  return run_backend(start, "circleci config validate")
 
 def test_nginx():
   start = time.time()
@@ -386,6 +389,7 @@ class Should:
     self.sass_compile = False
     self.copy_static = False
     self.copy_fsharp_static = False
+    self.circleci_validate = False
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
@@ -430,6 +434,8 @@ def execute(should):
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
+  if should.circleci_validate:
+    if not circleci_validate(): success = False
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False
@@ -638,6 +644,9 @@ def mark(should, f):
 
   elif "/fsharp-backend/src/Wasm/static/" in f:
     should.copy_fsharp_static = True
+
+  elif (".circleci/config.yml" in f):
+    should.circleci_validate = True
 
   elif ("/scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]

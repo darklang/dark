@@ -420,3 +420,5 @@ USER dark
 # Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
+
+RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash

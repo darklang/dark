@@ -37,8 +37,6 @@ let server () =
       |> String.split ~on:'/'
     in
     let headers = Header.of_list [] in
-    print_endline
-      ("got request: " ^ Uri.path uri ^ " and body\n: " ^ body_string) ;
     let fn =
       match path with
       | ["bs"; fnname] ->
@@ -90,12 +88,14 @@ let server () =
         with e ->
           let headers = Header.init () in
           let message = Libexecution.Exception.exn_to_string e in
-          print_endline
-            ( "error while calling "
-            ^ Uri.to_string uri
-            ^ "\n"
-            ^ message
-            ^ "\n\n" ) ;
+          Libcommon.Log.erroR
+            "Error in legacyserver call"
+            ~data:"Received shutdown request - shutting down"
+            ~params:
+              [ ("uri", Uri.to_string uri)
+              ; ("path", Uri.path uri)
+              ; ("method", Cohttp.Code.string_of_method meth)
+              ; ("error", message) ] ;
           S.respond_string ~status:`Bad_request ~body:message ~headers () )
     | `GET, None ->
       ( match path with
@@ -126,7 +126,8 @@ let server () =
                   () )
           | _ ->
               Libcommon.Log.erroR
-                ("Failed readiness check(s): " ^ String.concat checks ~sep:": ") ;
+                "Failed readiness check"
+                ~params:[("checks", String.concat ~sep:"," checks)] ;
               S.respond_string
                 ~status:`Bad_request
                 ~body:"Sorry internal overlord"
@@ -168,7 +169,7 @@ let server () =
 
 let () =
   try
-    print_endline "Starting legacy server" ;
+    Libcommon.Log.infO "Starting legacy server" ;
     (* see https://github.com/mirage/ocaml-cohttp/issues/511 *)
     let () = Lwt.async_exception_hook := ignore in
     ignore (Lwt_main.run (Nocrypto_entropy_lwt.initialize () >>= server))
