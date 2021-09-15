@@ -316,7 +316,7 @@ jobs:
       - run: scripts/formatting/format check
       - notify-job-failure
 
-  pre-deployment-checks:
+  predeployment-checks:
     executor: in-container
     steps:
       - darkcheckout
