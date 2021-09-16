@@ -20,19 +20,18 @@ import os.path
 import subprocess
 import jsonschema
 
-def dirs_from_args(args):
-  dirs = args.services
-  if dirs == []:
-    dirs = [ os.path.dirname(path) for path in glob.glob(r'services/**/deploy.yaml') ]
-  sorted_dirs = sorted(dirs)
-  return sorted_dirs
-
-def config_from_dir(dir):
-  return yaml.load(open(dir + "/deploy.yaml"), Loader=yaml.Loader)
+##################################
+# Utility functions
+##################################
 
 def bad(str):
   print(str)
   sys.exit(1)
+
+
+##################################
+# Assertions
+##################################
 
 def assert_file_exists(dir, f):
   if not os.path.exists(os.path.join(dir, f)):
@@ -47,22 +46,44 @@ def assert_string_in_file (filename, file_str, substr):
   if substr not in file_str:
     bad(f"String missing from {filename}: {substr}")
 
-def config_check(args):
+##################################
+# Load services / config
+##################################
+def dirs_from_args(args):
+  dirs = args.services
+  if dirs == []:
+    dirs = [ os.path.dirname(path) for path in glob.glob(r'services/**/deploy.yaml') ]
+  sorted_dirs = sorted(dirs)
+  return sorted_dirs
+
+def config_from_dir(dir):
+  return yaml.load(open(dir + "/deploy.yaml"), Loader=yaml.Loader)
+
+
+##################################
+# Config commands
+##################################
+
+def config_diff(args):
   validate(args)
+  files = []
   for dir in dirs_from_args(args):
     config = config_from_dir(dir)
-    file_args = ["kubectl", "diff"]
     for f in config['k8s']["manually-deployed-configs"]:
-      file_args.append ("-f")
-      file_args.append (os.path.join(dir, f))
-    if len(file_args) == 2:
-      print(f"No files to check for {dir}")
-    else:
-      print(f"Checking config for {dir}")
-      try:
-        subprocess.run(file_args, check=True)
-      except subprocess.CalledProcessError as e:
-        bad(f"Error running kubectl diff:\n  {e}\n  (args:{file_args})")
+      files.append (os.path.join(dir, f))
+
+  file_args = ["kubectl", "diff"]
+  for f in files:
+    file_args.append("-f")
+    file_args.append(f)
+  try:
+    subprocess.run(file_args, check=True)
+  except subprocess.CalledProcessError as e:
+    bad(f"Error running kubectl diff:\n  {e}\n  (args:{file_args})")
+
+##################################
+# Validate config files
+##################################
 
 config_schema = """
 type: object
@@ -137,6 +158,9 @@ def validate(args):
           bad(f"Unexpected placeholder \"{{{match}}}\" in\n{template_filename}")
 
 
+##################################
+# Argument parser
+##################################
 
 def create_arg_parser():
   parent_parser = argparse.ArgumentParser(add_help=False)
@@ -148,9 +172,13 @@ def create_arg_parser():
   validate_parser.set_defaults(func=validate)
   config_parser = main_subparsers.add_parser('config')
   config_subparser = config_parser.add_subparsers()
-  config_check_parser = config_subparser.add_parser('check', description="Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed", parents=[parent_parser])
-  config_check_parser.set_defaults(func=config_check)
+  config_diff_parser = config_subparser.add_parser('diff', description="Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`", parents=[parent_parser])
+  config_diff_parser.set_defaults(func=config_diff)
   return main_parser
+
+##################################
+# Main
+##################################
 
 def main():
   parser = create_arg_parser()
