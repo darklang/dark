@@ -314,7 +314,7 @@ jobs:
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
-      - run: scripts/build/compile deploy
+      - run: scripts/build/compile-project deploy
       - run: scripts/deployment/deploy validate
       - notify-job-failure
 
@@ -323,6 +323,7 @@ jobs:
     steps:
       - darkcheckout
       - auth-with-gcp: { background: false }
+      - run: scripts/build/compile-project deploy
       - run: scripts/deployment/deploy config check
       - notify-job-failure
 
