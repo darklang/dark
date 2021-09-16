@@ -1,0 +1,4 @@
+k8s:
+  manually-deployed-configs:
+    - darksa.com-tls.yaml
+    - darkstaticassets.com-tls.yaml

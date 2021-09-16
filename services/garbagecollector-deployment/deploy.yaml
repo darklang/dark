@@ -1,0 +1,9 @@
+k8s:
+  manually-deployed-configs: []
+  deployment:
+    config-template: garbagecollector-deployment.template.yaml
+    containers:
+      - gcp-garbagecollector
+    template-vars:
+      - CLOUDSQL_INSTANCE_NAME
+      - CHANGE_CAUSE

@@ -1,0 +1,11 @@
+k8s:
+  manually-deployed-configs:
+    - apiserver-network-policy.yaml
+  deployment:
+    config-template: apiserver-deployment.template.yaml
+    containers:
+      - gcp-fsharp-apiserver
+      - legacyserver
+    template-vars:
+      - CLOUDSQL_INSTANCE_NAME
+      - CHANGE_CAUSE

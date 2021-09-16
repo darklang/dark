@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: editor-deployment
   annotations:
-    kubernetes.io/change-cause: "{CHANGE_CAUSE}"
+    kubernetes.io/change-cause: "{VAR:CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: bwd-ctr
-          image: "gcr.io/balmy-ground-195100/gcp-server:{IMAGE}"
+          image: "gcr.io/balmy-ground-195100/gcp-server:{IMAGEID:gcp-server}"
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -108,7 +108,7 @@ spec:
           # https://github.com/GoogleCloudPlatform/cloudsql-proxy/issues/128
           command: ["/bin/sh",
                     "-c",
-                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
+                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{VAR:CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
@@ -118,7 +118,7 @@ spec:
         # Stroller (push proxy) config
         #########################
         - name: stroller
-          image: "gcr.io/balmy-ground-195100/stroller:{STROLLER_IMAGE}"
+          image: "gcr.io/balmy-ground-195100/stroller:{IMAGEID:stroller}"
           resources:
             requests:
               memory: "250Mi"

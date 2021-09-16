@@ -1,0 +1,10 @@
+k8s:
+  manually-deployed-configs:
+    - cc-network-policy.yaml
+  deployment:
+    config-template: cron-deployment.template.yaml
+    containers:
+      - gcp-cronchecker
+    template-vars:
+      - CLOUDSQL_INSTANCE_NAME
+      - CHANGE_CAUSE

@@ -1,0 +1,11 @@
+k8s:
+  manually-deployed-configs:
+    - qw-network-policy.yaml
+  deployment:
+    config-template: qw-deployment.template.yaml
+    containers:
+      - gcp-queueworker
+      - stroller
+    template-vars:
+      - CLOUDSQL_INSTANCE_NAME
+      - CHANGE_CAUSE

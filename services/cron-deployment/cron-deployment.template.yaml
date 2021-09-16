@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: cron-deployment
   annotations:
-    kubernetes.io/change-cause: "{CHANGE_CAUSE}"
+    kubernetes.io/change-cause: "{VAR:CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: cron-ctr
-          image: "gcr.io/balmy-ground-195100/gcp-cronchecker:{CRON_IMAGE}"
+          image: "gcr.io/balmy-ground-195100/gcp-cronchecker:{IMAGEID:gcp-cronchecker}"
           # Resource request intentionally less than resource limit, to ensure
           # this pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -77,7 +77,7 @@ spec:
               cpu: "125m"
           command: ["/bin/sh",
                     "-c",
-                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
+                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{VAR:CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
