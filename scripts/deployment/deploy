@@ -29,10 +29,24 @@ def bad(str):
   sys.exit(1)
 
 should_debug = False
+should_dry_run = False
 
 def debug(str):
   if should_debug:
     print("DEBUG: ", str)
+
+def run(dir, name, args, shell=False):
+  try:
+    if should_dry_run:
+      print(f"Running {name} command: (dry-run)\n  {args}")
+    else:
+      print(f"Running {name} command:\n  {args}")
+      subprocess.run(args, shell=shell, check=True)
+      print()
+  except subprocess.CalledProcessError as e:
+    bad(f"Error running {name} command in {dir}:\n  {e}\n  (command:{args})")
+
+
 
 ##################################
 # Assertions
@@ -84,23 +98,39 @@ def config_diff(args):
   for dir in dirs_from_args(args):
     config = config_from_dir(dir)
     for f in config['k8s']["manually-deployed-config"]["configs"]:
-      files.append (os.path.join(dir, f))
+      files.append(os.path.join(dir, f))
     for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
-      try:
-        debug(f"Running custom diff command: {c}")
-        subprocess.run(c, shell=True, check=True)
-      except subprocess.CalledProcessError as e:
-        bad(f"Error running custom-diff command in {dir}:\n  {e}\n  (command:{f})")
+      run(dir, "custom diff", c, shell=True)
 
-  file_args = ["kubectl", "diff"]
-  for f in files:
-    file_args.append("-f")
-    file_args.append(f)
-  try:
-    debug(f"Running kubectl diff on collected args: {files}")
-    subprocess.run(file_args, check=True)
-  except subprocess.CalledProcessError as e:
-    bad(f"Error running kubectl diff:\n  {e}\n  (args:{file_args})")
+  if files == []:
+    debug("No files to diff, skipping")
+  else:
+    file_args = ["kubectl", "diff"]
+    for f in files:
+      file_args.append("-f")
+      file_args.append(f)
+    run(dir, "kubectl diff", file_args)
+
+def config_apply_manually(args):
+  args.services = [args.service]
+  validate(args)
+  files = []
+  for dir in dirs_from_args(args):
+    config = config_from_dir(dir)
+    for f in config['k8s']["manually-deployed-config"]["configs"]:
+      files.append(os.path.join(dir, f))
+    for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
+      run(dir, "custom apply", c, shell=True)
+
+  if files == []:
+    print("No files to apply, skipping")
+  else:
+    file_args = ["kubectl", "apply"]
+    for f in files:
+      file_args.append("-f")
+      file_args.append(f)
+    run(dir, "kubectl apply", file_args)
+
 
 ##################################
 # Validate config files
@@ -200,19 +230,33 @@ def validate(args):
 ##################################
 
 def create_arg_parser():
-  parent_parser = argparse.ArgumentParser(add_help=False)
-  parent_parser.add_argument('services', action="store", nargs="*", help="paths to the service definitions. Leave empty to run on all services")
-  parent_parser.add_argument('--debug', action='store_true', help="paths to the service definitions. Leave empty to run on all services")
-  parent_parser.set_defaults(debug=False)
+  # The base parser has the commands shared by ALL subcommands
+  base_parser = argparse.ArgumentParser(add_help=False)
+  base_parser.add_argument('--debug', action='store_true', help="Print debug info about what's running")
+  base_parser.add_argument('--dry-run', action='store_true', help="paths to the service definitions. Leave empty to run on all services")
+  base_parser.set_defaults(debug=False)
+  base_parser.set_defaults(dry_run=False)
+
+  # We want to be explicit about listing services for side-effecting commands
+  services_parser = argparse.ArgumentParser(add_help=False)
+  services_parser.add_argument('services', action="store", nargs="*", help="paths to the service definitions. Leave empty to run on all services")
 
   main_parser = argparse.ArgumentParser(description='Manage deployment of kubernetes services')
   main_subparsers = main_parser.add_subparsers()
-  validate_parser = main_subparsers.add_parser('validate', description="Validates deploy.yaml files", parents=[parent_parser])
+
+  validate_parser = main_subparsers.add_parser('validate', description="Validates deploy.yaml files", parents=[base_parser])
   validate_parser.set_defaults(func=validate)
+
   config_parser = main_subparsers.add_parser('config')
   config_subparser = config_parser.add_subparsers()
-  config_diff_parser = config_subparser.add_parser('diff', description="Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`", parents=[parent_parser])
+
+  config_diff_parser = config_subparser.add_parser('diff', description="Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`", parents=[base_parser, services_parser])
   config_diff_parser.set_defaults(func=config_diff)
+
+  config_apply_parser = config_subparser.add_parser('apply-manually', description="Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`", parents=[base_parser])
+  config_apply_parser.add_argument('service', action="store", help="path to the service definition. Required and only one service is supported")
+  config_apply_parser.set_defaults(func=config_apply_manually)
+
   return main_parser
 
 ##################################
@@ -221,9 +265,11 @@ def create_arg_parser():
 
 def main():
   global should_debug
+  global should_dry_run
   parser = create_arg_parser()
   args = parser.parse_args()
   should_debug = args.debug
+  should_dry_run = args.dry_run
   args.func(args)
 
 main()
