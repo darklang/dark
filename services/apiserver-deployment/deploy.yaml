@@ -1,6 +1,7 @@
 k8s:
-  manually-deployed-configs:
-    - apiserver-network-policy.yaml
+  manually-deployed-config:
+    configs:
+      - apiserver-network-policy.yaml
   deployment:
     config-template: apiserver-deployment.template.yaml
     containers:

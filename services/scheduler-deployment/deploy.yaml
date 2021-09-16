@@ -2,9 +2,9 @@ k8s:
   manually-deployed-config:
     configs: []
   deployment:
-    config-template: garbagecollector-deployment.template.yaml
+    config-template: scheduler-deployment.template.yaml
     containers:
-      - gcp-garbagecollector
+      - queue-scheduler
     template-vars:
       - CLOUDSQL_INSTANCE_NAME
       - CHANGE_CAUSE

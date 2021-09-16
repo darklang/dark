@@ -52,12 +52,19 @@ def assert_string_in_file (filename, file_str, substr):
 def dirs_from_args(args):
   dirs = args.services
   if dirs == []:
-    dirs = [ os.path.dirname(path) for path in glob.glob(r'services/**/deploy.yaml') ]
+    dirs = [ path for path in glob.glob(r'services/**') if "README.md" not in path ]
   sorted_dirs = sorted(dirs)
   return sorted_dirs
 
 def config_from_dir(dir):
-  return yaml.load(open(dir + "/deploy.yaml"), Loader=yaml.Loader)
+  try:
+    file = open(dir + "/deploy.yaml")
+  except:
+    bad(f"Missing config file in {dir}/deploy.yaml")
+  try:
+    return yaml.load(file, Loader=yaml.Loader)
+  except Exception as e:
+    bad(f"Bad yaml in {dir}/deploy.yaml\n  {e}")
 
 
 ##################################
@@ -91,14 +98,27 @@ properties:
   k8s:
     type: object
     properties:
-      manually-deployed-configs:
-        type: array
-        items:
-          type: string
+      manually-deployed-config:
+        type: object
+        properties:
+          configs:
+            type: array
+            items:
+              type: string
+          custom-diff:
+            type: array
+            items:
+              type: string
+          custom-apply:
+            type: array
+            items:
+              type: string
+        required: [configs]
+        additionalProperties: false
       deployment:
         type: object
         properties:
-          config_template:
+          config-template:
             type: string
           containers:
             type: array
@@ -109,7 +129,9 @@ properties:
             items:
               type: string
         required: [containers, config-template, template-vars]
-    required: [manually-deployed-configs]
+        additionalProperties: false
+    required: [manually-deployed-config]
+    additionalProperties: false
 """
 
 def validate(args):
@@ -123,8 +145,9 @@ def validate(args):
 
     k8s = config['k8s']
 
-    manually_deployed_configs = k8s.get("manually-deployed-configs", [])
-    for f in manually_deployed_configs:
+    manually_deployed_config = k8s["manually-deployed-config"]
+    configs = manually_deployed_config["configs"]
+    for f in configs:
       assert_file_exists(dir, f)
 
     deployment = config['k8s'].get("deployment", None)

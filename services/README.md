@@ -7,10 +7,16 @@ concept.
 
 Deployments and such are managed by scripts/deployment/deploy. Each service is configured using a `deploy.yaml` file in the subdirectory. The keys of this file are:
 
-- `k8s.manually-deployed-files`:
+- `k8s.manually-deployed-config.configs`:
   pure config files that are manually deployed. The vast majority of config files
   should be this, so that we can watch them go out and check that they actually
-  work. These are used with `deploy config-manually-deploy` and `deploy config-check`
+  work. These are used with `deploy config apply-manually` and `deploy config diff`
+
+- `k8s.manually-deployed-config.custom-diff`:
+  A command to diff the configs in this service.
+
+- `k8s.manually-deployed-config.custom-apply`:
+  A list of commands to apply the configs in this service
 
 - `k8s.deployment.template`:
   Template file of a deployment. This template file is filled with values such as the
@@ -24,7 +30,7 @@ Deployments and such are managed by scripts/deployment/deploy. Each service is c
 
 # Commands:
 
-- config deploy-manually [services]
+- config apply-manually [services]
 - config diff [services]
 - containers build [services]
 - containers pull [services]
