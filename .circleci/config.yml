@@ -324,7 +324,7 @@ jobs:
       - darkcheckout
       - auth-with-gcp: { background: false }
       - run: scripts/build/compile-project deploy
-      - run: scripts/deployment/deploy config check
+      - run: scripts/deployment/deploy config diff
       - notify-job-failure
 
   build-stroller:
