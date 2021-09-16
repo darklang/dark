@@ -48,14 +48,21 @@ def assert_string_in_file (filename, file_str, substr):
     bad(f"String missing from {filename}: {substr}")
 
 def config_check(args):
+  validate(args)
   for dir in dirs_from_args(args):
     config = config_from_dir(dir)
-    file_args = []
+    file_args = ["kubectl", "diff"]
     for f in config['k8s']["manually-deployed-configs"]:
       file_args.append ("-f")
       file_args.append (os.path.join(dir, f))
-    print(f"Checking config for {dir}")
-    subprocess.run(["kubectl", "diff"] + file_args, check=True)
+    if len(file_args) == 2:
+      print(f"No files to check for {dir}")
+    else:
+      print(f"Checking config for {dir}")
+      try:
+        subprocess.run(file_args, check=True)
+      except subprocess.CalledProcessError as e:
+        bad(f"Error running kubectl diff:\n  {e}\n  (args:{file_args})")
 
 config_schema = """
 type: object
@@ -81,6 +88,7 @@ properties:
             items:
               type: string
         required: [containers, config-template, template-vars]
+    required: [manually-deployed-configs]
 """
 
 def validate(args):
