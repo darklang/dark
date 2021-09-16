@@ -194,10 +194,7 @@ spec:
             limits:
               memory: "500Mi"
               cpu: "125m"
-          # https://github.com/GoogleCloudPlatform/cloudsql-proxy/issues/128
-          command: ["/bin/sh",
-                    "-c",
-                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
+          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances=balmy-ground-195100:us-west1:{CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
