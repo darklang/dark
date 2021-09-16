@@ -314,6 +314,8 @@ jobs:
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
+      - run: scripts/build/compile deploy
+      - run: scripts/deployment/deploy validate
       - notify-job-failure
 
   predeployment-checks:
@@ -321,8 +323,7 @@ jobs:
     steps:
       - darkcheckout
       - auth-with-gcp: { background: false }
-      - run: scripts/deployment/gke-dry-run
-      - run: scripts/deployment/_gke-check-predeployed-yaml
+      - run: scripts/deployment/deploy config check
       - notify-job-failure
 
   build-stroller:

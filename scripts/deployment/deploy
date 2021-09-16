@@ -28,6 +28,11 @@ def bad(str):
   print(str)
   sys.exit(1)
 
+should_debug = False
+
+def debug(str):
+  if should_debug:
+    print("DEBUG: ", str)
 
 ##################################
 # Assertions
@@ -53,6 +58,8 @@ def dirs_from_args(args):
   dirs = args.services
   if dirs == []:
     dirs = [ path for path in glob.glob(r'services/**') if "README.md" not in path ]
+  elif len(dirs) == 1 and dirs[0].endswith("deploy.yaml"):
+    dirs = [ os.path.dirname(dirs[0]) ]
   sorted_dirs = sorted(dirs)
   return sorted_dirs
 
@@ -76,14 +83,21 @@ def config_diff(args):
   files = []
   for dir in dirs_from_args(args):
     config = config_from_dir(dir)
-    for f in config['k8s']["manually-deployed-configs"]:
+    for f in config['k8s']["manually-deployed-config"]["configs"]:
       files.append (os.path.join(dir, f))
+    for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
+      try:
+        debug(f"Running custom diff command: {c}")
+        subprocess.run(c, shell=True, check=True)
+      except subprocess.CalledProcessError as e:
+        bad(f"Error running custom-diff command in {dir}:\n  {e}\n  (command:{f})")
 
   file_args = ["kubectl", "diff"]
   for f in files:
     file_args.append("-f")
     file_args.append(f)
   try:
+    debug(f"Running kubectl diff on collected args: {files}")
     subprocess.run(file_args, check=True)
   except subprocess.CalledProcessError as e:
     bad(f"Error running kubectl diff:\n  {e}\n  (args:{file_args})")
@@ -137,7 +151,7 @@ properties:
 def validate(args):
   for dir in dirs_from_args(args):
     config = config_from_dir(dir)
-    print(f"Validating config for {dir}")
+    debug(f"Validating config for {dir}")
     try:
       jsonschema.validate(config, yaml.load(config_schema, Loader=yaml.Loader))
     except jsonschema.exceptions.ValidationError as e:
@@ -188,6 +202,8 @@ def validate(args):
 def create_arg_parser():
   parent_parser = argparse.ArgumentParser(add_help=False)
   parent_parser.add_argument('services', action="store", nargs="*", help="paths to the service definitions. Leave empty to run on all services")
+  parent_parser.add_argument('--debug', action='store_true', help="paths to the service definitions. Leave empty to run on all services")
+  parent_parser.set_defaults(debug=False)
 
   main_parser = argparse.ArgumentParser(description='Manage deployment of kubernetes services')
   main_subparsers = main_parser.add_subparsers()
@@ -204,8 +220,10 @@ def create_arg_parser():
 ##################################
 
 def main():
+  global should_debug
   parser = create_arg_parser()
   args = parser.parse_args()
+  should_debug = args.debug
   args.func(args)
 
 main()

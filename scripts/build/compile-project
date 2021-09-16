@@ -6,7 +6,7 @@ set -euo pipefail
 usage() {
     echo "usage: compile-project [name of project] [--test]
 Compiles a dark project. Options are:
-client, backend, fsharp-backend, stroller, queue-scheduler, all.
+client, backend, fsharp-backend, stroller, queue-scheduler, deploy, all.
 --test: runs tests
 "
 }
@@ -17,6 +17,7 @@ files["fsharp-backend"]="fsharp-backend/global.json"
 files["client"]="package.json client/src/Types.ml client/styles/app.scss client/test/ast_test.ml"
 files["stroller"]="containers/stroller/src/main.rs"
 files["queue-scheduler"]="containers/queue-scheduler/src/main.rs"
+files["deploy"]="scripts/deployment/requirements.txt"
 for v in "${files[@]}"; do
   files["all"]+=" $v"
 done
@@ -27,7 +28,7 @@ testfiles=""
 
 for cmd in "$@"; do
   case $cmd in
-    backend | client | stroller | queue-scheduler | all | fsharp-backend)
+    backend | client | stroller | queue-scheduler | deploy | all | fsharp-backend)
       testfiles="${testfiles} ${files[$cmd]}"
       ;;
     --test )

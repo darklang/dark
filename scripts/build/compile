@@ -142,6 +142,14 @@ def yamllint(f):
   result = run_backend(start, "scripts/linting/yamllinter " + f)
   return result
 
+def deploy_validate(f):
+  start = time.time()
+  return run_backend(start, f"scripts/deployment/deploy validate {f}")
+
+def pip_install():
+  start = time.time()
+  return run_backend(start, f"pip3 install -r scripts/deployment/requirements.txt")
+
 def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
@@ -390,6 +398,7 @@ class Should:
     self.copy_static = False
     self.copy_fsharp_static = False
     self.circleci_validate = False
+    self.pip_install = False
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
@@ -399,6 +408,7 @@ class Should:
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
+    self.deploy_validate = []
 
 
 def execute(should):
@@ -434,8 +444,12 @@ def execute(should):
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
+
   if should.circleci_validate:
     if not circleci_validate(): success = False
+
+  if should.pip_install:
+   if not pip_install(): success = False
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False
@@ -526,6 +540,10 @@ def execute(should):
 
   if should.yamllint:
     if not all([yamllint(f) for f in should.yamllint]):
+      success = False
+
+  if should.deploy_validate != []:
+    if not all([deploy_validate(f) for f in should.deploy_validate]):
       success = False
 
   return success
@@ -647,6 +665,12 @@ def mark(should, f):
 
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
+
+  elif ("/services/" in f and "deploy.yaml" in f):
+    should.deploy_validate += [f]
+
+  elif ("/scripts/deployment/requirements.txt" in f):
+    should.pip_install = True
 
   elif ("/scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
