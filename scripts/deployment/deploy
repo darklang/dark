@@ -132,45 +132,59 @@ def get_service_config(dir):
 ##################################
 
 
-def config_diff(args):
-  do_validation(args)
+def get_all_config_file_arguments(args):
   files = []
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     for f in config['k8s']["manually-deployed-config"]["configs"]:
       files.append(os.path.join(dir, f))
-    for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
-      run("custom diff", c, shell=True)
 
-  if files == []:
+  file_args = []
+  for f in files:
+    file_args.append("-f")
+    file_args.append(f)
+  return file_args
+
+
+def config_diff(args):
+  do_validation(args)
+
+  # Diff files
+  file_args = get_all_config_file_arguments(args)
+  if file_args == []:
     debug("No files to diff, skipping")
   else:
-    file_args = ["kubectl", "diff"]
-    for f in files:
-      file_args.append("-f")
-      file_args.append(f)
-    run("kubectl diff", file_args)
+    run("kubectl diff", ["kubectl", "diff"] + file_args)
+
+  # Custom diffs
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
+      run("custom diff", c, shell=True)
 
 
 def config_apply_manually(args):
   args.services = [args.service]
   do_validation(args)
-  files = []
+
+  # Apply files
+  file_args = get_all_config_file_arguments(args)
+  if file_args == []:
+    debug("No files to apply, skipping")
+  else:
+    run("kubectl apply", ["kubectl", "apply"] + file_args)
+
+  # Custom apply
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for f in config['k8s']["manually-deployed-config"]["configs"]:
-      files.append(os.path.join(dir, f))
     for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
       run("custom apply", c, shell=True)
 
-  if files == []:
-    print("No files to apply, skipping")
-  else:
-    file_args = ["kubectl", "apply"]
-    for f in files:
-      file_args.append("-f")
-      file_args.append(f)
-    run("kubectl apply", file_args)
+  # Custom post-apply (used for restarting services)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for c in config['k8s']["manually-deployed-config"].get("custom-post-apply", []):
+      run("custom post apply", c, shell=True)
 
 
 ##################################
