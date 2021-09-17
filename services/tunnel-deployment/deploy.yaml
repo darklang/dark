@@ -7,5 +7,5 @@ k8s:
     config-template: tunnel-deployment.template.yaml
     containers:
       - tunnel
-    template-vars:
+    expected-args:
       - CHANGE_CAUSE

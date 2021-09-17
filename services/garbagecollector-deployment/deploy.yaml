@@ -5,6 +5,7 @@ k8s:
     config-template: garbagecollector-deployment.template.yaml
     containers:
       - gcp-garbagecollector
-    template-vars:
+    builtins:
       - CLOUDSQL_INSTANCE_NAME
+    expected-args:
       - CHANGE_CAUSE

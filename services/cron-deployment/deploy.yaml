@@ -6,6 +6,7 @@ k8s:
     config-template: cron-deployment.template.yaml
     containers:
       - gcp-cronchecker
-    template-vars:
+    builtins:
       - CLOUDSQL_INSTANCE_NAME
+    expected-args:
       - CHANGE_CAUSE

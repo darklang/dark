@@ -10,6 +10,7 @@ k8s:
     containers:
       - gcp-server
       - stroller
-    template-vars:
+    builtins:
       - CLOUDSQL_INSTANCE_NAME
+    expected-args:
       - CHANGE_CAUSE

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: scheduler-deployment
   annotations:
-    kubernetes.io/change-cause: "{VAR:CHANGE_CAUSE}"
+    kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
@@ -75,7 +75,7 @@ spec:
               cpu: "150m"
           command: ["/bin/sh",
                     "-c",
-                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{VAR:CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
+                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql

@@ -7,6 +7,7 @@ k8s:
     containers:
       - gcp-fsharp-apiserver
       - legacyserver
-    template-vars:
+    builtins:
       - CLOUDSQL_INSTANCE_NAME
+    expected-args:
       - CHANGE_CAUSE

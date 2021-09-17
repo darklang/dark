@@ -27,6 +27,13 @@ Deployments and such are managed by scripts/deployment/deploy. Each service is c
   List of containers used in this deployment. The container name must match a
   container in `../containers/` and the ID will be provided as a template var.
 
+- `k8s.deployment.builtins`:
+  List of builtins to replace in the template. Currently the only builtin is
+  `CLOUDSQL_INSTANCE_NAME`.
+
+- `k8s.deployment.expected-args`:
+  These arguments are expected to be passed on the command line to `deploy deployment apply` using `--arg=`.
+
 # Commands:
 
 - config apply-manually [services]

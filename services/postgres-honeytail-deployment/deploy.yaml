@@ -5,5 +5,5 @@ k8s:
     config-template: postgres-honeytail-deployment.template.yaml
     containers:
       - postgres-honeytail
-    template-vars:
+    expected-args:
       - CHANGE_CAUSE

@@ -279,12 +279,23 @@ def containers_build(args):
 ##################################
 # Deployments
 ##################################
+def get_expected_args(args):
+  expected_args = {}
+  for arg in args.args or []:
+    items = arg.strip().split("=")
+    k = items[0].strip()
+    v = "=".join(items[1:]).strip()
+    if (v.startswith("\"") and v.endswith("\"")) or \
+       (v.startswith("'") and v.endswith("'")):
+      v = v[1:-1]
+    expected_args[k] = v
+  return expected_args
+
+
 def deployment_diff(args):
   do_validation(args)
-  vars = {
-      "CHANGE_CAUSE": "test change cause",
-      "CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME
-  }
+  builtins = {"CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME}
+  expected_args = get_expected_args(args)
   files = []
   ids = json.load(open(args.manifest))
   for dir in get_service_dirs(args):
@@ -297,8 +308,14 @@ def deployment_diff(args):
       content = readfile(filename)
       for c in deployment["containers"]:
         content = content.replace(f"{{IMAGEID:{c}}}", ids[c])
-      for v in deployment["template-vars"]:
-        content = content.replace(f"{{VAR:{v}}}", vars[v])
+      for a in deployment["expected-args"]:
+        value = expected_args.get(a)
+        if value == None:
+          bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--args {a}='SOME VALUE'`"
+              )
+        content = content.replace(f"{{ARG:{a}}}", expected_args[a])
+      for v in deployment.get("builtins", []):
+        content = content.replace(f"{{BUILTIN:{v}}}", builtins[v])
 
       # Write the non-template version
       target_filename = filename.replace(".template", "")
@@ -352,11 +369,15 @@ properties:
             type: array
             items:
               type: string
-          template-vars:
+          expected-args:
             type: array
             items:
               type: string
-        required: [containers, config-template, template-vars]
+          builtins:
+            type: array
+            items:
+              type: string
+        required: [containers, config-template]
         additionalProperties: false
     required: [manually-deployed-config]
     additionalProperties: false
@@ -392,19 +413,30 @@ def do_validation(args):
                               f"{{IMAGEID:{c}}}")
 
       # Check the vars are used in the template
-      for var in deployment["template-vars"]:
-        assert_string_in_file(template_filename, template_contents, f"{{VAR:{var}}}")
+      for var in deployment.get("builtins", []):
+        assert_string_in_file(template_filename, template_contents,
+                              f"{{BUILTIN:{var}}}")
+      for var in deployment.get("expected-args", []):
+        assert_string_in_file(template_filename, template_contents, f"{{ARG:{var}}}")
 
       # Check all template vars are defined
       for match in re.findall(r"\{([-A-Z0-9a-z:_]+)}", template_contents,
                               re.MULTILINE):
-        varmatch = re.match(r"^VAR:([A-Z0-9_]+)$", match)
+        builtin_match = re.match(r"^BUILTIN:([A-Z0-9_]+)$", match)
+        expectedarg_match = re.match(r"^ARG:([A-Z0-9_]+)$", match)
         imageid_match = re.match(r"^IMAGEID:([-a-z0-9]+)$", match)
-        if varmatch:
-          var = varmatch.group(1)
-          if var not in deployment["template-vars"]:
-            bad(f"var \"{var}\" not in `k8s.deployment.template-vars` in\n{template_filename}"
+        if builtin_match:
+          builtin = builtin_match.group(1)
+          if builtin not in deployment["builtins"]:
+            bad(f"builtin \"{builtin}\" not in `k8s.deployment.builtins` in\n{template_filename}"
                 )
+
+        elif expectedarg_match:
+          expectedarg = expectedarg_match.group(1)
+          if expectedarg not in deployment["expected-args"]:
+            bad(f"expected arg \"{expectedarg}\" not in `k8s.deployment.expected-args` in\n{template_filename}"
+                )
+
         elif imageid_match:
           id = imageid_match.group(1)
           if id not in deployment["containers"]:
@@ -528,6 +560,11 @@ def create_arg_parser():
       action="store",
       required=True,
       help="path to the deployment manifest, built using `containers show-manifest`")
+  deployment_diff_parser.add_argument(
+      '--args',
+      metavar="KEY=VALUE",
+      nargs='+',
+      help="list of key/value pairs that define `expected-arg` in the deploy.yamls")
   deployment_diff_parser.set_defaults(func=deployment_diff)
 
   return main_parser
