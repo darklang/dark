@@ -19,10 +19,9 @@ Deployments and such are managed by scripts/deployment/deploy. Each service is c
   A list of commands to apply the configs in this service
 
 - `k8s.deployment.template`:
-  Template file of a deployment. This template file is filled with values such as the
-  ID of containers, and some other values (TODO). During a deploy, the template is
-  filled with vars from `containers`, `template-vars` and the command line. Missing
-  template vars causes an error, before being deployed.
+  Template file of a deployment. During a deploy, the template is filled with vars
+  from `containers` (automatically derived) and `template-vars` (filled in from
+  command line or from default)
 
 - `k8s.deployment.containers`:
   List of containers used in this deployment. The container name must match a
@@ -34,8 +33,10 @@ Deployments and such are managed by scripts/deployment/deploy. Each service is c
 - config diff [services]
 - containers build [services]
 - containers pull [services]
+- containers push [services]
+- containers show-manifest [services]
 - containers list [services]
 - deployment diff [services]
-- deployment deploy [services]
+- deployment apply [services]
 - deployment status [services]
 - test [services]
