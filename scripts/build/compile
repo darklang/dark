@@ -88,8 +88,7 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(
-      start,
-      "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
+      start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
@@ -142,17 +141,21 @@ def yamllint(f):
   result = run_backend(start, "scripts/linting/yamllinter " + f)
   return result
 
+
 def deploy_validate(f):
   start = time.time()
   return run_backend(start, f"scripts/deployment/deploy validate {f}")
+
 
 def pip_install():
   start = time.time()
   return run_backend(start, f"pip3 install -r scripts/deployment/requirements.txt")
 
+
 def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
+
 
 def test_nginx():
   start = time.time()
@@ -345,8 +348,8 @@ def rust_test(dir):
   name = os.path.basename(dir)
   return run_test(
       start, f"cd {dir}" +
-      f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- "
-      + clippy_flags)
+      f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- " +
+      clippy_flags)
 
 
 def reload_server():
@@ -449,7 +452,7 @@ def execute(should):
     if not circleci_validate(): success = False
 
   if should.pip_install:
-   if not pip_install(): success = False
+    if not pip_install(): success = False
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False

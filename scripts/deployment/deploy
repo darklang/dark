@@ -9,7 +9,7 @@ from posixpath import join
 import sys
 
 if os.getenv("IN_DEV_CONTAINER") != "true":
-  print ("Must be run in dev container")
+  print("Must be run in dev container")
   sys.exit(1)
 
 import glob
@@ -24,20 +24,25 @@ import jsonschema
 # Utility functions
 ##################################
 
+
 def bad(str):
   print(str)
   sys.exit(1)
 
+
 should_debug = False
 should_dry_run = False
+
 
 def debug(str):
   if should_debug:
     print("DEBUG: ", str)
 
+
 def readfile(filename):
   with open(filename, "r") as f:
     return f.read()
+
 
 # Run an important command, keeping stdout/stderr going to the user. Supports --dry-run
 def run(name, args, shell=False, input=None):
@@ -51,6 +56,7 @@ def run(name, args, shell=False, input=None):
   except subprocess.CalledProcessError as e:
     bad(f"Error running {name} command:\n  {e}\n  (command:{args})")
 
+
 # Runs a command that's part of running the script, captures stdout, ignore --dry-run.
 def run_output(args, shell=False):
   try:
@@ -60,10 +66,10 @@ def run_output(args, shell=False):
     bad(f"Error running command:\n  {e}\n  (command:{args})")
 
 
-
 ##################################
 # Assertions
 ##################################
+
 
 def assert_file_exists(dir, f):
   if not os.path.exists(os.path.join(dir, f)):
@@ -74,9 +80,11 @@ def assert_dir_exists(service, d):
   if not os.path.exists(d):
     bad(f"Directory {d} does not exist")
 
-def assert_string_in_file (filename, file_str, substr):
+
+def assert_string_in_file(filename, file_str, substr):
   if substr not in file_str:
     bad(f"String missing from {filename}: {substr}")
+
 
 ##################################
 # Load services / config
@@ -84,11 +92,12 @@ def assert_string_in_file (filename, file_str, substr):
 def dirs_from_args(args):
   dirs = args.services
   if dirs == []:
-    dirs = [ path for path in glob.glob(r'services/**') if "README.md" not in path ]
+    dirs = [path for path in glob.glob(r'services/**') if "README.md" not in path]
   elif len(dirs) == 1 and dirs[0].endswith("deploy.yaml"):
-    dirs = [ os.path.dirname(dirs[0]) ]
+    dirs = [os.path.dirname(dirs[0])]
   sorted_dirs = sorted(dirs)
   return sorted_dirs
+
 
 def config_from_dir(dir):
   try:
@@ -104,6 +113,7 @@ def config_from_dir(dir):
 ##################################
 # Config commands
 ##################################
+
 
 def config_diff(args):
   do_validation(args)
@@ -123,6 +133,7 @@ def config_diff(args):
       file_args.append("-f")
       file_args.append(f)
     run("kubectl diff", file_args)
+
 
 def config_apply_manually(args):
   args.services = [args.service]
@@ -144,34 +155,37 @@ def config_apply_manually(args):
       file_args.append(f)
     run("kubectl apply", file_args)
 
+
 ##################################
 # Container commands
 ##################################
+
 
 def get_service_containers(args):
   needed_containers = []
   for dir in dirs_from_args(args):
     config = config_from_dir(dir)
-    containers = config['k8s'].get("deployment", {"containers":[]})["containers"]
+    containers = config['k8s'].get("deployment", {"containers": []})["containers"]
     for c in containers:
       needed_containers.append(c)
   return needed_containers
 
 def containers_build(args):
   do_validation(args)
-  commitSha = run_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-  def build_container(name, dockerfilename, ):
+  commitSha = run_output(["git", "rev-parse", "--short", "HEAD"])
+  commitSha = commitSha.decode("utf-8").strip()
+
+  def build_container(name, dockerfilename):
     print(f"building {name} docker image")
     dockerfile = readfile(dockerfilename)
-    run("docker build",
-    ["docker", "build",
-      "--tag", f"{name}:latest",
-      "--build-arg", f"GIT_COMMIT={commitSha}",
-      "-"],
-    input=dockerfile.encode("utf-8"))
+    run("docker build", [
+        "docker", "build", "--tag", f"{name}:latest", "--build-arg",
+        f"GIT_COMMIT={commitSha}", "-"
+    ],
+        input=dockerfile.encode("utf-8"))
 
-  build_container("dark-base-service",   "containers/base-service-Dockerfile")
-  build_container("dark-ocaml-service",  "containers/ocaml-service-Dockerfile")
+  build_container("dark-base-service", "containers/base-service-Dockerfile")
+  build_container("dark-ocaml-service", "containers/ocaml-service-Dockerfile")
   build_container("dark-fsharp-service", "containers/fsharp-service-Dockerfile")
 
   # Each container name represents a container in containers/. If there's a prep.sh
@@ -185,7 +199,10 @@ def containers_build(args):
       prep = os.path.join(dir, "prep.sh")
       if os.path.exists(prep):
         dir = run_output(prep).strip()
-      run("docker build", ["docker", "build", "--tag", f"{c}:latest", "--build-arg", f"GIT_COMMIT={commitSha}", dir])
+      run("docker build", [
+          "docker", "build", "--tag", f"{c}:latest", "--build-arg",
+          f"GIT_COMMIT={commitSha}", dir
+      ])
     else:
       print(f"\nNo dockerfile, skipping {c}")
 
@@ -236,6 +253,7 @@ properties:
     additionalProperties: false
 """
 
+
 def do_validation(args):
   for dir in dirs_from_args(args):
     config = config_from_dir(dir)
@@ -261,68 +279,104 @@ def do_validation(args):
       for c in deployment["containers"]:
         assert_dir_exists(dir, f"containers/{c}")
         # Check the containers are used in the template
-        assert_string_in_file(template_filename, template_contents, f"{{IMAGEID:{c}}}")
+        assert_string_in_file(template_filename, template_contents,
+                              f"{{IMAGEID:{c}}}")
 
       # Check the vars are used in the template
       for var in deployment["template-vars"]:
         assert_string_in_file(template_filename, template_contents, f"{{VAR:{var}}}")
 
       # Check all template vars are defined
-      for match in re.findall(r"\{([-A-Z0-9a-z:_]+)}", template_contents, re.MULTILINE):
+      for match in re.findall(r"\{([-A-Z0-9a-z:_]+)}", template_contents,
+                              re.MULTILINE):
         varmatch = re.match(r"^VAR:([A-Z0-9_]+)$", match)
         imageid_match = re.match(r"^IMAGEID:([-a-z0-9]+)$", match)
         if varmatch:
           var = varmatch.group(1)
           if var not in deployment["template-vars"]:
-            bad(f"var \"{var}\" not in `k8s.deployment.template-vars` in\n{template_filename}")
+            bad(f"var \"{var}\" not in `k8s.deployment.template-vars` in\n{template_filename}"
+                )
         elif imageid_match:
           id = imageid_match.group(1)
           if id not in deployment["containers"]:
-            bad(f"imageid \"{id}\" not in `k8s.deployment.containers` in\n{template_filename}")
+            bad(f"imageid \"{id}\" not in `k8s.deployment.containers` in\n{template_filename}"
+                )
         else:
           bad(f"Unexpected placeholder \"{{{match}}}\" in\n{template_filename}")
 
+
 def validate(args):
   do_validation(args)
-  print ("All deploy.yaml files successfully validated")
+  print("All deploy.yaml files successfully validated")
 
 
 ##################################
 # Argument parser
 ##################################
 
+
 def create_arg_parser():
   # The base parser has the commands shared by ALL subcommands
   base_parser = argparse.ArgumentParser(add_help=False)
-  base_parser.add_argument('--debug', action='store_true', help="Print debug info about what's running")
-  base_parser.add_argument('--dry-run', action='store_true', help="paths to the service definitions. Leave empty to run on all services")
+  base_parser.add_argument('--debug',
+                           action='store_true',
+                           help="Print debug info about what's running")
+  base_parser.add_argument(
+      '--dry-run',
+      action='store_true',
+      help="paths to the service definitions. Leave empty to run on all services")
   base_parser.set_defaults(debug=False)
   base_parser.set_defaults(dry_run=False)
 
   # We want to be explicit about listing services for side-effecting commands
   services_parser = argparse.ArgumentParser(add_help=False)
-  services_parser.add_argument('services', action="store", nargs="*", help="paths to the service definitions. Leave empty to run on all services")
+  services_parser.add_argument(
+      'services',
+      action="store",
+      nargs="*",
+      help=
+      "paths to the service definitions (directories within services/). Leave empty to run on all services"
+  )
 
-  main_parser = argparse.ArgumentParser(description='Manage deployment of kubernetes services')
+  main_parser = argparse.ArgumentParser(
+      description='Manage deployment of kubernetes services')
   main_subparsers = main_parser.add_subparsers()
 
-  validate_parser = main_subparsers.add_parser('validate', description="Validates deploy.yaml files", parents=[base_parser, services_parser])
+  validate_parser = main_subparsers.add_parser(
+      'validate',
+      description="Validates deploy.yaml files",
+      parents=[base_parser, services_parser])
   validate_parser.set_defaults(func=validate)
 
   config_parser = main_subparsers.add_parser('config')
   config_subparser = config_parser.add_subparsers()
 
-  config_diff_parser = config_subparser.add_parser('diff', description="Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`", parents=[base_parser, services_parser])
+  config_diff_parser = config_subparser.add_parser(
+      'diff',
+      description=
+      "Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`",
+      parents=[base_parser, services_parser])
   config_diff_parser.set_defaults(func=config_diff)
 
-  config_apply_parser = config_subparser.add_parser('apply-manually', description="Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`", parents=[base_parser])
-  config_apply_parser.add_argument('service', action="store", help="path to the service definition. Required and only one service is supported")
+  config_apply_parser = config_subparser.add_parser(
+      'apply-manually',
+      description=
+      "Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`",
+      parents=[base_parser])
+  config_apply_parser.add_argument(
+      'service',
+      action="store",
+      help=
+      "path to the service definition. Required and only one service is supported")
   config_apply_parser.set_defaults(func=config_apply_manually)
 
   containers_parser = main_subparsers.add_parser('containers')
   containers_subparser = containers_parser.add_subparsers()
 
-  containers_build_parser = containers_subparser.add_parser('build', description="Builds the containers needed by services", parents=[base_parser, services_parser])
+  containers_build_parser = containers_subparser.add_parser(
+      'build',
+      description="Builds the containers needed by services",
+      parents=[base_parser, services_parser])
   containers_build_parser.set_defaults(func=containers_build)
 
   # containers_list_parser = containers_subparser.add_parser('list', description="List the docker images used by services", parents=[base_parser, services_parser])
@@ -342,5 +396,6 @@ def main():
   should_debug = args.debug
   should_dry_run = args.dry_run
   args.func(args)
+
 
 main()
