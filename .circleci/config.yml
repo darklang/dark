@@ -169,7 +169,7 @@ commands:
             scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
-      - run: scripts/deployment/_gcp-build-containers
+      - run: scripts/deployment/deploy containers build
 
   ##########################
   # misc
