@@ -439,25 +439,11 @@ jobs:
       - show-large-files-and-directories
       - build-gcp-containers
       - run: scripts/deployment/_push-assets-to-cdn
-      - run: scripts/deployment/_gcp-push-images-to-gcr
-      # Save the image IDs for deployment later
-      - run:
-          name: Save image IDs
-          command: |
-            mkdir gcr-image-ids
-            time docker images gcr.io/balmy-ground-195100/gcp-server -q | head -n 1 > gcr-image-ids/server
-            time docker images gcr.io/balmy-ground-195100/gcp-fsharp-apiserver -q | head -n 1 > gcr-image-ids/fsharp-apiserver
-            time docker images gcr.io/balmy-ground-195100/gcp-queueworker -q | head -n 1 > gcr-image-ids/qw
-            time docker images gcr.io/balmy-ground-195100/gcp-cronchecker -q | head -n 1 > gcr-image-ids/cron
-            time docker images gcr.io/balmy-ground-195100/gcp-garbagecollector -q | head -n 1 > gcr-image-ids/garbagecollector
-            time docker images gcr.io/balmy-ground-195100/legacyserver -q | head -n 1 > gcr-image-ids/legacyserver
-            time docker images gcr.io/balmy-ground-195100/stroller -q | head -n 1 > gcr-image-ids/stroller
-            time docker images gcr.io/balmy-ground-195100/queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
-            time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
-            time docker images gcr.io/balmy-ground-195100/postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
+      - run: scripts/deployment/deploy containers push
+      - run: scripts/deployment/deploy containers show-manifest > gcr-image-ids.json
       - persist_to_workspace:
           root: "."
-          paths: [gcr-image-ids]
+          paths: [gcr-image-ids.json]
       - notify-job-failure
 
   deploy:
@@ -468,18 +454,7 @@ jobs:
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run: |
-          scripts/deployment/gke-deploy       \
-            --apiserver-image-id=`         cat gcr-image-ids/fsharp-apiserver` \
-            --legacyserver-image-id=`      cat gcr-image-ids/legacyserver` \
-            --server-image-id=`            cat gcr-image-ids/server` \
-            --qw-image-id=`                cat gcr-image-ids/qw`     \
-            --cron-image-id=`              cat gcr-image-ids/cron`   \
-            --garbagecollector-image-id=`  cat gcr-image-ids/garbagecollector`   \
-            --stroller-image-id=`          cat gcr-image-ids/stroller` \
-            --queue-scheduler-image-id=`   cat gcr-image-ids/queue-scheduler` \
-            --tunnel-image-id=`            cat gcr-image-ids/tunnel` \
-            --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
+      - run: scripts/deployment/deploy deployment deploy --manifest=gcr-image-ids.json
       - run: scripts/deployment/_honeymarker.sh
       - notify-job-failure
       - slack/notify:

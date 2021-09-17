@@ -5,20 +5,31 @@
 # See description in services/README.md
 
 import os
-from posixpath import join
 import sys
 
 if os.getenv("IN_DEV_CONTAINER") != "true":
   print("Must be run in dev container")
   sys.exit(1)
 
-import glob
-import re
-import yaml
 import argparse
-import os.path
-import subprocess
+import collections
+import glob
 import jsonschema
+import os.path
+import re
+import subprocess
+import yaml
+import json
+
+##################################
+# definitions
+##################################
+REGION = "us-west1"
+PROJECT = "balmy-ground-195100"
+CLUSTER = "$(< current-cluster)"
+CLUSTER_CONFIGMAP_FILE = "config/gke-builtwithdark"
+CLOUDSQL_INSTANCE_NAME = "dark-west"
+DEPLOY_LOCK_BUCKET = "gs://darklang-deploy-lock"
 
 ##################################
 # Utility functions
@@ -44,6 +55,11 @@ def readfile(filename):
     return f.read()
 
 
+def writefile(filename, contents):
+  with open(filename, "w") as f:
+    f.write(contents)
+
+
 # Run an important command, keeping stdout/stderr going to the user. Supports --dry-run
 def run(name, args, shell=False, input=None):
   try:
@@ -54,16 +70,17 @@ def run(name, args, shell=False, input=None):
       subprocess.run(args, shell=shell, input=input, check=True)
       print()
   except subprocess.CalledProcessError as e:
-    bad(f"Error running {name} command:\n  {e}\n  (command:{args})")
+    bad(f"Error running {name} command:\n  {e}\n")
 
 
 # Runs a command that's part of running the script, captures stdout, ignore --dry-run.
-def run_output(args, shell=False):
+def run_output(args, shell=False, input=None):
   try:
     debug(f"Running command:\n  {args}")
-    return subprocess.check_output(args, shell=shell)
+    return subprocess.check_output(args, shell=shell,
+                                   input=input).decode("utf-8").strip()
   except subprocess.CalledProcessError as e:
-    bad(f"Error running command:\n  {e}\n  (command:{args})")
+    bad(f"Error running command:\n  {e}\n")
 
 
 ##################################
@@ -89,7 +106,7 @@ def assert_string_in_file(filename, file_str, substr):
 ##################################
 # Load services / config
 ##################################
-def dirs_from_args(args):
+def get_service_dirs(args):
   dirs = args.services
   if dirs == []:
     dirs = [path for path in glob.glob(r'services/**') if "README.md" not in path]
@@ -99,7 +116,7 @@ def dirs_from_args(args):
   return sorted_dirs
 
 
-def config_from_dir(dir):
+def get_service_config(dir):
   try:
     file = open(dir + "/deploy.yaml")
   except:
@@ -118,8 +135,8 @@ def config_from_dir(dir):
 def config_diff(args):
   do_validation(args)
   files = []
-  for dir in dirs_from_args(args):
-    config = config_from_dir(dir)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
     for f in config['k8s']["manually-deployed-config"]["configs"]:
       files.append(os.path.join(dir, f))
     for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
@@ -139,8 +156,8 @@ def config_apply_manually(args):
   args.services = [args.service]
   do_validation(args)
   files = []
-  for dir in dirs_from_args(args):
-    config = config_from_dir(dir)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
     for f in config['k8s']["manually-deployed-config"]["configs"]:
       files.append(os.path.join(dir, f))
     for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
@@ -162,30 +179,70 @@ def config_apply_manually(args):
 
 
 def get_service_containers(args):
-  needed_containers = []
-  for dir in dirs_from_args(args):
-    config = config_from_dir(dir)
+  needed_containers = set()
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
     containers = config['k8s'].get("deployment", {"containers": []})["containers"]
     for c in containers:
-      needed_containers.append(c)
+      needed_containers.add(c)
   return needed_containers
 
 
 def containers_list(args):
   do_validation(args)
-  status = run_output(["docker", "image", "ls"])
+  status = run_output(["docker", "image", "ls"]).split("\n")
   service_containers = get_service_containers(args)
-  for line in status.decode("utf-8").split("\n"):
+  for line in status:
     for c in service_containers:
       if c in line:
         print(line)
         break
 
 
+def containers_show_manifest(args):
+  do_validation(args)
+  output = {}
+  for c in get_service_containers(args):
+    url = f"gcr.io/{PROJECT}/{c}"
+    id = run_output(["docker", "images", url, "-q"]).split("\n")[0]
+    output[c] = id
+  print(json.dumps(output, indent=2))
+
+
+def containers_pull(args):
+  print("Pulling, if error you might need `gcloud auth configure-docker`")
+  do_validation(args)
+  for c in get_service_containers(args):
+    image = f"gcr.io/{PROJECT}/{c}:latest"
+    run("docker pull", ["docker", "pull", image])
+
+
+def containers_push(args):
+  print("Pushing, if error you might need `gcloud auth configure-docker`")
+  do_validation(args)
+
+  def image_info(c):
+    image_id = run_output([f"docker images -q {c} | head -n 1"], shell=True)
+    url = f"gcr.io/{PROJECT}/{c}"
+    return type('', (object, ), {
+        'image': f"{url}:{image_id}",
+        'image_latest': f"{url}:latest"
+    })()
+
+  for c in get_service_containers(args):
+    info = image_info(c)
+    run("docker tag id", ["docker", "tag", f"{c}:latest", info.image])
+    run("docker tag latest", ["docker", "tag", f"{c}:latest", info.image_latest])
+
+  for c in get_service_containers(args):
+    info = image_info(c)
+    run("docker push", ["docker", "push", info.image])
+    run("docker push", ["docker", "push", info.image_latest])
+
+
 def containers_build(args):
   do_validation(args)
   commitSha = run_output(["git", "rev-parse", "--short", "HEAD"])
-  commitSha = commitSha.decode("utf-8").strip()
 
   def build_container(name, dockerfilename):
     print(f"building {name} docker image")
@@ -210,13 +267,57 @@ def containers_build(args):
       print(f"\nBuild container {c}")
       prep = os.path.join(dir, "prep.sh")
       if os.path.exists(prep):
-        dir = run_output(prep).strip()
+        dir = run_output(prep)
       run("docker build", [
           "docker", "build", "--tag", f"{c}:latest", "--build-arg",
           f"GIT_COMMIT={commitSha}", dir
       ])
     else:
       print(f"\nNo dockerfile, skipping {c}")
+
+
+##################################
+# Deployments
+##################################
+def deployment_diff(args):
+  print(args)
+  do_validation(args)
+  vars = {
+      "CHANGE_CAUSE": "test change cause",
+      "CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME
+  }
+  files = []
+  ids = json.load(open(args.manifest))
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    deployment = config['k8s'].get("deployment")
+    if deployment:
+      filename = os.path.join(dir, deployment["config-template"])
+
+      # Fill in the blanks
+      content = readfile(filename)
+      for c in deployment["containers"]:
+        print(c)
+        id = ids[c]
+        print(id)
+        content = content.replace(f"{{IMAGEID:{c}}}", id)
+      for v in deployment["template-vars"]:
+        content = content.replace(f"{{VAR:{v}}}", vars[v])
+
+      # Write the non-template version
+      target_filename = filename.replace(".template", "")
+      writefile(target_filename, content)
+      files.append(target_filename)
+
+  # diff it against production
+  if files == []:
+    debug("No files to diff, skipping")
+  else:
+    file_args = ["kubectl", "diff"]
+    for f in files:
+      file_args.append("-f")
+      file_args.append(f)
+    run("kubectl diff", file_args)
 
 
 ##################################
@@ -267,8 +368,8 @@ properties:
 
 
 def do_validation(args):
-  for dir in dirs_from_args(args):
-    config = config_from_dir(dir)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
     debug(f"Validating config for {dir}")
     try:
       jsonschema.validate(config, yaml.load(config_schema, Loader=yaml.Loader))
@@ -354,12 +455,14 @@ def create_arg_parser():
       description='Manage deployment of kubernetes services')
   main_subparsers = main_parser.add_subparsers()
 
+  # Validate
   validate_parser = main_subparsers.add_parser(
       'validate',
       description="Validates deploy.yaml files",
       parents=[base_parser, services_parser])
   validate_parser.set_defaults(func=validate)
 
+  # Config
   config_parser = main_subparsers.add_parser('config')
   config_subparser = config_parser.add_subparsers()
 
@@ -382,20 +485,54 @@ def create_arg_parser():
       "path to the service definition. Required and only one service is supported")
   config_apply_parser.set_defaults(func=config_apply_manually)
 
+  # Containers
   containers_parser = main_subparsers.add_parser('containers')
   containers_subparser = containers_parser.add_subparsers()
 
   containers_build_parser = containers_subparser.add_parser(
       'build',
-      description="Builds the containers needed by services",
+      description="Builds the container images needed by services",
       parents=[base_parser, services_parser])
   containers_build_parser.set_defaults(func=containers_build)
+
+  containers_pull_parser = containers_subparser.add_parser(
+      'pull',
+      description="Pull the remote docker images used by services",
+      parents=[base_parser, services_parser])
+  containers_pull_parser.set_defaults(func=containers_pull)
+
+  containers_push_parser = containers_subparser.add_parser(
+      'push',
+      description="Push local docker images used by services to gcr",
+      parents=[base_parser, services_parser])
+  containers_push_parser.set_defaults(func=containers_push)
 
   containers_list_parser = containers_subparser.add_parser(
       'list',
       description="List the docker images used by services",
       parents=[base_parser, services_parser])
   containers_list_parser.set_defaults(func=containers_list)
+
+  containers_show_manifest_parser = containers_subparser.add_parser(
+      'show-manifest',
+      description="Print a json output of the docker containers by services",
+      parents=[base_parser, services_parser])
+  containers_show_manifest_parser.set_defaults(func=containers_show_manifest)
+
+  # Deploy
+  deployment_parser = main_subparsers.add_parser('deployment')
+  deployment_subparser = deployment_parser.add_subparsers()
+
+  deployment_diff_parser = deployment_subparser.add_parser(
+      'diff',
+      description="Diffs the deployment against the production deployment",
+      parents=[base_parser, services_parser])
+  deployment_diff_parser.add_argument(
+      '--manifest',
+      action="store",
+      required=True,
+      help="path to the deployment manifest, built using `containers show-manifest`")
+  deployment_diff_parser.set_defaults(func=deployment_diff)
 
   return main_parser
 
