@@ -38,18 +38,14 @@ fsharp-backend/.paket/load/
 # Templates for these are in services/*/*.template.yaml
 services/apiserver-deployment/apiserver-deployment.yaml
 services/bwd-deployment/bwd-deployment.yaml
-services/editor-deployment/editor-deployment.yaml
 services/cron-deployment/cron-deployment.yaml
+services/editor-deployment/editor-deployment.yaml
+services/garbagecollector-deployment/garbagecollector-deployment.yaml
+services/postgres-honeytail-deployment.yaml
+services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 services/qw-deployment/qw-deployment.yaml
 services/scheduler-deployment/scheduler-deployment.yaml
 services/tunnel-deployment/tunnel-deployment.yaml
-services/postgres-honeytail-deployment.yaml
-
-# Old rendered templates
-builtwithdark.yaml
-cronchecker.yaml
-queueworker.yaml
-tunnel.yaml
 
 # Rust projects build into target/
 containers/*/target
