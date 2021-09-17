@@ -18,6 +18,28 @@ Deployments and such are managed by scripts/deployment/deploy. Each service is c
 - `k8s.manually-deployed-config.custom-apply`:
   A list of commands to apply the configs in this service
 
+- `k8s.manually-deployed-config.custom-post-apply`:
+  A list of commands to run after other steps are run. Useful for restarting services.
+
+- `k8s.manually-deployed-config.config-maps`:
+  A list of config maps to deploy
+
+- `k8s.manually-deployed-config.config-maps.[].name`:
+  The k8s name of the config map
+
+- `k8s.manually-deployed-config.config-maps.[].from-file`:
+  Deploy the config map from a file
+
+- `k8s.manually-deployed-config.config-maps.[].from-file.key`:
+  The key for the file, optional, will be derived by k8s otherwise (uses basename at
+  time of writing.)
+
+- `k8s.manually-deployed-config.config-maps.[].from-file.filename`:
+  The file to be put in the keymap
+
+- `k8s.manually-deployed-config.config-maps.[].from-env`:
+  Deploy the config map from an env-file (not implemented yet)
+
 - `k8s.deployment.template`:
   Template file of a deployment. During a deploy, the template is filled with vars
   from `containers` (automatically derived) and `template-vars` (filled in from
