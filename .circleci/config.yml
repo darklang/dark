@@ -434,6 +434,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
+      - run: scripts/build/compile-project deploy
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
@@ -451,6 +452,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
+      - run: scripts/build/compile-project deploy
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
