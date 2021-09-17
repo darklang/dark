@@ -170,6 +170,18 @@ def get_service_containers(args):
       needed_containers.append(c)
   return needed_containers
 
+
+def containers_list(args):
+  do_validation(args)
+  status = run_output(["docker", "image", "ls"])
+  service_containers = get_service_containers(args)
+  for line in status.decode("utf-8").split("\n"):
+    for c in service_containers:
+      if c in line:
+        print(line)
+        break
+
+
 def containers_build(args):
   do_validation(args)
   commitSha = run_output(["git", "rev-parse", "--short", "HEAD"])
@@ -379,14 +391,19 @@ def create_arg_parser():
       parents=[base_parser, services_parser])
   containers_build_parser.set_defaults(func=containers_build)
 
-  # containers_list_parser = containers_subparser.add_parser('list', description="List the docker images used by services", parents=[base_parser, services_parser])
-  # containers_list_parser.set_defaults(func=containers_list)
+  containers_list_parser = containers_subparser.add_parser(
+      'list',
+      description="List the docker images used by services",
+      parents=[base_parser, services_parser])
+  containers_list_parser.set_defaults(func=containers_list)
 
   return main_parser
+
 
 ##################################
 # Main
 ##################################
+
 
 def main():
   global should_debug
