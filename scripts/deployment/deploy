@@ -280,7 +280,6 @@ def containers_build(args):
 # Deployments
 ##################################
 def deployment_diff(args):
-  print(args)
   do_validation(args)
   vars = {
       "CHANGE_CAUSE": "test change cause",
@@ -297,10 +296,7 @@ def deployment_diff(args):
       # Fill in the blanks
       content = readfile(filename)
       for c in deployment["containers"]:
-        print(c)
-        id = ids[c]
-        print(id)
-        content = content.replace(f"{{IMAGEID:{c}}}", id)
+        content = content.replace(f"{{IMAGEID:{c}}}", ids[c])
       for v in deployment["template-vars"]:
         content = content.replace(f"{{VAR:{v}}}", vars[v])
 
