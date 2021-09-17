@@ -185,6 +185,49 @@ def config_diff(args):
       run("custom diff", c, shell=True)
 
 
+def config_dry_run(args):
+  args.services = args.services
+  do_validation(args)
+
+  # Config files
+  file_args = get_all_config_file_arguments(args)
+  if file_args == []:
+    debug("No configs to apply, skipping")
+  else:
+    run("kubectl apply", ["kubectl", "apply", "--dry-run=client"] + file_args)
+    run("kubectl apply", ["kubectl", "apply", "--dry-run=server"] + file_args)
+
+  # Config-maps (client dry run)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
+      filespec = read_config_map_source(dir, cm)
+      run("kubectl apply configmap (dry-run)",
+          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=client",
+          shell=True)
+
+  # Config-maps (server dry run)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
+      filespec = read_config_map_source(dir, cm)
+      run("kubectl apply configmap (dry-run)",
+          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
+          shell=True)
+
+  # Custom apply
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
+      print(f"skipping custom apply step: {c}")
+
+  # Custom post-apply (used for restarting services)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for c in config['k8s']["manually-deployed-config"].get("custom-post-apply", []):
+      print(f"skipping post apply step: {c}")
+
+
 def config_apply_manually(args):
   args.services = [args.service]
   do_validation(args)
@@ -597,6 +640,13 @@ def create_arg_parser():
       "Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`",
       parents=[base_parser, services_parser])
   config_diff_parser.set_defaults(func=config_diff)
+
+  config_dry_run_parser = config_subparser.add_parser(
+      'dry-run',
+      description=
+      "Does a dry-run deploy against production to ensure everything in k8s.manually-deployed-config.configs is already deployed.",
+      parents=[base_parser, services_parser])
+  config_dry_run_parser.set_defaults(func=config_dry_run)
 
   config_apply_parser = config_subparser.add_parser(
       'apply-manually',
