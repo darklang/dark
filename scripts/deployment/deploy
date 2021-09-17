@@ -292,8 +292,7 @@ def get_expected_args(args):
   return expected_args
 
 
-def deployment_diff(args):
-  do_validation(args)
+def generate_manifests(args):
   builtins = {"CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME}
   expected_args = get_expected_args(args)
   files = []
@@ -321,6 +320,12 @@ def deployment_diff(args):
       target_filename = filename.replace(".template", "")
       writefile(target_filename, content)
       files.append(target_filename)
+  return files
+
+
+def deployment_diff(args):
+  do_validation(args)
+  files = generate_manifests(args)
 
   # diff it against production
   if files == []:
@@ -331,6 +336,24 @@ def deployment_diff(args):
       file_args.append("-f")
       file_args.append(f)
     run("kubectl diff", file_args)
+
+
+def deployment_dry_run(args):
+  do_validation(args)
+  files = generate_manifests(args)
+
+  # diff it against production
+  if files == []:
+    debug("No files to apply, skipping")
+  else:
+    file_args = []
+    for f in files:
+      file_args.append("-f")
+      file_args.append(f)
+    run("kubectl apply --dry-run=client",
+        ["kubectl", "apply", "--dry-run=client"] + file_args)
+    run("kubectl apply --dry-run=client",
+        ["kubectl", "apply", "--dry-run=server"] + file_args)
 
 
 ##################################
@@ -551,21 +574,30 @@ def create_arg_parser():
   deployment_parser = main_subparsers.add_parser('deployment')
   deployment_subparser = deployment_parser.add_subparsers()
 
-  deployment_diff_parser = deployment_subparser.add_parser(
-      'diff',
-      description="Diffs the deployment against the production deployment",
-      parents=[base_parser, services_parser])
-  deployment_diff_parser.add_argument(
+  # Args and manifest are shared by all deployment subcommands
+  deployment_args_parser = argparse.ArgumentParser(add_help=False)
+  deployment_args_parser.add_argument(
       '--manifest',
       action="store",
       required=True,
       help="path to the deployment manifest, built using `containers show-manifest`")
-  deployment_diff_parser.add_argument(
+  deployment_args_parser.add_argument(
       '--args',
       metavar="KEY=VALUE",
       nargs='+',
       help="list of key/value pairs that define `expected-arg` in the deploy.yamls")
+
+  deployment_diff_parser = deployment_subparser.add_parser(
+      'diff',
+      description="Diffs the deployment against the production deployment",
+      parents=[base_parser, services_parser, deployment_args_parser])
   deployment_diff_parser.set_defaults(func=deployment_diff)
+
+  deployment_dryrun_parser = deployment_subparser.add_parser(
+      'dry-run',
+      description="Tests whether the will deploy against the production deployment",
+      parents=[base_parser, services_parser, deployment_args_parser])
+  deployment_dryrun_parser.set_defaults(func=deployment_dry_run)
 
   return main_parser
 

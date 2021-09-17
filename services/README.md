@@ -45,7 +45,7 @@ Deployments and such are managed by scripts/deployment/deploy. Each service is c
 - containers show-manifest [services]
 - containers list [services]
 - deployment diff [services] --args CHANGE_CAUSE='reason' --manifest=FILE
-- deployment dry-run [services]
+- deployment dry-run [services] --args CHANGE_CAUSE='reason' --manifest=FILE
 - \*deployment apply [services] --args CHANGE_CAUSE='reason' --manifest=FILE (TODO: honeymarker and rollbar deploy)
 - \*deployment status [services]
 - \*test [services]
