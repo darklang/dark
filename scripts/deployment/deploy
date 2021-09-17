@@ -146,17 +146,39 @@ def get_all_config_file_arguments(args):
   return file_args
 
 
+def read_config_map_source(dir, cm):
+  # TODO: add from-env
+  from_file = cm.get("from-file")
+  if from_file:
+    filename = f"{dir}/{from_file['filename']}"
+    key = from_file.get("key")
+    if key:
+      filespec = f"{key}={filename}"
+    else:
+      filespec = filename
+  return f"--from-file={filespec}"
+
+
 def config_diff(args):
   do_validation(args)
 
-  # Diff files
+  # Config files
   file_args = get_all_config_file_arguments(args)
   if file_args == []:
-    debug("No files to diff, skipping")
+    debug("No configs to diff, skipping")
   else:
     run("kubectl diff", ["kubectl", "diff"] + file_args)
 
-  # Custom diffs
+  # Config-maps
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
+      filespec = read_config_map_source(dir, cm)
+      run("kubectl diff configmap",
+          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
+          shell=True)
+
+  # Custom diff
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
@@ -167,12 +189,21 @@ def config_apply_manually(args):
   args.services = [args.service]
   do_validation(args)
 
-  # Apply files
+  # Config files
   file_args = get_all_config_file_arguments(args)
   if file_args == []:
-    debug("No files to apply, skipping")
+    debug("No configs to apply, skipping")
   else:
     run("kubectl apply", ["kubectl", "apply"] + file_args)
+
+  # Config-maps
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
+      filespec = read_config_map_source(dir, cm)
+      run("kubectl apply configmap",
+          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
+          shell=True)
 
   # Custom apply
   for dir in get_service_dirs(args):
@@ -343,7 +374,7 @@ def deployment_diff(args):
 
   # diff it against production
   if files == []:
-    debug("No files to diff, skipping")
+    debug("No deployment configs to diff, skipping")
   else:
     file_args = ["kubectl", "diff"]
     for f in files:
@@ -358,7 +389,7 @@ def deployment_dry_run(args):
 
   # diff it against production
   if files == []:
-    debug("No files to apply, skipping")
+    debug("No deployment configs to apply, skipping")
   else:
     file_args = []
     for f in files:
@@ -387,6 +418,26 @@ properties:
             type: array
             items:
               type: string
+          config-maps:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                from-file:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    filename:
+                      type: string
+                  required: [filename]
+                  additionalProperties: false
+                from-env-file:
+                  type: string
+              required: [name]
+              additionalProperties: false
           custom-diff:
             type: array
             items:
@@ -395,8 +446,12 @@ properties:
             type: array
             items:
               type: string
-        required: [configs]
+          custom-post-apply:
+            type: array
+            items:
+              type: string
         additionalProperties: false
+        required: [configs]
       deployment:
         type: object
         properties:
@@ -436,6 +491,11 @@ def do_validation(args):
     configs = manually_deployed_config["configs"]
     for f in configs:
       assert_file_exists(dir, f)
+    configmaps = manually_deployed_config.get("config-maps", [])
+    for f in configmaps:
+      from_file = f.get("from-file")
+      if from_file:
+        assert_file_exists(dir, from_file['filename'])
 
     deployment = config['k8s'].get("deployment", None)
     if deployment:

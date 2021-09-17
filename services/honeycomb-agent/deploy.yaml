@@ -1,17 +1,11 @@
 k8s:
   manually-deployed-config:
     configs: []
+    config-maps:
+      - name: honeycomb-agent
+        from-file:
+          key: config.yaml
+          filename: honeycomb-agent-config.yaml
 
-    custom-diff:
-      - kubectl create configmap honeycomb-agent
-          --from-file=config.yaml=services/honeycomb-agent/honeycomb-agent-config.yaml
-          --dry-run=client -o json
-          | kubectl diff -f -
-
-    # TODO: Should this end in `kubectl rollout restart ds/honeycomb-agent` instead?
-    custom-apply:
-      - kubectl create configmap honeycomb-agent
-          --from-file=config.yaml=services/honeycomb-agent/honeycomb-agent-config.yaml
-          --dry-run=client -o json
-          | kubectl replace --filename=-
-      - kubectl delete pod --selector k8s-app=honeycomb-agent
+    custom-post-apply:
+      - kubectl rollout restart ds/honeycomb-agent
