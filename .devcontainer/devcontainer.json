@@ -17,11 +17,7 @@
     "remote.containers.workspaceMountConsistency": "delegated",
     "editor.tabSize": 2,
     "files.trimTrailingWhitespace": true,
-    "python.formatting.provider": "yapf",
-    "python.formatting.yapfArgs": [
-      "--style",
-      "{based_on_style: pep8, indent_width: 2}"
-    ]
+    "python.formatting.provider": "yapf"
   },
 
   // Add the IDs of extensions you want installed when the container is created.
