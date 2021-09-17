@@ -34,16 +34,18 @@ Deployments and such are managed by scripts/deployment/deploy. Each service is c
 - `k8s.deployment.expected-args`:
   These arguments are expected to be passed on the command line to `deploy deployment apply` using `--arg=`.
 
-# Commands:
+# Commands (`*` is not implemented yet):
 
-- config apply-manually [services]
+- config apply-manually [services] (TODO: honeymarker and rollbar deploy)
 - config diff [services]
+- \*config dry-run [services]
 - containers build [services]
 - containers pull [services]
 - containers push [services]
 - containers show-manifest [services]
 - containers list [services]
-- deployment diff [services]
-- deployment apply [services]
-- deployment status [services]
-- test [services]
+- deployment diff [services] --args CHANGE_CAUSE='reason' --manifest=FILE
+- deployment dry-run [services]
+- \*deployment apply [services] --args CHANGE_CAUSE='reason' --manifest=FILE (TODO: honeymarker and rollbar deploy)
+- \*deployment status [services]
+- \*test [services]
