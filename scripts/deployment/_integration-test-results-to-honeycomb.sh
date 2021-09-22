@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
 # Disable useless-use-of-cat
 # shellcheck disable=SC2002
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 # Collects the results of integration tests and sends to honeycomb. See
 # scripts/deployment/_process-integration-test-results.sh for what gets sent.

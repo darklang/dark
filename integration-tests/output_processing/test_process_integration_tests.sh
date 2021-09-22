@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 # Not an automated test, this is a manual test to verify the script before
 # pushing to circle
