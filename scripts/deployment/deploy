@@ -641,6 +641,7 @@ def create_arg_parser():
       parents=[base_parser, services_parser])
   config_diff_parser.set_defaults(func=config_diff)
 
+  # TODO move dry-run into a cli option
   config_dry_run_parser = config_subparser.add_parser(
       'dry-run',
       description=
@@ -717,6 +718,7 @@ def create_arg_parser():
       parents=[base_parser, services_parser, deployment_args_parser])
   deployment_diff_parser.set_defaults(func=deployment_diff)
 
+  # TODO move dry-run into a cli option
   deployment_dryrun_parser = deployment_subparser.add_parser(
       'dry-run',
       description="Tests whether the will deploy against the production deployment",

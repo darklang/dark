@@ -169,6 +169,7 @@ commands:
             scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
+      - run: scripts/build/compile-project deploy
       - run: scripts/deployment/deploy containers build
 
   ##########################
@@ -456,8 +457,7 @@ jobs:
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run: scripts/deployment/deploy deployment deploy --manifest=gcr-image-ids.json
-      - run: scripts/deployment/_honeymarker.sh
+      - run: scripts/deployment/gke-deploy --manifest gcr-image-ids.json
       - notify-job-failure
       - slack/notify:
           event: pass
