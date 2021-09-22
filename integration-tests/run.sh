@@ -87,7 +87,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   sed -i 's/ (screenshots: .*)"/"/' "rundir/test_results/integration_tests.xml"
 
   if [[ -v CI ]]; then
-    scripts/deployment/_integration-test-results-to-honeycomb.sh
+    scripts/testing/_integration-test-results-to-honeycomb.sh
   fi
   exit $RESULT
 else
