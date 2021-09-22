@@ -142,9 +142,9 @@ def yamllint(f):
   return result
 
 
-def deploy_validate(f):
+def shipit_validate(f):
   start = time.time()
-  return run_backend(start, f"scripts/deployment/deploy validate {f}")
+  return run_backend(start, f"scripts/deployment/shipit validate {f}")
 
 
 def pip_install():
@@ -411,7 +411,7 @@ class Should:
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
-    self.deploy_validate = []
+    self.shipit_validate = []
 
 
 def execute(should):
@@ -545,8 +545,8 @@ def execute(should):
     if not all([yamllint(f) for f in should.yamllint]):
       success = False
 
-  if should.deploy_validate != []:
-    if not all([deploy_validate(f) for f in should.deploy_validate]):
+  if should.shipit_validate != []:
+    if not all([shipit_validate(f) for f in should.shipit_validate]):
       success = False
 
   return success
@@ -669,8 +669,8 @@ def mark(should, f):
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
 
-  elif ("/services/" in f and "deploy.yaml" in f):
-    should.deploy_validate += [f]
+  elif ("/services/" in f and "shipit.yaml" in f):
+    should.shipit_validate += [f]
 
   elif ("/scripts/deployment/requirements.txt" in f):
     should.pip_install = True

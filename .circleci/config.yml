@@ -170,7 +170,10 @@ commands:
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
       - run: scripts/build/compile-project deploy
-      - run: scripts/deployment/deploy containers build
+      - run: scripts/deployment/shipit containers build
+      - run: scripts/deployment/shipit containers show-manifest > gcr-image-ids.json
+      - run: scripts/deployment/shipit release prepare --args CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
+      - run: scripts/deployment/shipit release push --dry-run
 
   ##########################
   # misc
@@ -315,8 +318,8 @@ jobs:
       - run: scripts/linting/shellchecker
       - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
-      - run: scripts/build/compile-project deploy
-      - run: scripts/deployment/deploy validate
+      - run: scripts/build/compile-project shipit
+      - run: scripts/deployment/shipit validate
       - notify-job-failure
 
   predeployment-checks:
@@ -324,8 +327,8 @@ jobs:
     steps:
       - darkcheckout
       - auth-with-gcp: { background: false }
-      - run: scripts/build/compile-project deploy
-      - run: scripts/deployment/deploy config diff
+      - run: scripts/build/compile-project shipit
+      - run: scripts/deployment/shipit config diff
       - notify-job-failure
 
   build-stroller:
@@ -441,11 +444,7 @@ jobs:
       - show-large-files-and-directories
       - build-gcp-containers
       - run: scripts/deployment/_push-assets-to-cdn
-      - run: scripts/deployment/deploy containers push
-      - run: scripts/deployment/deploy containers show-manifest > gcr-image-ids.json
-      - persist_to_workspace:
-          root: "."
-          paths: [gcr-image-ids.json]
+      - run: scripts/deployment/shipit containers push
       - notify-job-failure
 
   deploy:

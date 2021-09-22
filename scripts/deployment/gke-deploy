@@ -48,7 +48,7 @@ LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default 
 #############################
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 
-./scripts/deployment/deploy deployment process-templates --args CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
+./scripts/deployment/deploy release prepare --args CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
 #############################
 # Lock before doing a deploy (unlocks on fail or at end of file)
@@ -72,11 +72,11 @@ LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
 # Check it's safe to deploy
 #############################
 
-# Check that the prod cluster matches our view of the world, before we deploy
-./scripts/deployment/deploy config diff
+# Check that the prod cluster matches our view of the world, once we have the lock
+./scripts/deployment/shipit config diff
 
 # Check that the everything can be deployed
-./scripts/deployment/deploy deployment deploy --dry-run
+./scripts/deployment/shipit release push --dry-run
 
 #############################
 # Actually do the deploy
@@ -94,8 +94,8 @@ kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark 
 kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 
-# deploy the newly-created deployment containers
-./scripts/deployment/deploy deployment deploy
+# deploy the config for the newly-created deployment containers
+./scripts/deployment/shipit release push
 
 #########################
 # Tell everyone about the deploy

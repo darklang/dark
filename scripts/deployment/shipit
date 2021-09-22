@@ -12,7 +12,6 @@ if os.getenv("IN_DEV_CONTAINER") != "true":
   sys.exit(1)
 
 import argparse
-import collections
 import glob
 import jsonschema
 import os.path
@@ -20,16 +19,6 @@ import re
 import subprocess
 import yaml
 import json
-
-##################################
-# definitions
-##################################
-REGION = "us-west1"
-PROJECT = "balmy-ground-195100"
-CLUSTER = "$(< current-cluster)"
-CLUSTER_CONFIGMAP_FILE = "config/gke-builtwithdark"
-CLOUDSQL_INSTANCE_NAME = "dark-west"
-DEPLOY_LOCK_BUCKET = "gs://darklang-deploy-lock"
 
 ##################################
 # Utility functions
@@ -84,6 +73,16 @@ def run_output(args, shell=False, input=None):
 
 
 ##################################
+# definitions
+##################################
+REGION = "us-west1"
+PROJECT = "balmy-ground-195100"
+CLUSTER = readfile("current-cluster")
+CLUSTER_CONFIGMAP_FILE = "config/gke-builtwithdark"
+CLOUDSQL_INSTANCE_NAME = "dark-west"
+DEPLOY_LOCK_BUCKET = "gs://darklang-deploy-lock"
+
+##################################
 # Assertions
 ##################################
 
@@ -110,7 +109,7 @@ def get_service_dirs(args):
   dirs = args.services
   if dirs == []:
     dirs = [path for path in glob.glob(r'services/**') if "README.md" not in path]
-  elif len(dirs) == 1 and dirs[0].endswith("deploy.yaml"):
+  elif len(dirs) == 1 and dirs[0].endswith("shipit.yaml"):
     dirs = [os.path.dirname(dirs[0])]
   sorted_dirs = sorted(dirs)
   return sorted_dirs
@@ -118,13 +117,13 @@ def get_service_dirs(args):
 
 def get_service_config(dir):
   try:
-    file = open(dir + "/deploy.yaml")
+    file = open(dir + "/shipit.yaml")
   except:
-    bad(f"Missing config file in {dir}/deploy.yaml")
+    bad(f"Missing config file in {dir}/shipit.yaml")
   try:
     return yaml.load(file, Loader=yaml.Loader)
   except Exception as e:
-    bad(f"Bad yaml in {dir}/deploy.yaml\n  {e}")
+    bad(f"Bad yaml in {dir}/shipit.yaml\n  {e}")
 
 
 ##################################
@@ -185,49 +184,6 @@ def config_diff(args):
       run("custom diff", c, shell=True)
 
 
-def config_dry_run(args):
-  args.services = args.services
-  do_validation(args)
-
-  # Config files
-  file_args = get_all_config_file_arguments(args)
-  if file_args == []:
-    debug("No configs to apply, skipping")
-  else:
-    run("kubectl apply", ["kubectl", "apply", "--dry-run=client"] + file_args)
-    run("kubectl apply", ["kubectl", "apply", "--dry-run=server"] + file_args)
-
-  # Config-maps (client dry run)
-  for dir in get_service_dirs(args):
-    config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
-      filespec = read_config_map_source(dir, cm)
-      run("kubectl apply configmap (dry-run)",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=client",
-          shell=True)
-
-  # Config-maps (server dry run)
-  for dir in get_service_dirs(args):
-    config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
-      filespec = read_config_map_source(dir, cm)
-      run("kubectl apply configmap (dry-run)",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
-          shell=True)
-
-  # Custom apply
-  for dir in get_service_dirs(args):
-    config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
-      print(f"skipping custom apply step: {c}")
-
-  # Custom post-apply (used for restarting services)
-  for dir in get_service_dirs(args):
-    config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-post-apply", []):
-      print(f"skipping post apply step: {c}")
-
-
 def config_apply_manually(args):
   args.services = [args.service]
   do_validation(args)
@@ -237,28 +193,43 @@ def config_apply_manually(args):
   if file_args == []:
     debug("No configs to apply, skipping")
   else:
-    run("kubectl apply", ["kubectl", "apply"] + file_args)
+    if should_dry_run:
+      run("kubectl apply", ["kubectl", "apply", "--dry-run=client"] + file_args)
+      run("kubectl apply", ["kubectl", "apply", "--dry-run=server"] + file_args)
+    else:
+      run("kubectl apply", ["kubectl", "apply"] + file_args)
 
   # Config-maps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
       filespec = read_config_map_source(dir, cm)
-      run("kubectl apply configmap",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
-          shell=True)
+      if should_dry_run:
+        run("kubectl apply configmap (dry-run)",
+            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
+            shell=True)
+      else:
+        run("kubectl apply configmap",
+            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
+            shell=True)
 
   # Custom apply
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
-      run("custom apply", c, shell=True)
+      if should_dry_run:
+        print(f"skipping custom apply step: {c}")
+      else:
+        run("custom apply", c, shell=True)
 
   # Custom post-apply (used for restarting services)
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     for c in config['k8s']["manually-deployed-config"].get("custom-post-apply", []):
-      run("custom post apply", c, shell=True)
+      if should_dry_run:
+        print(f"skipping post apply step: {c}")
+      else:
+        run("custom post apply", c, shell=True)
 
 
 ##################################
@@ -365,7 +336,7 @@ def containers_build(args):
 
 
 ##################################
-# Deployments
+# Releases
 ##################################
 def get_expected_args(args):
   expected_args = {}
@@ -380,10 +351,21 @@ def get_expected_args(args):
   return expected_args
 
 
-def generate_manifests(args):
+def collect_release_manifests(args):
+  files = []
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    deployment = config['k8s'].get("deployment")
+    if deployment:
+      filename = os.path.join(dir, deployment["config-template"])
+      target_filename = filename.replace(".template", "")
+      files.append(target_filename)
+  return files
+
+
+def release_prepare(args):
   builtins = {"CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME}
   expected_args = get_expected_args(args)
-  files = []
   ids = json.load(open(args.manifest))
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
@@ -406,14 +388,13 @@ def generate_manifests(args):
 
       # Write the non-template version
       target_filename = filename.replace(".template", "")
+      print(f"Writing release file: {target_filename}")
       writefile(target_filename, content)
-      files.append(target_filename)
-  return files
 
 
-def deployment_diff(args):
+def release_diff(args):
   do_validation(args)
-  files = generate_manifests(args)
+  files = collect_release_manifests(args)
 
   # diff it against production
   if files == []:
@@ -426,9 +407,9 @@ def deployment_diff(args):
     run("kubectl diff", file_args)
 
 
-def deployment_dry_run(args):
+def release_push(args):
   do_validation(args)
-  files = generate_manifests(args)
+  files = collect_release_manifests(args)
 
   # diff it against production
   if files == []:
@@ -438,10 +419,13 @@ def deployment_dry_run(args):
     for f in files:
       file_args.append("-f")
       file_args.append(f)
-    run("kubectl apply --dry-run=client",
-        ["kubectl", "apply", "--dry-run=client"] + file_args)
-    run("kubectl apply --dry-run=client",
-        ["kubectl", "apply", "--dry-run=server"] + file_args)
+    if should_dry_run:
+      run("kubectl apply --dry-run=client",
+          ["kubectl", "apply", "--dry-run=client"] + file_args)
+      run("kubectl apply --dry-run=server",
+          ["kubectl", "apply", "--dry-run=server"] + file_args)
+    else:
+      run("kubectl apply", ["kubectl", "apply"] + file_args)
 
 
 ##################################
@@ -526,7 +510,7 @@ def do_validation(args):
     try:
       jsonschema.validate(config, yaml.load(config_schema, Loader=yaml.Loader))
     except jsonschema.exceptions.ValidationError as e:
-      bad(f"Error in {dir}/deploy.yaml:\n  {e}")
+      bad(f"Error in {dir}/shipit.yaml:\n  {e}")
 
     k8s = config['k8s']
 
@@ -588,7 +572,7 @@ def do_validation(args):
 
 def validate(args):
   do_validation(args)
-  print("All deploy.yaml files successfully validated")
+  print("All shipit.yaml files successfully validated")
 
 
 ##################################
@@ -626,7 +610,7 @@ def create_arg_parser():
   # Validate
   validate_parser = main_subparsers.add_parser(
       'validate',
-      description="Validates deploy.yaml files",
+      description="Validates shipit.yaml files",
       parents=[base_parser, services_parser])
   validate_parser.set_defaults(func=validate)
 
@@ -637,22 +621,14 @@ def create_arg_parser():
   config_diff_parser = config_subparser.add_parser(
       'diff',
       description=
-      "Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`",
+      "Checks that the config files listed in the k8s.manually-deployed-config key of shipit.yaml are already properly deployed, using `kubectl diff`",
       parents=[base_parser, services_parser])
   config_diff_parser.set_defaults(func=config_diff)
-
-  # TODO move dry-run into a cli option
-  config_dry_run_parser = config_subparser.add_parser(
-      'dry-run',
-      description=
-      "Does a dry-run deploy against production to ensure everything in k8s.manually-deployed-config.configs is already deployed.",
-      parents=[base_parser, services_parser])
-  config_dry_run_parser.set_defaults(func=config_dry_run)
 
   config_apply_parser = config_subparser.add_parser(
       'apply-manually',
       description=
-      "Checks that the config files listed in the k8s.manually-deployed-config key of deploy.yaml are already properly deployed, using `kubectl diff`",
+      "Checks that the config files listed in the k8s.manually-deployed-config key of shipit.yaml are already properly deployed, using `kubectl diff`",
       parents=[base_parser])
   config_apply_parser.add_argument(
       'service',
@@ -696,34 +672,37 @@ def create_arg_parser():
   containers_show_manifest_parser.set_defaults(func=containers_show_manifest)
 
   # Deploy
-  deployment_parser = main_subparsers.add_parser('deployment')
-  deployment_subparser = deployment_parser.add_subparsers()
+  release_parser = main_subparsers.add_parser('release')
+  release_subparser = release_parser.add_subparsers()
 
-  # Args and manifest are shared by all deployment subcommands
-  deployment_args_parser = argparse.ArgumentParser(add_help=False)
-  deployment_args_parser.add_argument(
+  release_prepare_parser = release_subparser.add_parser(
+      'prepare',
+      description="Prepares yaml files for deployment",
+      parents=[base_parser, services_parser])
+  release_prepare_parser.set_defaults(func=release_prepare)
+  release_prepare_parser.add_argument(
       '--manifest',
       action="store",
       required=True,
       help="path to the deployment manifest, built using `containers show-manifest`")
-  deployment_args_parser.add_argument(
+  release_prepare_parser.add_argument(
       '--args',
       metavar="KEY=VALUE",
       nargs='+',
-      help="list of key/value pairs that define `expected-arg` in the deploy.yamls")
+      help="list of key/value pairs that define `expected-arg` in the shipit.yamls")
 
-  deployment_diff_parser = deployment_subparser.add_parser(
+  release_diff_parser = release_subparser.add_parser(
       'diff',
       description="Diffs the deployment against the production deployment",
-      parents=[base_parser, services_parser, deployment_args_parser])
-  deployment_diff_parser.set_defaults(func=deployment_diff)
+      parents=[base_parser, services_parser])
+  release_diff_parser.set_defaults(func=release_diff)
 
   # TODO move dry-run into a cli option
-  deployment_dryrun_parser = deployment_subparser.add_parser(
-      'dry-run',
-      description="Tests whether the will deploy against the production deployment",
-      parents=[base_parser, services_parser, deployment_args_parser])
-  deployment_dryrun_parser.set_defaults(func=deployment_dry_run)
+  release_push_parser = release_subparser.add_parser(
+      'push',
+      description="Actually do the release",
+      parents=[base_parser, services_parser])
+  release_push_parser.set_defaults(func=release_push)
 
   return main_parser
 
