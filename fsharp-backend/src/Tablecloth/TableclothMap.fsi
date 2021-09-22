@@ -190,8 +190,7 @@ val any : f: ('value -> bool) -> t<'key, 'value> -> bool
 val all : f: ('value -> bool) -> t<'key, 'value> -> bool
 (** Determine if [f] returns [true] for [all] values in a map. *)
 
-val find :
-  f: ('key -> 'value -> bool) -> t<'key, 'value> -> ('key * 'value) option
+val find : f: ('key -> 'value -> bool) -> t<'key, 'value> -> ('key * 'value) option
 (** Returns, as an {!Option} the first key-value pair for which [f] evaluates to true.
 
     If [f] doesn't return [true] for any of the elements [find] will return [None].
@@ -366,9 +365,7 @@ val filter_with_index :
   f: ('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value>
 
 val partition :
-  f: ('key -> 'value -> bool) ->
-  t<'key, 'value> ->
-  t<'key, 'value> * t<'key, 'value>
+  f: ('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value> * t<'key, 'value>
 (** Divide a map into two, the first map will contain the key-value pairs that [f] returns [true] for, pairs that [f] returns [false] for will end up in the second.
 
     {2 Examples}
@@ -395,8 +392,7 @@ val partition :
     ]}
 *)
 
-val fold :
-  initial: 'a -> f: ('a -> 'key -> 'value -> 'a) -> t<'key, 'value> -> 'a
+val fold : initial: 'a -> f: ('a -> 'key -> 'value -> 'a) -> t<'key, 'value> -> 'a
 (** Like {!Array.fold} but [f] is also called with both the [key] and [value] *)
 
 (** {1 Iterate} *)

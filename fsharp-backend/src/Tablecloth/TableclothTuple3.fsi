@@ -156,11 +156,7 @@ val mapThird : f: ('c -> 'z) -> 'a * 'b * 'c -> 'a * 'b * 'z
 *)
 
 val mapEach :
-  f: ('a -> 'x) ->
-  g: ('b -> 'y) ->
-  h: ('c -> 'z) ->
-  'a * 'b * 'c ->
-  'x * 'y * 'z
+  f: ('a -> 'x) -> g: ('b -> 'y) -> h: ('c -> 'z) -> 'a * 'b * 'c -> 'x * 'y * 'z
 (** Transform each value in a tuple by applying [f] to the {!first} value, [g] to the {!second} value and [h] to the {!third} value.
 
     {2 Examples}

@@ -275,8 +275,7 @@ val unwrapError : ``default``: 'error -> t<'ok, 'error> -> 'error
 
 val unwrap_error : ``default``: 'error -> t<'ok, 'error> -> 'error
 
-val map2 :
-  f: ('a -> 'b -> 'c) -> t<'a, 'error> -> t<'b, 'error> -> t<'c, 'error>
+val map2 : f: ('a -> 'b -> 'c) -> t<'a, 'error> -> t<'b, 'error> -> t<'c, 'error>
 (** Combine two results
 
     If one of the results is an [Error], that becomes the return result.
