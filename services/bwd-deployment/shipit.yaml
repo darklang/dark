@@ -5,7 +5,7 @@ k8s:
       - bwd-ingress.yaml
       - bwd-network-policy.yaml
       - bwd-nodeport.yaml
-  deployment:
+  release:
     config-template: bwd-deployment.template.yaml
     containers:
       - gcp-server

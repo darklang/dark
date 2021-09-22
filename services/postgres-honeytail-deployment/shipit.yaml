@@ -1,7 +1,7 @@
 k8s:
   manually-deployed-config:
     configs: []
-  deployment:
+  release:
     config-template: postgres-honeytail-deployment.template.yaml
     containers:
       - postgres-honeytail

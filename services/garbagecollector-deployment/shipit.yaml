@@ -1,7 +1,7 @@
 k8s:
   manually-deployed-config:
     configs: []
-  deployment:
+  release:
     config-template: garbagecollector-deployment.template.yaml
     containers:
       - gcp-garbagecollector

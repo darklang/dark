@@ -2,7 +2,7 @@ k8s:
   manually-deployed-config:
     configs:
       - cc-network-policy.yaml
-  deployment:
+  release:
     config-template: cron-deployment.template.yaml
     containers:
       - gcp-cronchecker

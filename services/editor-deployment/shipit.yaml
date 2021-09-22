@@ -6,7 +6,7 @@ k8s:
       - darklang.com-tls.yaml
       - editor-network-policy.yaml
       - static.darklang.com-tls.yaml
-  deployment:
+  release:
     config-template: editor-deployment.template.yaml
     containers:
       - gcp-server

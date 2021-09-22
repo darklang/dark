@@ -2,7 +2,7 @@ k8s:
   manually-deployed-config:
     configs:
       - qw-network-policy.yaml
-  deployment:
+  release:
     config-template: qw-deployment.template.yaml
     containers:
       - gcp-queueworker

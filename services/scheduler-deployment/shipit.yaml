@@ -1,7 +1,7 @@
 k8s:
   manually-deployed-config:
     configs: []
-  deployment:
+  release:
     config-template: scheduler-deployment.template.yaml
     containers:
       - queue-scheduler

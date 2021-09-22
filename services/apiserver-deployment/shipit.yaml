@@ -2,7 +2,7 @@ k8s:
   manually-deployed-config:
     configs:
       - apiserver-network-policy.yaml
-  deployment:
+  release:
     config-template: apiserver-deployment.template.yaml
     containers:
       - gcp-fsharp-apiserver
