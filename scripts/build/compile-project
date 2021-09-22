@@ -6,7 +6,7 @@ set -euo pipefail
 usage() {
     echo "usage: compile-project [name of project] [--test]
 Compiles a dark project. Options are:
-client, backend, fsharp-backend, stroller, queue-scheduler, deploy, all.
+client, backend, fsharp-backend, stroller, queue-scheduler, shipit, all.
 --test: runs tests
 "
 }
