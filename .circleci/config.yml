@@ -169,7 +169,7 @@ commands:
             scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
-      - run: scripts/build/compile-project deploy
+      - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit containers build
       - run: scripts/deployment/shipit containers show-manifest > gcr-image-ids.json
       - run: scripts/deployment/shipit release prepare --args CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
@@ -438,7 +438,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - run: scripts/build/compile-project deploy
+      - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
@@ -452,7 +452,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - run: scripts/build/compile-project deploy
+      - run: scripts/build/compile-project shipit
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
