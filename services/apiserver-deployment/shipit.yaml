@@ -2,6 +2,11 @@ k8s:
   manually-deployed-config:
     configs:
       - apiserver-network-policy.yaml
+    config-maps:
+      - name: apiserver-override-nginx
+        from-file:
+          filename: nginx-override.conf
+
   release:
     config-template: apiserver-deployment.template.yaml
     containers:
