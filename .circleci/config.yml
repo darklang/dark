@@ -456,7 +456,7 @@ jobs:
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run: scripts/deployment/gke-deploy --manifest gcr-image-ids.json
+      - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
       - notify-job-failure
       - slack/notify:
           event: pass
