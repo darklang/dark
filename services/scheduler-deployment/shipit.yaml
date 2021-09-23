@@ -1,0 +1,11 @@
+k8s:
+  manually-deployed-config:
+    configs: []
+  release:
+    config-template: scheduler-deployment.template.yaml
+    containers:
+      - queue-scheduler
+    builtins:
+      - CLOUDSQL_INSTANCE_NAME
+    expected-args:
+      - CHANGE_CAUSE

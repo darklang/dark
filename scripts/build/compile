@@ -88,8 +88,7 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(
-      start,
-      "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
+      start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
@@ -142,9 +141,21 @@ def yamllint(f):
   result = run_backend(start, "scripts/linting/yamllinter " + f)
   return result
 
+
+def shipit_validate(f):
+  start = time.time()
+  return run_backend(start, f"scripts/deployment/shipit validate {f}")
+
+
+def pip_install():
+  start = time.time()
+  return run_backend(start, f"pip3 install -r scripts/deployment/requirements.txt")
+
+
 def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
+
 
 def test_nginx():
   start = time.time()
@@ -337,8 +348,8 @@ def rust_test(dir):
   name = os.path.basename(dir)
   return run_test(
       start, f"cd {dir}" +
-      f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- "
-      + clippy_flags)
+      f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- " +
+      clippy_flags)
 
 
 def reload_server():
@@ -390,6 +401,7 @@ class Should:
     self.copy_static = False
     self.copy_fsharp_static = False
     self.circleci_validate = False
+    self.pip_install = False
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
@@ -399,6 +411,7 @@ class Should:
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
+    self.shipit_validate = []
 
 
 def execute(should):
@@ -434,8 +447,12 @@ def execute(should):
     should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
+
   if should.circleci_validate:
     if not circleci_validate(): success = False
+
+  if should.pip_install:
+    if not pip_install(): success = False
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False
@@ -526,6 +543,10 @@ def execute(should):
 
   if should.yamllint:
     if not all([yamllint(f) for f in should.yamllint]):
+      success = False
+
+  if should.shipit_validate != []:
+    if not all([shipit_validate(f) for f in should.shipit_validate]):
       success = False
 
   return success
@@ -648,6 +669,12 @@ def mark(should, f):
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
 
+  elif ("/services/" in f and "shipit.yaml" in f):
+    should.shipit_validate += [f]
+
+  elif ("/scripts/deployment/requirements.txt" in f):
+    should.pip_install = True
+
   elif ("/scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
@@ -670,6 +697,7 @@ def ignore(filename):
       ".merlin",
       ".browser-trigger",
       "scripts/build/compile",
+      "scripts/deployment/deploy",
       "integration-tests/tests.js",
       "rundir/",
       "_build/",

@@ -1,0 +1,11 @@
+k8s:
+  manually-deployed-config:
+    configs: []
+  release:
+    config-template: garbagecollector-deployment.template.yaml
+    containers:
+      - gcp-garbagecollector
+    builtins:
+      - CLOUDSQL_INSTANCE_NAME
+    expected-args:
+      - CHANGE_CAUSE

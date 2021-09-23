@@ -1,0 +1,11 @@
+k8s:
+  manually-deployed-config:
+    configs: []
+    config-maps:
+      - name: honeycomb-agent
+        from-file:
+          key: config.yaml
+          filename: honeycomb-agent-config.yaml
+
+    custom-post-apply:
+      - kubectl rollout restart ds/honeycomb-agent

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: postgres-honeytail-deployment
   annotations:
-    kubernetes.io/change-cause: 'circle=manual-deploy ; orig-time: Fri Mar 15 22:33:18 UTC 2019'
+    kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
@@ -16,7 +16,7 @@ spec:
         app: postgres-honeytail
     spec:
       containers:
-        - image: "gcr.io/balmy-ground-195100/postgres-honeytail:{POSTGRES_HONEYTAIL_IMAGE}"
+        - image: "gcr.io/balmy-ground-195100/postgres-honeytail:{IMAGEID:postgres-honeytail}"
           name: postgres-honeytail-ctr
           # This pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6

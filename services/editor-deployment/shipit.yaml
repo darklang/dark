@@ -1,0 +1,17 @@
+k8s:
+  manually-deployed-config:
+    configs:
+      - darklang-ingress.yaml
+      - darklang-nodeport.yaml
+      - darklang.com-tls.yaml
+      - editor-network-policy.yaml
+      - static.darklang.com-tls.yaml
+  release:
+    config-template: editor-deployment.template.yaml
+    containers:
+      - gcp-server
+      - stroller
+    builtins:
+      - CLOUDSQL_INSTANCE_NAME
+    expected-args:
+      - CHANGE_CAUSE

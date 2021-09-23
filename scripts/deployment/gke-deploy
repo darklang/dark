@@ -5,95 +5,24 @@ set -euo pipefail
 
 # Deploy Dark to production
 
-DARK_REGION="us-west1"
-DARK_PROJECT="balmy-ground-195100"
-DARK_CLUSTER="$(< current-cluster)"
-DARK_CLUSTER_CONFIGMAP_FILE="config/gke-builtwithdark"
-CLOUDSQL_INSTANCE_NAME="dark-west"
-
-DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
-
-SKIP_ROLLBAR="0"
-
-PREFIX=""
-
-# Doing this instead of ${CIRCLE_BUILD_URL-manual-deploy} because
-# CIRCLE_BUILD_URL='' is the unset case. (Because of the docker run command in
-# scripts/builder,)
-if [[ ! -v CIRCLE_BUILD_URL ]]; then
-  CIRCLE_BUILD_URL='manual-deploy'
-fi
+MANIFEST=""
 
 HELP="$(cat <<EOF
 Usage: $0 [OPTIONS]
 
-A script that deploys the Dark Kubernetes config to a particular cluster.
+Deployment script for CI
 
 Options:
-
-  --region=...                  The Google cloud region to deploy into (default $DARK_REGION).
-  --project=...                 The Google cloud project to deploy into (default $DARK_PROJECT).
-  --cluster=...                 The name of the cluster to deploy to (default $DARK_CLUSTER).
-  --configmap-file=...          The path of the env-file the cluster config map will be created from/updated to (default $DARK_CLUSTER_CONFIGMAP_FILE)
-  --cloudsql-instance-name=...  The instance name of the CloudSQL DB backing this cluster (default $CLOUDSQL_INSTANCE_NAME)
-  --skip-rollbar=1              Skip sending a rollbar deploy message; for use when in a non-prod cluster, so as not to ping in #alerts
-  --help                        Display this menu.
+  --manifest=...
+  --help            Display this menu.
 EOF
 )"
 
 for i in "$@"
 do
   case "${i}" in
-    --region=*)
-      DARK_REGION="${i/--region=/''}"
-      ;;
-    --project=*)
-      DARK_PROJECT="${i/--project=/''}"
-      ;;
-    --cluster=*)
-      DARK_CLUSTER="${i/--cluster=/''}"
-      ;;
-    --apiserver-image-id=*)
-      APISERVER_IMAGE_ID="${i/--apiserver-image-id=/''}"
-      ;;
-    --legacyserver-image-id=*)
-      LEGACYSERVER_IMAGE_ID="${i/--legacyserver-image-id=/''}"
-      ;;
-    --server-image-id=*)
-      SERVER_IMAGE_ID="${i/--server-image-id=/''}"
-      ;;
-    --qw-image-id=*)
-      QW_IMAGE_ID="${i/--qw-image-id=/''}"
-      ;;
-    --cron-image-id=*)
-      CRON_IMAGE_ID="${i/--cron-image-id=/''}"
-      ;;
-    --garbagecollector-image-id=*)
-      GARBAGE_COLLECTOR_IMAGE_ID="${i/--garbagecollector-image-id=/''}"
-      ;;
-    --stroller-image-id=*)
-      STROLLER_IMAGE_ID="${i/--stroller-image-id=/''}"
-      ;;
-    --queue-scheduler-image-id=*)
-      QUEUE_SCHEDULER_IMAGE_ID="${i/--queue-scheduler-image-id=/''}"
-      ;;
-    --tunnel-image-id=*)
-      TUNNEL_IMAGE_ID="${i/--tunnel-image-id=/''}"
-      ;;
-    --postgres-honeytail-image-id=*)
-      POSTGRES_HONEYTAIL_IMAGE_ID="${i/--postgres-honeytail-image-id=/''}"
-      ;;
-    --prefix=*)
-      PREFIX="${i/--prefix=/''}-"
-      ;;
-    --configmap-file=*)
-      DARK_CLUSTER_CONFIGMAP_FILE="${i/--configmap-file=/''}"
-      ;;
-    --cloudsql-instance-name=*)
-      CLOUDSQL_INSTANCE_NAME="${i/--cloudsql-instance-name=/''}"
-      ;;
-    --skip-rollbar=*)
-      SKIP_ROLLBAR="${i/--skip-rollbar=/''}"
+    --manifest=*)
+      MANIFEST="${i/--manifest=/''}"
       ;;
     --help)
       echo "$HELP"
@@ -109,124 +38,17 @@ done
 
 set -x
 
-ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
-ENVIRONMENT=production
+#############################
+# get variables now so this fails early if they're not available
+#############################
 LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
 
-GCR="gcr.io/$DARK_PROJECT"
-
-## Only fetch if we haven't just built, which we do on CI
-if [[ -v CI ]]; then
-  echo "On CI: not fetching latest containers"
-else
-  echo "Not on CI: fetching latest containers"
-  ./scripts/deployment/_gcp-fetch-latest-containers ${PREFIX:+"--prefix=${PREFIX}"} "--project=${DARK_PROJECT}"
-fi
-
-#########################
-# Update the newly-built deployment containers
-#########################
-if [[ ! -v APISERVER_IMAGE_ID ]]; then
-  APISERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-fsharp-apiserver -q | head -n 1)"
-  echo "APISERVER_IMAGE_ID: $APISERVER_IMAGE_ID"
-fi
-if [[ ! -v LEGACYSERVER_IMAGE_ID ]]; then
-  APISERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}legacyserver -q | head -n 1)"
-  echo "LEGACYSERVER_IMAGE_ID: $LEGACYSERVER_IMAGE_ID"
-fi
-if [[ ! -v SERVER_IMAGE_ID ]]; then
-  SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-server -q | head -n 1)"
-  echo "SERVER_IMAGE_ID: $SERVER_IMAGE_ID"
-fi
-if [[ ! -v QW_IMAGE_ID ]]; then
-  QW_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-queueworker -q | head -n 1)"
-  echo "QW_IMAGE_ID: $QW_IMAGE_ID"
-fi
-if [[ ! -v CRON_IMAGE_ID ]]; then
-  CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-cronchecker -q | head -n 1)"
-  echo "CRON_IMAGE_ID: $CRON_IMAGE_ID"
-fi
-if [[ ! -v GARBAGE_COLLECTOR_IMAGE_ID ]]; then
-  GARBAGE_COLLECTOR_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-garbagecollector -q | head -n 1)"
-  echo "GARBAGE_COLLECTOR_IMAGE_ID: $GARBAGE_COLLECTOR_IMAGE_ID"
-fi
-if [[ ! -v STROLLER_IMAGE_ID ]]; then
-  STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}stroller -q | head -n 1)"
-  echo "STROLLER_IMAGE_ID: $STROLLER_IMAGE_ID"
-fi
-if [[ ! -v QUEUE_SCHEDULER_IMAGE_ID ]]; then
-  QUEUE_SCHEDULER_IMAGE_ID="$(docker images $GCR/${PREFIX}queue-scheduler -q | head -n 1)"
-  echo "QUEUE_SCHEDULER_IMAGE_ID: $QUEUE_SCHEDULER_IMAGE_ID"
-fi
-if [[ ! -v TUNNEL_IMAGE_ID ]]; then
-  TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
-  echo "TUNNEL_IMAGE_ID: $TUNNEL_IMAGE_ID"
-fi
-if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
-  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}postgres-honeytail -q | head -n 1)"
-  echo "POSTGRES_HONEYTAIL_IMAGE_ID: $POSTGRES_HONEYTAIL_IMAGE_ID"
-fi
-
-if [[ "$APISERVER_IMAGE_ID" == "" || "$LEGACYSERVER_IMAGE_ID" == "" || "$SERVER_IMAGE_ID" == "" || "$QW_IMAGE_ID" == "" || "$CRON_IMAGE_ID" == "" || "$GARBAGE_COLLECTOR_IMAGE_ID" == "" || "$STROLLER_IMAGE_ID" == "" || "$QUEUE_SCHEDULER_IMAGE_ID" == "" || "$TUNNEL_IMAGE_ID" == "" || "$POSTGRES_HONEYTAIL_IMAGE_ID" == "" ]]; then
-  echo "Missing image IDs"
-  exit 1
-fi
-
+#############################
+# Build the deployment template files
+#############################
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 
-#FSTODO
-sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/bwd-deployment/bwd-deployment.template.yaml > services/bwd-deployment/bwd-deployment.yaml
-
-sed -e "s!{IMAGE}!${APISERVER_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{LEGACYSERVER_IMAGE}!${LEGACYSERVER_IMAGE_ID}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/apiserver-deployment/apiserver-deployment.template.yaml > services/apiserver-deployment/apiserver-deployment.yaml
-
-sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/editor-deployment/editor-deployment.template.yaml > services/editor-deployment/editor-deployment.yaml
-
-sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/qw-deployment/qw-deployment.template.yaml > services/qw-deployment/qw-deployment.yaml
-
-sed -e "s!{SCHEDULER_IMAGE}!${QUEUE_SCHEDULER_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/scheduler-deployment/scheduler-deployment.template.yaml > services/scheduler-deployment/scheduler-deployment.yaml
-
-sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/cron-deployment/cron-deployment.template.yaml > services/cron-deployment/cron-deployment.yaml
-
-sed -e "s!{GARBAGE_COLLECTOR_IMAGE}!${GARBAGE_COLLECTOR_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/garbagecollector-deployment/garbagecollector-deployment.template.yaml > services/garbagecollector-deployment/garbagecollector-deployment.yaml
-
-sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  services/tunnel-deployment/tunnel-deployment.template.yaml > services/tunnel-deployment/tunnel-deployment.yaml
-
-sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  services/postgres-honeytail-deployment/postgres-honeytail-deployment.template.yaml > services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
-
-#############################
-# Get the credentials to do the deploy with
-#############################
-gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
-  "--project=${DARK_PROJECT}" "${DARK_CLUSTER}"
+./scripts/deployment/deploy release prepare --args CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
 #############################
 # Lock before doing a deploy (unlocks on fail or at end of file)
@@ -234,111 +56,86 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 
 cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
-  if [[ "${DEPLOY_LOCK_BUCKET}" != "" && "${LOCKFILE_ID}" != "" ]];
+  if [[ "${LOCKFILE_ID}" != "" ]];
   then
-    echo "Removing deploy lock: ${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
-    gsutil rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
+    echo "Removing deploy lock"
+    ./scripts/deployment/gke-clear-deploy-lock
   fi
-
   exit 1
 }
 
-deploy_lock_claimed=""
-if [[ -v CI ]]; then
-  LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
-else
-  LOCKFILE_ID="manual-deploy"
-fi
-echo "Lock file: ${LOCKFILE_ID}"
-LOCKFILE_NAME="deploy-lock-${LOCKFILE_ID}"
-
-while [[ "${deploy_lock_claimed}" != "true" ]]; do
-  # If there's a manual lock, loop
-  if (gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-manual-deploy); then
-    true # loop
-  else
-    max_deploy_lock=$( (gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-* || true) \
-      | sed 's/.*-//' | sort -nr | head -n 1)
-
-    # if there are no deploy locks, create ours and continue
-    if [[ "${max_deploy_lock}" == "" ]]; then
-      echo date > "${LOCKFILE_NAME}"
-      gsutil cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
-      # Make sure we remove the lockfile if this script exits early for some reason
-      trap cleanup_deploy_lock INT QUIT TERM ERR
-
-      deploy_lock_claimed="true"
-    elif [[ "${LOCKFILE_ID}" == "manual-deploy" ]]; then
-      true
-    # if the biggest # is greater than ours, then exit instead of deploying
-    elif [[ "${max_deploy_lock}" -gt "${LOCKFILE_ID}"  ]]; then
-      echo "Currently-running deploy ${max_deploy_lock} > ${LOCKFILE_ID}, so not deploying."
-      exit 1
-    # if the biggest # is smaller than ours, loop (we will deploy after)
-    else
-      true # loop
-    fi
-  fi
-
-  echo "At $(date), sleeping 5s to wait for deploy lock..."
-  sleep 5
-done
+LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
+./scripts/deployment/gke-acquire-deploy-lock "${LOCKFILE_ID}"
 
 
 #############################
-# Check that the prod cluster matches our view of the world, before we deploy
+# Check it's safe to deploy
 #############################
-./scripts/deployment/_gke-check-predeployed-yaml
 
-#############################
+# Check that the prod cluster matches our view of the world, once we have the lock
+./scripts/deployment/shipit config diff
+
 # Check that the everything can be deployed
-#############################
-kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml --dry-run=server
-kubectl apply -f services/bwd-deployment/bwd-deployment.yaml --dry-run=server
-kubectl apply -f services/cron-deployment/cron-deployment.yaml --dry-run=server
-kubectl apply -f services/editor-deployment/editor-deployment.yaml --dry-run=server
-kubectl apply -f services/qw-deployment/qw-deployment.yaml --dry-run=server
-kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml --dry-run=server
-kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml --dry-run=server
-kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml --dry-run=server
-kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml --dry-run=server
+./scripts/deployment/shipit release push --dry-run
 
 #############################
 # Actually do the deploy
 #############################
+
+# TODO: add an override configmap that all the containers use
+# TODO: make the configmap a per-deploy setting - we don't want to break old deployments with a new setting
 # env vars (replace existing configmap)
-kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run=client | kubectl replace -f -
+kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run=client | kubectl replace -f -
+
+# TODO: put config on the container
+# TODO: add a configmap for overriding the config
+# TODO: split the config between apiserver and bwdserver
+# We use a configmap for nginx as it makes it easy to deal with attacks
 kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 
-# these files deploy the newly-created deployment containers
-#FSTODO
-kubectl apply -f services/apiserver-deployment/apiserver-deployment.yaml
-kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
-kubectl apply -f services/cron-deployment/cron-deployment.yaml
-kubectl apply -f services/editor-deployment/editor-deployment.yaml
-kubectl apply -f services/qw-deployment/qw-deployment.yaml
-kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
-kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
-kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml
-kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml
+# deploy the config for the newly-created deployment containers
+./scripts/deployment/shipit release push
 
 #########################
-# Tell everyone else what's going on
+# Tell everyone about the deploy
 #########################
-if [[ "${SKIP_ROLLBAR}" = 1 ]]; then
-  echo "Skipping rollbar notification."
-else
-  curl -s https://api.rollbar.com/api/1/deploy/ \
-    -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
-    -F "environment=${ENVIRONMENT}" \
-    -F "revision=$(git rev-parse --short HEAD)" \
-    -F "comment=${CIRCLE_BUILD_URL}" \
-    -F "local_username=${LOCAL_USERNAME}" > /dev/null
-  echo "Rollbar notified."
-fi
+
+# Tell rollbar
+ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
+curl -s https://api.rollbar.com/api/1/deploy/ \
+  -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
+  -F "environment=${ENVIRONMENT}" \
+  -F "revision=$(git rev-parse --short HEAD)" \
+  -F "comment=${CIRCLE_BUILD_URL}" \
+  -F "local_username=${LOCAL_USERNAME}" > /dev/null
+echo "Rollbar notified."
+
+# Tell honeycomb
+# Docs: https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
+HONEYCOMB_DATASETS="integration-tests\n
+kubernetes-bwd-nginx
+kubernetes-bwd-ocaml
+kubernetes-cluster-events
+kubernetes-garbagecollector
+kubernetes-metrics
+kubernetes-scheduler
+kubernetes-stroller
+postgres"
+
+msg="${CIRCLE_USERNAME} deployed PR (SHA1: ${CIRCLE_SHA1})"
+
+for dataset in $HONEYCOMB_DATASETS; do
+    honeymarker add \
+        --writekey="${BUILDEVENT_APIKEY}" \
+        --dataset="$dataset" \
+        --msg="${msg}" \
+        --url="${CIRCLE_BUILD_URL}" \
+        --type="deploy"
+done
+
 
 ####################
 # Unlock post-deploy
 ####################
-gsutil rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
+./scripts/deploy/gke-clear-deploy-lock

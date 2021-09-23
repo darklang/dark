@@ -1,0 +1,7 @@
+k8s:
+  manually-deployed-config:
+    configs:
+      - cert-manager-issuer.yaml
+      - cert-manager-wildcard-issuer.yaml
+      - cert-manager.yaml
+      - nginx-ingress-controller.yaml

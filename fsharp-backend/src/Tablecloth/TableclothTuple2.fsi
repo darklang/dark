@@ -164,8 +164,7 @@ val to_list : 'a * 'a -> 'a list
 
 (** {1 Compare} *)
 
-val equal :
-  ('a -> 'a -> bool) -> ('b -> 'b -> bool) -> 'a * 'b -> 'a * 'b -> bool
+val equal : ('a -> 'a -> bool) -> ('b -> 'b -> bool) -> 'a * 'b -> 'a * 'b -> bool
 (** Test two {!Tuple2}s for equality, using the provided functions to test the
     first and second components.
 
@@ -176,8 +175,7 @@ val equal :
     {[Tuple2.equal Int.equal String.equal (1, "Fox") (2, "Hen") = false]}
 *)
 
-val compare :
-  ('a -> 'a -> int) -> ('b -> 'b -> int) -> 'a * 'b -> 'a * 'b -> int
+val compare : ('a -> 'a -> int) -> ('b -> 'b -> int) -> 'a * 'b -> 'a * 'b -> int
 (** Compare two {!Tuple2}s, using the provided functions to compare the first
     components then, if the first components are equal, the second components.
 

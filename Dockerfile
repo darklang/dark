@@ -422,3 +422,5 @@ USER dark
 ENV CARGO_HOME=/home/dark/.cargo
 
 RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
+
+RUN pip3 install yapf==0.31.0

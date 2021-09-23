@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 # Not an automated test, this is a manual test to verify the script before
 # pushing to circle
@@ -23,5 +24,5 @@ fi
 # SC2002 is "useless use of cat"
 # shellcheck disable=SC2002
 cat "${DIR}"/sample_integration_tests_with_failure.json\
-    | scripts/deployment/_process-integration-test-results.sh \
+    | scripts/testing/_process-integration-test-results.sh \
     | "${SUMMARY_CMD[@]}"
