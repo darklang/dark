@@ -135,7 +135,7 @@ def get_all_config_file_arguments(args):
   files = []
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for f in config['k8s']["manually-deployed-config"]["configs"]:
+    for f in config['k8s']["manually-deployed"]["configs"]:
       files.append(os.path.join(dir, f))
 
   file_args = []
@@ -158,7 +158,7 @@ def read_config_map_source(dir, cm):
   return f"--from-file={filespec}"
 
 
-def config_diff(args):
+def manual_diff(args):
   do_validation(args)
 
   # Config files
@@ -171,7 +171,7 @@ def config_diff(args):
   # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("configmaps", []):
+    for cm in config['k8s']["manually-deployed"].get("configmaps", []):
       filespec = read_config_map_source(dir, cm)
       run("kubectl diff configmap",
           f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
@@ -180,11 +180,11 @@ def config_diff(args):
   # Custom diff
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
+    for c in config['k8s']["manually-deployed"].get("custom-diff", []):
       run("custom diff", c, shell=True)
 
 
-def config_apply_manually(args):
+def manual_apply(args):
   args.services = [args.service]
   do_validation(args)
 
@@ -202,7 +202,7 @@ def config_apply_manually(args):
   # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("configmaps", []):
+    for cm in config['k8s']["manually-deployed"].get("configmaps", []):
       filespec = read_config_map_source(dir, cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
@@ -216,7 +216,7 @@ def config_apply_manually(args):
   # Custom apply
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
+    for c in config['k8s']["manually-deployed"].get("custom-apply", []):
       if should_dry_run:
         print(f"skipping custom apply step: {c}")
       else:
@@ -225,7 +225,7 @@ def config_apply_manually(args):
   # Custom post-apply (used for restarting services)
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-post-apply", []):
+    for c in config['k8s']["manually-deployed"].get("custom-post-apply", []):
       if should_dry_run:
         print(f"skipping post apply step: {c}")
       else:
@@ -439,7 +439,7 @@ properties:
   k8s:
     type: object
     properties:
-      manually-deployed-config:
+      manually-deployed:
         type: object
         properties:
           configs:
@@ -499,12 +499,19 @@ properties:
               type: string
         required: [containers, config-template]
         additionalProperties: false
-    required: [manually-deployed-config]
+    required: [manually-deployed]
     additionalProperties: false
 """
 
 
 def do_validation(args):
+  def validate_configmaps(parent):
+    configmaps = parent.get("configmaps", [])
+    for f in configmaps:
+      from_file = f.get("from-file")
+      if from_file:
+        assert_file_exists(dir, from_file['filename'])
+
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     debug(f"Validating config for {dir}")
@@ -515,18 +522,15 @@ def do_validation(args):
 
     k8s = config['k8s']
 
-    manually_deployed_config = k8s["manually-deployed-config"]
-    configs = manually_deployed_config["configs"]
+    manually_deployed = k8s["manually-deployed"]
+    validate_configmaps(manually_deployed)
+    configs = manually_deployed["configs"]
     for f in configs:
       assert_file_exists(dir, f)
-    configmaps = manually_deployed_config.get("configmaps", [])
-    for f in configmaps:
-      from_file = f.get("from-file")
-      if from_file:
-        assert_file_exists(dir, from_file['filename'])
 
     release = config['k8s'].get("release", None)
     if release:
+      validate_configmaps(release)
       assert_file_exists(dir, release['config-template'])
       template_filename = os.path.join(dir, release['config-template'])
       template_contents = open(template_filename).read()
@@ -616,27 +620,27 @@ def create_arg_parser():
   validate_parser.set_defaults(func=validate)
 
   # Config
-  config_parser = main_subparsers.add_parser('config')
-  config_subparser = config_parser.add_subparsers()
+  manual_parser = main_subparsers.add_parser('manual')
+  manual_subparser = manual_parser.add_subparsers()
 
-  config_diff_parser = config_subparser.add_parser(
+  manual_diff_parser = manual_subparser.add_parser(
       'diff',
       description=
-      "Checks that the config files listed in the k8s.manually-deployed-config key of shipit.yaml are already properly deployed, using `kubectl diff`",
+      "Checks that the config files listed in the k8s.manual key of shipit.yaml are already properly deployed, using `kubectl diff`",
       parents=[base_parser, services_parser])
-  config_diff_parser.set_defaults(func=config_diff)
+  manual_diff_parser.set_defaults(func=manual_diff)
 
-  config_apply_parser = config_subparser.add_parser(
-      'apply-manually',
+  manual_apply_parser = manual_subparser.add_parser(
+      'apply',
       description=
-      "Checks that the config files listed in the k8s.manually-deployed-config key of shipit.yaml are already properly deployed, using `kubectl diff`",
+      "Checks that the config files listed in the k8s.manual key of shipit.yaml are already properly deployed, using `kubectl diff`",
       parents=[base_parser])
-  config_apply_parser.add_argument(
+  manual_apply_parser.add_argument(
       'service',
       action="store",
       help=
       "path to the service definition. Required and only one service is supported")
-  config_apply_parser.set_defaults(func=config_apply_manually)
+  manual_apply_parser.set_defaults(func=manual_apply)
 
   # Containers
   containers_parser = main_subparsers.add_parser('containers')

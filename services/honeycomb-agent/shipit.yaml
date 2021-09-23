@@ -1,5 +1,5 @@
 k8s:
-  manually-deployed-config:
+  manually-deployed:
     configs: []
     configmaps:
       - name: honeycomb-agent

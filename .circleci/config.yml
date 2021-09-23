@@ -328,7 +328,7 @@ jobs:
       - darkcheckout
       - auth-with-gcp: { background: false }
       - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit config diff
+      - run: scripts/deployment/shipit manual diff
       - notify-job-failure
 
   build-stroller:

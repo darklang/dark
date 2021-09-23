@@ -73,7 +73,7 @@ LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
 #############################
 
 # Check that the prod cluster matches our view of the world, once we have the lock
-./scripts/deployment/shipit config diff
+./scripts/deployment/shipit manual diff
 
 # Check that the everything can be deployed
 ./scripts/deployment/shipit release push --dry-run
