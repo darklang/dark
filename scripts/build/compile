@@ -697,7 +697,7 @@ def ignore(filename):
       ".merlin",
       ".browser-trigger",
       "scripts/build/compile",
-      "scripts/deployment/deploy",
+      "scripts/deployment/shipit",
       "integration-tests/tests.js",
       "rundir/",
       "_build/",
