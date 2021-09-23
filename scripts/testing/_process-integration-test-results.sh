@@ -1,4 +1,4 @@
-#!/usr/bin/env
+#!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 set -euo pipefail
