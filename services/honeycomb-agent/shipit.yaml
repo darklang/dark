@@ -1,7 +1,7 @@
 k8s:
   manually-deployed-config:
     configs: []
-    config-maps:
+    configmaps:
       - name: honeycomb-agent
         from-file:
           key: config.yaml

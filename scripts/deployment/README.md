@@ -21,23 +21,23 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 - `k8s.manually-deployed-config.custom-post-apply`:
   A list of commands to run after other steps are run. Useful for restarting services.
 
-- `k8s.manually-deployed-config.config-maps`:
+- `k8s.manually-deployed-config.configmaps`:
   A list of config maps to deploy
 
-- `k8s.manually-deployed-config.config-maps.[].name`:
+- `k8s.manually-deployed-config.configmaps.[].name`:
   The k8s name of the config map
 
-- `k8s.manually-deployed-config.config-maps.[].from-file`:
+- `k8s.manually-deployed-config.configmaps.[].from-file`:
   Deploy the config map from a file
 
-- `k8s.manually-deployed-config.config-maps.[].from-file.key`:
+- `k8s.manually-deployed-config.configmaps.[].from-file.key`:
   The key for the file, optional, will be derived by k8s otherwise (uses `basename` at
   time of writing.)
 
-- `k8s.manually-deployed-config.config-maps.[].from-file.filename`:
+- `k8s.manually-deployed-config.configmaps.[].from-file.filename`:
   The file to be put in the keymap
 
-- `k8s.manually-deployed-config.config-maps.[].from-env`:
+- `k8s.manually-deployed-config.configmaps.[].from-env`:
   Deploy the config map from an env-file (not implemented yet)
 
 - `k8s.release.template`:

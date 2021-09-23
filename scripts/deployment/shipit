@@ -168,10 +168,10 @@ def config_diff(args):
   else:
     run("kubectl diff", ["kubectl", "diff"] + file_args)
 
-  # Config-maps
+  # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
+    for cm in config['k8s']["manually-deployed-config"].get("configmaps", []):
       filespec = read_config_map_source(dir, cm)
       run("kubectl diff configmap",
           f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
@@ -199,10 +199,10 @@ def config_apply_manually(args):
     else:
       run("kubectl apply", ["kubectl", "apply"] + file_args)
 
-  # Config-maps
+  # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
+    for cm in config['k8s']["manually-deployed-config"].get("configmaps", []):
       filespec = read_config_map_source(dir, cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
@@ -446,7 +446,7 @@ properties:
             type: array
             items:
               type: string
-          config-maps:
+          configmaps:
             type: array
             items:
               type: object
@@ -519,7 +519,7 @@ def do_validation(args):
     configs = manually_deployed_config["configs"]
     for f in configs:
       assert_file_exists(dir, f)
-    configmaps = manually_deployed_config.get("config-maps", [])
+    configmaps = manually_deployed_config.get("configmaps", [])
     for f in configmaps:
       from_file = f.get("from-file")
       if from_file:
