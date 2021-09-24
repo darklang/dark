@@ -2,6 +2,11 @@
 
 FROM ubuntu:20.04
 
+# Our deploy runs this on CircleCI, and the default URLs can sometimes be slow to
+# download from. This switches to the closest mirror to CircleCI (recommended by
+# CircleCI support).
+RUN sh -c "sed -i 's|http://archive|http://us-east-1.ec2.archive|g' /etc/apt/sources.list"
+
 RUN apt-get update && \
     apt-get install \
       -y \

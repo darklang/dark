@@ -67,7 +67,7 @@ spec:
         # set of GKE secrets, listed below, to manage this.
         #########################
         - name: cloudsql-proxy
-          image: gcr.io/cloudsql-docker/gce-proxy:1.11
+          image: "gcr.io/cloudsql-docker/gce-proxy:1.11"
           resources:
             requests:
               memory: "70Mi"
