@@ -87,3 +87,9 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 - release prepare [services] --arg CHANGE_CAUSE='reason' --manifest=MANIFEST-FILE.json
 - release diff [services]
 - release push [services] (TODO: honeymarker and rollbar deploy)
+
+# Deploy lock
+
+This directory also hosts scripts that affect the deploy lock. We only allow one
+deploy to go out at once, and so we add a file to a Google Cloud Storage bucket to
+indicate a lock. Other deploys will wait on it (see the logic in deploy-lock-acquire).

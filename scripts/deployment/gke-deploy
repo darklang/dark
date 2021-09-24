@@ -38,6 +38,7 @@ done
 
 set -x
 
+
 #############################
 # get variables now so this fails early if they're not available
 #############################
@@ -54,9 +55,26 @@ CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git
 # Lock before doing a deploy (unlocks on fail or at end of file)
 #############################
 
+LOCKFILE_ID=""
+cleanup_deploy_lock() {
+  trap '' EXIT # some shells will call EXIT after the INT handler
+  if [[ "${LOCKFILE_ID}" != "" ]];
+  then
+    echo "Removing deploy lock"
+    ./scripts/deployment/deploy-lock-remove "${LOCKFILE_ID}"
+  else
+    echo "Not removing deploy lock, no deploy lock to remove"
+  fi
+  exit 1
+}
+
+# Make sure we remove the lockfile if this script exits early for some reason
+trap cleanup_deploy_lock INT QUIT TERM ERR
+
 # We source this instead of running it in a subshell so that the trap works as expected
 LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
-. ./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
+./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
+
 
 #############################
 # Check it's safe to deploy
