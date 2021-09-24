@@ -49,7 +49,7 @@ LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default 
 #############################
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 
-./scripts/deployment/shipit release prepare --args CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
+./scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
 #############################
 # Lock before doing a deploy (unlocks on fail or at end of file)
