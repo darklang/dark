@@ -105,7 +105,7 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
 curl -s https://api.rollbar.com/api/1/deploy/ \
   -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
-  -F "environment=${ENVIRONMENT}" \
+  -F "environment=production" \
   -F "revision=$(git rev-parse --short HEAD)" \
   -F "comment=${CIRCLE_BUILD_URL}" \
   -F "local_username=${LOCAL_USERNAME}" > /dev/null
