@@ -31,7 +31,7 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
     # if there are no deploy locks, create ours and continue
     if [[ "${max_deploy_lock}" == "" ]]; then
       echo "No deploy-lock found; claiming deploy-lock"
-      echo $(date) > "${LOCKFILE_NAME}"
+      date > "${LOCKFILE_NAME}"
       gsutil cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
       deploy_lock_claimed="true"
     elif [[ "${LOCKFILE_ID}" == "manual-deploy" ]]; then
