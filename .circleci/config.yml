@@ -443,6 +443,9 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
+      - persist_to_workspace:
+          root: "."
+          paths: ["gcr-image-ids.json"]
       - run: scripts/deployment/_push-assets-to-cdn
       - run: scripts/deployment/shipit containers push
       - notify-job-failure
