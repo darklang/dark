@@ -119,7 +119,7 @@ echo "Rollbar notified."
 
 # Tell honeycomb
 # Docs: https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
-HONEYCOMB_DATASETS="integration-tests\n
+HONEYCOMB_DATASETS="integration-tests
 kubernetes-bwd-nginx
 kubernetes-bwd-ocaml
 kubernetes-cluster-events
