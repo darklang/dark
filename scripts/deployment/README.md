@@ -62,7 +62,7 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 - `k8s.release.template`:
   Template file of a release. During a deploy, the template is filled with vars from
   `containers` (automatically derived), `builtins`, and `expected-args` (which are
-  filled in from the command line using `--args`).
+  filled in from the command line using `--arg`).
 
 - `k8s.deployment.containers`:
   List of containers used in this deployment. The container name must match a
@@ -84,6 +84,6 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 - containers push [services]
 - containers show-manifest [services] > MANIFEST-FILE.json
 - containers list [services]
-- release prepare [services] --args CHANGE_CAUSE='reason' --manifest=MANIFEST-FILE.json
+- release prepare [services] --arg CHANGE_CAUSE='reason' --manifest=MANIFEST-FILE.json
 - release diff [services]
 - release push [services] (TODO: honeymarker and rollbar deploy)

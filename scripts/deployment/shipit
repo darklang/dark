@@ -378,7 +378,7 @@ def containers_build(args):
 ##################################
 def get_expected_args(args):
   expected_args = {}
-  for arg in args.args or []:
+  for arg in args.arg or []:
     items = arg.strip().split("=")
     k = items[0].strip()
     v = "=".join(items[1:]).strip()
@@ -418,7 +418,7 @@ def release_prepare(args):
       for a in release["expected-args"]:
         value = expected_args.get(a)
         if value == None:
-          bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--args {a}='SOME VALUE'`"
+          bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
               )
         content = content.replace(f"{{ARG:{a}}}", expected_args[a])
       for v in release.get("builtins", []):
@@ -754,17 +754,19 @@ def create_arg_parser():
       'prepare',
       description="Prepares yaml files for release",
       parents=[base_parser, services_parser])
-  release_prepare_parser.set_defaults(func=release_prepare)
   release_prepare_parser.add_argument(
       '--manifest',
       action="store",
       required=True,
       help="path to the release manifest, built using `containers show-manifest`")
   release_prepare_parser.add_argument(
-      '--args',
+      '--arg',
       metavar="KEY=VALUE",
-      nargs='+',
-      help="list of key/value pairs that define `expected-arg` in the shipit.yamls")
+      action='append',
+      help=
+      "key/value pair that defines an `expected-arg` in the shipit.yamls. Provide once per key/value pair"
+  )
+  release_prepare_parser.set_defaults(func=release_prepare)
 
   release_diff_parser = release_subparser.add_parser(
       'diff',
