@@ -54,19 +54,9 @@ CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git
 # Lock before doing a deploy (unlocks on fail or at end of file)
 #############################
 
-cleanup_deploy_lock() {
-  trap '' EXIT # some shells will call EXIT after the INT handler
-  if [[ "${LOCKFILE_ID}" != "" ]];
-  then
-    echo "Removing deploy lock"
-    ./scripts/deployment/gke-clear-deploy-lock
-  fi
-  exit 1
-}
-
+# We source this instead of running it in a subshell so that the trap works as expected
 LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
-./scripts/deployment/gke-acquire-deploy-lock "${LOCKFILE_ID}"
-
+. ./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
 
 #############################
 # Check it's safe to deploy
@@ -136,4 +126,4 @@ done
 ####################
 # Unlock post-deploy
 ####################
-./scripts/deploy/gke-clear-deploy-lock
+./scripts/deploy/deploy-lock-clear
