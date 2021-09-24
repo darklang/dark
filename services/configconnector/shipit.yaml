@@ -1,5 +1,5 @@
 k8s:
-  manually-deployed-config:
+  manually-deployed:
     configs:
       - configconnector.yaml
       - config-connector-experiment-storagebucket.yaml

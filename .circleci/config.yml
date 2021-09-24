@@ -172,7 +172,7 @@ commands:
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit containers build
       - run: scripts/deployment/shipit containers show-manifest > gcr-image-ids.json
-      - run: scripts/deployment/shipit release prepare --args CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
+      - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
       - run: scripts/deployment/shipit release push --dry-run
 
   ##########################
@@ -328,7 +328,7 @@ jobs:
       - darkcheckout
       - auth-with-gcp: { background: false }
       - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit config diff
+      - run: scripts/deployment/shipit manual diff
       - notify-job-failure
 
   build-stroller:

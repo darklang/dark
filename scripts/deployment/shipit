@@ -33,6 +33,16 @@ def bad(str):
 should_debug = False
 should_dry_run = False
 
+# When running diffs, keep going through the errors but make sure to report something
+error = None
+
+
+def handle_error(msg):
+  global error
+  print(msg)
+  if error is None:
+    error = msg
+
 
 def debug(str):
   if should_debug:
@@ -50,7 +60,7 @@ def writefile(filename, contents):
 
 
 # Run an important command, keeping stdout/stderr going to the user. Supports --dry-run
-def run(name, args, shell=False, input=None):
+def run(name, args, shell=False, input=None, stop_on_error=True):
   try:
     if should_dry_run:
       print(f"Running {name} command: (dry-run)\n  {args}")
@@ -59,17 +69,25 @@ def run(name, args, shell=False, input=None):
       subprocess.run(args, shell=shell, input=input, check=True)
       print()
   except subprocess.CalledProcessError as e:
-    bad(f"Error running {name} command:\n  {e}\n")
+    msg = f"Error running {name} command:\n  {e}\n"
+    if stop_on_error:
+      bad(msg)
+    else:
+      handle_error(msg)
 
 
 # Runs a command that's part of running the script, captures stdout, ignore --dry-run.
-def run_output(args, shell=False, input=None):
+def run_output(args, shell=False, input=None, stop_on_error=True):
   try:
     debug(f"Running command:\n  {args}")
     return subprocess.check_output(args, shell=shell,
                                    input=input).decode("utf-8").strip()
   except subprocess.CalledProcessError as e:
-    bad(f"Error running command:\n  {e}\n")
+    msg = f"Error running command:\n  {e}\n"
+    if stop_on_error:
+      bad(msg)
+    else:
+      handle_error(msg)
 
 
 ##################################
@@ -127,6 +145,31 @@ def get_service_config(dir):
 
 
 ##################################
+# Configmaps are present in both manually-deployed and automatically released config
+##################################
+def apply_configmaps(dir, parent):
+  for cm in parent.get("configmaps", []):
+    filespec = read_config_map_source(dir, cm)
+    if should_dry_run:
+      run("kubectl apply configmap (dry-run)",
+          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
+          shell=True)
+    else:
+      run("kubectl apply configmap",
+          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
+          shell=True)
+
+
+def diff_configmaps(dir, parent):
+  for cm in parent.get("configmaps", []):
+    filespec = read_config_map_source(dir, cm)
+    run("kubectl diff configmap",
+        f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
+        shell=True,
+        stop_on_error=False)
+
+
+##################################
 # Config commands
 ##################################
 
@@ -135,7 +178,7 @@ def get_all_config_file_arguments(args):
   files = []
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for f in config['k8s']["manually-deployed-config"]["configs"]:
+    for f in config['k8s']["manually-deployed"]["configs"]:
       files.append(os.path.join(dir, f))
 
   file_args = []
@@ -158,7 +201,7 @@ def read_config_map_source(dir, cm):
   return f"--from-file={filespec}"
 
 
-def config_diff(args):
+def manual_diff(args):
   do_validation(args)
 
   # Config files
@@ -166,25 +209,24 @@ def config_diff(args):
   if file_args == []:
     debug("No configs to diff, skipping")
   else:
-    run("kubectl diff", ["kubectl", "diff"] + file_args)
+    run("kubectl diff", ["kubectl", "diff"] + file_args, stop_on_error=False)
 
-  # Config-maps
+  # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
-      filespec = read_config_map_source(dir, cm)
-      run("kubectl diff configmap",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
-          shell=True)
+    manual = config['k8s'].get("manually-deployed")
+    if manual:
+      diff_configmaps(dir, manual)
 
   # Custom diff
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-diff", []):
-      run("custom diff", c, shell=True)
+    manual = config['k8s'].get("manually-deployed")
+    for c in manual.get("custom-diff", []):
+      run("custom diff", c, shell=True, stop_on_error=False)
 
 
-def config_apply_manually(args):
+def manual_apply(args):
   args.services = [args.service]
   do_validation(args)
 
@@ -199,24 +241,18 @@ def config_apply_manually(args):
     else:
       run("kubectl apply", ["kubectl", "apply"] + file_args)
 
-  # Config-maps
+  # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for cm in config['k8s']["manually-deployed-config"].get("config-maps", []):
-      filespec = read_config_map_source(dir, cm)
-      if should_dry_run:
-        run("kubectl apply configmap (dry-run)",
-            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
-            shell=True)
-      else:
-        run("kubectl apply configmap",
-            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
-            shell=True)
+    manual = config['k8s'].get("manually-deployed")
+    if manual:
+      apply_configmaps(dir, manual)
 
   # Custom apply
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-apply", []):
+    manual = config['k8s'].get("manually-deployed", {})
+    for c in manual.get("custom-apply", []):
       if should_dry_run:
         print(f"skipping custom apply step: {c}")
       else:
@@ -225,7 +261,8 @@ def config_apply_manually(args):
   # Custom post-apply (used for restarting services)
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    for c in config['k8s']["manually-deployed-config"].get("custom-post-apply", []):
+    manual = config['k8s'].get("manually-deployed", {})
+    for c in manual.get("custom-post-apply", []):
       if should_dry_run:
         print(f"skipping post apply step: {c}")
       else:
@@ -341,7 +378,7 @@ def containers_build(args):
 ##################################
 def get_expected_args(args):
   expected_args = {}
-  for arg in args.args or []:
+  for arg in args.arg or []:
     items = arg.strip().split("=")
     k = items[0].strip()
     v = "=".join(items[1:]).strip()
@@ -352,7 +389,7 @@ def get_expected_args(args):
   return expected_args
 
 
-def collect_release_manifests(args):
+def collect_release_templated_configs(args):
   files = []
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
@@ -381,7 +418,7 @@ def release_prepare(args):
       for a in release["expected-args"]:
         value = expected_args.get(a)
         if value == None:
-          bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--args {a}='SOME VALUE'`"
+          bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
               )
         content = content.replace(f"{{ARG:{a}}}", expected_args[a])
       for v in release.get("builtins", []):
@@ -395,7 +432,12 @@ def release_prepare(args):
 
 def release_diff(args):
   do_validation(args)
-  files = collect_release_manifests(args)
+  files = collect_release_templated_configs(args)
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    release = config['k8s'].get("release")
+    if release:
+      diff_configmaps(dir, release)
 
   # diff it against production
   if files == []:
@@ -405,12 +447,20 @@ def release_diff(args):
     for f in files:
       file_args.append("-f")
       file_args.append(f)
-    run("kubectl diff", file_args)
+    run("kubectl diff", file_args, stop_on_error=False)
 
 
 def release_push(args):
   do_validation(args)
-  files = collect_release_manifests(args)
+
+  # Do the config maps first, as they're used by the deploys
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    release = config['k8s'].get("release")
+    if release:
+      apply_configmaps(dir, release)
+
+  files = collect_release_templated_configs(args)
 
   # diff it against production
   if files == []:
@@ -439,14 +489,14 @@ properties:
   k8s:
     type: object
     properties:
-      manually-deployed-config:
+      manually-deployed:
         type: object
         properties:
           configs:
             type: array
             items:
               type: string
-          config-maps:
+          configmaps:
             type: array
             items:
               type: object
@@ -489,6 +539,26 @@ properties:
             type: array
             items:
               type: string
+          configmaps:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                from-file:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    filename:
+                      type: string
+                  required: [filename]
+                  additionalProperties: false
+                from-env-file:
+                  type: string
+              required: [name]
+              additionalProperties: false
           expected-args:
             type: array
             items:
@@ -499,12 +569,19 @@ properties:
               type: string
         required: [containers, config-template]
         additionalProperties: false
-    required: [manually-deployed-config]
+    required: [manually-deployed]
     additionalProperties: false
 """
 
 
 def do_validation(args):
+  def validate_configmaps(parent):
+    configmaps = parent.get("configmaps", [])
+    for f in configmaps:
+      from_file = f.get("from-file")
+      if from_file:
+        assert_file_exists(dir, from_file['filename'])
+
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     debug(f"Validating config for {dir}")
@@ -515,18 +592,15 @@ def do_validation(args):
 
     k8s = config['k8s']
 
-    manually_deployed_config = k8s["manually-deployed-config"]
-    configs = manually_deployed_config["configs"]
+    manually_deployed = k8s["manually-deployed"]
+    validate_configmaps(manually_deployed)
+    configs = manually_deployed["configs"]
     for f in configs:
       assert_file_exists(dir, f)
-    configmaps = manually_deployed_config.get("config-maps", [])
-    for f in configmaps:
-      from_file = f.get("from-file")
-      if from_file:
-        assert_file_exists(dir, from_file['filename'])
 
     release = config['k8s'].get("release", None)
     if release:
+      validate_configmaps(release)
       assert_file_exists(dir, release['config-template'])
       template_filename = os.path.join(dir, release['config-template'])
       template_contents = open(template_filename).read()
@@ -615,28 +689,28 @@ def create_arg_parser():
       parents=[base_parser, services_parser])
   validate_parser.set_defaults(func=validate)
 
-  # Config
-  config_parser = main_subparsers.add_parser('config')
-  config_subparser = config_parser.add_subparsers()
+  # Manually applied things
+  manual_parser = main_subparsers.add_parser('manual')
+  manual_subparser = manual_parser.add_subparsers()
 
-  config_diff_parser = config_subparser.add_parser(
+  manual_diff_parser = manual_subparser.add_parser(
       'diff',
       description=
-      "Checks that the config files listed in the k8s.manually-deployed-config key of shipit.yaml are already properly deployed, using `kubectl diff`",
+      "Checks that the config files listed in the k8s.manually-deployed key of shipit.yaml are already properly deployed, using `kubectl diff`",
       parents=[base_parser, services_parser])
-  config_diff_parser.set_defaults(func=config_diff)
+  manual_diff_parser.set_defaults(func=manual_diff)
 
-  config_apply_parser = config_subparser.add_parser(
-      'apply-manually',
+  manual_apply_parser = manual_subparser.add_parser(
+      'apply',
       description=
-      "Checks that the config files listed in the k8s.manually-deployed-config key of shipit.yaml are already properly deployed, using `kubectl diff`",
+      "Checks that the config files listed in the k8s.manually-deployed key of shipit.yaml are already properly deployed, using `kubectl diff`",
       parents=[base_parser])
-  config_apply_parser.add_argument(
+  manual_apply_parser.add_argument(
       'service',
       action="store",
       help=
       "path to the service definition. Required and only one service is supported")
-  config_apply_parser.set_defaults(func=config_apply_manually)
+  manual_apply_parser.set_defaults(func=manual_apply)
 
   # Containers
   containers_parser = main_subparsers.add_parser('containers')
@@ -672,7 +746,7 @@ def create_arg_parser():
       parents=[base_parser, services_parser])
   containers_show_manifest_parser.set_defaults(func=containers_show_manifest)
 
-  # Deploy
+  # Releases
   release_parser = main_subparsers.add_parser('release')
   release_subparser = release_parser.add_subparsers()
 
@@ -680,17 +754,19 @@ def create_arg_parser():
       'prepare',
       description="Prepares yaml files for release",
       parents=[base_parser, services_parser])
-  release_prepare_parser.set_defaults(func=release_prepare)
   release_prepare_parser.add_argument(
       '--manifest',
       action="store",
       required=True,
       help="path to the release manifest, built using `containers show-manifest`")
   release_prepare_parser.add_argument(
-      '--args',
+      '--arg',
       metavar="KEY=VALUE",
-      nargs='+',
-      help="list of key/value pairs that define `expected-arg` in the shipit.yamls")
+      action='append',
+      help=
+      "key/value pair that defines an `expected-arg` in the shipit.yamls. Provide once per key/value pair"
+  )
+  release_prepare_parser.set_defaults(func=release_prepare)
 
   release_diff_parser = release_subparser.add_parser(
       'diff',
@@ -698,7 +774,6 @@ def create_arg_parser():
       parents=[base_parser, services_parser])
   release_diff_parser.set_defaults(func=release_diff)
 
-  # TODO move dry-run into a cli option
   release_push_parser = release_subparser.add_parser(
       'push',
       description="Actually do the release",
@@ -721,6 +796,8 @@ def main():
   should_debug = args.debug
   should_dry_run = args.dry_run
   args.func(args)
+  if error:
+    sys.exit(1)
 
 
 main()

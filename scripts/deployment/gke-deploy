@@ -38,6 +38,7 @@ done
 
 set -x
 
+
 #############################
 # get variables now so this fails early if they're not available
 #############################
@@ -54,18 +55,25 @@ CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git
 # Lock before doing a deploy (unlocks on fail or at end of file)
 #############################
 
+LOCKFILE_ID=""
 cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
   if [[ "${LOCKFILE_ID}" != "" ]];
   then
     echo "Removing deploy lock"
-    ./scripts/deployment/gke-clear-deploy-lock
+    ./scripts/deployment/deploy-lock-remove "${LOCKFILE_ID}"
+  else
+    echo "Not removing deploy lock, no deploy lock to remove"
   fi
   exit 1
 }
 
+# Make sure we remove the lockfile if this script exits early for some reason
+trap cleanup_deploy_lock INT QUIT TERM ERR
+
+# We source this instead of running it in a subshell so that the trap works as expected
 LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
-./scripts/deployment/gke-acquire-deploy-lock "${LOCKFILE_ID}"
+./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
 
 
 #############################
@@ -73,7 +81,7 @@ LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
 #############################
 
 # Check that the prod cluster matches our view of the world, once we have the lock
-./scripts/deployment/shipit config diff
+./scripts/deployment/shipit manual diff
 
 # Check that the everything can be deployed
 ./scripts/deployment/shipit release push --dry-run
@@ -87,12 +95,10 @@ LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
 # env vars (replace existing configmap)
 kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run=client | kubectl replace -f -
 
-# TODO: put config on the container
-# TODO: add a configmap for overriding the config
-# TODO: split the config between apiserver and bwdserver
-# We use a configmap for nginx as it makes it easy to deal with attacks
+# Old stuff
 kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -
+# CLEANUP: we can remove the `nginx` configmap once the users are long gone
 
 # deploy the config for the newly-created deployment containers
 ./scripts/deployment/shipit release push
@@ -138,4 +144,4 @@ done
 ####################
 # Unlock post-deploy
 ####################
-./scripts/deploy/gke-clear-deploy-lock
+./scripts/deploy/deploy-lock-clear
