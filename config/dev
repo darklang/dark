@@ -68,7 +68,7 @@ DARK_CONFIG_ENV_DISPLAY_NAME=dev
 DARK_CONFIG_SHOW_STACKTRACE=y
 
 # Rollbar
-# Rollbar is disabled in dev because it hits rate limits
+## Rollbar is disabled in dev because it hits rate limits
 DARK_CONFIG_ROLLBAR_ENABLED=n
 DARK_CONFIG_ROLLBAR_ENVIRONMENT=development
 DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM=c7af77e991aa4edd80cf6a576c1e42f5
