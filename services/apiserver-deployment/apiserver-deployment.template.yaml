@@ -219,9 +219,9 @@ spec:
             - mountPath: /etc/nginx/nginx.conf
               name: base-nginx-conf
               subPath: base-nginx.conf
-            - mountPath: /etc/nginx/conf.d
+            - mountPath: /etc/nginx/conf.d/apiserver-nginx-conf
               name: apiserver-nginx-conf
-            - mountPath: /etc/nginx/conf.d
+            - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
               name: apiserver-nginx-override-conf
           lifecycle:
             preStop:

@@ -219,9 +219,9 @@ spec:
             - mountPath: /etc/nginx/nginx.conf
               name: base-nginx-conf
               subPath: base-nginx.conf
-            - mountPath: /etc/nginx/conf.d
+            - mountPath: /etc/nginx/conf.d/bwdserver-nginx-conf
               name: bwdserver-nginx-conf
-            - mountPath: /etc/nginx/conf.d
+            - mountPath: /etc/nginx/conf.d/bwdserver-nginx-override-conf
               name: bwdserver-nginx-override-conf
           lifecycle:
             preStop:
