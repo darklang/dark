@@ -18,10 +18,10 @@ k8s:
     configmaps:
       - name: apiserver-nginx-base-conf
         from-file:
-          filename: ../../containers/ocaml-nginx/base-nginx.conf
+          filename: nginx-base.conf
       - name: apiserver-nginx-conf
         from-file:
-          filename: ../../containers/ocaml-nginx/nginx.conf
+          filename: nginx.conf
     containers:
       - gcp-fsharp-apiserver
       - legacyserver
