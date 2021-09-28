@@ -627,21 +627,25 @@ def mark(should, f):
         or ("/containers/ocaml-nginx/" in f and ".conf" in f)
         or ("/containers/fsharp-nginx/" in f and ".conf" in f)
         or ("/services/" in f and "nginx" in f and ".conf" in f)):
+    should.shellcheck += [f]
     should.reload_nginx_server = True
     should.test_nginx = True
 
   # Touch this to rerun the server
   elif "/scripts/run-backend-server" in f:
+    should.shellcheck += [f]
     should.reload_server = True
     should.generate_etags = True
 
   elif "/scripts/run-fsharp-server" in f:
+    should.shellcheck += [f]
     should.reload_fsharp_server = True
     should.generate_etags = True
 
   # Rust
   # Touch this to rerun all rust programs
   elif "/scripts/run-rust" in f:
+    should.shellcheck += [f]
     should.reload_stroller = True
     should.reload_scheduler = True
 
@@ -690,7 +694,7 @@ def mark(should, f):
   elif ("/scripts/deployment/requirements.txt" in f):
     should.pip_install = True
 
-  elif ("/scripts" in f or ".sh" in f) and is_script(f):
+  elif ("/scripts/" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
   elif (".yml" in f or ".yaml" in f):
