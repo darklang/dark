@@ -368,7 +368,8 @@ let webserver () =
          (fun wh ->
            wh
            |> fun wh -> wh.UseKestrel()
-           |> fun wh -> wh.UseUrls($"http://*:{LibService.Config.testHttpClientPort}")
+           |> fun wh ->
+                wh.UseUrls($"http://*:{LibService.Config.testHttpClientPort}")
            |> fun wh -> wh.ConfigureServices(configureServices)
            |> fun wh -> wh.Configure(configureApp)
            |> ignore<IWebHostBuilder>)
