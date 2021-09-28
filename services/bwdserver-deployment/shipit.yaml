@@ -18,7 +18,7 @@ k8s:
     configmaps:
       - name: bwdserver-nginx-base-conf
         from-file:
-          filename: nginx-base.conf
+          filename: ../../containers/ocaml-nginx/base-nginx.conf
       - name: bwdserver-nginx-conf
         from-file:
           filename: nginx.conf
