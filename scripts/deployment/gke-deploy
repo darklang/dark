@@ -6,6 +6,7 @@ set -euo pipefail
 # Deploy Dark to production
 
 MANIFEST=""
+MANUAL_DEPLOY="false"
 
 HELP="$(cat <<EOF
 Usage: $0 [OPTIONS]
@@ -24,6 +25,9 @@ do
     --manifest=*)
       MANIFEST="${i/--manifest=/''}"
       ;;
+    --manual)
+      MANUAL_DEPLOY="true"
+      ;;
     --help)
       echo "$HELP"
       exit 0
@@ -36,6 +40,19 @@ do
   esac
 done
 
+if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
+  if [[ -v CI ]]; then
+    echo "Manual deploy detected in CI"
+    exit 1
+  fi
+else
+  if [[ ! -v CI ]]; then
+    echo "Automatic deploy detected outside CI"
+    exit 1
+  fi
+fi
+
+
 set -x
 
 
@@ -47,7 +64,11 @@ LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default 
 #############################
 # Build the deployment template files
 #############################
-CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
+if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
+  CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
+else
+  CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
+fi
 
 ./scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
@@ -55,16 +76,16 @@ CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git
 # Lock before doing a deploy (unlocks on fail or at end of file)
 #############################
 
-LOCKFILE_ID=""
+if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
+  LOCKFILE_ID="${CIRCLE_BUILD_NUM}"
+else
+  LOCKFILE_ID="manual-deploy"
+fi
+
 cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
-  if [[ "${LOCKFILE_ID}" != "" ]];
-  then
-    echo "Removing deploy lock"
-    ./scripts/deployment/deploy-lock-remove "${LOCKFILE_ID}"
-  else
-    echo "Not removing deploy lock, no deploy lock to remove"
-  fi
+  echo "Removing deploy lock"
+  ./scripts/deployment/deploy-lock-remove "${LOCKFILE_ID}"
   exit 1
 }
 
@@ -72,7 +93,6 @@ cleanup_deploy_lock() {
 trap cleanup_deploy_lock INT QUIT TERM ERR
 
 # We source this instead of running it in a subshell so that the trap works as expected
-LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
 ./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
 
 
@@ -108,12 +128,18 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 #########################
 
 # Tell rollbar
+if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
+  COMMENT="Manual deploy to prod"
+else
+  COMMENT="${CIRCLE_BUILD_URL}"
+fi
+
 ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
 curl -s https://api.rollbar.com/api/1/deploy/ \
   -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
   -F "environment=production" \
   -F "revision=$(git rev-parse --short HEAD)" \
-  -F "comment=${CIRCLE_BUILD_URL}" \
+  -F "comment=${COMMENT}" \
   -F "local_username=${LOCAL_USERNAME}" > /dev/null
 echo "Rollbar notified."
 
@@ -132,12 +158,12 @@ postgres"
 msg="${CIRCLE_USERNAME} deployed PR (SHA1: ${CIRCLE_SHA1})"
 
 for dataset in $HONEYCOMB_DATASETS; do
-    honeymarker add \
-        --writekey="${BUILDEVENT_APIKEY}" \
-        --dataset="$dataset" \
-        --msg="${msg}" \
-        --url="${CIRCLE_BUILD_URL}" \
-        --type="deploy"
+  honeymarker add \
+      --writekey="${BUILDEVENT_APIKEY}" \
+      --dataset="$dataset" \
+      --msg="${msg}" \
+      --url="${CIRCLE_BUILD_URL}" \
+      --type="deploy"
 done
 
 
