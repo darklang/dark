@@ -48,8 +48,8 @@ setup() {
 
   sudo rm -Rf /etc/nginx-$name/
   sudo mkdir -p /etc/nginx-$name/conf.d
-  sudo ln -s `pwd`/containers/ocaml-nginx/base-nginx.conf /etc/nginx-$name/nginx.conf
-  sudo ln -s `pwd`/$source/nginx.conf /etc/nginx-$name/conf.d/$name-nginx.conf
+  sudo ln -s /home/dark/app/containers/ocaml-nginx/base-nginx.conf /etc/nginx-$name/nginx.conf
+  sudo ln -s /home/dark/app/$source/nginx.conf /etc/nginx-$name/conf.d/$name-nginx.conf
   echo "Starting nginx ($name)"
   sudo nginx -c /etc/nginx-$name/nginx.conf
   echo "Started nginx ($name)"
