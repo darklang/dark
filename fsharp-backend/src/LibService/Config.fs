@@ -50,19 +50,23 @@ let honeycombApiKey = string "DARK_CONFIG_HONEYCOMB_API_KEY"
 let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET_NAME"
 let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 
-
-// --------------------
-// k8s
-// --------------------
 // Don't use DARK_CONFIG_HEALTH_CHECK_PORT as that's part of the ocaml service
-let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
-
+let apiServerPort = int "DARK_CONFIG_APISERVER_BACKEND_PORT"
+let apiServerNginxPort = int "DARK_CONFIG_APISERVER_NGINX_PORT"
 let apiServerKubernetesPort = int "DARK_CONFIG_APISERVER_KUBERNETES_PORT"
 
-let apiServerPort = int "DARK_CONFIG_APISERVER_PORT"
-let bwdServerPort = int "DARK_CONFIG_BWDSERVER_PORT"
+// Don't use DARK_CONFIG_HEALTH_CHECK_PORT as that's part of the ocaml service
+let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
+let bwdServerNginxPort = int "DARK_CONFIG_BWDSERVER_NGINX_PORT"
+let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
+
 let legacyFuzzingServerPort = int "DARK_CONFIG_LEGACY_FUZZING_SERVER_PORT"
 let legacySerializtionServerPort = int "DARK_CONFIG_LEGACY_SERIALIZATION_SERVER_PORT"
+
+// testing
+let testOcamlHttpPort = int "DARK_CONFIG_OCAML_TEST_PORT"
+let testBwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
+let testBwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 
 // --------------------
 // db

@@ -138,8 +138,8 @@ let t filename =
 
         let port =
           match server with
-          | OCaml -> 8001
-          | FSharp -> 10001
+          | OCaml -> LibService.Config.testOcamlHttpPort
+          | FSharp -> LibService.Config.testBwdServerPort
 
         let mutable connected = false
 
@@ -256,7 +256,7 @@ let tests = testList "BwdServer" [ testList "From files" testsFromFiles ]
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
 let init (token : System.Threading.CancellationToken) : Task =
-  (BwdServer.webserver false 10001 6002).RunAsync(token)
+  (BwdServer.webserver false LibService.Config.testBwdServerPort LibService.Config.testBwdServerKubernetesPort).RunAsync(token)
 
 
 // FSTODO

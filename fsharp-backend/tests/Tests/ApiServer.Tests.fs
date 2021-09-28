@@ -147,12 +147,12 @@ let testUiReturnsTheSame =
     let oc =
       oc
         // a couple of specific ones
-        .Replace("static.darklang.localhost:8000", "static.darklang.localhost:9000")
-        .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
+        .Replace("static.darklang.localhost:8000", $"static.darklang.localhost:{LibService.Config.apiServerNginxPort}")
+        .Replace("builtwithdark.localhost:8000", $"builtwithdark.localhost:{LibService.Config.bwdServerNginxPort}")
         // get the rest
         .Replace(
           "localhost:8000",
-          "localhost:9000"
+          $"localhost:{LibService.Config.apiServerNginxPort}"
         )
 
     Expect.equal fc oc ""

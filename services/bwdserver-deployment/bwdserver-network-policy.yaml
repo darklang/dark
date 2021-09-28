@@ -24,4 +24,4 @@ spec:
   ingress:
     - ports:
         - protocol: TCP
-          port: 9001
+          port: 7000

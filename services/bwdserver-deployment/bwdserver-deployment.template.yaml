@@ -35,7 +35,7 @@ spec:
           ports:
             # Name length limit is 15 chars.
             - name: bwdsvr-ctr-port
-              containerPort: 9000
+              containerPort: 7001
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -44,21 +44,21 @@ spec:
           startupProbe: # has it started? Allows other probes
             httpGet:
               path: /k8s/startupProbe
-              port: 6000
+              port: 7002
             failureThreshold: 24 # kill container after 2 minutes (24x5s checks)
             timeoutSeconds: 10
             periodSeconds: 5
           readinessProbe: # can it serve http requests?
             httpGet:
               path: /k8s/readinessProbe
-              port: 6000
+              port: 7002
             initialDelaySeconds: 0
             periodSeconds: 5
             successThreshold: 3
           livenessProbe: # is it still alive?
             httpGet:
               path: /k8s/livenessProbe
-              port: 6000
+              port: 7002
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 10
@@ -127,24 +127,24 @@ spec:
               memory: "1000Mi"
               cpu: "125m"
           ports:
-            - name: bwd-legacy-port
+            - name: legacy-port
               containerPort: 5000
           lifecycle:
             preStop:
               httpGet:
                 # ???? https://github.com/kubernetes/kubernetes/issues/56770
                 path: /k8s/pkill
-                port: 5000
+                port: legacy-port
           readinessProbe:
             httpGet:
               path: /k8s/readinessProbe
-              port: 5000
+              port: legacy-port
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /k8s/livenessProbe
-              port: 5000
+              port: legacy-port
             # Giving 2 minutes grace here, there's an outstanding k8s issue
             # preventing you from specifying "start checking liveness after an
             # ok from readiness", which is what you'd expect.
@@ -214,7 +214,7 @@ spec:
               cpu: "100m"
           ports:
             - name: http-proxy-port
-              containerPort: 9000
+              containerPort: 7000
           volumeMounts:
             - mountPath: /etc/nginx/nginx.conf
               name: bwdserver-nginx-base-conf

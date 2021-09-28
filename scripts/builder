@@ -125,8 +125,8 @@ echo "Run the build"
 # for documentation of --init.
 # -p 5433:5432 to expose the postgres DB to outside the container
 # -p 2345:2345 to expose the cloud_sql_proxy to outside the container
-# -p 9000:9000 to expose the F# api server
-# -p 9001:9001 to expose the F# bwd server
+# -p 6000:6000 to expose the F# api server
+# -p 7001:7001 to expose the F# bwd server
 # -p 8000:8000 to expose the OCaml backend server
 # -cap-add & -security-opt to attach a gdb/strace to .net code
 docker run \
@@ -145,8 +145,8 @@ docker run \
   -v pgdata:/var/lib/postgresql \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -p 8000:8000 \
-  -p 9000:9000 \
-  -p 9001:9001 \
+  -p 6000:6000 \
+  -p 7000:7000 \
   -p 5433:5432 \
   -p 2345:2345 \
   --security-opt seccomp=scripts/devcontainer/chrome-seccomp.json \
