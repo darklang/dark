@@ -1,0 +1,31 @@
+k8s:
+  manually-deployed:
+    configs:
+      - bwdserver-network-policy.yaml
+
+    # Manually deployed so it can be used to override
+    configmaps:
+      - name: bwdserver-nginx-override-conf
+        from-file:
+          filename: nginx-override.conf
+
+    # If you change the nginx override, it needs a rolling restart
+    custom-post-apply:
+      - kubectl rollout restart deployment bwdserver-deployment
+
+  release:
+    config-template: bwdserver-deployment.template.yaml
+    configmaps:
+      - name: bwdserver-nginx-base-conf
+        from-file:
+          filename: ../../containers/ocaml-nginx/base-nginx.conf
+      - name: bwdserver-nginx-conf
+        from-file:
+          filename: ../../containers/ocaml-nginx/nginx.conf
+    containers:
+      - gcp-fsharp-bwdserver
+      - legacyserver
+    builtins:
+      - CLOUDSQL_INSTANCE_NAME
+    expected-args:
+      - CHANGE_CAUSE

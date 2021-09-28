@@ -1,13 +1,14 @@
-# Network policy for the ocaml BWD deployment. This prevents access directly to local
-# IPs from Dark code, which would be a security problem.
+# Network policy for BwdServer. This prevents access directly to local IPs from Dark
+# code, which would be a security problem.
+
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: bwd-network-policy
+  name: bwdserver-network-policy
 spec:
   podSelector:
     matchLabels:
-      app: bwd-app
+      app: bwdserver-app
   policyTypes:
     - Egress
     - Ingress
@@ -23,4 +24,4 @@ spec:
   ingress:
     - ports:
         - protocol: TCP
-          port: 8000
+          port: 9001

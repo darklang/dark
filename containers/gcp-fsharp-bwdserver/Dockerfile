@@ -6,6 +6,6 @@ WORKDIR /home/dark
 
 COPY --chown=dark . ./
 
-RUN ./scripts/linting/_check-linked-libs app/ApiServer
+RUN ./scripts/linting/_check-linked-libs app/BwdServer
 
-CMD "./gcp-run-fsharp-apiserver"
+CMD "./gcp-run-fsharp-bwdserver"
