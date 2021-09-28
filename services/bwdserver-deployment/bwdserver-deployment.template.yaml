@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: apiserver-deployment
+  name: bwdserver-deployment
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: apiserver
+      app: bwdserver
   replicas: 1 # FSTODO
   strategy:
     type: RollingUpdate
@@ -17,11 +17,11 @@ spec:
   template:
     metadata:
       labels:
-        app: apiserver
+        app: bwdserver
     spec:
       containers:
-        - name: apiserver-ctr
-          image: "gcr.io/balmy-ground-195100/gcp-fsharp-apiserver:{IMAGEID:gcp-fsharp-apiserver}"
+        - name: bwdserver-ctr
+          image: "gcr.io/balmy-ground-195100/gcp-fsharp-bwdserver:{IMAGEID:gcp-fsharp-bwdserver}"
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -34,7 +34,7 @@ spec:
               cpu: "125m"
           ports:
             # Name length limit is 15 chars.
-            - name: apisvr-ctr-port
+            - name: bwdsvr-ctr-port
               containerPort: 9000
           # lifecycle:
           #   preStop:
@@ -220,9 +220,9 @@ spec:
               name: base-nginx-conf
               subPath: base-nginx.conf
             - mountPath: /etc/nginx/conf.d
-              name: apiserver-nginx-conf
+              name: bwdserver-nginx-conf
             - mountPath: /etc/nginx/conf.d
-              name: apiserver-nginx-override-conf
+              name: bwdserver-nginx-override-conf
           lifecycle:
             preStop:
               exec:
@@ -236,9 +236,9 @@ spec:
         - name: base-nginx-conf
           configMap:
             name: base-nginx
-        - name: apiserver-nginx-conf
+        - name: bwdserver-nginx-conf
           configMap:
-            name: apiserver-nginx
-        - name: apiserver-override-nginx-conf
+            name: bwdserver-nginx
+        - name: bwdserver-override-nginx-conf
           configMap:
-            name: apiserver-override-nginx
+            name: bwdserver-override-nginx
