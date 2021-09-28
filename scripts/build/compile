@@ -159,7 +159,9 @@ def circleci_validate():
 
 def test_nginx():
   start = time.time()
-  result = run_backend(start, "sudo nginx -t")
+  result = run_backend(start, "sudo nginx -t -c /etc/nginx-ocaml/nginx.conf")
+  result &= run_backend(start, "sudo nginx -t -c /etc/nginx-apiserver/nginx.conf")
+  result &= run_backend(start, "sudo nginx -t -c /etc/nginx-bwdserver/nginx.conf")
   return result
 
 
@@ -411,6 +413,7 @@ class Should:
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
+    self.reload_nginx_server = False
     self.reload_fsharp_server = False
     self.reload_stroller = False
     self.reload_scheduler = False
@@ -499,6 +502,10 @@ def execute(should):
     should.reload_browser |= success
     # This should probably cause a restart, but it breaks CI atm
     # should.reload_server |= success
+
+  if should.reload_nginx_server:
+    if not reload_nginx_server(): success = False
+    should.reload_browser |= success
 
   if should.test_nginx:
     if not test_nginx(): success = False
