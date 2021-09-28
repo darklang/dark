@@ -144,4 +144,4 @@ done
 ####################
 # Unlock post-deploy
 ####################
-./scripts/deploy/deploy-lock-clear
+./scripts/deployment/deploy-lock-clear
