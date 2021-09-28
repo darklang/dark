@@ -414,15 +414,28 @@ def release_prepare(args):
       # Fill in the blanks
       content = readfile(filename)
       for c in release["containers"]:
-        content = content.replace(f"{{IMAGEID:{c}}}", ids[c])
+        v = ids[c]
+        if v == None:
+          bad(f"No value for `IMAGEID:{c}")
+        if v == "":
+          bad(f"Empty string for `IMAGEID:{c}")
+        content = content.replace(f"{{IMAGEID:{c}}}", v)
       for a in release["expected-args"]:
         value = expected_args.get(a)
         if value == None:
           bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
               )
+        if value == "":
+          bad(f"Empty string provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
+              )
         content = content.replace(f"{{ARG:{a}}}", expected_args[a])
       for v in release.get("builtins", []):
-        content = content.replace(f"{{BUILTIN:{v}}}", builtins[v])
+        b = builtins[v]
+        if b == None:
+          bad(f"No value for `BUILTIN:{v}. Probably an internal error")
+        if b == "":
+          bad(f"Empty string for `BUILTIN:{v}. Probably an internal error")
+        content = content.replace(f"{{BUILTIN:{v}}}", b)
 
       # Write the non-template version
       target_filename = filename.replace(".template", "")
