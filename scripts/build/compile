@@ -358,6 +358,12 @@ def reload_server():
   return run_backend(start, runserver)
 
 
+def reload_nginx_server():
+  start = time.time()
+  runserver = "scripts/run-nginx-server"
+  return run_backend(start, runserver)
+
+
 def reload_fsharp_server():
   start = time.time()
   if optimize:
@@ -610,9 +616,11 @@ def mark(should, f):
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):
     should.fsharp_backend_test = True
 
-  #FSTODO
-  elif "/containers/ocaml-nginx/" in f and ".conf" in f:
-    should.reload_server = True
+  elif (("run-nginx-server" in f)
+        or ("/containers/ocaml-nginx/" in f and ".conf" in f)
+        or ("/containers/fsharp-nginx/" in f and ".conf" in f)
+        or ("/services/" in f and "nginx" in f and ".conf" in f)):
+    should.reload_nginx_server = True
     should.test_nginx = True
 
   # Touch this to rerun the server
