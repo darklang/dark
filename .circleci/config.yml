@@ -170,9 +170,8 @@ commands:
             cp backend/static/etags.json rundir/
       - store_artifacts: { path: backend/static/etags.json }
       - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit containers build
-      - run: scripts/deployment/shipit containers show-manifest | tee gcr-image-ids.json
-      - store_artifacts: { path: gcr-image-ids.json }
+      - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
+      - run: cat gcr-image-ids.json
       - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
       - run: scripts/deployment/shipit release push --dry-run
 
