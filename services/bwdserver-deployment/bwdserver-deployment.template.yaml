@@ -217,7 +217,7 @@ spec:
               containerPort: 9000
           volumeMounts:
             - mountPath: /etc/nginx/nginx.conf
-              name: base-nginx-conf
+              name: bwdserver-nginx-base-conf
               subPath: base-nginx.conf
             - mountPath: /etc/nginx/conf.d/bwdserver-nginx-conf
               name: bwdserver-nginx-conf
@@ -233,12 +233,12 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
-        - name: base-nginx-conf
+        - name: bwdserver-nginx-base-conf
           configMap:
-            name: base-nginx
+            name: bwdserver-nginx-base-nginx
         - name: bwdserver-nginx-conf
           configMap:
-            name: bwdserver-nginx
-        - name: bwdserver-override-nginx-conf
+            name: bwdserver-nginx-conf
+        - name: bwdserver-nginx-override-conf
           configMap:
-            name: bwdserver-override-nginx
+            name: bwdserver-nginx-override-conf
