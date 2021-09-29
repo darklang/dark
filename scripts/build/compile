@@ -623,11 +623,14 @@ def mark(should, f):
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):
     should.fsharp_backend_test = True
 
-  elif (("run-nginx-server" in f)
-        or ("/containers/ocaml-nginx/" in f and ".conf" in f)
+  elif "run-nginx-server" in f:
+    should.shellcheck += [f]
+    should.reload_nginx_server = True
+    should.test_nginx = True
+
+  elif (("/containers/ocaml-nginx/" in f and ".conf" in f)
         or ("/containers/fsharp-nginx/" in f and ".conf" in f)
         or ("/services/" in f and "nginx" in f and ".conf" in f)):
-    should.shellcheck += [f]
     should.reload_nginx_server = True
     should.test_nginx = True
 
