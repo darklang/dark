@@ -136,7 +136,12 @@ let redirectOr
     if String.startsWith "/api/" ctx.Request.Path.Value then
       return! f ctx
     else
-      let redirect = ctx.GetRequestUrl() |> System.Web.HttpUtility.UrlEncode
+      let redirect =
+        if Config.useLoginDarklangComForLogin then
+          ctx.GetRequestUrl()
+        else
+          System.Web.HttpUtility.UrlEncode(ctx.Request.Path.ToString())
+
 
       let destination =
         if Config.useLoginDarklangComForLogin then
@@ -144,7 +149,7 @@ let redirectOr
         else
           "/login"
 
-      let url = $"{destination}?redirect={redirect}"
+      let url = $"{destination}?redirect={System.Web.HttpUtility.UrlEncode redirect}"
       ctx.Response.Redirect(url, false)
       return Some ctx
   }
