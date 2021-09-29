@@ -7,7 +7,7 @@
 sudo killall nginx
 sudo killall -9 nginx
 
-until [[ "$(sudo netstat -ltnp | grep -w ':6000')" == "" ]]; do
+until [[ "$(sudo netstat -ltnp | grep -w ':9000')" == "" ]]; do
   echo "Waiting for nginx (apiserver) to die..."
   sleep 0.1
 done

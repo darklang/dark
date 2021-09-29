@@ -37,7 +37,7 @@
   /////////////////////////////////////////////////
 
   // Ports are loaded in the build process
-  "forwardPorts": [8000, 9000, 9001, 2345, 5433],
+  "forwardPorts": [7000, 8000, 9000, 2345, 5433],
 
   "containerEnv": {
     "IN_DEV_CONTAINER": "true"
