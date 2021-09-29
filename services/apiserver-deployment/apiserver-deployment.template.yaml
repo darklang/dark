@@ -217,7 +217,7 @@ spec:
               containerPort: 9000
           volumeMounts:
             - mountPath: /etc/nginx/nginx.conf
-              name: base-nginx-conf
+              name: apiserver-nginx-base-conf
               subPath: base-nginx.conf
             - mountPath: /etc/nginx/conf.d/apiserver-nginx-conf
               name: apiserver-nginx-conf
@@ -233,12 +233,12 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
-        - name: base-nginx-conf
+        - name: apiserver-nginx-base-conf
           configMap:
-            name: base-nginx
+            name: apiserver-nginx-base-conf
         - name: apiserver-nginx-conf
           configMap:
-            name: apiserver-nginx
-        - name: apiserver-override-nginx-conf
+            name: apiserver-nginx-conf
+        - name: apiserver-nginx-override-conf
           configMap:
-            name: apiserver-override-nginx
+            name: apiserver-nginx-override-conf
