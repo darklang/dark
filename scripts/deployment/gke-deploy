@@ -65,9 +65,9 @@ LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default 
 # Build the deployment template files
 #############################
 if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-else
   CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
+else
+  CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 fi
 
 ./scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
@@ -77,9 +77,9 @@ fi
 #############################
 
 if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  LOCKFILE_ID="${CIRCLE_BUILD_NUM}"
-else
   LOCKFILE_ID="manual-deploy"
+else
+  LOCKFILE_ID="${CIRCLE_BUILD_NUM}"
 fi
 
 cleanup_deploy_lock() {

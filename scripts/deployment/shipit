@@ -270,6 +270,38 @@ def manual_apply(args):
 
 
 ##################################
+# Manifests
+##################################
+def manifest_validate(args, shas):
+  containers = get_service_containers(args)
+  keys = set(shas.keys())
+  for c in containers:
+    if c not in keys:
+      bad(f"Expected a sha for all containers, none found for {c}")
+  for (c, sha) in shas.items():
+    if sha is None:
+      bad(f"Expected a sha for all containers, none found for {c}")
+    if sha == "":
+      bad(f"Empty sha found for {c}")
+    if re.match("[a-f0-9]{9}", sha) is None:
+      bad(f"Sha does not match expected format: {c}")
+
+
+def manifest_save(args, shas):
+  manifest_validate(args, shas)
+  with open(args.save_manifest, "w") as f:
+    json.dump(shas, f, indent=2, sort_keys=True)
+  print(f"Saved manifest in {args.save_manifest}")
+
+
+def manifest_load(args):
+  with open(args.manifest, "r") as f:
+    shas = json.load(f)
+  manifest_validate(args, shas)
+  return shas
+
+
+##################################
 # Container commands
 ##################################
 
@@ -295,22 +327,18 @@ def containers_list(args):
         break
 
 
-def containers_show_manifest(args):
-  do_validation(args)
-  output = {}
-  for c in get_service_containers(args):
-    url = f"gcr.io/{PROJECT}/{c}"
-    id = run_output(["docker", "images", url, "-q"]).split("\n")[0]
-    output[c] = id
-  print(json.dumps(output, indent=2))
-
-
 def containers_pull(args):
   print("Pulling, if error you might need `gcloud auth configure-docker`")
+  shas = {}
   do_validation(args)
   for c in get_service_containers(args):
+    url = f"gcr.io/{PROJECT}/{c}"
     image = f"gcr.io/{PROJECT}/{c}:latest"
     run("docker pull", ["docker", "pull", image])
+    # Now get the ID we just pulled
+    id = run_output(["docker", "images", url, "-q"]).split("\n")[0]
+    shas[c] = id
+  manifest_save(args, shas)
 
 
 def containers_push(args):
@@ -361,6 +389,7 @@ def containers_build(args):
   # file in the dir, run it first and then build the container in the directory it
   # echos. If there is no dockerfile, then do nothing (sometimes we use vendor
   # containers and so we just need to store config files).
+  shas = {}
   for c in get_service_containers(args):
     dir = os.path.join("containers", c)
     if os.path.isdir(dir) and os.path.exists(os.path.join(dir, "Dockerfile")):
@@ -368,9 +397,13 @@ def containers_build(args):
       prep = os.path.join(dir, "prep.sh")
       if os.path.exists(prep):
         dir = run_output(prep)
-      run("docker build", ["docker", "build", "--tag", f"{c}:latest", dir])
+      sha = run_output(["docker", "build", "--quiet", "--tag", f"{c}:latest", dir])
+      sha = sha[7:19]
+      print(sha)
+      shas[c] = sha
     else:
       print(f"\nNo dockerfile, skipping {c}")
+  manifest_save(args, shas)
 
 
 ##################################
@@ -404,7 +437,7 @@ def collect_release_templated_configs(args):
 def release_prepare(args):
   builtins = {"CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME}
   expected_args = get_expected_args(args)
-  ids = json.load(open(args.manifest))
+  ids = manifest_load(args)
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
@@ -414,15 +447,28 @@ def release_prepare(args):
       # Fill in the blanks
       content = readfile(filename)
       for c in release["containers"]:
-        content = content.replace(f"{{IMAGEID:{c}}}", ids[c])
+        v = ids[c]
+        if v == None:
+          bad(f"No value for `IMAGEID:{c}")
+        if v == "":
+          bad(f"Empty string for `IMAGEID:{c}")
+        content = content.replace(f"{{IMAGEID:{c}}}", v)
       for a in release["expected-args"]:
         value = expected_args.get(a)
         if value == None:
           bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
               )
+        if value == "":
+          bad(f"Empty string provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
+              )
         content = content.replace(f"{{ARG:{a}}}", expected_args[a])
       for v in release.get("builtins", []):
-        content = content.replace(f"{{BUILTIN:{v}}}", builtins[v])
+        b = builtins[v]
+        if b == None:
+          bad(f"No value for `BUILTIN:{v}. Probably an internal error")
+        if b == "":
+          bad(f"Empty string for `BUILTIN:{v}. Probably an internal error")
+        content = content.replace(f"{{BUILTIN:{v}}}", b)
 
       # Write the non-template version
       target_filename = filename.replace(".template", "")
@@ -678,6 +724,12 @@ def create_arg_parser():
       "paths to the service definitions (directories within services/). Leave empty to run on all services"
   )
 
+  output_manifest_parser = argparse.ArgumentParser(add_help=False)
+  output_manifest_parser.add_argument('--save-manifest',
+                                      action="store",
+                                      required=True,
+                                      help="path to store the release manifest")
+
   main_parser = argparse.ArgumentParser(
       description='Manage deployment of kubernetes services')
   main_subparsers = main_parser.add_subparsers()
@@ -718,14 +770,14 @@ def create_arg_parser():
 
   containers_build_parser = containers_subparser.add_parser(
       'build',
-      description="Builds the container images needed by services",
-      parents=[base_parser, services_parser])
+      description="Builds the container images needed by services; echoes a manifest",
+      parents=[base_parser, services_parser, output_manifest_parser])
   containers_build_parser.set_defaults(func=containers_build)
 
   containers_pull_parser = containers_subparser.add_parser(
       'pull',
-      description="Pull the remote docker images used by services",
-      parents=[base_parser, services_parser])
+      description="Pull the remote docker images used by services, echoes a manifest",
+      parents=[base_parser, services_parser, output_manifest_parser])
   containers_pull_parser.set_defaults(func=containers_pull)
 
   containers_push_parser = containers_subparser.add_parser(
@@ -740,12 +792,6 @@ def create_arg_parser():
       parents=[base_parser, services_parser])
   containers_list_parser.set_defaults(func=containers_list)
 
-  containers_show_manifest_parser = containers_subparser.add_parser(
-      'show-manifest',
-      description="Print a json output of the docker containers by services",
-      parents=[base_parser, services_parser])
-  containers_show_manifest_parser.set_defaults(func=containers_show_manifest)
-
   # Releases
   release_parser = main_subparsers.add_parser('release')
   release_subparser = release_parser.add_subparsers()
@@ -758,7 +804,9 @@ def create_arg_parser():
       '--manifest',
       action="store",
       required=True,
-      help="path to the release manifest, built using `containers show-manifest`")
+      help=
+      "path to the release manifest, generated using `containers pull` or `containers build`"
+  )
   release_prepare_parser.add_argument(
       '--arg',
       metavar="KEY=VALUE",
