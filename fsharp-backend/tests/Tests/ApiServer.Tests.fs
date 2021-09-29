@@ -225,8 +225,8 @@ let postApiTestCase
   task {
     let port =
       match server with
-      | OCaml -> 8000
-      | FSharp -> 9000
+      | OCaml -> LibService.Config.testOcamlHttpPort
+      | FSharp -> LibService.Config.apiServerNginxPort
 
     let! (response : HttpResponseMessage) =
       postAsync testUser $"http://darklang.localhost:{port}/api/test/{api}" body
