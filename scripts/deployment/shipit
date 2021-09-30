@@ -74,7 +74,8 @@ def run(name, args, shell=False, input=None, stop_on_error=True):
       color = "bold green"
     else:
       color = "bold magenta"
-    rich.print(f"[{color}]Running `{name}` command: (dry-run)[/{color}]\n  {args}")
+    rich.print(f"[{color}]Running `{name}` command: (dry-run)[/{color}]")
+    print(args)
     subprocess.run(args, shell=shell, input=input, check=True)
     print()
   except subprocess.CalledProcessError as e:
