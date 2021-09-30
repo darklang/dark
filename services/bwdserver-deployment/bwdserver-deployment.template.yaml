@@ -241,4 +241,3 @@ spec:
         - name: bwdserver-nginx-override-conf
           configMap:
             name: bwdserver-override-nginx
-
