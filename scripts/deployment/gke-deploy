@@ -62,6 +62,11 @@ set -x
 LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
 
 #############################
+# Ensure we got a good one
+#############################
+./scripts/deployment/shipit validate
+
+#############################
 # Build the deployment template files
 #############################
 if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
