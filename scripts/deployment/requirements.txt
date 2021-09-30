@@ -1,2 +1,2 @@
-pyyaml
-jsonschema
+pyyaml==5.4.1
+jsonschema==3.2.0
