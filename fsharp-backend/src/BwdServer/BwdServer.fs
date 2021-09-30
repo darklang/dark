@@ -232,26 +232,7 @@ let runHttp
     let program = Canvas.toProgram c
     let! state, touchedTLIDs = RealExe.createState traceID tlid program
     let symtable = Interpreter.withGlobals state inputVars
-
-    let headers = headers |> Map.map RT.DStr |> RT.DObj
-
-    let! result =
-      Interpreter.callFn
-        state
-        (RT.Expr.toID expr)
-        (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
-        [ RT.DStr url
-          RT.DBytes body
-          headers
-          RT.DFnVal(
-            RT.Lambda
-              { parameters = [ gid (), "request" ]
-                symtable = symtable
-                body = expr }
-          ) ]
-        RT.NotInPipe
-        RT.NoRail
-      |> Ply.TplPrimitives.runPlyAsTask
+    let! result = Interpreter.eval state symtable expr
 
     return (Exe.extractHttpErrorRail result, touchedTLIDs)
   }
