@@ -106,7 +106,7 @@ def run_output(args, shell=False, input=None, stop_on_error=True):
 REGION = "us-west1"
 PROJECT = "balmy-ground-195100"
 CLUSTER = readfile("current-cluster")
-CLOUDSQL_INSTANCE_NAME = "dark-west"
+CLOUDSQL_INSTANCE_NAME = "balmy-ground-195100:us-west1:dark-west"
 DEPLOY_LOCK_BUCKET = "gs://darklang-deploy-lock"
 
 ##################################

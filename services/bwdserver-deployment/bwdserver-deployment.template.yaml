@@ -194,7 +194,7 @@ spec:
             limits:
               memory: "500Mi"
               cpu: "125m"
-          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances=balmy-ground-195100:us-west1:{BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
+          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
