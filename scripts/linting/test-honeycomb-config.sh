@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-YAML=services/honeycomb-agent/honeycomb-agent-config.yaml
+YAML=services/honeycomb-agent/config.yaml
 
 IMAGE=honeycombio/honeycomb-kubernetes-agent:head
 
