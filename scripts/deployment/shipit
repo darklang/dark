@@ -452,6 +452,7 @@ def collect_release_templated_configs(args):
 
 
 def release_prepare(args):
+  do_validation(args)
   builtins = {"CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME}
   expected_args = get_expected_args(args)
   ids = manifest_load(args)
@@ -494,6 +495,36 @@ def release_prepare(args):
       target_filename = filename.replace(".template", "")
       print(f"Writing release file: {target_filename}")
       writefile(target_filename, content)
+
+
+# Read the current container shas from production
+def release_current_manifest(args):
+  do_validation(args)
+  shas = {}
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    containers = set(config['k8s'].get("release", {}).get("containers", []))
+    # Only check yamls with a containers section
+    if len(containers) > 0:
+      service_name = os.path.basename(dir)
+      k8s_config = run_output(f"kubectl get deployments/{service_name} -o json",
+                              shell=True)
+      k8s_config = json.loads(k8s_config)
+      for c in k8s_config['spec']['template']['spec']['containers']:
+        [name, version] = c['image'].split(":")
+        name = name.split("/")[-1]
+        # only use containers listed in config, as those are the only ones shipit manages
+        if name in containers:
+          if shas.get(name) == None:
+            shas[name] = version
+          else:
+            # check we use the same version across all services
+            if shas[name] != version:
+              bad(f"{name} has multiple versions: {shas[name]} and {version}")
+      for c in containers:
+        if shas.get(c) == None:
+          bad(f"{c} not found in manifest")
+  manifest_save(args, shas)
 
 
 def release_diff(args):
@@ -832,6 +863,13 @@ def create_arg_parser():
       "key/value pair that defines an `expected-arg` in the shipit.yamls. Provide once per key/value pair"
   )
   release_prepare_parser.set_defaults(func=release_prepare)
+
+  release_current_manifest_parser = release_subparser.add_parser(
+      'current-manifest',
+      description=
+      "Reads the current manifest from production deployments; echoes a manifest",
+      parents=[base_parser, services_parser, output_manifest_parser])
+  release_current_manifest_parser.set_defaults(func=release_current_manifest)
 
   release_diff_parser = release_subparser.add_parser(
       'diff',

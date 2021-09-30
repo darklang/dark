@@ -58,11 +58,11 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
   `containers` (automatically derived), `builtins`, and `expected-args` (which are
   filled in from the command line using `--arg`).
 
-- `k8s.deployment.containers`:
+- `k8s.release.containers`:
   List of containers used in this deployment. The container name must match a
   container in `../containers/` and the ID will be provided as a template var.
 
-- `k8s.deployment.builtins`:
+- `k8s.release.builtins`:
   List of builtins to replace in the template. Currently the only builtin is
   `CLOUDSQL_INSTANCE_NAME`.
 
@@ -71,15 +71,16 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 
 # Commands (`*` is not implemented yet):
 
-- config apply-manually [single-service]
+- config apply-manually [--dry-run] [single-service]
 - config diff [services]
 - containers build [services] --save-manifest=MANIFEST-FILE.json
 - containers pull [services] --save-manifest=MANIFEST-FILE.json
 - containers push [services]
 - containers list [services]
-- release prepare [services] --arg CHANGE_CAUSE='reason' --manifest=MANIFEST-FILE.json
+- release current-manifest --save-manifest=MANIFEST-FILE.json
 - release diff [services]
-- release push [services]
+<!-- TODO: combine prepare and push -->
+- release push [--dry-run] [services]
 
 # Deploy lock
 
