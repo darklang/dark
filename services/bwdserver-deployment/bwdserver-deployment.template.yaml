@@ -240,4 +240,4 @@ spec:
             name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-conf}"
         - name: bwdserver-nginx-override-conf
           configMap:
-            name: bwdserver-override-nginx
+            name: bwdserver-nginx-override-conf
