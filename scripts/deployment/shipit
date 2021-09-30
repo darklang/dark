@@ -881,12 +881,6 @@ def create_arg_parser():
   release_parser = main_subparsers.add_parser('release')
   release_subparser = release_parser.add_subparsers()
 
-  release_prepare_parser = release_subparser.add_parser(
-      'prepare',
-      description="Prepares yaml files for release",
-      parents=[base_parser, services_parser])
-  release_prepare_parser.set_defaults(func=release_prepare)
-
   release_current_manifest_parser = release_subparser.add_parser(
       'current-manifest',
       description=
