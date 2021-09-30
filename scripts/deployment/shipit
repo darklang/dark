@@ -34,6 +34,7 @@ def bad(str):
 
 should_debug = False
 should_dry_run = False
+dry_run_target = None
 
 # When running diffs, keep going through the errors but make sure to report something
 error = None
@@ -67,14 +68,14 @@ def clean_filename(filename):
   return rel
 
 
-# Run an important command, keeping stdout/stderr going to the user. Supports --dry-run
+# Run an important command, keeping stdout/stderr going to the user
 def run(name, args, shell=False, input=None, stop_on_error=True):
   try:
     if should_dry_run:
       color = "bold green"
     else:
       color = "bold magenta"
-    rich.print(f"[{color}]Running `{name}` command: (dry-run)[/{color}]")
+    rich.print(f"[{color}]Running `{name}` command[/{color}]")
     print(args)
     subprocess.run(args, shell=shell, input=input, check=True)
     print()
@@ -86,7 +87,7 @@ def run(name, args, shell=False, input=None, stop_on_error=True):
       handle_error(msg)
 
 
-# Runs a command that's part of running the script, captures stdout, ignore --dry-run.
+# Runs a command that's part of running the script, captures stdout
 def run_output(args, shell=False, input=None, stop_on_error=True):
   try:
     debug(f"Running command:\n  {args}")
@@ -243,8 +244,8 @@ def manual_apply(args):
     debug("No configs to apply, skipping")
   else:
     if should_dry_run:
-      run("kubectl apply", ["kubectl", "apply", "--dry-run=client"] + file_args)
-      run("kubectl apply", ["kubectl", "apply", "--dry-run=server"] + file_args)
+      run("kubectl apply",
+          ["kubectl", "apply", f"--dry-run={dry_run_target}"] + file_args)
     else:
       run("kubectl apply", ["kubectl", "apply"] + file_args)
 
@@ -256,7 +257,7 @@ def manual_apply(args):
       filespec = read_config_map_source(dir, cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
-            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run=server",
+            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
             shell=True)
       else:
         run("kubectl apply configmap",
@@ -571,7 +572,7 @@ def release_push(args):
   for hashed_name, filespec in all_configmaps.items():
     if should_dry_run:
       run("kubectl apply configmap",
-          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run=server",
+          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
           shell=True)
     else:
       run("kubectl apply configmap",
@@ -589,10 +590,8 @@ def release_push(args):
       file_args.append("-f")
       file_args.append(f)
     if should_dry_run:
-      run("kubectl apply --dry-run=client",
-          ["kubectl", "apply", "--dry-run=client"] + file_args)
-      run("kubectl apply --dry-run=server",
-          ["kubectl", "apply", "--dry-run=server"] + file_args)
+      run("kubectl apply --dry-run",
+          ["kubectl", "apply", f"--dry-run={dry_run_target}"] + file_args)
     else:
       run("kubectl apply", ["kubectl", "apply"] + file_args)
 
@@ -778,7 +777,8 @@ def create_arg_parser():
                            help="Print debug info about what's running")
   base_parser.add_argument(
       '--dry-run',
-      action='store_true',
+      choices=['server', 'client'],
+      action='store',
       help="paths to the service definitions. Leave empty to run on all services")
   base_parser.set_defaults(debug=False)
   base_parser.set_defaults(dry_run=False)
@@ -912,10 +912,12 @@ def create_arg_parser():
 def main():
   global should_debug
   global should_dry_run
+  global dry_run_target
   parser = create_arg_parser()
   args = parser.parse_args()
   should_debug = args.debug
-  should_dry_run = args.dry_run
+  should_dry_run = args.dry_run in ['client', 'server']
+  dry_run_target = args.dry_run
   args.func(args)
   if error:
     sys.exit(1)
