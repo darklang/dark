@@ -57,7 +57,7 @@ spec:
             failureThreshold: 3 # kill container after 3 successive time outs
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -129,7 +129,7 @@ spec:
               cpu: "150m"
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:

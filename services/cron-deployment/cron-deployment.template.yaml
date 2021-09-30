@@ -32,7 +32,7 @@ spec:
               cpu: "400m"
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"

@@ -5,9 +5,8 @@ k8s:
 
     # Manually deployed so it can be used to override
     configmaps:
-      - name: apiserver-nginx-override-conf
-        from-file:
-          filename: nginx-override.conf
+      apiserver-nginx-override-conf:
+        text-file: nginx-override.conf
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
@@ -15,13 +14,13 @@ k8s:
 
   release:
     config-template: apiserver-deployment.template.yaml
-    configmaps:
-      - name: apiserver-nginx-base-conf
-        from-file:
-          filename: ../../containers/ocaml-nginx/base-nginx.conf
-      - name: apiserver-nginx-conf
-        from-file:
-          filename: nginx.conf
+    versioned-configmaps:
+      apiserver-nginx-base-conf:
+        text-file: ../../containers/ocaml-nginx/base-nginx.conf
+      apiserver-nginx-conf:
+        text-file: nginx.conf
+      app-config:
+        env-file: ../../config/gke-builtwithdark
     containers:
       - gcp-fsharp-apiserver
       - legacyserver

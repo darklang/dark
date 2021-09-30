@@ -8,6 +8,9 @@ k8s:
       - static.darklang.com-tls.yaml
   release:
     config-template: editor-deployment.template.yaml
+    versioned-configmaps:
+      app-config:
+        env-file: ../../config/gke-builtwithdark
     containers:
       - gcp-server
       - stroller

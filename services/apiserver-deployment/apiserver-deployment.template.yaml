@@ -65,7 +65,7 @@ spec:
             failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -155,7 +155,7 @@ spec:
             failureThreshold: 3 # kill container after 3 successive time outs
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -235,10 +235,10 @@ spec:
             secretName: cloudsql-instance-credentials
         - name: apiserver-nginx-base-conf
           configMap:
-            name: apiserver-nginx-base-conf
+            name: "{VERSIONED-CONFIGMAP:apiserver-nginx-base-conf}"
         - name: apiserver-nginx-conf
           configMap:
-            name: apiserver-nginx-conf
+            name: "{VERSIONED-CONFIGMAP:apiserver-nginx-conf}"
         - name: apiserver-nginx-override-conf
           configMap:
             name: apiserver-nginx-override-conf

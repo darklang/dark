@@ -34,30 +34,24 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
   The key for the file, optional, will be derived by k8s otherwise (uses `basename` at
   time of writing.)
 
-- `k8s.manually-deployed.configmaps.[].from-file.filename`:
-  The file to be put in the keymap
+- `k8s.manually-deployed.configmaps.CONFIGMAPNAME.text-file`:
+  Text file to use to create/replace a configmap
 
-- `k8s.manually-deployed.configmaps.[].from-env`:
-  Deploy the config map from an env-file (not implemented yet)
+- `k8s.manually-deployed.configmaps.CONFIGMAPNAME.env-file`:
+  Env file to use to create/replace a configmap
 
 - `k8s.release.configmaps`:
   A list of config maps to deploy
 
-- `k8s.release.configmaps.[].name`:
-  The k8s name of the config map
+- `k8s.release.versioned-configmaps.CONFIGMAP.text-file`:
+  A filename pointing to a text file: a configmap named CONFIGMAP-HASH (where HASH is
+  the hash of the file) will be created from this. Configmap names are put in the
+  template using `{VERSIONED-CONFIGMAP:name}`
 
-- `k8s.release.configmaps.[].from-file`:
-  Deploy the config map from a file
-
-- `k8s.release.configmaps.[].from-file.key`:
-  The key for the file, optional, will be derived by k8s otherwise (uses `basename` at
-  time of writing.)
-
-- `k8s.release.configmaps.[].from-file.filename`:
-  The file to be put in the keymap
-
-- `k8s.release.configmaps.[].from-env`:
-  Deploy the config map from an env-file (not implemented yet)
+- `k8s.release.versioned-configmaps.CONFIGMAP.env-file`:
+  A filename pointing to an env-file: a configmap named CONFIGMAP-HASH (where HASH is
+  the hash of the file) will be created from this. Configmap names are put in the
+  template using `{VERSIONED-CONFIGMAP:name}`
 
 - `k8s.release.template`:
   Template file of a release. During a deploy, the template is filled with vars from
@@ -77,16 +71,15 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 
 # Commands (`*` is not implemented yet):
 
-- config apply-manually [single-service] (TODO: honeymarker and rollbar deploy)
+- config apply-manually [single-service]
 - config diff [services]
-- containers build [services]
-- containers pull [services]
+- containers build [services] --save-manifest=MANIFEST-FILE.json
+- containers pull [services] --save-manifest=MANIFEST-FILE.json
 - containers push [services]
-- containers show-manifest [services] > MANIFEST-FILE.json
 - containers list [services]
 - release prepare [services] --arg CHANGE_CAUSE='reason' --manifest=MANIFEST-FILE.json
 - release diff [services]
-- release push [services] (TODO: honeymarker and rollbar deploy)
+- release push [services]
 
 # Deploy lock
 

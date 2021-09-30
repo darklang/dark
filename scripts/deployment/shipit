@@ -18,6 +18,7 @@ import os.path
 import re
 import subprocess
 import yaml
+import hashlib
 import json
 
 ##################################
@@ -96,7 +97,6 @@ def run_output(args, shell=False, input=None, stop_on_error=True):
 REGION = "us-west1"
 PROJECT = "balmy-ground-195100"
 CLUSTER = readfile("current-cluster")
-CLUSTER_CONFIGMAP_FILE = "config/gke-builtwithdark"
 CLOUDSQL_INSTANCE_NAME = "dark-west"
 DEPLOY_LOCK_BUCKET = "gs://darklang-deploy-lock"
 
@@ -147,26 +147,37 @@ def get_service_config(dir):
 ##################################
 # Configmaps are present in both manually-deployed and automatically released config
 ##################################
-def apply_configmaps(dir, parent):
-  for cm in parent.get("configmaps", []):
-    filespec = read_config_map_source(dir, cm)
-    if should_dry_run:
-      run("kubectl apply configmap (dry-run)",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
-          shell=True)
-    else:
-      run("kubectl apply configmap",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
-          shell=True)
+
+
+def get_hashed_configmap_name(dir, name, desc):
+  cm_filename = desc.get("text-file", desc.get("env-file"))
+  cm_contents = readfile(os.path.join(dir, cm_filename))
+  hash = hashlib.sha256(cm_contents.encode("utf-8")).hexdigest()[0:12]
+  return f"{name}-{hash}"
 
 
 def diff_configmaps(dir, parent):
-  for cm in parent.get("configmaps", []):
+  for name, cm in parent.get("configmaps", {}).items():
     filespec = read_config_map_source(dir, cm)
     run("kubectl diff configmap",
-        f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
+        f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
         shell=True,
         stop_on_error=False)
+
+
+def apply_versioned_configmaps(dir, parent):
+  for name, cm in parent.get("versioned-configmaps", {}).items():
+    hashed_name = get_hashed_configmap_name(dir, name, cm)
+    filespec = read_config_map_source(dir, cm)
+
+    if should_dry_run:
+      run("kubectl apply configmap (dry-run)",
+          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
+          shell=True)
+    else:
+      run("kubectl apply configmap",
+          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
+          shell=True)
 
 
 ##################################
@@ -189,16 +200,14 @@ def get_all_config_file_arguments(args):
 
 
 def read_config_map_source(dir, cm):
-  # TODO: add from-env
-  from_file = cm.get("from-file")
-  if from_file:
-    filename = f"{dir}/{from_file['filename']}"
-    key = from_file.get("key")
-    if key:
-      filespec = f"{key}={filename}"
-    else:
-      filespec = filename
-  return f"--from-file={filespec}"
+  text_file = cm.get("text-file")
+  if text_file:
+    filename = os.path.join(dir, text_file)
+    return f"--from-file={filename}"
+  else:
+    env_file = cm["env-file"]
+    filename = os.path.join(dir, env_file)
+    return f"--from-env-file={filename}"
 
 
 def manual_diff(args):
@@ -244,9 +253,17 @@ def manual_apply(args):
   # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    manual = config['k8s'].get("manually-deployed")
-    if manual:
-      apply_configmaps(dir, manual)
+    for name, cm in config['k8s'].get("manually-deployed", {}).get("configmaps",
+                                                                   {}).items():
+      filespec = read_config_map_source(dir, cm)
+      if should_dry_run:
+        run("kubectl apply configmap (dry-run)",
+            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
+            shell=True)
+      else:
+        run("kubectl apply configmap",
+            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
+            shell=True)
 
   # Custom apply
   for dir in get_service_dirs(args):
@@ -453,7 +470,10 @@ def release_prepare(args):
         if v == "":
           bad(f"Empty string for `IMAGEID:{c}")
         content = content.replace(f"{{IMAGEID:{c}}}", v)
-      for a in release["expected-args"]:
+      for name, desc in release.get("versioned-configmaps", {}).items():
+        hashed_name = get_hashed_configmap_name(dir, name, desc)
+        content = content.replace(f"{{VERSIONED-CONFIGMAP:{name}}}", hashed_name)
+      for a in release.get("expected-args", []):
         value = expected_args.get(a)
         if value == None:
           bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
@@ -504,7 +524,7 @@ def release_push(args):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
-      apply_configmaps(dir, release)
+      apply_versioned_configmaps(dir, release)
 
   files = collect_release_templated_configs(args)
 
@@ -543,24 +563,16 @@ properties:
             items:
               type: string
           configmaps:
-            type: array
-            items:
+            type: object
+            additionalProperties:
               type: object
+              propertyNames:
+                pattern: "^[a-z][-a-z0-9]*$"
               properties:
-                name:
+                text-file:
                   type: string
-                from-file:
-                  type: object
-                  properties:
-                    key:
-                      type: string
-                    filename:
-                      type: string
-                  required: [filename]
-                  additionalProperties: false
-                from-env-file:
+                env-file:
                   type: string
-              required: [name]
               additionalProperties: false
           custom-diff:
             type: array
@@ -585,25 +597,16 @@ properties:
             type: array
             items:
               type: string
-          configmaps:
-            type: array
-            items:
+          versioned-configmaps:
+            additionalProperties:
               type: object
+              propertyNames:
+                pattern: "^[a-z][-a-z0-9]*$"
               properties:
-                name:
+                text-file:
                   type: string
-                from-file:
-                  type: object
-                  properties:
-                    key:
-                      type: string
-                    filename:
-                      type: string
-                  required: [filename]
-                  additionalProperties: false
-                from-env-file:
+                env-file:
                   type: string
-              required: [name]
               additionalProperties: false
           expected-args:
             type: array
@@ -621,12 +624,15 @@ properties:
 
 
 def do_validation(args):
-  def validate_configmaps(parent):
-    configmaps = parent.get("configmaps", [])
-    for f in configmaps:
-      from_file = f.get("from-file")
+  def validate_configmaps(configmaps):
+    if configmaps is None:
+      return
+    for name, desc in configmaps.items():
+      from_file = desc.get("text-file") or desc.get("env-file")
       if from_file:
-        assert_file_exists(dir, from_file['filename'])
+        assert_file_exists(dir, from_file)
+      else:
+        bad(f"Need either `text-file` or `env-file` for {name}")
 
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
@@ -639,14 +645,14 @@ def do_validation(args):
     k8s = config['k8s']
 
     manually_deployed = k8s["manually-deployed"]
-    validate_configmaps(manually_deployed)
+    validate_configmaps(manually_deployed.get("configmaps"))
     configs = manually_deployed["configs"]
     for f in configs:
       assert_file_exists(dir, f)
 
     release = config['k8s'].get("release", None)
     if release:
-      validate_configmaps(release)
+      validate_configmaps(release.get("versioned-configmaps"))
       assert_file_exists(dir, release['config-template'])
       template_filename = os.path.join(dir, release['config-template'])
       template_contents = open(template_filename).read()
@@ -663,6 +669,9 @@ def do_validation(args):
                               f"{{BUILTIN:{var}}}")
       for var in release.get("expected-args", []):
         assert_string_in_file(template_filename, template_contents, f"{{ARG:{var}}}")
+      for name in release.get("versioned-configmaps", {}).keys():
+        assert_string_in_file(template_filename, template_contents,
+                              f"{{VERSIONED-CONFIGMAP:{name}}}")
 
       # Check all template vars are defined
       for match in re.findall(r"\{([-A-Z0-9a-z:_]+)}", template_contents,
@@ -670,22 +679,30 @@ def do_validation(args):
         builtin_match = re.match(r"^BUILTIN:([A-Z0-9_]+)$", match)
         expectedarg_match = re.match(r"^ARG:([A-Z0-9_]+)$", match)
         imageid_match = re.match(r"^IMAGEID:([-a-z0-9]+)$", match)
+        versioned_configmap_match = re.match(r"^VERSIONED-CONFIGMAP:([-a-z0-9]+)$",
+                                             match)
         if builtin_match:
           builtin = builtin_match.group(1)
           if builtin not in release["builtins"]:
-            bad(f"builtin \"{builtin}\" not in `k8s.release.builtins` in\n{template_filename}"
+            bad(f"builtin \"{builtin}\" not in `k8s.release.builtins` in {template_filename}"
                 )
 
         elif expectedarg_match:
           expectedarg = expectedarg_match.group(1)
           if expectedarg not in release["expected-args"]:
-            bad(f"expected arg \"{expectedarg}\" not in `k8s.release.expected-args` in\n{template_filename}"
+            bad(f"expected arg \"{expectedarg}\" not in `k8s.release.expected-args` in {template_filename}"
                 )
 
         elif imageid_match:
           id = imageid_match.group(1)
           if id not in release["containers"]:
-            bad(f"imageid \"{id}\" not in `k8s.release.containers` in\n{template_filename}"
+            bad(f"imageid \"{id}\" not in `k8s.release.containers` in {template_filename}"
+                )
+
+        elif versioned_configmap_match:
+          name = versioned_configmap_match.group(1)
+          if name not in release.get("versioned-configmaps", {}):
+            bad(f"configmap \"{name}\" not in `k8s.release.versioned-configmaps` in {template_filename}"
                 )
         else:
           bad(f"Unexpected placeholder \"{{{match}}}\" in\n{template_filename}")

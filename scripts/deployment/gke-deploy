@@ -110,11 +110,6 @@ trap cleanup_deploy_lock INT QUIT TERM ERR
 # Actually do the deploy
 #############################
 
-# TODO: add an override configmap that all the containers use
-# TODO: make the configmap a per-deploy setting - we don't want to break old deployments with a new setting
-# env vars (replace existing configmap)
-kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run=client | kubectl replace -f -
-
 # Old stuff
 kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -

@@ -65,7 +65,7 @@ spec:
             failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -155,7 +155,7 @@ spec:
             failureThreshold: 3 # kill container after 3 successive time outs
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -228,17 +228,17 @@ spec:
               exec:
                 # https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/
                 command: ["/bin/sh", "-c", "nginx -s quit; while killall -0 nginx; do sleep 1; done"]
-
       volumes:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
         - name: bwdserver-nginx-base-conf
           configMap:
-            name: bwdserver-nginx-base-nginx
+            name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-base-conf}"
         - name: bwdserver-nginx-conf
           configMap:
-            name: bwdserver-nginx-conf
+            name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-conf}"
         - name: bwdserver-nginx-override-conf
           configMap:
-            name: bwdserver-nginx-override-conf
+            name: bwdserver-override-nginx
+
