@@ -71,16 +71,15 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 
 # Commands (`*` is not implemented yet):
 
-- config apply-manually [--dry-run] [single-service]
-- config diff [services]
-- containers build [services] --save-manifest=MANIFEST-FILE.json
-- containers pull [services] --save-manifest=MANIFEST-FILE.json
-- containers push [services]
-- containers list [services]
-- release current-manifest --save-manifest=MANIFEST-FILE.json
-- release diff [services]
-<!-- TODO: combine prepare and push -->
-- release push [--dry-run] [services]
+- `config apply-manually [--dry-run] [single-service]`
+- `config diff [services]`
+- `containers build [services] --save-manifest=MANIFEST-FILE.json`
+- `containers pull [services] --save-manifest=MANIFEST-FILE.json`
+- `containers push [services]`
+- `containers list [services]`
+- `release current-manifest --save-manifest=MANIFEST-FILE.json`
+- `release diff [services]`
+- `release push [--dry-run] [--arg ARG] --manifest MANIFEST-FILE.json [services]`
 
 # Deploy lock
 
