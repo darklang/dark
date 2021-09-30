@@ -258,11 +258,11 @@ def manual_apply(args):
       filespec = read_config_map_source(dir, cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
-            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
+            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
             shell=True)
       else:
         run("kubectl apply configmap",
-            f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
+            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
             shell=True)
 
   # Custom apply
