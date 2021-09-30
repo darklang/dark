@@ -20,6 +20,7 @@ import subprocess
 import yaml
 import hashlib
 import json
+import rich
 
 ##################################
 # Utility functions
@@ -60,15 +61,22 @@ def writefile(filename, contents):
     f.write(contents)
 
 
+def clean_filename(filename):
+  abs = os.path.abspath(filename)
+  rel = os.path.relpath(abs, os.getcwd())
+  return rel
+
+
 # Run an important command, keeping stdout/stderr going to the user. Supports --dry-run
 def run(name, args, shell=False, input=None, stop_on_error=True):
   try:
     if should_dry_run:
-      print(f"Running {name} command: (dry-run)\n  {args}")
+      color = "bold green"
     else:
-      print(f"Running {name} command:\n  {args}")
-      subprocess.run(args, shell=shell, input=input, check=True)
-      print()
+      color = "bold magenta"
+    rich.print(f"[{color}]Running `{name}` command: (dry-run)[/{color}]\n  {args}")
+    subprocess.run(args, shell=shell, input=input, check=True)
+    print()
   except subprocess.CalledProcessError as e:
     msg = f"Error running {name} command:\n  {e}\n"
     if stop_on_error:
@@ -196,11 +204,11 @@ def get_all_config_file_arguments(args):
 def read_config_map_source(dir, cm):
   text_file = cm.get("text-file")
   if text_file:
-    filename = os.path.join(dir, text_file)
+    filename = clean_filename(os.path.join(dir, text_file))
     return f"--from-file={filename}"
   else:
     env_file = cm["env-file"]
-    filename = os.path.join(dir, env_file)
+    filename = clean_filename(os.path.join(dir, env_file))
     return f"--from-env-file={filename}"
 
 
@@ -252,11 +260,11 @@ def manual_apply(args):
       filespec = read_config_map_source(dir, cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
-            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
+            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run=server",
             shell=True)
       else:
         run("kubectl apply configmap",
-            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
+            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=-",
             shell=True)
 
   # Custom apply
@@ -487,7 +495,8 @@ def release_prepare(args):
 
       # Write the non-template version
       target_filename = filename.replace(".template", "")
-      print(f"Writing release file: {target_filename}")
+      rich.print(
+          f"[italic yellow]Writing release file: {target_filename}[/italic yellow]")
       writefile(target_filename, content)
 
 
