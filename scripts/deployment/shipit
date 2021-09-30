@@ -165,19 +165,13 @@ def diff_configmaps(dir, parent):
         stop_on_error=False)
 
 
-def apply_versioned_configmaps(dir, parent):
+def collect_versioned_configmaps(dir, parent):
+  cms = {}
   for name, cm in parent.get("versioned-configmaps", {}).items():
     hashed_name = get_hashed_configmap_name(dir, name, cm)
     filespec = read_config_map_source(dir, cm)
-
-    if should_dry_run:
-      run("kubectl apply configmap (dry-run)",
-          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
-          shell=True)
-    else:
-      run("kubectl apply configmap",
-          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
-          shell=True)
+    cms[hashed_name] = filespec
+  return cms
 
 
 ##################################
@@ -549,13 +543,25 @@ def release_diff(args):
 
 def release_push(args):
   do_validation(args)
+  release_prepare(args)
 
   # Do the config maps first, as they're used by the deploys
+  all_configmaps = {}
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
-      apply_versioned_configmaps(dir, release)
+      maps = collect_versioned_configmaps(dir, release)
+      all_configmaps.update(maps)
+  for hashed_name, filespec in all_configmaps.items():
+    if should_dry_run:
+      run("kubectl apply configmap",
+          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run=server",
+          shell=True)
+    else:
+      run("kubectl apply configmap",
+          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=-",
+          shell=True)
 
   files = collect_release_templated_configs(args)
 
@@ -848,20 +854,6 @@ def create_arg_parser():
       'prepare',
       description="Prepares yaml files for release",
       parents=[base_parser, services_parser])
-  release_prepare_parser.add_argument(
-      '--manifest',
-      action="store",
-      required=True,
-      help=
-      "path to the release manifest, generated using `containers pull` or `containers build`"
-  )
-  release_prepare_parser.add_argument(
-      '--arg',
-      metavar="KEY=VALUE",
-      action='append',
-      help=
-      "key/value pair that defines an `expected-arg` in the shipit.yamls. Provide once per key/value pair"
-  )
   release_prepare_parser.set_defaults(func=release_prepare)
 
   release_current_manifest_parser = release_subparser.add_parser(
@@ -881,6 +873,20 @@ def create_arg_parser():
       'push',
       description="Actually do the release",
       parents=[base_parser, services_parser])
+  release_push_parser.add_argument(
+      '--manifest',
+      action="store",
+      required=True,
+      help=
+      "path to the release manifest, generated using `containers pull` or `containers build`"
+  )
+  release_push_parser.add_argument(
+      '--arg',
+      metavar="KEY=VALUE",
+      action='append',
+      help=
+      "key/value pair that defines an `expected-arg` in the shipit.yamls. Provide once per key/value pair"
+  )
   release_push_parser.set_defaults(func=release_push)
 
   return main_parser
