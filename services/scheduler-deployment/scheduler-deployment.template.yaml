@@ -30,7 +30,7 @@ spec:
               cpu: "100m"
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -75,7 +75,7 @@ spec:
               cpu: "150m"
           command: ["/bin/sh",
                     "-c",
-                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:{BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
+                    "/cloud_sql_proxy -dir=/cloudsql -instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql

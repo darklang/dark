@@ -4,7 +4,7 @@
 set -euo pipefail
 
 function check {
-  if [[ "$1" == *"/services/"* && "$1" != *"/services/honeycomb-agent/honeycomb-agent-config.yaml" && $(basename "$1") != "shipit.yaml" ]]; then
+  if [[ "$1" == *"/services/"* && "$1" != *"/services/honeycomb-agent/config.yaml" && $(basename "$1") != "shipit.yaml" ]]; then
     echo "kubeval $1"
     kubeval \
       --strict \

@@ -33,7 +33,7 @@ let domain (ctx : HttpContext) : string =
   // Host: darklang.localhost:9000 is properly set in-cookie as
   // "darklang.localhost", the cookie domain doesn't want the
   // port
-  |> FsRegEx.replace ":9000" ""
+  |> FsRegEx.replace $":{LibService.Config.apiServerNginxPort}" ""
 
 let cookieOptionsFor (ctx : HttpContext) =
   let options = CookieOptions()

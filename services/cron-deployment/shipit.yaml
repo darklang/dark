@@ -4,6 +4,9 @@ k8s:
       - cc-network-policy.yaml
   release:
     config-template: cron-deployment.template.yaml
+    versioned-configmaps:
+      app-config:
+        env-file: ../../config/gke-builtwithdark
     containers:
       - gcp-cronchecker
     builtins:

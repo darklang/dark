@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+##################
+## Kill running nginx server or we won't be able to start it again
+##################
+sudo killall nginx
+sudo killall -9 nginx
+
+until [[ "$(sudo netstat -ltnp | grep -w ':9000')" == "" ]]; do
+  echo "Waiting for nginx (apiserver) to die..."
+  sleep 0.1
+done
+
+until [[ "$(sudo netstat -ltnp | grep -w ':7000')" == "" ]]; do
+  echo "Waiting for nginx (bwdserver) to die..."
+  sleep 0.1
+done
+
+
+until [[ "$(sudo netstat -ltnp | grep -w ':8000')" == "" ]]; do
+  echo "Waiting for nginx (ocaml) to die..."
+  sleep 0.1
+done
+
+##################
+# symlink so nginx logs are visible on the host
+##################
+
+if [[ ! -f "/home/dark/app/rundir/logs/nginx-access.log" ]]; then
+  sudo rm /var/log/nginx/access.log
+  touch /home/dark/app/rundir/logs/nginx-access.log
+  ln -s /home/dark/app/rundir/logs/nginx-access.log /var/log/nginx/access.log
+fi
+
+if [[ ! -f "/home/dark/app/rundir/logs/nginx-error.log" ]]; then
+  sudo rm /var/log/nginx/error.log
+  touch /home/dark/app/rundir/logs/nginx-error.log
+  ln -s /home/dark/app/rundir/logs/nginx-error.log /var/log/nginx/error.log
+fi
+
+##################
+# Set up each server individually, not sharing config, to match production
+##################
+setup() {
+  name=$1
+  source=$2
+
+  sudo rm -Rf /etc/nginx-$name/
+  sudo mkdir -p /etc/nginx-$name/conf.d
+  sudo ln -s /home/dark/app/containers/ocaml-nginx/base-nginx.conf /etc/nginx-$name/nginx.conf
+  sudo ln -s /home/dark/app/$source/nginx.conf /etc/nginx-$name/conf.d/$name-nginx.conf
+  echo "Starting nginx ($name)"
+  sudo nginx -c /etc/nginx-$name/nginx.conf
+  echo "Started nginx ($name)"
+}
+
+sudo rm -f /etc/nginx/nginx.conf
+setup ocaml containers/ocaml-nginx/
+setup apiserver services/apiserver-deployment/
+setup bwdserver services/bwdserver-deployment/
+

@@ -18,7 +18,9 @@ import os.path
 import re
 import subprocess
 import yaml
+import hashlib
 import json
+import rich
 
 ##################################
 # Utility functions
@@ -32,6 +34,7 @@ def bad(str):
 
 should_debug = False
 should_dry_run = False
+dry_run_target = None
 
 # When running diffs, keep going through the errors but make sure to report something
 error = None
@@ -59,15 +62,23 @@ def writefile(filename, contents):
     f.write(contents)
 
 
-# Run an important command, keeping stdout/stderr going to the user. Supports --dry-run
+def clean_filename(filename):
+  abs = os.path.abspath(filename)
+  rel = os.path.relpath(abs, os.getcwd())
+  return rel
+
+
+# Run an important command, keeping stdout/stderr going to the user
 def run(name, args, shell=False, input=None, stop_on_error=True):
   try:
     if should_dry_run:
-      print(f"Running {name} command: (dry-run)\n  {args}")
+      color = "bold green"
     else:
-      print(f"Running {name} command:\n  {args}")
-      subprocess.run(args, shell=shell, input=input, check=True)
-      print()
+      color = "bold magenta"
+    rich.print(f"[{color}]Running `{name}` command[/{color}]")
+    print(args)
+    subprocess.run(args, shell=shell, input=input, check=True)
+    print()
   except subprocess.CalledProcessError as e:
     msg = f"Error running {name} command:\n  {e}\n"
     if stop_on_error:
@@ -76,7 +87,7 @@ def run(name, args, shell=False, input=None, stop_on_error=True):
       handle_error(msg)
 
 
-# Runs a command that's part of running the script, captures stdout, ignore --dry-run.
+# Runs a command that's part of running the script, captures stdout
 def run_output(args, shell=False, input=None, stop_on_error=True):
   try:
     debug(f"Running command:\n  {args}")
@@ -96,8 +107,7 @@ def run_output(args, shell=False, input=None, stop_on_error=True):
 REGION = "us-west1"
 PROJECT = "balmy-ground-195100"
 CLUSTER = readfile("current-cluster")
-CLUSTER_CONFIGMAP_FILE = "config/gke-builtwithdark"
-CLOUDSQL_INSTANCE_NAME = "dark-west"
+CLOUDSQL_INSTANCE_NAME = "balmy-ground-195100:us-west1:dark-west"
 DEPLOY_LOCK_BUCKET = "gs://darklang-deploy-lock"
 
 ##################################
@@ -147,26 +157,22 @@ def get_service_config(dir):
 ##################################
 # Configmaps are present in both manually-deployed and automatically released config
 ##################################
-def apply_configmaps(dir, parent):
-  for cm in parent.get("configmaps", []):
-    filespec = read_config_map_source(dir, cm)
-    if should_dry_run:
-      run("kubectl apply configmap (dry-run)",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=- --dry-run=server",
-          shell=True)
-    else:
-      run("kubectl apply configmap",
-          f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl replace --filename=-",
-          shell=True)
 
 
-def diff_configmaps(dir, parent):
-  for cm in parent.get("configmaps", []):
+def get_hashed_configmap_name(dir, name, desc):
+  cm_filename = desc.get("text-file", desc.get("env-file"))
+  cm_contents = readfile(os.path.join(dir, cm_filename))
+  hash = hashlib.sha256(cm_contents.encode("utf-8")).hexdigest()[0:12]
+  return f"{name}-{hash}"
+
+
+def collect_versioned_configmaps(dir, parent):
+  cms = {}
+  for name, cm in parent.get("versioned-configmaps", {}).items():
+    hashed_name = get_hashed_configmap_name(dir, name, cm)
     filespec = read_config_map_source(dir, cm)
-    run("kubectl diff configmap",
-        f"kubectl create configmap {cm['name']} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
-        shell=True,
-        stop_on_error=False)
+    cms[hashed_name] = filespec
+  return cms
 
 
 ##################################
@@ -189,16 +195,14 @@ def get_all_config_file_arguments(args):
 
 
 def read_config_map_source(dir, cm):
-  # TODO: add from-env
-  from_file = cm.get("from-file")
-  if from_file:
-    filename = f"{dir}/{from_file['filename']}"
-    key = from_file.get("key")
-    if key:
-      filespec = f"{key}={filename}"
-    else:
-      filespec = filename
-  return f"--from-file={filespec}"
+  text_file = cm.get("text-file")
+  if text_file:
+    filename = clean_filename(os.path.join(dir, text_file))
+    return f"--from-file={filename}"
+  else:
+    env_file = cm["env-file"]
+    filename = clean_filename(os.path.join(dir, env_file))
+    return f"--from-env-file={filename}"
 
 
 def manual_diff(args):
@@ -214,9 +218,13 @@ def manual_diff(args):
   # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    manual = config['k8s'].get("manually-deployed")
-    if manual:
-      diff_configmaps(dir, manual)
+    cms = config['k8s'].get("manually-deployed").get("configmaps", {})
+    for name, cm in cms.items():
+      filespec = read_config_map_source(dir, cm)
+      run("kubectl diff configmap",
+          f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
+          shell=True,
+          stop_on_error=False)
 
   # Custom diff
   for dir in get_service_dirs(args):
@@ -236,17 +244,25 @@ def manual_apply(args):
     debug("No configs to apply, skipping")
   else:
     if should_dry_run:
-      run("kubectl apply", ["kubectl", "apply", "--dry-run=client"] + file_args)
-      run("kubectl apply", ["kubectl", "apply", "--dry-run=server"] + file_args)
+      run("kubectl apply",
+          ["kubectl", "apply", f"--dry-run={dry_run_target}"] + file_args)
     else:
       run("kubectl apply", ["kubectl", "apply"] + file_args)
 
   # Configmaps
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
-    manual = config['k8s'].get("manually-deployed")
-    if manual:
-      apply_configmaps(dir, manual)
+    cms = config['k8s'].get("manually-deployed", {}).get("configmaps", {})
+    for name, cm in cms.items():
+      filespec = read_config_map_source(dir, cm)
+      if should_dry_run:
+        run("kubectl apply configmap (dry-run)",
+            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
+            shell=True)
+      else:
+        run("kubectl apply configmap",
+            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=-",
+            shell=True)
 
   # Custom apply
   for dir in get_service_dirs(args):
@@ -435,6 +451,7 @@ def collect_release_templated_configs(args):
 
 
 def release_prepare(args):
+  do_validation(args)
   builtins = {"CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME}
   expected_args = get_expected_args(args)
   ids = manifest_load(args)
@@ -453,7 +470,10 @@ def release_prepare(args):
         if v == "":
           bad(f"Empty string for `IMAGEID:{c}")
         content = content.replace(f"{{IMAGEID:{c}}}", v)
-      for a in release["expected-args"]:
+      for name, desc in release.get("versioned-configmaps", {}).items():
+        hashed_name = get_hashed_configmap_name(dir, name, desc)
+        content = content.replace(f"{{VERSIONED-CONFIGMAP:{name}}}", hashed_name)
+      for a in release.get("expected-args", []):
         value = expected_args.get(a)
         if value == None:
           bad(f"No value provided for `ARG:{a}. Pass it at the command line using `--arg {a}='SOME VALUE'`"
@@ -472,20 +492,61 @@ def release_prepare(args):
 
       # Write the non-template version
       target_filename = filename.replace(".template", "")
-      print(f"Writing release file: {target_filename}")
+      rich.print(
+          f"[italic yellow]Writing release file: {target_filename}[/italic yellow]")
       writefile(target_filename, content)
+
+
+# Read the current container shas from production
+def release_current_manifest(args):
+  do_validation(args)
+  shas = {}
+  for dir in get_service_dirs(args):
+    config = get_service_config(dir)
+    containers = set(config['k8s'].get("release", {}).get("containers", []))
+    # Only check yamls with a containers section
+    if len(containers) > 0:
+      service_name = os.path.basename(dir)
+      k8s_config = run_output(f"kubectl get deployments/{service_name} -o json",
+                              shell=True)
+      k8s_config = json.loads(k8s_config)
+      for c in k8s_config['spec']['template']['spec']['containers']:
+        [name, version] = c['image'].split(":")
+        name = name.split("/")[-1]
+        # only use containers listed in config, as those are the only ones shipit manages
+        if name in containers:
+          if shas.get(name) == None:
+            shas[name] = version
+          else:
+            # check we use the same version across all services
+            if shas[name] != version:
+              bad(f"{name} has multiple versions: {shas[name]} and {version}")
+      for c in containers:
+        if shas.get(c) == None:
+          bad(f"{c} not found in manifest")
+  manifest_save(args, shas)
 
 
 def release_diff(args):
   do_validation(args)
-  files = collect_release_templated_configs(args)
+  release_prepare(args)
+
+  # Configmaps
+  all_configmaps = {}
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
-      diff_configmaps(dir, release)
+      maps = collect_versioned_configmaps(dir, release)
+      all_configmaps.update(maps)
+  for hashed_name, filespec in all_configmaps.items():
+    run("kubectl diff configmap",
+        f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
+        shell=True,
+        stop_on_error=False)
 
   # diff it against production
+  files = collect_release_templated_configs(args)
   if files == []:
     debug("No release configs to diff, skipping")
   else:
@@ -498,13 +559,25 @@ def release_diff(args):
 
 def release_push(args):
   do_validation(args)
+  release_prepare(args)
 
   # Do the config maps first, as they're used by the deploys
+  all_configmaps = {}
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
-      apply_configmaps(dir, release)
+      maps = collect_versioned_configmaps(dir, release)
+      all_configmaps.update(maps)
+  for hashed_name, filespec in all_configmaps.items():
+    if should_dry_run:
+      run("kubectl apply configmap",
+          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
+          shell=True)
+    else:
+      run("kubectl apply configmap",
+          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=-",
+          shell=True)
 
   files = collect_release_templated_configs(args)
 
@@ -517,10 +590,8 @@ def release_push(args):
       file_args.append("-f")
       file_args.append(f)
     if should_dry_run:
-      run("kubectl apply --dry-run=client",
-          ["kubectl", "apply", "--dry-run=client"] + file_args)
-      run("kubectl apply --dry-run=server",
-          ["kubectl", "apply", "--dry-run=server"] + file_args)
+      run("kubectl apply --dry-run",
+          ["kubectl", "apply", f"--dry-run={dry_run_target}"] + file_args)
     else:
       run("kubectl apply", ["kubectl", "apply"] + file_args)
 
@@ -543,24 +614,16 @@ properties:
             items:
               type: string
           configmaps:
-            type: array
-            items:
+            type: object
+            additionalProperties:
               type: object
+              propertyNames:
+                pattern: "^[a-z][-a-z0-9]*$"
               properties:
-                name:
+                text-file:
                   type: string
-                from-file:
-                  type: object
-                  properties:
-                    key:
-                      type: string
-                    filename:
-                      type: string
-                  required: [filename]
-                  additionalProperties: false
-                from-env-file:
+                env-file:
                   type: string
-              required: [name]
               additionalProperties: false
           custom-diff:
             type: array
@@ -585,25 +648,16 @@ properties:
             type: array
             items:
               type: string
-          configmaps:
-            type: array
-            items:
+          versioned-configmaps:
+            additionalProperties:
               type: object
+              propertyNames:
+                pattern: "^[a-z][-a-z0-9]*$"
               properties:
-                name:
+                text-file:
                   type: string
-                from-file:
-                  type: object
-                  properties:
-                    key:
-                      type: string
-                    filename:
-                      type: string
-                  required: [filename]
-                  additionalProperties: false
-                from-env-file:
+                env-file:
                   type: string
-              required: [name]
               additionalProperties: false
           expected-args:
             type: array
@@ -621,12 +675,15 @@ properties:
 
 
 def do_validation(args):
-  def validate_configmaps(parent):
-    configmaps = parent.get("configmaps", [])
-    for f in configmaps:
-      from_file = f.get("from-file")
+  def validate_configmaps(configmaps):
+    if configmaps is None:
+      return
+    for name, desc in configmaps.items():
+      from_file = desc.get("text-file") or desc.get("env-file")
       if from_file:
-        assert_file_exists(dir, from_file['filename'])
+        assert_file_exists(dir, from_file)
+      else:
+        bad(f"Need either `text-file` or `env-file` for {name}")
 
   for dir in get_service_dirs(args):
     config = get_service_config(dir)
@@ -639,14 +696,14 @@ def do_validation(args):
     k8s = config['k8s']
 
     manually_deployed = k8s["manually-deployed"]
-    validate_configmaps(manually_deployed)
+    validate_configmaps(manually_deployed.get("configmaps"))
     configs = manually_deployed["configs"]
     for f in configs:
       assert_file_exists(dir, f)
 
     release = config['k8s'].get("release", None)
     if release:
-      validate_configmaps(release)
+      validate_configmaps(release.get("versioned-configmaps"))
       assert_file_exists(dir, release['config-template'])
       template_filename = os.path.join(dir, release['config-template'])
       template_contents = open(template_filename).read()
@@ -663,6 +720,9 @@ def do_validation(args):
                               f"{{BUILTIN:{var}}}")
       for var in release.get("expected-args", []):
         assert_string_in_file(template_filename, template_contents, f"{{ARG:{var}}}")
+      for name in release.get("versioned-configmaps", {}).keys():
+        assert_string_in_file(template_filename, template_contents,
+                              f"{{VERSIONED-CONFIGMAP:{name}}}")
 
       # Check all template vars are defined
       for match in re.findall(r"\{([-A-Z0-9a-z:_]+)}", template_contents,
@@ -670,22 +730,30 @@ def do_validation(args):
         builtin_match = re.match(r"^BUILTIN:([A-Z0-9_]+)$", match)
         expectedarg_match = re.match(r"^ARG:([A-Z0-9_]+)$", match)
         imageid_match = re.match(r"^IMAGEID:([-a-z0-9]+)$", match)
+        versioned_configmap_match = re.match(r"^VERSIONED-CONFIGMAP:([-a-z0-9]+)$",
+                                             match)
         if builtin_match:
           builtin = builtin_match.group(1)
           if builtin not in release["builtins"]:
-            bad(f"builtin \"{builtin}\" not in `k8s.release.builtins` in\n{template_filename}"
+            bad(f"builtin \"{builtin}\" not in `k8s.release.builtins` in {template_filename}"
                 )
 
         elif expectedarg_match:
           expectedarg = expectedarg_match.group(1)
           if expectedarg not in release["expected-args"]:
-            bad(f"expected arg \"{expectedarg}\" not in `k8s.release.expected-args` in\n{template_filename}"
+            bad(f"expected arg \"{expectedarg}\" not in `k8s.release.expected-args` in {template_filename}"
                 )
 
         elif imageid_match:
           id = imageid_match.group(1)
           if id not in release["containers"]:
-            bad(f"imageid \"{id}\" not in `k8s.release.containers` in\n{template_filename}"
+            bad(f"imageid \"{id}\" not in `k8s.release.containers` in {template_filename}"
+                )
+
+        elif versioned_configmap_match:
+          name = versioned_configmap_match.group(1)
+          if name not in release.get("versioned-configmaps", {}):
+            bad(f"configmap \"{name}\" not in `k8s.release.versioned-configmaps` in {template_filename}"
                 )
         else:
           bad(f"Unexpected placeholder \"{{{match}}}\" in\n{template_filename}")
@@ -709,7 +777,8 @@ def create_arg_parser():
                            help="Print debug info about what's running")
   base_parser.add_argument(
       '--dry-run',
-      action='store_true',
+      choices=['server', 'client'],
+      action='store',
       help="paths to the service definitions. Leave empty to run on all services")
   base_parser.set_defaults(debug=False)
   base_parser.set_defaults(dry_run=False)
@@ -729,6 +798,22 @@ def create_arg_parser():
                                       action="store",
                                       required=True,
                                       help="path to store the release manifest")
+
+  release_args_parser = argparse.ArgumentParser(add_help=False)
+  release_args_parser.add_argument(
+      '--manifest',
+      action="store",
+      required=True,
+      help=
+      "path to the release manifest, generated using `containers pull` or `containers build`"
+  )
+  release_args_parser.add_argument(
+      '--arg',
+      metavar="KEY=VALUE",
+      action='append',
+      help=
+      "key/value pair that defines an `expected-arg` in the shipit.yamls. Provide once per key/value pair"
+  )
 
   main_parser = argparse.ArgumentParser(
       description='Manage deployment of kubernetes services')
@@ -796,36 +881,24 @@ def create_arg_parser():
   release_parser = main_subparsers.add_parser('release')
   release_subparser = release_parser.add_subparsers()
 
-  release_prepare_parser = release_subparser.add_parser(
-      'prepare',
-      description="Prepares yaml files for release",
-      parents=[base_parser, services_parser])
-  release_prepare_parser.add_argument(
-      '--manifest',
-      action="store",
-      required=True,
-      help=
-      "path to the release manifest, generated using `containers pull` or `containers build`"
-  )
-  release_prepare_parser.add_argument(
-      '--arg',
-      metavar="KEY=VALUE",
-      action='append',
-      help=
-      "key/value pair that defines an `expected-arg` in the shipit.yamls. Provide once per key/value pair"
-  )
-  release_prepare_parser.set_defaults(func=release_prepare)
+  release_current_manifest_parser = release_subparser.add_parser(
+      'current-manifest',
+      description=
+      "Reads the current manifest from production deployments; echoes a manifest",
+      parents=[base_parser, services_parser, output_manifest_parser])
+  release_current_manifest_parser.set_defaults(func=release_current_manifest)
 
   release_diff_parser = release_subparser.add_parser(
       'diff',
       description="Diffs the release against the production release",
-      parents=[base_parser, services_parser])
+      parents=[base_parser, services_parser, release_args_parser])
   release_diff_parser.set_defaults(func=release_diff)
 
   release_push_parser = release_subparser.add_parser(
       'push',
       description="Actually do the release",
-      parents=[base_parser, services_parser])
+      parents=[base_parser, services_parser, release_args_parser])
+
   release_push_parser.set_defaults(func=release_push)
 
   return main_parser
@@ -839,10 +912,12 @@ def create_arg_parser():
 def main():
   global should_debug
   global should_dry_run
+  global dry_run_target
   parser = create_arg_parser()
   args = parser.parse_args()
   should_debug = args.debug
-  should_dry_run = args.dry_run
+  should_dry_run = args.dry_run in ['client', 'server']
+  dry_run_target = args.dry_run
   args.func(args)
   if error:
     sys.exit(1)

@@ -7,6 +7,9 @@ k8s:
       - bwd-nodeport.yaml
   release:
     config-template: bwd-deployment.template.yaml
+    versioned-configmaps:
+      app-config:
+        env-file: ../../config/gke-builtwithdark
     containers:
       - gcp-server
       - stroller

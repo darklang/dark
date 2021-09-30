@@ -4,6 +4,9 @@ k8s:
       - qw-network-policy.yaml
   release:
     config-template: qw-deployment.template.yaml
+    versioned-configmaps:
+      app-config:
+        env-file: ../../config/gke-builtwithdark
     containers:
       - gcp-queueworker
       - stroller

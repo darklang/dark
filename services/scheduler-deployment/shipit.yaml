@@ -3,6 +3,9 @@ k8s:
     configs: []
   release:
     config-template: scheduler-deployment.template.yaml
+    versioned-configmaps:
+      app-config:
+        env-file: ../../config/gke-builtwithdark
     containers:
       - queue-scheduler
     builtins:

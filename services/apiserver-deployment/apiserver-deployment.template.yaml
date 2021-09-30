@@ -35,7 +35,7 @@ spec:
           ports:
             # Name length limit is 15 chars.
             - name: apisvr-ctr-port
-              containerPort: 9000
+              containerPort: 9001
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -44,28 +44,28 @@ spec:
           startupProbe: # has it started? Allows other probes
             httpGet:
               path: /k8s/startupProbe
-              port: 6000
+              port: 9002
             failureThreshold: 24 # kill container after 2 minutes (24x5s checks)
             timeoutSeconds: 10
             periodSeconds: 5
           readinessProbe: # can it serve http requests?
             httpGet:
               path: /k8s/readinessProbe
-              port: 6000
+              port: 9002
             initialDelaySeconds: 0
             periodSeconds: 5
             successThreshold: 3
           livenessProbe: # is it still alive?
             httpGet:
               path: /k8s/livenessProbe
-              port: 6000
+              port: 9002
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 10
             failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -127,24 +127,24 @@ spec:
               memory: "1000Mi"
               cpu: "125m"
           ports:
-            - name: bwd-legacy-port
+            - name: legacy-port
               containerPort: 5000
           lifecycle:
             preStop:
               httpGet:
                 # ???? https://github.com/kubernetes/kubernetes/issues/56770
                 path: /k8s/pkill
-                port: 5000
+                port: legacy-port
           readinessProbe:
             httpGet:
               path: /k8s/readinessProbe
-              port: 5000
+              port: legacy-port
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /k8s/livenessProbe
-              port: 5000
+              port: legacy-port
             # Giving 2 minutes grace here, there's an outstanding k8s issue
             # preventing you from specifying "start checking liveness after an
             # ok from readiness", which is what you'd expect.
@@ -155,7 +155,7 @@ spec:
             failureThreshold: 3 # kill container after 3 successive time outs
           envFrom:
             - configMapRef:
-                name: gke-dark-prod
+                name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
@@ -194,7 +194,7 @@ spec:
             limits:
               memory: "500Mi"
               cpu: "125m"
-          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances=balmy-ground-195100:us-west1:{BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
+          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
@@ -235,10 +235,10 @@ spec:
             secretName: cloudsql-instance-credentials
         - name: apiserver-nginx-base-conf
           configMap:
-            name: apiserver-nginx-base-conf
+            name: "{VERSIONED-CONFIGMAP:apiserver-nginx-base-conf}"
         - name: apiserver-nginx-conf
           configMap:
-            name: apiserver-nginx-conf
+            name: "{VERSIONED-CONFIGMAP:apiserver-nginx-conf}"
         - name: apiserver-nginx-override-conf
           configMap:
             name: apiserver-nginx-override-conf

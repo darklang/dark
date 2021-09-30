@@ -172,8 +172,8 @@ commands:
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
       - run: cat gcr-image-ids.json
-      - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
-      - run: scripts/deployment/shipit release push --dry-run
+      # Test them
+      - run: scripts/deployment/shipit release push --dry-run=client --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
   # misc
@@ -430,6 +430,8 @@ jobs:
       - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
+      # This is needed because kubectl --dry-run uses it
+      - auth-with-gcp: { background: false }
       - build-gcp-containers
       - notify-job-failure
 

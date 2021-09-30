@@ -14,7 +14,8 @@ Usage: $0 [OPTIONS]
 Deployment script for CI
 
 Options:
-  --manifest=...
+  --manifest=...    Manifest containing container shas
+  --manual          Do a manual deploy
   --help            Display this menu.
 EOF
 )"
@@ -52,25 +53,23 @@ else
   fi
 fi
 
-
 set -x
 
-
 #############################
-# get variables now so this fails early if they're not available
+# set variables now so this fails early if they're not available
 #############################
 LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
 
-#############################
-# Build the deployment template files
-#############################
 if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
   CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 else
   CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 fi
 
-./scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
+#############################
+# Ensure we got a good one
+#############################
+./scripts/deployment/shipit validate
 
 #############################
 # Lock before doing a deploy (unlocks on fail or at end of file)
@@ -95,7 +94,6 @@ trap cleanup_deploy_lock INT QUIT TERM ERR
 # We source this instead of running it in a subshell so that the trap works as expected
 ./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
 
-
 #############################
 # Check it's safe to deploy
 #############################
@@ -104,16 +102,12 @@ trap cleanup_deploy_lock INT QUIT TERM ERR
 ./scripts/deployment/shipit manual diff
 
 # Check that the everything can be deployed
-./scripts/deployment/shipit release push --dry-run
+./scripts/deployment/shipit release push --dry-run=client --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
+./scripts/deployment/shipit release push --dry-run=server --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
 #############################
 # Actually do the deploy
 #############################
-
-# TODO: add an override configmap that all the containers use
-# TODO: make the configmap a per-deploy setting - we don't want to break old deployments with a new setting
-# env vars (replace existing configmap)
-kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run=client | kubectl replace -f -
 
 # Old stuff
 kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -
@@ -121,7 +115,7 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 # CLEANUP: we can remove the `nginx` configmap once the users are long gone
 
 # deploy the config for the newly-created deployment containers
-./scripts/deployment/shipit release push
+./scripts/deployment/shipit release push --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
 #########################
 # Tell everyone about the deploy
