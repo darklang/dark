@@ -138,8 +138,8 @@ let t filename =
 
         let port =
           match server with
-          | OCaml -> LibService.Config.testOcamlHttpPort
-          | FSharp -> LibService.Config.testBwdServerPort
+          | OCaml -> TestConfig.ocamlHttpPort
+          | FSharp -> TestConfig.bwdServerPort
 
         let mutable connected = false
 
@@ -258,8 +258,8 @@ open Microsoft.AspNetCore.Hosting
 let init (token : System.Threading.CancellationToken) : Task =
   (BwdServer.webserver
     false
-    LibService.Config.testBwdServerPort
-    LibService.Config.testBwdServerKubernetesPort)
+    TestConfig.bwdServerPort
+    TestConfig.bwdServerKubernetesPort)
     .RunAsync(token)
 
 

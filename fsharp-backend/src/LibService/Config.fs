@@ -63,12 +63,6 @@ let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 let legacyFuzzingServerPort = int "DARK_CONFIG_LEGACY_FUZZING_SERVER_PORT"
 let legacySerializtionServerPort = int "DARK_CONFIG_LEGACY_SERIALIZATION_SERVER_PORT"
 
-// testing
-let testOcamlHttpPort = int "DARK_CONFIG_TEST_OCAMLSERVER_PORT"
-let testBwdServerPort = int "DARK_CONFIG_TEST_BWDSERVER_BACKEND_PORT"
-let testBwdServerKubernetesPort = int "DARK_CONFIG_TEST_BWDSERVER_KUBERNETES_PORT"
-let testHttpClientPort = int "DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT"
-
 // --------------------
 // db
 // --------------------

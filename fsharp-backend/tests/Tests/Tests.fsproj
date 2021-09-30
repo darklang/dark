@@ -24,6 +24,7 @@
     <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="TestConfig.fs" />
     <Compile Include="Account.Tests.fs" />
     <Compile Include="Traces.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />

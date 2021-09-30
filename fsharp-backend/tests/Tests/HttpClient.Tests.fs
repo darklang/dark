@@ -25,7 +25,7 @@ type TestCase = { expected : Http.T; result : Http.T }
 
 let testCases : ConcurrentDictionary<string, TestCase> = ConcurrentDictionary()
 
-let host = $"test.builtwithdark.localhost:{LibService.Config.testHttpClientPort}"
+let host = $"test.builtwithdark.localhost:{TestConfig.httpClientPort}"
 
 let normalizeHeaders
   (body : byte array)
@@ -368,8 +368,7 @@ let webserver () =
          (fun wh ->
            wh
            |> fun wh -> wh.UseKestrel()
-           |> fun wh ->
-                wh.UseUrls($"http://*:{LibService.Config.testHttpClientPort}")
+           |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpClientPort}")
            |> fun wh -> wh.ConfigureServices(configureServices)
            |> fun wh -> wh.Configure(configureApp)
            |> ignore<IWebHostBuilder>)

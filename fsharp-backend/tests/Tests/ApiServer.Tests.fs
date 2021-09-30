@@ -225,7 +225,7 @@ let postApiTestCase
   task {
     let port =
       match server with
-      | OCaml -> LibService.Config.testOcamlHttpPort
+      | OCaml -> TestConfig.ocamlHttpPort
       | FSharp -> LibService.Config.apiServerNginxPort
 
     let! (response : HttpResponseMessage) =
