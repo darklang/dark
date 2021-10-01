@@ -22,6 +22,7 @@
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
     <Compile Include="Legacy.fs" />
+    <Compile Include="HttpHeaders.fs" />
     <Compile Include="HttpRequest.fs" />
     <Compile Include="HttpResponse.fs" />
     <Compile Include="ProgramTypes.fs" />

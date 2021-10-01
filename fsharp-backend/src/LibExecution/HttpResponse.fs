@@ -8,10 +8,7 @@ open VendoredTablecloth
 
 module RT = RuntimeTypes
 
-type HttpResponse =
-  { statusCode : int
-    body : byte array
-    headers : List<string * string> }
+type HttpResponse = { statusCode : int; body : byte array; headers : HttpHeaders.T }
 
 let textPlain = ("Content-type", "text/plain; charset=utf-8")
 
@@ -40,16 +37,7 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
       match body with
       | RT.DBytes b -> b
       | other ->
-        let contentType =
-          headers
-          |> List.find
-               (fun (k : string, v) -> String.equalsCaseInsensitive "Content-type" k)
-          |> Option.map
-               (fun v -> v |> Tuple2.second |> (String.split ":") |> List.head)
-          |> Option.map (String.split ";")
-          |> Option.bind List.tryHead
-          |> Option.map String.toLowercase
-        match contentType with
+        match HttpHeaders.getContentType headers with
         | Some "text/plain"
         | Some "application/xml" ->
           DvalRepr.toEnduserReadableTextV0 body |> UTF8.toBytes

@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
+module HttpHeaders = LibExecution.HttpHeaders
 
 module Errors = LibExecution.Errors
 
@@ -78,9 +79,9 @@ let encodeRequestBody
       // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
       // for more information. *)
       HttpClient.StringContent s
-    | DObj _ when contentType = HttpClient.formContentType ->
-      HttpClient.FormContent(HttpClient.dvalToFormEncoding dv)
-    | dv when contentType = HttpClient.textContentType ->
+    | DObj _ when contentType = HttpHeaders.formContentType ->
+      HttpClient.FormContent(DvalRepr.toFormEncoding dv)
+    | dv when contentType = HttpHeaders.textContentType ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // when contentType = jsonContentType
       HttpClient.StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv)
@@ -95,12 +96,12 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = HttpClient.dvalToQuery query
+    let query = DvalRepr.toQuery query
 
     // Headers
     let encodedReqHeaders = DvalRepr.toStringPairsExn reqHeaders
     let contentType =
-      HttpClient.getHeader "content-type" encodedReqHeaders
+      HttpHeaders.getHeader "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)
     let reqHeaders =
       Map.add "Content-Type" contentType (Map encodedReqHeaders) |> Map.toList
@@ -110,12 +111,12 @@ let sendRequest
     | Ok response ->
       let parsedResponseBody =
         // CLEANUP: form header never triggers. But is it even needed?
-        if HttpClient.hasFormHeader response.headers then
+        if HttpHeaders.hasFormHeader response.headers then
           try
-            HttpClient.queryStringToDval response.body
+            DvalRepr.ofQueryString response.body
           with
           | _ -> DStr "form decoding error"
-        elif HttpClient.hasJsonHeader response.headers then
+        elif HttpHeaders.hasJsonHeader response.headers then
           try
             DvalRepr.ofUnknownJsonV0 response.body
           with

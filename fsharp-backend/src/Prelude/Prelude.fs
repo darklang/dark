@@ -236,7 +236,7 @@ module UTF8 =
     System.Text.Encoding.UTF8.GetString input
 
 
-// Base64 comes in various flavors, typically URLsafe (has '-' amd '_' with no
+// Base64 comes in various flavors, typically URLsafe (has '-' and '_' with no
 // padding) or regular (has + and / and has '=' padding at the end)
 module Base64 =
 
@@ -327,6 +327,66 @@ let truncateToInt64 (v : bigint) : int64 =
   | :? System.OverflowException ->
     if v > 0I then System.Int64.MaxValue else System.Int64.MinValue
 
+
+// urlEncode values in a query string. Note that the encoding is slightly different
+// to urlEncoding keys.
+// https://secretgeek.net/uri_enconding
+let urlEncodeValue (s : string) : string =
+  let encodeByte (b : byte) : byte array =
+    // CLEANUP make a nicer version of this that's designed for this use case
+    // We do want to escape the following: []+&^%#@"<>/;
+    // We don't want to escape the following: *$@!:?,.-_'
+    match b with
+    | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+    | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+    | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+    | b when b = (byte '*') -> [| b |]
+    | b when b = (byte '$') -> [| b |]
+    | b when b = (byte '@') -> [| b |]
+    | b when b = (byte '!') -> [| b |]
+    | b when b = (byte ':') -> [| b |]
+    | b when b = (byte '(') -> [| b |]
+    | b when b = (byte ')') -> [| b |]
+    | b when b = (byte '~') -> [| b |]
+    | b when b = (byte '?') -> [| b |]
+    | b when b = (byte '/') -> [| b |]
+    | b when b = (byte '.') -> [| b |]
+    | b when b = (byte '-') -> [| b |]
+    | b when b = (byte '_') -> [| b |]
+    | b when b = (byte '=') -> [| b |] // not the same for key
+    | b when b = (byte '\'') -> [| b |]
+    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
+  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
+
+// urlEncode keys in a query string. Note that the encoding is slightly different to
+// query string values
+let urlEncodeKey (s : string) : string =
+  let encodeByte (b : byte) : byte array =
+    // CLEANUP make a nicer version of this that's designed for this use case
+    // We do want to escape the following: []+&^%#@"<>/;
+    // We don't want to escape the following: *$@!:?,.-_'
+    match b with
+    | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
+    | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
+    | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
+    | b when b = (byte '*') -> [| b |]
+    | b when b = (byte '$') -> [| b |]
+    | b when b = (byte '@') -> [| b |]
+    | b when b = (byte '!') -> [| b |]
+    | b when b = (byte ':') -> [| b |]
+    | b when b = (byte '(') -> [| b |]
+    | b when b = (byte ')') -> [| b |]
+    | b when b = (byte '~') -> [| b |]
+    | b when b = (byte '?') -> [| b |]
+    | b when b = (byte '/') -> [| b |]
+    | b when b = (byte '.') -> [| b |]
+    | b when b = (byte ',') -> [| b |] // only in keys
+    | b when b = (byte '-') -> [| b |]
+    | b when b = (byte '_') -> [| b |]
+    | b when b = (byte '\'') -> [| b |]
+
+    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
+  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
 
 
 
