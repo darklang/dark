@@ -100,7 +100,11 @@ let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let message = $"500 Internal Server Error: More than one handler for route: {path}"
   standardResponse ctx message textPlain 500
 
-let unmatchedRouteResponse (ctx : HttpContext) (requestPath : string) (route : string) : Task<HttpContext> =
+let unmatchedRouteResponse
+  (ctx : HttpContext)
+  (requestPath : string)
+  (route : string)
+  : Task<HttpContext> =
   let message = $"The request ({requestPath}) does not match the route ({route})"
   standardResponse ctx message textPlain 500
 
@@ -125,7 +129,8 @@ let processCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
     let! corsSetting = Canvas.fetchCORSSetting canvasID
     let originHeader = getHeader ctx.Request.Headers "Origin"
 
-    let defaultOrigins = [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
+    let defaultOrigins =
+      [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
 
     let header =
       match (originHeader, corsSetting) with
@@ -141,7 +146,8 @@ let processCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
       // if there's no supplied origin, don't set the header at all.
       | None, _ -> None
       // Return the origin if and only if it's in the setting
-      | Some origin, Some (Canvas.Origins origins) when List.contains origin origins -> Some origin
+      | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
+        Some origin
       // Otherwise: there was a supplied origin and it's not in the setting.
       // return "null" explicitly
       | Some _, Some _ -> Some "null"
@@ -156,14 +162,16 @@ let processCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
 // ---------------
 // HttpsRedirect
 // ---------------
-let shouldRedirect (ctx : HttpContext) : bool = LibBackend.Config.useHttps && not ctx.Request.IsHttps
+let shouldRedirect (ctx : HttpContext) : bool =
+  LibBackend.Config.useHttps && not ctx.Request.IsHttps
 
 let httpsRedirect (ctx : HttpContext) : HttpContext =
   // adapted from https://github.com/aspnet/BasicMiddleware/blob/master/src/Microsoft.AspNetCore.HttpsPolicy/HttpsRedirectionMiddleware.cs
   let req = ctx.Request
   let host = HostString req.Host.Host
 
-  let redirectUrl = UriHelper.BuildAbsolute("https", host, req.PathBase, req.Path, req.QueryString)
+  let redirectUrl =
+    UriHelper.BuildAbsolute("https", host, req.PathBase, req.Path, req.QueryString)
 
   // CLEANUP use better status code, maybe 307
   ctx.Response.StatusCode <- 302
@@ -191,12 +199,16 @@ let canonicalizeURL (toHttps : bool) (url : string) =
 // ---------------
 let getHeaders (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
-  |> Seq.map (fun (kvp : KeyValuePair<string, StringValues>) -> (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
+  |> Seq.map
+       (fun (kvp : KeyValuePair<string, StringValues>) ->
+         (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
   |> Seq.toList
 
 let getQuery (ctx : HttpContext) : List<string * List<string>> =
   ctx.Request.Query
-  |> Seq.map (fun (kvp : KeyValuePair<string, StringValues>) -> (kvp.Key, kvp.Value.ToArray() |> Array.toList))
+  |> Seq.map
+       (fun (kvp : KeyValuePair<string, StringValues>) ->
+         (kvp.Key, kvp.Value.ToArray() |> Array.toList))
   |> Seq.toList
 
 
@@ -211,7 +223,14 @@ let getBody (ctx : HttpContext) : Task<byte array> =
 // ---------------
 // Handle builtwithdark request
 // ---------------
-let runHttpRequest (c : Canvas.T) (tlid : tlid) (traceID : LibExecution.AnalysisTypes.TraceID) (routeVars : List<string * RT.Dval>) (request : RT.Dval) (expr : RT.Expr) : Task<Resp.HttpResponse * HashSet.T<tlid>> =
+let runHttpRequest
+  (c : Canvas.T)
+  (tlid : tlid)
+  (traceID : LibExecution.AnalysisTypes.TraceID)
+  (routeVars : List<string * RT.Dval>)
+  (request : RT.Dval)
+  (expr : RT.Expr)
+  : Task<Resp.HttpResponse * HashSet.T<tlid>> =
   task {
     let program = Canvas.toProgram c
     let! state, touchedTLIDs = RealExe.createState traceID tlid program
@@ -244,7 +263,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let ownerName = Account.ownerNameFromCanvasName canvasName
       let ownerUsername = UserName.create (string ownerName)
 
-      let! ownerID = catch "user not found" 404 Account.userIDForUserName ownerUsername
+      let! ownerID =
+        catch "user not found" 404 Account.userIDForUserName ownerUsername
 
       // No error checking as this will create a canvas if none exists
       let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
@@ -267,7 +287,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
 
       let url : string =
-        let isHttps = getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
+        let isHttps =
+          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
         ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
 
       match pages with
@@ -284,11 +305,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let request = Req.fromRequest true url reqHeaders reqQuery reqBody
 
           // Store trace - do not resolve task, send this into the ether
-          let _timestamp = TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request
+          let _timestamp =
+            TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request
 
           // Do request
           let expr = expr.toRuntimeType ()
-          let! (result, touchedTLIDs) = runHttpRequest c tlid traceID routeVars request expr
+          let! (result, touchedTLIDs) =
+            runHttpRequest c tlid traceID routeVars request expr
 
           // FSTODO - move cors into runHttpRequest
           do! processCORS ctx canvasID
@@ -300,23 +323,32 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           do! ctx.Response.Body.WriteAsync(result.body, 0, result.body.Length)
 
           // Send to pusher - Do not resolve task, send this into the ether
-          Pusher.pushNewTraceID executionID canvasID traceID (HashSet.toList touchedTLIDs)
+          Pusher.pushNewTraceID
+            executionID
+            canvasID
+            traceID
+            (HashSet.toList touchedTLIDs)
 
           return ctx
 
         | None -> // vars didnt parse
           return! unmatchedRouteResponse ctx requestPath route
-      | [] when string ctx.Request.Path = "/favicon.ico" -> return! faviconResponse ctx
+      | [] when string ctx.Request.Path = "/favicon.ico" ->
+        return! faviconResponse ctx
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
         let event = Req.fromRequest true url reqHeaders reqQuery reqBody
 
-        let! timestamp = TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
+        let! timestamp =
+          TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
 
         // Send to pusher - do not resolve task, send this into the ether
-        Pusher.pushNew404 executionID canvasID ("HTTP", requestPath, method, timestamp, traceID)
+        Pusher.pushNew404
+          executionID
+          canvasID
+          ("HTTP", requestPath, method, timestamp, traceID)
 
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx
@@ -382,7 +414,10 @@ let main _ =
   print "Starting BwdServer"
   LibBackend.Init.init "Bwdserver"
 
-  (webserver true LibService.Config.bwdServerPort LibService.Config.bwdServerKubernetesPort)
+  (webserver
+    true
+    LibService.Config.bwdServerPort
+    LibService.Config.bwdServerKubernetesPort)
     .Run()
 
   0
