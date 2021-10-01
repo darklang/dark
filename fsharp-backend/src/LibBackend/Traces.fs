@@ -15,7 +15,7 @@ module PT = LibExecution.ProgramTypes
 // -------------------------
 let incomplete = RT.DIncomplete RT.SourceNone
 
-let sampleRequest : LibExecution.ParsedRequest.T =
+let sampleRequest : RT.Dval =
   RT.Dval.obj [ ("body", incomplete)
                 ("jsonBody", incomplete)
                 ("formBody", incomplete)

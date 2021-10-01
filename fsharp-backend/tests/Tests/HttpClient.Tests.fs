@@ -214,6 +214,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
       let actualHeaders =
         BwdServer.getHeaders ctx
+        |> Map
         // .NET always adds a Content-Length header, but OCaml doesn't
         |> Map.remove "Content-Length"
       let! actualBody = BwdServer.getBody ctx

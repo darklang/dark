@@ -1,4 +1,4 @@
-module LibExecution.ParsedRequest
+module LibExecution.HttpRequest
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -112,24 +112,22 @@ type T = RT.Dval
 //   uri
 //   |> Uri.to_string
 //   |> fun s -> Dval.to_dobj_exn [("url", DStr s)]
-//
-//
-// (* ------------------------- *)
-// (* Exported *)
-// (* ------------------------- *)
-// type header = string * string
-//
-// type query_val = string * string list
-//
-// (* If allow_unparsed is true, we fall back to DNull; this allows us to create a
-//  * 404 for a request with an unparseable body *)
-// let from_request
-//     ?(allow_unparseable = false)
-//     (uri : Uri.t)
-//     (headers : header list)
-//     (query : query_val list)
-//     rbody =
-//   let parsed_body =
+
+
+// -------------------------
+// Exported *)
+// -------------------------
+
+// If allow_unparsed is true, we fall back to DNull; this allows us to create a
+// 404 for a request with an unparseable body
+let fromRequest
+  (allowUnparseable : bool)
+  (uri : string)
+  (headers : List<string * string>)
+  (query : List<string * List<string>>)
+  (body : byte array)
+  : RT.Dval =
+  //   let parsed_body =
 //     try parsed_body headers rbody
 //     with e -> if allow_unparseable then DNull else raise e
 //   in
@@ -155,6 +153,7 @@ type T = RT.Dval
 //     ~init:Dval.empty_dobj
 //     ~f:(fun acc p -> Dval.obj_merge acc p)
 //     parts
-//
-//
+  RT.DNull
+
+
 let toDval (self : T) : RT.Dval = self

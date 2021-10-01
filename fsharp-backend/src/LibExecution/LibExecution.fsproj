@@ -22,7 +22,8 @@
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
     <Compile Include="Legacy.fs" />
-    <Compile Include="ParsedRequest.fs" />
+    <Compile Include="HttpRequest.fs" />
+    <Compile Include="HttpResponse.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="OCamlTypes.fs" />
   </ItemGroup>

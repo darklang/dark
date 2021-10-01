@@ -105,11 +105,10 @@ module Handler =
       let! state, touchedTLIDs = RealExe.createState p.trace_id p.tlid program
       t "load-execution-state"
 
-      // since this ignores the result, it doesn't go through the error rail
+      // CLEANUP
+      // since this ignores the result, it doesn't go through the http result
       // handling function. This might not matter
-      // CLEANUP: this shouldn't always run executeHttpHandler if it's another
-      // kind of handler. but maybe it doesn't matter
-      let! (_result : RT.Dval) = Exe.executeHttpHandler state inputVars expr
+      let! (_result : RT.Dval) = Exe.executeHandler state inputVars expr
 
       t "execute-handler"
 
