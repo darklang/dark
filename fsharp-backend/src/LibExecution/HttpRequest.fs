@@ -54,7 +54,10 @@ let parseQueryString (queryvals : List<string * List<string>>) =
 
 
 let parseHeaders (headers : (string * string) list) =
-  headers |> List.map (fun (k, v) -> (k, RT.DStr v)) |> Map |> RT.Dval.DObj
+  headers
+  |> List.map (fun (k, v) -> (String.toLowercase k, RT.DStr v))
+  |> Map
+  |> RT.Dval.DObj
 
 let parseUsing
   (fmt : MediaType.T)
