@@ -10,6 +10,8 @@ open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
 module HttpHeaders = LibExecution.HttpHeaders
+module ContentType = HttpHeaders.ContentType
+module MediaType = HttpHeaders.MediaType
 
 module Errors = LibExecution.Errors
 
@@ -37,23 +39,23 @@ let parametersNoBody =
     Param.make "headers" (TDict TStr) "" ]
 
 
-let guessContentType (body : Dval option) : HttpHeaders.ContentType =
+let guessContentType (body : Dval option) : ContentType.T =
   match body with
   | Some dv ->
     match dv with
     (* TODO: DBytes? *)
     // Do nothing to strings; users can set the header if they have opinions
-    | DStr _ -> HttpHeaders.Text
+    | DStr _ -> ContentType.text
     // Otherwise, jsonify (this is the 'easy' API afterall), regardless of
     // headers passed. This makes a little more sense than you might think on
     // first glance, due to the interaction with the above `DStr` case. Note that
     // this handles all non-DStr dvals.
-    | _ -> HttpHeaders.Json
+    | _ -> ContentType.json
   // If we were passed an empty body, we need to ensure a Content-Type was set, or
   // else helpful intermediary load balancers will set the Content-Type to something
   // they've plucked out of the ether, which is distinctfully non-helpful and also
   // non-deterministic *)
-  | None -> HttpHeaders.Text
+  | None -> ContentType.text
 
 
 // Encodes [body] as a UTF-8 string, safe for sending across the internet! Uses
@@ -62,7 +64,7 @@ let guessContentType (body : Dval option) : HttpHeaders.ContentType =
 // have potentially had a Content-Type added to them based on the magic decision we've made.
 let encodeRequestBody
   (body : Dval option)
-  (contentType : HttpHeaders.ContentType)
+  (contentType : ContentType.T)
   : HttpClient.Content =
   match body with
   | Some dv ->
@@ -79,9 +81,9 @@ let encodeRequestBody
       // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
       // for more information. *)
       HttpClient.StringContent s
-    | DObj _ when contentType = HttpHeaders.Form ->
+    | DObj _ when ContentType.toMediaType contentType = Some MediaType.Form ->
       HttpClient.FormContent(DvalRepr.toFormEncoding dv)
-    | dv when contentType = HttpHeaders.Text ->
+    | dv when ContentType.toMediaType contentType = Some MediaType.Text ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // when contentType = jsonContentType
       HttpClient.StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv)
@@ -105,7 +107,7 @@ let sendRequest
       |> Option.defaultValue (guessContentType reqBody)
     let reqHeaders =
       Map encodedReqHeaders
-      |> Map.add "Content-Type" (HttpHeaders.ContentType.toString contentType)
+      |> Map.add "Content-Type" (string contentType)
       |> Map.toList
     let encodedReqBody = encodeRequestBody reqBody contentType
 

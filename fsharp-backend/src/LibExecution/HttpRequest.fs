@@ -7,6 +7,9 @@ open Prelude
 open VendoredTablecloth
 
 module RT = RuntimeTypes
+module ContentType = HttpHeaders.ContentType
+module MediaType = HttpHeaders.MediaType
+module Charset = HttpHeaders.Charset
 
 // Internal invariant, _must_ be a DObj
 type T = RT.Dval
@@ -15,18 +18,19 @@ type T = RT.Dval
 // Internal
 // -------------------------
 
-let parse (p : Option<HttpHeaders.ContentType>) (body : byte array) : RT.Dval =
+let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   match p with
-  | Some HttpHeaders.Json ->
+  | Some (MediaType.Json _) ->
     (try
       body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
      with
      | e -> failwith $"Invalid json")
-  | Some HttpHeaders.Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
+  | Some MediaType.Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
   // CLEANUP: text should just be text
-  | Some HttpHeaders.Text
-  | Some HttpHeaders.Xml
-  | Some HttpHeaders.Html
+  | Some (MediaType.Text _)
+  | Some (MediaType.Xml _)
+  | Some (MediaType.Html _)
+  | Some (MediaType.Other _)
   | None ->
     (try
       body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
@@ -40,7 +44,9 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
   if reqbody.Length = 0 then
     RT.DNull
   else
-    parse (HttpHeaders.getContentType headers) reqbody
+    let mt =
+      HttpHeaders.getContentType headers |> Option.bind ContentType.toMediaType
+    parse mt reqbody
 
 
 let parseQueryString (queryvals : List<string * List<string>>) =
@@ -51,18 +57,18 @@ let parseHeaders (headers : (string * string) list) =
   headers |> List.map (fun (k, v) -> (k, RT.DStr v)) |> Map |> RT.Dval.DObj
 
 let parseUsing
-  (fmt : HttpHeaders.ContentType)
+  (fmt : MediaType.T)
   (headers : HttpHeaders.T)
   (body : byte array)
   : RT.Dval =
-  if body.Length = 0 || Some fmt <> HttpHeaders.getContentType headers then
+  if body.Length = 0 || Some fmt <> HttpHeaders.getMediaType headers then
     RT.DNull
   else
     parse (Some fmt) body
 
 
-let parseJsonBody headers body = parseUsing HttpHeaders.Json headers body
-let parseFormBody headers body = parseUsing HttpHeaders.Form headers body
+let parseJsonBody headers body = parseUsing MediaType.Json headers body
+let parseFormBody headers body = parseUsing MediaType.Form headers body
 
 // let parsed_cookies cookies =
 //   cookies

@@ -10,12 +10,15 @@ module RT = RuntimeTypes
 
 type HttpResponse = { statusCode : int; body : byte array; headers : HttpHeaders.T }
 
+module ContentType = HttpHeaders.ContentType
+module MediaType = HttpHeaders.MediaType
+
 
 let inferContentTypeHeader (dv : RT.Dval) : HttpHeaders.Header =
   match dv with
   | RT.DObj _
-  | RT.DList _ -> HttpHeaders.ContentType.jsonHeader
-  | _ -> HttpHeaders.ContentType.textHeader
+  | RT.DList _ -> ContentType.jsonHeader
+  | _ -> ContentType.textHeader
 
 
 let toHttpResponse (result : RT.Dval) : HttpResponse =
@@ -24,11 +27,11 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
   | RT.DErrorRail (RT.DResult (Error _)) ->
     // CLEANUP: result should become a 500 error
     { statusCode = 404
-      headers = [ "Server", "darklang"; HttpHeaders.ContentType.textHeader ]
+      headers = [ "Server", "darklang"; ContentType.textHeader ]
       body = UTF8.toBytes "Not found" }
   | RT.DErrorRail _ ->
     { statusCode = 500
-      headers = [ "Server", "darklang"; HttpHeaders.ContentType.textHeader ]
+      headers = [ "Server", "darklang"; ContentType.textHeader ]
       body = UTF8.toBytes "Invalid conversion from errorrail" }
   | RT.DHttpResponse (RT.Redirect str) ->
     { statusCode = int 302; headers = [ "Location", str ]; body = [||] }
@@ -42,16 +45,15 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
       match body with
       | RT.DBytes b -> b
       | _ ->
-        match contentType with
-        | Some HttpHeaders.Text
-        | Some HttpHeaders.Xml ->
+        match Option.bind ContentType.toMediaType contentType with
+        | Some MediaType.Text
+        | Some MediaType.Xml -> DvalRepr.toEnduserReadableTextV0 body |> UTF8.toBytes
+        | Some MediaType.Html ->
           DvalRepr.toEnduserReadableTextV0 body |> UTF8.toBytes
-        | Some HttpHeaders.Html ->
-          DvalRepr.toEnduserReadableTextV0 body |> UTF8.toBytes
-        | Some HttpHeaders.Json
-        | Some HttpHeaders.Form
+        | Some MediaType.Json
+        | Some MediaType.Form
+        | Some (MediaType.Other _)
         | None -> DvalRepr.toPrettyMachineJsonStringV1 body |> UTF8.toBytes
-
     { statusCode = int code
       headers = headers @ inferredContentTypeHeader
       body = body }
