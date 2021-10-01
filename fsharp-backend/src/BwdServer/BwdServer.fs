@@ -208,7 +208,11 @@ let getQuery (ctx : HttpContext) : List<string * List<string>> =
   ctx.Request.Query
   |> Seq.map
        (fun (kvp : KeyValuePair<string, StringValues>) ->
-         (kvp.Key, kvp.Value.ToArray() |> Array.toList))
+         (kvp.Key,
+          kvp.Value.ToArray()
+          |> Array.toList
+          |> List.map (String.split ",")
+          |> List.flatten))
   |> Seq.toList
 
 
