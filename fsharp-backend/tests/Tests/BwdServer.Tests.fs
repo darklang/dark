@@ -251,7 +251,7 @@ let testsFromFiles =
 
 
 
-let tests = testList "BwdServer" [ testList "From files" testsFromFiles ]
+let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
 
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
