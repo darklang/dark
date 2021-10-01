@@ -28,7 +28,7 @@ module MediaType =
       | Other s -> s
 
   let parse (str : string) : T =
-    match str with
+    match String.trim str with
     | "application/x-www-form-urlencoded" -> Form
     | "application/xml" -> Xml
     | "application/json" -> Json
@@ -50,7 +50,7 @@ module Charset =
       | NotUtf8 s -> s
 
   let parse (str : string) : T =
-    match str with
+    match String.trim str with
     | "utf-8" -> Utf8
     | _ -> NotUtf8 str
 
@@ -76,9 +76,9 @@ module ContentType =
   let toHttpHeader (ct : T) : Header = "Content-Type", string ct
 
   let parse (str : string) : T =
-    match String.split ";" str with
+    match String.split ";" str |> List.map String.trim with
     | [ mt; cs ] ->
-      match String.split "=" cs with
+      match String.split "=" cs |> List.map String.trim with
       | [ "charset"; cs ] -> Known(MediaType.parse mt, Charset.parse cs)
       | _ -> Unknown(str)
     | [ mt ] -> KnownNoCharset(MediaType.parse mt)
