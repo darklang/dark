@@ -14,11 +14,11 @@ module ContentType = HttpHeaders.ContentType
 module MediaType = HttpHeaders.MediaType
 
 
-let inferContentTypeHeader (dv : RT.Dval) : HttpHeaders.Header =
+let inferContentTypeHeader (dv : RT.Dval) : ContentType.T =
   match dv with
   | RT.DObj _
-  | RT.DList _ -> ContentType.jsonHeader
-  | _ -> ContentType.textHeader
+  | RT.DList _ -> ContentType.json
+  | _ -> ContentType.text
 
 
 let toHttpResponse (result : RT.Dval) : HttpResponse =
@@ -37,15 +37,22 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
     { statusCode = int 302; headers = [ "Location", str ]; body = [||] }
   | RT.DHttpResponse (RT.Response (code, headers, body)) ->
     let contentType = HttpHeaders.getContentType headers
+    // Potential extra header
     let inferredContentTypeHeader =
-      match contentType with
-      | None -> [ inferContentTypeHeader body ]
-      | Some _ -> []
+      if contentType = None then
+        [ ContentType.toHttpHeader (inferContentTypeHeader body) ]
+      else
+        []
+    // Encode the body
     let body =
       match body with
       | RT.DBytes b -> b
       | _ ->
-        match Option.bind ContentType.toMediaType contentType with
+        let mediaType =
+          match contentType with
+          | Some ct -> ContentType.toMediaType ct
+          | None -> inferContentTypeHeader body |> ContentType.toMediaType
+        match mediaType with
         | Some MediaType.Text
         | Some MediaType.Xml -> DvalRepr.toEnduserReadableTextV0 body |> UTF8.toBytes
         | Some MediaType.Html ->
@@ -73,5 +80,5 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
     // for demonstrations sake, let's return 200 Okay when
     // no HTTP response object is returned
     { statusCode = 200
-      headers = [ inferContentTypeHeader dv ]
+      headers = [ ContentType.toHttpHeader (inferContentTypeHeader dv) ]
       body = dv |> DvalRepr.toPrettyMachineJsonStringV1 |> UTF8.toBytes }
