@@ -15,26 +15,19 @@ type T = RT.Dval
 // Internal
 // -------------------------
 
-type ParserType =
-  | Json
-  | Form
-  | Unknown
-
-let getParserType (headers : HttpHeaders.T) : ParserType =
-  match HttpHeaders.getContentType headers with
-  | Some "application/json" -> Json
-  | Some "application/x-www-form-urlencoded" -> Form
-  | _ -> Unknown
-
-let parse (p : ParserType) (body : byte array) : RT.Dval =
+let parse (p : Option<HttpHeaders.ContentType>) (body : byte array) : RT.Dval =
   match p with
-  | Json ->
+  | Some HttpHeaders.Json ->
     (try
       body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
      with
      | e -> failwith $"Invalid json")
-  | Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
-  | Unknown ->
+  | Some HttpHeaders.Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
+  // CLEANUP: text should just be text
+  | Some HttpHeaders.Text
+  | Some HttpHeaders.Xml
+  | Some HttpHeaders.Html
+  | None ->
     (try
       body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
      with
@@ -44,7 +37,10 @@ let parse (p : ParserType) (body : byte array) : RT.Dval =
 
 
 let parseBody (headers : List<string * string>) (reqbody : byte array) =
-  if reqbody.Length = 0 then RT.DNull else parse (getParserType headers) reqbody
+  if reqbody.Length = 0 then
+    RT.DNull
+  else
+    parse (HttpHeaders.getContentType headers) reqbody
 
 
 let parseQueryString (queryvals : List<string * List<string>>) =
@@ -55,18 +51,18 @@ let parseHeaders (headers : (string * string) list) =
   headers |> List.map (fun (k, v) -> (k, RT.DStr v)) |> Map |> RT.Dval.DObj
 
 let parseUsing
-  (fmt : ParserType)
+  (fmt : HttpHeaders.ContentType)
   (headers : HttpHeaders.T)
   (body : byte array)
   : RT.Dval =
-  if body.Length = 0 || fmt <> getParserType headers then
+  if body.Length = 0 || Some fmt <> HttpHeaders.getContentType headers then
     RT.DNull
   else
-    parse fmt body
+    parse (Some fmt) body
 
 
-let parseJsonBody headers body = parseUsing Json headers body
-let parseFormBody headers body = parseUsing Form headers body
+let parseJsonBody headers body = parseUsing HttpHeaders.Json headers body
+let parseFormBody headers body = parseUsing HttpHeaders.Form headers body
 
 // let parsed_cookies cookies =
 //   cookies
