@@ -209,10 +209,15 @@ let getQuery (ctx : HttpContext) : List<string * List<string>> =
   |> Seq.map
        (fun (kvp : KeyValuePair<string, StringValues>) ->
          (kvp.Key,
+          // If there are duplicates, .NET puts them in the same StringValues.
+          // However, it doesn't parse commas. We want a list if there are commas,
+          // but we want to overwrite if there are two of the same headers.
+          // CLEANUP this isn't to say that this is good behaviour
           kvp.Value.ToArray()
           |> Array.toList
-          |> List.map (String.split ",")
-          |> List.flatten))
+          |> List.tryLast
+          |> Option.defaultValue ""
+          |> String.split ","))
   |> Seq.toList
 
 
