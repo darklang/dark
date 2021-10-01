@@ -81,7 +81,8 @@ let encodeRequestBody
       // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
       // for more information. *)
       HttpClient.StringContent s
-    | DObj _ when ContentType.toMediaType contentType = Some MediaType.Form ->
+    // CLEANUP if there is a charset here, it uses json encoding
+    | DObj _ when contentType = ContentType.KnownNoCharset MediaType.Form ->
       HttpClient.FormContent(DvalRepr.toFormEncoding dv)
     | dv when ContentType.toMediaType contentType = Some MediaType.Text ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
