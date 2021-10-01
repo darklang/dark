@@ -14,82 +14,60 @@ type T = RT.Dval
 // -------------------------
 // Internal
 // -------------------------
-//
-// type parser =
-//   | Json
-//   | Form
-//   | Unknown
-//
-// let body_parser_type headers =
-//   let ct_is ct =
-//     List.exists headers ~f:(fun (k, v) ->
-//         String.Caseless.equal k "content-type"
-//         && String.is_substring ~substring:ct v)
-//   in
-//   if ct_is "application/json"
-//   then Json
-//   else if ct_is "application/x-www-form-urlencoded"
-//   then Form
-//   else Unknown
-//
-//
-// let parser_fn p (str : string) : dval =
-//   match p with
-//   | Json ->
-//     ( try Dval.of_unknown_json_v0 str
-//       with e -> Exception.enduser ~actual:str ("Invalid json: " ^ str) )
-//   | Form ->
-//       Dval.of_form_encoding str
-//   | Unknown ->
-//     ( try Dval.of_unknown_json_v0 str
-//       with e ->
-//         Exception.enduser
-//           ~actual:str
-//           "Unknown Content-type -- we assumed application/json but invalid JSON was sent"
-//     )
-//
-//
-// let parsed_body headers reqbody =
-//   let bdval =
-//     if reqbody = ""
-//     then DNull
-//     else reqbody |> parser_fn (body_parser_type headers)
-//   in
-//   Dval.to_dobj_exn [("body", bdval)]
-//
-//
-// let parsed_query_string (queryvals : (string * string list) list) =
-//   let dval = Dval.query_to_dval queryvals in
-//   Dval.to_dobj_exn [("queryParams", dval)]
-//
-//
-// let parsed_headers (headers : (string * string) list) =
-//   headers
-//   |> List.map ~f:(fun (k, v) -> (k, DStr v))
-//   |> DvalMap.from_list
-//   |> fun dm -> DObj dm |> fun dv -> Dval.to_dobj_exn [("headers", dv)]
-//
-//
-// let unparsed_body rb =
-//   let dval = DStr rb in
-//   Dval.to_dobj_exn [("fullBody", dval)]
-//
-//
-// let body_of_fmt ~fmt ~key headers rbody =
-//   let dval =
-//     match (body_parser_type headers, rbody) with
-//     | actualfmt, content when String.length content > 0 && fmt = actualfmt ->
-//         parser_fn fmt content
-//     | _ ->
-//         DNull
-//   in
-//   Dval.to_dobj_exn [(key, dval)]
-//
-//
-// let json_body = body_of_fmt ~fmt:Json ~key:"jsonBody"
-//
-// let form_body = body_of_fmt ~fmt:Form ~key:"formBody"
-//
+
+type ParserType =
+  | Json
+  | Form
+  | Unknown
+
+let getParserType (headers : HttpHeaders.T) : ParserType =
+  match HttpHeaders.getContentType headers with
+  | Some "application/json" -> Json
+  | Some "application/x-www-form-urlencoded" -> Form
+  | _ -> Unknown
+
+let parse (p : ParserType) (body : byte array) : RT.Dval =
+  match p with
+  | Json ->
+    (try
+      body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
+     with
+     | e -> failwith $"Invalid json")
+  | Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
+  | Unknown ->
+    (try
+      body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
+     with
+     | e ->
+       failwith
+         "Unknown Content-type -- we assumed application/json but invalid JSON was sent")
+
+
+let parseBody (headers : List<string * string>) (reqbody : byte array) =
+  if reqbody.Length = 0 then RT.DNull else parse (getParserType headers) reqbody
+
+
+let parseQueryString (queryvals : List<string * List<string>>) =
+  DvalRepr.ofQuery queryvals
+
+
+let parseHeaders (headers : (string * string) list) =
+  headers |> List.map (fun (k, v) -> (k, RT.DStr v)) |> Map |> RT.Dval.DObj
+
+let parseUsing
+  (fmt : ParserType)
+  (headers : HttpHeaders.T)
+  (body : byte array)
+  : RT.Dval =
+  if body.Length = 0 || fmt <> getParserType headers then
+    RT.DNull
+  else
+    parse fmt body
+
+
+let parseJsonBody headers body = parseUsing Json headers body
+let parseFormBody headers body = parseUsing Form headers body
+
 // let parsed_cookies cookies =
 //   cookies
 //   |> String.split ~on:';'
@@ -108,10 +86,7 @@ type T = RT.Dval
 //   |> fun x -> Dval.to_dobj_exn [("cookies", x)]
 //
 //
-// let url (uri : Uri.t) =
-//   uri
-//   |> Uri.to_string
-//   |> fun s -> Dval.to_dobj_exn [("url", DStr s)]
+let url (uri : string) = RT.Dval.obj [ ("url", RT.DStr uri) ]
 
 
 // -------------------------
@@ -127,33 +102,30 @@ let fromRequest
   (query : List<string * List<string>>)
   (body : byte array)
   : RT.Dval =
-  //   let parsed_body =
-//     try parsed_body headers rbody
-//     with e -> if allow_unparseable then DNull else raise e
-//   in
-//   let json_body =
-//     try json_body headers rbody
-//     with e -> if allow_unparseable then DNull else raise e
-//   in
-//   let form_body =
-//     try form_body headers rbody
-//     with e -> if allow_unparseable then DNull else raise e
-//   in
-//   let parts =
-//     [ parsed_body
-//     ; json_body
-//     ; form_body
-//     ; parsed_query_string query
-//     ; parsed_headers headers
-//     ; unparsed_body rbody
-//     ; cookies headers
-//     ; url uri ]
-//   in
-//   List.fold_left
-//     ~init:Dval.empty_dobj
-//     ~f:(fun acc p -> Dval.obj_merge acc p)
-//     parts
-  RT.DNull
-
+  let parseBody =
+    try
+      parseBody headers body
+    with
+    | e -> if allowUnparseable then RT.DNull else raise e
+  let jsonBody =
+    try
+      parseJsonBody headers body
+    with
+    | e -> if allowUnparseable then RT.DNull else raise e
+  let formBody =
+    try
+      parseFormBody headers body
+    with
+    | e -> if allowUnparseable then RT.DNull else raise e
+  let parts =
+    [ "body", parseBody
+      "jsonBody", jsonBody
+      "formBody", formBody
+      "queryParams", parseQueryString query
+      "headers", parseHeaders headers
+      "fullBody", RT.DStr(UTF8.ofBytesUnsafe body)
+      // cookies headers
+      "url", RT.DStr uri ]
+  RT.Dval.obj parts
 
 let toDval (self : T) : RT.Dval = self
