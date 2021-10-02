@@ -96,10 +96,12 @@ module ContentType =
 
 let getHeader (headerKey : string) (headers : T) : string option =
   headers
-  |> List.tryFind (fun ((k : string), (_ : string)) -> String.equalsCaseInsensitive headerKey k)
+  |> List.tryFind
+       (fun ((k : string), (_ : string)) -> String.equalsCaseInsensitive headerKey k)
   |> Option.map (fun (k, v) -> v)
 
-let getContentType (headers : T) : Option<ContentType.T> = headers |> getHeader "Content-type" |> Option.map ContentType.parse
+let getContentType (headers : T) : Option<ContentType.T> =
+  headers |> getHeader "Content-type" |> Option.map ContentType.parse
 
 let getMediaType (headers : T) : Option<MediaType.T> =
   headers
