@@ -73,24 +73,25 @@ let parseUsing
 let parseJsonBody headers body = parseUsing MediaType.Json headers body
 let parseFormBody headers body = parseUsing MediaType.Form headers body
 
-// let parsed_cookies cookies =
-//   cookies
-//   |> String.split ~on:';'
-//   |> List.map ~f:String.strip
-//   |> List.map ~f:(String.lsplit2 ~on:'=')
-//   |> List.filter_opt
-//   |> List.map ~f:(fun (k, v) ->
-//          (Uri.pct_decode k, DStr (Uri.pct_decode v)))
-//   |> Dval.to_dobj_exn
-//
-//
-// let cookies (headers : (string * string) list) =
-//   List.Assoc.find ~equal:( = ) headers "cookie"
-//   |> Option.map ~f:parsed_cookies
-//   |> Option.value ~default:(Dval.to_dobj_exn [])
-//   |> fun x -> Dval.to_dobj_exn [("cookies", x)]
-//
-//
+let parseCookies (cookies : string) : RT.Dval =
+  let decode = System.Web.HttpUtility.UrlDecode
+  cookies
+  |> String.split ";"
+  |> List.map String.trim
+  |> List.map (fun s -> s.Split("=", 2) |> Array.toList)
+  |> List.map
+       (function
+       | [] -> ("", RT.DStr "")
+       | [ k ] -> (decode k, RT.DStr "")
+       | k :: v :: _ -> (decode k, RT.DStr(decode v)))
+  |> RT.Dval.obj
+
+let cookies (headers : HttpHeaders.T) : RT.Dval =
+  HttpHeaders.getHeader "cookie" headers
+  |> Option.map parseCookies
+  |> Option.defaultValue (RT.DObj Map.empty)
+
+
 let url (uri : string) =
   // .NET doesn't url-encode the query like we expect, so we're going to do it
   let parsed = System.UriBuilder(uri)
@@ -134,7 +135,7 @@ let fromRequest
       "queryParams", parseQueryString query
       "headers", parseHeaders headers
       "fullBody", RT.DStr(UTF8.ofBytesUnsafe body)
-      // cookies headers
+      "cookies", cookies headers
       "url", url uri ]
   RT.Dval.obj parts
 
