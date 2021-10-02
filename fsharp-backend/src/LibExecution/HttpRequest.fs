@@ -91,7 +91,12 @@ let parseFormBody headers body = parseUsing MediaType.Form headers body
 //   |> fun x -> Dval.to_dobj_exn [("cookies", x)]
 //
 //
-let url (uri : string) = RT.Dval.obj [ ("url", RT.DStr uri) ]
+let url (uri : string) =
+  // .NET doesn't url-encode the query like we expect, so we're going to do it
+  let parsed = System.UriBuilder(uri)
+  // FSTODO test this somehow
+  parsed.Query <- urlEncodeExcept "*$@!:()~?/.,&-_=\\" parsed.Query
+  RT.DStr(string parsed)
 
 
 // -------------------------
@@ -130,7 +135,7 @@ let fromRequest
       "headers", parseHeaders headers
       "fullBody", RT.DStr(UTF8.ofBytesUnsafe body)
       // cookies headers
-      "url", RT.DStr uri ]
+      "url", url uri ]
   RT.Dval.obj parts
 
 let toDval (self : T) : RT.Dval = self
