@@ -1,0 +1,20 @@
+[http-handler POST /]
+"hello post"
+
+[request]
+OPTIONS / HTTP/1.1
+Host: HOST
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 0
+Access-Control-Allow-Origin: http://localhost:3001
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: *
+Access-Control-Allow-Methods: get,put,post,delete,patch,head,options
+x-darklang-execution-id: 0123456789
+Server: darklang
+Content-Length: 0
+

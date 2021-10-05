@@ -1,6 +1,8 @@
 [http-handler GET /hello/:name]
 "hello " ++ name
 
+[cors https://interestingwebsite.com,http://localhost:8000]
+
 [request]
 GET /hello/alice-bob HTTP/1.1
 Host: HOST
@@ -11,7 +13,7 @@ Origin: https://interestingwebsite.com
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: \*
 x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
 Server: darklang
