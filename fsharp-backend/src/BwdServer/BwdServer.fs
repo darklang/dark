@@ -66,6 +66,8 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     return ctx
   }
 
+
+
 let textPlain = Some "text/plain; charset=utf-8"
 
 let standardResponse
@@ -123,8 +125,10 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
 // ---------------
 // CORS
 // ---------------
-// FSTODO: for now, we'll read the CORS settings and write the response headers. This is probably wrong but we'll see
-let processCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
+let inferCorsAllowOriginHeader
+  (ctx : HttpContext)
+  (canvasID : CanvasID)
+  : Task<string option> =
   task {
     let! corsSetting = Canvas.fetchCORSSetting canvasID
     let originHeader = getHeader ctx.Request.Headers "Origin"
@@ -140,8 +144,8 @@ let processCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
       | _, None -> Some "*"
       // If there's a "*" in the setting, always use it.
       // This is help as a debugging aid since users will always see
-      //   Access-Control-Allow-Origin: * in their browsers, even if the
-      //   request has no Origin.
+      // Access-Control-Allow-Origin: * in their browsers, even if the
+      // request has no Origin.
       | _, Some Canvas.AllOrigins -> Some "*"
       // if there's no supplied origin, don't set the header at all.
       | None, _ -> None
@@ -151,13 +155,44 @@ let processCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
       // Otherwise: there was a supplied origin and it's not in the setting.
       // return "null" explicitly
       | Some _, Some _ -> Some "null"
-
-    match header with
-    | Some v -> setHeader ctx "Access-Control-Allow-Origin" v
-    | None -> ()
-
-    return ()
+    return header
   }
+
+let optionsResponse (ctx : HttpContext) (canvasID : CanvasID) : Task<HttpContext> =
+  task {
+    // When javascript in a browser tries to make an unusual cross-origin
+    // request (for example, a POST with a weird content-type or something with
+    // weird headers), the browser first makes an OPTIONS request to the
+    // server in order to get its permission to make that request. It includes
+    // "origin", the originating origin, and "access-control-request-headers",
+    // which is the list of headers the javascript would like to use.
+
+    // FSTODO
+    // (Ordinary GETs and some POSTs get handled in result_to_response, above,
+    // without an OPTIONS).
+
+    // Our strategy here is: if it's from an allowed origin (i.e., in the canvas
+    // cors_setting) to return an Access-Control-Allow-Origin header for that
+    // origin, to return Access-Control-Allow-Headers with the requested headers,
+    // and Access-Control-Allow-Methods for all of the methods we think might
+    // be useful.
+
+    let reqHeaders = getHeader ctx.Request.Headers "access-control-request-headers"
+    let allowHeaders = Option.defaultValue "*" reqHeaders
+
+    match! inferCorsAllowOriginHeader ctx canvasID with
+    | None -> return ctx
+    | Some origin ->
+      // CLEANUP: if the origin is null here, we probably shouldn't add the other headers
+      setHeader ctx "Access-Control-Allow-Headers" allowHeaders
+      setHeader ctx "Access-Control-Allow-Origin" origin
+      let methods = "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS"
+      setHeader ctx "Access-Control-Allow-Methods" methods
+      ctx.Response.ContentLength <- 0L
+      ctx.Response.StatusCode <- 200
+      return ctx
+  }
+
 
 // ---------------
 // HttpsRedirect
@@ -302,7 +337,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-        // FSTODO: store event trace
 
         let routeVars = Routing.routeInputVars route requestPath
 
@@ -323,7 +357,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
             runHttpRequest c tlid traceID routeVars request expr
 
           // FSTODO - move cors into runHttpRequest
-          do! processCORS ctx canvasID
+          match! inferCorsAllowOriginHeader ctx canvasID with
+          | Some origin -> setHeader ctx "Access-Control-Allow-Origin" origin
+          | None -> ()
 
           // Put response into ctx
           ctx.Response.StatusCode <- result.statusCode
@@ -341,9 +377,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           return ctx
 
         | None -> // vars didnt parse
+          // FSTODO: store event trace?
           return! unmatchedRouteResponse ctx requestPath route
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
+      | [] when ctx.Request.Method = "OPTIONS" ->
+        return! optionsResponse ctx canvasID
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx

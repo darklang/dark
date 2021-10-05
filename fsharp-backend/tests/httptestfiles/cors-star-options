@@ -5,7 +5,7 @@
 
 [request]
 OPTIONS / HTTP/1.1
-Access-Control-Allow-Origin: http://somesite.com
+Origin: http://somesite.com
 Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0

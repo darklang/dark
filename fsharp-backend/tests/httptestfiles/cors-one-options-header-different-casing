@@ -5,7 +5,7 @@
 
 [request]
 OPTIONS / HTTP/1.1
-Access-Control-Allow-Origin: http://inTerestingWebsite.com
+Origin: http://inTerestingWebsite.com
 Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
@@ -13,7 +13,7 @@ Content-Length: 0
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: null
 Access-Control-Allow-Headers: *
 Access-Control-Allow-Methods: get,put,post,delete,patch,head,options
 x-darklang-execution-id: 0123456789
