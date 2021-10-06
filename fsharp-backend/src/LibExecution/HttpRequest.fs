@@ -97,7 +97,8 @@ let url (uri : string) =
   let parsed = System.UriBuilder(uri)
   // FSTODO test this somehow
   parsed.Query <- urlEncodeExcept "*$@!:()~?/.,&-_=\\" parsed.Query
-  RT.DStr(string parsed)
+  // Use .Uri or it will slip in a port number
+  RT.DStr(string parsed.Uri)
 
 
 // -------------------------

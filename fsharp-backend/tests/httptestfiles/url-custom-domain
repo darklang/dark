@@ -1,11 +1,14 @@
 [http-handler GET /a]
-request.url // [custom-domain: customdomain.myspecialdomain.com]
+request.url
+
+[custom-domain customdomain.myspecialdomain.com]
 
 [request]
 GET /a HTTP/1.1
 Host: customdomain.myspecialdomain.com
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
+X-forwarded-proto: https
 
 [response]
 HTTP/1.1 200 OK
@@ -16,4 +19,4 @@ x-darklang-execution-id: 0123456789
 Server: darklang
 Content-Length: LENGTH
 
-"http://customdomain.myspecialdomain.com/a"
+"https://customdomain.myspecialdomain.com/a"

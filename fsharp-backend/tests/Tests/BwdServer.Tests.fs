@@ -36,13 +36,14 @@ let t filename =
     let! contents = System.IO.File.ReadAllBytesAsync filename
     let contents = toStr contents
 
-    let request, expectedResponse, httpDefs, cors =
+    let request, expectedResponse, httpDefs, cors, customDomain =
       // TODO: use FsRegex instead
       let m =
         Regex.Match(
           contents,
           ("^((\[http-handler \S+ \S+\]\n.*?\n)+)"
            + "(\[cors .*\]\n+)?"
+           + "(\[custom-domain .*\]\n+)?"
            + "\[request\]\n(.*)"
            + "\[response\]\n(.*)$"),
           RegexOptions.Singleline
@@ -51,7 +52,7 @@ let t filename =
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
 
-      (g.[4].Value, g.[5].Value, g.[2].Value, g.[3].Value)
+      (g.[5].Value, g.[6].Value, g.[2].Value, g.[3].Value, g.[4].Value)
 
     let oplists =
       Regex.Matches(
@@ -89,6 +90,7 @@ let t filename =
     let! (meta : Canvas.Meta) = testCanvasInfo testName
     do! Canvas.saveTLIDs meta oplists
 
+    // CORS
     do!
       task {
         let m = Regex.Match(cors, "^\[cors (.*)\]\n*$", RegexOptions.Singleline)
@@ -99,6 +101,18 @@ let t filename =
           | domains ->
             let domains = (Canvas.Origins(String.split "," domains))
             do! Canvas.updateCorsSetting meta.id (Some domains)
+      }
+
+    // Custom domains
+    do!
+      task {
+        let m =
+          Regex.Match(
+            customDomain,
+            "^\[custom-domain (.*)\]\n*$",
+            RegexOptions.Singleline
+          )
+        if m.Success then do! Routing.addCustomDomain m.Groups.[1].Value meta.name
       }
 
     let normalizeHeaders

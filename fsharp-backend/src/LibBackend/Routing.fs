@@ -190,6 +190,22 @@ let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.
   |> Sql.executeRowOptionAsync
        (fun read -> read.string "canvas" |> CanvasName.create)
 
+
+let addCustomDomain
+  (customDomain : string)
+  (canvasName : CanvasName.T)
+  : Task<unit> =
+  Sql.query
+    "INSERT into custom_domains
+     (host, canvas)
+     VALUES (@host, @canvas)
+     ON CONFLICT (host)
+     DO UPDATE
+     SET canvas = @canvas"
+  |> Sql.parameters [ "host", Sql.string customDomain
+                      "canvas", Sql.string (string canvasName) ]
+  |> Sql.executeStatementAsync
+
 let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
   task {
     match host.Split [| '.' |] with

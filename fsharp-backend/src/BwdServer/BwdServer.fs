@@ -224,8 +224,9 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
 let canonicalizeURL (toHttps : bool) (url : string) =
   if toHttps then
     let uri = System.UriBuilder url
-    uri.Scheme <- "https"
-    string uri
+    uri.Port <- 443
+    uri.Scheme <- "https" // Switch to 443 or it will print :80
+    string uri.Uri // Use .Uri or it will slip in a port number
   else
     url
 
