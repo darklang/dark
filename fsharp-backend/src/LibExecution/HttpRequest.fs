@@ -81,8 +81,8 @@ let parseCookies (cookies : string) : RT.Dval =
   |> List.map (fun s -> s.Split("=", 2) |> Array.toList)
   |> List.map
        (function
-       | [] -> ("", RT.DStr "")
-       | [ k ] -> (decode k, RT.DStr "")
+       | [] -> ("", RT.DNull) // skip empty rows
+       | [ _ ] -> ("", RT.DNull) // skip rows with only a key
        | k :: v :: _ -> (decode k, RT.DStr(decode v)))
   |> RT.Dval.obj
 
