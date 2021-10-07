@@ -282,14 +282,13 @@ let testsFromFiles =
 
 let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
 
-open Microsoft.AspNetCore.Hosting
+open Microsoft.Extensions.Hosting
+
 // run our own webserver instead of relying on the dev webserver
 let init (token : System.Threading.CancellationToken) : Task =
-  (BwdServer.webserver
-    false
-    TestConfig.bwdServerPort
-    TestConfig.bwdServerKubernetesPort)
-    .RunAsync(token)
+  let port = TestConfig.bwdServerPort
+  let k8sPort = TestConfig.bwdServerKubernetesPort
+  (BwdServer.webserver false port k8sPort).StartAsync(token)
 
 
 // FSTODO

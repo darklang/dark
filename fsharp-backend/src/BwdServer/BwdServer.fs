@@ -446,27 +446,32 @@ let configureServices (services : IServiceCollection) : unit =
   |> ignore<IServiceCollection>
 
 
-let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
+let webserver
+  (_shouldLog : bool)
+  (httpPort : int)
+  (healthCheckPort : int)
+  : WebApplication =
   let hcUrl = LibService.Kubernetes.url healthCheckPort
 
-  WebHost.CreateDefaultBuilder()
-  |> LibService.Kubernetes.registerServerTimeout
+  let builder = WebApplication.CreateBuilder()
+  configureServices builder.Services
+  LibService.Kubernetes.registerServerTimeout builder.WebHost
+
+  builder.WebHost
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
-  |> fun wh -> wh.ConfigureServices(configureServices)
-  |> fun wh -> wh.Configure(configureApp healthCheckPort)
-  |> fun wh -> wh.Build()
+  |> ignore<IWebHostBuilder>
+
+  let app = builder.Build()
+  configureApp healthCheckPort app
+  app
 
 
 [<EntryPoint>]
 let main _ =
   print "Starting BwdServer"
   LibBackend.Init.init "Bwdserver"
-
-  (webserver
-    true
-    LibService.Config.bwdServerPort
-    LibService.Config.bwdServerKubernetesPort)
-    .Run()
-
+  let port = LibService.Config.bwdServerPort
+  let k8sPort = LibService.Config.bwdServerKubernetesPort
+  (webserver true port k8sPort).Start()
   0
