@@ -59,9 +59,9 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
     let bytes = Lazy.force favicon
     setHeader ctx "Access-Control-Allow-Origin" "*"
+    ctx.Response.StatusCode <- 200
     ctx.Response.ContentType <- "image/png"
     ctx.Response.ContentLength <- int64 bytes.Length
-    ctx.Response.StatusCode <- 200
     do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
     return ctx
   }
@@ -84,8 +84,8 @@ let standardResponse
     | None -> ()
     | Some typ -> ctx.Response.ContentType <- typ
 
-    ctx.Response.ContentLength <- int64 bytes.Length
     ctx.Response.StatusCode <- code
+    ctx.Response.ContentLength <- int64 bytes.Length
     do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
     return ctx
   }
@@ -183,13 +183,13 @@ let optionsResponse (ctx : HttpContext) (canvasID : CanvasID) : Task<HttpContext
     match! inferCorsAllowOriginHeader ctx canvasID with
     | None -> return ctx
     | Some origin ->
+      ctx.Response.StatusCode <- 200
       // CLEANUP: if the origin is null here, we probably shouldn't add the other headers
       setHeader ctx "Access-Control-Allow-Headers" allowHeaders
       setHeader ctx "Access-Control-Allow-Origin" origin
       let methods = "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS"
       setHeader ctx "Access-Control-Allow-Methods" methods
       ctx.Response.ContentLength <- 0L
-      ctx.Response.StatusCode <- 200
       return ctx
   }
 
