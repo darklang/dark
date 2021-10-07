@@ -52,25 +52,40 @@ let getHeader (hs : IHeaderDictionary) (name : string) : string option =
 // ---------------
 // Responses
 // ---------------
-let favicon : Lazy<byte array> =
-  lazy (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png")
+let favicon : Lazy<ReadOnlyMemory<byte>> =
+  lazy
+    (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png"
+     |> ReadOnlyMemory)
 
 let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
   task {
     // NB: we're sending back a png, not an ico - this is deliberate,
     // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
-    let bytes = Lazy.force favicon
+    let memory = Lazy.force favicon
     setHeader ctx "Access-Control-Allow-Origin" "*"
     ctx.Response.StatusCode <- 200
     ctx.Response.ContentType <- "image/png"
-    ctx.Response.ContentLength <- int64 bytes.Length
-    do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+    ctx.Response.ContentLength <- int64 memory.Length
+    let! (_flushResult : IO.Pipelines.FlushResult) =
+      ctx.Response.BodyWriter.WriteAsync(memory)
     return ctx
   }
 
 
 
 let textPlain = Some "text/plain; charset=utf-8"
+
+
+type System.IO.Pipelines.PipeWriter with
+
+  [<System.Runtime.CompilerServices.Extension>]
+  member this.WriteAsync(bytes : byte array) : Task =
+    task {
+      let! (_ : IO.Pipelines.FlushResult) = this.WriteAsync(ReadOnlyMemory bytes)
+      return ()
+    }
+    :> Task
+
 
 let standardResponse
   (ctx : HttpContext)
@@ -79,16 +94,16 @@ let standardResponse
   (code : int)
   : Task<HttpContext> =
   task {
-    let bytes = System.Text.Encoding.UTF8.GetBytes msg
     setHeader ctx "Access-Control-Allow-Origin" "*"
 
     match contentType with
     | None -> ()
     | Some typ -> ctx.Response.ContentType <- typ
 
+    let bytes = UTF8.toBytes msg
     ctx.Response.StatusCode <- code
     ctx.Response.ContentLength <- int64 bytes.Length
-    do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+    do! ctx.Response.BodyWriter.WriteAsync(bytes)
     return ctx
   }
 
@@ -264,12 +279,12 @@ let getQuery (ctx : HttpContext) : List<string * List<string>> =
           |> String.split ","))
   |> Seq.toList
 
+open System.Buffers
 
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
-    let ms = new IO.MemoryStream()
-    do! ctx.Request.Body.CopyToAsync(ms)
-    return ms.ToArray()
+    let! body = ctx.Request.BodyReader.ReadAsync()
+    return body.Buffer.ToArray()
   }
 
 
@@ -374,7 +389,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           ctx.Response.StatusCode <- result.statusCode
           List.iter (fun (k, v) -> setHeader ctx k v) result.headers
           ctx.Response.ContentLength <- int64 result.body.Length
-          do! ctx.Response.Body.WriteAsync(result.body, 0, result.body.Length)
+          // TODO: benchmark - this is apparently faster than streams
+          do! ctx.Response.BodyWriter.WriteAsync(result.body)
 
           // Send to pusher - Do not resolve task, send this into the ether
           Pusher.pushNewTraceID
