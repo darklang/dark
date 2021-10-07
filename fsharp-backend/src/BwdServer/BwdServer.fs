@@ -416,7 +416,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 // Configure Kestrel/ASP.NET
 // ---------------
 let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
-  let handler (ctx : HttpContext) =
+  let handler (ctx : HttpContext) : Task =
     (task {
       try
         // Do this here so we don't redirect the health check
@@ -427,11 +427,10 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       with
       | LoadException (msg, code) ->
         // FSTODO log/honeycomb
-        let bytes = System.Text.Encoding.UTF8.GetBytes msg
         ctx.Response.StatusCode <- code
-        if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
-        ctx.Response.ContentLength <- int64 bytes.Length
-        do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+        if msg.Length > 0 then ctx.Response.ContentType <- "text/plain"
+        ctx.Response.ContentLength <- int64 msg.Length
+        do! ctx.Response.WriteAsync(msg)
         return ctx
       | e ->
         print (string e)
