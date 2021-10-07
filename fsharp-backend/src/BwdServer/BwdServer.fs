@@ -13,7 +13,9 @@ open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Extensions
+open Microsoft.AspNetCore.Http.Abstractions
 open Microsoft.Extensions.Logging
+open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.DependencyInjection
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
@@ -96,6 +98,12 @@ let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   standardResponse ctx "user not found" textPlain 404
+
+let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
+  let msg =
+    "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
+  standardResponse ctx msg textPlain 500
+
 
 let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let path = ctx.Request.Path.Value
@@ -436,6 +444,13 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort
+  |> fun app ->
+       // Exception handler
+       let exceptionHandler (ctx : HttpContext) : Task =
+         internalErrorResponse ctx |> Task.FromResult :> Task
+       let exceptionHandlerOptions = ExceptionHandlerOptions()
+       exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
+       app.UseExceptionHandler(exceptionHandlerOptions)
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
