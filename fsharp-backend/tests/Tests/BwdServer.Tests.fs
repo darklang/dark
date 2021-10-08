@@ -186,6 +186,9 @@ let t filename =
         stream.ReadTimeout <- 1000 // responses should be instant, right?
         let host = $"test-{name}.builtwithdark.localhost:{port}"
 
+        if request.Contains("LENGTH") then
+          Expect.isFalse true "LENGTH substitution not done on request"
+
         let request =
           request |> String.replace "HOST" host |> toBytes |> Http.setHeadersToCRLF
 
