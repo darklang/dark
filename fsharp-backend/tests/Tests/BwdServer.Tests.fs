@@ -211,7 +211,10 @@ let t filename =
                      None
                    else if String.includes "FSHARPONLY" line && server = OCaml then
                      None
+                   else if String.includes "KEEP" line then
+                     Some line
                    else
+                     // Remove OCAMLONLY and FSHARPONLY
                      line
                      |> String.split "// "
                      |> List.head
