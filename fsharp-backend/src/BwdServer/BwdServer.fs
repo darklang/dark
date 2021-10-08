@@ -503,5 +503,5 @@ let main _ =
   LibBackend.Init.init "Bwdserver"
   let port = LibService.Config.bwdServerPort
   let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver true port k8sPort).Start()
+  (webserver true port k8sPort).Run()
   0
