@@ -283,8 +283,10 @@ open System.Buffers
 
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
-    let! body = ctx.Request.BodyReader.ReadAsync()
-    return body.Buffer.ToArray()
+    // TODO: apparently it's faster to use a PipeReader, but that broke for us
+    let ms = new IO.MemoryStream()
+    do! ctx.Request.Body.CopyToAsync(ms)
+    return ms.ToArray()
   }
 
 
