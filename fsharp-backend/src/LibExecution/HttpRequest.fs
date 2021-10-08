@@ -24,7 +24,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
     (try
       body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
      with
-     | e -> failwith $"Invalid json")
+     | e -> Exception.raiseGrandUser "Invalid json")
   | Some MediaType.Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
   // CLEANUP: text should just be text
   | Some (MediaType.Text _)
@@ -36,7 +36,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
       body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
      with
      | e ->
-       failwith
+       Exception.raiseGrandUser
          "Unknown Content-type -- we assumed application/json but invalid JSON was sent")
 
 

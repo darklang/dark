@@ -119,6 +119,17 @@ let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
     "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
   standardResponse ctx msg textPlain 500
 
+let grandErrorResponse (ctx : HttpContext) (msg : string) : Task<HttpContext> =
+  // CLEANUP: do a standardResponse
+  task {
+    let bytes = UTF8.toBytes msg
+    ctx.Response.StatusCode <- 400
+    ctx.Response.ContentType <- "text/plain"
+    ctx.Response.ContentLength <- int64 bytes.Length
+    do! ctx.Response.BodyWriter.WriteAsync(bytes)
+    return ctx
+  }
+
 
 let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let path = ctx.Request.Path.Value
@@ -135,6 +146,7 @@ let unmatchedRouteResponse
 
 
 exception LoadException of string * int
+
 
 // runs a function and upon error, catches and rethrows the passed exception
 let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<'b> =
@@ -371,7 +383,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! reqBody = getBody ctx
           let reqHeaders = getHeaders ctx
           let reqQuery = getQuery ctx
-          let request = Req.fromRequest true url reqHeaders reqQuery reqBody
+          let request = Req.fromRequest false url reqHeaders reqQuery reqBody
 
           // Store trace - do not resolve task, send this into the ether
           let _timestamp =
@@ -443,13 +455,23 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         else
           return! runDarkHandler ctx
       with
-      | LoadException (msg, code) ->
-        // FSTODO log/honeycomb
-        ctx.Response.StatusCode <- code
-        if msg.Length > 0 then ctx.Response.ContentType <- "text/plain"
-        ctx.Response.ContentLength <- int64 msg.Length
-        do! ctx.Response.WriteAsync(msg)
-        return ctx
+      | LoadException (msg, code) -> return! standardResponse ctx msg textPlain code
+      | DarkException (GrandUserError msg) ->
+        // Messages caused by user input should be displayed to the user
+        return! grandErrorResponse ctx msg
+      | DarkException (DeveloperError _) ->
+        // Don't tell the end user.
+        // TODO: these should be saved for the user to see
+        return! internalErrorResponse ctx
+      | DarkException (InternalError _) ->
+        // FSTODO: rollbar here
+        return! internalErrorResponse ctx
+      | DarkException (EditorError _) ->
+        // FSTODO: rollbar here - these shouldn't reach here
+        return! internalErrorResponse ctx
+      | DarkException (LibraryError _) ->
+        // FSTODO: rollbar here - these shouldn't reach here
+        return! internalErrorResponse ctx
       | e ->
         print (string e)
         return raise e
@@ -462,15 +484,13 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort
   |> fun app ->
-       if LibBackend.Config.showStacktrace then
-         app.UseDeveloperExceptionPage()
-       else
-         // Exception handler
-         let exceptionHandler (ctx : HttpContext) : Task =
-           internalErrorResponse ctx |> Task.FromResult :> Task
-         let exceptionHandlerOptions = ExceptionHandlerOptions()
-         exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
-         app.UseExceptionHandler(exceptionHandlerOptions)
+       // Last chance exception handler
+       let exceptionHandler (ctx : HttpContext) : Task =
+         internalErrorResponse ctx |> Task.FromResult :> Task
+       let exceptionHandlerOptions = ExceptionHandlerOptions()
+       // FSTODO log/honeycomb
+       exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
+       app.UseExceptionHandler(exceptionHandlerOptions)
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =

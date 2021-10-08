@@ -24,8 +24,65 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // Exceptions
 // ----------------------
 
-// Exceptions that should not be exposed to users, and that indicate unexpected
-// behaviour
+// Exceptions indicate who is responsible for a problem, and include messages which
+// may be shown to users
+type DarkExceptionData =
+  // Do not show to anyone, we need to rollbar this and address it
+  | InternalError of string
+
+  // An error caused by the grand user making the request, show the error to the
+  // requester no matter who they are
+  | GrandUserError of string
+
+  // An error caused by how the developer wrote the code, such as calling a function
+  // with the wrong type
+  | DeveloperError of string
+
+  // An error caused by the editor doing something it shouldn't, so as an Redo or
+  // rename that isn't allowed. The editor should have caught this on the client and
+  // not made the request.
+  | EditorError of string
+
+  // An error in library or framework code, such as calling a function with a negative
+  // number when it doesn't support it. We probably caused this by allowing it to
+  // happen, so we definitely want to fix it, but it's OK to tell the developer what
+  // happened (not grandusers though)
+  | LibraryError of string
+
+exception DarkException of DarkExceptionData
+
+module Exception =
+  let raiseGrandUser (msg : string) = raise (DarkException(GrandUserError(msg)))
+  let raiseDeveloper (msg : string) = raise (DarkException(DeveloperError(msg)))
+  let raiseEditor (msg : string) = raise (DarkException(EditorError(msg)))
+  let raiseInternal (msg : string) = raise (DarkException(InternalError(msg)))
+  let raiseLibrary (msg : string) = raise (DarkException(LibraryError(msg)))
+
+  let toGrandUserMessage (e : DarkExceptionData) : string =
+    match e with
+    | InternalError _
+    | DeveloperError _
+    | LibraryError _
+    | EditorError _ -> ""
+    | GrandUserError msg -> msg
+
+  let toDeveloperMessage (e : DarkExceptionData) : string =
+    match e with
+    | InternalError _ -> ""
+    | LibraryError msg
+    | EditorError msg
+    | DeveloperError msg
+    | GrandUserError msg -> msg
+
+  let toInternalMessage (e : DarkExceptionData) : string =
+    match e with
+    | InternalError msg
+    | LibraryError msg
+    | EditorError msg
+    | DeveloperError msg
+    | GrandUserError msg -> msg
+
+
 
 // ----------------------
 // Regex patterns
