@@ -462,12 +462,15 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort
   |> fun app ->
-       // Exception handler
-       let exceptionHandler (ctx : HttpContext) : Task =
-         internalErrorResponse ctx |> Task.FromResult :> Task
-       let exceptionHandlerOptions = ExceptionHandlerOptions()
-       exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
-       app.UseExceptionHandler(exceptionHandlerOptions)
+       if LibBackend.Config.showStacktrace then
+         app.UseDeveloperExceptionPage()
+       else
+         // Exception handler
+         let exceptionHandler (ctx : HttpContext) : Task =
+           internalErrorResponse ctx |> Task.FromResult :> Task
+         let exceptionHandlerOptions = ExceptionHandlerOptions()
+         exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
+         app.UseExceptionHandler(exceptionHandlerOptions)
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
