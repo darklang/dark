@@ -52,7 +52,7 @@ let t filename =
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
 
-      (g.[5].Value, g.[6].Value, g.[2].Value, g.[3].Value, g.[4].Value)
+      (g.[5].Value, g.[6].Value, g.[1].Value, g.[3].Value, g.[4].Value)
 
     let oplists =
       Regex.Matches(
