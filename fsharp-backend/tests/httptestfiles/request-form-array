@@ -1,4 +1,5 @@
 [http-handler POST /]
+// CLEANUP this isn't good
 { j = request.jsonBody; f = request.formBody; fb = request.fullBody; b = request.body }
 
 [request]
@@ -8,7 +9,7 @@ Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 13
 
-field1=value1
+x[]=first&x[]=second
 
 [response]
 HTTP/1.1 200 OK
@@ -20,8 +21,12 @@ Server: darklang
 Content-Length: LENGTH
 
 {
-  "b": { "field1": "value1" },
-  "f": { "field1": "value1" },
-  "fb": "field1=value1",
-  "j": null
+"b": {
+"x[]": null
+},
+"f": {
+"x[]": null
+},
+"fb": "x[]=first&x[]",
+"j": null
 }

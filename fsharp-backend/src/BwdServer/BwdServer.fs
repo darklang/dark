@@ -107,23 +107,15 @@ let standardResponse
     return ctx
   }
 
-let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
-  // cors
-  standardResponse ctx "404 Not Found: No route matches" textPlain 404
-
-let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
-  standardResponse ctx "user not found" textPlain 404
-
-let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
-  let msg =
-    "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
-  standardResponse ctx msg textPlain 500
-
-let grandErrorResponse (ctx : HttpContext) (msg : string) : Task<HttpContext> =
-  // CLEANUP: do a standardResponse
+let errorResponse
+  (ctx : HttpContext)
+  (msg : string)
+  (code : int)
+  : Task<HttpContext> =
+  // Like a standard response, but with text/plain and no CORS headers
   task {
     let bytes = UTF8.toBytes msg
-    ctx.Response.StatusCode <- 400
+    ctx.Response.StatusCode <- code
     ctx.Response.ContentType <- "text/plain"
     ctx.Response.ContentLength <- int64 bytes.Length
     do! ctx.Response.BodyWriter.WriteAsync(bytes)
@@ -131,9 +123,26 @@ let grandErrorResponse (ctx : HttpContext) (msg : string) : Task<HttpContext> =
   }
 
 
+
+let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
+  // CLEANUP: use errorResponse
+  standardResponse ctx "404 Not Found: No route matches" textPlain 404
+
+let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
+  // CLEANUP: use errorResponse
+  standardResponse ctx "user not found" textPlain 404
+
+let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
+  let msg =
+    "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
+  // CLEANUP: use errorResponse
+  standardResponse ctx msg textPlain 500
+
+
 let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let path = ctx.Request.Path.Value
   let message = $"500 Internal Server Error: More than one handler for route: {path}"
+  // CLEANUP: use errorResponse
   standardResponse ctx message textPlain 500
 
 let unmatchedRouteResponse
@@ -142,6 +151,7 @@ let unmatchedRouteResponse
   (route : string)
   : Task<HttpContext> =
   let message = $"The request ({requestPath}) does not match the route ({route})"
+  // CLEANUP use errorResponse
   standardResponse ctx message textPlain 500
 
 
@@ -403,8 +413,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           ctx.Response.StatusCode <- result.statusCode
           List.iter (fun (k, v) -> setHeader ctx k v) result.headers
           ctx.Response.ContentLength <- int64 result.body.Length
-          // TODO: benchmark - this is apparently faster than streams
-          do! ctx.Response.BodyWriter.WriteAsync(result.body)
+          if method <> "HEAD" then
+            // TODO: benchmark - this is apparently faster than streams
+            do! ctx.Response.BodyWriter.WriteAsync(result.body)
 
           // Send to pusher - Do not resolve task, send this into the ether
           Pusher.pushNewTraceID
@@ -455,10 +466,10 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         else
           return! runDarkHandler ctx
       with
-      | LoadException (msg, code) -> return! standardResponse ctx msg textPlain code
+      | LoadException (msg, code) -> return! errorResponse ctx msg code
       | DarkException (GrandUserError msg) ->
         // Messages caused by user input should be displayed to the user
-        return! grandErrorResponse ctx msg
+        return! errorResponse ctx msg 400
       | DarkException (DeveloperError _) ->
         // Don't tell the end user.
         // TODO: these should be saved for the user to see
