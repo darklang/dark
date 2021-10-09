@@ -134,7 +134,7 @@ type NonBlockingConsole() =
         with
         | e ->
           System.Console.WriteLine(
-            $"Exception in blocking qu eue thread: {e.Message}"
+            $"Exception in blocking queue thread: {e.Message}"
           )
     let thread = System.Threading.Thread(f)
     do
