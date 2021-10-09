@@ -27,6 +27,7 @@ let t filename =
   testTask $"Httpfiles: {filename}" {
     let skip = String.startsWith "_" filename
     let name = if skip then String.dropLeft 1 filename else filename
+    let name = $"bwdserver-{name}"
     let testName = $"test-{name}"
     do! TestUtils.clearCanvasData (CanvasName.create testName)
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str

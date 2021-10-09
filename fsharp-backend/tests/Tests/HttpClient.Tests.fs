@@ -127,7 +127,7 @@ let t filename =
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
 
-      let! state = executionStateFor name Map.empty Map.empty
+      let! state = executionStateFor "test-httpclient-${name}" Map.empty Map.empty
 
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
