@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This deliberately runs outside the container, in order to run Chrome on the
-# host
+# This deliberately can be run outside the container - sometimes you want to test on
+# the host
 
 PATTERN=".*"
 DEBUG=false
@@ -33,9 +33,9 @@ done
 BROWSER='unknown'
 {
   if [[ "$DEBUG" == "true" || "$DEBUG_MODE_FLAG" == "--debug-mode" ]]; then
-    BROWSER='chrome --window-size="1600,1200"'
+    BROWSER='chromium --headed'
   else
-    BROWSER='chrome:headless --window-size="1600,1200"'
+    BROWSER='chromium'
   fi
 }
 
@@ -60,26 +60,27 @@ CONCURRENCY=1
 
 
 ######################
-# Run testcafe
+# Run playwright
 ######################
+
 
 # Check the testcafe version (matters when running outside the container)
 extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
-expected_version=$(grep testcafe package.json | extract_version)
+expected_version=$(grep playwright package.json | extract_version)
 
 if [[ -v IN_DEV_CONTAINER ]]; then
   set +e # Dont fail immediately so that the sed is run
 
-  echo "Starting testcafe"
-  npx "testcafe@${expected_version}" --version
+  echo "Starting playwright"
+  npx "playwright" --version
   # shellcheck disable=SC2016
-  unbuffer npx "testcafe@${expected_version}" \
-    --concurrency "$CONCURRENCY" \
-    --test-grep "$PATTERN" \
-    --video rundir/videos \
-    --video-options pathPattern='${TEST}-${QUARANTINE_ATTEMPT}.mp4' \
-    "${BROWSER}" \
-    integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
+  unbuffer npx "playwright" \
+    test \
+    --workers "$CONCURRENCY" \
+    --grep "$PATTERN" \
+    --browser "${BROWSER}" \
+    --output "${DARK_CONFIG_RUNDIR}/integration-tests/" \
+    --config integration-tests/playwright.config.ts
 
   RESULT=$?
 
@@ -111,7 +112,7 @@ else
   fi
 
   # shellcheck disable=SC2016
-  testcafe \
+  playwright \
     $DEBUG_MODE_FLAG \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
