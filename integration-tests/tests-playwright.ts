@@ -1,35 +1,32 @@
 import { test, expect } from "@playwright/test";
 
-test('basic test', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
-  const title = page.locator('.navbar__inner .navbar__title');
-  await expect(title).toHaveText('Playwright');
-});
-
 // const child_process = require("child_process");
 // import fs from "fs";
-// const BASE_URL = "http://darklang.localhost:8000/a/test-";
+const BASE_URL = "http://darklang.localhost:8000";
+const options = {
+  baseURL: BASE_URL,
+};
+test.use(options)
+
+
 // const getPageUrl = ClientFunction(() => window.location.href);
 // const analysisLastRun = ClientFunction(() => window.Dark.analysis.lastRun);
 
-// async function prepSettings(t) {
-//   // Turn on fluid debugger
-//   let key = `editorState-test-${t.testRun.test.name}`;
-//   let value = '{"editorSettings":{"showFluidDebugger":true}}';
-//   const setLocalStorageItem = ClientFunction((key, value) => {
-//     localStorage.setItem(key, value);
-//   });
-//   await setLocalStorageItem(key, value);
-//   // Disable the modal
-//   let key2 = `userState-test`;
-//   // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
-//   let recordConsent =
-//     t.testRun.test.name === "record_consent_saved_across_canvases"
-//       ? "null"
-//       : "false";
-//   let value2 = `{"firstVisitToDark":false,"recordConsent":${recordConsent},"unsupportedBrowser": false,"userTutorial": null}`;
-//   await setLocalStorageItem(key2, value2);
-// }
+async function prepSettings(page, testInfo) {
+  // Turn on fluid debugger
+  let key = `editorState-test-${testInfo.title}`;
+  let value = '{"editorSettings":{"showFluidDebugger":true}}';
+  await page.evaluate((k, v) => { localStorage.setItem(k, v); }, [key, value]);
+  // Disable the modal
+  let key2 = `userState-test`;
+  // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
+  let recordConsent =
+    testInfo.title === "record_consent_saved_across_canvases"
+      ? "null"
+      : "false";
+  let value2 = `{"firstVisitToDark":false,"recordConsent":${recordConsent},"unsupportedBrowser": false,"userTutorial": null}`;
+  await page.evaluate((k, v) => { localStorage.setItem(k, v); }, [key2, value2]);
+}
 
 // async function awaitAnalysis(t, ts, trial = 0) {
 //   if (trial > 10) {
@@ -50,47 +47,46 @@ test('basic test', async ({ page }) => {
 // }
 
 // fixture`Integration Tests`
-//   // To add this user, run the backend tests
-//   .beforeEach(async t => {
-//     const testname = t.testRun.test.name;
-//     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
-//     var url = `${BASE_URL}${testname}?integration-test=true`;
+test.describe("Integration Tests", async () => {
+  // To add this user, run the backend tests
+  test.beforeEach(async ({ page}, testInfo) => {
+    const testname = testInfo.title;
+    const sessionName = `${testname}-${testInfo.retry}`;
+    var url = `/a/test-${testname}?integration-test=true`;
 
-//     var username = "test";
-//     if (testname.match(/_as_admin/)) {
-//       username = "test_admin";
-//     }
-//     await t.navigateTo(url);
-//     await prepSettings(t);
-//     await t
-//       .typeText("#username", username)
-//       .typeText("#password", "fVm2CUePzGKCwoEQQdNJktUQ")
-//       .pressKey("enter");
+    var username = "test";
+    if (testname.match(/_as_admin/)) {
+      username = "test_admin";
+    }
+    await page.goto(url);
+    await prepSettings(page, testInfo);
+    await page.type("#username", username);
+    await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
+    await page.keyboard.press("Enter");
+    // await page.locator("#finishIntegrationTest").toBeVisible();
 
-//     await Selector("#finishIntegrationTest").exists;
+    /* Testcafe runs everything through a proxy, wrapping all values and
+     * objects such that it seems like nothing happened. However, they forgot
+     * to wrap objects in Webworker contexts, so calls to Fetch in the worker
+     * thinks it's on a different domain. This breaks cookies, auth, CORS,
+     * basically everything. So we thread the right url through to do the
+     * proxying ourselves. Hopefully they'll fix this and we can remove this
+     * code someday */
+    // await t.eval(
+    //   () => {
+    //     window.testcafeInjectedPrefix = prefix;
+    //   },
+    //   {
+    //     dependencies: {
+    //       prefix: `${new URL(t.testRun.browserConnection.url).origin}/${
+    //         t.testRun.session.id
+    //       }/`,
+    //     },
+    //   },
+    // );
 
-//     /* Testcafe runs everything through a proxy, wrapping all values and
-//      * objects such that it seems like nothing happened. However, they forgot
-//      * to wrap objects in Webworker contexts, so calls to Fetch in the worker
-//      * thinks it's on a different domain. This breaks cookies, auth, CORS,
-//      * basically everything. So we thread the right url through to do the
-//      * proxying ourselves. Hopefully they'll fix this and we can remove this
-//      * code someday */
-//     await t.eval(
-//       () => {
-//         window.testcafeInjectedPrefix = prefix;
-//       },
-//       {
-//         dependencies: {
-//           prefix: `${new URL(t.testRun.browserConnection.url).origin}/${
-//             t.testRun.session.id
-//           }/`,
-//         },
-//       },
-//     );
-
-//     await t.takeScreenshot();
-//   })
+    // await t.takeScreenshot();
+  });
 //   .afterEach(async t => {
 //     const testname = t.testRun.test.name;
 //     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
@@ -1589,3 +1585,5 @@ test("fluid_test_copy_request_as_curl", async ({ page }) => {
 
 //   await t.click(".modal.insert-secret .close-btn");
 // });
+
+});
