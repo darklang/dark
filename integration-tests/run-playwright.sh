@@ -5,7 +5,6 @@ set -euo pipefail
 # the host
 
 PATTERN=".*"
-DEBUG=false
 DEBUG_MODE_FLAG=""
 
 for i in "$@"
@@ -16,11 +15,7 @@ do
     shift
     ;;
     --debug)
-    DEBUG=true
-    shift
-    ;;
-    --debug-mode)
-    DEBUG_MODE_FLAG="--debug-mode"
+    DEBUG_MODE_FLAG="--debug"
     shift
     ;;
     *)
@@ -30,14 +25,7 @@ do
   esac
 done
 
-BROWSER='unknown'
-{
-  if [[ "$DEBUG" == "true" || "$DEBUG_MODE_FLAG" == "--debug-mode" ]]; then
-    BROWSER='chromium --headed'
-  else
-    BROWSER='chromium'
-  fi
-}
+BROWSER="chromium"
 
 ######################
 # Prep (in the container)
@@ -64,9 +52,9 @@ CONCURRENCY=1
 ######################
 
 
-# Check the testcafe version (matters when running outside the container)
+# Check the installed version (matters when running outside the container)
 extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
-expected_version=$(grep playwright package.json | extract_version)
+expected_version=$(grep playwright/test integration-tests/package.json | extract_version)
 
 if [[ -v IN_DEV_CONTAINER ]]; then
   set +e # Dont fail immediately so that the sed is run
@@ -74,7 +62,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   echo "Starting playwright"
   npx "playwright" --version
   # shellcheck disable=SC2016
-  unbuffer npx "playwright" \
+  unbuffer npx playwright \
     test \
     --workers "$CONCURRENCY" \
     --grep "$PATTERN" \
@@ -92,32 +80,20 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   fi
   exit $RESULT
 else
-  version=$(testcafe --version | extract_version)
+  version=$(playwright --version | extract_version)
   if [[ "$version" != "$expected_version" ]]
   then
-    echo "Incorrect version of testcafe: '$version' (expected '$expected_version')"
-    exit 1
-  fi
-
-  # Check the node version (matters when running outside the container)
-  version=$(node -v | sed 's/^v\([0-9]*\)\..*/\1/')
-  if [[ "$version" -lt 10 ]]
-  then
-    # With node v8, I get "ReferenceError: URL is not defined";
-    # We don't use lighthouse, but
-    # https://github.com/GoogleChrome/lighthouse/issues/8909 suggests this means
-    # we need node >= 10
-    echo "Incorrect version of node: '$(node -v)' (expected node >= 10)"
+    echo "Incorrect version of playwright: '$version' (expected '$expected_version')"
     exit 1
   fi
 
   # shellcheck disable=SC2016
-  playwright \
+  integration-tests/node_modules/.bin/playwright test \
     $DEBUG_MODE_FLAG \
-    --concurrency "$CONCURRENCY" \
-    --test-grep "$PATTERN" \
-    --video rundir/videos \
-    --video-options pathPattern='${TEST}-${QUARANTINE_ATTEMPT}.mp4' \
-    "$BROWSER" \
-    integration-tests/tests.js
+    --browser "${BROWSER}" \
+    --output "rundir/integration-tests/" \
+    --workers "$CONCURRENCY" \
+    --grep "$PATTERN" \
+    --config integration-tests/playwright.config.ts
+
 fi
