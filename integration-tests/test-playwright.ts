@@ -7,8 +7,6 @@ const options = {
   baseURL: BASE_URL,
 };
 test.use(options)
-
-
 // const getPageUrl = ClientFunction(() => window.location.href);
 // const analysisLastRun = ClientFunction(() => window.Dark.analysis.lastRun);
 
@@ -16,7 +14,7 @@ async function prepSettings(page, testInfo) {
   // Turn on fluid debugger
   let key = `editorState-test-${testInfo.title}`;
   let value = '{"editorSettings":{"showFluidDebugger":true}}';
-  await page.evaluate((k, v) => { localStorage.setItem(k, v); }, [key, value]);
+  await page.evaluate(([k, v]) => { localStorage.setItem(k, v); }, [key, value]);
   // Disable the modal
   let key2 = `userState-test`;
   // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
@@ -25,7 +23,7 @@ async function prepSettings(page, testInfo) {
       ? "null"
       : "false";
   let value2 = `{"firstVisitToDark":false,"recordConsent":${recordConsent},"unsupportedBrowser": false,"userTutorial": null}`;
-  await page.evaluate((k, v) => { localStorage.setItem(k, v); }, [key2, value2]);
+  await page.evaluate(([k, v]) => { localStorage.setItem(k, v); }, [key2, value2]);
 }
 
 // async function awaitAnalysis(t, ts, trial = 0) {
@@ -48,6 +46,9 @@ async function prepSettings(page, testInfo) {
 
 // fixture`Integration Tests`
 test.describe("Integration Tests", async () => {
+  test.beforeAll(async () => {
+
+  });
   // To add this user, run the backend tests
   test.beforeEach(async ({ page}, testInfo) => {
     const testname = testInfo.title;
@@ -62,8 +63,8 @@ test.describe("Integration Tests", async () => {
     await prepSettings(page, testInfo);
     await page.type("#username", username);
     await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
-    await page.keyboard.press("Enter");
-    // await page.locator("#finishIntegrationTest").toBeVisible();
+    await page.click("text=Login");
+    await expect(page.locator("#finishIntegrationTest")).toBeVisible();
 
     /* Testcafe runs everything through a proxy, wrapping all values and
      * objects such that it seems like nothing happened. However, they forgot
