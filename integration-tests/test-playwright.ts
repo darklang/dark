@@ -1,4 +1,11 @@
-import { test, expect, ConsoleMessage, Page } from "@playwright/test";
+import {
+  test,
+  expect,
+  ConsoleMessage,
+  Page,
+  Locator,
+  TestInfo,
+} from "@playwright/test";
 
 // const child_process = require("child_process");
 // import fs from "fs";
@@ -156,9 +163,9 @@ test.describe.parallel("Integration Tests", async () => {
   //   await page.keyboard.press("Enter");await page.keyboard.press("Enter");;
   // }
 
-  // async function gotoAST(t) {
-  //   await page.click("#active-editor");
-  // }
+  async function gotoAST(page: Page): Promise<void> {
+    await page.click("#active-editor > span");
+  }
 
   // function user_content_url(t, endpoint) {
   //   return (
@@ -198,21 +205,18 @@ test.describe.parallel("Integration Tests", async () => {
   // function available(css) {
   //   return Selector(css).exists;
   // }
-  // function entryBoxAvailable() {
-  //   return Selector("#entry-box").exists;
-  // }
-
-  // // Return the highlighted autocomplete entry
-  async function acHighlightedText(page: Page): Promise<string> {
-    await page.pause();
-    return await page
-      .locator(".autocomplete-item.highlighted > .name")
-      .textContent();
+  function entryBox(page: Page): Locator {
+    return page.locator("#entry-box");
   }
 
-  // function fluidAcHighlightedText() {
-  //   return Selector(".autocomplete-item.fluid-selected").textContent;
-  // }
+  // // Return the highlighted autocomplete entry
+  function acHighlighted(page: Page): Locator {
+    return page.locator(".autocomplete-item.highlighted > .name");
+  }
+
+  function fluidAcHighlighted(page: Page): Locator {
+    return page.locator(".autocomplete-item.fluid-selected");
+  }
 
   // const scrollBy = ClientFunction((id, dx, dy) => {
   //   document.getElementById(id).scrollBy(dx, dy);
@@ -242,17 +246,17 @@ test.describe.parallel("Integration Tests", async () => {
   }) => {
     // add headers
     await createHTTPHandler(page);
-    await page.fill("#entry-box", "PO");
-    expect(await acHighlightedText(page)).toBe("POST");
+    await page.type("#entry-box", "PO");
+    await expect(acHighlighted(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
-    await page.fill("#entry-box", "/spec_name");
+    await page.type("#entry-box", "/spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
     await page.keyboard.press("Control+A");
     await page.keyboard.press("Backspace");
-    await page.fill("#entry-box", "CRON");
+    await page.type("#entry-box", "CRON");
     await page.keyboard.press("Enter");
   });
 
@@ -262,66 +266,66 @@ test.describe.parallel("Integration Tests", async () => {
     await createHTTPHandler(page);
 
     // add headers
-    await page.fill("#entry-box", "PO");
-    expect(await acHighlightedText(page)).toBe("POST");
+    await page.type("#entry-box", "PO");
+    await expect(acHighlighted(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
 
-    await page.fill("#entry-box", "/spec_name");
+    await page.type("#entry-box", "/spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
     await page.keyboard.press("Control+A");
     await page.keyboard.press("Backspace");
-    await page.fill("#entry-box", "REPL");
+    await page.type("#entry-box", "REPL");
     await page.keyboard.press("Enter");
   });
 
-  // test("switching_from_http_space_removes_variable_colons", async ({ page }) => {
-  //   await createHTTPHandler(t);
-  //
-  //     // add headers
-  //     await page.fill("#entry-box", "PO");
-  //     expect(await acHighlightedText(page)).toBe("POST")
-  //     .ok()
-  //     await page.keyboard.press("Enter");
+  test("switching_from_http_space_removes_variable_colons", async ({
+    page,
+  }) => {
+    await createHTTPHandler(page);
 
-  //     await page.fill("#entry-box", "/spec_name/:variable");
-  //     await page.keyboard.press("Enter");
+    // add headers
+    await page.type("#entry-box", "PO");
+    await expect(acHighlighted(page)).toHaveText("POST");
+    await page.keyboard.press("Enter");
 
-  //     // edit space
-  //     await page.click(".spec-header > .toplevel-type > .space")
-  //     await page.keyboard.press("Control+A")
-  //     await page.keyboard.press("Backspace")
-  //     await page.fill("#entry-box", "REPL");
-  //     await page.keyboard.press("Enter");;
-  // });
+    await page.type("#entry-box", "/spec_name/:variable");
+    await page.keyboard.press("Enter");
 
-  // test("enter_changes_state", async ({ page }) => {
-  //   await page.keyboard.press("Enter");.expect(entryBoxAvailable()).ok();
-  // });
+    // edit space
+    await page.click(".spec-header > .toplevel-type > .space");
+    await page.keyboard.press("Control+A");
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "REPL");
+    await page.keyboard.press("Enter");
+  });
 
-  // test("field_access_closes", async ({ page }) => {
-  //   await createHTTPHandler(t);
-  //   await gotoAST(t);
-  //
-  //     await page.fill("#active-editor", "req");
-  //     .expect(fluidAcHighlightedText("requestdict"))
-  //     .ok()
-  //     await page.fill("#active-editor", ".bo");
-  //     .expect(fluidAcHighlightedText("bodyfield"))
-  //     .ok()
-  //     await page.keyboard.press("Enter");;
-  // });
+  test("enter_changes_state", async ({ page }) => {
+    await page.keyboard.press("Enter");
+    await expect(entryBox(page)).toBeVisible();
+  });
+
+  test("field_access_closes", async ({ page }) => {
+    await createHTTPHandler(page);
+    await gotoAST(page);
+
+    await page.type("#active-editor", "req");
+    await expect(fluidAcHighlighted(page)).toHaveText("requestDict");
+    await page.type("#active-editor", ".bo");
+    await expect(fluidAcHighlighted(page)).toHaveText("bodyfield");
+    await page.keyboard.press("Enter");
+  });
 
   // test("field_access_pipes", async ({ page }) => {
   //   await createHTTPHandler(t);
   //   await gotoAST(t);
   //
-  //     await page.fill("#active-editor", "req");
+  //     await page.type("#active-editor", "req");
   //     .expect(fluidAcHighlightedText())
   //     .contains("request")
-  //     await page.fill("#active-editor", ".bo");
+  //     await page.type("#active-editor", ".bo");
   //     .expect(fluidAcHighlightedText())
   //     .eql("bodyfield")
   //     await page.keyboard.press("TODO: shift+enter);;
@@ -331,16 +335,16 @@ test.describe.parallel("Integration Tests", async () => {
   //   await createRepl(t);
   //   // Fill in "then" box in if stmt
   //
-  //     await page.fill("#active-editor", "if");
+  //     await page.type("#active-editor", "if");
   //     await page.keyboard.press("TODO: space tab);
-  //     await page.fill("#active-editor", "5");;
+  //     await page.type("#active-editor", "5");;
   // });
 
   // test("autocomplete_highlights_on_partial_match", async ({ page }) => {
   //   await createRepl(t);
   //   await gotoAST(t);
   //
-  //     await page.fill("#active-editor", "nt::add");
+  //     await page.type("#active-editor", "nt::add");
   //     .expect(fluidAcHighlightedText("Int::add"))
   //     .ok()
   //     await page.keyboard.press("Enter");;
@@ -349,7 +353,7 @@ test.describe.parallel("Integration Tests", async () => {
   // test("no_request_global_in_non_http_space", async ({ page }) => {
   //   await createWorkerHandler(t);
   //   await gotoAST(t);
-  //     await page.fill("#active-editor", "request");
+  //     await page.type("#active-editor", "request");
   //     await page.keyboard.press("ArrowDown")
   //     .expect(fluidAcHighlightedText("Http::badRequest"))
   //     .ok()
@@ -359,40 +363,40 @@ test.describe.parallel("Integration Tests", async () => {
   // test("ellen_hello_world_demo", async ({ page }) => {
   //   await createHTTPHandler(t);
   //     // verb
-  //   await page.fill("#entry-box", "g");
+  //   await page.type("#entry-box", "g");
   //   await page.keyboard.press("Enter");
 
   //     // route
-  //     await page.fill("#entry-box", "/hello");
+  //     await page.type("#entry-box", "/hello");
   //     await page.keyboard.press("Enter");
 
   //     // string
-  //     await page.fill("#active-editor", '"Hello world!"');;
+  //     await page.type("#active-editor", '"Hello world!"');;
   // });
 
   // test("editing_headers", async ({ page }) => {
   //   await createHTTPHandler(t);
   //
   //     // add headers
-  //     await page.fill("#entry-box", "PO");
+  //     await page.type("#entry-box", "PO");
   //     expect(await acHighlightedText(page)).toBe("POST")
   //     .ok()
   //     await page.keyboard.press("Enter");
 
-  //     await page.fill("#entry-box", "/hello");
+  //     await page.type("#entry-box", "/hello");
   //     await page.keyboard.press("Enter");
 
   //     // edit them
   //     await page.click(".spec-header > .toplevel-name")
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", "/myroute");
+  //     await page.type("#entry-box", "/myroute");
   //     await page.keyboard.press("Enter");
 
   //     await page.click(".spec-header > .toplevel-type > .modifier")
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", "GET");
+  //     await page.type("#entry-box", "GET");
   //     await page.keyboard.press("Enter");;
   // });
 
@@ -402,14 +406,14 @@ test.describe.parallel("Integration Tests", async () => {
   //     // add headers
   //     await page.click(".spec-header > .toplevel-name")
   //     await page.keyboard.press("Enter");
-  //     await page.fill("#entry-box", "spec_name");
+  //     await page.type("#entry-box", "spec_name");
   //     await page.keyboard.press("Enter");
 
   //     // edit space
   //     await page.click(".spec-header > .toplevel-type > .space")
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", "HTTP");
+  //     await page.type("#entry-box", "HTTP");
   //     await page.keyboard.press("Enter");;
   // });
 
@@ -420,7 +424,7 @@ test.describe.parallel("Integration Tests", async () => {
   //     await page.click(".spec-header > .toplevel-type >.space")
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", "CRON");
+  //     await page.type("#entry-box", "CRON");
   //     await page.keyboard.press("Enter");;
   // });
 
@@ -428,19 +432,19 @@ test.describe.parallel("Integration Tests", async () => {
   //   await createRepl(t);
   //   await gotoAST(t);
   //
-  //     await page.fill("#active-editor", "let");
+  //     await page.type("#active-editor", "let");
   //     await page.keyboard.press("Enter");
   //     // round trip through the let blanks once
   //     await page.keyboard.press("TODO: tab tab tab);
   //     // go to the body and fill it in
   //     await page.keyboard.press("TODO: tab tab);
-  //     await page.fill("#active-editor", "5");
+  //     await page.type("#active-editor", "5");
   //     // go to the rhs and fill it in
   //     await page.keyboard.press("TODO: tab tab);
-  //     await page.fill("#active-editor", "5");
+  //     await page.type("#active-editor", "5");
   //     // fill in the var
   //     await page.keyboard.press("TODO: tab tab);
-  //     await page.fill("#active-editor", "myvar");;
+  //     await page.type("#active-editor", "myvar");;
   // });
 
   // test("rename_db_fields", async ({ page }) => {
@@ -456,7 +460,7 @@ test.describe.parallel("Integration Tests", async () => {
   //     .click(Selector(".name").withText("field1"))
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", "field6");
+  //     await page.type("#entry-box", "field6");
   //     await page.keyboard.press("Enter");;
 
   //   // add data and check we can't rename again
@@ -491,7 +495,7 @@ test.describe.parallel("Integration Tests", async () => {
   //     .click(Selector(".type").withText("Int"))
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", "String");
+  //     await page.type("#entry-box", "String");
   //     await page.keyboard.press("Enter");;
 
   //   // add data and check we can't rename again
@@ -519,11 +523,11 @@ test("feature_flag_works", async ({ page }) => {
     // Create an empty let
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
-    await page.fill("#entry-box", "let");
+    await page.type("#entry-box", "let");
     await page.keyboard.press("Enter");
-    await page.fill("#entry-box", "a");
+    await page.type("#entry-box", "a");
     await page.keyboard.press("Enter");
-    await page.fill("#entry-box", "13");
+    await page.type("#entry-box", "13");
     await page.keyboard.press("Enter");
     await page.keyboard.press("ArrowDown")
     await page.keyboard.press("TODO: esc);
@@ -533,25 +537,25 @@ test("feature_flag_works", async ({ page }) => {
 
     // Name it
     .expect(available(".feature-flag")).ok()
-    await page.fill("#entry-box", "myflag");
+    await page.type("#entry-box", "myflag");
     await page.keyboard.press("Enter");
 
     // Set condition
-    await page.fill("#entry-box", "Int::greaterThan");
+    await page.type("#entry-box", "Int::greaterThan");
     await page.keyboard.press("Enter");
-    await page.fill("#entry-box", "a");
+    await page.type("#entry-box", "a");
     await page.keyboard.press("Enter");
-    await page.fill("#entry-box", "10");
+    await page.type("#entry-box", "10");
     await page.keyboard.press("Enter");
 
     // Case A
-    await page.fill("#entry-box", "\"");
-    await page.fill("#entry-box", "A");
+    await page.type("#entry-box", "\"");
+    await page.type("#entry-box", "A");
     await page.keyboard.press("Enter");
 
     // Case B
-    await page.fill("#entry-box", "\"");
-    await page.fill("#entry-box", "B");
+    await page.type("#entry-box", "\"");
+    await page.type("#entry-box", "B");
     await page.keyboard.press("Enter");
 
 });
@@ -570,15 +574,15 @@ test("feature_flag_in_function", async ({ page }) => {
     .click('.expr-actions .flag')
 
     .expect(available(".feature-flag")).ok()
-    await page.fill("#entry-box", "myflag");
+    await page.type("#entry-box", "myflag");
     await page.keyboard.press("Enter");
 
     // Set condition
-    await page.fill("#entry-box", "true");
+    await page.type("#entry-box", "true");
     await page.keyboard.press("Enter");
 
     // Case B
-    await page.fill("#entry-box", "3");
+    await page.type("#entry-box", "3");
     await page.keyboard.press("Enter");
 
     // Return to main canvas to finish tests
@@ -603,7 +607,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .click(Selector(fnNameBlankOr))
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", "hello");
+  //     await page.type("#entry-box", "hello");
   //     await page.keyboard.press("Enter");;
   // });
 
@@ -658,7 +662,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // test("function_version_renders", async ({ page }) => {
   //   await createRepl(t);
   //
-  //     await page.fill("#active-editor", "DB::del");
+  //     await page.type("#active-editor", "DB::del");
   //     .expect(
   //       Selector(".autocomplete-item.fluid-selected .version").withText("v1"),
   //     )
@@ -788,7 +792,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // // test("create_new_function_from_autocomplete", async ({ page }) => {
   // //   await createRepl(t);
   // //
-  // //     await page.fill("#active-editor", "myFunctionName");
+  // //     await page.type("#active-editor", "myFunctionName");
   // //     .expect(fluidAcHighlightedText())
   // //     .eql("Create new function: myFunctionName")
   // //     await page.keyboard.press("Enter");;
@@ -808,7 +812,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .click(exprElem)
   //     .selectText(exprElem, 0, 1)
   //     await page.keyboard.press("TODO: ctrl+\\);
-  //     await page.fill("#cmd-filter", "extract-function");
+  //     await page.type("#cmd-filter", "extract-function");
   //     await page.keyboard.press("Enter");;
   // });
 
@@ -978,7 +982,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .click(Selector(".spec-header > .toplevel-name"))
   //     await page.keyboard.press("Control+A");
   // await page.keyboard.press("Backspace");
-  //     await page.fill("#entry-box", ":a");
+  //     await page.type("#entry-box", ":a");
   //     expect(await acHighlightedText(page)).toBe("/:a")
   //     .ok()
   //     await page.keyboard.press("TODO: tab a enter);;
@@ -1134,8 +1138,9 @@ test("feature_flag_in_function", async ({ page }) => {
     expect(page.locator(".tl-91390945")).toBeVisible();
     await page.click(".id-753586717");
     // Ensure the anaysis has completed
-    await expect(page.locator(".live-value.loaded")).toHaveText(
+    await expect(page.locator(".live-value.loaded")).toContainText(
       "Click Play to execute function",
+      verySlow,
     );
     // test logic in IntegrationTest.ml; we load it here because we need an
     // analysis done before we can call the command
@@ -1145,7 +1150,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //   await createHTTPHandler(t);
   //   await gotoAST(t);
   //
-  //     await page.fill("#active-editor", "request.body");
+  //     await page.type("#active-editor", "request.body");
   //     .click("#app", { offsetX: 500, offsetY: 50 }) //click away from fluid
   //     .expect(true)
   //     .ok();
@@ -1211,11 +1216,11 @@ test("feature_flag_in_function", async ({ page }) => {
   //   await createHTTPHandler(t);
   //
   //     // add headers
-  //     await page.fill("#entry-box", "GE");
+  //     await page.type("#entry-box", "GE");
   //     expect(await acHighlightedText(page)).toBe("GET")
   //     .ok()
   //     await page.keyboard.press("Enter");
-  //     await page.fill("#entry-box", url);
+  //     await page.type("#entry-box", url);
   //     await page.keyboard.press("Enter");;
 
   //   await gotoAST(t);
@@ -1223,7 +1228,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //   // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
   //   // in the autocomplete
   //
-  //     await page.fill("#active-editor", "test_admin");
+  //     await page.type("#active-editor", "test_admin");
   //     .expect(Selector(".autocomplete-item.fluid-selected.valid").textContent)
   //     .eql("test_admin/stdlib/Test::one_v0Any")
   //     await page.keyboard.press("Enter");;
