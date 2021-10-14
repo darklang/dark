@@ -57,7 +57,10 @@ extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
 expected_version=$(grep playwright/test integration-tests/package.json | extract_version)
 
 if [[ -v IN_DEV_CONTAINER ]]; then
-  set +e # Dont fail immediately so that the sed is run
+  if [[ -d "integration-tests/node_modules" ]]; then
+    echo "integration-tests/node_modules present. That's for the host, delete with \`rm -Rf integration-tests/node_modules\` before continuing."
+    exit 1
+  fi
 
   echo "Starting playwright"
   node_modules/.bin/playwright --version
@@ -69,17 +72,16 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --output "${DARK_CONFIG_RUNDIR}/integration-tests/" \
     --config integration-tests/playwright.config.ts
 
-  RESULT=$?
-
-  # Fix xunit output for CircleCI flaky-tests stats
-  sed -i 's/ (screenshots: .*)"/"/' "rundir/test_results/integration_tests.xml"
-
   if [[ -v CI ]]; then
     scripts/testing/_integration-test-results-to-honeycomb.sh
   fi
   exit $RESULT
 else
-  version=$(playwright --version | extract_version)
+  if [[ ! -d "integration-tests/node_modules" ]]; then
+    echo "Packages not installed: run \`npm install\` in integration-tests"
+    exit 1
+  fi
+  version=$(integration-tests/node_modules/.bin/playwright --version | extract_version)
   if [[ "$version" != "$expected_version" ]]
   then
     echo "Incorrect version of playwright: '$version' (expected '$expected_version')"
