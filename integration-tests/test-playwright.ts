@@ -243,12 +243,22 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   // // Return the highlighted autocomplete entry
-  function acHighlighted(page: Page): Locator {
+  function acHighlightedValue(page: Page): Locator {
     return page.locator(".autocomplete-item.highlighted > .name");
   }
 
-  function fluidAcHighlighted(page: Page): Locator {
+  function fluidACHighlightedValue(page: Page): Locator {
     return page.locator(".autocomplete-item.fluid-selected");
+  }
+
+  async function selectAll(page: Page): Promise<void> {
+    await page.keyboard.press("Control+A"); // on linux
+    await page.keyboard.press("Meta+A"); // on mac
+  }
+
+  async function waitForEmptyEntryBox(page: Page): Promise<void> {
+    // Entry-box sometimes carries state over briefly, so wait til it clears it
+    await expect(page.locator("#entry-box")).toHaveText("");
   }
 
   // const scrollBy = ClientFunction((id, dx, dy) => {
@@ -277,17 +287,19 @@ test.describe.parallel("Integration Tests", async () => {
   test("switching_from_http_to_cron_space_removes_leading_slash", async ({
     page,
   }) => {
-    // add headers
     await createHTTPHandler(page);
+
+    // add headers
     await page.type("#entry-box", "PO");
-    await expect(acHighlighted(page)).toHaveText("POST");
+    await expect(acHighlightedValue(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
     await page.type("#entry-box", "/spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await page.keyboard.press("Control+A");
+    await selectAll(page); // on linux
+    await page.keyboard.press("Meta+A"); // on mac
     await page.keyboard.press("Backspace");
     await page.type("#entry-box", "CRON");
     await page.keyboard.press("Enter");
@@ -300,15 +312,15 @@ test.describe.parallel("Integration Tests", async () => {
 
     // add headers
     await page.type("#entry-box", "PO");
-    await expect(acHighlighted(page)).toHaveText("POST");
+    await expect(acHighlightedValue(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
-
     await page.type("#entry-box", "/spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await page.keyboard.press("Control+A");
+    await selectAll(page); // on linux
+    await page.keyboard.press("Meta+A"); // on mac
     await page.keyboard.press("Backspace");
     await page.type("#entry-box", "REPL");
     await page.keyboard.press("Enter");
@@ -321,15 +333,16 @@ test.describe.parallel("Integration Tests", async () => {
 
     // add headers
     await page.type("#entry-box", "PO");
-    await expect(acHighlighted(page)).toHaveText("POST");
+    await expect(acHighlightedValue(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
 
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "/spec_name/:variable");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await page.keyboard.press("Control+A");
+    await selectAll(page);
     await page.keyboard.press("Backspace");
     await page.type("#entry-box", "REPL");
     await page.keyboard.press("Enter");
@@ -340,14 +353,18 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(entryBox(page)).toBeVisible();
   });
 
-  test("field_access_closes", async ({ page }) => {
+  test.skip("field_access_closes", async ({ page }) => {
     await createHTTPHandler(page);
     await gotoAST(page);
+    test.setTimeout(30000);
 
     await page.type("#active-editor", "req");
-    await expect(fluidAcHighlighted(page)).toHaveText("requestDict");
+    // There's a race condition here, sometimes the client doesn't manage to load the
+    // trace for quite some time, and the autocomplete box ends up in a weird
+    // condition
+    await expect(fluidACHighlightedValue(page)).toHaveText("requestDict");
     await page.type("#active-editor", ".bo");
-    await expect(fluidAcHighlighted(page)).toHaveText("bodyfield");
+    await expect(fluidACHighlightedValue(page)).toHaveText("bodyfield");
     await page.keyboard.press("Enter");
   });
 
@@ -421,13 +438,13 @@ test.describe.parallel("Integration Tests", async () => {
 
   //     // edit them
   //     await page.click(".spec-header > .toplevel-name")
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", "/myroute");
   //     await page.keyboard.press("Enter");
 
   //     await page.click(".spec-header > .toplevel-type > .modifier")
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", "GET");
   //     await page.keyboard.press("Enter");;
@@ -444,7 +461,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   //     // edit space
   //     await page.click(".spec-header > .toplevel-type > .space")
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", "HTTP");
   //     await page.keyboard.press("Enter");;
@@ -455,7 +472,7 @@ test.describe.parallel("Integration Tests", async () => {
   //
   //     // edit space
   //     await page.click(".spec-header > .toplevel-type >.space")
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", "CRON");
   //     await page.keyboard.press("Enter");;
@@ -491,7 +508,7 @@ test.describe.parallel("Integration Tests", async () => {
   //   // rename
   //
   //     .click(Selector(".name").withText("field1"))
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", "field6");
   //     await page.keyboard.press("Enter");;
@@ -526,7 +543,7 @@ test.describe.parallel("Integration Tests", async () => {
   //   // rename
   //
   //     .click(Selector(".type").withText("Int"))
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", "String");
   //     await page.keyboard.press("Enter");;
@@ -638,7 +655,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //   // now actually rename the function to a different name
   //
   //     .click(Selector(fnNameBlankOr))
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", "hello");
   //     await page.keyboard.press("Enter");;
@@ -1013,7 +1030,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //
   //     await page.click(".toplevel")
   //     .click(Selector(".spec-header > .toplevel-name"))
-  //     await page.keyboard.press("Control+A");
+  //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", ":a");
   //     expect(await acHighlightedText(page)).toBe("/:a")
@@ -1173,7 +1190,6 @@ test("feature_flag_in_function", async ({ page }) => {
     // Ensure the anaysis has completed
     await expect(page.locator(".live-value.loaded")).toContainText(
       "Click Play to execute function",
-      verySlow,
     );
     // test logic in IntegrationTest.ml; we load it here because we need an
     // analysis done before we can call the command
