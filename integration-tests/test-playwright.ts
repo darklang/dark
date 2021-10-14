@@ -11,30 +11,34 @@ test.use(options);
 // const getPageUrl = ClientFunction(() => window.location.href);
 // const analysisLastRun = ClientFunction(() => window.Dark.analysis.lastRun);
 
-async function prepSettings(page, testInfo) {
+async function prepSettings(page: Page, testInfo: TestInfo) {
+  let setLocalStorage = async (key: string, value: any) => {
+    await page.evaluate(
+      ([k, v]) => {
+        localStorage.setItem(k, v);
+      },
+      [key, JSON.stringify(value)],
+    );
+  };
+
   // Turn on fluid debugger
-  let key = `editorState-test-${testInfo.title}`;
-  let value = '{"editorSettings":{"showFluidDebugger":true}}';
-  await page.evaluate(
-    ([k, v]) => {
-      localStorage.setItem(k, v);
+  let editorState = {
+    editorSettings: { showFluidDebugger: true },
+    sidebarState: {
+      mode: ["AbridgedMode"],
     },
-    [key, value],
-  );
-  // Disable the modal
-  let key2 = `userState-test`;
-  // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
-  let recordConsent =
-    testInfo.title === "record_consent_saved_across_canvases"
-      ? "null"
-      : "false";
-  let value2 = `{"firstVisitToDark":false,"recordConsent":${recordConsent},"unsupportedBrowser": false,"userTutorial": null}`;
-  await page.evaluate(
-    ([k, v]) => {
-      localStorage.setItem(k, v);
-    },
-    [key2, value2],
-  );
+    firstVisitToThisCanvas: false,
+  };
+
+  let userState = {
+    showUserWelcomeModal: false, // Disable the modal
+    firstVisitToDark: false,
+    // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
+    recordConsent:
+      testInfo.title === "record_consent_saved_across_canvases" ? null : false,
+  };
+  await setLocalStorage(`editorState-test-${testInfo.title}`, editorState);
+  await setLocalStorage("userState-test", userState);
 }
 
 // async function awaitAnalysis(t, ts, trial = 0) {
