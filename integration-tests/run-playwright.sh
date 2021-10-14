@@ -35,7 +35,7 @@ BROWSER="chromium"
 ######################
 # Set up concurrency
 ######################
-CONCURRENCY=1
+CONCURRENCY=2
 # Temporarily disabled until we sort out concurrency-related problems
 # @dstrelau 2020-02-18
 # if [[ "$DEBUG" == "true" ]]; then
