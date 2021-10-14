@@ -5,9 +5,9 @@
   "private": true,
   "author": "",
   "devDependencies": {
+    "//": "This package.json just exists to install playwright for running it from the host",
     "@playwright/test": "1.15.2",
     "playwright": "1.15.2"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
