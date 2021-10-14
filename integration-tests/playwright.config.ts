@@ -1,15 +1,15 @@
-// playwright.config.ts
+// Config file for integration tests
 import { PlaywrightTestConfig, devices } from '@playwright/test';
 
-const config: PlaywrightTestConfig = {
-  testDir: '.',
-  testMatch: 'test-playwright.*',
+const config : PlaywrightTestConfig = {
+  testDir: ".",
+  testMatch: "test-playwright.*",
   use: {
+    // actionTimeout: 2000,
     headless: true,
-    screenshot: 'off',
-    video: 'on',
-    // CLEANUP: probably don't need this
-    viewport: { width: 1600, height: 1200 },
+    screenshot: "off",
+    video: "on"
   },
 };
+
 export default config;

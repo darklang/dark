@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, ConsoleMessage } from "@playwright/test";
 
 // const child_process = require("child_process");
 // import fs from "fs";
@@ -6,7 +6,8 @@ const BASE_URL = "http://darklang.localhost:8000";
 const options = {
   baseURL: BASE_URL,
 };
-test.use(options)
+test.use(options);
+
 // const getPageUrl = ClientFunction(() => window.location.href);
 // const analysisLastRun = ClientFunction(() => window.Dark.analysis.lastRun);
 
@@ -25,6 +26,7 @@ async function prepSettings(page, testInfo) {
   let value2 = `{"firstVisitToDark":false,"recordConsent":${recordConsent},"unsupportedBrowser": false,"userTutorial": null}`;
   await page.evaluate(([k, v]) => { localStorage.setItem(k, v); }, [key2, value2]);
 }
+
 
 // async function awaitAnalysis(t, ts, trial = 0) {
 //   if (trial > 10) {
@@ -51,6 +53,13 @@ test.describe("Integration Tests", async () => {
   });
   // To add this user, run the backend tests
   test.beforeEach(async ({ page}, testInfo) => {
+    page.on('console', async (msg : ConsoleMessage) => {
+      if (msg.type() == 'error') {
+        console.error(msg.text());
+      }
+      // TODO: save to file
+      // console.log(msg);
+    });
     const testname = testInfo.title;
     const sessionName = `${testname}-${testInfo.retry}`;
     var url = `/a/test-${testname}?integration-test=true`;
@@ -65,6 +74,7 @@ test.describe("Integration Tests", async () => {
     await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
     await page.click("text=Login");
     await expect(page.locator("#finishIntegrationTest")).toBeVisible();
+  });
 
     /* Testcafe runs everything through a proxy, wrapping all values and
      * objects such that it seems like nothing happened. However, they forgot
@@ -86,71 +96,23 @@ test.describe("Integration Tests", async () => {
     //   },
     // );
 
-    // await t.takeScreenshot();
+  test.afterEach(async ({ page }, testInfo) => {
+    const testname = testInfo.title;
+    const finish = page.locator("#finishIntegrationTest");
+    const signal =
+    // TODO: clicks on this button are not registered in function space
+    // We should probably figure out why.
+    // For now, putting a more helpful error message
+    await finish.click();
+    // When I tried using the locator, the signal could never be found. But it works this way 🤷‍♂️
+    await page.waitForSelector("#integrationTestSignal");
+    expect(await page.isVisible("#integrationTestSignal")).toBe(true);
+    expect(await page.textContent("#integrationTestSignal")).toBe("success");
+    expect(await page.textContent("#integrationTestSignal")).not.toContain("failure");
+    expect(await page.getAttribute("#integrationTestSignal", "class")).toContain("success");
+    expect(await page.getAttribute("#integrationTestSignal", "class")).not.toContain("failure");
   });
-//   .afterEach(async t => {
-//     const testname = t.testRun.test.name;
-//     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
-//     const finish = Selector("#finishIntegrationTest");
-//     const signal = Selector("#integrationTestSignal");
-//     let flushLogs = async () => {
-//       const { log, warn, error, info } = await t.getBrowserConsoleMessages();
-//       const msgs = Array.concat(
-//         ["Console Logs:"],
-//         log,
-//         ["\n\nConsole Warnings"],
-//         warn,
-//         ["\n\nConsole Errors:"],
-//         error,
-//         ["\n\nConsole Infos:"],
-//         info,
-//       );
-//       console.log("Printing logs to rundir/integration_test_logs/");
-//       fs.writeFile(
-//         `rundir/integration_test_logs/${testname}.log`,
-//         msgs.join("\n"),
-//         () => {},
-//       );
 
-//       return true;
-//     };
-
-//     let flushedLogs = false;
-//     try {
-//       // TODO: clicks on this button are not registered in function space
-//       // We should probably figure out why.
-//       // For now, putting a more helpful error message
-//       await t
-//         .click(finish)
-//         .expect(finish.exists)
-//         .notOk(
-//           "Finish button click failed: did you try to click it from the function space?",
-//         )
-//         .expect(signal.exists)
-//         .ok("Test evaluation has timed out. Has the application crashed?");
-
-//       const { error } = await t.getBrowserConsoleMessages();
-//       await t.expect(error).eql([]);
-
-//       if (
-//         (await t.testRun.errs).length > 0 ||
-//         !(await signal.hasClass("success"))
-//       ) {
-//         await t.takeScreenshot();
-//         flushedLogs = flushLogs();
-//         if ((await signal.textContent) != "success") {
-//           await t.expect("test state").eql(await signal.textContent);
-//         }
-//       }
-
-//       await t.expect(signal.hasClass("success")).eql(true);
-//     } catch (e) {
-//       if (!flushedLogs) {
-//         flushLogs();
-//       }
-//       throw e;
-//     }
-//   });
 
 // //********************************
 // // Utilities
@@ -1138,9 +1100,11 @@ test("feature_flag_in_function", async t => {
 // });
 
 test("fluid_test_copy_request_as_curl", async ({ page }) => {
-  await page.goto("#handler=91390945");
-  await expect(page.locator(".tl-91390945").first()).toBeVisible();
-  await expect(page.locator(".tl-753586717").first()).toBeVisible();
+  await page.click(".toplevel.tl-91390945");
+  expect(page.locator(".tl-91390945")).toBeVisible();
+  await page.click(".id-753586717");
+  // Ensure the anaysis has completed
+  await expect(page.locator(".live-value.loaded")).toHaveText("Click Play to execute function");
   // test logic in IntegrationTest.ml; we load it here because we need an
   // analysis done before we can call the command
 });
