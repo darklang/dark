@@ -33,7 +33,7 @@ module Rollbar = {
 }
 
 let reportError = (msg: string, msgVal: 'm): unit => {
-  Js.log3("An unexpected but recoverable error happened: ", msg, msgVal)
+  Js.Console.error3("An unexpected but recoverable error happened: ", msg, msgVal)
   Js.Console.trace()
   Rollbar.send(
     msg,
