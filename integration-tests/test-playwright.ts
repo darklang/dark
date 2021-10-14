@@ -6,9 +6,8 @@ import {
   Locator,
   TestInfo,
 } from "@playwright/test";
+import fs from "fs";
 
-// const child_process = require("child_process");
-// import fs from "fs";
 const BASE_URL = "http://darklang.localhost:8000";
 const options = {
   baseURL: BASE_URL,
@@ -68,21 +67,25 @@ async function prepSettings(page: Page, testInfo: TestInfo) {
 
 // fixture`Integration Tests`
 test.describe.parallel("Integration Tests", async () => {
-  test.beforeAll(async () => {});
+  test.beforeAll(async () => {
+    test.messages = [];
+  });
   // To add this user, run the backend tests
   test.beforeEach(async ({ page }, testInfo) => {
     page.on("pageerror", async err => {
       console.error(err);
     });
     page.on("console", async (msg: ConsoleMessage) => {
+      if (msg.text().includes("ERR_CONNECTION_REFUSED")) {
+        // We don't load fullstory in tests
+        return;
+      }
       if (msg.type() == "error") {
         console.error(msg.text());
       }
-      // TODO: save to file
-      // console.log(msg);
+      test.messages.push(msg);
     });
     const testname = testInfo.title;
-    const sessionName = `${testname}-${testInfo.retry}`;
     var url = `/a/test-${testname}?integration-test=true`;
 
     var username = "test";
@@ -95,6 +98,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
     await page.click("text=Login");
     await expect(page.locator("#finishIntegrationTest")).toBeVisible();
+    await page.pause();
   });
 
   /* Testcafe runs everything through a proxy, wrapping all values and
@@ -119,25 +123,54 @@ test.describe.parallel("Integration Tests", async () => {
 
   test.afterEach(async ({ page }, testInfo) => {
     const testname = testInfo.title;
-    const finish = page.locator("#finishIntegrationTest");
-    const signal =
-      // TODO: clicks on this button are not registered in function space
-      // We should probably figure out why.
-      // For now, putting a more helpful error message
-      await finish.click();
-    // When I tried using the locator, the signal could never be found. But it works this way 🤷‍♂️
-    await page.waitForSelector("#integrationTestSignal");
-    expect(await page.isVisible("#integrationTestSignal")).toBe(true);
-    expect(await page.textContent("#integrationTestSignal")).toBe("success");
-    expect(await page.textContent("#integrationTestSignal")).not.toContain(
-      "failure",
-    );
-    expect(
-      await page.getAttribute("#integrationTestSignal", "class"),
-    ).toContain("success");
-    expect(
-      await page.getAttribute("#integrationTestSignal", "class"),
-    ).not.toContain("failure");
+
+    // write out all logs
+    let flushedLogs = false;
+    function flushLogs(): boolean {
+      let logs = test.messages.map(
+        (msg: ConsoleMessage) => `${msg.type()}: ${msg.text()}`,
+      );
+      let filename = `rundir/integration_test_logs/${testname}.log`;
+      fs.writeFile(filename, logs.join("\n"), () => {});
+      return true;
+    }
+
+    await page.pause();
+    try {
+      // Ensure the test has completed correctly
+      const finish = page.locator("#finishIntegrationTest");
+      const signal =
+        // TODO: clicks on this button are not registered in function space
+        // We should probably figure out why.
+        // For now, putting a more helpful error message
+        await finish.click();
+      await page.waitForSelector("#integrationTestSignal");
+      // When I tried using the locator, the signal could never be found. But it works this way 🤷‍♂️
+      expect(await page.isVisible("#integrationTestSignal")).toBe(true);
+
+      // check the content
+      let content = await page.textContent("#integrationTestSignal");
+      expect(content).toBe("success");
+      expect(content).not.toContain("failure");
+
+      // check the class
+      let class_ = await page.getAttribute("#integrationTestSignal", "class");
+      expect(class_).toContain("success");
+      expect(class_).not.toContain("failure");
+
+      // Ensure there are no errors in the logs
+      let errorMessages = test.messages.filter(
+        (msg: ConsoleMessage) => msg.type() == "error",
+      );
+      expect(errorMessages).toHaveLength(0);
+
+      flushedLogs = flushLogs();
+    } catch (e) {
+      if (flushedLogs === false) {
+        flushLogs();
+      }
+      throw e;
+    }
   });
 
   //********************************
