@@ -60,9 +60,8 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   set +e # Dont fail immediately so that the sed is run
 
   echo "Starting playwright"
-  npx "playwright" --version
-  # shellcheck disable=SC2016
-  unbuffer npx playwright \
+  node_modules/.bin/playwright --version
+  node_modules/.bin/playwright \
     test \
     --workers "$CONCURRENCY" \
     --grep "$PATTERN" \
@@ -87,7 +86,6 @@ else
     exit 1
   fi
 
-  # shellcheck disable=SC2016
   integration-tests/node_modules/.bin/playwright test \
     $DEBUG_MODE_FLAG \
     --browser "${BROWSER}" \
