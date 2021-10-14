@@ -64,6 +64,9 @@ test.describe.parallel("Integration Tests", async () => {
   test.beforeAll(async () => {});
   // To add this user, run the backend tests
   test.beforeEach(async ({ page }, testInfo) => {
+    page.on("pageerror", async err => {
+      console.error(err);
+    });
     page.on("console", async (msg: ConsoleMessage) => {
       if (msg.type() == "error") {
         console.error(msg.text());
