@@ -136,40 +136,45 @@ test.describe.parallel("Integration Tests", async () => {
     }
 
     await page.pause();
-    try {
-      // Ensure the test has completed correctly
-      const finish = page.locator("#finishIntegrationTest");
-      const signal =
-        // TODO: clicks on this button are not registered in function space
-        // We should probably figure out why.
-        // For now, putting a more helpful error message
-        await finish.click();
-      await page.waitForSelector("#integrationTestSignal");
-      // When I tried using the locator, the signal could never be found. But it works this way 🤷‍♂️
-      expect(await page.isVisible("#integrationTestSignal")).toBe(true);
+    if (testInfo.status === testInfo.expectedStatus) {
+      // Only run final checks if we're on the road to success
+      try {
+        // Ensure the test has completed correctly
+        const finish = page.locator("#finishIntegrationTest");
+        const signal =
+          // TODO: clicks on this button are not registered in function space
+          // We should probably figure out why.
+          // For now, putting a more helpful error message
+          await finish.click();
+        await page.waitForSelector("#integrationTestSignal");
+        // When I tried using the locator, the signal could never be found. But it works this way 🤷‍♂️
+        expect(await page.isVisible("#integrationTestSignal")).toBe(true);
 
-      // check the content
-      let content = await page.textContent("#integrationTestSignal");
-      expect(content).toBe("success");
-      expect(content).not.toContain("failure");
+        // check the content
+        let content = await page.textContent("#integrationTestSignal");
+        expect(content).toBe("success");
+        expect(content).not.toContain("failure");
 
-      // check the class
-      let class_ = await page.getAttribute("#integrationTestSignal", "class");
-      expect(class_).toContain("success");
-      expect(class_).not.toContain("failure");
+        // check the class
+        let class_ = await page.getAttribute("#integrationTestSignal", "class");
+        expect(class_).toContain("success");
+        expect(class_).not.toContain("failure");
 
-      // Ensure there are no errors in the logs
-      let errorMessages = test.messages.filter(
-        (msg: ConsoleMessage) => msg.type() == "error",
-      );
-      expect(errorMessages).toHaveLength(0);
+        // Ensure there are no errors in the logs
+        let errorMessages = test.messages.filter(
+          (msg: ConsoleMessage) => msg.type() == "error",
+        );
+        expect(errorMessages).toHaveLength(0);
 
-      flushedLogs = flushLogs();
-    } catch (e) {
-      if (flushedLogs === false) {
-        flushLogs();
+        flushedLogs = flushLogs();
+      } catch (e) {
+        if (flushedLogs === false) {
+          flushLogs();
+        }
+        throw e;
       }
-      throw e;
+    } else {
+      flushedLogs = flushLogs();
     }
   });
 
