@@ -11,6 +11,7 @@ const config: PlaywrightTestConfig = {
   use: {
     // actionTimeout: 1000,
     headless: true,
+    trace: "retain-on-failure",
     screenshot: "off",
     video: "on",
   },
