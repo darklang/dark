@@ -6,12 +6,17 @@ set -euo pipefail
 
 PATTERN=".*"
 DEBUG_MODE_FLAG=""
+CONCURRENCY=1
 
 for i in "$@"
 do
   case "${i}" in
     --pattern=*)
     PATTERN=${1/--pattern=/''}
+    shift
+    ;;
+    --concurrency=*)
+    CONCURRENCY=${1/--concurrency=/''}
     shift
     ;;
     --debug)
@@ -35,7 +40,6 @@ BROWSER="chromium"
 ######################
 # Set up concurrency
 ######################
-CONCURRENCY=2
 # Temporarily disabled until we sort out concurrency-related problems
 # @dstrelau 2020-02-18
 # if [[ "$DEBUG" == "true" ]]; then
