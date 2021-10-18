@@ -9,7 +9,13 @@ module E = FluidExpression
 
 let pass: testResult = Ok()
 
-let fail = (~f: 'a => string=Js.String.make, v: 'a): testResult => Error(f(v))
+let stringify = (msg: 'a): string =>
+  switch Js.Json.stringifyAny(msg) {
+  | Some(str) => str
+  | None => "Could not stringify"
+  }
+
+let fail = (~f: 'a => string=stringify, v: 'a): testResult => Error(f(v))
 
 let testIntOption = (~errMsg: string, ~expected: int, ~actual: option<int>): testResult =>
   switch actual {
@@ -124,6 +130,9 @@ let editing_headers = (m: model): testResult => {
   }
 }
 
+@ppx.deriving(show)
+type rec handler_triple = (blankOr<string>, blankOr<string>, blankOr<string>)
+
 let switching_from_http_space_removes_leading_slash = (m: model): testResult => {
   let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
 
@@ -131,7 +140,7 @@ let switching_from_http_space_removes_leading_slash = (m: model): testResult => 
   | Some(s) =>
     switch (s.space, s.name, s.modifier) {
     | (F(_, newSpace), F(_, "spec_name"), _) if newSpace !== "HTTP" => pass
-    | other => fail(other)
+    | other => fail(~f=show_handler_triple, other)
     }
   | other => fail(other)
   }
