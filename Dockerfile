@@ -68,8 +68,8 @@ RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" 
 RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
 
 # Testcafe needs node >= 11
-RUN echo "deb https://deb.nodesource.com/node_13.x focal main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_13.x focal main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_14.x focal main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_14.x focal main" >> /etc/apt/sources.list.d/nodesource.list
 
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
