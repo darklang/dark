@@ -257,7 +257,12 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   async function selectAll(page: Page): Promise<void> {
+    // Do these multiple times to make sure it actually selects
     await page.keyboard.press("Control+a"); // on linux
+    await page.keyboard.press("Control+a"); // on linux
+    await page.keyboard.press("Control+a"); // on linux
+    await page.keyboard.press("Meta+a"); // on mac
+    await page.keyboard.press("Meta+a"); // on mac
     await page.keyboard.press("Meta+a"); // on mac
   }
 
