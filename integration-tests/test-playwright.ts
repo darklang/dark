@@ -257,13 +257,13 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   async function selectAll(page: Page): Promise<void> {
-    await page.keyboard.press("Control+A"); // on linux
-    await page.keyboard.press("Meta+A"); // on mac
+    await page.keyboard.press("Control+a"); // on linux
+    await page.keyboard.press("Meta+a"); // on mac
   }
 
+  // Entry-box sometimes carries state over briefly, so wait til it's clear
   async function waitForEmptyEntryBox(page: Page): Promise<void> {
-    // Entry-box sometimes carries state over briefly, so wait til it clears it
-    await expect(page.locator("#entry-box")).toHaveText("");
+    await page.waitForSelector("#entry-box >> text=''");
   }
 
   // const scrollBy = ClientFunction((id, dx, dy) => {
@@ -295,18 +295,22 @@ test.describe.parallel("Integration Tests", async () => {
     await createHTTPHandler(page);
 
     // add headers
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "PO");
     await expect(acHighlightedValue(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
+
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "/spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await selectAll(page); // on linux
-    await page.keyboard.press("Meta+A"); // on mac
+    await selectAll(page);
     await page.keyboard.press("Backspace");
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "CRON");
+    await page.pause();
     await page.keyboard.press("Enter");
   });
 
@@ -316,6 +320,7 @@ test.describe.parallel("Integration Tests", async () => {
     await createHTTPHandler(page);
 
     // add headers
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "PO");
     await expect(acHighlightedValue(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
@@ -324,9 +329,9 @@ test.describe.parallel("Integration Tests", async () => {
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
-    await selectAll(page); // on linux
-    await page.keyboard.press("Meta+A"); // on mac
+    await selectAll(page);
     await page.keyboard.press("Backspace");
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "REPL");
     await page.keyboard.press("Enter");
   });
@@ -337,6 +342,7 @@ test.describe.parallel("Integration Tests", async () => {
     await createHTTPHandler(page);
 
     // add headers
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "PO");
     await expect(acHighlightedValue(page)).toHaveText("POST");
     await page.keyboard.press("Enter");
@@ -349,6 +355,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".spec-header > .toplevel-type > .space");
     await selectAll(page);
     await page.keyboard.press("Backspace");
+    await waitForEmptyEntryBox(page);
     await page.type("#entry-box", "REPL");
     await page.keyboard.press("Enter");
   });
