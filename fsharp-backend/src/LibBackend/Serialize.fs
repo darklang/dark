@@ -112,8 +112,6 @@ let loadOnlyRenderedTLIDs
        (fun list -> list |> List.map OCamlInterop.toplevelBin2Json |> Task.flatten)
 
 
-
-
 let fetchReleventTLIDsForHTTP
   (canvasID : CanvasID)
   (path : string)
@@ -270,13 +268,7 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //     Ok ()
 //   with e -> Error (Exception.to_string e)
 //
-//
-//
-//
-// (* ------------------------- *)
-// (* JSON *)
-// (* ------------------------- *)
-//
+
 // (* ------------------------- *)
 // (* hosts *)
 // (* ------------------------- *)

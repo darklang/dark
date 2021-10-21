@@ -288,45 +288,7 @@ let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
 
-// let name_for_id (id : Uuidm.t) : string =
-//   Db.fetch_one
-//     ~name:"fetch_canvas_name"
-//     "SELECT name FROM canvases WHERE id = $1"
-//     ~params:[Uuid id]
-//   |> List.hd_exn
-//
-//
-// let id_for_name_option (name : string) : Uuidm.t option =
-//   Db.fetch_one_option
-//     ~name:"fetch_canvas_id"
-//     "SELECT id FROM canvases WHERE name = $1"
-//     ~params:[Db.String name]
-//   (* If List.hd_exn exn's, it means that `SELECT id` returned a record with more
-//    * than one field..  Can't happen. *)
-//   |> Option.map ~f:List.hd_exn
-//   |> Option.bind ~f:Uuidm.of_string
-//
-//
-// let id_for_name (name : string) : Uuidm.t =
-//   name |> id_for_name_option |> Option.value_exn
-//
-//
-// let id_and_account_id_for_name_exn (name : string) : Uuidm.t * Uuidm.t =
-//   (* If we're using this in /api/.../ we're already guaranteed that the canvas
-//    * exists *)
-//   Db.fetch_one
-//     ~name:"fetch_canvas_id_and_account_id"
-//     "SELECT id, account_id FROM canvases WHERE name = $1"
-//     ~params:[Db.String name]
-//   |> function
-//   | [canvas_id; account_id] ->
-//       (* These are guaranteed by the db schema to be uuids *)
-//       ( canvas_id |> Uuidm.of_string |> Option.value_exn
-//       , account_id |> Uuidm.of_string |> Option.value_exn )
-//   | _ ->
-//       Exception.internal "Wrong db shape in Canvas.id_and_account_id"
-//
-//
+
 // let update_cors_setting (c T ref) (setting : cors_setting option) : unit
 //     =
 //   let cors_setting_to_db (setting : cors_setting option) : Db.param =
