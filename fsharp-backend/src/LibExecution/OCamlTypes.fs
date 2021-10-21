@@ -559,9 +559,9 @@ module Convert =
     List.map ocamlOp2PT list
 
   let ocamlTLIDOplist2PT
-    (tlidOplist : tlid_oplist<ORT.fluidExpr>)
-    : tlid * PT.Oplist =
-    Tuple2.mapSecond ocamlOplist2PT tlidOplist
+    ((tlid, oplist) : tlid_oplist<ORT.fluidExpr>)
+    : Prelude.tlid * PT.Oplist =
+    (tlid, ocamlOplist2PT oplist)
 
 
   let ocamlToplevel2PT
