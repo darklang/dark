@@ -15,7 +15,6 @@ const options = {
 test.use(options);
 
 // const getPageUrl = ClientFunction(() => window.location.href);
-// const analysisLastRun = ClientFunction(() => window.Dark.analysis.lastRun);
 
 async function prepSettings(page: Page, testInfo: TestInfo) {
   let setLocalStorage = async (key: string, value: any) => {
@@ -47,23 +46,23 @@ async function prepSettings(page: Page, testInfo: TestInfo) {
   await setLocalStorage("userState-test", userState);
 }
 
-// async function awaitAnalysis(t, ts, trial = 0) {
-//   if (trial > 10) {
-//     return t.expect(true).notOk("Max wait count for analysis exceeded");
-//   }
-
-//   const lastRun = await analysisLastRun();
-
-//   if (lastRun > ts) {
-//     // analysis has returned result since ts (timestamp)
-//     const diffInSecs = (lastRun - ts) / 1000.0;
-//     console.info("Analysis ran in ~ " + diffInSecs + "secs");
-//     return t;
-//   } else {
-//     await t.wait(1000);
-//     return awaitAnalysis(t, ts, trial + 1);
-//   }
-// }
+async function awaitAnalysis(page: Page, lastTimestamp: number) {
+  let analysisFunction = (lastTimestamp: number) => {
+    console.log("open");
+    let newTimestamp = window.Dark.analysis.lastRun;
+    if (newTimestamp > lastTimestamp) {
+      const diffInSecs = (newTimestamp - lastTimestamp) / 1000.0;
+      console.info("Analysis ran in ~ " + diffInSecs + "secs");
+      return true;
+    }
+    return false;
+  };
+  console.log("checking analysis");
+  await page.waitForFunction(analysisFunction, lastTimestamp, {
+    timeout: 10000,
+    polling: 1000,
+  });
+}
 
 // fixture`Integration Tests`
 test.describe.parallel("Integration Tests", async () => {
@@ -181,25 +180,43 @@ test.describe.parallel("Integration Tests", async () => {
   //********************************
   // // Utilities
   //********************************
-  async function createHTTPHandler(page: Page) {
+  async function createEmptyHTTPHandler(page: Page) {
     await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
     await page.keyboard.press("ArrowDown");
+    await expect(acHighlightedValue(page)).toHaveText("New HTTP handler");
+    await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
+  }
+
+  async function createHTTPHandler(page: Page, method: string, path: string) {
+    await createEmptyHTTPHandler(page);
+    await page.type("#entry-box", method);
+    await expect(acHighlightedValue(page)).toHaveText(method);
+    await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
+    await page.type("#entry-box", path);
+    await expect(acHighlightedValue(page)).toHaveText(path);
     await page.keyboard.press("Enter");
   }
 
-  // async function createWorkerHandler(t) {
-  //
-  //     await page.keyboard.press("Enter");
-  //     await page.keyboard.press("ArrowDown")
-  //     await page.keyboard.press("ArrowDown")
-  //     await page.keyboard.press("ArrowDown")
-  //     await page.keyboard.press("ArrowDown")
-  //     await page.keyboard.press("Enter");;
-  // }
+  async function createWorkerHandler(page) {
+    await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await expect(acHighlightedValue(page)).toHaveText("New Worker");
+    await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
+  }
 
-  // async function createRepl(t) {
-  //   await page.keyboard.press("Enter");await page.keyboard.press("Enter");;
-  // }
+  async function createRepl(page) {
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
+  }
 
   async function gotoAST(page: Page): Promise<void> {
     await page.click("#active-editor > span");
@@ -297,17 +314,7 @@ test.describe.parallel("Integration Tests", async () => {
   test("switching_from_http_to_cron_space_removes_leading_slash", async ({
     page,
   }) => {
-    await createHTTPHandler(page);
-
-    // add headers
-    await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "PO");
-    await expect(acHighlightedValue(page)).toHaveText("POST");
-    await page.keyboard.press("Enter");
-
-    await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "/spec_name");
-    await page.keyboard.press("Enter");
+    await createHTTPHandler(page, "POST", "/spec_name");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
@@ -322,15 +329,7 @@ test.describe.parallel("Integration Tests", async () => {
   test("switching_from_http_to_repl_space_removes_leading_slash", async ({
     page,
   }) => {
-    await createHTTPHandler(page);
-
-    // add headers
-    await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "PO");
-    await expect(acHighlightedValue(page)).toHaveText("POST");
-    await page.keyboard.press("Enter");
-    await page.type("#entry-box", "/spec_name");
-    await page.keyboard.press("Enter");
+    await createHTTPHandler(page, "POST", "/spec_name");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
@@ -344,17 +343,7 @@ test.describe.parallel("Integration Tests", async () => {
   test("switching_from_http_space_removes_variable_colons", async ({
     page,
   }) => {
-    await createHTTPHandler(page);
-
-    // add headers
-    await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "PO");
-    await expect(acHighlightedValue(page)).toHaveText("POST");
-    await page.keyboard.press("Enter");
-
-    await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "/spec_name/:variable");
-    await page.keyboard.press("Enter");
+    await createHTTPHandler(page, "POST", "/spec_name/:variable");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
@@ -370,16 +359,30 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(entryBox(page)).toBeVisible();
   });
 
-  test.skip("field_access_closes", async ({ page }) => {
-    await createHTTPHandler(page);
-    await gotoAST(page);
-    test.setTimeout(30000);
+  test("field_access_closes", async ({ page }) => {
+    let frontendLoaded = new Promise((resolve, reject) => {
+      page.on("console", async (msg: ConsoleMessage) => {
+        if (msg.text() === "libfrontend reporting in") {
+          resolve(true);
+        }
+      });
+    });
 
-    await page.type("#active-editor", "req");
+    await createEmptyHTTPHandler(page);
+    await gotoAST(page);
+    await expect(await frontendLoaded).toBe(true, { timeout: 10000 });
+
+    await page.type("#active-editor", "re");
+    let start = Date.now();
+    await page.type("#active-editor", "q");
+    await expect(fluidACHighlightedValue(page)).toContainText("request");
     // There's a race condition here, sometimes the client doesn't manage to load the
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
+    await awaitAnalysis(page, start);
+    await expect(fluidACHighlightedValue(page)).toContainText("request");
     await expect(fluidACHighlightedValue(page)).toHaveText("requestDict");
+    await expect(fluidACHighlightedValue(page)).toContainText("request");
     await page.type("#active-editor", ".bo");
     await expect(fluidACHighlightedValue(page)).toHaveText("bodyfield");
     await page.keyboard.press("Enter");
