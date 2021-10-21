@@ -140,7 +140,7 @@ let redirectOr
         if Config.useLoginDarklangComForLogin then
           ctx.GetRequestUrl()
         else
-          System.Web.HttpUtility.UrlEncode(ctx.Request.Path.ToString())
+          string ctx.Request.Path + string ctx.Request.QueryString
 
 
       let destination =

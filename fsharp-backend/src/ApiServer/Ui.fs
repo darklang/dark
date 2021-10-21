@@ -132,6 +132,13 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     let! createdAt = Account.getUserCreatedAt user.username
     let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
 
+    // Create the data for integration tests
+    let integrationTests =
+      ctx.TryGetQueryStringValue "integration_test" |> Option.isSome
+
+    if integrationTests && Config.allowTestRoutes then
+      do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
+
     return
       uiHtml
         canvasInfo.id
