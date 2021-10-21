@@ -8,7 +8,7 @@ import {
 } from "@playwright/test";
 import fs from "fs";
 
-const BASE_URL = "http://darklang.localhost:8000";
+const BASE_URL = process.env.BASE_URL || "http://darklang.localhost:8000";
 const options = {
   baseURL: BASE_URL,
 };

@@ -7,6 +7,7 @@ set -euo pipefail
 PATTERN=".*"
 DEBUG_MODE_FLAG=""
 CONCURRENCY=1
+BASE_URL="http://darklang.localhost:8000"
 
 for i in "$@"
 do
@@ -21,6 +22,10 @@ do
     ;;
     --debug)
     DEBUG_MODE_FLAG="--debug"
+    shift
+    ;;
+    --fsharp)
+    BASE_URL="http://darklang.localhost:9000"
     shift
     ;;
     *)
@@ -92,7 +97,7 @@ else
     exit 1
   fi
 
-  integration-tests/node_modules/.bin/playwright test \
+  BASE_URL="$BASE_URL" integration-tests/node_modules/.bin/playwright test \
     $DEBUG_MODE_FLAG \
     --browser "${BROWSER}" \
     --output "rundir/integration-tests/" \
