@@ -288,6 +288,16 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector("#entry-box >> text=''");
   }
 
+  function createLibfrontendLoadPromise(page: Page) {
+    return new Promise((resolve, reject) => {
+      page.on("console", async (msg: ConsoleMessage) => {
+        if (msg.text() === "libfrontend reporting in") {
+          resolve(true);
+        }
+      });
+    });
+  }
+
   // const scrollBy = ClientFunction((id, dx, dy) => {
   //   document.getElementById(id).scrollBy(dx, dy);
   // });
@@ -360,13 +370,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   test("field_access_closes", async ({ page }) => {
-    let frontendLoaded = new Promise((resolve, reject) => {
-      page.on("console", async (msg: ConsoleMessage) => {
-        if (msg.text() === "libfrontend reporting in") {
-          resolve(true);
-        }
-      });
-    });
+    let frontendLoaded = createLibfrontendLoadPromise(page);
 
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
