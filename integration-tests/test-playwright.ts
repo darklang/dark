@@ -5,6 +5,7 @@ import {
   Page,
   Locator,
   TestInfo,
+  TestFixture,
 } from "@playwright/test";
 import fs from "fs";
 
@@ -147,23 +148,23 @@ test.describe.parallel("Integration Tests", async () => {
           await finish.click();
         await page.waitForSelector("#integrationTestSignal");
         // When I tried using the locator, the signal could never be found. But it works this way 🤷‍♂️
-        expect(await page.isVisible("#integrationTestSignal")).toBe(true);
+        await expect(await page.isVisible("#integrationTestSignal")).toBe(true);
 
         // check the content
         let content = await page.textContent("#integrationTestSignal");
-        expect(content).toBe("success");
-        expect(content).not.toContain("failure");
+        await expect(content).toBe("success");
+        await expect(content).not.toContain("failure");
 
         // check the class
         let class_ = await page.getAttribute("#integrationTestSignal", "class");
-        expect(class_).toContain("success");
-        expect(class_).not.toContain("failure");
+        await expect(class_).toContain("success");
+        await expect(class_).not.toContain("failure");
 
         // Ensure there are no errors in the logs
         let errorMessages = test.messages.filter(
           (msg: ConsoleMessage) => msg.type() == "error",
         );
-        expect(errorMessages).toHaveLength(0);
+        await expect(errorMessages).toHaveLength(0);
 
         flushedLogs = flushLogs();
       } catch (e) {
@@ -184,7 +185,9 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
     await page.keyboard.press("ArrowDown");
-    await expect(acHighlightedValue(page)).toHaveText("New HTTP handler");
+    await expect(acHighlightedValueLocator(page)).toHaveText(
+      "New HTTP handler",
+    );
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
   }
@@ -192,11 +195,11 @@ test.describe.parallel("Integration Tests", async () => {
   async function createHTTPHandler(page: Page, method: string, path: string) {
     await createEmptyHTTPHandler(page);
     await page.type("#entry-box", method);
-    await expect(acHighlightedValue(page)).toHaveText(method);
+    await expect(acHighlightedValueLocator(page)).toHaveText(method);
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
     await page.type("#entry-box", path);
-    await expect(acHighlightedValue(page)).toHaveText(path);
+    await expect(acHighlightedValueLocator(page)).toHaveText(path);
     await page.keyboard.press("Enter");
   }
 
@@ -207,29 +210,24 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
-    await expect(acHighlightedValue(page)).toHaveText("New Worker");
+    await expect(acHighlightedValueLocator(page)).toHaveText("New Worker");
     await page.keyboard.press("Enter");
-    await waitForEmptyEntryBox(page);
   }
 
   async function createRepl(page) {
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
-    await waitForEmptyEntryBox(page);
   }
 
   async function gotoAST(page: Page): Promise<void> {
     await page.click("#active-editor > span");
   }
 
-  // function user_content_url(t, endpoint) {
-  //   return (
-  //     "http://test-" +
-  //     t.testRun.test.name +
-  //     ".builtwithdark.lvh.me:8000" +
-  //     endpoint
-  //   );
-  // }
+  function bwdUrl(testInfo: TestInfo, path: string) {
+    return (
+      "http://test-" + testInfo.title + ".builtwithdark.lvh.me:8000" + path
+    );
+  }
 
   // // pressShortcut will use ctrl on Linux or meta on Mac, depending on which
   // // platform the tests are running.
@@ -249,6 +247,18 @@ test.describe.parallel("Integration Tests", async () => {
   //   await t.pressKey(shortcut);
   // }
 
+  async function req(page: Page, method: string, url: string, body: string) {
+    await page.evaluate(
+      ({ method, url, body }) => {
+        var xhttp = new XMLHttpRequest();
+        xhttp.open(method, url, true);
+        xhttp.setRequestHeader("Content-type", "application/json");
+        xhttp.send(body);
+      },
+      { method: method, url: url, body: body },
+    );
+  }
+
   //********************************
   // Avoiding test race conditions
   //********************************
@@ -257,30 +267,34 @@ test.describe.parallel("Integration Tests", async () => {
   // // But we sometimes need to explicitly wait if TestCafe can't tell what
   // // we're waiting on.
 
-  // function available(css) {
-  //   return Selector(css).exists;
-  // }
   function entryBox(page: Page): Locator {
     return page.locator("#entry-box");
   }
 
   // // Return the highlighted autocomplete entry
-  function acHighlightedValue(page: Page): Locator {
+  function acHighlightedValueLocator(page: Page): Locator {
     return page.locator(".autocomplete-item.highlighted > .name");
   }
 
-  function fluidACHighlightedValue(page: Page): Locator {
+  function fluidACHighlightedValueLocator(page: Page): Locator {
     return page.locator(".autocomplete-item.fluid-selected");
+  }
+
+  function dbLockLocator(page: Page): Locator {
+    return page.locator(".db .spec-header.lock");
   }
 
   async function selectAll(page: Page): Promise<void> {
     // Do these multiple times to make sure it actually selects
-    await page.keyboard.press("Control+a"); // on linux
-    await page.keyboard.press("Control+a"); // on linux
-    await page.keyboard.press("Control+a"); // on linux
-    await page.keyboard.press("Meta+a"); // on mac
-    await page.keyboard.press("Meta+a"); // on mac
-    await page.keyboard.press("Meta+a"); // on mac
+    if (process.platform == "darwin") {
+      await page.keyboard.press("Meta+a");
+      await page.keyboard.press("Meta+a");
+      await page.keyboard.press("Meta+a");
+    } else {
+      await page.keyboard.press("Control+a");
+      await page.keyboard.press("Control+a");
+      await page.keyboard.press("Control+a");
+    }
   }
 
   // Entry-box sometimes carries state over briefly, so wait til it's clear
@@ -379,217 +393,186 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "re");
     let start = Date.now();
     await page.type("#active-editor", "q");
-    await expect(fluidACHighlightedValue(page)).toContainText("request");
+    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
     // There's a race condition here, sometimes the client doesn't manage to load the
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
     await awaitAnalysis(page, start);
-    await expect(fluidACHighlightedValue(page)).toContainText("request");
-    await expect(fluidACHighlightedValue(page)).toHaveText("requestDict");
-    await expect(fluidACHighlightedValue(page)).toContainText("request");
+    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
+    await expect(fluidACHighlightedValueLocator(page)).toHaveText(
+      "requestDict",
+    );
+    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
     await page.type("#active-editor", ".bo");
-    await expect(fluidACHighlightedValue(page)).toHaveText("bodyfield");
+    await expect(fluidACHighlightedValueLocator(page)).toHaveText("bodyfield");
     await page.keyboard.press("Enter");
   });
 
-  // test("field_access_pipes", async ({ page }) => {
-  //   await createHTTPHandler(t);
-  //   await gotoAST(t);
-  //
-  //     await page.type("#active-editor", "req");
-  //     .expect(fluidAcHighlightedText())
-  //     .contains("request")
-  //     await page.type("#active-editor", ".bo");
-  //     .expect(fluidAcHighlightedText())
-  //     .eql("bodyfield")
-  //     await page.keyboard.press("TODO: shift+enter);;
-  // });
+  test("field_access_pipes", async ({ page }) => {
+    let frontendLoaded = createLibfrontendLoadPromise(page);
 
-  // test("tabbing_works", async ({ page }) => {
-  //   await createRepl(t);
-  //   // Fill in "then" box in if stmt
-  //
-  //     await page.type("#active-editor", "if");
-  //     await page.keyboard.press("TODO: space tab);
-  //     await page.type("#active-editor", "5");;
-  // });
+    await createEmptyHTTPHandler(page);
+    await gotoAST(page);
+    await expect(await frontendLoaded).toBe(true, { timeout: 10000 });
 
-  // test("autocomplete_highlights_on_partial_match", async ({ page }) => {
-  //   await createRepl(t);
-  //   await gotoAST(t);
-  //
-  //     await page.type("#active-editor", "nt::add");
-  //     .expect(fluidAcHighlightedText("Int::add"))
-  //     .ok()
-  //     await page.keyboard.press("Enter");;
-  // });
+    await page.type("#active-editor", "req");
+    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
+    await page.type("#active-editor", ".bo");
+    await expect(fluidACHighlightedValueLocator(page)).toHaveText("bodyfield");
+    await page.keyboard.press("Shift+Enter");
+  });
 
-  // test("no_request_global_in_non_http_space", async ({ page }) => {
-  //   await createWorkerHandler(t);
-  //   await gotoAST(t);
-  //     await page.type("#active-editor", "request");
-  //     await page.keyboard.press("ArrowDown")
-  //     .expect(fluidAcHighlightedText("Http::badRequest"))
-  //     .ok()
-  //     await page.keyboard.press("Enter");;
-  // });
+  test("tabbing_works", async ({ page }) => {
+    await createRepl(page);
 
-  // test("ellen_hello_world_demo", async ({ page }) => {
-  //   await createHTTPHandler(t);
-  //     // verb
-  //   await page.type("#entry-box", "g");
-  //   await page.keyboard.press("Enter");
+    // Fill in "then" box in if stmt
+    await page.type("#active-editor", "if");
+    await page.keyboard.press("Space");
+    await page.keyboard.press("Tab");
+    await page.type("#active-editor", "5");
+  });
 
-  //     // route
-  //     await page.type("#entry-box", "/hello");
-  //     await page.keyboard.press("Enter");
+  test("autocomplete_highlights_on_partial_match", async ({ page }) => {
+    await createRepl(page);
+    await gotoAST(page);
 
-  //     // string
-  //     await page.type("#active-editor", '"Hello world!"');;
-  // });
+    await page.type("#active-editor", "Int::add");
+    await expect(fluidACHighlightedValueLocator(page)).toContainText(
+      "Int::add",
+    );
+    await page.keyboard.press("Enter");
+  });
 
-  // test("editing_headers", async ({ page }) => {
-  //   await createHTTPHandler(t);
-  //
-  //     // add headers
-  //     await page.type("#entry-box", "PO");
-  //     expect(await acHighlightedText(page)).toBe("POST")
-  //     .ok()
-  //     await page.keyboard.press("Enter");
+  test("no_request_global_in_non_http_space", async ({ page }) => {
+    await createWorkerHandler(page);
+    await gotoAST(page);
+    await page.type("#active-editor", "request");
+    await page.keyboard.press("ArrowDown");
+    await expect(fluidACHighlightedValueLocator(page)).toContainText(
+      "Http::badRequest",
+    );
+    await page.keyboard.press("Enter");
+  });
 
-  //     await page.type("#entry-box", "/hello");
-  //     await page.keyboard.press("Enter");
+  test("ellen_hello_world_demo", async ({ page }) => {
+    await createEmptyHTTPHandler(page);
 
-  //     // edit them
-  //     await page.click(".spec-header > .toplevel-name")
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", "/myroute");
-  //     await page.keyboard.press("Enter");
+    // verb
+    await page.type("#entry-box", "g");
+    await page.keyboard.press("Enter");
 
-  //     await page.click(".spec-header > .toplevel-type > .modifier")
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", "GET");
-  //     await page.keyboard.press("Enter");;
-  // });
+    // route
+    await page.type("#entry-box", "/hello");
+    await page.keyboard.press("Enter");
 
-  // test("switching_to_http_space_adds_slash", async ({ page }) => {
-  //   await createWorkerHandler(t);
-  //
-  //     // add headers
-  //     await page.click(".spec-header > .toplevel-name")
-  //     await page.keyboard.press("Enter");
-  //     await page.type("#entry-box", "spec_name");
-  //     await page.keyboard.press("Enter");
+    // string
+    await page.type("#active-editor", '"Hello world!"');
+  });
 
-  //     // edit space
-  //     await page.click(".spec-header > .toplevel-type > .space")
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", "HTTP");
-  //     await page.keyboard.press("Enter");;
-  // });
+  test("editing_headers", async ({ page }) => {
+    await createHTTPHandler(page, "POST", "/hello");
 
-  // test("switching_from_default_repl_space_removes_name", async ({ page }) => {
-  //   await createRepl(t);
-  //
-  //     // edit space
-  //     await page.click(".spec-header > .toplevel-type >.space")
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", "CRON");
-  //     await page.keyboard.press("Enter");;
-  // });
+    // edit them
+    await page.click(".spec-header > .toplevel-name");
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "/myroute");
+    await page.keyboard.press("Enter");
 
-  // test("tabbing_through_let", async ({ page }) => {
-  //   await createRepl(t);
-  //   await gotoAST(t);
-  //
-  //     await page.type("#active-editor", "let");
-  //     await page.keyboard.press("Enter");
-  //     // round trip through the let blanks once
-  //     await page.keyboard.press("TODO: tab tab tab);
-  //     // go to the body and fill it in
-  //     await page.keyboard.press("TODO: tab tab);
-  //     await page.type("#active-editor", "5");
-  //     // go to the rhs and fill it in
-  //     await page.keyboard.press("TODO: tab tab);
-  //     await page.type("#active-editor", "5");
-  //     // fill in the var
-  //     await page.keyboard.press("TODO: tab tab);
-  //     await page.type("#active-editor", "myvar");;
-  // });
+    await page.click(".spec-header > .toplevel-type > .modifier");
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "GET");
+    await page.keyboard.press("Enter");
+  });
 
-  // test("rename_db_fields", async ({ page }) => {
-  //   const callBackend = ClientFunction(function (url) {
-  //     var xhttp = new XMLHttpRequest();
-  //     xhttp.open("POST", url, true);
-  //     xhttp.setRequestHeader("Content-type", "application/json");
-  //     xhttp.send('{ "field6": "a", "field2": "b" }');
-  //   });
+  test("switching_to_http_space_adds_slash", async ({ page }) => {
+    await createWorkerHandler(page);
 
-  //   // rename
-  //
-  //     .click(Selector(".name").withText("field1"))
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", "field6");
-  //     await page.keyboard.press("Enter");;
+    // add headers
+    await page.click(".spec-header > .toplevel-name");
+    await page.keyboard.press("Enter");
+    await page.type("#entry-box", "spec_name");
+    await page.keyboard.press("Enter");
 
-  //   // add data and check we can't rename again
-  //   await callBackend(user_content_url(t, "/add"));
+    // edit space
+    await page.click(".spec-header > .toplevel-type > .space");
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "HTTP");
+    await page.keyboard.press("Enter");
+  });
 
-  //   // This is super-shaky if we remove this. There's some timing things
-  //   // around when the .fa-lock appears, and the selectors we'd expect
-  //   // (below) doesn't work. But if we split it into two it works. Who
-  //   // knows.
-  //   // await expect(Selector('.fa-lock', {timeout: 8000})().exists).ok() ;
+  test("switching_from_default_repl_space_removes_name", async ({ page }) => {
+    await createRepl(page);
 
-  //   const lockSel = ".db .spec-header.lock";
-  //   await Selector(lockSel, { timeout: 5000 })();
-  //   await expect(Selector(lockSel).exists).ok();
+    // edit space
+    await page.click(".spec-header > .toplevel-type >.space");
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "CRON");
+    await page.keyboard.press("Enter");
+  });
 
-  //
-  //     .click(Selector(".name").withText("field6"))
-  //     await page.keyboard.press("Enter");
-  //     await page.keyboard.press("Enter");;
-  // });
+  test("tabbing_through_let", async ({ page }) => {
+    await createRepl(page);
+    await gotoAST(page);
 
-  // test("rename_db_type", async ({ page }) => {
-  //   const callBackend = ClientFunction(function (url) {
-  //     var xhttp = new XMLHttpRequest();
-  //     xhttp.open("POST", url, true);
-  //     xhttp.setRequestHeader("Content-type", "application/json");
-  //     xhttp.send('{ "field1": "a", "field2": 5 }');
-  //   });
+    await page.type("#active-editor", "let");
+    await page.keyboard.press("Enter");
+    // round trip through the let blanks once
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    // go to the body and fill it in
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.type("#active-editor", "5");
+    // go to the rhs and fill it in
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.type("#active-editor", "5");
+    // fill in the var
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.type("#active-editor", "myvar");
+  });
 
-  //   // rename
-  //
-  //     .click(Selector(".type").withText("Int"))
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", "String");
-  //     await page.keyboard.press("Enter");;
+  test("rename_db_fields", async ({ page }, testInfo) => {
+    // rename
+    await page.click(".name >> text='field1'");
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "field6");
+    await page.keyboard.press("Enter");
 
-  //   // add data and check we can't rename again
-  //   await callBackend(user_content_url(t, "/add"));
+    // add data and check we can't rename again
+    let url = bwdUrl(testInfo, "/add");
+    await req(page, "POST", url, '{ "field6": "a", "field2": "b" }');
+    await expect(dbLockLocator(page)).toBeVisible();
 
-  //   // This is super-shaky if we remove this. There's some timing things
-  //   // around when the .fa-lock appears, and the selectors we'd expect
-  //   // (below) doesn't work. But if we split it into two it works. Who
-  //   // knows.
-  //   // await expect(Selector('.fa-lock', {timeout: 5000})().exists).ok() ;
+    await page.click(".name >> text='field6'");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+  });
 
-  //   const lockSel = ".db .spec-header.lock";
-  //   await Selector(lockSel, { timeout: 5000 })();
-  //   await expect(Selector(lockSel).exists).ok();
+  test("rename_db_type", async ({ page }, testInfo) => {
+    // rename
+    await page.click(".type >> text='Int'");
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "String");
+    await page.keyboard.press("Enter");
 
-  //
-  //     .click(Selector(".type").withText("String"))
-  //     await page.keyboard.press("Enter");
-  //     await page.keyboard.press("Enter");;
-  // });
+    // add data and check we can't rename again
+    let url = bwdUrl(testInfo, "/add");
+    await req(page, "POST", url, '{ "field1": "str", "field2": 5 }');
+    await expect(dbLockLocator(page)).toBeVisible({ timeout: 8000 });
+
+    await page.click(".type >> text='String'");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+  });
 
   /* Disable for now, will bring back as command palette fn
 test("feature_flag_works", async ({ page }) => {
@@ -673,7 +656,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   //   // check not changing function name does not cause error message to show
   //   await t.doubleClick(Selector(fnNameBlankOr));
-  //   await gotoAST(t);
+  //   await gotoAST(page);
   //   await expect(available(".error-panel.show")).notOk();
 
   //   // now actually rename the function to a different name
@@ -689,7 +672,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // // and re-running (testcafe's quarantine mode) fails?
 
   // test("execute_function_works", async ({ page }) => {
-  //   await createRepl(t);
+  //   await createRepl(page);
   //   await expect(Selector("#active-editor", { timeout: 5000 }).exists).ok();
   //   await t.typeText("#active-editor", "Uuid::gen")await page.keyboard.press("TODO: enter);;
 
@@ -734,7 +717,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("function_version_renders", async ({ page }) => {
-  //   await createRepl(t);
+  //   await createRepl(page);
   //
   //     await page.type("#active-editor", "DB::del");
   //     .expect(
@@ -855,7 +838,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("autocomplete_visible_height", async ({ page }) => {
-  //   await createRepl(t);
+  //   await createRepl(page);
   //
   //     await page.keyboard.press("TODO: r);
   //     .expect(Selector("li.autocomplete-item.valid").nth(5).visible)
@@ -864,10 +847,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // // Disabled the feature for now
   // // test("create_new_function_from_autocomplete", async ({ page }) => {
-  // //   await createRepl(t);
+  // //   await createRepl(page);
   // //
   // //     await page.type("#active-editor", "myFunctionName");
-  // //     .expect(fluidAcHighlightedText())
+  // //     .expect(fluidACHighlightedValue(page)())
   // //     .eql("Create new function: myFunctionName")
   // //     await page.keyboard.press("Enter");;
   // // });
@@ -1074,8 +1057,8 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("max_callstack_bug", async ({ page }) => {
-  //   await createRepl(t);
-  //   await gotoAST(t);
+  //   await createRepl(page);
+  //   await gotoAST(page);
   //
   //     // I don't know what the threshold is exactly, but 1500 didn't tickle
   //     // the bug
@@ -1167,7 +1150,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("fluid_creating_an_http_handler_focuses_the_verb", async ({ page }) => {
-  //   await createHTTPHandler(t);
+  //   await createHTTPHandler(page);
 
   //
   //     await page.keyboard.press("ArrowDown") // enter AC
@@ -1176,17 +1159,17 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({ page }) => {
-  //   await createHTTPHandler(t);
+  //   await createHTTPHandler(page);
   //
   //     await page.keyboard.press("Tab") // verb -> route
   //     await page.keyboard.press("Tab") // route -> ast
   //     await page.keyboard.press("TODO: r); // enter AC
-  //     .expect(fluidAcHighlightedText("request"))
+  //     .expect(fluidACHighlightedValue(page)("request"))
   //     .ok();
   // });
 
   // test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({ page }) => {
-  //   await createHTTPHandler(t);
+  //   await createHTTPHandler(page);
   //
   //     await page.keyboard.press("Tab") // verb -> route
   //     await page.keyboard.press("Tab") // route -> ast
@@ -1197,7 +1180,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({ page }) => {
-  //   await createHTTPHandler(t);
+  //   await createHTTPHandler(page);
   //
   //     await page.keyboard.press("Tab") // verb -> route
   //     await page.keyboard.press("Tab") // route -> ast
@@ -1220,8 +1203,8 @@ test("feature_flag_in_function", async ({ page }) => {
   });
 
   // test("fluid_ac_validate_on_lose_focus", async ({ page }) => {
-  //   await createHTTPHandler(t);
-  //   await gotoAST(t);
+  //   await createHTTPHandler(page);
+  //   await gotoAST(page);
   //
   //     await page.type("#active-editor", "request.body");
   //     .click("#app", { offsetX: 500, offsetY: 50 }) //click away from fluid
@@ -1286,7 +1269,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // test("use_pkg_fn", async ({ page }) => {
   //   const attempt = t.testRun.quarantine.attempts.length + 1;
   //   const url = `/${attempt}`;
-  //   await createHTTPHandler(t);
+  //   await createHTTPHandler(page);
   //
   //     // add headers
   //     await page.type("#entry-box", "GE");
@@ -1296,7 +1279,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     await page.type("#entry-box", url);
   //     await page.keyboard.press("Enter");;
 
-  //   await gotoAST(t);
+  //   await gotoAST(page);
 
   //   // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
   //   // in the autocomplete
@@ -1324,8 +1307,8 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("fluid_show_docs_for_command_on_selected_code", async ({ page }) => {
-  //   await createRepl(t);
-  //   await gotoAST(t);
+  //   await createRepl(page);
+  //   await gotoAST(page);
   //   await t.typeText("#active-editor", "1999")await page.keyboard.press("TODO: ctrl+\\);;
 
   //   await expect(Selector("#cmd-filter").exists).ok();
@@ -1649,7 +1632,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     )
   //     .ok();
 
-  //   await createRepl(t);
+  //   await createRepl(page);
   //   await t.typeText("#active-editor", '"Hello world!"');
 
   //   await page.click(".sidebar-category.secrets .create-tl-icon");
