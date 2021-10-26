@@ -7,6 +7,7 @@ set -euo pipefail
 PATTERN=".*"
 DEBUG_MODE_FLAG=""
 CONCURRENCY=1
+RETRIES=0
 BASE_URL="http://darklang.localhost:8000"
 
 for i in "$@"
@@ -14,6 +15,10 @@ do
   case "${i}" in
     --pattern=*)
     PATTERN=${1/--pattern=/''}
+    shift
+    ;;
+    --retry)
+    RETRIES=2
     shift
     ;;
     --concurrency=*)
@@ -79,6 +84,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --grep "$PATTERN" \
     --browser "${BROWSER}" \
     --output "${DARK_CONFIG_RUNDIR}/integration-tests/" \
+    --retries "$RETRIES" \
     --config integration-tests/playwright.config.ts
 
   if [[ -v CI ]]; then
@@ -103,6 +109,7 @@ else
     --output "rundir/integration-tests/" \
     --workers "$CONCURRENCY" \
     --grep "$PATTERN" \
+    --retries "$RETRIES" \
     --config integration-tests/playwright.config.ts
 
 fi
