@@ -870,10 +870,8 @@ test("feature_flag_in_function", async ({ page }) => {
     in order to place the caret. Then we click on the button and see if the live value
     corresponds to the result of `Crypto::sha256`. */
     await gotoHash(page, ti, "handler=1013604333");
-
-    await page.waitForSelector(".id-1334251057 .execution-button");
     await page.click(".id-1045574047.fluid-string");
-    await page.click(".id-1334251057 .execution-button");
+    await page.click(".id-1334251057 .execution-button-needed"); // wait for it to be green
     await page.waitForSelector(".selected .live-value.loaded");
     await expectExactText(
       page,
