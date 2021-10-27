@@ -470,7 +470,7 @@ let fluidGetSelectionRange = (s: fluidState): option<(int, int)> =>
 
 let fluid_doubleclick_selects_token = (m: model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
-  | Some(34, 40) => pass
+  | Some(34, 39) => pass
   | Some(a, b) =>
     fail(
       "incorrect selection range for token: (" ++
