@@ -139,21 +139,14 @@ test.describe.parallel("Integration Tests", async () => {
     if (testInfo.status === testInfo.expectedStatus) {
       // Only run final checks if we're on the road to success
       try {
-        // Ensure the test has completed correctly
-        const finish = page.locator("#finishIntegrationTest");
-        const signal =
-          // TODO: clicks on this button are not registered in function space
-          // We should probably figure out why.
-          // For now, putting a more helpful error message
-          await finish.click();
-        await page.waitForSelector("#integrationTestSignal");
-        // When I tried using the locator, the signal could never be found. But it works this way 🤷‍♂️
-        await expect(await page.isVisible("#integrationTestSignal")).toBe(true);
+        // TODO: clicks on this button are not registered in function space
+        // We should probably figure out why.
+        // For now, putting a more helpful error message
+        await page.click("#finishIntegrationTest");
 
-        // check the content
-        let content = await page.textContent("#integrationTestSignal");
-        await expect(content).toBe("success");
-        await expect(content).not.toContain("failure");
+        // Ensure the test has completed correctly
+        await page.waitForSelector("#integrationTestSignal");
+        await expectExactText(page, "#integrationTestSignal", "success");
 
         // check the class
         let class_ = await page.getAttribute("#integrationTestSignal", "class");
@@ -192,11 +185,11 @@ test.describe.parallel("Integration Tests", async () => {
 
   async function createHTTPHandler(page: Page, method: string, path: string) {
     await createEmptyHTTPHandler(page);
-    await page.type("#entry-box", method);
+    await page.type(entryBox, method);
     await expectExactText(page, acHighlightedValue, method);
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", path);
+    await page.type(entryBox, path);
     await expectExactText(page, acHighlightedValue, path);
     await page.keyboard.press("Enter");
   }
@@ -377,7 +370,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "CRON");
+    await page.type(entryBox, "CRON");
     await page.pause();
     await page.keyboard.press("Enter");
   });
@@ -392,7 +385,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "REPL");
+    await page.type(entryBox, "REPL");
     await page.keyboard.press("Enter");
   });
 
@@ -406,7 +399,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type("#entry-box", "REPL");
+    await page.type(entryBox, "REPL");
     await page.keyboard.press("Enter");
   });
 
@@ -483,11 +476,11 @@ test.describe.parallel("Integration Tests", async () => {
     await createEmptyHTTPHandler(page);
 
     // verb
-    await page.type("#entry-box", "g");
+    await page.type(entryBox, "g");
     await page.keyboard.press("Enter");
 
     // route
-    await page.type("#entry-box", "/hello");
+    await page.type(entryBox, "/hello");
     await page.keyboard.press("Enter");
 
     // string
@@ -501,13 +494,13 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type("#entry-box", "/myroute");
+    await page.type(entryBox, "/myroute");
     await page.keyboard.press("Enter");
 
     await page.click(".spec-header > .toplevel-type > .modifier");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type("#entry-box", "GET");
+    await page.type(entryBox, "GET");
     await page.keyboard.press("Enter");
   });
 
@@ -517,14 +510,14 @@ test.describe.parallel("Integration Tests", async () => {
     // add headers
     await page.click(".spec-header > .toplevel-name");
     await page.keyboard.press("Enter");
-    await page.type("#entry-box", "spec_name");
+    await page.type(entryBox, "spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type("#entry-box", "HTTP");
+    await page.type(entryBox, "HTTP");
     await page.keyboard.press("Enter");
   });
 
@@ -535,7 +528,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".spec-header > .toplevel-type >.space");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type("#entry-box", "CRON");
+    await page.type(entryBox, "CRON");
     await page.keyboard.press("Enter");
   });
 
@@ -568,7 +561,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".name >> text='field1'");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type("#entry-box", "field6");
+    await page.type(entryBox, "field6");
     await page.keyboard.press("Enter");
 
     // add data and check we can't rename again
@@ -586,7 +579,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".type >> text='Int'");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type("#entry-box", "String");
+    await page.type(entryBox, "String");
     await page.keyboard.press("Enter");
 
     // add data and check we can't rename again
@@ -605,11 +598,11 @@ test("feature_flag_works", async ({ page }) => {
     // Create an empty let
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
-    await page.type("#entry-box", "let");
+    await page.type(entryBox, "let");
     await page.keyboard.press("Enter");
-    await page.type("#entry-box", "a");
+    await page.type(entryBox, "a");
     await page.keyboard.press("Enter");
-    await page.type("#entry-box", "13");
+    await page.type(entryBox, "13");
     await page.keyboard.press("Enter");
     await page.keyboard.press("ArrowDown")
     await page.keyboard.press("TODO: esc);
@@ -619,25 +612,25 @@ test("feature_flag_works", async ({ page }) => {
 
     // Name it
     await page.waitForSelector(".feature-flag");
-    await page.type("#entry-box", "myflag");
+    await page.type(entryBox, "myflag");
     await page.keyboard.press("Enter");
 
     // Set condition
-    await page.type("#entry-box", "Int::greaterThan");
+    await page.type(entryBox, "Int::greaterThan");
     await page.keyboard.press("Enter");
-    await page.type("#entry-box", "a");
+    await page.type(entryBox, "a");
     await page.keyboard.press("Enter");
-    await page.type("#entry-box", "10");
+    await page.type(entryBox, "10");
     await page.keyboard.press("Enter");
 
     // Case A
-    await page.type("#entry-box", "\"");
-    await page.type("#entry-box", "A");
+    await page.type(entryBox, "\"");
+    await page.type(entryBox, "A");
     await page.keyboard.press("Enter");
 
     // Case B
-    await page.type("#entry-box", "\"");
-    await page.type("#entry-box", "B");
+    await page.type(entryBox, "\"");
+    await page.type(entryBox, "B");
     await page.keyboard.press("Enter");
 
 });
@@ -656,15 +649,15 @@ test("feature_flag_in_function", async ({ page }) => {
     .click('.expr-actions .flag')
 
     await page.waitForSelector(".feature-flag");
-    await page.type("#entry-box", "myflag");
+    await page.type(entryBox, "myflag");
     await page.keyboard.press("Enter");
 
     // Set condition
-    await page.type("#entry-box", "true");
+    await page.type(entryBox, "true");
     await page.keyboard.press("Enter");
 
     // Case B
-    await page.type("#entry-box", "3");
+    await page.type(entryBox, "3");
     await page.keyboard.press("Enter");
 
     // Return to main canvas to finish tests
@@ -675,7 +668,7 @@ test("feature_flag_in_function", async ({ page }) => {
   test("rename_function", async ({ page }, testInfo) => {
     const fnNameBlankOr = ".fn-name-content";
     await gotoHash(page, testInfo, "fn=123");
-    await expect(page.locator(fnNameBlankOr)).toBeVisible();
+    await page.waitForSelector(fnNameBlankOr);
 
     // check not changing function name does not cause error message to show
     await page.dblclick(fnNameBlankOr);
@@ -686,13 +679,13 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(fnNameBlankOr);
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type("#entry-box", "hello");
+    await page.type(entryBox, "hello");
     await page.keyboard.press("Enter");
   });
 
   test("execute_function_works", async ({ page }) => {
     await createRepl(page);
-    await expect(page.locator("#active-editor")).toBeVisible({ timeout: 5000 });
+    await page.waitForSelector("#active-editor", { timeout: 5000 });
     await page.type("#active-editor", "Uuid::gen");
     await page.keyboard.press("Enter");
 
@@ -719,8 +712,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(".fluid-editor"); // this click required to activate the editor
     await page.click(".fluid-field-name >> text='gth'");
 
-    let v1 = await page.textContent(".selected .live-value.loaded");
-    await expect(v1).toBe("5");
+    await expectExactText(page, ".selected .live-value.loaded", "5");
   });
 
   test("int_add_with_float_error_includes_fnname", async ({ page }) => {
@@ -729,18 +721,16 @@ test("feature_flag_in_function", async ({ page }) => {
     await awaitAnalysis(page, timestamp);
 
     await page.waitForSelector(".return-value");
-    await expect(page.locator(".return-value")).toContainText(
-      "but + only works on Ints.",
-    );
+    const expectedText = "but + only works on Ints.";
+    await expectContainsText(page, ".return-value", expectedText);
   });
 
   test("function_version_renders", async ({ page }) => {
     await createRepl(page);
 
     await page.type("#active-editor", "DB::del");
-    await expect(
-      page.locator(".autocomplete-item.fluid-selected .version"),
-    ).toHaveText("v1");
+    let selector = ".autocomplete-item.fluid-selected .version";
+    await expectExactText(page, selector, "v1");
   });
 
   test("delete_db_col", async ({ page }) => {
@@ -796,7 +786,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await gotoHash(page, testInfo, `fn=1039370895`);
     await page.waitForSelector(".user-fn-toplevel");
     await page.click(".user-fn-toplevel #active-editor .fluid-binop");
-    await expect(page.locator(".selected .live-value.loaded")).toHaveText("10");
+    await expectExactText(page, ".selected .live-value.loaded", "10");
   });
 
   test("jump_to_error", async ({ page }, testInfo) => {
@@ -857,7 +847,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   test("load_with_unnamed_function", async ({ page }) => {
     await page.keyboard.press("Enter");
-    await page.waitForSelector("#entry-box");
+    await page.waitForSelector(entryBox);
   });
 
   test("extract_from_function", async ({ page }, testInfo) => {
@@ -881,13 +871,13 @@ test("feature_flag_in_function", async ({ page }) => {
     corresponds to the result of `Crypto::sha256`. */
     await gotoHash(page, ti, "handler=1013604333");
 
-    await expect(
-      page.locator(".id-1334251057 .execution-button"),
-    ).toBeVisible();
+    await page.waitForSelector(".id-1334251057 .execution-button");
     await page.click(".id-1045574047.fluid-string");
     await page.click(".id-1334251057 .execution-button");
     await page.waitForSelector(".selected .live-value.loaded");
-    await expect(page.locator(".selected .live-value.loaded")).toHaveText(
+    await expectExactText(
+      page,
+      ".selected .live-value.loaded",
       "<Bytes: length=32>",
     );
   });
@@ -897,7 +887,7 @@ test("feature_flag_in_function", async ({ page }) => {
   }) => {
     let target = ".id-2068425241.fluid-let-var-name";
     await page.waitForSelector(target);
-    await page.click(target, { caretPos: 2 });
+    await page.click(target, { position: { x: 16, y: 4 } });
   });
 
   // test("fluid_click_2x_on_token_places_cursor", async ({ page }) => {
@@ -1039,7 +1029,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     await page.click(".spec-header > .toplevel-name");
   //     await selectAll(page);
   // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", ":a");
+  //     await page.type(entryBox, ":a");
   //     expect(await acHighlightedText(page)).toBe("/:a")
   //     .ok()
   //     await page.keyboard.press("TODO: tab a enter);;
@@ -1192,12 +1182,11 @@ test("feature_flag_in_function", async ({ page }) => {
 
   test("fluid_test_copy_request_as_curl", async ({ page }) => {
     await page.click(".toplevel.tl-91390945");
-    expect(page.locator(".tl-91390945")).toBeVisible();
+    await page.waitForSelector(".tl-91390945");
     await page.click(".id-753586717");
     // Ensure the anaysis has completed
-    await expect(page.locator(".live-value.loaded")).toContainText(
-      "Click Play to execute function",
-    );
+    let expected = "Click Play to execute function";
+    await expectContainsText(page, ".live-value.loaded", expected);
     // test logic in IntegrationTest.ml; we load it here because we need an
     // analysis done before we can call the command
   });
@@ -1272,11 +1261,11 @@ test("feature_flag_in_function", async ({ page }) => {
   //   await createHTTPHandler(page);
   //
   //     // add headers
-  //     await page.type("#entry-box", "GE");
+  //     await page.type(entryBox, "GE");
   //     expect(await acHighlightedText(page)).toBe("GET")
   //     .ok()
   //     await page.keyboard.press("Enter");
-  //     await page.type("#entry-box", url);
+  //     await page.type(entryBox, url);
   //     await page.keyboard.press("Enter");;
 
   //   await gotoAST(page);
