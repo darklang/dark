@@ -97,7 +97,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#username", username);
     await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
     await page.click("text=Login");
-    await expect(page.locator("#finishIntegrationTest")).toBeVisible();
+    await page.waitForSelector("#finishIntegrationTest");
     await page.pause();
   });
 
@@ -108,7 +108,7 @@ test.describe.parallel("Integration Tests", async () => {
    * basically everything. So we thread the right url through to do the
    * proxying ourselves. Hopefully they'll fix this and we can remove this
    * code someday */
-  // await t.eval(
+  // .eval(
   //   () => {
   //     window.testcafeInjectedPrefix = prefix;
   //   },
@@ -185,9 +185,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
     await page.keyboard.press("ArrowDown");
-    await expect(acHighlightedValueLocator(page)).toHaveText(
-      "New HTTP handler",
-    );
+    await expectExactText(page, acHighlightedValue, "New HTTP handler");
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
   }
@@ -195,11 +193,11 @@ test.describe.parallel("Integration Tests", async () => {
   async function createHTTPHandler(page: Page, method: string, path: string) {
     await createEmptyHTTPHandler(page);
     await page.type("#entry-box", method);
-    await expect(acHighlightedValueLocator(page)).toHaveText(method);
+    await expectExactText(page, acHighlightedValue, method);
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
     await page.type("#entry-box", path);
-    await expect(acHighlightedValueLocator(page)).toHaveText(path);
+    await expectExactText(page, acHighlightedValue, path);
     await page.keyboard.press("Enter");
   }
 
@@ -210,7 +208,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
-    await expect(acHighlightedValueLocator(page)).toHaveText("New Worker");
+    await expectExactText(page, acHighlightedValue, "New Worker");
     await page.keyboard.press("Enter");
   }
 
@@ -244,7 +242,7 @@ test.describe.parallel("Integration Tests", async () => {
   //   } else {
   //     shortcut = shortcutUsingCtrl;
   //   }
-  //   await t.pressKey(shortcut);
+  //   .pressKey(shortcut);
   // }
 
   async function req(page: Page, method: string, url: string, body: string) {
@@ -260,30 +258,16 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   //********************************
-  // Avoiding test race conditions
+  // Locators
   //********************************
-  // // Testcafe automatically waits for the next thing you've specified. So
-  // // if you .typeText("#entry-box", ...), it will wait for the entryBox.
-  // // But we sometimes need to explicitly wait if TestCafe can't tell what
-  // // we're waiting on.
+  const entryBox = "#entry-box";
+  const acHighlightedValue = ".autocomplete-item.highlighted > .name";
+  const fluidACHighlightedValue = ".autocomplete-item.fluid-selected";
+  const dbLockLocator = ".db .spec-header.lock";
 
-  function entryBox(page: Page): Locator {
-    return page.locator("#entry-box");
-  }
-
-  // // Return the highlighted autocomplete entry
-  function acHighlightedValueLocator(page: Page): Locator {
-    return page.locator(".autocomplete-item.highlighted > .name");
-  }
-
-  function fluidACHighlightedValueLocator(page: Page): Locator {
-    return page.locator(".autocomplete-item.fluid-selected");
-  }
-
-  function dbLockLocator(page: Page): Locator {
-    return page.locator(".db .spec-header.lock");
-  }
-
+  //********************************
+  // Utilities
+  //********************************
   async function selectAll(page: Page): Promise<void> {
     // Do these multiple times to make sure it actually selects
     if (process.platform == "darwin") {
@@ -295,6 +279,17 @@ test.describe.parallel("Integration Tests", async () => {
       await page.keyboard.press("Control+a");
       await page.keyboard.press("Control+a");
     }
+  }
+
+  async function expectExactText(page: Page, selector: string, text: string) {
+    await expect(page.locator(selector)).toHaveText(text);
+  }
+  async function expectContainsText(
+    page: Page,
+    selector: string,
+    text: string,
+  ) {
+    await expect(page.locator(selector)).toContainText(text);
   }
 
   // Entry-box sometimes carries state over briefly, so wait til it's clear
@@ -310,6 +305,43 @@ test.describe.parallel("Integration Tests", async () => {
         }
       });
     });
+  }
+
+  async function gotoHash(page: Page, testInfo: TestInfo, hash: string) {
+    const testname = testInfo.title;
+    var url = `/a/test-${testname}?integration-test=true`;
+    await page.goto(`${url}#${hash}`);
+  }
+
+  async function selectText(
+    page: Page,
+    locator: string,
+    initial: number,
+    final: number,
+  ) {
+    await page.focus(locator);
+    await page.keyboard.press("Home");
+    for (let i = 0; i < initial; i++) {
+      await page.keyboard.press("ArrowRight");
+    }
+    await page.keyboard.press("Shift");
+    for (let i = 0; i < final; i++) {
+      await page.keyboard.press("ArrowRight");
+    }
+  }
+
+  async function getStyleProperty(
+    page: Page,
+    selector: string,
+    property: string,
+  ): Promise<string> {
+    return await page.$eval(
+      selector,
+      (el, prop) => {
+        return window.getComputedStyle(el).getPropertyValue(prop);
+      },
+      property,
+    );
   }
 
   // const scrollBy = ClientFunction((id, dx, dy) => {
@@ -380,7 +412,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   test("enter_changes_state", async ({ page }) => {
     await page.keyboard.press("Enter");
-    await expect(entryBox(page)).toBeVisible();
+    await page.waitForSelector(entryBox);
   });
 
   test("field_access_closes", async ({ page }) => {
@@ -393,18 +425,14 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "re");
     let start = Date.now();
     await page.type("#active-editor", "q");
-    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
+    await expectContainsText(page, fluidACHighlightedValue, "request");
     // There's a race condition here, sometimes the client doesn't manage to load the
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
     await awaitAnalysis(page, start);
-    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
-    await expect(fluidACHighlightedValueLocator(page)).toHaveText(
-      "requestDict",
-    );
-    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
+    await expectExactText(page, fluidACHighlightedValue, "requestDict");
     await page.type("#active-editor", ".bo");
-    await expect(fluidACHighlightedValueLocator(page)).toHaveText("bodyfield");
+    await expectExactText(page, fluidACHighlightedValue, "bodyfield");
     await page.keyboard.press("Enter");
   });
 
@@ -416,9 +444,9 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(await frontendLoaded).toBe(true, { timeout: 10000 });
 
     await page.type("#active-editor", "req");
-    await expect(fluidACHighlightedValueLocator(page)).toContainText("request");
+    await expectContainsText(page, fluidACHighlightedValue, "request");
     await page.type("#active-editor", ".bo");
-    await expect(fluidACHighlightedValueLocator(page)).toHaveText("bodyfield");
+    await expectExactText(page, fluidACHighlightedValue, "bodyfield");
     await page.keyboard.press("Shift+Enter");
   });
 
@@ -437,9 +465,8 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoAST(page);
 
     await page.type("#active-editor", "Int::add");
-    await expect(fluidACHighlightedValueLocator(page)).toContainText(
-      "Int::add",
-    );
+
+    await expectContainsText(page, fluidACHighlightedValue, "Int::add");
     await page.keyboard.press("Enter");
   });
 
@@ -448,9 +475,7 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoAST(page);
     await page.type("#active-editor", "request");
     await page.keyboard.press("ArrowDown");
-    await expect(fluidACHighlightedValueLocator(page)).toContainText(
-      "Http::badRequest",
-    );
+    await expectContainsText(page, fluidACHighlightedValue, "Http::badRequest");
     await page.keyboard.press("Enter");
   });
 
@@ -549,7 +574,7 @@ test.describe.parallel("Integration Tests", async () => {
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
     await req(page, "POST", url, '{ "field6": "a", "field2": "b" }');
-    await expect(dbLockLocator(page)).toBeVisible();
+    await page.waitForSelector(dbLockLocator);
 
     await page.click(".name >> text='field6'");
     await page.keyboard.press("Enter");
@@ -567,7 +592,7 @@ test.describe.parallel("Integration Tests", async () => {
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
     await req(page, "POST", url, '{ "field1": "str", "field2": 5 }');
-    await expect(dbLockLocator(page)).toBeVisible({ timeout: 8000 });
+    await page.waitForSelector(dbLockLocator, { timeout: 8000 });
 
     await page.click(".type >> text='String'");
     await page.keyboard.press("Enter");
@@ -593,7 +618,7 @@ test("feature_flag_works", async ({ page }) => {
     .click('.expr-actions .flag')
 
     // Name it
-    .expect(available(".feature-flag")).ok()
+    await page.waitForSelector(".feature-flag");
     await page.type("#entry-box", "myflag");
     await page.keyboard.press("Enter");
 
@@ -623,14 +648,14 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(".fun1")
     await page.click(".fa-edit")
 
-    .expect(available(".tl-2296485551")).ok()
+    await page.waitForSelector(".tl-2296485551");
     await page.click(".tl-2296485551")
     await page.keyboard.press("Enter");
 
     // Make feature Flag
     .click('.expr-actions .flag')
 
-    .expect(available(".feature-flag")).ok()
+    await page.waitForSelector(".feature-flag");
     await page.type("#entry-box", "myflag");
     await page.keyboard.press("Enter");
 
@@ -644,16 +669,12 @@ test("feature_flag_in_function", async ({ page }) => {
 
     // Return to main canvas to finish tests
     await page.click(".return-to-canvas")
-    .expect(available(".tl-180770093")).ok()
+    await page.waitForSelector(".tl-180770093");
 });
 */
   test("rename_function", async ({ page }, testInfo) => {
     const fnNameBlankOr = ".fn-name-content";
-
-    const testname = testInfo.title;
-    var url = `/a/test-${testname}?integration-test=true`;
-
-    await page.goto(`${url}#fn=123`);
+    await gotoHash(page, testInfo, "fn=123");
     await expect(page.locator(fnNameBlankOr)).toBeVisible();
 
     // check not changing function name does not cause error message to show
@@ -707,199 +728,181 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(".tl-123 .fluid-category-function"); // required to see the return value (navigate is insufficient)
     await awaitAnalysis(page, timestamp);
 
-    await expect(page.locator(".return-value")).toBeVisible();
+    await page.waitForSelector(".return-value");
     await expect(page.locator(".return-value")).toContainText(
       "but + only works on Ints.",
     );
   });
 
-  // test("function_version_renders", async ({ page }) => {
+  test("function_version_renders", async ({ page }) => {
+    await createRepl(page);
+
+    await page.type("#active-editor", "DB::del");
+    await expect(
+      page.locator(".autocomplete-item.fluid-selected .version"),
+    ).toHaveText("v1");
+  });
+
+  test("delete_db_col", async ({ page }) => {
+    await page.click(".delete-col");
+  });
+
+  test("cant_delete_locked_col", async ({ page }) => {
+    await page.click(".fluid-fn-name"); // this click is required due to caching
+    await page.waitForSelector(".execution-button-needed");
+
+    await page.click(".execution-button-needed");
+
+    await page.waitForSelector(dbLockLocator, { timeout: 8000 });
+
+    await page.click(".db"); // this click is required due to caching
+    await expect(page.locator(".delete-col")).not.toBeVisible();
+  });
+
+  test("select_route", async ({ page }) => {
+    const categoryHeader = ".sidebar-category.http .category-summary";
+    const httpVerbLink =
+      ".sidebar-category.http .category-content a.toplevel-link";
+    const toplevelElement = ".node .toplevel";
+
+    await page.click(categoryHeader);
+    await page.waitForSelector(httpVerbLink);
+
+    await page.click(httpVerbLink);
+    await page.waitForSelector(toplevelElement);
+
+    await expect(page.locator(toplevelElement)).toHaveClass(/selected/);
+  });
+
+  // TODO: This needs Stroller/Pusher in CI
+  // test('passwords_are_redacted', async ({ page }) => {
+  //   const callBackend = ClientFunction(
+  //     function (url) {
+  //       var xhttp = new XMLHttpRequest();
+  //       xhttp.open("POST", url, true);
+  //       xhttp.setRequestHeader("Content-type", "application/json");
+  //       xhttp.send('{ "password": "redactme!" }');
+  //     });
+
+  //   .click(Selector('.Password\\:\\:hash'))
+  //   await callBackend(user_content_url(t, "/signup"));
+  //   await expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
+  // })
+
+  // TODO: Add test that verifies pasting text/plain when Entering works
+  // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
+
+  test("function_analysis_works", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, `fn=1039370895`);
+    await page.waitForSelector(".user-fn-toplevel");
+    await page.click(".user-fn-toplevel #active-editor .fluid-binop");
+    await expect(page.locator(".selected .live-value.loaded")).toHaveText("10");
+  });
+
+  test("jump_to_error", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=123");
+    await page.waitForSelector(".tl-123");
+    await page.click(".fluid-entry");
+    const timestamp = Date.now();
+    await page.click(".fluid-entry.id-675551618");
+    await awaitAnalysis(page, timestamp);
+    await page.click(".jump-src");
+  });
+
+  test("fourohfours_parse", async ({ page }) => {
+    await page.evaluate(() => {
+      const data = [
+        "HTTP",
+        "/nonexistant",
+        "GET",
+        "2019-03-15T22:16:40Z",
+        "0623608c-a339-45b3-8233-0eec6120e0df",
+      ];
+      var event = new CustomEvent("new404Push", { detail: data });
+      document.dispatchEvent(event);
+    });
+  });
+
+  test("fn_page_to_handler_pos", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "fn=890");
+    await page.waitForSelector(".user-fn-toplevel");
+    const fnOffset = await getStyleProperty(page, "#canvas", "transform");
+
+    await gotoHash(page, testInfo, "handler=123");
+    await page.waitForSelector(".tl-123");
+
+    await expect(await getStyleProperty(page, "#canvas", "transform")).not.toBe(
+      fnOffset,
+    );
+  });
+
+  test("autocomplete_visible_height", async ({ page }) => {
+    await createRepl(page);
+
+    await page.keyboard.press("r");
+    await expect(
+      page.locator("li.autocomplete-item.valid").nth(5),
+    ).toBeVisible();
+  });
+
+  // Disabled the feature for now
+  // test("create_new_function_from_autocomplete", async ({ page }) => {
   //   await createRepl(page);
   //
-  //     await page.type("#active-editor", "DB::del");
-  //     .expect(
-  //       Selector(".autocomplete-item.fluid-selected .version").withText("v1"),
-  //     )
-  //     .ok();
-  // });
-
-  // test("delete_db_col", async ({ page }) => {
-  //   await t.click(Selector(".delete-col"));
-  // });
-
-  // test("cant_delete_locked_col", async ({ page }) => {
-  //   await t.click(Selector(".fluid-fn-name")); // this click is required due to caching
-  //   await Selector(".execution-button-needed", { timeout: 5000 })();
-  //
-  //     .expect(Selector(".execution-button-needed").exists)
-  //     .ok()
-  //     .click(Selector(".execution-button-needed"));
-
-  //   const lockSel = ".db .spec-header.lock";
-  //   await Selector(lockSel, { timeout: 5000 })();
-  //   await expect(Selector(lockSel).exists).ok();
-
-  //
-  //     .click(Selector(".db")) // this click is required due to caching
-  //     .expect(Selector(".delete-col").exists)
-  //     .notOk();
-  // });
-
-  // test("select_route", async ({ page }) => {
-  //   const categoryHeader = ".sidebar-category.http .category-summary";
-  //   const httpVerbLink =
-  //     ".sidebar-category.http .category-content a.toplevel-link";
-  //   const toplevelElement = ".node .toplevel";
-
-  //   await t.click(Selector(categoryHeader));
-
-  //   await Selector(httpVerbLink, { timeout: 5000 })();
-  //   await t.click(Selector(httpVerbLink));
-
-  //   await Selector(toplevelElement, { timeout: 5000 })();
-  //   await expect(Selector(toplevelElement).hasClass("selected")).ok();
-  // });
-
-  // // TODO: This needs Stroller/Pusher in CI
-  // // test('passwords_are_redacted', async ({ page }) => {
-  // //   const callBackend = ClientFunction(
-  // //     function (url) {
-  // //       var xhttp = new XMLHttpRequest();
-  // //       xhttp.open("POST", url, true);
-  // //       xhttp.setRequestHeader("Content-type", "application/json");
-  // //       xhttp.send('{ "password": "redactme!" }');
-  // //     });
-
-  // //   await t.click(Selector('.Password\\:\\:hash'))
-  // //   await callBackend(user_content_url(t, "/signup"));
-  // //   await expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
-  // // })
-  // //
-  // //
-  // // TODO: Add test that verifies pasting text/plain when Entering works
-  // // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
-
-  // test("function_analysis_works", async ({ page }) => {
-  //
-  //     .navigateTo("#fn=1039370895")
-  //     .expect(available(".user-fn-toplevel"))
-  //     .ok({ timeout: 1000 })
-  //     .click(Selector(".user-fn-toplevel #active-editor .fluid-binop"))
-  //     .expect(Selector(".selected .live-value.loaded").textContent)
-  //     .eql("10", { timeout: 5000 });
-  // });
-
-  // test("jump_to_error", async ({ page }) => {
-  //
-  //     .navigateTo("#handler=123")
-  //     .expect(available(".tl-123"))
-  //     .ok()
-  //     await page.click(".fluid-entry");
-  //   const timestamp = new Date();
-  //   await page.click(".fluid-entry.id-675551618");
-  //   awaitAnalysis(t, timestamp);
-  //   await page.click(".jump-src");
-  // });
-
-  // test("fourohfours_parse", async ({ page }) => {
-  //   const sendPushEvent = ClientFunction(function () {
-  //     const data = [
-  //       "HTTP",
-  //       "/nonexistant",
-  //       "GET",
-  //       "2019-03-15T22:16:40Z",
-  //       "0623608c-a339-45b3-8233-0eec6120e0df",
-  //     ];
-  //     var event = new CustomEvent("new404Push", { detail: data });
-  //     document.dispatchEvent(event);
-  //   });
-
-  //   await sendPushEvent();
-  // });
-
-  // test("fn_page_to_handler_pos", async ({ page }) => {
-  //
-  //     .navigateTo("#fn=890")
-  //     .expect(available(".user-fn-toplevel"))
-  //     .ok({ timeout: 1000 });
-  //   const fnOffset = await Selector("#canvas").getStyleProperty("transform");
-
-  //
-  //     .navigateTo("#handler=123")
-  //     .expect(available(".tl-123"))
-  //     .ok({ timeout: 1000 });
-
-  //
-  //     .expect(Selector("#canvas").getStyleProperty("transform"))
-  //     .notEql(fnOffset);
-  // });
-
-  // test("autocomplete_visible_height", async ({ page }) => {
-  //   await createRepl(page);
-  //
-  //     await page.keyboard.press("TODO: r);
-  //     .expect(Selector("li.autocomplete-item.valid").nth(5).visible)
-  //     .ok();
-  // });
-
-  // // Disabled the feature for now
-  // // test("create_new_function_from_autocomplete", async ({ page }) => {
-  // //   await createRepl(page);
-  // //
-  // //     await page.type("#active-editor", "myFunctionName");
-  // //     .expect(fluidACHighlightedValue(page)())
-  // //     .eql("Create new function: myFunctionName")
-  // //     await page.keyboard.press("Enter");;
-  // // });
-  // //
-  // test("load_with_unnamed_function", async ({ page }) => {
-  //   await tawait page.keyboard.press("Enter").expect(entryBoxAvailable()).ok();
-  // });
-
-  // test("extract_from_function", async ({ page }) => {
-  //   const exprElem = Selector(".user-fn-toplevel #active-editor > span");
-
-  //
-  //     .navigateTo("#fn=123")
-  //     .expect(available(".tl-123"))
-  //     .ok()
-  //     .click(exprElem)
-  //     .selectText(exprElem, 0, 1)
-  //     await page.keyboard.press("TODO: ctrl+\\);
-  //     await page.type("#cmd-filter", "extract-function");
+  //     await page.type("#active-editor", "myFunctionName");
+  //     .expect(fluidACHighlightedValue(page)())
+  //     .eql("Create new function: myFunctionName")
   //     await page.keyboard.press("Enter");;
   // });
 
-  // test("fluid_execute_function_shows_live_value", async ({ page }) => {
-  //   /* NOTE: This test is intended to determine if clicking a play button in fluid
-  //   makes the live value visible. There is some extra complication in that clicking
-  //   on a play button as it stands does not actually "count" as clicking on the play button
-  //   unless the handler is "active" with a placed caret. To account for this, we
-  //   click on "hello" within Crypto::sha256 ("hello" |> String::toBytes) after focusing
-  //   in order to place the caret. Then we click on the button and see if the live value
-  //   corresponds to the result of `Crypto::sha256`. */
-  //
-  //     .navigateTo("#handler=1013604333")
-  //     .expect(available(".id-1334251057 .execution-button"))
-  //     .ok()
-  //     .click(Selector(".id-1045574047.fluid-string"))
-  //     .click(Selector(".id-1334251057 .execution-button"))
-  //     .expect(available(".selected .live-value.loaded"))
-  //     .ok()
-  //     .expect(Selector(".selected .live-value.loaded").innerText)
-  //     .eql("<Bytes: length=32>");
-  // });
+  test("load_with_unnamed_function", async ({ page }) => {
+    await page.keyboard.press("Enter");
+    await page.waitForSelector("#entry-box");
+  });
 
-  // test("fluid_single_click_on_token_in_deselected_handler_focuses", async ({ page }) => {
-  //
-  //     .expect(available(".id-2068425241.fluid-let-var-name"))
-  //     .ok()
-  //     .click(Selector(".id-2068425241.fluid-let-var-name"), { caretPos: 2 });
-  // });
+  test("extract_from_function", async ({ page }, testInfo) => {
+    const exprElem = ".user-fn-toplevel #active-editor > span";
+    await gotoHash(page, testInfo, "fn=123");
+    await page.waitForSelector(".tl-123");
+    await page.click(exprElem);
+    await selectText(page, exprElem, 0, 1);
+    await page.keyboard.press("Control+\\");
+    await page.type("#cmd-filter", "extract-function");
+    await page.keyboard.press("Enter");
+  });
+
+  test("fluid_execute_function_shows_live_value", async ({ page }, ti) => {
+    /* NOTE: This test is intended to determine if clicking a play button in fluid
+    makes the live value visible. There is some extra complication in that clicking
+    on a play button as it stands does not actually "count" as clicking on the play button
+    unless the handler is "active" with a placed caret. To account for this, we
+    click on "hello" within Crypto::sha256 ("hello" |> String::toBytes) after focusing
+    in order to place the caret. Then we click on the button and see if the live value
+    corresponds to the result of `Crypto::sha256`. */
+    await gotoHash(page, ti, "handler=1013604333");
+
+    await expect(
+      page.locator(".id-1334251057 .execution-button"),
+    ).toBeVisible();
+    await page.click(".id-1045574047.fluid-string");
+    await page.click(".id-1334251057 .execution-button");
+    await page.waitForSelector(".selected .live-value.loaded");
+    await expect(page.locator(".selected .live-value.loaded")).toHaveText(
+      "<Bytes: length=32>",
+    );
+  });
+
+  test("fluid_single_click_on_token_in_deselected_handler_focuses", async ({
+    page,
+  }) => {
+    let target = ".id-2068425241.fluid-let-var-name";
+    await page.waitForSelector(target);
+    await page.click(target, { caretPos: 2 });
+  });
 
   // test("fluid_click_2x_on_token_places_cursor", async ({ page }) => {
   //
-  //     .expect(available(".id-549681748.fluid-let-var-name"))
+  //     await page.waitForSelector(".id-549681748.fluid-let-var-name");
   //     .ok()
   //     .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 })
   //     .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 });
@@ -907,21 +910,21 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_click_2x_in_function_places_cursor", async ({ page }) => {
   //
-  //     .navigateTo("#fn=1352039682")
-  //     .expect(available(".id-677483670.fluid-let-var-name"))
+  //     await gotoHash(page, testInfo, fn=1352039682);
+  //     await page.waitForSelector(".id-677483670.fluid-let-var-name");
   //     .ok()
   //     .click(Selector(".id-677483670.fluid-let-var-name"), { caretPos: 2 })
-  //     .expect(available(".id-96908617.fluid-category-string"))
+  //     await page.waitForSelector(".id-96908617.fluid-category-string");
   //     .ok()
   //     .click(Selector(".id-96908617.fluid-category-string"), { caretPos: 2 });
   // });
 
   // test("fluid_doubleclick_selects_token", async ({ page }) => {
   //
-  //     .navigateTo("#handler=123")
-  //     .expect(available(".tl-123"))
+  //     await gotoHash(page, testInfo, handler=123);
+  //     await page.waitForSelector(".tl-123");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .doubleClick(Selector(".fluid-match-keyword"), { caretPos: 3 });
   // });
@@ -929,30 +932,30 @@ test("feature_flag_in_function", async ({ page }) => {
   // // This works in practice, but doesn't appear to work in TestCafe 🤨 *)
   // // test("fluid_doubleclick_selects_word_in_string", async ({ page }) => {
   // //
-  // //     .navigateTo("#handler=123")
-  // //     .expect(available(".tl-123"))
+  // //     await gotoHash(page, testInfo, handler=123);
+  // //     await page.waitForSelector(".tl-123");
   // //     .ok()
-  // //     .expect(available(".selected #active-editor"))
+  // //     await page.waitForSelector(".selected #active-editor");
   // //     .ok()
   // //     .doubleClick(Selector(".fluid-string"), { caretPos: 15 });
   // // });
   // //
   // test("fluid_doubleclick_selects_entire_fnname", async ({ page }) => {
   //
-  //     .navigateTo("#handler=123")
-  //     .expect(available(".tl-123"))
+  //     await gotoHash(page, testInfo, handler=123);
+  //     await page.waitForSelector(".tl-123");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .doubleClick(Selector(".fluid-fn-name"), { caretPos: 8 });
   // });
 
   // test("fluid_doubleclick_with_alt_selects_expression", async ({ page }) => {
   //
-  //     .navigateTo("#handler=123")
-  //     .expect(available(".tl-123"))
+  //     await gotoHash(page, testInfo, handler=123);
+  //     await page.waitForSelector(".tl-123");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .doubleClick(Selector(".fluid-match-keyword"), {
   //       caretPos: 3,
@@ -962,10 +965,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_shift_right_selects_chars_in_front", async ({ page }) => {
   //
-  //     .navigateTo("#handler=123")
-  //     .expect(available(".tl-123"))
+  //     await gotoHash(page, testInfo, handler=123);
+  //     await page.waitForSelector(".tl-123");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .click(Selector(".fluid-category-string"), { caretPos: 2 })
   //     await page.keyboard.press("TODO: shift+right shift+down shift+right);;
@@ -973,10 +976,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_shift_left_selects_chars_at_back", async ({ page }) => {
   //
-  //     .navigateTo("#handler=123")
-  //     .expect(available(".tl-123"))
+  //     await gotoHash(page, testInfo, handler=123);
+  //     await page.waitForSelector(".tl-123");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .click(Selector(".fluid-category-string"), { caretPos: 2 })
   //     await page.keyboard.press("TODO: down shift+left shift+up);;
@@ -984,10 +987,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_undo_redo_happen_exactly_once", async ({ page }) => {
   //
-  //     .expect(available(".tl-608699171"))
+  //     await page.waitForSelector(".tl-608699171");
   //     .ok()
-  //     .click(Selector(".id-68470584.fluid-category-string"))
-  //     .expect(available(".selected #active-editor"))
+  //     await page.click(".id-68470584.fluid-category-string");
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .expect(Selector(".fluid-category-string").textContent)
   //     .eql('"12345"');
@@ -999,10 +1002,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_ctrl_left_on_string", async ({ page }) => {
   //
-  //     .navigateTo("#handler=428972234")
-  //     .expect(available(".tl-428972234"))
+  //     await gotoHash(page, testInfo, handler=428972234);
+  //     await page.waitForSelector(".tl-428972234");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .click(Selector(".fluid-string"), { caretPos: 10 })
   //     await page.keyboard.press("Control+ArrowLeft");
@@ -1010,10 +1013,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_ctrl_right_on_string", async ({ page }) => {
   //
-  //     .navigateTo("#handler=428972234")
-  //     .expect(available(".tl-428972234"))
+  //     await gotoHash(page, testInfo, handler=428972234);
+  //     await page.waitForSelector(".tl-428972234");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .click(Selector(".fluid-string"), { caretPos: 10 })
   //     await page.keyboard.press("TODO: ctrl+right);;
@@ -1021,10 +1024,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_ctrl_left_on_empty_match", async ({ page }) => {
   //
-  //     .navigateTo("#handler=281413634")
-  //     .expect(available(".tl-281413634"))
+  //     await gotoHash(page, testInfo, handler=281413634);
+  //     await page.waitForSelector(".tl-281413634");
   //     .ok()
-  //     .expect(available(".selected #active-editor"))
+  //     await page.waitForSelector(".selected #active-editor");
   //     .ok()
   //     .click(Selector(".fluid-category-pattern.id-63381027"), { caretPos: 0 })
   //     await page.keyboard.press("Control+ArrowLeft");
@@ -1033,7 +1036,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // test("varnames_are_incomplete", async ({ page }) => {
   //
   //     await page.click(".toplevel")
-  //     .click(Selector(".spec-header > .toplevel-name"))
+  //     await page.click(".spec-header > .toplevel-name");
   //     await selectAll(page);
   // await page.keyboard.press("Backspace");
   //     await page.type("#entry-box", ":a");
@@ -1048,8 +1051,8 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("center_toplevel", async ({ page }) => {
   //
-  //     .navigateTo("#handler=1445447347")
-  //     .expect(available(".tl-1445447347"))
+  //     await gotoHash(page, testInfo, handler=1445447347);
+  //     await page.waitForSelector(".tl-1445447347");
   //     .ok();
   // });
 
@@ -1064,18 +1067,18 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("sidebar_opens_function", async ({ page }) => {
   //
-  //     .expect(available(".sidebar-category.fns .category-summary"))
+  //     await page.waitForSelector(".sidebar-category.fns .category-summary");
   //     .ok()
-  //     .click(Selector(".sidebar-category.fns .category-summary"))
-  //     .expect(available(".sidebar-category.fns a[href='#fn=1352039682']"))
+  //     await page.click(".sidebar-category.fns .category-summary");
+  //     await page.waitForSelector(".sidebar-category.fns a[href='#fn=1352039682']");
   //     .ok()
-  //     .click(Selector(".sidebar-category.fns a[href='#fn=1352039682']"))
+  //     await page.click(".sidebar-category.fns a[href='#fn=1352039682']");
   //     .expect(getPageUrl())
   //     .match(/.+#fn=1352039682$/, "Url is incorrect");
   // });
 
   // test("empty_fn_never_called_result", async ({ page }) => {
-  //   await t.navigateTo("#fn=602952746");
+  //   await gotoHash(page, testInfo, fn=602952746);;
   //   const timestamp = new Date();
   //
   //     await page.click(".id-1276585567")
@@ -1083,7 +1086,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     await page.click(".id-1276585567");
   //   await awaitAnalysis(t, timestamp);
   //
-  //     .expect(available(".return-value .warning-message"))
+  //     await page.waitForSelector(".return-value .warning-message");
   //     .ok()
   //     .expect(Selector(".return-value").innerText)
   //     .contains(
@@ -1093,14 +1096,14 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("empty_fn_been_called_result", async ({ page }) => {
   //
-  //     .expect(available(".execution-button"))
+  //     await page.waitForSelector(".execution-button");
   //     .ok()
   //     await page.click(".execution-button")
-  //     .navigateTo("#fn=602952746")
+  //     await gotoHash(page, testInfo, fn=602952746);
   //     await page.click(".id-1276585567")
   //     // clicking twice makes the test more stable
   //     await page.click(".id-1276585567")
-  //     .expect(available(".return-value .warning-message"))
+  //     await page.waitForSelector(".return-value .warning-message");
   //     .ok()
   //     .expect(Selector(".return-value").innerText)
   //     .contains(
@@ -1122,9 +1125,9 @@ test("feature_flag_in_function", async ({ page }) => {
   // // await ts, but only calling click() twice worked here.
   // test("sha256hmac_for_aws", async ({ page }) => {
   //
-  //     .navigateTo("#handler=1471262983")
-  //     .click(Selector("div.handler-trigger"))
-  //     .click(Selector("div.handler-trigger"));
+  //     await gotoHash(page, testInfo, handler=1471262983);
+  //     await page.click("div.handler-trigger");
+  //     await page.click("div.handler-trigger");;
   //
   //     .expect(Selector(".return-value").innerText)
   //     .contains(
@@ -1133,17 +1136,17 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // test("fluid_fn_pg_change", async ({ page }) => {
-  //   await t.navigateTo("#fn=2091743543");
-  //   await expect(available(".tl-2091743543")).ok();
+  //   await gotoHash(page, testInfo, fn=2091743543);;
+  //   awaitawait page.waitForSelector(".tl-2091743543");;
 
-  //   await t.navigateTo("#fn=1464810122");
-  //   await expect(available(".tl-1464810122")).ok();
+  //   await gotoHash(page, testInfo, fn=1464810122);;
+  //   awaitawait page.waitForSelector(".tl-1464810122");;
 
   //   // Click into code to edit
-  //   await t.click(Selector(".fluid-entry.id-1154335426"));
+  //   await page.click(".fluid-entry.id-1154335426");;
 
   //   //Make sure we stay on the page
-  //   await expect(available(".tl-1464810122")).ok({ timeout: 1000 });
+  //   awaitawait page.waitForSelector(".tl-1464810122");.ok({ timeout: 1000 });
   // });
 
   // test("fluid_creating_an_http_handler_focuses_the_verb", async ({ page }) => {
@@ -1211,9 +1214,9 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   // async function upload_pkg_for_tlid(t, tlid) {
-  //   await t.navigateTo(`#fn=${tlid}`);
+  //   .navigateTo(`#fn=${tlid}`);
   //
-  //     .click(Selector(".fn-actions > .menu > .more-actions > .toggle-btn"))
+  //     await page.click(".fn-actions > .menu > .more-actions > .toggle-btn");
   //     .expect(true)
   //     .ok();
   //
@@ -1222,7 +1225,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //         ".fn-actions > .menu > .more-actions > .actions > .item",
   //       ).withText("Upload Function"),
   //     )
-  //     .expect(available(".error-panel.show"))
+  //     await page.waitForSelector(".error-panel.show");
   //     .ok({ timeout: 1000 });
   // }
 
@@ -1306,7 +1309,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // test("fluid_show_docs_for_command_on_selected_code", async ({ page }) => {
   //   await createRepl(page);
   //   await gotoAST(page);
-  //   await t.typeText("#active-editor", "1999")await page.keyboard.press("TODO: ctrl+\\);;
+  //   .typeText("#active-editor", "1999")await page.keyboard.press("TODO: ctrl+\\);;
 
   //   await expect(Selector("#cmd-filter").exists).ok();
   //   await expect(Selector(".documentation-box").exists).ok();
@@ -1334,7 +1337,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //   // non-obviously-broken behaviour.
   //   let selector = Selector(".toplevel .spec-header .toplevel-name");
   //   await expect(selector.exists).ok();
-  //   await t.doubleClick(selector);
+  //   .doubleClick(selector);
 
   //   // Selected text is /hello
   //   selector = Selector(".toplevel .spec-header .toplevel-name #entry-box");
@@ -1371,8 +1374,8 @@ test("feature_flag_in_function", async ({ page }) => {
   //   const dbCatSelector = ".sidebar-category.dbs";
 
   //   // clicking on a category icon does not keep it open if you mouse elsewhere
-  //   await t.click(httpCatSelector + " .category-icon");
-  //   await t.click(dbCatSelector + " .category-icon");
+  //   .click(httpCatSelector + " .category-icon");
+  //   .click(dbCatSelector + " .category-icon");
   //
   //     .expect(Selector(httpCatSelector + " .category-content").visible)
   //     .notOk();
@@ -1384,16 +1387,16 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("record_consent_saved_across_canvases", async ({ page }) => {
   //   await page.click("#fs-consent-yes");
-  //   await t.wait(1500);
+  //   .wait(1500);
   //   await expect(Selector(".fullstory-modal.hide").exists).ok();
 
   //   // navigate to another canvas
-  //   await t.navigateTo(`${BASE_URL}another-canvas`);
+  //   .navigateTo(`${BASE_URL}another-canvas`);
   //   await expect(Selector(".fullstory-modal.hide").exists).ok();
 
   //   // go back to original canvas to end the test
   //   const testname = t.testRun.test.name;
-  //   await t.navigateTo(`${BASE_URL}${testname}?integration-test=true`);
+  //   .navigateTo(`${BASE_URL}${testname}?integration-test=true`);
   // });
 
   // // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
@@ -1415,7 +1418,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //   await page.click(".fluid-entry");
   //   awaitAnalysis(t, timestamp);
   //   // move caret into a single line
-  //   await t.click(".id-1459002816", { timeout: 500 });
+  //   .click(".id-1459002816", { timeout: 500 });
   //
   //     .expect(
   //       Selector(".id-1459002816.fluid-not-executed.fluid-code-focus").exists,
@@ -1428,7 +1431,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .ok();
 
   //   // move caret into multiline string
-  //   await t.click(".fluid-string-ml-start", { timeout: 500 });
+  //   .click(".fluid-string-ml-start", { timeout: 500 });
   //
   //     .expect(
   //       Selector(".fluid-string-ml-start.fluid-not-executed.fluid-code-focus")
@@ -1449,7 +1452,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .ok();
 
   //   // move caret into list literal
-  //   await t.click(".fluid-list-comma", { timeout: 500 });
+  //   .click(".fluid-list-comma", { timeout: 500 });
   //
   //     .expect(
   //       Selector(".fluid-list-open.fluid-not-executed.fluid-code-focus").exists,
@@ -1462,7 +1465,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .ok();
 
   //   // move caret into object literal
-  //   await t.click(".fluid-record-sep", { timeout: 500 });
+  //   .click(".fluid-record-sep", { timeout: 500 });
   //
   //     .expect(
   //       Selector(".fluid-record-open.fluid-not-executed.fluid-code-focus").exists,
@@ -1504,10 +1507,10 @@ test("feature_flag_in_function", async ({ page }) => {
 
   //   await sendPushEvent();
 
-  //   await t.wait(5000);
+  //   .wait(5000);
   //   await expect(f0fCategory.hasClass("empty")).notOk();
-  //   await t.click(f0fCategory, { timeout: 2500 });
-  //   await t.click(".fof > .category-content > .simple-item > .add-button", {
+  //   .click(f0fCategory, { timeout: 2500 });
+  //   .click(".fof > .category-content > .simple-item > .add-button", {
   //     timeout: 100,
   //   });
 
@@ -1548,14 +1551,14 @@ test("feature_flag_in_function", async ({ page }) => {
   //     await page.keyboard.press("TODO: ctrl+\\);
   //     .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
   //     .ok();
-  //   await t.typeText("#cmd-filter", "rail");
+  //   .typeText("#cmd-filter", "rail");
   //
   //     .expect(Selector(".fluid-selected").innerText)
   //     .eql("take-function-off-rail");
 
   //   // analysis is reruns
   //   const t1 = new Date();
-  //   await tawait page.keyboard.press("Enter");
+  //   await page.keyboard.press("Enter");
   //   awaitAnalysis(t, t1);
 
   //   // assert values have changed
@@ -1578,14 +1581,14 @@ test("feature_flag_in_function", async ({ page }) => {
   //     await page.keyboard.press("TODO: ctrl+\\);
   //     .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
   //     .ok();
-  //   await t.typeText("#cmd-filter", "commit");
+  //   .typeText("#cmd-filter", "commit");
   //
   //     .expect(Selector(".fluid-selected").innerText)
   //     .eql("commit-feature-flag");
 
   //   // analysis is reruns
   //   const t1 = new Date();
-  //   await tawait page.keyboard.press("Enter");
+  //   await page.keyboard.press("Enter");
   //   awaitAnalysis(t, t1);
 
   //   await expect(returnValue.innerText).contains("farewell Dorian Gray");
@@ -1598,7 +1601,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   //
   //     // Start at this specific repl handler
-  //     .navigateTo("#handler=92595864")
+  //     await gotoHash(page, testInfo, handler=92595864);
   //     .expect(available(repl))
   //     .ok()
   //     // Test that the handler we navigated to has a reference to a package manager function
@@ -1608,7 +1611,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .eql("test_admin/stdlib/Test::one_v0")
   //     .click(refersTo)
   //     // Clicking on it should bring us to that function
-  //     .expect(available(".toplevel .pkg-fn-toplevel"))
+  //     await page.waitForSelector(".toplevel .pkg-fn-toplevel");
   //     .ok()
   //     // which should contain a reference to where we just came from
   //     .expect(available(usedIn))
@@ -1630,7 +1633,7 @@ test("feature_flag_in_function", async ({ page }) => {
   //     .ok();
 
   //   await createRepl(page);
-  //   await t.typeText("#active-editor", '"Hello world!"');
+  //   .typeText("#active-editor", '"Hello world!"');
 
   //   await page.click(".sidebar-category.secrets .create-tl-icon");
 
