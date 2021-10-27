@@ -647,74 +647,71 @@ test("feature_flag_in_function", async ({ page }) => {
     .expect(available(".tl-180770093")).ok()
 });
 */
-  // test("rename_function", async ({ page }) => {
-  //   const fnNameBlankOr = ".fn-name-content";
-  //
-  //     .navigateTo("#fn=123")
-  //     .expect(available(fnNameBlankOr))
-  //     .ok({ timeout: 1000 });
+  test("rename_function", async ({ page }, testInfo) => {
+    const fnNameBlankOr = ".fn-name-content";
 
-  //   // check not changing function name does not cause error message to show
-  //   await t.doubleClick(Selector(fnNameBlankOr));
-  //   await gotoAST(page);
-  //   await expect(available(".error-panel.show")).notOk();
+    const testname = testInfo.title;
+    var url = `/a/test-${testname}?integration-test=true`;
 
-  //   // now actually rename the function to a different name
-  //
-  //     .click(Selector(fnNameBlankOr))
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type("#entry-box", "hello");
-  //     await page.keyboard.press("Enter");;
-  // });
+    await page.goto(`${url}#fn=123`);
+    await expect(page.locator(fnNameBlankOr)).toBeVisible();
 
-  // // not sure why this test is flaky - possibly pressing the button changes state,
-  // // and re-running (testcafe's quarantine mode) fails?
+    // check not changing function name does not cause error message to show
+    await page.dblclick(fnNameBlankOr);
+    await gotoAST(page);
+    await expect(page.locator(".error-panel.show")).not.toBeVisible();
 
-  // test("execute_function_works", async ({ page }) => {
-  //   await createRepl(page);
-  //   await expect(Selector("#active-editor", { timeout: 5000 }).exists).ok();
-  //   await t.typeText("#active-editor", "Uuid::gen")await page.keyboard.press("TODO: enter);;
+    // now actually rename the function to a different name
+    await page.click(fnNameBlankOr);
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type("#entry-box", "hello");
+    await page.keyboard.press("Enter");
+  });
 
-  //   const t1 = new Date();
-  //   await t.click(Selector(".execution-button", { timeout: 500 }));
-  //   await awaitAnalysis(t, t1);
+  test("execute_function_works", async ({ page }) => {
+    await createRepl(page);
+    await expect(page.locator("#active-editor")).toBeVisible({ timeout: 5000 });
+    await page.type("#active-editor", "Uuid::gen");
+    await page.keyboard.press("Enter");
 
-  //   let v1 = await Selector(".selected .live-value.loaded").innerText;
+    const t1 = Date.now();
+    await page.click(".execution-button", { timeout: 5000 });
+    await awaitAnalysis(page, t1);
 
-  //   const t2 = new Date();
-  //   await t.click(Selector(".fa-redo"));
-  //   await awaitAnalysis(t, t2);
+    let v1 = await page.textContent(".selected .live-value.loaded");
 
-  //   let v2 = await Selector(".selected .live-value.loaded").innerText;
+    const t2 = Date.now();
+    await page.click(".fa-redo");
+    await awaitAnalysis(page, t2);
 
-  //   let re = /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
-  //   await expect(v1).match(re);
-  //   await expect(v2).match(re);
-  //   await expect(v1).notEql(v2);
-  // });
+    await expect(page.textContent(".selected .live-value.loaded")).not.toBe(v1);
+    let v2 = await page.textContent(".selected .live-value.loaded");
 
-  // test("correct_field_livevalue", async ({ page }) => {
-  //
-  //     .click(Selector(".fluid-editor")) // this click required to activate the editor
-  //     .click(Selector(".fluid-field-name").withExactText("gth"));
+    let re =
+      /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
+    await expect(v1).toMatch(re);
+    await expect(v2).toMatch(re);
+  });
 
-  //   let v1 = await Selector(".selected .live-value.loaded").innerText;
+  test("correct_field_livevalue", async ({ page }) => {
+    await page.click(".fluid-editor"); // this click required to activate the editor
+    await page.click(".fluid-field-name >> text='gth'");
 
-  //   await expect(v1).eql("5");
-  // });
+    let v1 = await page.textContent(".selected .live-value.loaded");
+    await expect(v1).toBe("5");
+  });
 
-  // test("int_add_with_float_error_includes_fnname", async ({ page }) => {
-  //   const timestamp = new Date();
-  //   await t.click(Selector(".tl-123 .fluid-editor")); // required to see the return value (navigate is insufficient)
-  //   await awaitAnalysis(t, timestamp);
+  test("int_add_with_float_error_includes_fnname", async ({ page }) => {
+    const timestamp = Date.now();
+    await page.click(".tl-123 .fluid-category-function"); // required to see the return value (navigate is insufficient)
+    await awaitAnalysis(page, timestamp);
 
-  //
-  //     .expect(available(".return-value"))
-  //     .ok()
-  //     .expect(Selector(".return-value").innerText)
-  //     .contains("but + only works on Ints.");
-  // });
+    await expect(page.locator(".return-value")).toBeVisible();
+    await expect(page.locator(".return-value")).toContainText(
+      "but + only works on Ints.",
+    );
+  });
 
   // test("function_version_renders", async ({ page }) => {
   //   await createRepl(page);
