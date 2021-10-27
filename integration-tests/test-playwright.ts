@@ -172,7 +172,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   //********************************
-  // // Utilities
+  // Utilities
   //********************************
   async function createEmptyHTTPHandler(page: Page) {
     await page.keyboard.press("Enter");
@@ -321,6 +321,10 @@ test.describe.parallel("Integration Tests", async () => {
     for (let i = 0; i < final; i++) {
       await page.keyboard.press("ArrowRight");
     }
+  }
+
+  function caretPos(pos: number) {
+    return { position: { x: pos * 8, y: 4 } };
   }
 
   async function getStyleProperty(
@@ -735,6 +739,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   test("delete_db_col", async ({ page }) => {
     await page.click(".delete-col");
+    await expect(page.locator(".delete-col")).not.toBeVisible();
   });
 
   test("cant_delete_locked_col", async ({ page }) => {
@@ -885,52 +890,43 @@ test("feature_flag_in_function", async ({ page }) => {
   }) => {
     let target = ".id-2068425241.fluid-let-var-name";
     await page.waitForSelector(target);
-    await page.click(target, { position: { x: 16, y: 4 } });
+    await page.click(target, caretPos(4));
   });
 
-  // test("fluid_click_2x_on_token_places_cursor", async ({ page }) => {
-  //
-  //     await page.waitForSelector(".id-549681748.fluid-let-var-name");
-  //     .ok()
-  //     .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 })
-  //     .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 });
-  // });
+  test("fluid_click_2x_on_token_places_cursor", async ({ page }) => {
+    let target = ".id-549681748.fluid-let-var-name";
+    await page.waitForSelector(target);
+    await page.click(target, caretPos(2));
+    await page.click(target, caretPos(2));
+  });
 
-  // test("fluid_click_2x_in_function_places_cursor", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, fn=1352039682);
-  //     await page.waitForSelector(".id-677483670.fluid-let-var-name");
-  //     .ok()
-  //     .click(Selector(".id-677483670.fluid-let-var-name"), { caretPos: 2 })
-  //     await page.waitForSelector(".id-96908617.fluid-category-string");
-  //     .ok()
-  //     .click(Selector(".id-96908617.fluid-category-string"), { caretPos: 2 });
-  // });
+  test("fluid_click_2x_in_function_places_cursor", async ({
+    page,
+  }, testInfo) => {
+    await gotoHash(page, testInfo, "fn=1352039682");
+    await page.waitForSelector(".id-677483670.fluid-let-var-name");
+    await page.click(".id-677483670.fluid-let-var-name", caretPos(2));
+    await page.waitForSelector(".id-96908617.fluid-category-string");
+    await page.click(".id-96908617.fluid-category-string", caretPos(2));
+  });
 
-  // test("fluid_doubleclick_selects_token", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, handler=123);
-  //     await page.waitForSelector(".tl-123");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .doubleClick(Selector(".fluid-match-keyword"), { caretPos: 3 });
-  // });
+  test("fluid_doubleclick_selects_token", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=123");
+    await page.waitForSelector(".tl-123");
+    await page.waitForSelector(".selected #active-editor");
+    await page.dblclick(".fluid-match-keyword", caretPos(3));
+  });
 
-  // // This works in practice, but doesn't appear to work in TestCafe 🤨 *)
-  // // test("fluid_doubleclick_selects_word_in_string", async ({ page }) => {
-  // //
-  // //     await gotoHash(page, testInfo, handler=123);
-  // //     await page.waitForSelector(".tl-123");
-  // //     .ok()
-  // //     await page.waitForSelector(".selected #active-editor");
-  // //     .ok()
-  // //     .doubleClick(Selector(".fluid-string"), { caretPos: 15 });
-  // // });
-  // //
+  test("fluid_doubleclick_selects_word_in_string", async ({ page }, ti) => {
+    await gotoHash(page, ti, "handler=123");
+    await page.waitForSelector(".tl-123");
+    await page.waitForSelector(".selected #active-editor");
+    await page.dblclick(".fluid-string");
+  });
+
   // test("fluid_doubleclick_selects_entire_fnname", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=123);
+  //     await gotoHash(page, testInfo, "handler=123");
   //     await page.waitForSelector(".tl-123");
   //     .ok()
   //     await page.waitForSelector(".selected #active-editor");
@@ -940,7 +936,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_doubleclick_with_alt_selects_expression", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=123);
+  //     await gotoHash(page, testInfo, "handler=123");
   //     await page.waitForSelector(".tl-123");
   //     .ok()
   //     await page.waitForSelector(".selected #active-editor");
@@ -953,7 +949,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_shift_right_selects_chars_in_front", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=123);
+  //     await gotoHash(page, testInfo, "handler=123");
   //     await page.waitForSelector(".tl-123");
   //     .ok()
   //     await page.waitForSelector(".selected #active-editor");
@@ -964,7 +960,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_shift_left_selects_chars_at_back", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=123);
+  //     await gotoHash(page, testInfo, "handler=123");
   //     await page.waitForSelector(".tl-123");
   //     .ok()
   //     await page.waitForSelector(".selected #active-editor");
@@ -990,7 +986,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_ctrl_left_on_string", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=428972234);
+  //     await gotoHash(page, testInfo, "handler=428972234");
   //     await page.waitForSelector(".tl-428972234");
   //     .ok()
   //     await page.waitForSelector(".selected #active-editor");
@@ -1001,7 +997,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_ctrl_right_on_string", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=428972234);
+  //     await gotoHash(page, testInfo, "handler=428972234");
   //     await page.waitForSelector(".tl-428972234");
   //     .ok()
   //     await page.waitForSelector(".selected #active-editor");
@@ -1012,7 +1008,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("fluid_ctrl_left_on_empty_match", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=281413634);
+  //     await gotoHash(page, testInfo, "handler=281413634");
   //     await page.waitForSelector(".tl-281413634");
   //     .ok()
   //     await page.waitForSelector(".selected #active-editor");
@@ -1039,7 +1035,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   // test("center_toplevel", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=1445447347);
+  //     await gotoHash(page, testInfo, "handler=1445447347");
   //     await page.waitForSelector(".tl-1445447347");
   //     .ok();
   // });
@@ -1113,7 +1109,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // // await ts, but only calling click() twice worked here.
   // test("sha256hmac_for_aws", async ({ page }) => {
   //
-  //     await gotoHash(page, testInfo, handler=1471262983);
+  //     await gotoHash(page, testInfo, "handler=1471262983");
   //     await page.click("div.handler-trigger");
   //     await page.click("div.handler-trigger");;
   //
@@ -1588,7 +1584,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
   //
   //     // Start at this specific repl handler
-  //     await gotoHash(page, testInfo, handler=92595864);
+  //     await gotoHash(page, testInfo, "handler=92595864");
   //     .expect(available(repl))
   //     .ok()
   //     // Test that the handler we navigated to has a reference to a package manager function
