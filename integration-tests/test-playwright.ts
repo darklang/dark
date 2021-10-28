@@ -15,8 +15,6 @@ const options = {
 };
 test.use(options);
 
-// const getPageUrl = ClientFunction(() => window.location.href);
-
 async function prepSettings(page: Page, testInfo: TestInfo) {
   let setLocalStorage = async (key: string, value: any) => {
     await page.evaluate(
@@ -49,7 +47,6 @@ async function prepSettings(page: Page, testInfo: TestInfo) {
 
 async function awaitAnalysis(page: Page, lastTimestamp: number) {
   let analysisFunction = (lastTimestamp: number) => {
-    console.log("open");
     let newTimestamp = window.Dark.analysis.lastRun;
     if (newTimestamp > lastTimestamp) {
       const diffInSecs = (newTimestamp - lastTimestamp) / 1000.0;
@@ -58,7 +55,6 @@ async function awaitAnalysis(page: Page, lastTimestamp: number) {
     }
     return false;
   };
-  console.log("checking analysis");
   await page.waitForFunction(analysisFunction, lastTimestamp, {
     timeout: 10000,
     polling: 1000,
@@ -100,26 +96,6 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector("#finishIntegrationTest");
     await page.pause();
   });
-
-  /* Testcafe runs everything through a proxy, wrapping all values and
-   * objects such that it seems like nothing happened. However, they forgot
-   * to wrap objects in Webworker contexts, so calls to Fetch in the worker
-   * thinks it's on a different domain. This breaks cookies, auth, CORS,
-   * basically everything. So we thread the right url through to do the
-   * proxying ourselves. Hopefully they'll fix this and we can remove this
-   * code someday */
-  // .eval(
-  //   () => {
-  //     window.testcafeInjectedPrefix = prefix;
-  //   },
-  //   {
-  //     dependencies: {
-  //       prefix: `${new URL(t.testRun.browserConnection.url).origin}/${
-  //         t.testRun.session.id
-  //       }/`,
-  //     },
-  //   },
-  // );
 
   test.afterEach(async ({ page }, testInfo) => {
     const testname = testInfo.title;
@@ -220,33 +196,36 @@ test.describe.parallel("Integration Tests", async () => {
     );
   }
 
-  // // pressShortcut will use ctrl on Linux or meta on Mac, depending on which
-  // // platform the tests are running.
-  // async function pressShortcut(t, shortcutUsingCtrl) {
-  //   if (shortcutUsingCtrl === undefined) {
-  //     throw (
-  //       "pressShortcut expecting a shortcut string like 'ctrl-a' but got undefined. " +
-  //       "Did you forget to pass t?"
-  //     );
-  //   }
-  //   var shortcut;
-  //   if (t.browser.os.name == "macOS") {
-  //     shortcut = shortcutUsingCtrl.replace("ctrl", "meta");
-  //   } else {
-  //     shortcut = shortcutUsingCtrl;
-  //   }
-  //   .pressKey(shortcut);
-  // }
+  async function pressShortcut(page: Page, shortcut: string) {
+    if (process.platform == "darwin") {
+      page.keyboard.press(`Meta+${shortcut}`);
+    } else {
+      page.keyboard.press(`Control+${shortcut}`);
+    }
+  }
 
-  async function req(page: Page, method: string, url: string, body: string) {
-    await page.evaluate(
-      ({ method, url, body }) => {
-        var xhttp = new XMLHttpRequest();
-        xhttp.open(method, url, true);
-        xhttp.setRequestHeader("Content-type", "application/json");
-        xhttp.send(body);
+  async function get(page: Page, url: string): Promise<string> {
+    return await page.evaluate(
+      async ({ url }) => {
+        const response = await fetch(url, {
+          method: "GET",
+        });
+        return response.text();
       },
-      { method: method, url: url, body: body },
+      { url: url },
+    );
+  }
+  async function post(page: Page, url: string, body: string): Promise<string> {
+    return await page.evaluate(
+      async ({ url, body }) => {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: body,
+        });
+        return response.text();
+      },
+      { url: url, body: body },
     );
   }
 
@@ -346,19 +325,12 @@ test.describe.parallel("Integration Tests", async () => {
   // });
 
   // // NOTE: this is synchronous, not async, so we don't have to fuss with promises
-  // const getBwdResponse = ClientFunction(function (url) {
-  //   var xhttp = new XMLHttpRequest();
-  //   xhttp.open("GET", url, false);
-  //   xhttp.send(null);
-  //   return xhttp.responseText;
-  // });
-
-  // const getElementSelectionStart = ClientFunction(
-  //   selector => selector().selectionStart,
-  // );
-  // const getElementSelectionEnd = ClientFunction(
-  //   selector => selector().selectionEnd,
-  // );
+  async function getElementSelectionStart(page: Page, selector: string) {
+    page.$eval(selector, el => (<HTMLInputElement>el).selectionStart);
+  }
+  async function getElementSelectionEnd(page: Page, selector: string) {
+    page.$eval(selector, el => (<HTMLInputElement>el).selectionEnd);
+  }
 
   // ------------------------
   // Tests below here. Don't forget to update client/src/IntegrationTest.ml
@@ -570,7 +542,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
-    await req(page, "POST", url, '{ "field6": "a", "field2": "b" }');
+    await post(page, url, '{ "field6": "a", "field2": "b" }');
     await page.waitForSelector(dbLockLocator);
 
     await page.click(".name >> text='field6'");
@@ -588,7 +560,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
-    await req(page, "POST", url, '{ "field1": "str", "field2": 5 }');
+    await post(page, url, '{ "field1": "str", "field2": 5 }');
     await page.waitForSelector(dbLockLocator, { timeout: 8000 });
 
     await page.click(".type >> text='String'");
@@ -924,255 +896,219 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.dblclick(".fluid-string");
   });
 
-  // test("fluid_doubleclick_selects_entire_fnname", async ({ page }) => {
+  test("fluid_doubleclick_selects_entire_fnname", async ({
+    page,
+  }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=123");
+    await page.waitForSelector(".tl-123");
+    await page.waitForSelector(".selected #active-editor");
+    await page.dblclick(".fluid-fn-name", caretPos(8));
+  });
+
+  test("fluid_doubleclick_with_alt_selects_expression", async ({
+    page,
+  }, ti) => {
+    await gotoHash(page, ti, "handler=123");
+    await page.waitForSelector(".tl-123");
+    await page.waitForSelector(".selected #active-editor");
+    const options = { modifiers: ["Alt"], position: { x: 24, y: 4 } };
+    await page.dblclick(".fluid-match-keyword", options);
+  });
+
+  test("fluid_shift_right_selects_chars_in_front", async ({ page }, ti) => {
+    await gotoHash(page, ti, "handler=123");
+    await page.waitForSelector(".tl-123");
+    await page.waitForSelector(".selected #active-editor");
+    await page.click(".fluid-category-string", caretPos(2));
+    await page.keyboard.press("Shift+ArrowRight");
+    await page.keyboard.press("Shift+ArrowDown");
+    await page.keyboard.press("Shift+ArrowRight");
+  });
+
+  test("fluid_shift_left_selects_chars_at_back", async ({ page }, ti) => {
+    await gotoHash(page, ti, "handler=123");
+    await page.waitForSelector(".tl-123");
+    await page.waitForSelector(".selected #active-editor");
+    await page.click(".fluid-category-string", caretPos(2));
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Shift+ArrowLeft");
+    await page.keyboard.press("Shift+ArrowUp");
+  });
+
+  test("fluid_undo_redo_happen_exactly_once", async ({ page }) => {
+    await page.waitForSelector(".tl-608699171");
+    await page.click(".id-68470584.fluid-category-string");
+    await page.waitForSelector(".selected #active-editor");
+    await expectExactText(page, ".fluid-category-string", '"12345"');
+    await pressShortcut(page, "z");
+    await expectExactText(page, ".fluid-category-string", '"1234"');
+    await pressShortcut(page, "Shift+z");
+    await expectExactText(page, ".fluid-category-string", '"12345"');
+  });
+
+  test("fluid_ctrl_left_on_string", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=428972234");
+    await page.waitForSelector(".tl-428972234");
+    await page.waitForSelector(".selected #active-editor");
+    await page.click(".fluid-string", caretPos(10));
+    await page.keyboard.press("Control+ArrowLeft");
+  });
+
+  test("fluid_ctrl_right_on_string", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=428972234");
+    await page.waitForSelector(".tl-428972234");
+    await page.waitForSelector(".selected #active-editor");
+    await page.click(".fluid-string", caretPos(10));
+    await page.keyboard.press("Control+ArrowRight");
+  });
+
+  test("fluid_ctrl_left_on_empty_match", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=281413634");
+    await page.waitForSelector(".tl-281413634");
+    await page.waitForSelector(".selected #active-editor");
+    await page.click(".fluid-category-pattern.id-63381027", caretPos(0));
+    await page.keyboard.press("Control+ArrowLeft");
+  });
+
+  test("varnames_are_incomplete", async ({ page }) => {
+    await page.click(".toplevel");
+    await page.click(".spec-header > .toplevel-name");
+    await selectAll(page);
+    await page.keyboard.press("Backspace");
+    await page.type(entryBox, ":a");
+    await expectExactText(page, acHighlightedValue, "/:a");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("a");
+    await page.keyboard.press("Enter");
+    await expectContainsText(page, ".live-value.loaded", "<Incomplete>");
+  });
+
+  test("center_toplevel", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=1445447347");
+    await page.waitForSelector(".tl-1445447347");
+  });
+
+  test("max_callstack_bug", async ({ page }) => {
+    await createRepl(page);
+    await gotoAST(page);
+
+    // I don't know what the threshold is exactly, but 1500 didn't tickle
+    // the bug
+    await page.keyboard.type("List::range 0 2000 ");
+  });
+
+  test("sidebar_opens_function", async ({ page }) => {
+    await page.waitForSelector(".sidebar-category.fns .category-summary");
+    await page.click(".sidebar-category.fns .category-summary");
+    await page.waitForSelector(
+      ".sidebar-category.fns a[href='#fn=1352039682']",
+    );
+    await page.click(".sidebar-category.fns a[href='#fn=1352039682']");
+    await expect(page.url()).toMatch(/.+#fn=1352039682$/, "Url is incorrect");
+  });
+
+  test("empty_fn_never_called_result", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "fn=602952746");
+    const timestamp = Date.now();
+
+    await page.click(".id-1276585567");
+    // clicking twice in hopes of making the test more stable
+    await page.click(".id-1276585567");
+    await awaitAnalysis(page, timestamp);
+
+    await page.waitForSelector(".return-value .warning-message");
+    let expected =
+      "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler.";
+    await expectContainsText(page, ".return-value", expected);
+  });
+
+  test("empty_fn_been_called_result", async ({ page }, testInfo) => {
+    await page.waitForSelector(".execution-button");
+    await page.click(".execution-button");
+    await gotoHash(page, testInfo, "fn=602952746");
+    await page.click(".id-1276585567");
+    // clicking twice makes the test more stable
+    await page.click(".id-1276585567");
+    await page.waitForSelector(".return-value .warning-message");
+    let expected =
+      "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler.";
+    await expectContainsText(page, ".return-value", expected);
+  });
+
+  // This runs through
+  // https://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
+  // It duplicates backend/test/test_otherlibs.ml's "Crypto::sha256hmac works for
+  // AWS", _but_ its value _here_ is that we do not have any other tests that push
+  // a handler's trigger play button; getting that working was surprisingly hard,
+  // and so lets keep it around to use in future integration tests.
   //
-  //     await gotoHash(page, testInfo, "handler=123");
-  //     await page.waitForSelector(".tl-123");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .doubleClick(Selector(".fluid-fn-name"), { caretPos: 8 });
-  // });
-
-  // test("fluid_doubleclick_with_alt_selects_expression", async ({ page }) => {
+  // See integration-tests/README.md for docs on this.
   //
-  //     await gotoHash(page, testInfo, "handler=123");
-  //     await page.waitForSelector(".tl-123");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .doubleClick(Selector(".fluid-match-keyword"), {
-  //       caretPos: 3,
-  //       modifiers: { alt: true },
-  //     });
-  // });
+  // I have tried several other approaches, including wait(3000) between
+  // navigateTo() and click(), and putting navigateTo() and click() on separate
+  // await ts, but only calling click() twice worked here.
+  test("sha256hmac_for_aws", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "handler=1471262983");
+    await page.click("div.handler-trigger");
+    await page.click("div.handler-trigger");
+    let expected =
+      '"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"';
+    await expectContainsText(page, ".return-value", expected);
+  });
 
-  // test("fluid_shift_right_selects_chars_in_front", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, "handler=123");
-  //     await page.waitForSelector(".tl-123");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .click(Selector(".fluid-category-string"), { caretPos: 2 })
-  //     await page.keyboard.press("TODO: shift+right shift+down shift+right);;
-  // });
+  test("fluid_fn_pg_change", async ({ page }, testInfo) => {
+    await gotoHash(page, testInfo, "fn=2091743543");
+    await page.waitForSelector(".tl-2091743543");
 
-  // test("fluid_shift_left_selects_chars_at_back", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, "handler=123");
-  //     await page.waitForSelector(".tl-123");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .click(Selector(".fluid-category-string"), { caretPos: 2 })
-  //     await page.keyboard.press("TODO: down shift+left shift+up);;
-  // });
+    await gotoHash(page, testInfo, "fn=1464810122");
+    await page.waitForSelector(".tl-1464810122");
 
-  // test("fluid_undo_redo_happen_exactly_once", async ({ page }) => {
-  //
-  //     await page.waitForSelector(".tl-608699171");
-  //     .ok()
-  //     await page.click(".id-68470584.fluid-category-string");
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .expect(Selector(".fluid-category-string").textContent)
-  //     .eql('"12345"');
-  //   await pressShortcut(t, "ctrl+z");
-  //   await expect(Selector(".fluid-category-string").textContent).eql('"1234"');
-  //   await pressShortcut(t, "ctrl+shift+z");
-  //   await expect(Selector(".fluid-category-string").textContent).eql('"12345"');
-  // });
+    // Click into code to edit
+    await page.click(".fluid-entry.id-1154335426");
 
-  // test("fluid_ctrl_left_on_string", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, "handler=428972234");
-  //     await page.waitForSelector(".tl-428972234");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .click(Selector(".fluid-string"), { caretPos: 10 })
-  //     await page.keyboard.press("Control+ArrowLeft");
-  // });
+    //Make sure we stay on the page
+    await page.waitForSelector(".tl-1464810122");
+  });
 
-  // test("fluid_ctrl_right_on_string", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, "handler=428972234");
-  //     await page.waitForSelector(".tl-428972234");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .click(Selector(".fluid-string"), { caretPos: 10 })
-  //     await page.keyboard.press("TODO: ctrl+right);;
-  // });
+  test("fluid_creating_an_http_handler_focuses_the_verb", async ({ page }) => {
+    await createEmptyHTTPHandler(page);
 
-  // test("fluid_ctrl_left_on_empty_match", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, "handler=281413634");
-  //     await page.waitForSelector(".tl-281413634");
-  //     .ok()
-  //     await page.waitForSelector(".selected #active-editor");
-  //     .ok()
-  //     .click(Selector(".fluid-category-pattern.id-63381027"), { caretPos: 0 })
-  //     await page.keyboard.press("Control+ArrowLeft");
-  // });
+    await page.keyboard.press("ArrowDown"); // enter AC
+    await expectExactText(page, acHighlightedValue, "GET");
+  });
 
-  // test("varnames_are_incomplete", async ({ page }) => {
-  //
-  //     await page.click(".toplevel")
-  //     await page.click(".spec-header > .toplevel-name");
-  //     await selectAll(page);
-  // await page.keyboard.press("Backspace");
-  //     await page.type(entryBox, ":a");
-  //     expect(await acHighlightedText(page)).toBe("/:a")
-  //     .ok()
-  //     await page.keyboard.press("TODO: tab a enter);;
+  test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({ page }) => {
+    await createEmptyHTTPHandler(page);
 
-  //
-  //     .expect(Selector(".live-value.loaded").textContent)
-  //     .contains("<Incomplete>");
-  // });
+    await page.keyboard.press("Tab"); // verb -> route
+    await page.keyboard.press("Tab"); // route -> ast
+    await page.keyboard.press("r"); // enter AC
+    await expectExactText(page, fluidACHighlightedValue, "request");
+  });
 
-  // test("center_toplevel", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, "handler=1445447347");
-  //     await page.waitForSelector(".tl-1445447347");
-  //     .ok();
-  // });
+  test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({
+    page,
+  }) => {
+    await createEmptyHTTPHandler(page);
 
-  // test("max_callstack_bug", async ({ page }) => {
-  //   await createRepl(page);
-  //   await gotoAST(page);
-  //
-  //     // I don't know what the threshold is exactly, but 1500 didn't tickle
-  //     // the bug
-  //     await page.keyboard.press("TODO: L i s t : : r a n g e space 0 space 2 0 0 0 space);;
-  // });
+    await page.keyboard.press("Tab"); // verb -> route
+    await page.keyboard.press("Tab"); // route -> ast
+    await page.keyboard.press("Tab"); // ast -> loop back to verb;
+    await page.keyboard.press("ArrowDown"); // enter AC
+    await expectExactText(page, acHighlightedValue, "GET");
+  });
 
-  // test("sidebar_opens_function", async ({ page }) => {
-  //
-  //     await page.waitForSelector(".sidebar-category.fns .category-summary");
-  //     .ok()
-  //     await page.click(".sidebar-category.fns .category-summary");
-  //     await page.waitForSelector(".sidebar-category.fns a[href='#fn=1352039682']");
-  //     .ok()
-  //     await page.click(".sidebar-category.fns a[href='#fn=1352039682']");
-  //     .expect(getPageUrl())
-  //     .match(/.+#fn=1352039682$/, "Url is incorrect");
-  // });
+  test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({
+    page,
+  }) => {
+    await createEmptyHTTPHandler(page);
 
-  // test("empty_fn_never_called_result", async ({ page }) => {
-  //   await gotoHash(page, testInfo, fn=602952746);;
-  //   const timestamp = new Date();
-  //
-  //     await page.click(".id-1276585567")
-  //     // clicking twice in hopes of making the test more stable
-  //     await page.click(".id-1276585567");
-  //   await awaitAnalysis(t, timestamp);
-  //
-  //     await page.waitForSelector(".return-value .warning-message");
-  //     .ok()
-  //     .expect(Selector(".return-value").innerText)
-  //     .contains(
-  //       "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler.",
-  //     );
-  // });
-
-  // test("empty_fn_been_called_result", async ({ page }) => {
-  //
-  //     await page.waitForSelector(".execution-button");
-  //     .ok()
-  //     await page.click(".execution-button")
-  //     await gotoHash(page, testInfo, fn=602952746);
-  //     await page.click(".id-1276585567")
-  //     // clicking twice makes the test more stable
-  //     await page.click(".id-1276585567")
-  //     await page.waitForSelector(".return-value .warning-message");
-  //     .ok()
-  //     .expect(Selector(".return-value").innerText)
-  //     .contains(
-  //       "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler.",
-  //     );
-  // });
-
-  // // This runs through
-  // // https://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
-  // // It duplicates backend/test/test_otherlibs.ml's "Crypto::sha256hmac works for
-  // // AWS", _but_ its value _here_ is that we do not have any other tests that push
-  // // a handler's trigger play button; getting that working was surprisingly hard,
-  // // and so ismith wants to leave it around to use in future integration tests.
-  // //
-  // // See integration-tests/README.md for docs on this.
-  // //
-  // // I have tried several other approaches, including wait(3000) between
-  // // navigateTo() and click(), and putting navigateTo() and click() on separate
-  // // await ts, but only calling click() twice worked here.
-  // test("sha256hmac_for_aws", async ({ page }) => {
-  //
-  //     await gotoHash(page, testInfo, "handler=1471262983");
-  //     await page.click("div.handler-trigger");
-  //     await page.click("div.handler-trigger");;
-  //
-  //     .expect(Selector(".return-value").innerText)
-  //     .contains(
-  //       '"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"',
-  //     );
-  // });
-
-  // test("fluid_fn_pg_change", async ({ page }) => {
-  //   await gotoHash(page, testInfo, fn=2091743543);;
-  //   awaitawait page.waitForSelector(".tl-2091743543");;
-
-  //   await gotoHash(page, testInfo, fn=1464810122);;
-  //   awaitawait page.waitForSelector(".tl-1464810122");;
-
-  //   // Click into code to edit
-  //   await page.click(".fluid-entry.id-1154335426");;
-
-  //   //Make sure we stay on the page
-  //   awaitawait page.waitForSelector(".tl-1464810122");.ok({ timeout: 1000 });
-  // });
-
-  // test("fluid_creating_an_http_handler_focuses_the_verb", async ({ page }) => {
-  //   await createHTTPHandler(page);
-
-  //
-  //     await page.keyboard.press("ArrowDown") // enter AC
-  //     expect(await acHighlightedText(page)).toBe("GET")
-  //     .ok();
-  // });
-
-  // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({ page }) => {
-  //   await createHTTPHandler(page);
-  //
-  //     await page.keyboard.press("Tab") // verb -> route
-  //     await page.keyboard.press("Tab") // route -> ast
-  //     await page.keyboard.press("TODO: r); // enter AC
-  //     .expect(fluidACHighlightedValue(page)("request"))
-  //     .ok();
-  // });
-
-  // test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({ page }) => {
-  //   await createHTTPHandler(page);
-  //
-  //     await page.keyboard.press("Tab") // verb -> route
-  //     await page.keyboard.press("Tab") // route -> ast
-  //     await page.keyboard.press("Tab") // ast -> loop back to verb;
-  //     await page.keyboard.press("ArrowDown") // enter AC
-  //     expect(await acHighlightedText(page)).toBe("GET")
-  //     .ok();
-  // });
-
-  // test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({ page }) => {
-  //   await createHTTPHandler(page);
-  //
-  //     await page.keyboard.press("Tab") // verb -> route
-  //     await page.keyboard.press("Tab") // route -> ast
-  //     await page.keyboard.press("TODO: shift+tab); // ast -> back to route;
-  //     await page.keyboard.press("ArrowDown") // enter route
-  //     expect(await acHighlightedText(page)).toBe("/")
-  //     .ok();
-  // });
+    await page.keyboard.press("Tab"); // verb -> route
+    await page.keyboard.press("Tab"); // route -> ast
+    await page.keyboard.press("Shift+Tab"); // ast -> back to route
+    await page.keyboard.press("ArrowDown"); // enter route
+    await expectExactText(page, acHighlightedValue, "/");
+  });
 
   test("fluid_test_copy_request_as_curl", async ({ page }) => {
     await page.click(".toplevel.tl-91390945");
@@ -1185,202 +1121,188 @@ test("feature_flag_in_function", async ({ page }) => {
     // analysis done before we can call the command
   });
 
-  // test("fluid_ac_validate_on_lose_focus", async ({ page }) => {
-  //   await createHTTPHandler(page);
-  //   await gotoAST(page);
-  //
-  //     await page.type("#active-editor", "request.body");
-  //     .click("#app", { offsetX: 500, offsetY: 50 }) //click away from fluid
-  //     .expect(true)
-  //     .ok();
-  //   // validate AST in IntegrationTest.ml
-  // });
+  test("fluid_ac_validate_on_lose_focus", async ({ page }) => {
+    await createEmptyHTTPHandler(page);
+    await gotoAST(page);
 
-  // async function upload_pkg_for_tlid(t, tlid) {
-  //   .navigateTo(`#fn=${tlid}`);
-  //
-  //     await page.click(".fn-actions > .menu > .more-actions > .toggle-btn");
-  //     .expect(true)
-  //     .ok();
-  //
-  //     .click(
-  //       Selector(
-  //         ".fn-actions > .menu > .more-actions > .actions > .item",
-  //       ).withText("Upload Function"),
-  //     )
-  //     await page.waitForSelector(".error-panel.show");
-  //     .ok({ timeout: 1000 });
-  // }
+    await page.type("#active-editor", "request.body");
+    await page.click("#app", { position: { x: 500, y: 50 } }); //click away from fluid
+    // validate AST in IntegrationTest.ml
+  });
 
-  // // this tests:
-  // // - happy path upload
-  // // - upload fails b/c the db already has a fn with this name + version
-  // // - upload fails b/c the version we're trying to upload is too low (eg, if you
-  // // already have a v1, you can't upload a v0)
-  // test("upload_pkg_fn_as_admin", async ({ page }) => {
-  //   // upload v1/2/3 depending whether this is test run 1/2/3
-  //   const tlid = t.testRun.quarantine.attempts.length + 1;
+  async function upload_pkg_for_tlid(
+    page: Page,
+    testInfo: TestInfo,
+    tlid: number,
+  ) {
+    await gotoHash(page, testInfo, `fn=${tlid}`);
+    await page.click(".fn-actions > .menu > .more-actions > .toggle-btn");
+    page.click(
+      ".fn-actions > .menu > .more-actions > .actions > .item text='Upload function'",
+    );
+    await page.waitForSelector(".error-panel.show");
+  }
 
-  //   // it should succeed, it's a new package_fn
-  //   await upload_pkg_for_tlid(t, tlid);
-  //
-  //     .expect(Selector(".error-panel.show").textContent)
-  //     .eql("Successfully uploaded functionDismiss");
-  //   await page.click(".dismissBtn");
+  // this tests:
+  // - happy path upload
+  // - upload fails b/c the db already has a fn with this name + version
+  // - upload fails b/c the version we're trying to upload is too low (eg, if you
+  // already have a v1, you can't upload a v0)
+  test("upload_pkg_fn_as_admin", async ({ page }, testInfo) => {
+    // upload v1/2/3 depending whether this is test run 1/2/3
+    const tlid = testInfo.retry + 1;
 
-  //   // second (attempted) upload should fail, as we've already uploaded this
-  //   await upload_pkg_for_tlid(t, tlid);
-  //   const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expect(Selector(".error-panel.show").textContent).eql(failureMsg);
-  //   await page.click(".dismissBtn");
+    // it should succeed, it's a new package_fn
+    await upload_pkg_for_tlid(page, testInfo, tlid);
 
-  //   // attempting to upload v0 should fail, because we already have a version
-  //   // greater than 0 in the db
-  //   await upload_pkg_for_tlid(t, 0);
-  //   // this failureMsg2 is the same as failureMsg above, because its text dpends
-  //   // on the latest version (and the next valid version of the fn), not the
-  //   // version you tried to upload
-  //   const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expect(Selector(".error-panel.show").textContent).eql(failureMsg2);
-  //   await page.click(".dismissBtn");
-  // });
+    await expectExactText(
+      page,
+      ".error-panel.show",
+      "Successfully uploaded functionDismiss",
+    );
+    await page.click(".dismissBtn");
 
-  // test("use_pkg_fn", async ({ page }) => {
-  //   const attempt = t.testRun.quarantine.attempts.length + 1;
-  //   const url = `/${attempt}`;
-  //   await createHTTPHandler(page);
-  //
-  //     // add headers
-  //     await page.type(entryBox, "GE");
-  //     expect(await acHighlightedText(page)).toBe("GET")
-  //     .ok()
-  //     await page.keyboard.press("Enter");
-  //     await page.type(entryBox, url);
-  //     await page.keyboard.press("Enter");;
+    //   // second (attempted) upload should fail, as we've already uploaded this
+    await upload_pkg_for_tlid(page, testInfo, tlid);
+    const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+      tlid + 1
+    }? (UploadFnAPICallback)Dismiss`;
+    await expectExactText(page, ".error-panel.show", failureMsg);
+    await page.click(".dismissBtn");
 
-  //   await gotoAST(page);
+    // attempting to upload v0 should fail, because we already have a version
+    // greater than 0 in the db
+    await upload_pkg_for_tlid(page, testInfo, 0);
+    // this failureMsg2 is the same as failureMsg above, because its text dpends
+    // on the latest version (and the next valid version of the fn), not the
+    // version you tried to upload
+    const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+      tlid + 1
+    }? (UploadFnAPICallback)Dismiss`;
+    await expectExactText(page, ".error-panel.show", failureMsg2);
+    await page.click(".dismissBtn");
+  });
 
-  //   // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
-  //   // in the autocomplete
-  //
-  //     await page.type("#active-editor", "test_admin");
-  //     .expect(Selector(".autocomplete-item.fluid-selected.valid").textContent)
-  //     .eql("test_admin/stdlib/Test::one_v0Any")
-  //     await page.keyboard.press("Enter");;
+  test("use_pkg_fn", async ({ page }, testInfo) => {
+    const attempt = testInfo.retry + 1;
+    const url = `/${attempt}`;
+    await createEmptyHTTPHandler(page);
 
-  //   // this await confirms that we can get a live value in the editor
-  //
-  //     await page.click(".execution-button")
-  //     .expect(Selector(".return-value", { timeout: 3000 }).textContent)
-  //     .contains("0");
+    // add headers
+    await page.type(entryBox, "GE");
+    await expectExactText(page, acHighlightedValue, "GET");
+    await page.keyboard.press("Enter");
+    await page.type(entryBox, url);
+    await page.keyboard.press("Enter");
 
-  //   // check if we can get a result from the bwd endpoint
-  //   const callBackend = ClientFunction(function (url) {
-  //     var xhttp = new XMLHttpRequest();
-  //     xhttp.open("GET", url, false);
-  //     xhttp.send(null);
-  //     return xhttp.responseText;
-  //   });
-  //   const resp = await callBackend(user_content_url(t, url));
-  //   await expect(resp).eql("0");
-  // });
+    await gotoAST(page);
 
-  // test("fluid_show_docs_for_command_on_selected_code", async ({ page }) => {
-  //   await createRepl(page);
-  //   await gotoAST(page);
-  //   .typeText("#active-editor", "1999")await page.keyboard.press("TODO: ctrl+\\);;
+    // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
+    // in the autocomplete
 
-  //   await expect(Selector("#cmd-filter").exists).ok();
-  //   await expect(Selector(".documentation-box").exists).ok();
-  // });
+    await page.type("#active-editor", "test_admin");
+    await expectExactText(
+      page,
+      ".autocomplete-item.fluid-selected.valid",
+      "test_admin/stdlib/Test::one_v0Any",
+    );
+    await page.keyboard.press("Enter");
 
-  // // Regression test:
-  // // Pre-fix, we expect the response body to be "Zm9v" ("foo" |> base64).
-  // // Post-fix, we expect "foo"
-  // test("fluid-bytes-response", async ({ page }) => {
-  //   const url = "/";
-  //   const resp = await getBwdResponse(user_content_url(t, url));
-  //   await expect(resp).eql("foo");
-  // });
+    // this await confirms that we can get a live value in the editor
 
-  // test("double_clicking_blankor_selects_it", async ({ page }) => {
-  //   // This is part of fixing double-click behaviour in HTTP headers and other
-  //   // blank-ors. When you clicked on the HTTP header, the caret did not stay in
-  //   // the header. This checks that it does.
-  //   //
-  //   // I managed to fix it by determining that the doubleclick handler was
-  //   // failing, and fixing that. However, it didn't give it the ideal behaviour,
-  //   // where the word double-clicked on would be highlighted.
-  //   //
-  //   // So this test is not for the ideal behaviour, but for the
-  //   // non-obviously-broken behaviour.
-  //   let selector = Selector(".toplevel .spec-header .toplevel-name");
-  //   await expect(selector.exists).ok();
-  //   .doubleClick(selector);
+    await page.click(".execution-button");
+    await expectExactText(page, ".return-value", "0");
 
-  //   // Selected text is /hello
-  //   selector = Selector(".toplevel .spec-header .toplevel-name #entry-box");
-  //   await expect(selector.exists).ok();
-  //   await expect(await getElementSelectionStart(selector)).typeOf("number");
-  // });
+    // check if we can get a result from the bwd endpoint
+    let response = await get(page, bwdUrl(testInfo, url));
+    await expect(response).toBe("0");
+  });
 
-  // test("abridged_sidebar_content_visible_on_hover", async ({ page }) => {
-  //   // collapse sidebar to abridged mode
-  //   await page.click(".toggle-sidebar-btn");
-  //   await Selector(".viewing-table.abridged", { timeout: 5000 })();
-  //   await expect(Selector(".viewing-table.abridged").exists).ok();
+  test("fluid_show_docs_for_command_on_selected_code", async ({ page }) => {
+    await createRepl(page);
+    await gotoAST(page);
+    await page.type("#active-editor", "1999");
+    await page.keyboard.press("Control+\\");
 
-  //   const httpCatSelector = ".sidebar-category.http";
+    await page.waitForSelector("#cmd-filter");
+    await page.waitForSelector(".documentation-box");
+  });
 
-  //   // hovering over a category makes its contents visible
-  //
-  //     .expect(Selector(httpCatSelector + " .category-content").visible)
-  //     .notOk();
+  // Regression test:
+  // Pre-fix, we expect the response body to be "Zm9v" ("foo" |> base64).
+  // Post-fix, we expect "foo"
+  test("fluid-bytes-response", async ({ page }, testInfo) => {
+    const resp = await get(page, bwdUrl(testInfo, "/"));
+    await expect(resp).toBe("foo");
+  });
 
-  //
-  //     .hover(httpCatSelector)
-  //     .expect(Selector(httpCatSelector + " .category-content").visible)
-  //     .ok();
-  // });
+  test("double_clicking_blankor_selects_it", async ({ page }) => {
+    // This is part of fixing double-click behaviour in HTTP headers and other
+    // blank-ors. When you clicked on the HTTP header, the caret did not stay in
+    // the header. This checks that it does.
+    //
+    // I managed to fix it by determining that the doubleclick handler was
+    // failing, and fixing that. However, it didn't give it the ideal behaviour,
+    // where the word double-clicked on would be highlighted.
+    //
+    // So this test is not for the ideal behaviour, but for the
+    // non-obviously-broken behaviour.
+    let selector = ".toplevel .spec-header .toplevel-name";
+    await page.dblclick(selector);
 
-  // test("abridged_sidebar_category_icon_click_disabled", async ({ page }) => {
-  //   // collapse sidebar to abridged mode
-  //   await page.click(".toggle-sidebar-btn");
-  //   await Selector(".viewing-table.abridged", { timeout: 5000 })();
-  //   await expect(Selector(".viewing-table.abridged").exists).ok();
+    // Selected text is /hello
+    selector = ".toplevel .spec-header .toplevel-name #entry-box";
+    let result = await getElementSelectionStart(page, selector);
+    await expect(typeof result).toBe("number");
+  });
 
-  //   const httpCatSelector = ".sidebar-category.http";
-  //   const dbCatSelector = ".sidebar-category.dbs";
+  test("abridged_sidebar_content_visible_on_hover", async ({ page }) => {
+    // uncollapse sidebar first (collapsed for easier testing via localstorage)
+    await page.click(".toggle-sidebar-btn");
+    await page.waitForSelector("text='Collapse sidebar'");
+    // collapse sidebar to abridged mode
+    await page.click(".toggle-sidebar-btn");
+    await page.waitForSelector(".viewing-table.abridged");
 
-  //   // clicking on a category icon does not keep it open if you mouse elsewhere
-  //   .click(httpCatSelector + " .category-icon");
-  //   .click(dbCatSelector + " .category-icon");
-  //
-  //     .expect(Selector(httpCatSelector + " .category-content").visible)
-  //     .notOk();
-  // });
+    const httpCatSelector = ".sidebar-category.http";
 
-  // test("function_docstrings_are_valid", async ({ page }) => {
-  //   // validate functions in IntegrationTest.ml
-  // });
+    // hovering over a category makes its contents visible
+    let locator = page.locator(httpCatSelector + " .category-content");
+    await expect(locator).not.toBeVisible();
 
-  // test("record_consent_saved_across_canvases", async ({ page }) => {
-  //   await page.click("#fs-consent-yes");
-  //   .wait(1500);
-  //   await expect(Selector(".fullstory-modal.hide").exists).ok();
+    await page.hover(httpCatSelector);
+    await expect(locator).toBeVisible();
+  });
 
-  //   // navigate to another canvas
-  //   .navigateTo(`${BASE_URL}another-canvas`);
-  //   await expect(Selector(".fullstory-modal.hide").exists).ok();
+  test("abridged_sidebar_category_icon_click_disabled", async ({ page }) => {
+    const httpCatSelector = ".sidebar-category.http";
+    const dbCatSelector = ".sidebar-category.dbs";
 
-  //   // go back to original canvas to end the test
-  //   const testname = t.testRun.test.name;
-  //   .navigateTo(`${BASE_URL}${testname}?integration-test=true`);
-  // });
+    // clicking on a category icon does not keep it open if you mouse elsewhere
+    await page.click(httpCatSelector + " .category-icon");
+    await page.click(dbCatSelector + " .category-icon");
+
+    await expect(
+      page.locator(httpCatSelector + " .category-content"),
+    ).not.toBeVisible();
+  });
+
+  test("function_docstrings_are_valid", async ({ page }) => {
+    // validate functions in IntegrationTest.ml
+  });
+
+  test("record_consent_saved_across_canvases", async ({ page }, testInfo) => {
+    await page.click("#fs-consent-yes");
+    await page.waitForSelector(".fullstory-modal.hide");
+
+    // navigate to another canvas
+    await page.goto(`${BASE_URL}/a/test-another-canvas`);
+    await page.waitForSelector(".fullstory-modal.hide");
+
+    // go back to original canvas to end the test
+    const testname = testInfo.title;
+    await page.goto(`${BASE_URL}/a/test-${testname}?integration-test=true`);
+  });
 
   // // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
   // // didn't solve the problem
@@ -1396,234 +1318,191 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
   // */
 
-  // test("unexe_code_unfades_on_focus", async ({ page }) => {
-  //   const timestamp = new Date();
-  //   await page.click(".fluid-entry");
-  //   awaitAnalysis(t, timestamp);
-  //   // move caret into a single line
-  //   .click(".id-1459002816", { timeout: 500 });
-  //
-  //     .expect(
-  //       Selector(".id-1459002816.fluid-not-executed.fluid-code-focus").exists,
-  //     )
-  //     .ok();
-  //
-  //     .expect(
-  //       Selector(".id-2073307217.fluid-not-executed.fluid-code-focus").exists,
-  //     )
-  //     .ok();
+  test("unexe_code_unfades_on_focus", async ({ page }) => {
+    const timestamp = Date.now();
+    await page.click(".fluid-entry");
+    await awaitAnalysis(page, timestamp);
+    // move caret into a single line
+    await page.click(".id-1459002816");
+    await page.waitForSelector(
+      ".id-1459002816.fluid-not-executed.fluid-code-focus",
+    );
+    await page.waitForSelector(
+      ".id-2073307217.fluid-not-executed.fluid-code-focus",
+    );
 
-  //   // move caret into multiline string
-  //   .click(".fluid-string-ml-start", { timeout: 500 });
-  //
-  //     .expect(
-  //       Selector(".fluid-string-ml-start.fluid-not-executed.fluid-code-focus")
-  //         .exists,
-  //     )
-  //     .ok();
-  //
-  //     .expect(
-  //       Selector(".fluid-string-ml-middle.fluid-not-executed.fluid-code-focus")
-  //         .exists,
-  //     )
-  //     .ok();
-  //
-  //     .expect(
-  //       Selector(".fluid-string-ml-end.fluid-not-executed.fluid-code-focus")
-  //         .exists,
-  //     )
-  //     .ok();
+    // move caret into multiline string
+    await page.click(".fluid-string-ml-start", {
+      timeout: 500,
+      position: { x: 10, y: 4 }, // otherwise it sometimes clicks on the sidebar
+    });
+    await page.waitForSelector(
+      ".fluid-string-ml-start.fluid-not-executed.fluid-code-focus",
+    );
+    await page.waitForSelector(
+      ".fluid-string-ml-middle.fluid-not-executed.fluid-code-focus",
+    );
+    await page.waitForSelector(
+      ".fluid-string-ml-end.fluid-not-executed.fluid-code-focus",
+    );
 
-  //   // move caret into list literal
-  //   .click(".fluid-list-comma", { timeout: 500 });
-  //
-  //     .expect(
-  //       Selector(".fluid-list-open.fluid-not-executed.fluid-code-focus").exists,
-  //     )
-  //     .ok();
-  //
-  //     .expect(
-  //       Selector(".fluid-list-close.fluid-not-executed.fluid-code-focus").exists,
-  //     )
-  //     .ok();
+    // move caret into list literal
+    await page.click(".fluid-list-comma");
+    await page.waitForSelector(
+      ".fluid-list-open.fluid-not-executed.fluid-code-focus",
+    );
+    await page.waitForSelector(
+      ".fluid-list-close.fluid-not-executed.fluid-code-focus",
+    );
 
-  //   // move caret into object literal
-  //   .click(".fluid-record-sep", { timeout: 500 });
-  //
-  //     .expect(
-  //       Selector(".fluid-record-open.fluid-not-executed.fluid-code-focus").exists,
-  //     )
-  //     .ok();
-  //
-  //     .expect(
-  //       Selector(".fluid-record-fieldname.fluid-not-executed.fluid-code-focus")
-  //         .exists,
-  //     )
-  //     .ok();
-  //
-  //     .expect(
-  //       Selector(".id-2108109721.fluid-not-executed.fluid-code-focus").exists,
-  //     )
-  //     .ok();
-  //
-  //     .expect(
-  //       Selector(".fluid-record-close.fluid-not-executed.fluid-code-focus")
-  //         .exists,
-  //     )
-  //     .ok();
-  // });
+    // move caret into object literal
+    await page.click(".fluid-record-sep");
+    await page.waitForSelector(
+      ".fluid-record-open.fluid-not-executed.fluid-code-focus",
+    );
+    await page.waitForSelector(
+      ".fluid-record-fieldname.fluid-not-executed.fluid-code-focus",
+    );
+    await page.waitForSelector(
+      ".id-2108109721.fluid-not-executed.fluid-code-focus",
+    );
+    await page.waitForSelector(
+      ".fluid-record-close.fluid-not-executed.fluid-code-focus",
+    );
+  });
 
-  // test("create_from_404", async ({ page }) => {
-  //   const f0fCategory = Selector(".sidebar-category.fof");
+  test("create_from_404", async ({ page }) => {
+    const f0fCategory = ".sidebar-category.fof";
 
-  //   const sendPushEvent = ClientFunction(function () {
-  //     const data = [
-  //       "HTTP",
-  //       "/nonexistant",
-  //       "GET",
-  //       "2019-03-15T22:16:40Z",
-  //       "0623608c-a339-45b3-8233-0eec6120e0df",
-  //     ];
-  //     var event = new CustomEvent("new404Push", { detail: data });
-  //     document.dispatchEvent(event);
-  //   });
+    await page.evaluate(() => {
+      const data = [
+        "HTTP",
+        "/nonexistant",
+        "GET",
+        "2019-03-15T22:16:40Z",
+        "0623608c-a339-45b3-8233-0eec6120e0df",
+      ];
+      var event = new CustomEvent("new404Push", { detail: data });
+      document.dispatchEvent(event);
+    });
 
-  //   await sendPushEvent();
+    await expect(page.locator(f0fCategory)).not.toHaveClass(/empty/, {
+      timeout: 5000,
+    });
+    await page.hover(f0fCategory);
+    await page.click(".fof > .category-content > .simple-item > .add-button");
 
-  //   .wait(5000);
-  //   await expect(f0fCategory.hasClass("empty")).notOk();
-  //   .click(f0fCategory, { timeout: 2500 });
-  //   .click(".fof > .category-content > .simple-item > .add-button", {
-  //     timeout: 100,
-  //   });
+    await page.waitForSelector(".toplevel .http-get");
+  });
 
-  //
-  //     .expect(Selector(".toplevel .http-get", { timeout: 2500 }).exists)
-  //     .ok();
-  // });
+  test("unfade_command_palette", async ({ page }) => {
+    await page.dblclick(".fluid-let-keyword");
+    await page.keyboard.press("Control+\\");
+    await page.waitForSelector("#cmd-filter");
 
-  // test("unfade_command_palette", async ({ page }) => {
-  //
-  //     .doubleClick(".fluid-let-keyword")
-  //     await page.keyboard.press("TODO: ctrl+\\);
-  //     .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
-  //     .ok();
+    // Checks Command Palette opens inside a token with full opacity
+    await page.waitForSelector(".fluid-code-focus > .command-palette");
+  });
 
-  //   // Checks Command Palette opens inside a token with full opacity
-  //   await expect(Selector(".fluid-code-focus > .command-palette").exists).ok();
-  // });
+  test("redo_analysis_on_toggle_erail", async ({ page }) => {
+    const fnCall = ".id-108391798";
+    const justExpr = ".id-21312903";
+    const nothingExpr = ".id-1409226084";
+    const errorRail = ".fluid-error-rail";
+    const returnValue = ".return-value";
 
-  // test("redo_analysis_on_toggle_erail", async ({ page }) => {
-  //   const fnCall = Selector(".id-108391798");
-  //   const justExpr = Selector(".id-21312903");
-  //   const nothingExpr = Selector(".id-1409226084");
-  //   const errorRail = Selector(".fluid-error-rail");
-  //   const returnValue = Selector(".return-value");
+    const t0 = Date.now();
+    await page.click(".handler-trigger");
+    await awaitAnalysis(page, t0);
+    await expect(page.locator(errorRail)).toHaveClass(/show/);
+    await expectContainsText(page, returnValue, "<Incomplete>");
+    await expect(page.locator(justExpr)).toHaveClass(/fluid-not-executed/);
+    await expect(page.locator(nothingExpr)).toHaveClass(/fluid-not-executed/);
 
-  //   const t0 = new Date();
-  //   await page.click(".handler-trigger");
-  //   awaitAnalysis(t, t0);
-  //   await expect(errorRail.hasClass("show")).ok();
-  //   await expect(returnValue.innerText).contains("<Incomplete>");
-  //   await expect(justExpr.hasClass("fluid-not-executed")).ok();
-  //   await expect(nothingExpr.hasClass("fluid-not-executed")).ok();
+    // takes function off rail
 
-  //   // takes function off rail
-  //
-  //     .doubleClick(fnCall)
-  //     await page.keyboard.press("TODO: ctrl+\\);
-  //     .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
-  //     .ok();
-  //   .typeText("#cmd-filter", "rail");
-  //
-  //     .expect(Selector(".fluid-selected").innerText)
-  //     .eql("take-function-off-rail");
+    await page.dblclick(fnCall);
+    await page.keyboard.press("Control+\\");
+    await page.waitForSelector("#cmd-filter");
+    await page.type("#cmd-filter", "rail");
 
-  //   // analysis is reruns
-  //   const t1 = new Date();
-  //   await page.keyboard.press("Enter");
-  //   awaitAnalysis(t, t1);
+    await expectExactText(page, ".fluid-selected", "take-function-off-rail");
 
-  //   // assert values have changed
-  //   await expect(errorRail.hasClass("show")).notOk();
-  //   await expect(returnValue.innerText).contains("1");
-  //   await expect(justExpr.hasClass("fluid-not-executed")).notOk();
-  //   await expect(nothingExpr.hasClass("fluid-not-executed")).ok();
-  // });
+    // analysis is reruns
+    const t1 = Date.now();
+    await page.keyboard.press("Enter");
+    await awaitAnalysis(page, t1);
 
-  // test("redo_analysis_on_commit_ff", async ({ page }) => {
-  //   const returnValue = Selector(".return-value");
-  //   const t0 = new Date();
-  //   await page.click(".handler-trigger");
-  //   awaitAnalysis(t, t0);
-  //   await expect(returnValue.innerText).contains("farewell Vanessa Ives");
+    // assert values have changed
 
-  //   // commits feature flag
-  //
-  //     .doubleClick(".in-flag")
-  //     await page.keyboard.press("TODO: ctrl+\\);
-  //     .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
-  //     .ok();
-  //   .typeText("#cmd-filter", "commit");
-  //
-  //     .expect(Selector(".fluid-selected").innerText)
-  //     .eql("commit-feature-flag");
+    await expect(page.locator(errorRail)).not.toHaveClass(/show/);
+    await expectContainsText(page, returnValue, "1");
+    await expect(page.locator(justExpr)).not.toHaveClass(/fluid-not-executed/);
+    await expect(page.locator(nothingExpr)).toHaveClass(/fluid-not-executed/);
+  });
 
-  //   // analysis is reruns
-  //   const t1 = new Date();
-  //   await page.keyboard.press("Enter");
-  //   awaitAnalysis(t, t1);
+  test("redo_analysis_on_commit_ff", async ({ page }) => {
+    const returnValue = ".return-value";
+    const t0 = Date.now();
+    await page.click(".handler-trigger");
+    await awaitAnalysis(page, t0);
+    await expectContainsText(page, returnValue, "farewell Vanessa Ives");
 
-  //   await expect(returnValue.innerText).contains("farewell Dorian Gray");
-  // });
+    // commits feature flag
 
-  // test("package_function_references_work", async ({ page }) => {
-  //   const repl = Selector(".toplevel.tl-92595864");
-  //   const refersTo = Selector(".ref-block.refers-to.pkg-fn");
-  //   const usedIn = Selector(".ref-block.used-in.handler");
+    await page.dblclick(".in-flag");
+    await page.keyboard.press("Control+\\");
+    await page.waitForSelector("#cmd-filter");
+    await page.type("#cmd-filter", "commit");
+    await expectExactText(page, ".fluid-selected", "commit-feature-flag");
 
-  //
-  //     // Start at this specific repl handler
-  //     await gotoHash(page, testInfo, "handler=92595864");
-  //     .expect(available(repl))
-  //     .ok()
-  //     // Test that the handler we navigated to has a reference to a package manager function
-  //     .expect(available(refersTo))
-  //     .ok()
-  //     .expect(Selector(".ref-block.refers-to .fnheader").textContent)
-  //     .eql("test_admin/stdlib/Test::one_v0")
-  //     .click(refersTo)
-  //     // Clicking on it should bring us to that function
-  //     await page.waitForSelector(".toplevel .pkg-fn-toplevel");
-  //     .ok()
-  //     // which should contain a reference to where we just came from
-  //     .expect(available(usedIn))
-  //     .ok()
-  //     .expect(usedIn.textContent)
-  //     .eql("REPLpkgFnTest")
-  //     // and clicking on that should bring us back.
-  //     .click(usedIn)
-  //     .expect(available(repl))
-  //     .ok();
-  // });
+    // analysis is reruns
+    const t1 = Date.now();
+    await page.keyboard.press("Enter");
+    await awaitAnalysis(page, t1);
 
-  // test("focus_on_secret_field_on_insert_modal_open", async ({ page }) => {
-  //
-  //     .expect(
-  //       Selector(".sidebar-category.secrets .create-tl-icon", { timeout: 1500 })
-  //         .exists,
-  //     )
-  //     .ok();
+    await expectContainsText(page, returnValue, "farewell Dorian Gray");
+  });
 
-  //   await createRepl(page);
-  //   .typeText("#active-editor", '"Hello world!"');
+  test("package_function_references_work", async ({ page }, testInfo) => {
+    const repl = ".toplevel.tl-92595864";
+    const refersTo = ".ref-block.refers-to.pkg-fn";
+    const usedIn = ".ref-block.used-in.handler";
 
-  //   await page.click(".sidebar-category.secrets .create-tl-icon");
+    // Start at this specific repl handler
+    await gotoHash(page, testInfo, "handler=92595864");
+    await page.waitForSelector(repl);
+    // Test that the handler we navigated to has a reference to a package manager function
+    await page.waitForSelector(refersTo);
+    await expectExactText(
+      page,
+      ".ref-block.refers-to .fnheader",
+      "test_admin/stdlib/Test::one_v0",
+    );
+    await page.click(refersTo);
+    // Clicking on it should bring us to that function
+    await page.waitForSelector(".toplevel .pkg-fn-toplevel");
+    // which should contain a reference to where we just came from
+    await page.waitForSelector(usedIn);
+    await expectExactText(page, usedIn, "REPLpkgFnTest");
 
-  //   const nameInput = Selector("#new-secret-name-input");
+    // and clicking on that should bring us back.
+    await page.click(usedIn);
+    await page.waitForSelector(repl);
+  });
 
-  //   await expect(nameInput.focused).ok();
+  test("focus_on_secret_field_on_insert_modal_open", async ({ page }) => {
+    await page.waitForSelector(".sidebar-category.secrets .create-tl-icon");
 
-  //   await page.click(".modal.insert-secret .close-btn");
-  // });
+    await createRepl(page);
+    await page.type("#active-editor", '"Hello world!"');
+
+    await page.click(".sidebar-category.secrets .create-tl-icon");
+
+    const nameInput = "#new-secret-name-input";
+
+    await expect(page.locator(nameInput)).toBeFocused();
+
+    await page.click(".modal.insert-secret .close-btn");
+  });
 });
