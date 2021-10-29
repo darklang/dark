@@ -411,9 +411,9 @@ jobs:
       - attach_workspace: { at: "." }
       - restore_cache: # get playwright
           keys:
-            - v1-playwright-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v1-playwright-{{ checksum "package-lock.json" }}
-            - v1-playwright
+            - v2-playwright-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v2-playwright-{{ checksum "package-lock.json" }}
+            - v2-playwright
       - show-large-files-and-directories
       - run:
           name: Install node 16
@@ -445,8 +445,8 @@ jobs:
       - store_test_results: { path: rundir/test_results }
       - save_cache:
           name: "Save packagejson-specific cache"
-          paths: ["integration-tests/node_modules"]
-          key: v1-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
+          paths: ["integration-tests/node_modules", "/home/dark/.cache/ms-playwright"]
+          key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
       - notify-job-failure
 
 
