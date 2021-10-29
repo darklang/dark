@@ -418,10 +418,9 @@ jobs:
       - run:
           name: Install node 16
           command: |
-            sudo su -
-            echo "deb https://deb.nodesource.com/node_16.x focal main" > /etc/apt/sources.list.d/nodesource.list
-            apt update
-            apt install nodejs
+            echo "deb https://deb.nodesource.com/node_16.x focal main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+            sudo apt update
+            sudo apt install nodejs
 
       - run: "cd integration-tests && npm install"
       - run:
