@@ -61,13 +61,61 @@ async function awaitAnalysis(page: Page, lastTimestamp: number) {
   });
 }
 
-// fixture`Integration Tests`
-test.describe.parallel("Integration Tests", async () => {
-  test.beforeAll(async () => {
-    test.messages = [];
+// Wait until the frontend is loaded - this is when we know we are able to do analyses
+
+interface AnalyisLoadPromiseHolder {
+  analysisLoadPromise: Promise<boolean>;
+}
+
+function createLibfrontendLoadPromise(
+  testInfo: TestInfo,
+  page: Page,
+): AnalyisLoadPromiseHolder & TestInfo {
+  let ti = <TestInfo & AnalyisLoadPromiseHolder>testInfo;
+  ti.analysisLoadPromise = new Promise((resolve, reject) => {
+    page.on("console", async (msg: ConsoleMessage) => {
+      if (msg.text() === "libfrontend reporting in") {
+        resolve(true);
+      }
+    });
   });
+  return ti;
+}
+async function awaitAnalysisLoad(testInfo: TestInfo): Promise<void> {
+  let ti = <AnalyisLoadPromiseHolder & TestInfo>testInfo;
+  await expect(await ti.analysisLoadPromise).toBe(true, {
+    timeout: 10000,
+  });
+}
+
+interface MessagesHolder {
+  messages: ConsoleMessage[];
+}
+function initMessages(testInfo: TestInfo) {
+  let ti = <MessagesHolder & TestInfo>testInfo;
+  ti.messages = [];
+}
+
+function getMessages(testInfo: TestInfo) {
+  let ti = <MessagesHolder & TestInfo>testInfo;
+  return ti.messages;
+}
+
+function saveMessage(testInfo: TestInfo, msg: ConsoleMessage) {
+  let ti = <MessagesHolder & TestInfo>testInfo;
+  ti.messages.push(msg);
+}
+
+function clearMessages(testInfo: TestInfo) {
+  let ti = <MessagesHolder & TestInfo>testInfo;
+  ti.messages = [];
+}
+
+test.describe.parallel("Integration Tests", async () => {
   // To add this user, run the backend tests
   test.beforeEach(async ({ page }, testInfo) => {
+    initMessages(testInfo);
+    createLibfrontendLoadPromise(testInfo, page);
     page.on("pageerror", async err => {
       console.error(err);
     });
@@ -79,7 +127,7 @@ test.describe.parallel("Integration Tests", async () => {
       if (msg.type() == "error") {
         console.error(msg.text());
       }
-      test.messages.push(msg);
+      saveMessage(testInfo, msg);
     });
     const testname = testInfo.title;
     var url = `/a/test-${testname}?integration-test=true`;
@@ -103,7 +151,7 @@ test.describe.parallel("Integration Tests", async () => {
     // write out all logs
     let flushedLogs = false;
     function flushLogs(): boolean {
-      let logs = test.messages.map(
+      let logs = getMessages(testInfo).map(
         (msg: ConsoleMessage) => `${msg.type()}: ${msg.text()}`,
       );
       let filename = `rundir/integration_test_logs/${testname}.log`;
@@ -130,7 +178,7 @@ test.describe.parallel("Integration Tests", async () => {
         await expect(class_).not.toContain("failure");
 
         // Ensure there are no errors in the logs
-        let errorMessages = test.messages.filter(
+        let errorMessages = getMessages(testInfo).filter(
           (msg: ConsoleMessage) => msg.type() == "error",
         );
         errorMessages.map((msg: ConsoleMessage) =>
@@ -275,16 +323,6 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector("#entry-box >> text=''");
   }
 
-  function createLibfrontendLoadPromise(page: Page) {
-    return new Promise((resolve, reject) => {
-      page.on("console", async (msg: ConsoleMessage) => {
-        if (msg.text() === "libfrontend reporting in") {
-          resolve(true);
-        }
-      });
-    });
-  }
-
   async function gotoHash(page: Page, testInfo: TestInfo, hash: string) {
     const testname = testInfo.title;
     var url = `/a/test-${testname}?integration-test=true`;
@@ -397,12 +435,10 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(entryBox);
   });
 
-  test("field_access_closes", async ({ page }) => {
-    let frontendLoaded = createLibfrontendLoadPromise(page);
-
+  test("field_access_closes", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
-    await expect(await frontendLoaded).toBe(true, { timeout: 10000 });
+    await awaitAnalysisLoad(testInfo);
 
     await page.type("#active-editor", "re");
     let start = Date.now();
@@ -418,12 +454,10 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("field_access_pipes", async ({ page }) => {
-    let frontendLoaded = createLibfrontendLoadPromise(page);
-
+  test("field_access_pipes", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
-    await expect(await frontendLoaded).toBe(true, { timeout: 10000 });
+    await awaitAnalysisLoad(testInfo);
 
     await page.type("#active-editor", "req");
     await expectContainsText(page, fluidACHighlightedValue, "request");
@@ -1147,7 +1181,7 @@ test("feature_flag_in_function", async ({ page }) => {
     // analysis done before we can call the command
   });
 
-  test("fluid_ac_validate_on_lose_focus", async ({ page }) => {
+  test("fluid_ac_validate_on_lose_focus", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
 
@@ -1156,7 +1190,7 @@ test("feature_flag_in_function", async ({ page }) => {
     // validate AST in IntegrationTest.ml
 
     // CLEANUP: there's a log that shouldn't happen here
-    test.messages = [];
+    clearMessages(testInfo);
   });
 
   async function upload_pkg_for_tlid(
@@ -1212,7 +1246,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(".dismissBtn");
 
     // CLEANUP: this is a hack to get the test to pass, but really the errors should be cleared up
-    test.messages = [];
+    clearMessages(testInfo);
   });
 
   test("use_pkg_fn", async ({ page }, testInfo) => {
@@ -1220,12 +1254,14 @@ test("feature_flag_in_function", async ({ page }) => {
     const url = `/${attempt}`;
     await createHTTPHandler(page, "GET", url);
     await gotoAST(page);
+    await awaitAnalysisLoad(testInfo);
 
     // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
     // in the autocomplete
-    let ts = Date.now();
+    let before = Date.now();
     await page.type("#active-editor", "test_admin");
-    await awaitAnalysis(page, ts);
+    await awaitAnalysis(page, before);
+    console.log("AnalysisWorker loaded");
     await expectExactText(
       page,
       ".autocomplete-item.fluid-selected.valid",
@@ -1333,7 +1369,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
     // there are errors loading some assets cause we're changing pages pretty fast.
     // Doesn't really matter, so ignore.
-    test.messages = [];
+    clearMessages(testInfo);
   });
 
   // // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
