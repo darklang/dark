@@ -446,7 +446,7 @@ jobs:
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: ["integration-tests/node_modules"]
-          key: v3-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
+          key: v1-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
 
 
       - notify-job-failure
