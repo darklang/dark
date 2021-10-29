@@ -437,7 +437,6 @@ jobs:
       - notify-job-failure
 
 
-
   rust-integration-tests:
     executor: in-rust-container
     steps:
