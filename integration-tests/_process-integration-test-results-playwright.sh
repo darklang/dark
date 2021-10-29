@@ -45,5 +45,5 @@ jq '.suites[0].suites[0].specs' \
             | sed -e 's/[^A-Za-z0-9_ =:/.-]//g' \
             | sed -e 's/\(.*\)=\(.*\)/{"\1": "\2"}/' \
             | jq -s add) \
-        '. + $env_vars' \
+        '. | [.[] | . + $env_vars ]' \
     | jq -c '.'
