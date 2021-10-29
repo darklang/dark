@@ -470,8 +470,7 @@ test.describe.parallel("Integration Tests", async () => {
     await createRepl(page);
 
     // Fill in "then" box in if stmt
-    await page.type("#active-editor", "if");
-    await page.keyboard.press("Space");
+    await page.type("#active-editor", "if ");
     await page.keyboard.press("Tab");
     await page.type("#active-editor", "5");
   });
@@ -551,6 +550,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".spec-header > .toplevel-type >.space");
     await selectAll(page);
     await page.keyboard.press("Backspace");
+    await waitForEmptyEntryBox(page);
     await page.type(entryBox, "CRON");
     await page.keyboard.press("Enter");
   });
