@@ -65,20 +65,26 @@ BROWSER="chromium"
 # Run playwright
 ######################
 
+if [[ ! -d "integration-tests/node_modules" ]]; then
+  echo "Packages not installed: run \`npm install\` in integration-tests"
+  exit 1
+fi
 
 # Check the installed version (matters when running outside the container)
 extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
 expected_version=$(grep playwright/test integration-tests/package.json | extract_version)
+version=$(integration-tests/node_modules/.bin/playwright --version | extract_version)
+
+if [[ "$version" != "$expected_version" ]]
+then
+  echo "Incorrect version of playwright: '$version' (expected '$expected_version')"
+  exit 1
+fi
 
 if [[ -v IN_DEV_CONTAINER ]]; then
-  if [[ -d "integration-tests/node_modules" ]]; then
-    echo "integration-tests/node_modules present. That's for the host, delete with \`rm -Rf integration-tests/node_modules\` before continuing."
-    exit 1
-  fi
-
   echo "Starting playwright"
-  node_modules/.bin/playwright --version
-  node_modules/.bin/playwright \
+  integration-tests/node_modules/.bin/playwright --version
+  integration-tests/node_modules/.bin/playwright \
     test \
     --workers "$CONCURRENCY" \
     --grep "$PATTERN" \
@@ -92,17 +98,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   fi
   exit $RESULT
 else
-  if [[ ! -d "integration-tests/node_modules" ]]; then
-    echo "Packages not installed: run \`npm install\` in integration-tests"
-    exit 1
-  fi
-  version=$(integration-tests/node_modules/.bin/playwright --version | extract_version)
-  if [[ "$version" != "$expected_version" ]]
-  then
-    echo "Incorrect version of playwright: '$version' (expected '$expected_version')"
-    exit 1
-  fi
-
+  integration-tests/node_modules/.bin/playwright --version
   BASE_URL="$BASE_URL" integration-tests/node_modules/.bin/playwright test \
     $DEBUG_MODE_FLAG \
     --browser "${BROWSER}" \
