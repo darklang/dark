@@ -1261,7 +1261,6 @@ test("feature_flag_in_function", async ({ page }) => {
     let before = Date.now();
     await page.type("#active-editor", "test_admin");
     await awaitAnalysis(page, before);
-    console.log("AnalysisWorker loaded");
     await expectExactText(
       page,
       ".autocomplete-item.fluid-selected.valid",
