@@ -5,7 +5,7 @@
 # shellcheck disable=SC2002
 
 # Collects the results of integration tests and sends to honeycomb. See
-# scripts/testing/_process-integration-test-results.sh for what gets sent.
+# _process-integration-test-results.sh for what gets sent.
 
 set -euo pipefail
 
@@ -14,7 +14,7 @@ export HONEYCOMB_API_KEY=$BUILDEVENT_APIKEY
 test_results=rundir/test_results/integration_tests.json
 # This format is RFC3339 down to hundredths of a second, which honeycomb
 # accepts (despite docs specifying either RFC3339 or RFC3339 with nanoseconds)
-timestamp="$(cat $test_results | jq -r '.endTime')"
+timestamp=$(date)
 
 cat $test_results \
     | integration-tests/_process-integration-test-results-playwright.sh \
