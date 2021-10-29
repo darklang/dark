@@ -136,7 +136,7 @@ test.describe.parallel("Integration Tests", async () => {
     if (testname.match(/_as_admin/)) {
       username = "test_admin";
     }
-    await page.goto(url);
+    await page.goto(url, { waitUntil: "networkidle" });
     await prepSettings(page, testInfo);
     await page.type("#username", username);
     await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
