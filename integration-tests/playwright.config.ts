@@ -16,6 +16,11 @@ const config: PlaywrightTestConfig = {
     screenshot: "off",
     video: "on",
   },
+  reporter: [
+    ["list"],
+    ["json", { outputFile: "rundir/test_results/integration_tests.json" }],
+    ["xml", { outputFile: "rundir/test_results/integration_tests.xml" }],
+  ],
 };
 
 export default config;
