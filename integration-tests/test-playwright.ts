@@ -1354,6 +1354,11 @@ test("feature_flag_in_function", async ({ page }) => {
   test("record_consent_saved_across_canvases", async ({ page }, testInfo) => {
     await page.click("#fs-consent-yes");
     await page.waitForSelector(".fullstory-modal.hide");
+    await page.waitForFunction(() => {
+      let result = localStorage.getItem("userState-test");
+      result = JSON.parse(result);
+      return result["recordConsent"];
+    });
 
     // navigate to another canvas
     await page.goto(`${BASE_URL}/a/test-another-canvas`, {
