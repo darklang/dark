@@ -94,7 +94,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --config integration-tests/playwright.config.ts
 
   if [[ -v CI ]]; then
-    scripts/testing/_integration-test-results-to-honeycomb.sh
+    integration-tests/_integration-test-results-to-honeycomb-playwright.sh
   fi
   exit $RESULT
 else

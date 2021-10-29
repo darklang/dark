@@ -17,7 +17,7 @@ test_results=rundir/test_results/integration_tests.json
 timestamp="$(cat $test_results | jq -r '.endTime')"
 
 cat $test_results \
-    | scripts/testing/_process-integration-test-results.sh \
+    | integration-tests/_process-integration-test-results-playwright.sh \
     | honeytail --parser=json \
                 --writekey="${HONEYCOMB_API_KEY}" \
                 --dataset="integration-tests" \
