@@ -570,6 +570,7 @@ workflows:
           requires:
             - build-backend
             - build-client
+            - build-fsharp-backend
       - gcp-containers-test:
           context: Default
           requires:
