@@ -428,6 +428,7 @@ jobs:
           command: |
             scripts/build/_generate-etags
             scripts/run-backend-server
+            set -x
 
             # get full list of tests
             grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
