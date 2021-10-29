@@ -201,16 +201,16 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v2-client-{{ checksum "package-lock.json" }}
-            - v2-client
+            - v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v3-client-{{ checksum "package-lock.json" }}
+            - v3-client
       - run: scripts/build/compile-project client --test
       - assert-clean-worktree
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: ["node_modules"]
-          key: v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+          key: v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -377,9 +377,9 @@ jobs:
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
-            - v1d-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v1d-client-{{ checksum "package-lock.json" }}
-            - v1d-client
+            - v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v3-client-{{ checksum "package-lock.json" }}
+            - v3-client
       - show-large-files-and-directories
       - run:
           name: Run integration tests
@@ -411,9 +411,9 @@ jobs:
       - attach_workspace: { at: "." }
       - restore_cache: # get playwright
           keys:
-            - v1d-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v1d-client-{{ checksum "package-lock.json" }}
-            - v1d-client
+            - v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v3-client-{{ checksum "package-lock.json" }}
+            - v3-client
       - show-large-files-and-directories
       - run:
           name: Run integration tests
