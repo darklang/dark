@@ -93,6 +93,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --retries "$RETRIES" \
     --config integration-tests/playwright.config.ts
 
+  RESULT=$?
   if [[ -v CI ]]; then
     integration-tests/_integration-test-results-to-honeycomb-playwright.sh
   fi
