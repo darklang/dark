@@ -566,6 +566,7 @@ workflows:
           requires:
             - build-backend
             - build-client
+            - build-fsharp-backend
       - integration-tests:
           context: Default
           requires:
