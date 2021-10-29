@@ -402,7 +402,7 @@ jobs:
       - store_test_results: { path: rundir/test_results }
       - notify-job-failure
 
- playwright-integration-tests:
+  playwright-integration-tests:
     executor: in-container
     parallelism: 4
     steps:
