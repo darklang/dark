@@ -298,6 +298,7 @@ module Fetcher = {
 
 @val @scope(("window", "location")) external origin: string = "origin"
 
+// CLEANUP remove
 @val @scope("window") external prefix: string = "testcafeInjectedPrefix"
 
 let contextFromModel = (m: model): fetchContext => {
