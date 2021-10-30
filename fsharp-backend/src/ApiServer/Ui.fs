@@ -134,7 +134,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
 
     // Create the data for integration tests
     let integrationTests =
-      ctx.TryGetQueryStringValue "integration_test" |> Option.isSome
+      ctx.TryGetQueryStringValue "integration-test" |> Option.isSome
 
     if integrationTests && Config.allowTestRoutes then
       do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
