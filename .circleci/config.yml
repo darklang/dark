@@ -440,6 +440,7 @@ jobs:
             PATTERN=${PATTERN%?}
             scripts/devcontainer/_wait-until-server-ready
             integration-tests/run-playwright.sh --pattern="$PATTERN"
+            integration-tests/_integration-test-results-to-honeycomb-playwright.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }

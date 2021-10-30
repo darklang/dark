@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+# Run playwright integration tests
+
 set -euo pipefail
 
 # This deliberately can be run outside the container - sometimes you want to test on
@@ -9,6 +12,7 @@ DEBUG_MODE_FLAG=""
 CONCURRENCY=1
 RETRIES=0
 BASE_URL="http://darklang.localhost:8000"
+BROWSER="chromium"
 
 for i in "$@"
 do
@@ -40,29 +44,9 @@ do
   esac
 done
 
-BROWSER="chromium"
 
 ######################
-# Prep (in the container)
-######################
-./integration-tests/prep.sh
-
-######################
-# Set up concurrency
-######################
-# Temporarily disabled until we sort out concurrency-related problems
-# @dstrelau 2020-02-18
-# if [[ "$DEBUG" == "true" ]]; then
-#   CONCURRENCY=1
-# elif [[ -v IN_DEV_CONTAINER ]]; then
-#   # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
-#   # Though perhaps with a larger machine 3x might work better.
-#   CONCURRENCY=2
-# fi
-
-
-######################
-# Run playwright
+# Check the version
 ######################
 
 if [[ ! -d "integration-tests/node_modules" ]]; then
@@ -81,32 +65,21 @@ then
   exit 1
 fi
 
-if [[ -v IN_DEV_CONTAINER ]]; then
-  echo "Starting playwright"
-  integration-tests/node_modules/.bin/playwright --version
-  integration-tests/node_modules/.bin/playwright \
-    test \
-    --workers "$CONCURRENCY" \
-    --grep "$PATTERN" \
-    --browser "${BROWSER}" \
-    --output "${DARK_CONFIG_RUNDIR}/integration-tests/" \
-    --retries "$RETRIES" \
-    --config integration-tests/playwright.config.ts
+######################
+# Prep for tests (in the container)
+######################
+./integration-tests/prep.sh
 
-  RESULT=$?
-  if [[ -v CI ]]; then
-    integration-tests/_integration-test-results-to-honeycomb-playwright.sh
-  fi
-  exit $RESULT
-else
-  integration-tests/node_modules/.bin/playwright --version
-  BASE_URL="$BASE_URL" integration-tests/node_modules/.bin/playwright test \
-    $DEBUG_MODE_FLAG \
-    --browser "${BROWSER}" \
-    --output "rundir/integration-tests/" \
-    --workers "$CONCURRENCY" \
-    --grep "$PATTERN" \
-    --retries "$RETRIES" \
-    --config integration-tests/playwright.config.ts
-
-fi
+######################
+# Run playwright
+######################
+echo "Starting playwright"
+integration-tests/node_modules/.bin/playwright --version
+integration-tests/node_modules/.bin/playwright \
+  test \
+  --workers "$CONCURRENCY" \
+  --grep "$PATTERN" \
+  --browser "${BROWSER}" \
+  --output "${DARK_CONFIG_RUNDIR}/integration-tests/" \
+  --retries "$RETRIES" \
+  --config integration-tests/playwright.config.ts
