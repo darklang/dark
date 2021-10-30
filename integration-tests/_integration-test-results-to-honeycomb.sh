@@ -14,7 +14,7 @@ set -euo pipefail
 timestamp=$(date)
 
 cat rundir/test_results/integration_tests.json \
-    | integration-tests/_process-integration-test-results-playwright.sh \
+    | integration-tests/_process-integration-test-results.sh \
     | honeytail --parser=json \
                 --writekey="${BUILDEVENT_APIKEY}" \
                 --dataset="integration-tests" \
