@@ -676,7 +676,7 @@ let fluid_tabbing_from_handler_spec_past_ast_back_to_verb = (_m: model): testRes
 let fluid_shift_tabbing_from_handler_ast_back_to_route = (_m: model): testResult => pass
 
 let fluid_test_copy_request_as_curl = (m: model): testResult => {
-  // test logic is here b/c testcafe can't get clipboard data
+  // test logic is here b/c testcafe couldn't get clipboard data
   // CLEANUP
   let curl = CurlCommand.curlFromHttpClientCall(
     m,
