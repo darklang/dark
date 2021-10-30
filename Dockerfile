@@ -113,6 +113,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-9.6 \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
+      google-chrome-stable \
       nodejs \
       google-cloud-sdk \
       jq \
@@ -138,7 +139,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       texinfo \
       openssh-server \
-      jq \
       dnsutils \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
