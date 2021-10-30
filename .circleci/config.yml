@@ -368,7 +368,7 @@ jobs:
       - run: bash -c scripts/linting/test-honeycomb-config.sh
       - notify-job-failure
 
-  playwright-integration-tests:
+  integration-tests:
     executor: in-container
     parallelism: 4
     steps:
@@ -394,7 +394,6 @@ jobs:
           command: |
             scripts/build/_generate-etags
             scripts/run-backend-server
-            set -x
 
             # get full list of tests
             grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
@@ -405,8 +404,8 @@ jobs:
             # remove last char
             PATTERN=${PATTERN%?}
             scripts/devcontainer/_wait-until-server-ready
-            integration-tests/run-playwright.sh --pattern="$PATTERN"
-            integration-tests/_integration-test-results-to-honeycomb-playwright.sh
+            integration-tests/run.sh --pattern="$PATTERN"
+            integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
@@ -526,7 +525,7 @@ workflows:
             - build-backend
             - build-client
             - build-queue-scheduler
-      - playwright-integration-tests:
+      - integration-tests:
           context: Default
           requires:
             - build-backend
@@ -563,7 +562,7 @@ workflows:
               only: main
           requires:
             - validate-honeycomb-config
-            - playwright-integration-tests
+            - integration-tests
             - rust-integration-tests
             - push-to-gcp
             - static-checks
@@ -582,7 +581,7 @@ workflows:
             - build-queue-scheduler
             - build-stroller
             - gcp-containers-test
-            - playwright-integration-tests
+            - integration-tests
             - rust-integration-tests
             - static-checks
             - predeployment-checks

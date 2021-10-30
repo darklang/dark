@@ -3,7 +3,7 @@ import { PlaywrightTestConfig, devices } from "@playwright/test";
 
 const config: PlaywrightTestConfig = {
   testDir: ".",
-  testMatch: "test-playwright.*",
+  testMatch: "tests.ts",
   expect: {
     // timeout: 5000,
   },

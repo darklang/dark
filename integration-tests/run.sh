@@ -81,6 +81,6 @@ BASE_URL="$BASE_URL" integration-tests/node_modules/.bin/playwright \
   --workers "$CONCURRENCY" \
   --grep "$PATTERN" \
   --browser "${BROWSER}" \
-  --output "${DARK_CONFIG_RUNDIR}/integration-tests/" \
+  --output "rundir/integration-tests/" \
   --retries "$RETRIES" \
   --config integration-tests/playwright.config.ts
