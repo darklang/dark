@@ -6,8 +6,8 @@
   "private": true,
   "author": "",
   "devDependencies": {
-    "@playwright/test": "1.16.0",
-    "playwright": "1.16.0"
+    "@playwright/test": "1.16.2",
+    "playwright": "1.16.2"
   },
   "dependencies": {}
 }
