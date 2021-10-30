@@ -154,7 +154,7 @@ test.describe.parallel("Integration Tests", async () => {
       let logs = getMessages(testInfo).map(
         (msg: ConsoleMessage) => `${msg.type()}: ${msg.text()}`,
       );
-      let filename = `rundir/integration_test_logs/${testname}.log`;
+      let filename = `rundir/integration-tests/console-logs/${testname}.log`;
       fs.writeFile(filename, logs.join("\n"), () => {});
       return true;
     }
