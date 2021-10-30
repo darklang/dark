@@ -113,7 +113,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-9.6 \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
-      google-chrome-stable \
       nodejs \
       google-cloud-sdk \
       jq \
