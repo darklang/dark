@@ -388,7 +388,6 @@ jobs:
           command: |
             scripts/build/_generate-etags
             scripts/run-backend-server
-            set -x
 
             # get full list of tests
             integration-tests/test-list.sh > rundir/all-tests
