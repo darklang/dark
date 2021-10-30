@@ -75,8 +75,9 @@ fi
 ######################
 echo "Starting playwright"
 integration-tests/node_modules/.bin/playwright --version
-integration-tests/node_modules/.bin/playwright \
+BASE_URL="$BASE_URL" integration-tests/node_modules/.bin/playwright \
   test \
+  $DEBUG_MODE_FLAG \
   --workers "$CONCURRENCY" \
   --grep "$PATTERN" \
   --browser "${BROWSER}" \
