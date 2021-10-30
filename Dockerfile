@@ -273,6 +273,16 @@ RUN sudo pip3 install -U --no-cache-dir -U crcmod \
 ############################
 RUN sudo pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
+RUN pip3 install git+https://github.com/darklang/watchgod.git@5bf4f0f3b49bc64f435f59493b0e17e07a20da0d
+# Formatting
+
+RUN pip3 install yapf==0.31.0
+
+####################################
+# CircleCI
+####################################
+RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
+
 ############################
 # Shellcheck
 # Ubuntu has a very old version
@@ -381,9 +391,6 @@ RUN mkdir -p app/containers/queue-scheduler/target
 RUN mkdir -p app/fsharp-backend/Build
 RUN mkdir -p .cargo
 
-RUN pip3 install git+https://github.com/darklang/watchgod.git@5bf4f0f3b49bc64f435f59493b0e17e07a20da0d
-#RUN sudo chown -R dark:dark /home/dark/.config/configstore/update-notifier-npm.json
-
 RUN mkdir -p \
       /home/dark/.vscode-server/extensions \
       /home/dark/.vscode-server-insiders/extensions \
@@ -420,6 +427,3 @@ USER dark
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
-RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
-
-RUN pip3 install yapf==0.31.0
