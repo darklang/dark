@@ -368,40 +368,6 @@ jobs:
       - run: bash -c scripts/linting/test-honeycomb-config.sh
       - notify-job-failure
 
-  integration-tests:
-    executor: in-container
-    parallelism: 4
-    steps:
-      - darkcheckout
-      - setup-app
-      - attach_workspace: { at: "." }
-      - restore_cache: # get testcafe
-          keys:
-            - v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v3-client-{{ checksum "package-lock.json" }}
-            - v3-client
-      - show-large-files-and-directories
-      - run:
-          name: Run integration tests
-          command: |
-            scripts/build/_generate-etags
-            scripts/run-backend-server
-
-            # get full list of tests
-            grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
-            # split them using timing info
-            TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
-            # concat them into a pattern (note: $TESTS is deliberately unquoted)
-            PATTERN=$(printf -- "^%s$|" $TESTS)
-            # remove last char
-            PATTERN=${PATTERN%?}
-            scripts/devcontainer/_wait-until-server-ready
-            integration-tests/run.sh --pattern="$PATTERN"
-      - assert-clean-worktree
-      - store_artifacts: { path: rundir }
-      - store_test_results: { path: rundir/test_results }
-      - notify-job-failure
-
   playwright-integration-tests:
     executor: in-container
     parallelism: 4
@@ -566,12 +532,6 @@ workflows:
             - build-backend
             - build-client
             - build-fsharp-backend
-      - integration-tests:
-          context: Default
-          requires:
-            - build-backend
-            - build-client
-            - build-fsharp-backend
       - gcp-containers-test:
           context: Default
           requires:
@@ -603,7 +563,6 @@ workflows:
               only: main
           requires:
             - validate-honeycomb-config
-            - integration-tests
             - playwright-integration-tests
             - rust-integration-tests
             - push-to-gcp
@@ -623,7 +582,6 @@ workflows:
             - build-queue-scheduler
             - build-stroller
             - gcp-containers-test
-            - integration-tests
             - playwright-integration-tests
             - rust-integration-tests
             - static-checks
