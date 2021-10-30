@@ -715,7 +715,9 @@ test("feature_flag_in_function", async ({ page }) => {
     const t1 = Date.now();
     await page.click(".execution-button", { timeout: 5000 });
     await awaitAnalysis(page, t1);
-
+    await expect(page.textContent(".selected .live-value.loaded")).not.toBe(
+      "Function is executing",
+    );
     let v1 = await page.textContent(".selected .live-value.loaded");
 
     const t2 = Date.now();
@@ -723,6 +725,9 @@ test("feature_flag_in_function", async ({ page }) => {
     await awaitAnalysis(page, t2);
 
     await expect(page.textContent(".selected .live-value.loaded")).not.toBe(v1);
+    await expect(page.textContent(".selected .live-value.loaded")).not.toBe(
+      "Function is executing",
+    );
     let v2 = await page.textContent(".selected .live-value.loaded");
 
     let re =
