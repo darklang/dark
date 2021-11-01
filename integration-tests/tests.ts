@@ -1381,19 +1381,19 @@ test("feature_flag_in_function", async ({ page }) => {
     clearMessages(testInfo);
   });
 
-  // // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
-  // // didn't solve the problem
-  // /*
-  // test("exe_flow_fades", async ({ page }) => {
-  //   const timestamp = new Date();
-  //   await page.click(".fluid-entry");
-  //   awaitAnalysis(t, timestamp);
-  //   // wait up to 1000ms for this selector to appear
-  //
-  //     .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
-  //     .ok();
-  // });
-  // */
+  // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
+  // didn't solve the problem
+  /*
+  test("exe_flow_fades", async ({ page }) => {
+    const timestamp = new Date();
+    await page.click(".fluid-entry");
+    awaitAnalysis(t, timestamp);
+    // wait up to 1000ms for this selector to appear
+
+      .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
+      .ok();
+  });
+  */
 
   test("unexe_code_unfades_on_focus", async ({ page }) => {
     const timestamp = Date.now();
@@ -1497,12 +1497,10 @@ test("feature_flag_in_function", async ({ page }) => {
     await expect(page.locator(nothingExpr)).toHaveClass(/fluid-not-executed/);
 
     // takes function off rail
-
     await page.dblclick(fnCall);
     await page.keyboard.press("Control+\\");
     await page.waitForSelector("#cmd-filter");
     await page.type("#cmd-filter", "rail");
-
     await expectExactText(page, ".fluid-selected", "take-function-off-rail");
 
     // analysis is reruns
@@ -1511,7 +1509,6 @@ test("feature_flag_in_function", async ({ page }) => {
     await awaitAnalysis(page, t1);
 
     // assert values have changed
-
     await expect(page.locator(errorRail)).not.toHaveClass(/show/);
     await expectContainsText(page, returnValue, "1");
     await expect(page.locator(justExpr)).not.toHaveClass(/fluid-not-executed/);
