@@ -55,10 +55,7 @@ async function awaitAnalysis(page: Page, lastTimestamp: number) {
     }
     return false;
   };
-  await page.waitForFunction(analysisFunction, lastTimestamp, {
-    timeout: 10000,
-    polling: 1000,
-  });
+  await page.waitForFunction(analysisFunction, lastTimestamp);
 }
 
 // Wait until the frontend is loaded - this is when we know we are able to do analyses
