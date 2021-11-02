@@ -11,6 +11,7 @@ PATTERN=".*"
 DEBUG_MODE_FLAG=""
 CONCURRENCY=1
 RETRIES=0
+REPEAT=1 # repeat allows us to repeat individual tests many times to check for edge cases
 BASE_URL="http://darklang.localhost:8000"
 BROWSER="chromium"
 
@@ -27,6 +28,10 @@ do
     ;;
     --concurrency=*)
     CONCURRENCY=${1/--concurrency=/''}
+    shift
+    ;;
+    --repeat=*)
+    REPEAT=${1/--repeat=/''}
     shift
     ;;
     --debug)
@@ -81,6 +86,7 @@ BASE_URL="$BASE_URL" integration-tests/node_modules/.bin/playwright \
   --workers "$CONCURRENCY" \
   --grep "$PATTERN" \
   --browser "${BROWSER}" \
+  --repeat-each "${REPEAT}" \
   --output "rundir/integration-tests/" \
   --retries "$RETRIES" \
   --config integration-tests/playwright.config.ts

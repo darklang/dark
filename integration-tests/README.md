@@ -28,7 +28,13 @@ If you want to debug a test, run the tests
 with `--debug`:
 `./integration-tests/run.sh --debug --pattern='my_test_name'`
 
-## In the container
+### Defeat flaky tests
+
+If you're trying to eliminate a flaky test that is hard to reproduce, use `--repeat`:
+
+`./integration-tests/run.sh --pattern='my_test_name' --repeat=200 --concurrency=12`
+
+### In the container
 
 `./scripts/run-in-docker ./integration-tests/run.sh`
 
