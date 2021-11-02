@@ -76,53 +76,8 @@ let readfileBytes (root : Config.Root) (f : string) : byte [] =
   f |> checkFilename root Read |> System.IO.File.ReadAllBytes
 
 
-
-// let readfile_lwt root f : string Lwt.t =
-//   let f = check_filename root Read f in
-//   Lwt_io.with_file mode:Lwt_io.input f Lwt_io.read
-//
-//
 // let writefile root (f : string) (str : string) : unit =
 //   let f = check_filename root Write f in
 //   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
 //   Unix.with_file perm:0600 flags f (fun desc ->
 //       ignore (Unix.write desc buf:(Bytes.of_string str)))
-
-
-(* ------------------- *)
-(* json *)
-(* ------------------- *)
-
-// let readjsonfile
-//     root
-//     (stringconv : string -> string = ident)
-//     (conv : Yojson.Safe.t -> ('a, string) result)
-//     (filename : string) : 'a =
-//   filename
-//   |> readfile root
-//   |> stringconv
-//   |> Yojson.Safe.from_string
-//   |> conv
-//   |> Result.ok_or_failwith
-//
-//
-// let maybereadjsonfile
-//     root
-//     ?(stringconv : string -> string = ident)
-//     (conv : Yojson.Safe.t -> ('a, string) result)
-//     (filename : string) : 'a option =
-//   if file_exists root filename
-//   then Some (readjsonfile root stringconv conv filename)
-//   else None
-//
-
-(* ------------------- *)
-(* spawning *)
-(* ------------------- *)
-//FSTODO: is this needed for dotnet
-// let init () =
-//   (* Spawn creates lots of child processes. When they finish, the OS
-//    * asks the dark executable what to do. This tells it to ignore them
-//    * in such a way that the OS will clean them up. (I thought this was
-//    * the default, but this appears to fix the problem). *)
-//   Signal.ignore Signal.chld

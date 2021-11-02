@@ -93,8 +93,7 @@ let fetch_ = (
 let fetch = (context: Types.fetchContext, request: Types.fetchRequest) =>
   switch request {
   | TraceFetch(gdtp) =>
-    let url =
-      context.prefix ++ (context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_trace_data")))
+    let url = context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_trace_data"))
 
     fetch_(
       ~decoder=Decoders.getTraceDataAPIResult,
@@ -106,8 +105,7 @@ let fetch = (context: Types.fetchContext, request: Types.fetchRequest) =>
       Encoders.getTraceDataAPIParams(gdtp),
     )
   | DbStatsFetch(dbsParams) =>
-    let url =
-      context.prefix ++ (context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_db_stats")))
+    let url = context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_db_stats"))
 
     fetch_(
       ~decoder=Decoders.dbStatsAPIResult,
@@ -119,8 +117,7 @@ let fetch = (context: Types.fetchContext, request: Types.fetchRequest) =>
       Encoders.dbStatsAPIParams(dbsParams),
     )
   | WorkerStatsFetch(workerParams) =>
-    let url =
-      context.prefix ++ (context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_worker_stats")))
+    let url = context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_worker_stats"))
 
     fetch_(
       ~decoder=Decoders.workerStatsAPIResult,

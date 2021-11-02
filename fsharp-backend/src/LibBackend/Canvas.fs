@@ -13,6 +13,7 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module OT = LibExecution.OCamlTypes
 
 type CorsSetting =
   | AllOrigins
@@ -288,45 +289,7 @@ let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
 
-// let name_for_id (id : Uuidm.t) : string =
-//   Db.fetch_one
-//     ~name:"fetch_canvas_name"
-//     "SELECT name FROM canvases WHERE id = $1"
-//     ~params:[Uuid id]
-//   |> List.hd_exn
-//
-//
-// let id_for_name_option (name : string) : Uuidm.t option =
-//   Db.fetch_one_option
-//     ~name:"fetch_canvas_id"
-//     "SELECT id FROM canvases WHERE name = $1"
-//     ~params:[Db.String name]
-//   (* If List.hd_exn exn's, it means that `SELECT id` returned a record with more
-//    * than one field..  Can't happen. *)
-//   |> Option.map ~f:List.hd_exn
-//   |> Option.bind ~f:Uuidm.of_string
-//
-//
-// let id_for_name (name : string) : Uuidm.t =
-//   name |> id_for_name_option |> Option.value_exn
-//
-//
-// let id_and_account_id_for_name_exn (name : string) : Uuidm.t * Uuidm.t =
-//   (* If we're using this in /api/.../ we're already guaranteed that the canvas
-//    * exists *)
-//   Db.fetch_one
-//     ~name:"fetch_canvas_id_and_account_id"
-//     "SELECT id, account_id FROM canvases WHERE name = $1"
-//     ~params:[Db.String name]
-//   |> function
-//   | [canvas_id; account_id] ->
-//       (* These are guaranteed by the db schema to be uuids *)
-//       ( canvas_id |> Uuidm.of_string |> Option.value_exn
-//       , account_id |> Uuidm.of_string |> Option.value_exn )
-//   | _ ->
-//       Exception.internal "Wrong db shape in Canvas.id_and_account_id"
-//
-//
+
 // let update_cors_setting (c T ref) (setting : cors_setting option) : unit
 //     =
 //   let cors_setting_to_db (setting : cors_setting option) : Db.param =
@@ -685,27 +648,26 @@ let saveTLIDs
 // -------------------------
 // Testing/validation *)
 // -------------------------
-//
-// let json_filename name = name ^ "." ^ "json"
-//
-// let load_json_from_disk
-//     ~root ?(preprocess = ident) ~(host : string) ~(canvas_id : Uuidm.t) () :
-//     Types.tlid_oplists =
-//   Log.infO
-//     "serialization"
-//     ~params:[("load", "disk"); ("format", "json"); ("host", host)] ;
-//   let module SF = Serialization_format in
-//   let filename = json_filename host in
-//   File.maybereadjsonfile
-//     ~root
-//     filename
-//     ~conv:(SF.oplist_of_yojson SF.RuntimeT.expr_of_yojson)
-//     ~stringconv:preprocess
-//   |> Option.map ~f:Serialization_converters.oplist_to_fluid
-//   |> Option.map ~f:Op.oplist2tlid_oplists
-//   |> Option.value ~default:[]
-//
-//
+
+let jsonFilename (name : string) = $"{name}.json"
+
+let loadJsonFromDisk
+  (root : Config.Root)
+  (c : Meta)
+  : Result<List<tlid * PT.Oplist>, string> =
+  try
+    string c.name
+    |> jsonFilename
+    |> File.readfile root
+    |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
+    |> OT.Convert.ocamlOplist2PT
+    |> Op.oplist2TLIDOplists
+    |> Ok
+  with
+  | e -> Error(e.ToString())
+
+
+
 // let save_json_to_disk ~root (filename : string) (ops : Types.tlid_oplists) :
 //     unit =
 //   Log.infO
@@ -719,29 +681,28 @@ let saveTLIDs
 //   |> Yojson.Safe.pretty_to_string
 //   |> (fun s -> s ^ "\n")
 //   |> File.writefile ~root filename
-//
-//
-// let load_and_resave (h : host) : (unit, string list) Result.t =
-//   ignore (Db.run ~name:"start_transaction" ~params:[] "BEGIN") ;
-//   let result = load_all h [] |> Result.map ~f:(fun c -> save_all !c) in
-//   ignore (Db.run ~name:"end_transaction" ~params:[] "COMMIT") ;
-//   result
-//
-//
-// let load_and_resave_from_test_file (host : string) : unit =
-//   let owner = Account.for_host_exn host in
-//   let c =
-//     load_from
-//       host
-//       owner
-//       []
-//       ~f:(load_json_from_disk ~root:Testdata ~preprocess:ident)
-//     |> Result.map_error ~f:(String.concat ~sep:", ")
-//     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-//   in
-//   save_all !c
-//
-//
+
+
+let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
+  task {
+    let oplists =
+      meta
+      |> loadJsonFromDisk Config.Testdata
+      |> Result.unwrapUnsafe
+      |> List.map
+           (fun (tlid, oplist) ->
+             let tl =
+               fromOplist meta [] oplist
+               |> Result.unwrapUnsafe
+               |> toplevels
+               |> Map.get tlid
+               |> Option.unwrapUnsafe
+             (tlid, oplist, tl, NotDeleted))
+
+    do! saveTLIDs meta oplists
+    return ()
+  }
+
 // let minimize (c T) T =
 //   (* TODO *)
 //   (* let ops = *)

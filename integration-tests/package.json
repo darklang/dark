@@ -1,0 +1,13 @@
+{
+  "//": "This package.json just exists to install playwright for running it from the host",
+  "name": "integration-tests",
+  "version": "0.1.0",
+  "repository": "git@github.com:darklang/dark.git/integration-tests",
+  "private": true,
+  "author": "",
+  "devDependencies": {
+    "@playwright/test": "1.16.2",
+    "playwright": "1.16.2"
+  },
+  "dependencies": {}
+}

@@ -640,7 +640,6 @@ and fetchContext = {
   canvasName: string,
   csrfToken: string,
   origin: string,
-  prefix: string,
 }
 
 and traceID = string

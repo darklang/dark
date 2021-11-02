@@ -9,7 +9,13 @@ module E = FluidExpression
 
 let pass: testResult = Ok()
 
-let fail = (~f: 'a => string=Js.String.make, v: 'a): testResult => Error(f(v))
+let stringify = (msg: 'a): string =>
+  switch Js.Json.stringifyAny(msg) {
+  | Some(str) => str
+  | None => "Could not stringify"
+  }
+
+let fail = (~f: 'a => string=stringify, v: 'a): testResult => Error(f(v))
 
 let testIntOption = (~errMsg: string, ~expected: int, ~actual: option<int>): testResult =>
   switch actual {
@@ -124,6 +130,9 @@ let editing_headers = (m: model): testResult => {
   }
 }
 
+@ppx.deriving(show)
+type rec handler_triple = (blankOr<string>, blankOr<string>, blankOr<string>)
+
 let switching_from_http_space_removes_leading_slash = (m: model): testResult => {
   let spec = onlyTL(m) |> Option.andThen(~f=TL.asHandler) |> Option.map(~f=x => x.spec)
 
@@ -131,7 +140,7 @@ let switching_from_http_space_removes_leading_slash = (m: model): testResult => 
   | Some(s) =>
     switch (s.space, s.name, s.modifier) {
     | (F(_, newSpace), F(_, "spec_name"), _) if newSpace !== "HTTP" => pass
-    | other => fail(other)
+    | other => fail(~f=show_handler_triple, other)
     }
   | other => fail(other)
   }
@@ -461,7 +470,7 @@ let fluidGetSelectionRange = (s: fluidState): option<(int, int)> =>
 
 let fluid_doubleclick_selects_token = (m: model): testResult =>
   switch fluidGetSelectionRange(m.fluidState) {
-  | Some(34, 40) => pass
+  | Some(34, 39) => pass
   | Some(a, b) =>
     fail(
       "incorrect selection range for token: (" ++
@@ -667,7 +676,8 @@ let fluid_tabbing_from_handler_spec_past_ast_back_to_verb = (_m: model): testRes
 let fluid_shift_tabbing_from_handler_ast_back_to_route = (_m: model): testResult => pass
 
 let fluid_test_copy_request_as_curl = (m: model): testResult => {
-  /* test logic is here b/c testcafe can't get clipboard data */
+  // test logic is here b/c testcafe couldn't get clipboard data
+  // CLEANUP
   let curl = CurlCommand.curlFromHttpClientCall(
     m,
     TLID.fromString("91390945"),

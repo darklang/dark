@@ -155,6 +155,7 @@ def main():
         "_build",
         "_esy",
         "node_modules",
+        "integration-tests/node_modules",
         "backend/static",
         "containers/stroller/target",
         "containers/queue-scheduler/target",

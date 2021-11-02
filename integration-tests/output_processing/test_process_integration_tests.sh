@@ -24,5 +24,5 @@ fi
 # SC2002 is "useless use of cat"
 # shellcheck disable=SC2002
 cat "${DIR}"/sample_integration_tests_with_failure.json\
-    | scripts/testing/_process-integration-test-results.sh \
+    | integration-tests/_process-integration-test-results.sh \
     | "${SUMMARY_CMD[@]}"

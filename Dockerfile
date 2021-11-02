@@ -60,7 +60,7 @@ RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN curl -sSL https://nginx.org/keys/nginx_signing.key | apt-key add -
 
 
-# We want postgres 9.6, but it is not in ubuntu 18.04
+# We want postgres 9.6, but it is not in ubuntu 20.04
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
 RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
@@ -68,8 +68,8 @@ RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" 
 RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
 
 # Testcafe needs node >= 11
-RUN echo "deb https://deb.nodesource.com/node_13.x focal main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_13.x focal main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_14.x focal main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_14.x focal main" >> /etc/apt/sources.list.d/nodesource.list
 
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
@@ -139,7 +139,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       texinfo \
       openssh-server \
-      jq \
       dnsutils \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
@@ -274,6 +273,16 @@ RUN sudo pip3 install -U --no-cache-dir -U crcmod \
 ############################
 RUN sudo pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
+RUN pip3 install git+https://github.com/darklang/watchgod.git@5bf4f0f3b49bc64f435f59493b0e17e07a20da0d
+# Formatting
+
+RUN pip3 install yapf==0.31.0
+
+####################################
+# CircleCI
+####################################
+RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
+
 ############################
 # Shellcheck
 # Ubuntu has a very old version
@@ -382,9 +391,6 @@ RUN mkdir -p app/containers/queue-scheduler/target
 RUN mkdir -p app/fsharp-backend/Build
 RUN mkdir -p .cargo
 
-RUN pip3 install git+https://github.com/darklang/watchgod.git@5bf4f0f3b49bc64f435f59493b0e17e07a20da0d
-#RUN sudo chown -R dark:dark /home/dark/.config/configstore/update-notifier-npm.json
-
 RUN mkdir -p \
       /home/dark/.vscode-server/extensions \
       /home/dark/.vscode-server-insiders/extensions \
@@ -421,6 +427,3 @@ USER dark
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
-RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
-
-RUN pip3 install yapf==0.31.0

@@ -28,9 +28,11 @@ set -euo pipefail
 # 5. honeytail requires single-line json objects,
 #    multiline json will break it,
 # pending https://github.com/honeycombio/honeytail/pull/133
-jq '.fixtures[0].tests[]' \
-    | jq '. + {error: (.errs|length != 0)}' \
-    | jq 'del(.errs, .meta, .screenshotPath)' \
+jq '.suites[0].suites[0].specs' \
+    | jq '. | [.[] | del(.tests) + .tests[0]]' \
+    | jq '. | [.[] | del(.results) + .results[0]]' \
+    | jq '. | [.[] | select(.status != "skipped") ]' \
+    | jq '. | [.[] | del(.tags, .annotations, .attachments, .stdout, .stderr)]' \
     | jq --argfile env_vars <(env \
             | grep -e CIRCLE_BRANCH \
                    -e CIRCLE_BUILD_URL \
@@ -43,5 +45,5 @@ jq '.fixtures[0].tests[]' \
             | sed -e 's/[^A-Za-z0-9_ =:/.-]//g' \
             | sed -e 's/\(.*\)=\(.*\)/{"\1": "\2"}/' \
             | jq -s add) \
-        '. + $env_vars' \
-    | jq -c '.'
+        '. | [.[] | . + $env_vars ]' \
+    | jq -c '.[]'
