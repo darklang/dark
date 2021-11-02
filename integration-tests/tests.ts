@@ -452,18 +452,19 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("field_access_pipes", async ({ page }, testInfo) => {
-    await createEmptyHTTPHandler(page);
-    await awaitAnalysisLoad(testInfo);
-    await gotoAST(page);
+  // CLEANUP flaky - often the `request` field is not available
+  // test("field_access_pipes", async ({ page }, testInfo) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await awaitAnalysisLoad(testInfo);
+  //   await gotoAST(page);
 
-    await page.type("#active-editor", "req");
-    await expectContainsText(page, fluidACHighlightedValue, "request");
-    await page.type("#active-editor", ".");
-    await page.type("#active-editor", "bo");
-    await expectExactText(page, fluidACHighlightedValue, "bodyfield");
-    await page.keyboard.press("Shift+Enter");
-  });
+  //   await page.type("#active-editor", "req");
+  //   await expectContainsText(page, fluidACHighlightedValue, "request");
+  //   await page.type("#active-editor", ".");
+  //   await page.type("#active-editor", "bo");
+  //   await expectExactText(page, fluidACHighlightedValue, "bodyfield");
+  //   await page.keyboard.press("Shift+Enter");
+  // });
 
   test("tabbing_works", async ({ page }) => {
     await createRepl(page);
