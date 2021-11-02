@@ -1098,9 +1098,18 @@ test("feature_flag_in_function", async ({ page }) => {
   // navigateTo() and click(), and putting navigateTo() and click() on separate
   // await ts, but only calling click() twice worked here.
   test("sha256hmac_for_aws", async ({ page }, testInfo) => {
+    let before = Date.now();
     await gotoHash(page, testInfo, "handler=1471262983");
+
+    // click into the body, then wait for the button to appear
+    await page.click(".fluid-let-var-name >> text='scope'");
+    await awaitAnalysisLoad(testInfo);
+    await awaitAnalysis(page, before); // wait for the first analysis to get the trigger visible
+
+    let beforeClick = Date.now();
     await page.click("div.handler-trigger");
-    await page.click("div.handler-trigger");
+    await awaitAnalysis(page, beforeClick);
+
     let expected =
       '"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"';
     await expectContainsText(page, ".return-value", expected);
