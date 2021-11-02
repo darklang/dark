@@ -50,10 +50,21 @@ Test traces are automatically saved in CI (videos are too). You can download the
 
 ### Causes of intermittent failures
 
-- Did you forget to `await` the page action
-- A click can land anywhere on the selector, but some parts of the selector
-  have clicks that have other effects
-- Expectations fail when the element is offscreen. Often moving the element to the left (esp in the JSON test_appdata file) will solve it.
+Tests will likely fail if you do any of the following:
+
+- call an `async` action, such as `page.waitFo...`, but forget to `await` it (the
+  next action will happen when the previous one is not complete)
+
+- call an `expect` without an `await`, unless you explicitly waited for the condition
+  in advance (this means you're using an expectation which is not retried until it is
+  successful. Instead, do a `page.waitFor`, which will allow you to know the page is in
+  the right start before you click it.)
+
+- click somewhere that causes an element to move, but do not wait until it has
+  stopped moving to click some part of it (it will click an old ppage)
+
+- have a test where the middle of an element you're clicking on is covered by another
+  element (the click even won't land in the right place). Also true if the element is offscreen (can possibly be solved in the test_appdata test JSON file)
 
 ## Writing a new test
 
@@ -61,7 +72,7 @@ Our integration test files are scattered across the code base. There are multipl
 
 1. If your test required contents on the canvas, add a file in `backend/test_appdata`. File names follow the format of `test-{your_test_name}.json`. To start these files off, either copy from existing files, or press **Save Test** in the button-bar in Dark.
 
-2. Add a new function to `integration-tests/test.js`.
+2. Add a new function to `integration-tests/tests.ts`.
 
 ```
 test('{your_test_name}', async t => {
@@ -79,15 +90,6 @@ let {your_test_name} (m : model) : testResult =
 
 4. Lastly to verify your newly written test works without running all the other tests, run the script with `--pattern={your_test_name}`
 
-## Clicking buttons
-
-It may be that you want to click a button - say, to play a REPL that includes
-non-preview-safe (backend-only) functions.
-
-To do this, you must call `page.click("div.handler-trigger")` twice. We're
-not sure why. See `sha256hmac_for_aws` in `integration-tests/tests.js` for a
-working example of this, including checking the live value at the end.
-
 ## How it works:
 
 Uses playwright: https://playwright.dev
@@ -104,24 +106,24 @@ button in the browser, which runs the testing function for the test
 
 ## Files
 
-- integration-tests/run.sh
+- `integration-tests/run.sh`
 
   - Basically just triggers playwright
 
-- integration-tests/prep.sh
+- `integration-tests/prep.sh`
 
   - prepare tests (clean database, etc)
 
-- integration-tests/tests.js
+- `integration-tests/tests.js`
 
   - test harness and tests
 
-- client/src/IntegrationTest.ml
+- `client/src/IntegrationTest.ml`
 
   - This contains the code to check that the tests were successful.
     Note that this is compiled into app.js, so we have a
     single app for testing and production.
 
-- rundir/integration-tests/
+- `rundir/integration-tests/`
 
   - videos, traces, and console logs from the test executions
