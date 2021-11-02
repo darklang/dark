@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>5.0</LangVersion>
+    <LangVersion>6.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />

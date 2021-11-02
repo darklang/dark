@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>5.0</LangVersion>
+    <LangVersion>6.0</LangVersion>
     <!-- Publishing configuration -->
     <PublishReadyToRun>true</PublishReadyToRun>
     <SelfContained>true</SelfContained>
