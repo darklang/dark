@@ -1188,12 +1188,17 @@ test("feature_flag_in_function", async ({ page }) => {
   //   await expectExactText(page, acHighlightedValue, "/");
   // });
 
-  test("fluid_test_copy_request_as_curl", async ({ page }) => {
+  test("fluid_test_copy_request_as_curl", async ({ page }, testInfo) => {
+    await awaitAnalysisLoad(testInfo);
+
+    let before = Date.now();
     await page.click(".toplevel.tl-91390945");
     await page.waitForSelector(".tl-91390945");
+    await awaitAnalysis(page, before); // CLEANUP shouldn't be necessary, race condition in 5% of cases
+
+    let expected = "Click Play to execute function";
     await page.click(".id-753586717");
     // Ensure the anaysis has completed
-    let expected = "Click Play to execute function";
     await expectContainsText(page, ".live-value.loaded", expected);
     // test logic in IntegrationTest.ml; we load it here because we need an
     // analysis done before we can call the command
