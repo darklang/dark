@@ -454,8 +454,8 @@ test.describe.parallel("Integration Tests", async () => {
 
   test("field_access_pipes", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
-    await gotoAST(page);
     await awaitAnalysisLoad(testInfo);
+    await gotoAST(page);
 
     await page.type("#active-editor", "req");
     await expectContainsText(page, fluidACHighlightedValue, "request");
