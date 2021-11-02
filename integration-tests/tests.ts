@@ -459,7 +459,8 @@ test.describe.parallel("Integration Tests", async () => {
 
     await page.type("#active-editor", "req");
     await expectContainsText(page, fluidACHighlightedValue, "request");
-    await page.type("#active-editor", ".bo");
+    await page.type("#active-editor", ".");
+    await page.type("#active-editor", "bo");
     await expectExactText(page, fluidACHighlightedValue, "bodyfield");
     await page.keyboard.press("Shift+Enter");
   });
