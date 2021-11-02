@@ -405,7 +405,7 @@ jobs:
           command: |
             scripts/run-backend-server
             scripts/devcontainer/_wait-until-server-ready
-            integration-tests/run.sh --pattern="`cat test-pattern`"
+            integration-tests/run.sh --concurrency=3 --pattern="`cat test-pattern`"
             rm test-pattern
 
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
