@@ -83,9 +83,7 @@ function createLibfrontendLoadPromise(
 }
 async function awaitAnalysisLoad(testInfo: TestInfo): Promise<void> {
   let ti = <AnalyisLoadPromiseHolder & TestInfo>testInfo;
-  await expect(await ti.analysisLoadPromise).toBe(true, {
-    timeout: 10000,
-  });
+  expect(await ti.analysisLoadPromise).toBe(true);
 }
 
 interface MessagesHolder {
@@ -174,8 +172,8 @@ test.describe.parallel("Integration Tests", async () => {
 
         // check the class
         let class_ = await page.getAttribute("#integrationTestSignal", "class");
-        await expect(class_).toContain("success");
-        await expect(class_).not.toContain("failure");
+        expect(class_).toContain("success");
+        expect(class_).not.toContain("failure");
 
         // Ensure there are no errors in the logs
         let errorMessages = getMessages(testInfo).filter(
@@ -184,7 +182,7 @@ test.describe.parallel("Integration Tests", async () => {
         errorMessages.map((msg: ConsoleMessage) =>
           console.log(`[console ${msg.type()}]: ${msg.text()}`),
         );
-        await expect(errorMessages).toHaveLength(0);
+        expect(errorMessages).toHaveLength(0);
         flushedLogs = flushLogs();
       } catch (e) {
         if (flushedLogs === false) {
@@ -234,6 +232,7 @@ test.describe.parallel("Integration Tests", async () => {
   async function createRepl(page) {
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
+    await waitForEmptyEntryBox(page);
   }
 
   async function gotoAST(page: Page): Promise<void> {
@@ -732,8 +731,8 @@ test("feature_flag_in_function", async ({ page }) => {
 
     let re =
       /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
-    await expect(v1).toMatch(re);
-    await expect(v2).toMatch(re);
+    expect(v1).toMatch(re);
+    expect(v2).toMatch(re);
   });
 
   test("correct_field_livevalue", async ({ page }) => {
@@ -850,7 +849,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await gotoHash(page, testInfo, "handler=123");
     await page.waitForSelector(".tl-123");
 
-    await expect(await getStyleProperty(page, "#canvas", "transform")).not.toBe(
+    expect(await getStyleProperty(page, "#canvas", "transform")).not.toBe(
       fnOffset,
     );
   });
@@ -1056,7 +1055,7 @@ test("feature_flag_in_function", async ({ page }) => {
       ".sidebar-category.fns a[href='#fn=1352039682']",
     );
     await page.click(".sidebar-category.fns a[href='#fn=1352039682']");
-    await expect(page.url()).toMatch(/.+#fn=1352039682$/, "Url is incorrect");
+    expect(page.url()).toMatch(/.+#fn=1352039682$/);
   });
 
   test("empty_fn_never_called_result", async ({ page }, testInfo) => {
@@ -1280,7 +1279,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
     // check if we can get a result from the bwd endpoint
     let response = await get(page, bwdUrl(testInfo, url));
-    await expect(response).toBe("0");
+    expect(response).toBe("0");
   });
 
   test("fluid_show_docs_for_command_on_selected_code", async ({ page }) => {
@@ -1298,7 +1297,7 @@ test("feature_flag_in_function", async ({ page }) => {
   // Post-fix, we expect "foo"
   test("fluid-bytes-response", async ({ page }, testInfo) => {
     const resp = await get(page, bwdUrl(testInfo, "/"));
-    await expect(resp).toBe("foo");
+    expect(resp).toBe("foo");
   });
 
   test("double_clicking_blankor_selects_it", async ({ page }) => {
@@ -1318,7 +1317,7 @@ test("feature_flag_in_function", async ({ page }) => {
     // Selected text is /hello
     selector = ".toplevel .spec-header .toplevel-name #entry-box";
     let result = await getElementSelectionStart(page, selector);
-    await expect(typeof result).toBe("number");
+    expect(typeof result).toBe("number");
   });
 
   test("abridged_sidebar_content_visible_on_hover", async ({ page }) => {
