@@ -584,6 +584,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Backspace");
     await page.type(entryBox, "field6");
     await page.keyboard.press("Enter");
+    await page.waitForResponse(`${BASE_URL}/api/test-rename_db_fields/add_op`);
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
