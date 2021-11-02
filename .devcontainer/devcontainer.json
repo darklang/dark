@@ -88,7 +88,6 @@
     "type=volume,src=dark_build,dst=/home/dark/app/_build",
     "type=volume,src=dark_dotesy,dst=/home/dark/.esy",
     "type=volume,src=dark_esy,dst=/home/dark/app/_esy",
-    "type=volume,src=dark_playwright,dst=/home/dark/.cache/ms-playwright",
     "type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build",
     "type=volume,src=dark_lib,dst=/home/dark/app/lib",
     "type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules",

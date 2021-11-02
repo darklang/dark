@@ -74,7 +74,6 @@ MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 # Avoid docker syncing everything to the host, slowing compiles down by 5x
 MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/_build"
 MOUNTS+=" --mount type=volume,src=dark_dotesy,dst=/home/dark/.esy"
-MOUNTS+=" --mount type=volume,src=dark_playwright,dst=/home/dark/.cache/ms-playwright"
 MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
 MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build"
 MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
