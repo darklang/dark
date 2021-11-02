@@ -603,6 +603,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Backspace");
     await page.type(entryBox, "String");
     await page.keyboard.press("Enter");
+    await page.waitForResponse(`${BASE_URL}/api/test-rename_db_type/add_op`);
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
@@ -707,14 +708,14 @@ test("feature_flag_in_function", async ({ page }) => {
 
   test("execute_function_works", async ({ page }) => {
     await createRepl(page);
-    await page.waitForSelector("#active-editor", { timeout: 5000 });
+    await page.waitForSelector("#active-editor");
     await page.type("#active-editor", "Uuid::gen");
     await page.keyboard.press("Enter");
 
     const t1 = Date.now();
-    await page.click(".execution-button", { timeout: 5000 });
+    await page.click(".execution-button");
     await awaitAnalysis(page, t1);
-    await expect(page.textContent(".selected .live-value.loaded")).not.toBe(
+    await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
       "Function is executing",
     );
     let v1 = await page.textContent(".selected .live-value.loaded");
@@ -723,8 +724,10 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.click(".fa-redo");
     await awaitAnalysis(page, t2);
 
-    await expect(page.textContent(".selected .live-value.loaded")).not.toBe(v1);
-    await expect(page.textContent(".selected .live-value.loaded")).not.toBe(
+    await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
+      v1,
+    );
+    await expect(page.locator(".selected .live-value.loaded")).not.toHaveText(
       "Function is executing",
     );
     let v2 = await page.textContent(".selected .live-value.loaded");
