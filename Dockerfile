@@ -357,7 +357,7 @@ RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotn
 
 # formatting
 ENV PATH "$PATH:/home/dark/bin"
-RUN dotnet tool install fantomas-tool --version 4.5.4 --tool-path ~/bin
+RUN dotnet tool install fantomas-tool --version 4.5.6 --tool-path ~/bin
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 
 #############
