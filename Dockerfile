@@ -351,6 +351,10 @@ RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$
     && sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
     && dotnet help
 
+RUN sudo dotnet workload install \
+      -s https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet6/nuget/v3/index.json \
+      -s https://pkgs.dev.azure.com/azure-public/vside/_packaging/xamarin-impl/nuget/v3/index.json \
+      wasm-tools
 RUN dotnet tool install -g dotnet-sos
 # TODO: is this the right directory?
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
