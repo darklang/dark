@@ -314,7 +314,7 @@
 (friends (fun p -> let x = p.height in true && x > 32 )) = [" Chandler "; "Rachel"; "Ross" ]
 
 [test.db pipes] with DB Person
-(friends (fun p -> p.height |> ( * ) 2 |> (<) 40)) = ["GrumpyCat" ]
+(friends (fun p -> p.height |> (*) 2 |> (<) 40)) = ["GrumpyCat" ]
 
 //[test.db query with external variable] with DB Person
 // TODO pass an external var x
