@@ -16,7 +16,7 @@ type t<'key, 'value when 'key: comparison> = Map<'key, 'value>
     Specialised versions of the {!empty}, {!singleton}, {!fromList} and {!fromArray} functions available in the {!Set.Int} and {!Set.String} sub-modules.
 *)
 
-val empty : t<'key, 'value>
+val empty: t<'key, 'value>
 (** A map with nothing in it.
 
     Often used as an intial value for functions like {!Array.fold}
@@ -37,7 +37,7 @@ val empty : t<'key, 'value>
     In this particular case you might want to use {!Array.groupBy}
 *)
 
-val singleton : key: 'key -> value: 'value -> t<'key, 'value>
+val singleton: key: 'key -> value: 'value -> t<'key, 'value>
 (** Create a map from a key and value
 
     {2 Examples}
@@ -45,19 +45,19 @@ val singleton : key: 'key -> value: 'value -> t<'key, 'value>
     {[Map.singleton (module Int) ~key:1 ~value:"Ant" |> Map.toList = [(1, "Ant")]]}
 *)
 
-val fromArray : ('key * 'value) array -> t<'key, 'value>
+val fromArray: ('key * 'value) array -> t<'key, 'value>
 (** Create a map from an {!Array} of key-value tuples *)
 
-val from_array : ('key * 'value) array -> t<'key, 'value>
+val from_array: ('key * 'value) array -> t<'key, 'value>
 
-val fromList : ('key * 'value) list -> t<'key, 'value>
+val fromList: ('key * 'value) list -> t<'key, 'value>
 (** Create a map of a {!List} of key-value tuples *)
 
-val from_list : ('key * 'value) list -> t<'key, 'value>
+val from_list: ('key * 'value) list -> t<'key, 'value>
 
 (** {1 Basic operations} *)
 
-val add : key: 'key -> value: 'value -> t<'key, 'value> -> t<'key, 'value>
+val add: key: 'key -> value: 'value -> t<'key, 'value> -> t<'key, 'value>
 (** Adds a new entry to a map. If [key] is allready present, its previous value is replaced with [value].
 
     {2 Examples}
@@ -88,7 +88,7 @@ val add : key: 'key -> value: 'value -> t<'key, 'value> -> t<'key, 'value>
 //     ]}
 //  *)
 //
-val remove : 'key -> t<'key, 'value> -> t<'key, 'value>
+val remove: 'key -> t<'key, 'value> -> t<'key, 'value>
 (** Removes a key-value pair from a map based on they provided key.
 
     {2 Examples}
@@ -107,7 +107,7 @@ val remove : 'key -> t<'key, 'value> -> t<'key, 'value>
     ]}
 *)
 
-val get : 'key -> t<'key, 'value> -> 'value option
+val get: 'key -> t<'key, 'value> -> 'value option
 (** Get the value associated with a key. If the key is not present in the map, returns [None].
 
     {2 Examples}
@@ -134,7 +134,7 @@ val get : 'key -> t<'key, 'value> -> 'value option
 //     ]}
 //  *)
 //
-val update :
+val update:
   key: 'key ->
   f: ('value option -> 'value option) ->
   t<'key, 'value> ->
@@ -168,12 +168,12 @@ val update :
 
 (** {1 Query} *)
 
-val isEmpty : t<'key, 'value> -> bool
+val isEmpty: t<'key, 'value> -> bool
 (** Determine if a map is empty. *)
 
-val is_empty : t<'key, 'value> -> bool
+val is_empty: t<'key, 'value> -> bool
 
-val length : t<'key, 'value> -> int
+val length: t<'key, 'value> -> int
 (** Returns the number of key-value pairs present in the map.
 
     {2 Examples}
@@ -184,13 +184,13 @@ val length : t<'key, 'value> -> int
     ]}
 *)
 
-val any : f: ('value -> bool) -> t<'key, 'value> -> bool
+val any: f: ('value -> bool) -> t<'key, 'value> -> bool
 (** Determine if [f] returns [true] for [any] values in a map. *)
 
-val all : f: ('value -> bool) -> t<'key, 'value> -> bool
+val all: f: ('value -> bool) -> t<'key, 'value> -> bool
 (** Determine if [f] returns [true] for [all] values in a map. *)
 
-val find : f: ('key -> 'value -> bool) -> t<'key, 'value> -> ('key * 'value) option
+val find: f: ('key -> 'value -> bool) -> t<'key, 'value> -> ('key * 'value) option
 (** Returns, as an {!Option} the first key-value pair for which [f] evaluates to true.
 
     If [f] doesn't return [true] for any of the elements [find] will return [None].
@@ -211,10 +211,10 @@ val find : f: ('key -> 'value -> bool) -> t<'key, 'value> -> ('key * 'value) opt
     ]}
 *)
 
-val includes : 'key -> t<'key, 'value> -> bool
+val includes: 'key -> t<'key, 'value> -> bool
 (** Determine if a map includes [key].  *)
 
-val minimum : t<'key, 'value> -> 'key option
+val minimum: t<'key, 'value> -> 'key option
 (** Returns, as an {!Option}, the smallest {b key} in the map.
 
     Returns [None] if the map is empty.
@@ -227,7 +227,7 @@ val minimum : t<'key, 'value> -> 'key option
     ]}
 *)
 
-val maximum : t<'key, 'value> -> 'key option
+val maximum: t<'key, 'value> -> 'key option
 (** Returns the largest {b key } in the map.
 
     Returns [None] if the map is empty.
@@ -240,7 +240,7 @@ val maximum : t<'key, 'value> -> 'key option
     ]}
 *)
 
-val extent : t<'key, 'value> -> ('key * 'key) option
+val extent: t<'key, 'value> -> ('key * 'key) option
 (** Returns, as an {!Option}, a {!Tuple} of the [(minimum, maximum)] {b key}s in the map.
 
     Returns [None] if the map is empty.
@@ -300,7 +300,7 @@ val extent : t<'key, 'value> -> ('key * 'key) option
 
 (** {1 Transform} *)
 
-val map : f: ('value -> 'b) -> t<'key, 'value> -> t<'key, 'b>
+val map: f: ('value -> 'b) -> t<'key, 'value> -> t<'key, 'b>
 (** Apply a function to all values in a dictionary.
 
     {2 Examples}
@@ -319,12 +319,12 @@ val map : f: ('value -> 'b) -> t<'key, 'value> -> t<'key, 'b>
     ]}
 *)
 
-val mapWithIndex : f: ('key -> 'value -> 'b) -> t<'key, 'value> -> t<'key, 'b>
+val mapWithIndex: f: ('key -> 'value -> 'b) -> t<'key, 'value> -> t<'key, 'b>
 (** Like {!map} but [f] is also called with each values corresponding key *)
 
-val map_with_index : f: ('key -> 'value -> 'b) -> t<'key, 'value> -> t<'key, 'b>
+val map_with_index: f: ('key -> 'value -> 'b) -> t<'key, 'value> -> t<'key, 'b>
 
-val filter : f: ('value -> bool) -> t<'key, 'value> -> t<'key, 'value>
+val filter: f: ('value -> bool) -> t<'key, 'value> -> t<'key, 'value>
 (** Keep elements that [f] returns [true] for.
 
     {2 Examples}
@@ -342,7 +342,7 @@ val filter : f: ('value -> bool) -> t<'key, 'value> -> t<'key, 'value>
     ]}
 *)
 
-val filterWithIndex :
+val filterWithIndex:
   f: ('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value>
 (** Keep elements that [f] returns [true] for.
 
@@ -361,10 +361,10 @@ val filterWithIndex :
     ]}
 *)
 
-val filter_with_index :
+val filter_with_index:
   f: ('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value>
 
-val partition :
+val partition:
   f: ('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value> * t<'key, 'value>
 (** Divide a map into two, the first map will contain the key-value pairs that [f] returns [true] for, pairs that [f] returns [false] for will end up in the second.
 
@@ -392,24 +392,24 @@ val partition :
     ]}
 *)
 
-val fold : initial: 'a -> f: ('a -> 'key -> 'value -> 'a) -> t<'key, 'value> -> 'a
+val fold: initial: 'a -> f: ('a -> 'key -> 'value -> 'a) -> t<'key, 'value> -> 'a
 (** Like {!Array.fold} but [f] is also called with both the [key] and [value] *)
 
 (** {1 Iterate} *)
 
-val forEach : f: ('value -> unit) -> t<'key, 'value> -> unit
+val forEach: f: ('value -> unit) -> t<'key, 'value> -> unit
 (** Runs a function [f] against each {b value} in the map. *)
 
-val for_each : f: ('value -> unit) -> t<'key, 'value> -> unit
+val for_each: f: ('value -> unit) -> t<'key, 'value> -> unit
 
-val forEachWithIndex : f: ('key -> 'value -> unit) -> t<'key, 'value> -> unit
+val forEachWithIndex: f: ('key -> 'value -> unit) -> t<'key, 'value> -> unit
 (** Like {!Map.forEach} except [~f] is also called with the corresponding key *)
 
-val for_each_with_index : f: ('key -> 'value -> unit) -> t<'key, 'value> -> unit
+val for_each_with_index: f: ('key -> 'value -> unit) -> t<'key, 'value> -> unit
 
 (** {1 Convert} *)
 
-val keys : t<'key, 'value> -> 'key list
+val keys: t<'key, 'value> -> 'key list
 (** Get a {!List} of all of the keys in a map.
 
     {2 Examples}
@@ -430,7 +430,7 @@ val keys : t<'key, 'value> -> 'key list
     ]}
 *)
 
-val values : t<'key, 'value> -> 'value list
+val values: t<'key, 'value> -> 'value list
 (** Get a {!List} of all of the values in a map.
 
     {2 Examples}
@@ -451,12 +451,12 @@ val values : t<'key, 'value> -> 'value list
     ]}
 *)
 
-val toArray : t<'key, 'value> -> ('key * 'value) array
+val toArray: t<'key, 'value> -> ('key * 'value) array
 (** Get an {!Array} of all of the key-value pairs in a map. *)
 
-val to_array : t<'key, 'value> -> ('key * 'value) array
+val to_array: t<'key, 'value> -> ('key * 'value) array
 
-val toList : t<'key, 'value> -> ('key * 'value) list
+val toList: t<'key, 'value> -> ('key * 'value) list
 (** Get a {!List} of all of the key-value pairs in a map. *)
 
-val to_list : t<'key, 'value> -> ('key * 'value) list
+val to_list: t<'key, 'value> -> ('key * 'value) list

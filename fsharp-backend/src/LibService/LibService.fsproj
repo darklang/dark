@@ -5,7 +5,7 @@
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
-    <LangVersion>5.0</LangVersion>
+    <LangVersion>6.0</LangVersion>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>

@@ -1065,7 +1065,8 @@ module ExecutePureFunctions =
                               prevArgs,
                               name.module_,
                               name.function_,
-                              name.version) with
+                              name.version)
+                         with
                        // Specific OCaml exception (use `when`s here)
                        | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
                        | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" ->

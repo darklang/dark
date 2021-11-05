@@ -4,15 +4,15 @@
   "tools": {
     "paket": {
       "version": "6.0.6",
-      "commands": [
-        "paket"
-      ]
+      "commands": ["paket"]
     },
     "dotnet-trace": {
       "version": "5.0.236902",
-      "commands": [
-        "dotnet-trace"
-      ]
+      "commands": ["dotnet-trace"]
+    },
+    "fantomas-tool": {
+      "version": "4.5.4",
+      "commands": ["fantomas"]
     }
   }
 }

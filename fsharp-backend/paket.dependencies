@@ -10,14 +10,14 @@ nuget Ply = 0.3.1
 nuget FSharpPlus = 1.2.1
 nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 2.5.0
-nuget FSharp.Core = 5.0.3-beta.21352.5
+nuget FSharp.Core = 6.0.1
 nuget Faithlife.Utility = 0.11.2
 
 // Tests
 nuget Expecto = 9.0.4
 nuget Expecto.FsCheck = 9.0.4
 nuget FsCheck = 2.16.0
-nuget FSharp.Compiler.Service = 40.0.1-preview.21352.5
+nuget FSharp.Compiler.Service = 41.0.1
 nuget System.Runtime.CompilerServices.Unsafe = 6.0.0-preview.7.21377.19 // to resolve dependencies
 
 // Services

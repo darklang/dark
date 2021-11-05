@@ -3,7 +3,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <!-- <PublishReadyToRun>true</PublishReadyToRun> -->
-    <LangVersion>5.0</LangVersion>
+    <LangVersion>6.0</LangVersion>
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
     <SelfContained>true</SelfContained>

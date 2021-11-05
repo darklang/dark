@@ -6,7 +6,7 @@ type ('a, 'b, 'c) t = 'a * 'b * 'c
 
 (** {1 Create} *)
 
-val make : 'a -> 'b -> 'c -> 'a * 'b * 'c
+val make: 'a -> 'b -> 'c -> 'a * 'b * 'c
 (** Create a {!Tuple3}.
 
     {2 Examples}
@@ -19,7 +19,7 @@ val make : 'a -> 'b -> 'c -> 'a * 'b * 'c
     ]}
 *)
 
-val fromArray : 'a array -> ('a * 'a * 'a) option
+val fromArray: 'a array -> ('a * 'a * 'a) option
 (** Create a tuple from the first two elements of an {!Array}.
 
     If the array is longer than two elements, the extra elements are ignored.
@@ -35,7 +35,7 @@ val fromArray : 'a array -> ('a * 'a * 'a) option
     {[Tuple3.fromArray [|4;5;6;7|] = Some (4, 5, 6)]}
 *)
 
-val fromList : 'a list -> ('a * 'a * 'a) option
+val fromList: 'a list -> ('a * 'a * 'a) option
 (** Create a tuple from the first two elements of a {!List}.
 
     If the list is longer than two elements, the extra elements are ignored.
@@ -53,7 +53,7 @@ val fromList : 'a list -> ('a * 'a * 'a) option
 
 (** {1 Basic operations} *)
 
-val first : 'a * 'b * 'c -> 'a
+val first: 'a * 'b * 'c -> 'a
 (** Extract the first value from a tuple.
 
     {2 Examples}
@@ -63,7 +63,7 @@ val first : 'a * 'b * 'c -> 'a
     {[Tuple3.first ("john", "danger", "doe") = "john"]}
 *)
 
-val second : 'a * 'b * 'c -> 'b
+val second: 'a * 'b * 'c -> 'b
 (** Extract the second value from a tuple.
 
     {2 Examples}
@@ -73,7 +73,7 @@ val second : 'a * 'b * 'c -> 'b
     {[Tuple3.second ("john", "danger", "doe") = "danger"]}
 *)
 
-val third : 'a * 'b * 'c -> 'c
+val third: 'a * 'b * 'c -> 'c
 (** Extract the third value from a tuple.
 
     {2 Examples}
@@ -83,7 +83,7 @@ val third : 'a * 'b * 'c -> 'c
     {[Tuple3.third ("john", "danger", "doe") = "doe"]}
 *)
 
-val initial : 'a * 'b * 'c -> 'a * 'b
+val initial: 'a * 'b * 'c -> 'a * 'b
 (** Extract the first and second values of a {!Tuple3} as a {!Tuple2}.
 
     {2 Examples}
@@ -93,7 +93,7 @@ val initial : 'a * 'b * 'c -> 'a * 'b
     {[Tuple3.initial ("john", 16, true) = ("john", 16)]}
 *)
 
-val tail : 'a * 'b * 'c -> 'b * 'c
+val tail: 'a * 'b * 'c -> 'b * 'c
 (** Extract the second and third values of a {!Tuple3} as a {!Tuple2}.
 
     {2 Examples}
@@ -105,7 +105,7 @@ val tail : 'a * 'b * 'c -> 'b * 'c
 
 (** {1 Modify} *)
 
-val rotateLeft : 'a * 'b * 'c -> 'b * 'c * 'a
+val rotateLeft: 'a * 'b * 'c -> 'b * 'c * 'a
 (** Move each value in the tuple one position to the left, moving the value in the first position into the last position.
 
     {2 Examples}
@@ -115,7 +115,7 @@ val rotateLeft : 'a * 'b * 'c -> 'b * 'c * 'a
     {[Tuple3.rotateLeft ("was", "stressed", "then") = ("stressed", "then", "was")]}
 *)
 
-val rotateRight : 'a * 'b * 'c -> 'c * 'a * 'b
+val rotateRight: 'a * 'b * 'c -> 'c * 'a * 'b
 (** Move each value in the tuple one position to the right, moving the value in the last position into the first position.
 
     {2 Examples}
@@ -127,7 +127,7 @@ val rotateRight : 'a * 'b * 'c -> 'c * 'a * 'b
 
 (** {1 Transform} *)
 
-val mapFirst : ('a -> 'x) -> 'a * 'b * 'c -> 'x * 'b * 'c
+val mapFirst: ('a -> 'x) -> 'a * 'b * 'c -> 'x * 'b * 'c
 (** Transform the first value in a tuple.
 
     {2 Examples}
@@ -137,7 +137,7 @@ val mapFirst : ('a -> 'x) -> 'a * 'b * 'c -> 'x * 'b * 'c
     {[Tuple3.mapFirst String.length ("stressed", 16, false) = (8, 16, false)]}
 *)
 
-val mapSecond : f: ('b -> 'y) -> 'a * 'b * 'c -> 'a * 'y * 'c
+val mapSecond: f: ('b -> 'y) -> 'a * 'b * 'c -> 'a * 'y * 'c
 (** Transform the second value in a tuple.
 
     {2 Examples}
@@ -147,7 +147,7 @@ val mapSecond : f: ('b -> 'y) -> 'a * 'b * 'c -> 'a * 'y * 'c
     {[Tuple3.mapSecond (~-) ("stressed", 16, false) = ("stressed", -16, false)]}
 *)
 
-val mapThird : f: ('c -> 'z) -> 'a * 'b * 'c -> 'a * 'b * 'z
+val mapThird: f: ('c -> 'z) -> 'a * 'b * 'c -> 'a * 'b * 'z
 (** Transform the third value in a tuple.
 
     {2 Examples}
@@ -155,7 +155,7 @@ val mapThird : f: ('c -> 'z) -> 'a * 'b * 'c -> 'a * 'b * 'z
     {[Tuple3.mapThird not ("stressed", 16, false) ("stressed", 16, true)]}
 *)
 
-val mapEach :
+val mapEach:
   f: ('a -> 'x) -> g: ('b -> 'y) -> h: ('c -> 'z) -> 'a * 'b * 'c -> 'x * 'y * 'z
 (** Transform each value in a tuple by applying [f] to the {!first} value, [g] to the {!second} value and [h] to the {!third} value.
 
@@ -170,7 +170,7 @@ val mapEach :
     ]}
 *)
 
-val mapAll : f: ('a -> 'b) -> 'a * 'a * 'a -> 'b * 'b * 'b
+val mapAll: f: ('a -> 'b) -> 'a * 'a * 'a -> 'b * 'b * 'b
 (** Transform all the values of a tuple using the same function.
 
     [mapAll] can only be used on tuples which have the same type for each value.
@@ -184,7 +184,7 @@ val mapAll : f: ('a -> 'b) -> 'a * 'a * 'a -> 'b * 'b * 'b
 
 (** {1 Convert} *)
 
-val toArray : 'a * 'a * 'a -> 'a array
+val toArray: 'a * 'a * 'a -> 'a array
 (** Turns a tuple into a {!List} of length three.
 
     This function can only be used on tuples which have the same type for each value.
@@ -196,7 +196,7 @@ val toArray : 'a * 'a * 'a -> 'a array
     {[Tuple3.toArray ("was", "stressed", "then") = ["was"; "stressed"; "then"]]}
 *)
 
-val toList : 'a * 'a * 'a -> 'a list
+val toList: 'a * 'a * 'a -> 'a list
 (** Turns a tuple into a {!List} of length three.
 
     This function can only be used on tuples which have the same type for each value.
@@ -210,7 +210,7 @@ val toList : 'a * 'a * 'a -> 'a list
 
 (** {1 Compare} *)
 
-val equal :
+val equal:
   ('a -> 'a -> bool) ->
   ('b -> 'b -> bool) ->
   ('c -> 'c -> bool) ->
@@ -227,7 +227,7 @@ val equal :
     {[Tuple3.equal Int.equal String.equal Char.equal (1, "Fox", 'j') (2, "Hen", 'j') = false]}
  *)
 
-val compare :
+val compare:
   ('a -> 'a -> int) ->
   ('b -> 'b -> int) ->
   ('c -> 'c -> int) ->
