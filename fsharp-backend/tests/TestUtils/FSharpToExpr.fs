@@ -156,26 +156,16 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Ident name -> eVar name.idText
   | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> eList
   // A literal list is sometimes made up of nested Sequentials
-  | SynExpr.ArrayOrListOfSeqExpr (_,
-                                  SynExpr.CompExpr (_,
-                                                    _,
-                                                    (SynExpr.Sequential _ as seq),
-                                                    _),
-                                  _) ->
+  | SynExpr.ArrayOrListComputed (_, (SynExpr.Sequential _ as seq), _) ->
     let rec seqAsList expr : List<SynExpr> =
       match expr with
       | SynExpr.Sequential (_, _, expr1, expr2, _) -> expr1 :: seqAsList expr2
       | _ -> [ expr ]
 
     seq |> seqAsList |> List.map c |> eList
-  | SynExpr.ArrayOrListOfSeqExpr (_,
-                                  SynExpr.CompExpr (_,
-                                                    _,
-                                                    SynExpr.Tuple (_, exprs, _, _),
-                                                    _),
-                                  _) -> exprs |> List.map c |> eList
-  | SynExpr.ArrayOrListOfSeqExpr (_, SynExpr.CompExpr (_, _, expr, _), _) ->
-    eList [ c expr ]
+  | SynExpr.ArrayOrListComputed (_, SynExpr.Tuple (_, exprs, _, _), _) ->
+    exprs |> List.map c |> eList
+  | SynExpr.ArrayOrListComputed (_, expr, _) -> eList [ c expr ]
 
   // Note to self: LongIdent = Ident list
   | SynExpr.LongIdent (_, LongIdentWithDots ([ modName; fnName ], _), _, _) when
@@ -209,15 +199,15 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     eFieldAccess (eVar var.idText) (nameOrBlank field.idText)
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
     eFieldAccess (c expr) (nameOrBlank field.idText)
-  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
+  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), _, body, _, _) ->
     let rec extractVarsAndBody expr =
       match expr with
       // The 2nd param indicates this was part of a lambda
-      | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), body, _, _) ->
+      | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), _, body, _, _) ->
         let nestedVars, body = extractVarsAndBody body
         vars @ nestedVars, body
       // The 2nd param indicates this was not nested
-      | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), body, _, _) ->
+      | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), _, body, _, _) ->
         vars, body
       | SynExpr.Lambda _ -> failwith $"TODO: other types of lambda: {expr}"
       | _ -> [], expr
@@ -225,7 +215,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     let nestedVars, body = extractVarsAndBody body
     let vars = List.map convertLambdaVar (outerVars @ nestedVars)
     eLambda vars (c body)
-  | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
+  | SynExpr.IfThenElse (_, _, cond, _, thenExpr, _, Some elseExpr, _, _, _, _) ->
     eIf (c cond) (c thenExpr) (c elseExpr)
   // When we add patterns on the lhs of lets, the pattern below could be
   // expanded to use convertPat
@@ -263,7 +253,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                       _) -> eLet "_" (c rhs) (c body)
   | SynExpr.Match (_, cond, clauses, _) ->
     let convertClause
-      (SynMatchClause (pat, _, expr, _, _) : SynMatchClause)
+      (SynMatchClause (pat, _, _, expr, _, _) : SynMatchClause)
       : PT.Pattern * PT.Expr =
       (convertPattern pat, c expr)
 
