@@ -6,7 +6,7 @@ module Tablecloth.Fun
     often imposes a readability burden on future readers.
 *)
 
-val identity : 'a -> 'a
+val identity: 'a -> 'a
 (** Given a value, returns exactly the same value. This may seem pointless at first glance but it can often be useful when an api offers you more control than you actually need.
 
     Perhaps you want to create an array of integers
@@ -25,7 +25,7 @@ val identity : 'a -> 'a
     ]}
 *)
 
-val ignore : _ -> unit
+val ignore: _ -> unit
 (** Discards the value it is given and returns [()]
 
     This is primarily useful when working with imperative side-effecting code
@@ -52,7 +52,7 @@ val ignore : _ -> unit
     ]}
 *)
 
-val constant : 'a -> 'b -> 'a
+val constant: 'a -> 'b -> 'a
 (** Create a function that {b always} returns the same value.
 
     Useful with functions like {!List.map} or {!Array.initialize}
@@ -64,10 +64,10 @@ val constant : 'a -> 'b -> 'a
     {[Array.initialize 6 ~f:(Fun.constant 0) = [|0;0;0;0;0;0|]]}
 *)
 
-val sequence : 'a -> 'b -> 'b
+val sequence: 'a -> 'b -> 'b
 (** A function which always returns its second argument. *)
 
-val flip : ('a -> 'b -> 'c) -> 'b -> 'a -> 'c
+val flip: ('a -> 'b -> 'c) -> 'b -> 'a -> 'c
 (** Reverses the argument order of a function.
 
     For any arguments [x] and [y], [(flip f) x y] is the same as [f y x].
@@ -76,7 +76,7 @@ val flip : ('a -> 'b -> 'c) -> 'b -> 'a -> 'c
     already have access to are in the wrong order.
 *)
 
-val negate : ('a -> bool) -> 'a -> bool
+val negate: ('a -> bool) -> 'a -> bool
 (** Negate a function.
 
     This can be useful in combination with {!List.filter} / {!Array.filter} or {!List.find} / {!Array.find}
@@ -89,10 +89,10 @@ val negate : ('a -> bool) -> 'a -> bool
     ]}
 *)
 
-val apply : ('a -> 'b) -> 'a -> 'b
+val apply: ('a -> 'b) -> 'a -> 'b
 (** See {!Fun.(<|)} *)
 
-val (<|) : ('a -> 'b) -> 'a -> 'b
+val (<|): ('a -> 'b) -> 'a -> 'b
 (** Like {!(|>)} but in the opposite direction.
 
     [f <| x] is exactly the same as [f x].
@@ -100,10 +100,10 @@ val (<|) : ('a -> 'b) -> 'a -> 'b
     Maybe you want to apply a function to a [match] expression? That sort of thing.
 *)
 
-val pipe : 'a -> ('a -> 'b) -> 'b
+val pipe: 'a -> ('a -> 'b) -> 'b
 (** See {!Fun.(|>)} *)
 
-val (|>) : 'a -> ('a -> 'b) -> 'b
+val (|>): 'a -> ('a -> 'b) -> 'b
 (** Saying [x |> f] is exactly the same as [f x], just a bit longer.
 
     It is called the "pipe" operator because it lets you write "pipelined" code.
@@ -135,7 +135,7 @@ val (|>) : 'a -> ('a -> 'b) -> 'b
     It can often be more self-documenting that way!
 *)
 
-val compose : ('b -> 'c) -> ('a -> 'b) -> ('a -> 'c)
+val compose: ('b -> 'c) -> ('a -> 'b) -> ('a -> 'c)
 (** Function composition, passing results along in the suggested direction.
 
     For example, the following code (in a very roundabout way) checks if a number divided by two is odd:
@@ -151,10 +151,10 @@ val compose : ('b -> 'c) -> ('a -> 'b) -> ('a -> 'c)
     {[let isHalfOdd = fun n -> not (Int.isEven (Int.divide ~by:2 n))]}
 *)
 
-val (<<) : ('b -> 'c) -> ('a -> 'b) -> ('a -> 'c)
+val (<<): ('b -> 'c) -> ('a -> 'b) -> ('a -> 'c)
 (** See {!Fun.compose} *)
 
-val composeRight : ('a -> 'b) -> ('b -> 'c) -> ('a -> 'c)
+val composeRight: ('a -> 'b) -> ('b -> 'c) -> ('a -> 'c)
 (** Function composition, passing results along in the suggested direction.
 
     For example, the following code checks if the square root of a number is odd:
@@ -162,10 +162,10 @@ val composeRight : ('a -> 'b) -> ('b -> 'c) -> ('a -> 'c)
     {[Int.squareRoot >> Int.isEven >> not]}
 *)
 
-val (>>) : ('a -> 'b) -> ('b -> 'c) -> ('a -> 'c)
+val (>>): ('a -> 'b) -> ('b -> 'c) -> ('a -> 'c)
 (** See {!Fun.composeRight} *)
 
-val tap : f: ('a -> unit) -> 'a -> 'a
+val tap: f: ('a -> unit) -> 'a -> 'a
 (** Useful for performing some side affect in {!Fun.pipe}-lined code.
 
     Most commonly used to log a value in the middle of a pipeline of function calls.
@@ -188,13 +188,13 @@ val tap : f: ('a -> unit) -> 'a -> 'a
     ]}
 *)
 
-val forever : (unit -> unit) -> exn
+val forever: (unit -> unit) -> exn
 (** Runs the provided function, forever.
 
     If an exception is thrown, returns the exception
 *)
 
-val times : int -> f: (unit -> unit) -> unit
+val times: int -> f: (unit -> unit) -> unit
 (** Runs a function repeatedly.
 
     {2 Examples}
@@ -206,7 +206,7 @@ val times : int -> f: (unit -> unit) -> unit
     ]}
 *)
 
-val curry : ('a * 'b -> 'c) -> 'a -> 'b -> 'c
+val curry: ('a * 'b -> 'c) -> 'a -> 'b -> 'c
 (** Takes a function [f] which takes a single argument of a tuple ['a * 'b] and returns a function which takes two arguments that can be partially applied.
 
     {2 Examples}
@@ -219,7 +219,7 @@ val curry : ('a * 'b -> 'c) -> 'a -> 'b -> 'c
     ]}
 *)
 
-val uncurry : ('a -> 'b -> 'c) -> 'a * 'b -> 'c
+val uncurry: ('a -> 'b -> 'c) -> 'a * 'b -> 'c
 (** Takes a function which takes two arguments and returns a function which takes a single argument of a tuple.
 
     {2 Examples}
@@ -231,8 +231,8 @@ val uncurry : ('a -> 'b -> 'c) -> 'a * 'b -> 'c
     ]}
 *)
 
-val curry3 : ('a * 'b * 'c -> 'd) -> 'a -> 'b -> 'c -> 'd
+val curry3: ('a * 'b * 'c -> 'd) -> 'a -> 'b -> 'c -> 'd
 (** Like {!curry} but for a {!Tuple3} *)
 
-val uncurry3 : ('a -> 'b -> 'c -> 'd) -> 'a * 'b * 'c -> 'd
+val uncurry3: ('a -> 'b -> 'c -> 'd) -> 'a * 'b * 'c -> 'd
 (** Like {!uncurry} but for a {!Tuple3} *)

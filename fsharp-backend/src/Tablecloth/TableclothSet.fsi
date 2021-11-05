@@ -18,7 +18,7 @@ type t<'a when 'a: comparison> = 'a Set
 
 *)
 
-val empty : 'a t
+val empty: 'a t
 (** A set with nothing in it.
 
     Often used as an initial value for functions like {!Array.fold}
@@ -35,7 +35,7 @@ val empty : 'a t
     ]}
 *)
 
-val singleton : 'a -> 'a t
+val singleton: 'a -> 'a t
 (** Create a set from a single {!Int}
 
   {2 Examples}
@@ -43,7 +43,7 @@ val singleton : 'a -> 'a t
   {[Set.singleton 7 |> Set.toList = [7]]}
 *)
 
-val fromArray : 'a array -> 'a t
+val fromArray: 'a array -> 'a t
 (** Create a set from an {!Array}
 
     {2 Examples}
@@ -51,9 +51,9 @@ val fromArray : 'a array -> 'a t
     {[Set.fromArray [|"Ant"; "Bat"; "Bat"; "Goldfish"|] |> Set.toArray = [|"Ant";"Bat";"Goldfish"|]]}
 *)
 
-val from_array : 'a array -> 'a t
+val from_array: 'a array -> 'a t
 
-val fromList : 'a list -> 'a t
+val fromList: 'a list -> 'a t
 (** Create a set from a {!List}
 
     {2 Examples}
@@ -61,11 +61,11 @@ val fromList : 'a list -> 'a t
     {[Set.fromList (module Char) ['A'; 'B'; 'B'; 'G'] |> Set.toList = ['A';'B';'G']]}
 *)
 
-val from_list : 'a list -> 'a t
+val from_list: 'a list -> 'a t
 
 (** {1 Basic operations} *)
 
-val add : 'a t -> 'a -> 'a t
+val add: 'a t -> 'a -> 'a t
 (** Insert a value into a set.
 
     {2 Examples}
@@ -75,7 +75,7 @@ val add : 'a t -> 'a -> 'a t
     {[Set.add (Set.Int.fromList [1; 2]) 2 |> Set.toList = [1; 2]]}
 *)
 
-val remove : 'a t -> 'a -> 'a t
+val remove: 'a t -> 'a -> 'a t
 (** Remove a value from a set, if the set doesn't contain the value anyway, returns the original set
 
     {2 Examples}
@@ -89,7 +89,7 @@ val remove : 'a t -> 'a -> 'a t
     ]}
 *)
 
-val includes : 'a -> 'a t -> bool
+val includes: 'a -> 'a t -> bool
 (** Determine if a value is in a set
 
     {2 Examples}
@@ -111,7 +111,7 @@ val includes : 'a -> 'a t -> bool
     ]}
  *)
 
-val length : 'a t -> int
+val length: 'a t -> int
 (** Determine the number of elements in a set.
 
     {2 Examples}
@@ -119,7 +119,7 @@ val length : 'a t -> int
     {[Set.length (Set.Int.fromList [1; 2; 3]) = 3]}
 *)
 
-val find : f: ('a -> bool) -> 'a t -> 'a option
+val find: f: ('a -> bool) -> 'a t -> 'a option
 (** Returns, as an {!Option}, the first element for which [f] evaluates to [true]. If [f] doesn't return [true] for any of the elements [find] will return [None].
 
     {2 Examples}
@@ -133,7 +133,7 @@ val find : f: ('a -> bool) -> 'a t -> 'a option
 
 (** {1 Query} *)
 
-val isEmpty : 'a t -> bool
+val isEmpty: 'a t -> bool
 (** Check if a set is empty.
 
     {2 Examples}
@@ -143,9 +143,9 @@ val isEmpty : 'a t -> bool
     {[Set.isEmpty (Set.Int.singleton 4) = false]}
 *)
 
-val is_empty : 'a t -> bool
+val is_empty: 'a t -> bool
 
-val any : f: ('a -> bool) -> 'a t -> bool
+val any: f: ('a -> bool) -> 'a t -> bool
 (** Determine if [f] returns true for [any] values in a set.
 
     {2 Examples}
@@ -157,7 +157,7 @@ val any : f: ('a -> bool) -> 'a t -> bool
     {[Set.any Int.isEven (Set.Int.fromList []) = false]}
 *)
 
-val all : f: ('a -> bool) -> 'a t -> bool
+val all: f: ('a -> bool) -> 'a t -> bool
 (** Determine if [f] returns true for [all] values in a set.
 
     {2 Examples}
@@ -171,7 +171,7 @@ val all : f: ('a -> bool) -> 'a t -> bool
 
 (** {1 Combine} *)
 
-val difference : 'a t -> 'a t -> 'a t
+val difference: 'a t -> 'a t -> 'a t
 (** Returns a new set with the values from the first set which are not in the second set.
 
     {2 Examples}
@@ -181,7 +181,7 @@ val difference : 'a t -> 'a t -> 'a t
     {[Set.difference (Set.Int.fromList [2;3;4]) (Set.Int.fromList [1;2;5]) |> Set.toList = [3;4]]}
 *)
 
-val intersection : 'a t -> 'a t -> 'a t
+val intersection: 'a t -> 'a t -> 'a t
 (** Get the intersection of two sets. Keeps values that appear in both sets.
 
     {2 Examples}
@@ -189,7 +189,7 @@ val intersection : 'a t -> 'a t -> 'a t
     {[Set.intersection (Set.Int.fromList [1;2;5]) (Set.Int.fromList [2;3;4]) |> Set.toList= [2]]}
 *)
 
-val union : 'a t -> 'a t -> 'a t
+val union: 'a t -> 'a t -> 'a t
 (** Get the union of two sets. Keep all values.
 
     {2 Examples}
@@ -199,7 +199,7 @@ val union : 'a t -> 'a t -> 'a t
 
 (** {1 Transform} *)
 
-val filter : f: ('a -> bool) -> 'a t -> 'a t
+val filter: f: ('a -> bool) -> 'a t -> 'a t
 (** Keep elements that [f] returns [true] for.
 
     {2 Examples}
@@ -207,7 +207,7 @@ val filter : f: ('a -> bool) -> 'a t -> 'a t
     {[Set.filter Int.isEven (Set.Int.fromList [1;2;3]) |> Set.toList = [2]]}
 *)
 
-val partition : f: ('a -> bool) -> 'a t -> 'a t * 'a t
+val partition: f: ('a -> bool) -> 'a t -> 'a t * 'a t
 (** Divide a set into two according to [f]. The first set will contain the values that [f] returns [true] for, values that [f] returns [false] for will end up in the second.
 
     {2 Examples}
@@ -220,7 +220,7 @@ val partition : f: ('a -> bool) -> 'a t -> 'a t * 'a t
     ]}
 *)
 
-val fold : initial: 'b -> f: ('b -> 'a -> 'b) -> 'a t -> 'b
+val fold: initial: 'b -> f: ('b -> 'a -> 'b) -> 'a t -> 'b
 (** Transform a set into a value which is result of running each element in the set through [f], where each successive invocation is supplied the return value of the previous.
 
   See {!Array.fold} for a more in-depth explanation.
@@ -230,19 +230,19 @@ val fold : initial: 'b -> f: ('b -> 'a -> 'b) -> 'a t -> 'b
   {[Set.fold 1 ( * ) (Set.Int.fromList [1;2;3;4]) = 24]}
 *)
 
-val forEach : f: ('a -> unit) -> 'a t -> unit
+val forEach: f: ('a -> unit) -> 'a t -> unit
 (** Runs a function [f] against each element of the set. *)
 
-val for_each : f: ('a -> unit) -> 'a t -> unit
+val for_each: f: ('a -> unit) -> 'a t -> unit
 
 (** {1 Convert} *)
 
-val toArray : 'a t -> 'a array
+val toArray: 'a t -> 'a array
 (** Converts a set into an {!Array} *)
 
-val to_array : 'a t -> 'a array
+val to_array: 'a t -> 'a array
 
-val toList : 'a t -> 'a list
+val toList: 'a t -> 'a list
 (** Converts a set into a {!List}. *)
 
-val to_list : 'a t -> 'a list
+val to_list: 'a t -> 'a list

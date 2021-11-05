@@ -35,7 +35,7 @@ module Tablecloth.Option
 
 type 'a t = 'a option
 
-val some : 'a -> 'a option
+val some: 'a -> 'a option
 (** A function version of the [Some] constructor.
 
     In most situations you just want to use the [Some] constructor directly.
@@ -51,7 +51,7 @@ val some : 'a -> 'a option
     {[String.reverse("desserts") |> Option.some = Some "desserts" ]}
  *)
 
-val and_ : 'a t -> 'a t -> 'a t
+val and_: 'a t -> 'a t -> 'a t
 (** Returns [None] if the first argument is [None], otherwise return the second argument.
 
   Unlike the built in [&&] operator, the [and_] function does not short-circuit.
@@ -69,7 +69,7 @@ val and_ : 'a t -> 'a t -> 'a t
   {[Option.and_ None None = None]}
 *)
 
-val or_ : 'a t -> 'a t -> 'a t
+val or_: 'a t -> 'a t -> 'a t
 (** Return the first argument if it {!isSome}, otherwise return the second.
 
     Unlike the built in [||] operator, the [or_] function does not short-circuit.
@@ -86,7 +86,7 @@ val or_ : 'a t -> 'a t -> 'a t
     {[Option.or_ None None = None]}
 *)
 
-val orElse : 'a t -> 'a t -> 'a t
+val orElse: 'a t -> 'a t -> 'a t
 (** Return the second argument if it {!isSome}, otherwise return the first.
 
     Like {!or_} but in reverse. Useful when using the [|>] operator
@@ -102,9 +102,9 @@ val orElse : 'a t -> 'a t -> 'a t
     {[Option.orElse None None = None]}
 *)
 
-val or_else : 'a t -> 'a t -> 'a t
+val or_else: 'a t -> 'a t -> 'a t
 
-val both : 'a t -> 'b t -> ('a * 'b) t
+val both: 'a t -> 'b t -> ('a * 'b) t
 (** Transform two options into an option of a {!Tuple}.
 
     Returns None if either of the aguments is None.
@@ -120,7 +120,7 @@ val both : 'a t -> 'b t -> ('a * 'b) t
     {[Option.both None None = None]}
 *)
 
-val flatten : 'a t t -> 'a t
+val flatten: 'a t t -> 'a t
 (** Flatten two optional layers into a single optional layer.
 
     {2 Examples}
@@ -132,7 +132,7 @@ val flatten : 'a t t -> 'a t
     {[Option.flatten (None) = None]}
 *)
 
-val map : f: ('a -> 'b) -> 'a t -> 'b t
+val map: f: ('a -> 'b) -> 'a t -> 'b t
 (** Transform the value inside an option.
 
     Leaves [None] untouched.
@@ -148,7 +148,7 @@ val map : f: ('a -> 'b) -> 'a t -> 'b t
     {[Option.map (fun x -> x * x) None = None]}
 *)
 
-val map2 : f: ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+val map2: f: ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 (** Combine two {!Option}s
 
     If both options are [Some] returns, as [Some] the result of running [f] on both values.
@@ -166,7 +166,7 @@ val map2 : f: ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
     {[Option.map2 Int.add None (Some 4) = None]}
 *)
 
-val andThen : f: ('a -> 'b t) -> 'a t -> 'b t
+val andThen: f: ('a -> 'b t) -> 'a t -> 'b t
 (** Chain together many computations that may not return a value.
 
     It is helpful to see its definition:
@@ -209,9 +209,9 @@ val andThen : f: ('a -> 'b t) -> 'a t -> 'b t
     {[Option.andThen List.head (Some []) = None]}
 *)
 
-val and_then : f: ('a -> 'b t) -> 'a t -> 'b t
+val and_then: f: ('a -> 'b t) -> 'a t -> 'b t
 
-val unwrap : ``default``: 'a -> 'a t -> 'a
+val unwrap: ``default``: 'a -> 'a t -> 'a
 (** Unwrap an [option('a)] returning [default] if called with [None].
 
     This comes in handy when paired with functions like {!Map.get} or {!List.head} which return an {!Option}.
@@ -229,7 +229,7 @@ val unwrap : ``default``: 'a -> 'a t -> 'a
     {[Option.unwrap "unknown" (Map.get Map.String.empty "Tom") = "unknown"]}
 *)
 
-val unwrapUnsafe : 'a t -> 'a
+val unwrapUnsafe: 'a t -> 'a
 (** Unwrap an [option('a)] returning the enclosed ['a].
 
     {b Note} in most situations it is better to use pattern matching, {!unwrap}, {!map} or {!andThen}.
@@ -246,9 +246,9 @@ val unwrapUnsafe : 'a t -> 'a
     {[List.head [] |> Option.unwrapUnsafe]}
 *)
 
-val unwrap_unsafe : 'a t -> 'a
+val unwrap_unsafe: 'a t -> 'a
 
-val isSome : 'a t -> bool
+val isSome: 'a t -> bool
 (** Check if an {!Option} is a [Some].
 
     In most situtations you should just use pattern matching instead.
@@ -260,9 +260,9 @@ val isSome : 'a t -> bool
     {[Option.isSome None = false]}
 *)
 
-val is_some : 'a t -> bool
+val is_some: 'a t -> bool
 
-val isNone : 'a t -> bool
+val isNone: 'a t -> bool
 (** Check if an {!Option} is a [None].
 
     In most situtations you should just use pattern matching instead.
@@ -274,12 +274,12 @@ val isNone : 'a t -> bool
     {[Option.isNone None = true]}
 *)
 
-val is_none : 'a t -> bool
+val is_none: 'a t -> bool
 
-val tap : f: ('a -> unit) -> 'a t -> unit
+val tap: f: ('a -> unit) -> 'a t -> unit
 (** Run a function against a value, if it is present. *)
 
-val toArray : 'a t -> 'a array
+val toArray: 'a t -> 'a array
 (** Convert an option to a {!Array}.
 
     [None] is represented as an empty list and [Some] is represented as a list of one element.
@@ -291,9 +291,9 @@ val toArray : 'a t -> 'a array
     {[Option.toArray (None) = [||]]}
 *)
 
-val to_array : 'a t -> 'a array
+val to_array: 'a t -> 'a array
 
-val toList : 'a t -> 'a list
+val toList: 'a t -> 'a list
 (** Convert an option to a {!List}.
 
     [None] is represented as an empty list and [Some] is represented as a list of one element.
@@ -305,11 +305,11 @@ val toList : 'a t -> 'a list
     {[Option.toList (None) = []]}
 *)
 
-val to_list : 'a t -> 'a list
+val to_list: 'a t -> 'a list
 
 (** {1 Compare} *)
 
-val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+val equal: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 (** Test two optional values for equality using the provided function
 
     {2 Examples}
@@ -323,7 +323,7 @@ val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
     {[Option.equal Int.equal None None = true]}
 *)
 
-val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
+val compare: ('a -> 'a -> int) -> 'a t -> 'a t -> int
 (** Compare two optional values using the provided function.
 
     A [None] is "less" than a [Some]
@@ -364,7 +364,7 @@ val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
     ]}
 *)
 
-val (|?) : 'a t -> 'a -> 'a
+val (|?): 'a t -> 'a -> 'a
 (** The operator version of {!get}
 
     {2 Examples}
@@ -374,7 +374,7 @@ val (|?) : 'a t -> 'a -> 'a
     {[None |? 8 = 8]}
 *)
 
-val (>>|) : 'a t -> ('a -> 'b) -> 'b t
+val (>>|): 'a t -> ('a -> 'b) -> 'b t
 (** The operator version of {!map}
 
     {2 Examples}
@@ -384,7 +384,7 @@ val (>>|) : 'a t -> ('a -> 'b) -> 'b t
     {[None >>| String.reverse = None]}
 *)
 
-val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+val (>>=): 'a t -> ('a -> 'b t) -> 'b t
 (** The operator version of {!andThen}
 
     {2 Examples}

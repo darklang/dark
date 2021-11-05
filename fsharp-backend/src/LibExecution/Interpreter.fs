@@ -658,7 +658,8 @@ and execFn
             | Ok () ->
               let! result =
                 match (state.tracing.realOrPreview,
-                       state.tracing.loadFnResult fnRecord arglist) with
+                       state.tracing.loadFnResult fnRecord arglist)
+                  with
                 | Preview, Some (result, _ts) -> Ply(Dval.unwrapFromErrorRail result)
                 | Preview, None when fn.previewable <> Pure ->
                   Ply(DIncomplete sourceID)
@@ -702,7 +703,8 @@ and execFn
               state.tracing.traceTLID tlid
               // Don't execute user functions if it's preview mode and we have a result
               match (state.tracing.realOrPreview,
-                     state.tracing.loadFnResult fnRecord arglist) with
+                     state.tracing.loadFnResult fnRecord arglist)
+                with
               | Preview, Some (result, _ts) -> return Dval.unwrapFromErrorRail result
               | _ ->
                 // It's okay to execute user functions in both Preview and Real contexts,
