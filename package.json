@@ -34,7 +34,7 @@
     "rollbar": "2.24.0",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "darklang/tablecloth#49cb938d1bb177a504de40de7d470615452e8d8d",
-    "validator": "^13.6.0"
+    "validator": "^13.7.0"
   },
   "scripts": {
     "clean": "./scripts/build/_rescript-wrapper.sh -clean-world",
