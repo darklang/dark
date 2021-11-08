@@ -783,72 +783,8 @@ let ofInternalQueryableV1 (str : string) : Dval =
   str |> parseJson |> convertTopLevel
 
 // -------------------------
-// Other formats *)
+// Other formats
 // -------------------------
-// let rec to_enduser_readable_text_v0 dval =
-//   let rec nestedreprfn dv =
-//     (* If nesting inside an object or a list, wrap strings in quotes *)
-//     match dv with
-//     | DStr _ | DUuid _ | DCharacter _ ->
-//         "\"" ^ reprfn dv ^ "\""
-//     | _ ->
-//         reprfn dv
-//   and reprfn dv =
-//     match dv with
-//     | DInt i ->
-//         Dint.to_string i
-//     | DBool true ->
-//         "true"
-//     | DBool false ->
-//         "false"
-//     | DStr s ->
-//         Unicode_string.to_string s
-//     | DFloat f ->
-//         string_of_float f
-//     | DCharacter c ->
-//         Unicode_string.Character.to_string c
-//     | DNull ->
-//         "null"
-//     | DDate d ->
-//         Util.isostring_of_date d
-//     | DUuid uuid ->
-//         Uuidm.to_string uuid
-//     | DDB dbname ->
-//         "<DB: " ^ dbname ^ ">"
-//     | DError (_, msg) ->
-//         "Error: " ^ msg
-//     | DIncomplete _ ->
-//         "<Incomplete>"
-//     | DBlock _ ->
-//         (* See docs/dblock-serialization.ml *)
-//         "<Block>"
-//     | DPassword _ ->
-//         (* redacting, do not unredact *)
-//         "<Password>"
-//     | DObj o ->
-//         to_nested_string ~reprfn:nestedreprfn dv
-//     | DList l ->
-//         to_nested_string ~reprfn:nestedreprfn dv
-//     | DErrorRail d ->
-//         (* We don't print error here, because the errorrail value will know
-//            * whether it's an error or not. *)
-//         reprfn d
-//     | DResp (dh, dv) ->
-//         dhttp_to_formatted_string dh ^ "\n" ^ nestedreprfn dv ^ ""
-//     | DResult (ResOk d) ->
-//         reprfn d
-//     | DResult (ResError d) ->
-//         "Error: " ^ reprfn d
-//     | DOption (OptJust d) ->
-//         reprfn d
-//     | DOption OptNothing ->
-//         "Nothing"
-//     | DBytes bytes ->
-//         Bytes.to_string bytes
-//   in
-//   reprfn dval
-
-
 let rec toDeveloperReprV0 (dv : Dval) : string =
   let rec toRepr_ (indent : int) (dv : Dval) : string =
     let makeSpaces len = "".PadRight(len, ' ')
@@ -1060,7 +996,119 @@ let toStringPairsExn (dv : Dval) : (string * string) list =
     // $"Expected a string, but got: {toDeveloperReprV0 dv}"
     failwith "expecting str"
 
+// -------------------------
+// URLs and queryStrings
+// -------------------------
 
+// For putting into URLs as query params
+let rec toUrlStringExn (dv : Dval) : string =
+  let r = toUrlStringExn
+  match dv with
+  | DFnVal _ ->
+    (* See docs/dblock-serialization.ml *)
+    "<block>"
+  | DIncomplete _ -> "<incomplete>"
+  | DPassword _ -> "<password>"
+  | DInt i -> string i
+  | DBool true -> "true"
+  | DBool false -> "false"
+  | DStr s -> s
+  | DFloat f -> ocamlStringOfFloat f
+  | DChar c -> c
+  | DNull -> "null"
+  | DDate d -> d.toIsoString ()
+  | DDB dbname -> dbname
+  | DErrorRail d -> r d
+  | DError (_, msg : string) -> $"error={msg}"
+  | DUuid uuid -> string uuid
+  | DHttpResponse (Redirect _) -> "null"
+  | DHttpResponse (Response (_, _, hdv)) -> r hdv
+  | DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
+  | DObj o ->
+    let strs = Map.fold [] (fun l key value -> (key + ": " + r value) :: l) o
+    "{ " + (String.concat ", " strs) + " }"
+  | DOption None -> "none"
+  | DOption (Some v) -> r v
+  | DResult (Error v) -> "error=" + r v
+  | DResult (Ok v) -> r v
+  | DBytes bytes -> Base64.defaultEncodeToString bytes
+
+// Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
+let queryToEncodedString (queryParams : (List<string * List<string>>)) : string =
+  match queryParams with
+  | [ key, [] ] -> urlEncodeKey key
+  | _ ->
+    queryParams
+    |> List.map
+         (fun (k, vs) ->
+           let k = k |> urlEncodeKey
+           vs
+           |> List.map urlEncodeValue
+           |> fun vs ->
+                if vs = [] then
+                  k
+                else
+                  let vs = String.concat "," vs
+                  $"{k}={vs}")
+    |> String.concat "&"
+
+let toQuery (dv : Dval) : List<string * List<string>> =
+  match dv with
+  | DObj kvs ->
+    kvs
+    |> Map.toList
+    |> List.map
+         (fun (k, value) ->
+           match value with
+           | DNull -> (k, [])
+           | DList l -> (k, List.map toUrlStringExn l)
+           | _ -> (k, [ toUrlStringExn value ]))
+  | _ -> failwith "attempting to use non-object as query param" // CODE exception
+
+
+// The queryString passed in should not include the leading '?' from the URL
+let parseQueryString (queryString : string) : List<string * List<string>> =
+  // This will eat any intended question mark, so add one
+  let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
+  nvc.AllKeys
+  |> Array.map
+       (fun key ->
+         let values = nvc.GetValues key
+         let split =
+           values.[values.Length - 1]
+           |> FSharpPlus.String.split [| "," |]
+           |> Seq.toList
+
+         if isNull key then
+           // All the values with no key are by GetValues, so make each one a value
+           values |> Array.toList |> List.map (fun k -> (k, []))
+         else
+           [ (key, split) ])
+  |> List.concat
+
+let ofQuery (query : List<string * List<string>>) : Dval =
+  query
+  |> List.map
+       (fun (k, v) ->
+         match v with
+         | [] -> k, DNull
+         | [ "" ] -> k, DNull // CLEANUP this should be a string
+         | [ v ] -> k, DStr v
+         | list -> k, DList(List.map DStr list))
+  |> Map
+  |> DObj
+
+
+let ofQueryString (queryString : string) : Dval =
+  queryString |> parseQueryString |> ofQuery
+
+// -------------------------
+// Forms
+// -------------------------
+
+let toFormEncoding (dv : Dval) : string = toQuery dv |> queryToEncodedString
+
+let ofFormEncoding (f : string) : Dval = f |> parseQueryString |> ofQuery
 
 
 // -------------------------

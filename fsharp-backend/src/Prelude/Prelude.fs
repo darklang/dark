@@ -24,8 +24,65 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // Exceptions
 // ----------------------
 
-// Exceptions that should not be exposed to users, and that indicate unexpected
-// behaviour
+// Exceptions indicate who is responsible for a problem, and include messages which
+// may be shown to users
+type DarkExceptionData =
+  // Do not show to anyone, we need to rollbar this and address it
+  | InternalError of string
+
+  // An error caused by the grand user making the request, show the error to the
+  // requester no matter who they are
+  | GrandUserError of string
+
+  // An error caused by how the developer wrote the code, such as calling a function
+  // with the wrong type
+  | DeveloperError of string
+
+  // An error caused by the editor doing something it shouldn't, so as an Redo or
+  // rename that isn't allowed. The editor should have caught this on the client and
+  // not made the request.
+  | EditorError of string
+
+  // An error in library or framework code, such as calling a function with a negative
+  // number when it doesn't support it. We probably caused this by allowing it to
+  // happen, so we definitely want to fix it, but it's OK to tell the developer what
+  // happened (not grandusers though)
+  | LibraryError of string
+
+exception DarkException of DarkExceptionData
+
+module Exception =
+  let raiseGrandUser (msg : string) = raise (DarkException(GrandUserError(msg)))
+  let raiseDeveloper (msg : string) = raise (DarkException(DeveloperError(msg)))
+  let raiseEditor (msg : string) = raise (DarkException(EditorError(msg)))
+  let raiseInternal (msg : string) = raise (DarkException(InternalError(msg)))
+  let raiseLibrary (msg : string) = raise (DarkException(LibraryError(msg)))
+
+  let toGrandUserMessage (e : DarkExceptionData) : string =
+    match e with
+    | InternalError _
+    | DeveloperError _
+    | LibraryError _
+    | EditorError _ -> ""
+    | GrandUserError msg -> msg
+
+  let toDeveloperMessage (e : DarkExceptionData) : string =
+    match e with
+    | InternalError _ -> ""
+    | LibraryError msg
+    | EditorError msg
+    | DeveloperError msg
+    | GrandUserError msg -> msg
+
+  let toInternalMessage (e : DarkExceptionData) : string =
+    match e with
+    | InternalError msg
+    | LibraryError msg
+    | EditorError msg
+    | DeveloperError msg
+    | GrandUserError msg -> msg
+
+
 
 // ----------------------
 // Regex patterns
@@ -77,7 +134,7 @@ type NonBlockingConsole() =
         with
         | e ->
           System.Console.WriteLine(
-            $"Exception in blocking qu eue thread: {e.Message}"
+            $"Exception in blocking queue thread: {e.Message}"
           )
     let thread = System.Threading.Thread(f)
     do
@@ -236,7 +293,7 @@ module UTF8 =
     System.Text.Encoding.UTF8.GetString input
 
 
-// Base64 comes in various flavors, typically URLsafe (has '-' amd '_' with no
+// Base64 comes in various flavors, typically URLsafe (has '-' and '_' with no
 // padding) or regular (has + and / and has '=' padding at the end)
 module Base64 =
 
@@ -327,6 +384,30 @@ let truncateToInt64 (v : bigint) : int64 =
   | :? System.OverflowException ->
     if v > 0I then System.Int64.MaxValue else System.Int64.MinValue
 
+let urlEncodeExcept (keep : string) (s : string) : string =
+  let keep = UTF8.toBytes keep |> set
+  let encodeByte (b : byte) : byte array =
+    // CLEANUP make a nicer version of this that's designed for this use case
+    // We do want to escape the following: []+&^%#@"<>/;
+    // We don't want to escape the following: *$@!:?,.-_'
+    if (b >= (byte 'a') && b <= (byte 'z'))
+       || (b >= (byte '0') && b <= (byte '9'))
+       || (b >= (byte 'A') && b <= (byte 'Z'))
+       || keep.Contains b then
+      [| b |]
+    else
+      UTF8.toBytes ("%" + b.ToString("X2"))
+  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
+
+
+// urlEncode values in a query string. Note that the encoding is slightly different
+// to urlEncoding keys.
+// https://secretgeek.net/uri_enconding
+let urlEncodeValue (s : string) : string = urlEncodeExcept "*$@!:()~?/.-_='" s
+
+// urlEncode keys in a query string. Note that the encoding is slightly different to
+// query string values
+let urlEncodeKey (s : string) : string = urlEncodeExcept "*$@!:()~?/.,-_'" s
 
 
 

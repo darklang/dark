@@ -127,7 +127,7 @@ let t filename =
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
 
-      let! state = executionStateFor name Map.empty Map.empty
+      let! state = executionStateFor "test-httpclient-${name}" Map.empty Map.empty
 
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
@@ -214,6 +214,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
       let actualHeaders =
         BwdServer.getHeaders ctx
+        |> Map
         // .NET always adds a Content-Length header, but OCaml doesn't
         |> Map.remove "Content-Length"
       let! actualBody = BwdServer.getBody ctx

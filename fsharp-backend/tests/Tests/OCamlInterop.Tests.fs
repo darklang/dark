@@ -69,7 +69,7 @@ let fuzzedTests =
         "question mark surrounded later with value", "x=5&y?y=6" ]
     testListUsingProperty
       "toQueryString"
-      FuzzTests.All.HttpClient.toQueryString
+      FuzzTests.All.HttpClient.queryToEncodedString
       [ "empty", [ "", [] ]
         "empty string value", [ "", [ "" ] ]
         "empty value", [ "a", [] ]

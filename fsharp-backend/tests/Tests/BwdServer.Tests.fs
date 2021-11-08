@@ -27,6 +27,7 @@ let t filename =
   testTask $"Httpfiles: {filename}" {
     let skip = String.startsWith "_" filename
     let name = if skip then String.dropLeft 1 filename else filename
+    let name = $"bwdserver-{name}"
     let testName = $"test-{name}"
     do! TestUtils.clearCanvasData (CanvasName.create testName)
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
@@ -36,19 +37,23 @@ let t filename =
     let! contents = System.IO.File.ReadAllBytesAsync filename
     let contents = toStr contents
 
-    let request, expectedResponse, httpDefs =
+    let request, expectedResponse, httpDefs, cors, customDomain =
       // TODO: use FsRegex instead
       let m =
         Regex.Match(
           contents,
-          "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
+          ("^((\[http-handler \S+ \S+\]\n.*?\n)+)"
+           + "(\[cors .*\]\n+)?"
+           + "(\[custom-domain .*\]\n+)?"
+           + "\[request\]\n(.*)"
+           + "\[response\]\n(.*)$"),
           RegexOptions.Singleline
         )
 
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
 
-      (g.[3].Value, g.[4].Value, g.[2].Value)
+      (g.[5].Value, g.[6].Value, g.[1].Value, g.[3].Value, g.[4].Value)
 
     let oplists =
       Regex.Matches(
@@ -85,6 +90,31 @@ let t filename =
 
     let! (meta : Canvas.Meta) = testCanvasInfo testName
     do! Canvas.saveTLIDs meta oplists
+
+    // CORS
+    do!
+      task {
+        let m = Regex.Match(cors, "^\[cors (.*)\]\n*$", RegexOptions.Singleline)
+        if m.Success then
+          match m.Groups.[1].Value with
+          | "" -> do! Canvas.updateCorsSetting meta.id None
+          | "*" -> do! Canvas.updateCorsSetting meta.id (Some Canvas.AllOrigins)
+          | domains ->
+            let domains = (Canvas.Origins(String.split "," domains))
+            do! Canvas.updateCorsSetting meta.id (Some domains)
+      }
+
+    // Custom domains
+    do!
+      task {
+        let m =
+          Regex.Match(
+            customDomain,
+            "^\[custom-domain (.*)\]\n*$",
+            RegexOptions.Singleline
+          )
+        if m.Success then do! Routing.addCustomDomain m.Groups.[1].Value meta.name
+      }
 
     let normalizeHeaders
       (server : Server)
@@ -157,6 +187,9 @@ let t filename =
         stream.ReadTimeout <- 1000 // responses should be instant, right?
         let host = $"test-{name}.builtwithdark.localhost:{port}"
 
+        if request.Contains("LENGTH") then
+          Expect.isFalse true "LENGTH substitution not done on request"
+
         let request =
           request |> String.replace "HOST" host |> toBytes |> Http.setHeadersToCRLF
 
@@ -179,7 +212,10 @@ let t filename =
                      None
                    else if String.includes "FSHARPONLY" line && server = OCaml then
                      None
+                   else if String.includes "KEEP" line then
+                     Some line
                    else
+                     // Remove OCAMLONLY and FSHARPONLY
                      line
                      |> String.split "// "
                      |> List.head
@@ -251,16 +287,15 @@ let testsFromFiles =
 
 
 
-let tests = testList "BwdServer" [ testList "From files" testsFromFiles ]
+let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
 
-open Microsoft.AspNetCore.Hosting
+open Microsoft.Extensions.Hosting
+
 // run our own webserver instead of relying on the dev webserver
 let init (token : System.Threading.CancellationToken) : Task =
-  (BwdServer.webserver
-    false
-    TestConfig.bwdServerPort
-    TestConfig.bwdServerKubernetesPort)
-    .RunAsync(token)
+  let port = TestConfig.bwdServerPort
+  let k8sPort = TestConfig.bwdServerKubernetesPort
+  (BwdServer.webserver false port k8sPort).RunAsync(token)
 
 
 // FSTODO

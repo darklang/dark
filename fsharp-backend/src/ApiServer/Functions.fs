@@ -40,7 +40,7 @@ let allFunctions = LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
 // CLEANUP not needed anymore
 let fsharpOnlyFns : Lazy<Set<string>> =
   lazy
-    (LibExecutionStdLib.LibMiddleware.fns
+    ([] // LibExecutionStdLib.LibMiddleware.fns
      |> List.map (fun (fn : RT.BuiltInFn) -> string fn.name)
      |> Set)
 

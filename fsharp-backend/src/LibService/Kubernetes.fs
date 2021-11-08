@@ -81,10 +81,13 @@ let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder 
 // CLEANUP: in the future, we would like to wait: - check the rollbars, honeycombs,
 // etc, have been dispatched - check the traces have been uploaded - shutdown as soon
 // as we're done so the rolling upgrade can complete more quickly.  Also useful:
-type Extns = HostingAbstractionsWebHostBuilderExtensions
 
-let registerServerTimeout (wh : IWebHostBuilder) : IWebHostBuilder =
-  Extns.UseShutdownTimeout(wh, System.TimeSpan.FromSeconds(28.0))
+let registerServerTimeout (b : IWebHostBuilder) : unit =
+  b.UseShutdownTimeout(System.TimeSpan.FromSeconds(28.0))
+  |> ignore<IWebHostBuilder>
+
+
+// The following is a bit of a hack, but it's the only way I can get the
 
 
 

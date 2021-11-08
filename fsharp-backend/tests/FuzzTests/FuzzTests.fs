@@ -441,31 +441,26 @@ module HttpClient =
   let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
 
-    BackendOnlyStdLib.HttpClient.dvalToUrlStringExn dv
-    .=. (OCamlInterop.toUrlString dv).Result
+    DvalRepr.toUrlStringExn dv .=. (OCamlInterop.toUrlString dv).Result
 
   let dvalToQuery (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
-    BackendOnlyStdLib.HttpClient.dvalToQuery dv
-    .=. (OCamlInterop.dvalToQuery dv).Result
+    DvalRepr.toQuery dv .=. (OCamlInterop.dvalToQuery dv).Result
 
   let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
-    (BackendOnlyStdLib.HttpClient.dvalToFormEncoding dv).ToString()
+    (DvalRepr.toFormEncoding dv).ToString()
     .=. (OCamlInterop.dvalToFormEncoding dv).Result
 
   let queryStringToParams (s : string) : bool =
-    BackendOnlyStdLib.HttpClient.parseQueryString s
-    .=. (OCamlInterop.queryStringToParams s).Result
+    DvalRepr.parseQueryString s .=. (OCamlInterop.queryStringToParams s).Result
 
 
   let queryToDval (q : List<string * List<string>>) : bool =
-    BackendOnlyStdLib.HttpClient.queryToDval q
-    .=. (OCamlInterop.queryToDval q).Result
+    DvalRepr.ofQuery q .=. (OCamlInterop.queryToDval q).Result
 
-  let toQueryString (q : List<string * List<string>>) : bool =
-    BackendOnlyStdLib.HttpClient.toEncodedString q
-    .=. (OCamlInterop.paramsToQueryString q).Result
+  let queryToEncodedString (q : List<string * List<string>>) : bool =
+    DvalRepr.queryToEncodedString q .=. (OCamlInterop.paramsToQueryString q).Result
 
   let tests =
     let test name fn = testPropertyWithGenerator typeof<Generator> name fn
@@ -479,7 +474,7 @@ module HttpClient =
           "queryStringToParams"
           queryStringToParams // only &=& fails
         test "queryToDval" queryToDval
-        test "toQueryString" toQueryString ]
+        test "queryToEncodedString" queryToEncodedString ]
 
 
 module EndUserReadable =

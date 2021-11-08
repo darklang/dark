@@ -135,19 +135,20 @@ let main args =
   // Breaks tests as they're being run simultaneously by the ocaml server
   // LibBackend.Migrations.init ()
 
-  let hcUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
+  let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
+  let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
 
-  WebHost.CreateDefaultBuilder(args)
+  let builder = WebApplication.CreateBuilder()
+  configureServices builder.Services
+  LibService.Kubernetes.registerServerTimeout builder.WebHost
+
+  builder.WebHost
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-  |> LibService.Kubernetes.registerServerTimeout
-  |> fun wh ->
-       wh.UseUrls(
-         hcUrl,
-         $"http://darklang.localhost:{LibService.Config.apiServerPort}"
-       )
-  |> fun wh -> wh.ConfigureServices(configureServices)
-  |> fun wh -> wh.Configure(configureApp)
-  |> fun wh -> wh.Build()
-  |> fun wh -> wh.Run()
+  |> fun wh -> wh.UseUrls(k8sUrl, url)
+  |> ignore<IWebHostBuilder>
+
+  let app = builder.Build()
+  configureApp app
+  app.Run()
 
   0

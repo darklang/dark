@@ -289,39 +289,31 @@ let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
 
+let updateCorsSetting
+  (canvasID : CanvasID)
+  (setting : CorsSetting option)
+  : Task<unit> =
+  let corsSettingToDB (setting : CorsSetting option) : SqlValue =
+    match setting with
+    | None -> Sql.dbnull
+    | Some AllOrigins -> Sql.jsonb "\"*\""
+    | Some (Origins ss) -> ss |> Json.Vanilla.serialize |> Sql.jsonb
+  Sql.query
+    "UPDATE canvases
+     SET cors_setting = @setting
+     WHERE id = @canvasID"
+  |> Sql.parameters [ "setting", corsSettingToDB setting
+                      "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeStatementAsync
 
-// let update_cors_setting (c T ref) (setting : cors_setting option) : unit
-//     =
-//   let cors_setting_to_db (setting : cors_setting option) : Db.param =
-//     match setting with
-//     | None ->
-//         Db.Null
-//     | Some AllOrigins ->
-//         `String "*" |> Yojson.Safe.to_string |> Db.String
-//     | Some (Origins ss) ->
-//         ss
-//         |> List.map ~f:(fun s -> `String s)
-//         |> (fun l -> `List l)
-//         |> Yojson.Safe.to_string
-//         |> Db.String
-//   in
-//   Db.run
-//     ~name:"update_cors_setting"
-//     "UPDATE canvases
-//      SET cors_setting = $1
-//      WHERE id = $2"
-//     ~params:[cors_setting_to_db setting; Uuid !c.id] ;
-//   c := {!c with cors_setting = setting} ;
-//   ()
-//
-//
+
 // let url_for (id : Uuidm.t) : string =
 //   let canvas_name = name_for_id id in
 //   "http://" ^ canvas_name ^ "." ^ Config.public_domain
 
 
 // -------------------------
-//  Loading/saving *)
+//  Loading/saving
 //  -------------------------
 
 let empty (meta : Meta) : T =

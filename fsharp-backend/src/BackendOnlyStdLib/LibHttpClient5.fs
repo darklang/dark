@@ -9,6 +9,9 @@ open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
+module HttpHeaders = LibExecution.HttpHeaders
+module ContentType = HttpHeaders.ContentType
+module MediaType = HttpHeaders.MediaType
 
 module Errors = LibExecution.Errors
 
@@ -36,23 +39,23 @@ let parametersNoBody =
     Param.make "headers" (TDict TStr) "" ]
 
 
-let guessContentType (body : Dval option) : string =
+let guessContentType (body : Dval option) : ContentType.T =
   match body with
   | Some dv ->
     match dv with
     (* TODO: DBytes? *)
     // Do nothing to strings; users can set the header if they have opinions
-    | DStr _ -> "text/plain; charset=utf-8"
+    | DStr _ -> ContentType.text
     // Otherwise, jsonify (this is the 'easy' API afterall), regardless of
     // headers passed. This makes a little more sense than you might think on
     // first glance, due to the interaction with the above `DStr` case. Note that
     // this handles all non-DStr dvals.
-    | _ -> "application/json; charset=utf-8"
+    | _ -> ContentType.json
   // If we were passed an empty body, we need to ensure a Content-Type was set, or
   // else helpful intermediary load balancers will set the Content-Type to something
   // they've plucked out of the ether, which is distinctfully non-helpful and also
   // non-deterministic *)
-  | None -> "text/plain; charset=utf-8"
+  | None -> ContentType.text
 
 
 // Encodes [body] as a UTF-8 string, safe for sending across the internet! Uses
@@ -61,7 +64,7 @@ let guessContentType (body : Dval option) : string =
 // have potentially had a Content-Type added to them based on the magic decision we've made.
 let encodeRequestBody
   (body : Dval option)
-  (contentType : string)
+  (contentType : ContentType.T)
   : HttpClient.Content =
   match body with
   | Some dv ->
@@ -78,9 +81,10 @@ let encodeRequestBody
       // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
       // for more information. *)
       HttpClient.StringContent s
-    | DObj _ when contentType = HttpClient.formContentType ->
-      HttpClient.FormContent(HttpClient.dvalToFormEncoding dv)
-    | dv when contentType = HttpClient.textContentType ->
+    // CLEANUP if there is a charset here, it uses json encoding
+    | DObj _ when contentType = ContentType.KnownNoCharset MediaType.Form ->
+      HttpClient.FormContent(DvalRepr.toFormEncoding dv)
+    | dv when ContentType.toMediaType contentType = Some MediaType.Text ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // when contentType = jsonContentType
       HttpClient.StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv)
@@ -95,27 +99,29 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = HttpClient.dvalToQuery query
+    let query = DvalRepr.toQuery query
 
     // Headers
     let encodedReqHeaders = DvalRepr.toStringPairsExn reqHeaders
     let contentType =
-      HttpClient.getHeader "content-type" encodedReqHeaders
+      HttpHeaders.getContentType encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)
     let reqHeaders =
-      Map.add "Content-Type" contentType (Map encodedReqHeaders) |> Map.toList
+      Map encodedReqHeaders
+      |> Map.add "Content-Type" (string contentType)
+      |> Map.toList
     let encodedReqBody = encodeRequestBody reqBody contentType
 
     match! HttpClient.httpCall 0 false uri query verb reqHeaders encodedReqBody with
     | Ok response ->
       let parsedResponseBody =
         // CLEANUP: form header never triggers. But is it even needed?
-        if HttpClient.hasFormHeader response.headers then
+        if HttpHeaders.hasFormHeader response.headers then
           try
-            HttpClient.queryStringToDval response.body
+            DvalRepr.ofQueryString response.body
           with
           | _ -> DStr "form decoding error"
-        elif HttpClient.hasJsonHeader response.headers then
+        elif HttpHeaders.hasJsonHeader response.headers then
           try
             DvalRepr.ofUnknownJsonV0 response.body
           with

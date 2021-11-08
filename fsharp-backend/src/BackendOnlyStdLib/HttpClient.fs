@@ -6,7 +6,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Net.Http
-open System.Net.Http.Headers
 open System.IO.Compression
 open System.IO
 
@@ -15,96 +14,23 @@ open LibExecution
 open LibBackend
 open VendoredTablecloth
 
+type AspHeaders = System.Net.Http.Headers.HttpHeaders
+module HttpHeaders = LibExecution.HttpHeaders
+
 module RT = RuntimeTypes
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 
-type Headers = (string * string) list
-
-type HttpResult = { body : string; code : int; headers : Headers; error : string }
+type HttpResult =
+  { body : string
+    code : int
+    headers : HttpHeaders.T
+    error : string }
 
 type ClientError = { url : string; error : string; code : int }
 
-// urlEncode values in a query string. Note that the encoding is slightly different
-// to urlEncoding keys.
-let urlEncodeValue (s : string) : string =
-  let encodeByte (b : byte) : byte array =
-    // CLEANUP make a nicer version of this that's designed for this use case
-    // We do want to escape the following: []+&^%#@"<>/;
-    // We don't want to escape the following: *$@!:?,.-_'
-    match b with
-    | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
-    | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
-    | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
-    | b when b = (byte '*') -> [| b |]
-    | b when b = (byte '$') -> [| b |]
-    | b when b = (byte '@') -> [| b |]
-    | b when b = (byte '!') -> [| b |]
-    | b when b = (byte ':') -> [| b |]
-    | b when b = (byte '(') -> [| b |]
-    | b when b = (byte ')') -> [| b |]
-    | b when b = (byte '~') -> [| b |]
-    | b when b = (byte '?') -> [| b |]
-    | b when b = (byte '/') -> [| b |]
-    | b when b = (byte '.') -> [| b |]
-    | b when b = (byte '-') -> [| b |]
-    | b when b = (byte '_') -> [| b |]
-    | b when b = (byte '=') -> [| b |] // not the same for key
-    | b when b = (byte '\'') -> [| b |]
-    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
-  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
-
-// urlEncode keys in a query string. Note that the encoding is slightly different to
-// query string values
-let urlEncodeKey (s : string) : string =
-  let encodeByte (b : byte) : byte array =
-    // CLEANUP make a nicer version of this that's designed for this use case
-    // We do want to escape the following: []+&^%#@"<>/;
-    // We don't want to escape the following: *$@!:?,.-_'
-    match b with
-    | b when b >= (byte 'a') && b <= (byte 'z') -> [| b |]
-    | b when b >= (byte '0') && b <= (byte '9') -> [| b |]
-    | b when b >= (byte 'A') && b <= (byte 'Z') -> [| b |]
-    | b when b = (byte '*') -> [| b |]
-    | b when b = (byte '$') -> [| b |]
-    | b when b = (byte '@') -> [| b |]
-    | b when b = (byte '!') -> [| b |]
-    | b when b = (byte ':') -> [| b |]
-    | b when b = (byte '(') -> [| b |]
-    | b when b = (byte ')') -> [| b |]
-    | b when b = (byte '~') -> [| b |]
-    | b when b = (byte '?') -> [| b |]
-    | b when b = (byte '/') -> [| b |]
-    | b when b = (byte '.') -> [| b |]
-    | b when b = (byte ',') -> [| b |] // only in keys
-    | b when b = (byte '-') -> [| b |]
-    | b when b = (byte '_') -> [| b |]
-    | b when b = (byte '\'') -> [| b |]
-
-    | _ -> UTF8.toBytes ("%" + b.ToString("X2"))
-  s |> UTF8.toBytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
-
-
-// Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
-let toEncodedString (queryParams : (List<string * List<string>>)) : string =
-  match queryParams with
-  | [ key, [] ] -> urlEncodeKey key
-  | _ ->
-    queryParams
-    |> List.map
-         (fun (k, vs) ->
-           let k = k |> urlEncodeKey
-           vs
-           |> List.map urlEncodeValue
-           |> fun vs ->
-                if vs = [] then
-                  k
-                else
-                  let vs = String.concat "," vs
-                  $"{k}={vs}")
-    |> String.concat "&"
 
 
 // -------------------------
@@ -116,91 +42,6 @@ type Content =
   | FormContent of string
   | StringContent of string
   | NoContent
-
-// For putting into URLs as query params
-let rec dvalToUrlStringExn (dv : RT.Dval) : string =
-  let r = dvalToUrlStringExn
-  match dv with
-  | RT.DFnVal _ ->
-    (* See docs/dblock-serialization.ml *)
-    "<block>"
-  | RT.DIncomplete _ -> "<incomplete>"
-  | RT.DPassword _ -> "<password>"
-  | RT.DInt i -> string i
-  | RT.DBool true -> "true"
-  | RT.DBool false -> "false"
-  | RT.DStr s -> s
-  | RT.DFloat f -> DvalRepr.ocamlStringOfFloat f
-  | RT.DChar c -> c
-  | RT.DNull -> "null"
-  | RT.DDate d -> d.toIsoString ()
-  | RT.DDB dbname -> dbname
-  | RT.DErrorRail d -> r d
-  | RT.DError (_, msg : string) -> $"error={msg}"
-  | RT.DUuid uuid -> string uuid
-  | RT.DHttpResponse (RT.Redirect _) -> "null"
-  | RT.DHttpResponse (RT.Response (_, _, hdv)) -> r hdv
-  | RT.DList l -> "[ " + String.concat ", " (List.map r l) + " ]"
-  | RT.DObj o ->
-    let strs = Map.fold [] (fun l key value -> (key + ": " + r value) :: l) o
-    "{ " + (String.concat ", " strs) + " }"
-  | RT.DOption None -> "none"
-  | RT.DOption (Some v) -> r v
-  | RT.DResult (Error v) -> "error=" + r v
-  | RT.DResult (Ok v) -> r v
-  | RT.DBytes bytes -> Base64.defaultEncodeToString bytes
-
-let dvalToQuery (dv : RT.Dval) : (string * string list) list =
-  match dv with
-  | RT.DObj kvs ->
-    kvs
-    |> Map.toList
-    |> List.map
-         (fun (k, value) ->
-           match value with
-           | RT.DNull -> (k, [])
-           | RT.DList l -> (k, List.map dvalToUrlStringExn l)
-           | _ -> (k, [ dvalToUrlStringExn value ]))
-  | _ -> failwith "attempting to use non-object as query param" // CODE exception
-
-// https://secretgeek.net/uri_enconding
-let dvalToFormEncoding (dv : RT.Dval) : string = dvalToQuery dv |> toEncodedString
-
-// The queryString passed in should not include the leading '?' from the URL
-let parseQueryString (queryString : string) : List<string * List<string>> =
-  // This will eat any intended question mark, so add one
-  let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
-  nvc.AllKeys
-  |> Array.map
-       (fun key ->
-         let values = nvc.GetValues key
-         let split =
-           values.[values.Length - 1]
-           |> FSharpPlus.String.split [| "," |]
-           |> Seq.toList
-
-         if isNull key then
-           // All the values with no key are by GetValues, so make each one a value
-           values |> Array.toList |> List.map (fun k -> (k, []))
-         else
-           [ (key, split) ])
-  |> List.concat
-
-let queryToDval (query : List<string * List<string>>) : RT.Dval =
-  query
-  |> List.map
-       (fun (k, v) ->
-         match v with
-         | [] -> k, RT.DNull
-         | [ "" ] -> k, RT.DNull // CLEANUP this should be a string
-         | [ v ] -> k, RT.DStr v
-         | list -> k, RT.DList(List.map RT.DStr list))
-  |> Map
-  |> RT.DObj
-
-
-let queryStringToDval (queryString : string) : RT.Dval =
-  queryString |> parseQueryString |> queryToDval
 
 
 // There has been quite a history of HTTPClient having problems in previous versions
@@ -247,37 +88,8 @@ let httpClient : HttpClient =
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
-let getHeader (headerKey : string) (headers : Headers) : string option =
-  headers
-  |> List.tryFind
-       (fun ((k : string), (_ : string)) -> String.equalsCaseInsensitive headerKey k)
-  |> Option.map (fun (k, v) -> v)
-
-let formContentType = "application/x-www-form-urlencoded"
-let jsonContentType = "application/json"
-let textContentType = "text/plain"
-
-let hasFormHeader (headers : Headers) : bool =
-  // CLEANUP: this doesn't work properly if a charset is included. But also, this was
-  // always false in OCaml because the string we compared against wasn't properly
-  // trimmed.
-  // getHeader "content-type" headers = Some formContentType
-  false
-
-let hasJsonHeader (headers : Headers) : bool =
-  getHeader "content-type" headers
-  |> Option.map (fun s -> s.Contains jsonContentType)
-  |> Option.defaultValue false
-
-let hasTextHeader (headers : Headers) : bool =
-  getHeader "content-type" headers
-  |> Option.map (fun s -> s.Contains textContentType)
-  |> Option.defaultValue false
-
-
-
 // Convert .NET HttpHeaders into Dark-style headers
-let convertHeaders (headers : HttpHeaders) : List<string * string> =
+let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
   headers
   |> Seq.map
        (fun (kvp : KeyValuePair<string, seq<string>>) ->
@@ -287,13 +99,13 @@ let convertHeaders (headers : HttpHeaders) : List<string * string> =
 
 
 exception InvalidEncodingException of int
-
+// CLEANUP add dark-specific user-agent
 let makeHttpCall
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : Headers)
+  (reqHeaders : HttpHeaders.T)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
@@ -312,7 +124,10 @@ let makeHttpCall
         let queryString =
           // Remove leading '?'
           if uri.Query = "" then "" else uri.Query.Substring 1
-        reqUri.Query <- toEncodedString (queryParams @ parseQueryString queryString)
+        reqUri.Query <-
+          DvalRepr.queryToEncodedString (
+            queryParams @ DvalRepr.parseQueryString queryString
+          )
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -331,7 +146,7 @@ let makeHttpCall
             // Handle usernames with no colon
             if userInfo.Contains(":") then userInfo else userInfo + ":"
           req.Headers.Authorization <-
-            AuthenticationHeaderValue(
+            Headers.AuthenticationHeaderValue(
               "Basic",
               System.Convert.ToBase64String(UTF8.toBytes authString)
             )
@@ -358,7 +173,8 @@ let makeHttpCall
                  // CLEANUP: OCaml doesn't send empty headers, but no reason not to
                  ()
                elif String.equalsCaseInsensitive k "content-type" then
-                 req.Content.Headers.ContentType <- MediaTypeHeaderValue.Parse(v)
+                 req.Content.Headers.ContentType <-
+                   Headers.MediaTypeHeaderValue.Parse(v)
                else
                  // Dark headers can only be added once, as they use a Dict. Remove them
                  // so they don't get added twice (eg via Authorization headers above)
@@ -470,7 +286,7 @@ let rec httpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : Headers)
+  (reqHeaders : HttpHeaders.T)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {

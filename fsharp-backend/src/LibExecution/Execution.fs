@@ -48,32 +48,6 @@ let executeExpr
   let symtable = Interpreter.withGlobals state inputVars
   Interpreter.eval state symtable expr |> Ply.TplPrimitives.runPlyAsTask
 
-let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
-  match result with
-  | RT.DErrorRail (RT.DOption None)
-  | RT.DErrorRail (RT.DResult (Error _)) ->
-    // CLEANUP: result should become a 500 error
-    (RT.DHttpResponse(
-      RT.Response(
-        404L,
-        [ "Content-Length", "9"
-          "Server", "darklang"
-          "Content-Type", "text/plain; charset=utf-8" ],
-        RT.DBytes(UTF8.toBytes "Not found")
-      )
-    ))
-  | RT.DErrorRail _ ->
-    (RT.DHttpResponse(
-      RT.Response(
-        500L,
-        [ "Content-Length", "33"
-          "Server", "darklang"
-          "Content-Type", "text/plain; charset=utf-8" ],
-        RT.DBytes(UTF8.toBytes "Invalid conversion from errorrail")
-      )
-    ))
-  | dv -> dv
-
 let executeHandler
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
@@ -81,15 +55,6 @@ let executeHandler
   : Task<RT.Dval> =
   let symtable = Interpreter.withGlobals state inputVars
   Interpreter.eval state symtable expr |> Ply.TplPrimitives.runPlyAsTask
-
-let executeHttpHandler
-  (state : RT.ExecutionState)
-  (inputVars : RT.Symtable)
-  (expr : RT.Expr)
-  : Task<RT.Dval> =
-  // CLEANUP: we should make some sort of effort to put this through the same
-  // HTTP pipeline as BWDServer uses
-  executeHandler state inputVars expr |> Task.map extractHttpErrorRail
 
 
 let executeFunction
