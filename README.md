@@ -10,7 +10,7 @@ See our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) 
 ## Contributing
 
 We are committed to make Dark easy to contribute to. Our
-[contributor docs](https://darklang.github.io/docs/contributing/getting-started)
+[contributor docs](https://docs.darklang.com/contributing/getting-started)
 will help guide you through your first PR, find good projects to contribute to,
 and learn about the code base.
 
@@ -61,7 +61,7 @@ Now that the pre-requisites are installed, we should be able to build the
 development container in Docker, which has the exact right versions of all the
 tools we use.
 
-- If you're using VSCode, we run our build scripts the VSCode devcontainer. See
+- If you're using VSCode, we run our build scripts in the VSCode devcontainer. See
   [the VSCode instructions](docs/vscode-setup.md) for instructions.
 - Otherwise, simply run `scripts/builder --compile --watch --test`
 
@@ -82,7 +82,7 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 
 The [`scripts/`](/scripts) directory is full of scripts. They automatically execute
 in the dev container, even if they are run on the host (see
-[`/scripts/devcontainer/_assert-in-container`](/scripts/devcontainer/_assert-in-container)
+[`scripts/devcontainer/_assert-in-container`](/scripts/devcontainer/_assert-in-container)
 for how this works). Scripts starting with an underscore are primarily intended to be
 run by other scripts. Scripts without an underscore are usually intended to be called
 by a human, though they are often also called by other scripts as well.
@@ -147,13 +147,13 @@ Formatters".
 
 You can get a REPL with all of the Dark libraries loaded by running:
 
-- `scripts/build/dotnet-fsi`
+- [`scripts/build/dotnet-fsi`](scripts/build/dotnet-fsi)
 
 ### Segfaults and crashes
 
 When dotnet crashes, you can debug it by running:
 
-- `lldb -- [your command]
+- `lldb -- [your command]`
 
 In LLDB, you can use [dotnet's SOS
 plugin](https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension)
@@ -165,7 +165,7 @@ the dev container.
 The app is split into [backend/](backend) (being converted into
 [fsharp-backend](fsharp-backend)) and [client/](client). Part of the backend is
 used in the client ([jsanalysis](backend/jsanalysis), and in F#:
-[Wasm](fsharp-backend/src/Wasm))).
+[Wasm](fsharp-backend/src/Wasm)).
 These are compiled to create libraries and binaries.
 
 These are put into containers, whose definitions are in [containers/](containers). We also
@@ -178,7 +178,7 @@ how many of them, what secrets they have access to, how to check if they are
 still alive) are defined by a set of Yaml files which is called a _deployment_.
 Our deployments are all defined in the [services](services) directory.
 
-A Kubernetes _service_ typically wraps a deployment, but it can sometimes mean
+A _service_ in our repo typically wraps a deployment, but it can sometimes mean
 other things, so we also have a number of other services, defined via yaml
 files, in (services)[services]. Some of the services are deployments that use
 3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
@@ -188,7 +188,7 @@ Google Cloud services. Some deployments just have a single container (eg
 
 ## Other important docs
 
-- [Contributor docs](https://darklang.github.io/docs/contributing/getting-started)
+- [Contributor docs](https://docs.darklang.com/contributing/getting-started)
 - [Other ways to run the dev container](docs/builder-options.md)
 - [Setting up your editor](docs/editor-setup.md)
 - [Running unit tests](docs/unittests.md)
