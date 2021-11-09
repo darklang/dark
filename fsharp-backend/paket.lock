@@ -5,17 +5,17 @@ NUGET
     Argu (6.1.1)
       FSharp.Core (>= 4.3.2)
       System.Configuration.ConfigurationManager (>= 4.4)
-    AspNetCore.HealthChecks.NpgSql (5.0.2)
-      Microsoft.Extensions.Diagnostics.HealthChecks (>= 5.0.1)
-      Npgsql (>= 5.0.3)
+    AspNetCore.HealthChecks.NpgSql (6.0.1-rc1.2)
+      Microsoft.Extensions.Diagnostics.HealthChecks (>= 6.0.0-rc.2.21480.10)
+      Npgsql (>= 6.0.0-rc.2)
     Expecto (9.0.4)
       FSharp.Core (>= 4.6)
       Mono.Cecil (>= 0.11.3)
     Expecto.FsCheck (9.0.4)
       Expecto (>= 9.0.4)
       FsCheck (>= 2.14.3)
-    Faithlife.Utility (0.11.2)
-    FsCheck (2.16)
+    Faithlife.Utility (0.12.1)
+    FsCheck (2.16.3)
       FSharp.Core (>= 4.2.3)
     FSharp.Compiler.Service (41.0.1)
       FSharp.Core (6.0.1)
@@ -48,14 +48,14 @@ NUGET
       FSharp.Core (>= 4.7.2)
       Microsoft.Bcl.AsyncInterfaces (>= 5.0)
     FSharp.Core (6.0.1)
-    FSharpPlus (1.2.1)
+    FSharpPlus (1.2.2)
       FSharp.Core (>= 4.6.2)
     FSharpx.Async (1.14.1)
       FSharp.Control.AsyncSeq (>= 2.0.21)
       FSharp.Core (>= 4.6.2)
     FSharpx.Collections (3.0.1)
       FSharp.Core (>= 4.3.4)
-    FSharpx.Extras (2.5)
+    FSharpx.Extras (3.0)
       FSharp.Core (>= 4.6.2)
       FSharpx.Async (>= 1.14.1)
       FSharpx.Collections (>= 2.1.2)
@@ -79,18 +79,17 @@ NUGET
       Microsoft.Extensions.Logging.Abstractions (>= 3.0.3)
     Grpc.Net.Common (2.40)
       Grpc.Core.Api (>= 2.40)
-    Honeycomb.OpenTelemetry (0.12.0-beta)
-      Microsoft.Extensions.Configuration.CommandLine (>= 5.0)
-      Microsoft.Extensions.Configuration.Json (>= 5.0)
+    Honeycomb.OpenTelemetry (0.13.0-beta)
+      Microsoft.Extensions.Configuration.CommandLine (>= 2.1.1)
+      Microsoft.Extensions.Configuration.Json (>= 2.1.1)
       OpenTelemetry (>= 1.1)
       OpenTelemetry.Exporter.OpenTelemetryProtocol (>= 1.1)
       OpenTelemetry.Extensions.Hosting (>= 1.0.0-rc7)
       OpenTelemetry.Instrumentation.AspNetCore (>= 1.0.0-rc7)
-      OpenTelemetry.Instrumentation.GrpcNetClient (>= 1.0.0-rc7)
       OpenTelemetry.Instrumentation.Http (>= 1.0.0-rc7)
       OpenTelemetry.Instrumentation.SqlClient (>= 1.0.0-rc7)
       OpenTelemetry.Instrumentation.StackExchangeRedis (>= 1.0.0-rc7)
-    Lib.AspNetCore.ServerTiming (4.1)
+    Lib.AspNetCore.ServerTiming (4.2)
     libsodium (1.0.18.1)
     Microsoft.AspNetCore.Http (2.2.2)
       Microsoft.AspNetCore.Http.Abstractions (>= 2.2)
@@ -104,12 +103,12 @@ NUGET
     Microsoft.AspNetCore.Http.Features (5.0.11)
       Microsoft.Extensions.Primitives (>= 5.0.1)
       System.IO.Pipelines (>= 5.0.1)
-    Microsoft.AspNetCore.JsonPatch (5.0.11)
+    Microsoft.AspNetCore.JsonPatch (6.0)
       Microsoft.CSharp (>= 4.7)
-      Newtonsoft.Json (>= 12.0.2)
-    Microsoft.AspNetCore.Mvc.NewtonsoftJson (5.0.3)
-      Microsoft.AspNetCore.JsonPatch (>= 5.0.3)
-      Newtonsoft.Json (>= 12.0.2)
+      Newtonsoft.Json (>= 13.0.1)
+    Microsoft.AspNetCore.Mvc.NewtonsoftJson (6.0)
+      Microsoft.AspNetCore.JsonPatch (>= 6.0)
+      Newtonsoft.Json (>= 13.0.1)
       Newtonsoft.Json.Bson (>= 1.0.2)
     Microsoft.AspNetCore.WebUtilities (2.2)
       Microsoft.Net.Http.Headers (>= 2.2)
@@ -142,8 +141,8 @@ NUGET
     Microsoft.Extensions.Configuration (5.0)
       Microsoft.Extensions.Configuration.Abstractions (>= 5.0)
       Microsoft.Extensions.Primitives (>= 5.0)
-    Microsoft.Extensions.Configuration.Abstractions (6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19)
+    Microsoft.Extensions.Configuration.Abstractions (6.0)
+      Microsoft.Extensions.Primitives (>= 6.0)
     Microsoft.Extensions.Configuration.Binder (5.0)
       Microsoft.Extensions.Configuration.Abstractions (>= 5.0)
     Microsoft.Extensions.Configuration.CommandLine (5.0)
@@ -162,32 +161,30 @@ NUGET
       Microsoft.Extensions.FileProviders.Abstractions (>= 5.0)
     Microsoft.Extensions.DependencyInjection (5.0.2)
       Microsoft.Extensions.DependencyInjection.Abstractions (>= 5.0)
-    Microsoft.Extensions.DependencyInjection.Abstractions (6.0.0-preview.7.21377.19)
-    Microsoft.Extensions.Diagnostics.HealthChecks (6.0.0-preview.7.21378.6)
-      Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions (>= 6.0.0-preview.7.21378.6)
-      Microsoft.Extensions.Hosting.Abstractions (>= 6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.Logging.Abstractions (>= 6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.Options (>= 6.0.0-preview.7.21377.19)
-    Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions (6.0.0-preview.7.21378.6)
-    Microsoft.Extensions.FileProviders.Abstractions (6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19)
+    Microsoft.Extensions.DependencyInjection.Abstractions (6.0)
+    Microsoft.Extensions.Diagnostics.HealthChecks (6.0)
+      Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions (>= 6.0)
+      Microsoft.Extensions.Hosting.Abstractions (>= 6.0)
+      Microsoft.Extensions.Logging.Abstractions (>= 6.0)
+      Microsoft.Extensions.Options (>= 6.0)
+    Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions (6.0)
+    Microsoft.Extensions.FileProviders.Abstractions (6.0)
+      Microsoft.Extensions.Primitives (>= 6.0)
     Microsoft.Extensions.FileProviders.Physical (5.0)
       Microsoft.Extensions.FileProviders.Abstractions (>= 5.0)
       Microsoft.Extensions.FileSystemGlobbing (>= 5.0)
       Microsoft.Extensions.Primitives (>= 5.0)
     Microsoft.Extensions.FileSystemGlobbing (5.0)
-    Microsoft.Extensions.Hosting.Abstractions (6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.Configuration.Abstractions (>= 6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0.0-preview.7.21377.19)
+    Microsoft.Extensions.Hosting.Abstractions (6.0)
+      Microsoft.Extensions.Configuration.Abstractions (>= 6.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0)
+      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0)
     Microsoft.Extensions.Logging (5.0)
       Microsoft.Extensions.DependencyInjection (>= 5.0)
       Microsoft.Extensions.DependencyInjection.Abstractions (>= 5.0)
       Microsoft.Extensions.Logging.Abstractions (>= 5.0)
       Microsoft.Extensions.Options (>= 5.0)
-    Microsoft.Extensions.Logging.Abstractions (6.0.0-preview.7.21377.19)
-      System.Buffers (>= 4.5.1)
-      System.Memory (>= 4.5.4)
+    Microsoft.Extensions.Logging.Abstractions (6.0)
     Microsoft.Extensions.Logging.Configuration (5.0)
       Microsoft.Extensions.Configuration (>= 5.0)
       Microsoft.Extensions.Configuration.Abstractions (>= 5.0)
@@ -198,17 +195,17 @@ NUGET
       Microsoft.Extensions.Options (>= 5.0)
       Microsoft.Extensions.Options.ConfigurationExtensions (>= 5.0)
     Microsoft.Extensions.ObjectPool (5.0.11)
-    Microsoft.Extensions.Options (6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0.0-preview.7.21377.19)
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19)
+    Microsoft.Extensions.Options (6.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0)
+      Microsoft.Extensions.Primitives (>= 6.0)
     Microsoft.Extensions.Options.ConfigurationExtensions (5.0)
       Microsoft.Extensions.Configuration.Abstractions (>= 5.0)
       Microsoft.Extensions.Configuration.Binder (>= 5.0)
       Microsoft.Extensions.DependencyInjection.Abstractions (>= 5.0)
       Microsoft.Extensions.Options (>= 5.0)
       Microsoft.Extensions.Primitives (>= 5.0)
-    Microsoft.Extensions.Primitives (6.0.0-preview.7.21377.19)
-      System.Runtime.CompilerServices.Unsafe (>= 6.0.0-preview.7.21377.19)
+    Microsoft.Extensions.Primitives (6.0)
+      System.Runtime.CompilerServices.Unsafe (>= 6.0)
     Microsoft.IO.RecyclableMemoryStream (2.2)
     Microsoft.Net.Http.Headers (2.2.8)
       Microsoft.Extensions.Primitives (>= 2.2)
@@ -232,42 +229,40 @@ NUGET
     Newtonsoft.Json (13.0.1)
     Newtonsoft.Json.Bson (1.0.2)
       Newtonsoft.Json (>= 12.0.1)
-    Npgsql (5.0.7)
-      System.Runtime.CompilerServices.Unsafe (>= 4.6)
-    Npgsql.FSharp (4.0)
+    Npgsql (6.0)
+      System.Runtime.CompilerServices.Unsafe (>= 6.0)
+    Npgsql.FSharp (4.1)
       FSharp.Core (>= 4.7.2)
       Npgsql (>= 5.0.3)
       Ply (>= 0.3.1)
-    OpenTelemetry (1.2.0-alpha3)
+    OpenTelemetry (1.2.0-beta1)
       Microsoft.Extensions.Logging (>= 2.1)
       Microsoft.Extensions.Logging.Configuration (>= 2.1)
-      OpenTelemetry.Api (>= 1.2.0-alpha3)
+      OpenTelemetry.Api (>= 1.2.0-beta1)
       System.Collections.Immutable (>= 1.4)
       System.Reflection.Emit.Lightweight (>= 4.7)
-    OpenTelemetry.Api (1.2.0-alpha3)
-      System.Diagnostics.DiagnosticSource (>= 6.0.0-preview.6.21352.12)
+    OpenTelemetry.Api (1.2.0-beta1)
+      System.Diagnostics.DiagnosticSource (>= 6.0.0-rc.1.21451.13)
       System.Reflection.Emit.Lightweight (>= 4.7)
-    OpenTelemetry.Exporter.Console (1.2.0-alpha3)
-      OpenTelemetry (>= 1.2.0-alpha3)
-    OpenTelemetry.Exporter.OpenTelemetryProtocol (1.2.0-alpha3)
+    OpenTelemetry.Exporter.Console (1.2.0-beta1)
+      OpenTelemetry (>= 1.2.0-beta1)
+    OpenTelemetry.Exporter.OpenTelemetryProtocol (1.2.0-beta1)
       Google.Protobuf (>= 3.15.5 < 4.0)
       Grpc.Net.Client (>= 2.32 < 3.0)
-      OpenTelemetry (>= 1.2.0-alpha3)
-    OpenTelemetry.Extensions.Hosting (1.0.0-rc7)
-      Microsoft.Extensions.Hosting.Abstractions (>= 2.1 < 6.0)
-      OpenTelemetry (>= 1.1)
-    OpenTelemetry.Instrumentation.AspNetCore (1.0.0-rc7)
+      OpenTelemetry (>= 1.2.0-beta1)
+    OpenTelemetry.Extensions.Hosting (1.0.0-rc8)
+      Microsoft.Extensions.Hosting.Abstractions (>= 2.1)
+      OpenTelemetry (>= 1.2.0-beta1)
+    OpenTelemetry.Instrumentation.AspNetCore (1.0.0-rc8)
       Microsoft.AspNetCore.Http.Features (>= 2.1.1 < 6.0)
-      OpenTelemetry (>= 1.1)
-    OpenTelemetry.Instrumentation.GrpcNetClient (1.0.0-rc7)
-      OpenTelemetry (>= 1.1)
-    OpenTelemetry.Instrumentation.Http (1.0.0-rc7)
-      OpenTelemetry (>= 1.1)
+      OpenTelemetry (>= 1.2.0-beta1)
+    OpenTelemetry.Instrumentation.Http (1.0.0-rc8)
+      OpenTelemetry (>= 1.2.0-beta1)
     OpenTelemetry.Instrumentation.SqlClient (1.0.0-rc7)
       OpenTelemetry.Api (>= 1.1)
-    OpenTelemetry.Instrumentation.StackExchangeRedis (1.0.0-rc7)
-      Microsoft.Extensions.Options (>= 2.1 < 6.0)
-      OpenTelemetry.Api (>= 1.1)
+    OpenTelemetry.Instrumentation.StackExchangeRedis (1.0.0-rc8)
+      Microsoft.Extensions.Options (>= 2.1)
+      OpenTelemetry.Api (>= 1.2.0-beta1)
       StackExchange.Redis (>= 2.1.58 < 3.0)
     Pipelines.Sockets.Unofficial (2.2)
       System.IO.Pipelines (>= 5.0)
@@ -370,8 +365,8 @@ NUGET
       Microsoft.NETCore.Platforms (>= 1.1)
       Microsoft.NETCore.Targets (>= 1.1)
       System.Runtime (>= 4.3)
-    System.Diagnostics.DiagnosticSource (6.0.0-preview.7.21377.19)
-      System.Runtime.CompilerServices.Unsafe (>= 6.0.0-preview.7.21377.19)
+    System.Diagnostics.DiagnosticSource (6.0)
+      System.Runtime.CompilerServices.Unsafe (>= 6.0)
     System.Diagnostics.PerformanceCounter (5.0.1)
       Microsoft.NETCore.Platforms (>= 5.0.1)
       Microsoft.Win32.Registry (>= 5.0)
@@ -600,7 +595,7 @@ NUGET
     System.Runtime (4.3.1)
       Microsoft.NETCore.Platforms (>= 1.1.1)
       Microsoft.NETCore.Targets (>= 1.1.3)
-    System.Runtime.CompilerServices.Unsafe (6.0.0-preview.7.21377.19)
+    System.Runtime.CompilerServices.Unsafe (6.0)
     System.Runtime.Extensions (4.3.1)
       Microsoft.NETCore.Platforms (>= 1.1.1)
       Microsoft.NETCore.Targets (>= 1.1.3)
@@ -777,91 +772,80 @@ NUGET
 GROUP Wasm
 NUGET
   remote: https://api.nuget.org/v3/index.json
-    Microsoft.AspNetCore.Authorization (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.AspNetCore.Metadata (>= 6.0.0-preview.7.21378.6) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Logging.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Options (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.AspNetCore.Components (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.AspNetCore.Authorization (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.AspNetCore.Components.Analyzers (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-    Microsoft.AspNetCore.Components.Analyzers (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-    Microsoft.AspNetCore.Components.Forms (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.AspNetCore.Components (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-    Microsoft.AspNetCore.Components.Web (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.AspNetCore.Components (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.AspNetCore.Components.Forms (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.Extensions.DependencyInjection (>= 6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.JSInterop (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      System.IO.Pipelines (>= 6.0.0-preview.7.21377.19) - restriction: >= net6.0
-    Microsoft.AspNetCore.Components.WebAssembly (6.0.0-preview.7.21378.6)
-      Microsoft.AspNetCore.Components.Web (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.Extensions.Configuration.Binder (>= 6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Configuration.Json (>= 6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Logging (>= 6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.JSInterop.WebAssembly (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-    Microsoft.AspNetCore.Metadata (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-    Microsoft.Bcl.AsyncInterfaces (6.0.0-preview.7.21377.19) - restriction: || (&& (>= monoandroid) (>= net6.0) (< netstandard2.0)) (&& (< monoandroid) (>= net6.0) (< netcoreapp2.1)) (&& (< monoandroid) (>= net6.0) (< netcoreapp3.1)) (&& (>= monotouch) (>= net6.0)) (&& (>= net461) (>= net6.0)) (&& (>= net6.0) (< netcoreapp2.0)) (&& (>= net6.0) (>= uap10.1)) (&& (>= net6.0) (>= xamarinios)) (&& (>= net6.0) (>= xamarinmac)) (&& (>= net6.0) (>= xamarintvos)) (&& (>= net6.0) (>= xamarinwatchos))
-    Microsoft.Extensions.Configuration (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Configuration.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.Configuration.Abstractions (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.Configuration.Binder (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Configuration.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.Configuration.FileExtensions (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Configuration (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Configuration.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.FileProviders.Physical (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.Configuration.Json (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Configuration (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Configuration.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Configuration.FileExtensions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      System.Text.Json (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.DependencyInjection (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      System.Runtime.CompilerServices.Unsafe (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.DependencyInjection.Abstractions (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-    Microsoft.Extensions.FileProviders.Abstractions (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.FileProviders.Physical (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.FileSystemGlobbing (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.FileSystemGlobbing (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-    Microsoft.Extensions.Logging (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.DependencyInjection (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Logging.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Options (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      System.Diagnostics.DiagnosticSource (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.Logging.Abstractions (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      System.Buffers (>= 4.5.1) - restriction: || (>= net461) (>= netstandard2.0)
-      System.Memory (>= 4.5.4) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.Options (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-      Microsoft.Extensions.Primitives (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.Extensions.Primitives (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      System.Runtime.CompilerServices.Unsafe (>= 6.0.0-preview.7.21377.19) - restriction: || (>= net461) (>= netstandard2.0)
-    Microsoft.JSInterop (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-    Microsoft.JSInterop.WebAssembly (6.0.0-preview.7.21378.6) - restriction: >= net6.0
-      Microsoft.JSInterop (>= 6.0.0-preview.7.21378.6) - restriction: >= net6.0
-    System.Buffers (4.5.1) - restriction: >= net6.0
-    System.Diagnostics.DiagnosticSource (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      System.Runtime.CompilerServices.Unsafe (>= 6.0.0-preview.7.21377.19) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (&& (< monoandroid) (>= netcoreapp2.1) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (>= monotouch) (>= net461) (>= net5.0) (&& (< netcoreapp2.1) (>= netstandard2.0) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< netcoreapp2.1) (>= xamarinios)) (&& (< netcoreapp2.1) (>= xamarinmac)) (&& (< netstandard2.0) (>= xamarintvos)) (&& (< netstandard2.0) (>= xamarinwatchos))
-    System.IO.Pipelines (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      System.Buffers (>= 4.5.1) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (>= monotouch) (>= net461) (&& (< netcoreapp2.0) (>= netstandard2.0)) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-    System.Memory (4.5.4) - restriction: >= net6.0
-      System.Buffers (>= 4.5.1) - restriction: || (&& (>= monoandroid) (< netstandard1.1)) (&& (< monoandroid) (< net45) (>= netstandard1.1) (< netstandard2.0) (< win8) (< wpa81)) (&& (< monoandroid) (< netstandard1.1) (>= portable-net45+win8+wpa81) (< win8)) (>= monotouch) (&& (>= net45) (< netstandard2.0)) (&& (< net45) (< netcoreapp2.0) (>= netstandard2.0)) (>= net461) (&& (< netstandard1.1) (>= win8)) (&& (< netstandard2.0) (< uap10.1) (>= wpa81)) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-      System.Runtime.CompilerServices.Unsafe (>= 4.5.3) - restriction: || (&& (>= monoandroid) (< netstandard1.1)) (&& (< monoandroid) (< net45) (>= netstandard1.1) (< netstandard2.0) (< win8) (< wpa81)) (&& (< monoandroid) (>= netcoreapp2.0) (< netcoreapp2.1)) (&& (< monoandroid) (< netstandard1.1) (>= portable-net45+win8+wpa81) (< win8)) (>= monotouch) (&& (>= net45) (< netstandard2.0)) (&& (< net45) (< netcoreapp2.0) (>= netstandard2.0)) (>= net461) (&& (< netstandard1.1) (>= win8)) (&& (< netstandard2.0) (>= wpa81)) (>= uap10.1) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-    System.Runtime.CompilerServices.Unsafe (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-    System.Text.Encodings.Web (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      System.Buffers (>= 4.5.1) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (>= monotouch) (>= net461) (&& (< netcoreapp2.0) (>= netstandard2.0)) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-      System.Runtime.CompilerServices.Unsafe (>= 6.0.0-preview.7.21377.19) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (&& (< monoandroid) (>= netcoreapp2.0) (< netcoreapp2.1)) (&& (< monoandroid) (>= netcoreapp2.1)) (>= monotouch) (>= net461) (&& (< netcoreapp2.0) (>= netstandard2.0)) (>= netcoreapp3.1) (>= uap10.1) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-    System.Text.Json (6.0.0-preview.7.21377.19) - restriction: >= net6.0
-      Microsoft.Bcl.AsyncInterfaces (>= 6.0.0-preview.7.21377.19) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (&& (< monoandroid) (>= netcoreapp2.0) (< netcoreapp2.1)) (&& (< monoandroid) (>= netcoreapp2.1) (< netcoreapp3.1)) (>= monotouch) (>= net461) (&& (< netcoreapp2.0) (>= netstandard2.0)) (>= uap10.1) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-      System.Buffers (>= 4.5.1) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (>= monotouch) (>= net461) (&& (< netcoreapp2.0) (>= netstandard2.0)) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-      System.Runtime.CompilerServices.Unsafe (>= 6.0.0-preview.7.21377.19) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (&& (< monoandroid) (>= netcoreapp2.0) (< netcoreapp2.1)) (&& (< monoandroid) (>= netcoreapp2.1)) (>= monotouch) (>= net461) (&& (< netcoreapp2.0) (>= netstandard2.0)) (>= netcoreapp3.1) (>= uap10.1) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
-      System.Text.Encodings.Web (>= 6.0.0-preview.7.21377.19) - restriction: || (&& (>= monoandroid) (< netstandard2.0)) (&& (< monoandroid) (>= netcoreapp2.0) (< netcoreapp2.1)) (&& (< monoandroid) (>= netcoreapp2.1)) (>= monotouch) (>= net461) (&& (< netcoreapp2.0) (>= netstandard2.0)) (>= netcoreapp3.1) (>= uap10.1) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
+    Microsoft.AspNetCore.Authorization (6.0) - restriction: >= net6.0
+      Microsoft.AspNetCore.Metadata (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Logging.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Options (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.AspNetCore.Components (6.0) - restriction: >= net6.0
+      Microsoft.AspNetCore.Authorization (>= 6.0) - restriction: >= net6.0
+      Microsoft.AspNetCore.Components.Analyzers (>= 6.0) - restriction: >= net6.0
+    Microsoft.AspNetCore.Components.Analyzers (6.0) - restriction: >= net6.0
+    Microsoft.AspNetCore.Components.Forms (6.0) - restriction: >= net6.0
+      Microsoft.AspNetCore.Components (>= 6.0) - restriction: >= net6.0
+    Microsoft.AspNetCore.Components.Web (6.0) - restriction: >= net6.0
+      Microsoft.AspNetCore.Components (>= 6.0) - restriction: >= net6.0
+      Microsoft.AspNetCore.Components.Forms (>= 6.0) - restriction: >= net6.0
+      Microsoft.Extensions.DependencyInjection (>= 6.0) - restriction: >= net6.0
+      Microsoft.JSInterop (>= 6.0) - restriction: >= net6.0
+      System.IO.Pipelines (>= 6.0) - restriction: >= net6.0
+    Microsoft.AspNetCore.Components.WebAssembly (6.0)
+      Microsoft.AspNetCore.Components.Web (>= 6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Configuration.Binder (>= 6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Configuration.Json (>= 6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Logging (>= 6.0) - restriction: >= net6.0
+      Microsoft.JSInterop.WebAssembly (>= 6.0) - restriction: >= net6.0
+    Microsoft.AspNetCore.Metadata (6.0) - restriction: >= net6.0
+    Microsoft.Extensions.Configuration (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Configuration.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Primitives (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.Configuration.Abstractions (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Primitives (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.Configuration.Binder (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Configuration.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.Configuration.FileExtensions (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Configuration (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Configuration.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.FileProviders.Physical (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Primitives (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.Configuration.Json (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Configuration (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Configuration.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Configuration.FileExtensions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      System.Text.Json (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.DependencyInjection (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.DependencyInjection.Abstractions (6.0) - restriction: >= net6.0
+    Microsoft.Extensions.FileProviders.Abstractions (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.Primitives (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.FileProviders.Physical (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.FileProviders.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.FileSystemGlobbing (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Primitives (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.FileSystemGlobbing (6.0) - restriction: >= net6.0
+    Microsoft.Extensions.Logging (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.DependencyInjection (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Logging.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Options (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      System.Diagnostics.DiagnosticSource (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.Logging.Abstractions (6.0) - restriction: >= net6.0
+    Microsoft.Extensions.Options (6.0) - restriction: >= net6.0
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Microsoft.Extensions.Primitives (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.Extensions.Primitives (6.0) - restriction: >= net6.0
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Microsoft.JSInterop (6.0) - restriction: >= net6.0
+    Microsoft.JSInterop.WebAssembly (6.0) - restriction: >= net6.0
+      Microsoft.JSInterop (>= 6.0) - restriction: >= net6.0
+    System.Diagnostics.DiagnosticSource (6.0) - restriction: >= net6.0
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    System.IO.Pipelines (6.0) - restriction: >= net6.0
+    System.Runtime.CompilerServices.Unsafe (6.0) - restriction: >= net6.0
+    System.Text.Encodings.Web (6.0) - restriction: >= net6.0
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+    System.Text.Json (6.0) - restriction: >= net6.0
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)
+      System.Text.Encodings.Web (>= 6.0) - restriction: || (>= net461) (>= netstandard2.0)

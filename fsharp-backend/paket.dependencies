@@ -7,43 +7,41 @@ storage: none
 // Basics
 nuget Newtonsoft.Json = 13.0.1
 nuget Ply = 0.3.1
-nuget FSharpPlus = 1.2.1
+nuget FSharpPlus = 1.2.2
 nuget FsRegEx = 0.7.2
-nuget FSharpx.Extras = 2.5.0
+nuget FSharpx.Extras = 3.0.0
 nuget FSharp.Core = 6.0.1
-nuget Faithlife.Utility = 0.11.2
+nuget Faithlife.Utility = 0.12.1
 
 // Tests
 nuget Expecto = 9.0.4
 nuget Expecto.FsCheck = 9.0.4
-nuget FsCheck = 2.16.0
+nuget FsCheck = 2.16.3
 nuget FSharp.Compiler.Service = 41.0.1
-nuget System.Runtime.CompilerServices.Unsafe = 6.0.0-preview.7.21377.19 // to resolve dependencies
 
 // Services
 nuget Giraffe = 5.0.0
-nuget Microsoft.AspNetCore.Mvc.NewtonsoftJson = 5.0.3
-nuget Lib.AspNetCore.ServerTiming = 4.1.0
+nuget Microsoft.AspNetCore.Mvc.NewtonsoftJson = 6.0.0
+nuget Lib.AspNetCore.ServerTiming = 4.2.0
 nuget PusherServer = 4.6.1
 nuget Rollbar = 4.0.3
 nuget Rollbar.NetCore.AspNet = 4.0.3
-nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.0-preview.7.21378.6
-nuget Microsoft.Extensions.Hosting.Abstractions = 6.0.0-preview.7.21377.19 // to resolve dependencies
-nuget AspNetCore.HealthChecks.Npgsql = 5.0.2
+nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.0
+nuget AspNetCore.HealthChecks.Npgsql = 6.0.1-rc1.2
 
 // Tracing
-nuget Honeycomb.OpenTelemetry = 0.12.0-beta
-nuget System.Diagnostics.DiagnosticSource = 6.0.0-preview.7.21377.19
-nuget OpenTelemetry = 1.2.0-alpha3
-nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.2.0-alpha3
-nuget OpenTelemetry.Exporter.Console = 1.2.0-alpha3
-nuget OpenTelemetry.Instrumentation.AspNetCore = 1.0.0-rc7
-nuget OpenTelemetry.Extensions.Hosting = 1.0.0-rc7
-nuget OpenTelemetry.Instrumentation.Http = 1.0.0-rc7
+nuget Honeycomb.OpenTelemetry = 0.13.0-beta
+nuget System.Diagnostics.DiagnosticSource = 6.0.0
+nuget OpenTelemetry = 1.2.0-beta1
+nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.2.0-beta1
+nuget OpenTelemetry.Exporter.Console = 1.2.0-beta1
+nuget OpenTelemetry.Instrumentation.AspNetCore = 1.0.0-rc8
+nuget OpenTelemetry.Extensions.Hosting = 1.0.0-rc8
+nuget OpenTelemetry.Instrumentation.Http = 1.0.0-rc8
 
 // LibBackend
-nuget Npgsql.FSharp = 4.0.0
-nuget Npgsql = 5.0.7
+nuget Npgsql.FSharp = 4.1.0
+nuget Npgsql = 6.0.0
 #git https://github.com/npgsql/npgsql
 nuget Sodium.Core = 1.2.3
 
@@ -54,4 +52,4 @@ nuget Argu = 6.1.1
 group Wasm
   source https://api.nuget.org/v3/index.json
   // Wasm - this is in its own group to avoid a clash with OpenTelemetry
-  nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.0-preview.7.21378.6
+  nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.0
