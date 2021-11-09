@@ -34,6 +34,8 @@ TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 echo "Stopping servers"
 #sudo pkill -f nginx || true # FSTODO
 #FSTODO
+sudo pkill -f "ApiServer" || true
+sudo pkill -f "BwdServer" || true
 sudo pkill -f "ApiServer2" || true
 sudo pkill -f "BwdServer2" || true
 
@@ -89,8 +91,13 @@ if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
   # cp "${BINPATH}/BwdServer.runtimeconfig.json" "${BINPATH}/BwdServer2.runtimeconfig.json"
   # cp "${BINPATH}/BwdServer.xml" "${BINPATH}/BwdServer2.xml"
   echo "Running server"
-  "${API_SERVER_EXE}2" > "$LOGS/fsharp-apiserver.log" 2>&1 &
-  "${BWD_SERVER_EXE}2" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  if [[ "$PUBLISHED" == "true" ]]; then
+    "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+    "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  else
+    "${API_SERVER_EXE}2" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+    "${BWD_SERVER_EXE}2" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  fi
   #FSTODO
   # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
   # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
