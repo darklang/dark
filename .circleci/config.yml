@@ -285,7 +285,7 @@ jobs:
       - restore_cache:
           keys:
             - v4-fsharp-backend-{{ checksum "../checksum" }}
-            - v4-fsharp-backend
+            # Fails often enough that it's better not to have a fallback
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # so the ocamltestserver will load
