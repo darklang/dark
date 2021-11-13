@@ -369,9 +369,9 @@ D-REMOVED */
             // Use invariant culture if the app does not carry icu data.
             MONO.mono_wasm_setenv("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1");
           }
-        };
+          // }; // D-CHANGED
 
-        module.preRun.push(() => {
+          // module.preRun.push(() => {
           // By now, emscripten should be initialised enough that we can capture these methods for later use
           mono_wasm_add_assembly = cwrap("mono_wasm_add_assembly", null, [
             "string",
@@ -499,7 +499,7 @@ D-REMOVED */
             }));
           };
           D-REMOVED */
-        });
+        };
         module.postRun.push(() => {
           if (
             resourceLoader.bootConfig.debugBuild &&
