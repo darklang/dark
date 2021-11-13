@@ -420,7 +420,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-too
 
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview rls
-RUN cargo install cargo-cache --no-default-features --features ci-autoclean
+RUN cargo install cargo-cache --version 0.6.3 --no-default-features --features ci-autoclean
 USER dark
 
 # Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
