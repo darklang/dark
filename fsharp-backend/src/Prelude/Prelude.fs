@@ -105,6 +105,11 @@ let matches (pattern : string) (input : string) : bool =
   m.Success
 
 // ----------------------
+// Runtime info
+// ----------------------
+let isBlazor = System.OperatingSystem.IsBrowser()
+
+// ----------------------
 // Debugging
 // ----------------------
 
@@ -136,14 +141,17 @@ type NonBlockingConsole() =
           System.Console.WriteLine(
             $"Exception in blocking queue thread: {e.Message}"
           )
-    let thread = System.Threading.Thread(f)
-    do
-      thread.IsBackground <- true
-      thread.Name <- "Prelude.NonBlockingConsole printer"
-      thread.Start()
+    // Background threads aren't supported in Blazor
+    if not isBlazor then
+      let thread = System.Threading.Thread(f)
+      do
+        thread.IsBackground <- true
+        thread.Name <- "Prelude.NonBlockingConsole printer"
+        thread.Start()
 
 
-  static member WriteLine(value : string) : unit = mQueue.Add(value)
+  static member WriteLine(value : string) : unit =
+    if isBlazor then System.Console.WriteLine value else mQueue.Add(value)
 
 
 let debuG (msg : string) (a : 'a) : unit =
