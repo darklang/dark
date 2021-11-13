@@ -820,6 +820,7 @@ D-REMOVED */
       return {
         loadResources: loadResources,
         loadResource: loadResource,
+        logToConsole: () => {},
         bootConfig: bootConfig,
         startOptions: startOptions,
         purgeUnusedCacheEntriesAsync: () => Promise.resolve(),
