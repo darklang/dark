@@ -588,13 +588,16 @@ D-REMOVED */
         }
       }
 
-      /* D-REMOVED
-      const anchorTagForAbsoluteUrlConversions = document.createElement('a');
+      // D-REMOVED
+      // const anchorTagForAbsoluteUrlConversions = document.createElement("a");
       function toAbsoluteUrl(possiblyRelativeUrl) {
-        anchorTagForAbsoluteUrlConversions.href = possiblyRelativeUrl;
-        return anchorTagForAbsoluteUrlConversions.href;
+        return new URL(possiblyRelativeUrl).href;
+        // D-CHANGED - not supported in a web worker
+        // anchorTagForAbsoluteUrlConversions.href = possiblyRelativeUrl;
+        // return anchorTagForAbsoluteUrlConversions.href;
       }
 
+      /* D-REMOVED
       function getArrayDataPointer(array){
         return array + 12; // First byte from here is length, then following bytes are entries
       }
