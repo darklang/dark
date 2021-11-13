@@ -551,8 +551,9 @@ D-REMOVED */
           const appBinDirName = "appBinDir"; // D-MOVED from global scope
           load_runtime(appBinDirName, hasDebuggingEnabled() ? -1 : 0);
           MONO.mono_wasm_runtime_ready();
+          // D-REMOVED
           // TODO: this might be a better to way to invoke things than what we have hacked in
-          attachInteropInvoker();
+          // attachInteropInvoker();
           onReady();
         });
 
