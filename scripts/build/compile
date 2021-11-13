@@ -93,6 +93,8 @@ def copy_fsharp_static():
     wwwroot = run_backend(
         start,
         "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/wwwroot/_framework/ backend/static/blazor/"
+        # For now, use the non-published version, which actually works
+        # "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
     )
   else:
     wwwroot = run_backend(
@@ -309,8 +311,7 @@ def fsharp_backend_full_build():
   result = run_backend(start, build)
 
   start = time.time()
-  # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
-  # ourselves for now.
+  # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
   if result and optimize:
     build = f"cd fsharp-backend \
       && unbuffer dotnet build \
