@@ -819,8 +819,15 @@ D-REMOVED */
         loadResource: loadResource,
         bootConfig: bootConfig,
         startOptions: startOptions,
+        purgeUnusedCacheEntriesAsync: () => Promise.resolve(),
       };
     };
+    // =======================
+    // MonoDebugger.ts
+    // =======================
+    function hasDebuggingEnabled() {
+      return true;
+    }
 
     // =======================
     // BootConfig.ts
