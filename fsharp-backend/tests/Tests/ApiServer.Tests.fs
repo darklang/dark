@@ -543,10 +543,12 @@ let testDelete404s =
 
     let insert404 server : Task<unit> =
       task {
-        // FSTODO switch test to use F#, which doesn't yet add traces
         let! user = Lazy.force testUser
-        let port = portFor server
-        let url = $"http://test.builtwithdark.localhost:{port}/{path}"
+        let port =
+          match server with
+          | OCaml -> 8000
+          | FSharp -> LibService.Config.bwdServerNginxPort
+        let url = $"http://test.builtwithdark.localhost:{port}{path}"
         use message = new HttpRequestMessage(HttpMethod.Get, url)
         let! result = user.client.SendAsync(message)
         Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
