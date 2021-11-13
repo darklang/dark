@@ -275,6 +275,17 @@ def fsharp_backend_quick_build():
       --verbosity {verbosity} \
       --configuration {configuration}"
 
+  result = run_backend(start, build)
+
+  start = time.time()
+  # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
+  if result and optimize:
+    build = f"cd fsharp-backend \
+      && unbuffer dotnet build \
+        --verbosity {verbosity} \
+        --configuration {configuration} \
+        src/Wasm/Wasm.fsproj"
+
   return run_backend(start, build)
 
 
@@ -297,6 +308,7 @@ def fsharp_backend_full_build():
 
   result = run_backend(start, build)
 
+  start = time.time()
   # When "Publish"ing, the wasm isn't built due to a bug. So we need to build it
   # ourselves for now.
   if result and optimize:
