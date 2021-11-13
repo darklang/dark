@@ -39,7 +39,7 @@ type U = Lazy<Task<User>>
 
 let portFor (server : Server) : int =
   match server with
-  | OCaml -> 8000
+  | OCaml -> 8000 // nginx for the ocaml server is on port 8000
   | FSharp -> LibService.Config.apiServerNginxPort
 
 // login as test user and return the csrfToken (the cookies are stored in httpclient)
