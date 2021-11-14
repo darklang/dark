@@ -4,6 +4,8 @@
 
 List.append_v0 [1; 2; 3] [4; 5; 6] = [1; 2; 3; 4; 5; 6]
 List.append_v0 [3;4] [5;6] = [3;4;5;6]
+List.append_v0 [1] [2] = [1;2]
+List.append_v0 [] [] = []
 
 List.contains_v0 [1;2;3] 2 = true
 List.contains_v0 [1;2;3] 4 = false
@@ -20,6 +22,7 @@ List.drop_v0 [1;2;3;4] 5 = []
 List.drop_v0 [3; 3; 3] 0 = [3; 3; 3]
 List.drop_v0 [5; 4; 3; 2; 1]  5 = []
 List.drop_v0 [5] 4 = []
+List.drop_v0 [] 4 = []
 
 List.dropWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `-1`" // FSHARPONLY
 List.dropWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected the argument `f` passed to `List::dropWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." // OCAMLONLY
@@ -41,6 +44,7 @@ List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expecting fn to retu
 List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `2`" // FSHARPONLY
 List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
 List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `\"a\"`" // FSHARPONLY
+List.filter_v0 [] (fun item -> "a") = []
 
 List.filter_v1 [-20; 5; 9;] (fun x -> x < 1) = [-20]
 List.filter_v1 [-20; 5; 9;] (fun x -> x > 20) = []
@@ -53,6 +57,7 @@ List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expecting fn to re
 List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `\"a\"`" // FSHARPONLY
 List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
 List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `\"a\"`" // FSHARPONLY
+List.filter_v1 [] (fun item -> "a") = []
 
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`. However, it returned `Nothing` for the input `1`." // OCAMLONLY
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `Nothing`" // FSHARPONLY
@@ -62,6 +67,7 @@ List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3 ]
 List.filter_v2 [] (fun item -> true) = []
 List.filter_v2 [-20; 5; 9;] (fun x -> x > 20) = []
+List.filter_v2 [] (fun item -> "a") = []
 
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then Nothing else (Just (item * 2))) = [ 2; 6 ]
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then blank else (Just (item * 2))) = blank
@@ -96,8 +102,10 @@ List.flatten_v0 [] = []
 
 List.fold_v0 ["a"; "b"; "c"; "d"] "x" (fun accum curr -> accum ++ curr) = "xabcd"
 List.fold_v0 [1;2;3;4;5] [] (fun accum curr -> List.pushBack_v0 accum (curr + 1)) = [2;3;4;5;6]
+List.fold_v0 [] [] (fun accum curr -> 5) = []
 
 List.foreach_v0 [1;2;3] (fun x -> x + 1) = [2;3;4]
+List.foreach_v0 [] (fun x -> x + 1) = []
 List.foreach_v0 [Test.typeError_v0 "test"] (fun x -> x) = [Test.typeError_v0 "test"]
 
 List.getAt_v0 ["a"; "b"; "c"; "d"] -1 = Nothing
@@ -105,10 +113,12 @@ List.getAt_v0 [1; 2; 3; 4] 4611686018427387902I = Nothing
 List.getAt_v0 [1;2;3;4] 0 = Just 1
 List.getAt_v0 [1;2;3;4] 4 = Nothing
 List.getAt_v0 [3; 3; 3] -5 = Nothing
+List.getAt_v0 [] 5 = Nothing
 List.getAt_v0 [3; 3; 3] 2147483648I = Nothing
 
 List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
 List.getAt_v1 [0] 1 = Nothing
+List.getAt_v1 [] 1 = Nothing
 List.getAt_v1 [1; 2; 3; 4] 4611686018427387902I = Nothing // FSHARPONLY
 List.getAt_v1 [1;2;3;4] 0 = Just 1
 List.getAt_v1 [3; 3; 3] -5 = Nothing
@@ -160,16 +170,21 @@ List.last_v2 [Test.typeError_v0 "test"] = Test.typeError_v0 "test"
 List.last_v2 [] = Nothing
 
 List.length_v0 [1;2;3] = 3
+List.length_v0 [] = 0
 
 List.map_v0 (List.range_v0 1 5) (fun x -> x + 1) = [2; 3; 4; 5; 6]
 List.map_v0 [1; 2; 3] (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 4)) = [true; true; true]
 List.map_v0 [1; 2] (fun x -> x + 1) = [2; 3]
+List.map_v0 [] (fun x -> x + 1) = []
 
 List.map2_v0 [10;20;30] [1;2;3] (fun a b -> a - b) = Just [ 9; 18; 27 ]
 List.map2_v0 [10;20] [1;2;3] (fun a b -> a - b) = Nothing
+List.map2_v0 [] [] (fun a b -> a - b) = Just []
 
 List.map2shortest_v0 [10;20;30] [1;2;3] (fun a b -> a - b) = [ 9; 18; 27 ]
 List.map2shortest_v0 [10;20] [1;2;3] (fun a b -> a - b) = [ 9; 18 ]
+List.map2shortest_v0 [] [1;2;3] (fun a b -> a - b) = []
+List.map2shortest_v0 [1;2;3] [] (fun a b -> a - b) = []
 
 List.member_v0 [1;2;3] 2 = true
 List.member_v0 [1;2;3] 4 = false
@@ -203,14 +218,17 @@ List.repeat_v0 -4 "a" = Test.typeError_v0 "Expected the argument `times` to be p
 
 List.reverse_v0 ["a"; "b"; "c"; "d"] = ["d";"c";"b";"a"]
 List.reverse_v0 [5; 4; 3; 2; 1] = [1;2;3;4;5]
+List.reverse_v0 [] = []
 
 List.singleton_v0 1 = [ 1 ]
 List.singleton_v0 blank = blank
 
 List.sortBy_v0 [6;2;8;3] (fun x -> 0 - x) = [8;6;3;2]
+List.sortBy_v0 [] (fun x -> 0 - x) = []
 
 List.sort_v0 ["6";"2";"8";"3"] = ["2";"3";"6";"8"]
 List.sort_v0 [6;2;8;3] = [2;3;6;8]
+List.sort_v0 [] = []
 
 List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "`f` must return one of -1, 0, 1, but returned non-int: 0.1" // OCAMLONLY
 List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "`f` must return one of -1, 0, 1, but returned another int: 3" // OCAMLONLY
@@ -222,6 +240,7 @@ List.sortByComparator_v0 [Test.typeError "㧑༷釺";1;2;3] (fun a b -> 1) = Err
 List.sortByComparator_v0 [Test.typeError "㧑༷釺";1;2;3] (fun a b -> 1) = Error "Expected `f` to return -1, 0, 1, but it returned `<Error: 㧑༷釺>`" // FSHARPONLY
 
 List.sortByComparator_v0 [3;1;2] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [ 1; 2; 3 ]
+List.sortByComparator_v0 [] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok []
 List.sortByComparator_v0 [3;1;2;67;3;-1;6;3;5;6;2;5;63;2;3;5;-1;-1;-1] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [-1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67]
 
 List.tail_v0 [10; 20; 30; 40] = Just [20; 30; 40]
@@ -233,6 +252,7 @@ List.take_v0 ["a"; "b"; "c"; "d"] 3 = ["a"; "b"; "c"]
 List.take_v0 [3; 3; 3] 0 = []
 List.take_v0 [5; 4; 3; 2; 1]  5 = [5; 4; 3; 2; 1]
 List.take_v0 [5] 4 = [5]
+List.take_v0 [] 4 = []
 
 List.takeWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `-1`" // FSHARPONLY
 List.takeWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected the argument `f` passed to `List::takeWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." // OCAMLONLY
@@ -247,6 +267,7 @@ List.uniqueBy_v0 [1;2;3;4] (fun x -> Int.divide_v0 x 2) = [ 1; 2; 4 ] // FSHARPO
 List.uniqueBy_v0 [1;2;3;4] (fun x -> x) = [ 1; 2; 3; 4 ]
 List.uniqueBy_v0 [1;1;1;1] (fun x -> x) = [ 1 ]
 List.uniqueBy_v0 [7;42;7;2;10] (fun x -> x) = [ 2; 7; 10; 42 ]
+List.uniqueBy_v0 [] (fun x -> x) = []
 
 List.unzip_v0 [[1;10];10;[3;30]] = Test.typeError_v0 "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index 1: 10. It is of type `Int` instead of `List`." // OCAMLONLY
 List.unzip_v0 [[1;10];10;[3;30]] = Test.typeError_v0 "Expected the argument `pairs` to be a list with exactly two values, but it was `10`. It is of type Int instead of `List`" // FSHARPONLY
@@ -260,6 +281,7 @@ List.unzip_v0 [[10;6]] = [[10],[6]]
 List.zipShortest_v0 [10;20;30] [1;2;3] = [ [ 10; 1 ]; [ 20; 2 ]; [ 30; 3 ] ]
 List.zipShortest_v0 [10;20] [1;2;3] = [ [ 10; 1 ]; [ 20; 2 ] ]
 List.zipShortest_v0 ["b";"v";"z"] [] = []
+List.zipShortest_v0 [] ["b";"v";"z"] = []
 List.zipShortest_v0 [Test.typeError_v0 ""] [Just ""] = Test.typeError_v0 ""
 
 List.zip_v0 [10;20;30] [1;2;3] = Just [ [ 10; 1 ]; [ 20; 2 ]; [ 30; 3 ] ]
