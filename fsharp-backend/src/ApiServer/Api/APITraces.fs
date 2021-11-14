@@ -51,7 +51,7 @@ module TraceData =
 
       t "load-canvas"
 
-      // TODO: we dont need the handlers or functions at all here, just for the sample
+      // CLEANUP: we dont need the handlers or functions at all here, just for the sample
       // values which we can do on the client instead
       let handler = c.handlers |> Map.get p.tlid
 
@@ -61,7 +61,7 @@ module TraceData =
         | None ->
           match c.userFunctions |> Map.get p.tlid with
           | Some u -> Traces.userfnTrace c.meta.id p.trace_id u |> Task.map Some
-          | None -> task { return None }
+          | None -> Task.FromResult None
 
       t "load-trace"
 

@@ -27,21 +27,31 @@ type AuthData = LibBackend.Session.AuthData
 
 open ApiServer
 
+type Server =
+  | FSharp
+  | OCaml
+
 let ident = Fun.identity
 
 type User = { client : HttpClient; csrf : string }
 
 type U = Lazy<Task<User>>
 
+let portFor (server : Server) : int =
+  match server with
+  | OCaml -> 8000 // nginx for the ocaml server is on port 8000
+  | FSharp -> LibService.Config.apiServerNginxPort
+
 // login as test user and return the csrfToken (the cookies are stored in httpclient)
 let login (username : string) (password : string) : Task<User> =
   task {
     let client = new HttpClient()
+    let port = portFor OCaml
 
     use loginReq =
       new HttpRequestMessage(
         HttpMethod.Post,
-        $"http://darklang.localhost:8000/login"
+        $"http://darklang.localhost:{port}/login"
       )
 
     let body =
@@ -73,18 +83,31 @@ let loggedOutUser () =
 
 
 
-let getAsync (user : U) (url : string) : Task<HttpResponseMessage> =
+let getAsync
+  (server : Server)
+  (user : U)
+  (path : string)
+  : Task<HttpResponseMessage> =
   task {
     let! user = Lazy.force user
+    let port = portFor server
+    let url = $"http://darklang.localhost:{port}{path}"
     use message = new HttpRequestMessage(HttpMethod.Get, url)
     message.Headers.Add("X-CSRF-Token", user.csrf)
 
     return! user.client.SendAsync(message)
   }
 
-let postAsync (user : U) (url : string) (body : string) : Task<HttpResponseMessage> =
+let postAsync
+  (server : Server)
+  (user : U)
+  (path : string)
+  (body : string)
+  : Task<HttpResponseMessage> =
   task {
     let! user = Lazy.force user
+    let port = portFor server
+    let url = $"http://darklang.localhost:{port}{path}"
     use message = new HttpRequestMessage(HttpMethod.Post, url)
     message.Headers.Add("X-CSRF-Token", user.csrf)
 
@@ -105,7 +128,7 @@ let noBody () = ""
 let getInitialLoad (user : U) : Task<InitialLoad.T> =
   task {
     let! (o : HttpResponseMessage) =
-      postAsync user $"http://darklang.localhost:8000/api/test/initial_load" ""
+      postAsync OCaml user $"/api/test/initial_load" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -117,11 +140,8 @@ let getInitialLoad (user : U) : Task<InitialLoad.T> =
 let testUiReturnsTheSame =
   testTask "ui returns the same" {
 
-    let! (o : HttpResponseMessage) =
-      getAsync testUser "http://darklang.localhost:8000/a/test"
-
-    let! (f : HttpResponseMessage) =
-      getAsync testUser "http://darklang.localhost:9000/a/test"
+    let! (o : HttpResponseMessage) = getAsync OCaml testUser "/a/test"
+    let! (f : HttpResponseMessage) = getAsync FSharp testUser "/a/test"
 
     Expect.equal o.StatusCode f.StatusCode ""
 
@@ -144,20 +164,22 @@ let testUiReturnsTheSame =
     let oc, ocfns = parse oc
     let fc, fcfns = parse fc
 
+    let port = portFor OCaml
+
     let oc =
       oc
         // a couple of specific ones
         .Replace(
-          "static.darklang.localhost:8000",
+          $"static.darklang.localhost:{port}",
           $"static.darklang.localhost:{LibService.Config.apiServerNginxPort}"
         )
         .Replace(
-          "builtwithdark.localhost:8000",
+          $"builtwithdark.localhost:{port}",
           $"builtwithdark.localhost:{LibService.Config.bwdServerNginxPort}"
         )
         // get the rest
         .Replace(
-          "localhost:8000",
+          $"localhost:{port}",
           $"localhost:{LibService.Config.apiServerNginxPort}"
         )
 
@@ -209,10 +231,6 @@ let testUiReturnsTheSame =
       filteredOCamlFns
   }
 
-type Server =
-  | FSharp
-  | OCaml
-
 type ApiResponse<'a> = Task<'a * System.Net.HttpStatusCode * Map<string, string>>
 
 let postApiTestCase
@@ -223,13 +241,8 @@ let postApiTestCase
   (canonicalizeBody : 'a -> 'a)
   : ApiResponse<'a> =
   task {
-    let port =
-      match server with
-      | OCaml -> TestConfig.ocamlHttpPort
-      | FSharp -> LibService.Config.apiServerNginxPort
-
     let! (response : HttpResponseMessage) =
-      postAsync testUser $"http://darklang.localhost:{port}/api/test/{api}" body
+      postAsync server testUser $"/api/test/{api}" body
 
     let! content = response.Content.ReadAsStringAsync()
 
@@ -252,6 +265,7 @@ let postApiTestCase
       clear "Server-Timing"
       clear "x-darklang-execution-id"
       let (_ : bool) = h.Remove "Connection" // not useful, not in new API
+      let (_ : bool) = h.Remove "Strict-Transport-Security" // only in new API
 
       h
       |> Seq.toList
@@ -301,7 +315,7 @@ let testPostApi
 let testGetTraceData =
   testTask "get_trace is the same" {
     let! (o : HttpResponseMessage) =
-      postAsync testUser $"http://darklang.localhost:8000/api/test/all_traces" ""
+      postAsync OCaml testUser $"/api/test/all_traces" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -495,7 +509,7 @@ let testDelete404s =
     let get404s () : Task<List<TI.F404>> =
       task {
         let! (o : HttpResponseMessage) =
-          postAsync testUser $"http://darklang.localhost:8000/api/test/get_404s" ""
+          postAsync OCaml testUser $"/api/test/get_404s" ""
 
         Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
         let! body = o.Content.ReadAsStringAsync()
@@ -529,9 +543,14 @@ let testDelete404s =
 
     let insert404 server : Task<unit> =
       task {
-        // FSTODO switch test to use F#, which doesn't yet add traces
-        let url = $"http://test.builtwithdark.localhost:8000{path}"
-        let! result = getAsync testUser url
+        let! user = Lazy.force testUser
+        let port =
+          match server with
+          | OCaml -> 8000
+          | FSharp -> LibService.Config.bwdServerNginxPort
+        let url = $"http://test.builtwithdark.localhost:{port}{path}"
+        use message = new HttpRequestMessage(HttpMethod.Get, url)
+        let! result = user.client.SendAsync(message)
         Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
 
         // assert 404 added
@@ -547,10 +566,10 @@ let testDelete404s =
     let! f404 = get404 ()
     Expect.equal f404 None "initial"
 
-    do! insert404 ()
+    do! insert404 OCaml
     let! oResponse = delete404 OCaml
 
-    do! insert404 ()
+    do! insert404 FSharp
     let! fResponse = delete404 FSharp
 
     Expect.equal fResponse oResponse "compare responses"
@@ -625,14 +644,10 @@ let permissions =
     "check apiserver permissions"
     (fun (user : U) (username : string) ->
       task {
-        let! (uiResp : HttpResponseMessage) =
-          getAsync user $"http://darklang.localhost:9000/a/{username}"
+        let! (uiResp : HttpResponseMessage) = getAsync FSharp user $"/a/{username}"
 
         let! (apiResp : HttpResponseMessage) =
-          postAsync
-            user
-            $"http://darklang.localhost:9000/api/{username}/initial_load"
-            ""
+          postAsync FSharp user $"/api/{username}/initial_load" ""
 
         return (int uiResp.StatusCode, int apiResp.StatusCode)
       })

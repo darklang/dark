@@ -34,7 +34,9 @@ let tail l =
 
 let cons element list = element :: list
 
-let take count t = List.take count t
+let take count t =
+  // List.take throws an exception
+  List.truncate count t
 
 let takeWhile (f : 'a -> bool) (l : 'a list) = List.takeWhile f l
 
