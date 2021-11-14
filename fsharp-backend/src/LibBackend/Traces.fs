@@ -16,13 +16,15 @@ module PT = LibExecution.ProgramTypes
 let incomplete = RT.DIncomplete RT.SourceNone
 
 let sampleRequest : RT.Dval =
-  RT.Dval.obj [ ("body", incomplete)
-                ("jsonBody", incomplete)
-                ("formBody", incomplete)
-                ("queryParams", incomplete)
-                ("headers", incomplete)
-                ("fullBody", incomplete)
-                ("url", incomplete) ]
+  ([ ("body", incomplete)
+     ("jsonBody", incomplete)
+     ("formBody", incomplete)
+     ("queryParams", incomplete)
+     ("headers", incomplete)
+     ("fullBody", incomplete)
+     ("url", incomplete) ])
+  |> Map
+  |> RT.Dval.DObj
 
 let sampleRequestInputVars : AT.InputVars = [ ("request", sampleRequest) ]
 
