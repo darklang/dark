@@ -60,10 +60,7 @@ let savedInputVars
     let withR = [ ("request", event) ] in
 
     let bound =
-      if route = "" then
-        []
-      else
-        (
+      if route <> "" then
         // Check the trace actually matches the route, if not the client
         // has made a mistake in matching the traceid to this handler, but
         // that might happen due to a race condition. If it does, carry
@@ -74,7 +71,9 @@ let savedInputVars
         if Routing.requestPathMatchesRoute route requestPath then
           Routing.routeInputVars route requestPath |> Option.unwrapUnsafe
         else
-          sampleRouteInputVars h)
+          sampleRouteInputVars h
+      else
+        []
 
     withR @ bound
   | PT.Handler.Worker _ -> [ ("event", event) ]
