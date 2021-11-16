@@ -114,7 +114,6 @@ DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN=n
 DARK_CONFIG_GETTING_STARTED_CANVAS_NAME=crud
 DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE=sample-crud
 
-
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
 ######################################
