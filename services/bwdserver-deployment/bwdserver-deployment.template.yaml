@@ -35,7 +35,7 @@ spec:
           ports:
             # Name length limit is 15 chars.
             - name: bwdsvr-ctr-port
-              containerPort: 7001
+              containerPort: 11001
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -44,21 +44,21 @@ spec:
           startupProbe: # has it started? Allows other probes
             httpGet:
               path: /k8s/startupProbe
-              port: 7002
+              port: 11002
             failureThreshold: 24 # kill container after 2 minutes (24x5s checks)
             timeoutSeconds: 10
             periodSeconds: 5
           readinessProbe: # can it serve http requests?
             httpGet:
               path: /k8s/readinessProbe
-              port: 7002
+              port: 11002
             initialDelaySeconds: 0
             periodSeconds: 5
             successThreshold: 3
           livenessProbe: # is it still alive?
             httpGet:
               path: /k8s/livenessProbe
-              port: 7002
+              port: 11002
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 10
