@@ -32,8 +32,6 @@ Content-Length: LENGTH
     "date": "Sun, 08 Nov 2020 15:38:01 GMT",
     "host": "test-bwdserver-request-empty.builtwithdark.localhost",
     "user-agent": "ocaml-cohttp/1.2.0" // OCAMLONLY
-    "x-forwarded-for": "127.0.0.1", // FSHARPONLY
-    "x-forwarded-proto": "http" // FSHARPONLY
   },
   "jsonBody": null,
   "queryParams": {},
