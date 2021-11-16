@@ -121,33 +121,13 @@ let t filename =
       (hs : (string * string) list)
       (body : byte array)
       : (string * string) list =
-      let headerMap =
-        hs |> List.map Tuple2.first |> List.map String.toLowercase |> Set.ofList
-
-      let ct =
-        if (server = OCaml
-            && (not (Set.contains "content-type" headerMap) && body.Length <> 0)) then
-          [ "content-type", "text/plain" ]
-        else
-          []
-
-      let serverHeader = if server = OCaml then [ "server", "darklang" ] else []
-
-      let date =
-        if server = OCaml then [ "date", "xxx, xx xxx xxxx xx:xx:xx xxx" ] else []
-
-      // All kestrel responses have
-      //  - a content-type if they have content
-      //  - a server-darklang
-      // So add these to the ocaml responses
-      // Meanwhile all ocaml responses are sorted and lowercase
-      ct @ date @ serverHeader @ hs
+      hs
       |> List.map
            (fun (k, v) ->
-             match (String.toLowercase k, String.toLowercase v) with
-             | ("date", _) -> "date", "xxx, xx xxx xxxx xx:xx:xx xxx"
-             | ("x-darklang-execution-id" as k, _) -> k, "0123456789"
-             | other -> other)
+             match k with
+             | "Date" -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
+             | "x-darklang-execution-id" -> k, "0123456789"
+             | other -> (k, v))
       |> List.sortBy Tuple2.first // FSTODO ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders
@@ -155,9 +135,12 @@ let t filename =
       (bodyLength : int)
       : (string * string) list =
       hs
-      |> List.map (fun (k, v) -> (k, FsRegEx.replace "LENGTH" (string bodyLength) v))
-      |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
-      // Json can be different lengths, this plugs in the expected length
+      |> List.map
+           (fun (k, v) ->
+             match String.toLowercase k, v with
+             // Json can be different lengths, this plugs in the expected length
+             | "Content-Length", "LENGTH" -> (k, string bodyLength)
+             | _ -> (k, v))
       |> List.sortBy Tuple2.first
 
 
@@ -168,8 +151,8 @@ let t filename =
 
         let port =
           match server with
-          | OCaml -> TestConfig.ocamlHttpPort
-          | FSharp -> TestConfig.bwdServerPort
+          | OCaml -> TestConfig.ocamlServerNginxPort
+          | FSharp -> TestConfig.bwdServerNginxPort
 
         let mutable connected = false
 
@@ -293,7 +276,7 @@ open Microsoft.Extensions.Hosting
 
 // run our own webserver instead of relying on the dev webserver
 let init (token : System.Threading.CancellationToken) : Task =
-  let port = TestConfig.bwdServerPort
+  let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
   (BwdServer.webserver false port k8sPort).RunAsync(token)
 

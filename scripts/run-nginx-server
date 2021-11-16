@@ -12,7 +12,7 @@ until [[ "$(sudo netstat -ltnp | grep -w ':9000')" == "" ]]; do
   sleep 0.1
 done
 
-until [[ "$(sudo netstat -ltnp | grep -w ':7000')" == "" ]]; do
+until [[ "$(sudo netstat -ltnp | grep -w ':11000')" == "" ]]; do
   echo "Waiting for nginx (bwdserver) to die..."
   sleep 0.1
 done
@@ -55,8 +55,29 @@ setup() {
   echo "Started nginx ($name)"
 }
 
+setup_test() {
+  name=$1
+  source=$2
+  listen_port=$3
+  new_listen_port=$4
+  upstream_port=$5
+  new_upstream_port=$6
+
+  sudo rm -Rf /etc/nginx-test-$name/
+  sudo mkdir -p /etc/nginx-test-$name/conf.d
+  sudo ln -s /home/dark/app/containers/ocaml-nginx/base-nginx.conf /etc/nginx-test-$name/nginx.conf
+  sudo cp /home/dark/app/$source/nginx.conf /etc/nginx-test-$name/conf.d/test-$name-nginx.conf
+  sudo sed -i /etc/nginx-test-$name/conf.d/test-$name-nginx.conf -e "s/$listen_port/$new_listen_port/g" -e "s/$upstream_port/$new_upstream_port/g"
+  echo "Starting nginx (test-$name)"
+  sudo nginx -c /etc/nginx-test-$name/nginx.conf
+  echo "Started nginx (test-$name)"
+}
+
 sudo rm -f /etc/nginx/nginx.conf
 setup ocaml containers/ocaml-nginx/
 setup apiserver services/apiserver-deployment/
 setup bwdserver services/bwdserver-deployment/
+setup_test ocaml containers/ocaml-nginx/ 8000 10000 80 10001
+setup_test apiserver services/apiserver-deployment/ 9000 10020 9001 10021
+setup_test bwdserver services/bwdserver-deployment/ 11000 10010 11001 10011
 
