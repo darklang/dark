@@ -14,7 +14,6 @@ Content-Length: 0
 HTTP/1.1 500 Internal Server Error
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
-Content-Type: text/plain // OCAMLONLY
 Server: nginx/1.16.1
 Connection: keep-alive
 Content-Length: 61

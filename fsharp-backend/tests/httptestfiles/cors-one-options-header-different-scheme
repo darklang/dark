@@ -15,8 +15,10 @@ HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Access-Control-Allow-Origin: null // FSHARPONLY
 access-control-allow-origin: null // OCAMLONLY
-Access-Control-Allow-Headers: *
-Access-Control-Allow-Methods: get,put,post,delete,patch,head,options
+Access-Control-Allow-Headers: * // FSHARPONLY
+access-control-allow-headers: * // OCAMLONLY
+Access-Control-Allow-Methods: GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS // FSHARPONLY
+access-control-allow-methods: GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1
 Connection: keep-alive

@@ -12,9 +12,9 @@ HTTP/1.1 404 Not Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
 Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLYContent-Length: 31
+access-control-allow-origin: * // OCAMLONLY
+Content-Length: 31
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
-Content-Type: text/plain // OCAMLONLY
 Server: nginx/1.16.1
 Connection: keep-alive
 

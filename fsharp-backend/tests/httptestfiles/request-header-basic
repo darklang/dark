@@ -20,8 +20,9 @@ Connection: keep-alive
 Content-Length: LENGTH
 
 {
-  "Content-Type": "tExT/pLaIn",
-  "date": "Sun, 08 Nov 2020 15:38:01 GMT",
-  "host": "HOST",
-  "user-agent": "test"
+"connection": "close",
+"content-type": "tExT/pLaIn",
+"date": "Sun, 08 Nov 2020 15:38:01 GMT",
+"host": "HOST",
+"user-agent": "test"
 }

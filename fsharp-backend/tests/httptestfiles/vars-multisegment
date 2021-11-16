@@ -15,7 +15,7 @@ x-darklang-execution-id: 0123456789
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Server: nginx/1.16.1
 Connection: keep-alive
-Content-type: text/plain; charset=utf-8
-Content-length: 23
+Content-Type: text/plain; charset=utf-8
+Content-Length: 23
 
 "hello alice-bob/later"

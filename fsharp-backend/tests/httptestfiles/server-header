@@ -16,8 +16,7 @@ access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
 Server: nginx/1.16.1
-Connection: keep-alive // OCAMLONLY - caused by test framework
-Server: testservername
+Connection: keep-alive
 Content-Length: 8
 
 a string

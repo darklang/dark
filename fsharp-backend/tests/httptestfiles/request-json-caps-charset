@@ -13,7 +13,7 @@ Content-Length: 22
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Content-Type: application/json; charset=UTF-8
+Content-Type: application/json; charset=utf-8
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
