@@ -92,11 +92,16 @@ let cookies (headers : HttpHeaders.T) : RT.Dval =
   |> Option.defaultValue (RT.DObj Map.empty)
 
 
-let url (uri : string) =
+let url (headers : List<string * string>) (uri : string) =
   // .NET doesn't url-encode the query like we expect, so we're going to do it
   let parsed = System.UriBuilder(uri)
   // FSTODO test this somehow
   parsed.Query <- urlEncodeExcept "*$@!:()~?/.,&-_=\\" parsed.Query
+  // Set the scheme if it's passed by the load balancer
+  let headerProtocol =
+    headers
+    |> List.find (fun (k, _) -> String.toLowercase k = "x-forwarded-proto")
+    |> Option.map (fun (_, v) -> parsed.Scheme <- v)
   // Use .Uri or it will slip in a port number
   RT.DStr(string parsed.Uri)
 
@@ -137,7 +142,7 @@ let fromRequest
       "headers", parseHeaders headers
       "fullBody", RT.DStr(UTF8.ofBytesUnsafe body)
       "cookies", cookies headers
-      "url", url uri ]
+      "url", url headers uri ]
   RT.Dval.obj parts
 
 let toDval (self : T) : RT.Dval = self

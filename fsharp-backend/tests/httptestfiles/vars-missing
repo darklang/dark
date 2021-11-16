@@ -11,10 +11,11 @@ Content-Length: 0
 HTTP/1.1 404 Not Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
 Content-Length: 31
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
-Content-Type: text/plain // OCAMLONLY
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 
 404 Not Found: No route matches

@@ -10,11 +10,13 @@ Content-Length: 0
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-content-type: text/plain; charset=utf-8
-Access-Control-Allow-Origin: *
+Content-Type: text/plain; charset=utf-8
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: LENGTH
 
-"http://HOST/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // OCAMLONLY
-"http://HOST/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // FSHARPONLY
+"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // OCAMLONLY
+"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // FSHARPONLY

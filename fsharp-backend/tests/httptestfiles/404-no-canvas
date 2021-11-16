@@ -9,10 +9,11 @@ Content-Length: 0
 
 [response]
 HTTP/1.1 404 Not Found
+Connection: keep-alive
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Length: 14
-Content-Type: text/plain
-Server: Darklang
+Content-Type: text/plain // FSHARPONLY
+Server: nginx/1.16.1
 x-darklang-execution-id: 0123456789
 
 user not found

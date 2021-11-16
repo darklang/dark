@@ -44,9 +44,10 @@ createdb testdb
 ./scripts/run-backend-server
 ./scripts/run-ocaml-legacy-server
 ./scripts/run-ocaml-test-server
+./scripts/run-nginx-server
 
 # CLEANUP This is where the migrations are run for testdb at the moment
-DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVER_PORT}" ./scripts/devcontainer/_wait-until-server-ready
+DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVER_NGINX_PORT}" ./scripts/devcontainer/_wait-until-server-ready
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests

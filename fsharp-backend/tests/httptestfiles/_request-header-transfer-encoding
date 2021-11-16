@@ -5,7 +5,7 @@ request.body
 GET / HTTP/1.1
 Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
-Content-type: text/plain
+Content-Type: text/plain
 Transfer-encoding: chunked
 
 7\r\nMozilla\r\n9\r\nDeveloper\r\n7\r\nNetwork\r\n
@@ -14,9 +14,11 @@ Transfer-encoding: chunked
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain; charset=utf-8
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: LENGTH
 
 null

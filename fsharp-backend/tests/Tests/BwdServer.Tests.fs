@@ -116,48 +116,29 @@ let t filename =
         if m.Success then do! Routing.addCustomDomain m.Groups.[1].Value meta.name
       }
 
-    let normalizeHeaders
-      (server : Server)
+    let normalizeActualHeaders
       (hs : (string * string) list)
-      (body : byte array)
       : (string * string) list =
-      let headerMap =
-        hs |> List.map Tuple2.first |> List.map String.toLowercase |> Set.ofList
-
-      let ct =
-        if (server = OCaml
-            && (not (Set.contains "content-type" headerMap) && body.Length <> 0)) then
-          [ "content-type", "text/plain" ]
-        else
-          []
-
-      let serverHeader = if server = OCaml then [ "server", "darklang" ] else []
-
-      let date =
-        if server = OCaml then [ "date", "xxx, xx xxx xxxx xx:xx:xx xxx" ] else []
-
-      // All kestrel responses have
-      //  - a content-type if they have content
-      //  - a server-darklang
-      // So add these to the ocaml responses
-      // Meanwhile all ocaml responses are sorted and lowercase
-      ct @ date @ serverHeader @ hs
+      hs
       |> List.map
            (fun (k, v) ->
-             match (String.toLowercase k, String.toLowercase v) with
-             | ("date", _) -> "date", "xxx, xx xxx xxxx xx:xx:xx xxx"
-             | ("x-darklang-execution-id" as k, _) -> k, "0123456789"
-             | other -> other)
+             match k, v with
+             | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
+             | "x-darklang-execution-id", _ -> k, "0123456789"
+             | other -> (k, v))
       |> List.sortBy Tuple2.first // FSTODO ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders
       (hs : (string * string) list)
-      (bodyLength : int)
+      (actualBody : byte array)
       : (string * string) list =
       hs
-      |> List.map (fun (k, v) -> (k, FsRegEx.replace "LENGTH" (string bodyLength) v))
-      |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
-      // Json can be different lengths, this plugs in the expected length
+      |> List.map
+           (fun (k, v) ->
+             match k, v with
+             // Json can be different lengths, this plugs in the expected length
+             | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
+             | _ -> (k, v))
       |> List.sortBy Tuple2.first
 
 
@@ -168,8 +149,8 @@ let t filename =
 
         let port =
           match server with
-          | OCaml -> TestConfig.ocamlHttpPort
-          | FSharp -> TestConfig.bwdServerPort
+          | OCaml -> TestConfig.ocamlServerNginxPort
+          | FSharp -> TestConfig.bwdServerNginxPort
 
         let mutable connected = false
 
@@ -185,13 +166,14 @@ let t filename =
 
         use stream = client.GetStream()
         stream.ReadTimeout <- 1000 // responses should be instant, right?
-        let host = $"test-{name}.builtwithdark.localhost:{port}"
 
         if request.Contains("LENGTH") then
           Expect.isFalse true "LENGTH substitution not done on request"
 
+        let host = $"test-{name}.builtwithdark.localhost:{port}"
         let request =
           request |> String.replace "HOST" host |> toBytes |> Http.setHeadersToCRLF
+
 
         do! stream.WriteAsync(request, 0, request.Length)
 
@@ -230,8 +212,8 @@ let t filename =
         // Parse and normalize the response
         let actual = Http.split response
         let expected = Http.split expectedResponse
-        let eHeaders = normalizeExpectedHeaders expected.headers actual.body.Length
-        let aHeaders = normalizeHeaders server actual.headers expected.body
+        let eHeaders = normalizeExpectedHeaders expected.headers actual.body
+        let aHeaders = normalizeActualHeaders actual.headers
 
         // Test as bytes, json, or strings
         if expected.body
@@ -293,7 +275,7 @@ open Microsoft.Extensions.Hosting
 
 // run our own webserver instead of relying on the dev webserver
 let init (token : System.Threading.CancellationToken) : Task =
-  let port = TestConfig.bwdServerPort
+  let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
   (BwdServer.webserver false port k8sPort).RunAsync(token)
 
