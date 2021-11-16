@@ -18,5 +18,5 @@ Server: nginx/1.16.1
 Connection: keep-alive
 Content-Length: LENGTH
 
-"http://HOST/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // OCAMLONLY
-"http://HOST/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // FSHARPONLY
+"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // OCAMLONLY
+"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // FSHARPONLY

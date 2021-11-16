@@ -25,14 +25,17 @@ Content-Length: LENGTH
   "formBody": null,
   "fullBody": "",
   "headers": {
-    "connection": "close",
+    "connection": "close", // OCAMLONLY
+    "connection": "keep-alive", // FSHARPONLY
     "content-length": "0",
-    "Content-Type": "text/plain",
+    "content-type": "text/plain",
     "date": "Sun, 08 Nov 2020 15:38:01 GMT",
-    "host": "HOST",
+    "host": "test-bwdserver-request-empty.builtwithdark.localhost",
     "user-agent": "ocaml-cohttp/1.2.0" // OCAMLONLY
+    "x-forwarded-for": "127.0.0.1", // FSHARPONLY
+    "x-forwarded-proto": "http" // FSHARPONLY
   },
   "jsonBody": null,
   "queryParams": {},
-  "url": "http://HOST/user/test"
+  "url": "http://test-bwdserver-request-empty.builtwithdark.localhost/user/test"
 }

@@ -20,9 +20,12 @@ Connection: keep-alive
 Content-Length: LENGTH
 
 {
-"connection": "close",
+"connection": "close", // OCAMLONLY
+"connection": "keep-alive", // FSHARPONLY
 "content-type": "tExT/pLaIn",
 "date": "Sun, 08 Nov 2020 15:38:01 GMT",
-"host": "HOST",
-"user-agent": "test"
+"host": "test-bwdserver-request-header-basic.builtwithdark.localhost",
+"user-agent": "test",
+"x-forwarded-for": "127.0.0.1", // FSHARPONLY
+"x-forwarded-proto": "http" // FSHARPONLY
 }
