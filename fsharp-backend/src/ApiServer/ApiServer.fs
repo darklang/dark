@@ -129,26 +129,32 @@ let configureServices (services : IServiceCollection) : unit =
 
 
 [<EntryPoint>]
-let main args =
-  print "Starting ApiServer"
-  LibBackend.Init.init "ApiServer"
-  // Breaks tests as they're being run simultaneously by the ocaml server
-  // LibBackend.Migrations.init ()
+let main _ =
+  try
+    print "Starting ApiServer"
+    LibBackend.Init.init "ApiServer"
+    // Breaks tests as they're being run simultaneously by the ocaml server
+    // LibBackend.Migrations.init ()
 
-  let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
-  let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
+    let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
+    let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
 
-  let builder = WebApplication.CreateBuilder()
-  configureServices builder.Services
-  LibService.Kubernetes.registerServerTimeout builder.WebHost
+    let builder = WebApplication.CreateBuilder()
+    configureServices builder.Services
+    LibService.Kubernetes.registerServerTimeout builder.WebHost
 
-  builder.WebHost
-  |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-  |> fun wh -> wh.UseUrls(k8sUrl, url)
-  |> ignore<IWebHostBuilder>
+    builder.WebHost
+    |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+    |> fun wh -> wh.UseUrls(k8sUrl, url)
+    |> ignore<IWebHostBuilder>
 
-  let app = builder.Build()
-  configureApp app
-  app.Run()
+    let app = builder.Build()
+    configureApp app
+    app.Run()
 
-  0
+    0
+  with e ->
+    print "Error starting ApiServer"
+    print (string e)
+    LibService.Rollbar.send (LibService.Telemetry.ExecutionID "0") [] e
+    (-1)
