@@ -153,7 +153,8 @@ let main _ =
     app.Run()
 
     0
-  with e ->
+  with
+  | e ->
     print "Error starting ApiServer"
     print (string e)
     LibService.Rollbar.send (LibService.Telemetry.ExecutionID "0") [] e

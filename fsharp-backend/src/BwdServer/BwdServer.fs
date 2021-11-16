@@ -542,9 +542,9 @@ let main _ =
     let k8sPort = LibService.Config.bwdServerKubernetesPort
     (webserver true port k8sPort).Run()
     0
-  with e ->
+  with
+  | e ->
     print "Error starting BwdServer"
     print (string e)
     LibService.Rollbar.send (LibService.Telemetry.ExecutionID "0") [] e
     (-1)
-
