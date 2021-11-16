@@ -12,7 +12,8 @@ Content-Length: 0
 [response]
 HTTP/1.1 500 Internal Server Error
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Server: nginx/1.16.1
+Server: nginx/1.16.1 // OCAMLONLY
+Server: darklang // FSHARPONLY
 Connection: keep-alive
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY

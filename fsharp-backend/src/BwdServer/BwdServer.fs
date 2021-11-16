@@ -341,7 +341,7 @@ let runHttpRequest
 
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    setHeader ctx "Server" "Darklang"
+    setHeader ctx "Server" "darklang"
     let executionID = LibService.Telemetry.executionID ()
     setHeader ctx "x-darklang-execution-id" (string executionID)
 

@@ -14,7 +14,8 @@ HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
-Server: nginx/1.16.1
+Server: nginx/1.16.1 // OCAMLONLY
+Server: darklang // FSHARPONLY
 Connection: keep-alive
 Content-Length: 17
 
