@@ -19,4 +19,4 @@ Server: nginx/1.16.1
 Connection: keep-alive
 Content-Length: LENGTH
 
-"https://HOST/a"
+"https://test-bwdserver-url-https.builtwithdark.localhost/a"
