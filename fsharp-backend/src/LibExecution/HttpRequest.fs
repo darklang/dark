@@ -92,7 +92,7 @@ let cookies (headers : HttpHeaders.T) : RT.Dval =
   |> Option.defaultValue (RT.DObj Map.empty)
 
 
-let url (headers : List<string*string>) (uri : string) =
+let url (headers : List<string * string>) (uri : string) =
   // .NET doesn't url-encode the query like we expect, so we're going to do it
   let parsed = System.UriBuilder(uri)
   // FSTODO test this somehow
