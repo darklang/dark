@@ -112,11 +112,11 @@ let errorResponse
   (msg : string)
   (code : int)
   : Task<HttpContext> =
-  // Like a standard response, but with text/plain and no CORS headers
+  // Like a standard response, but with no CORS headers
   task {
     let bytes = UTF8.toBytes msg
     ctx.Response.StatusCode <- code
-    ctx.Response.ContentType <- "text/plain"
+    ctx.Response.ContentType <- "text/plain; charset=utf-8"
     ctx.Response.ContentLength <- int64 bytes.Length
     do! ctx.Response.BodyWriter.WriteAsync(bytes)
     return ctx
