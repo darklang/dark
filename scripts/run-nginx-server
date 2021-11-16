@@ -78,6 +78,6 @@ setup ocaml containers/ocaml-nginx/
 setup apiserver services/apiserver-deployment/
 setup bwdserver services/bwdserver-deployment/
 setup_test ocaml containers/ocaml-nginx/ 8000 10000 80 10001
-setup_test apiserver services/apiserver-deployment/ 9000 10030 9001 10021
+setup_test apiserver services/apiserver-deployment/ 9000 10020 9001 10021
 setup_test bwdserver services/bwdserver-deployment/ 11000 10010 11001 10011
 
