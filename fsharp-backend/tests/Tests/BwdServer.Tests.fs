@@ -116,30 +116,28 @@ let t filename =
         if m.Success then do! Routing.addCustomDomain m.Groups.[1].Value meta.name
       }
 
-    let normalizeHeaders
-      (server : Server)
+    let normalizeActualHeaders
       (hs : (string * string) list)
-      (body : byte array)
       : (string * string) list =
       hs
       |> List.map
            (fun (k, v) ->
-             match k with
-             | "Date" -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
-             | "x-darklang-execution-id" -> k, "0123456789"
+             match k, v with
+             | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
+             | "x-darklang-execution-id", _ -> k, "0123456789"
              | other -> (k, v))
       |> List.sortBy Tuple2.first // FSTODO ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders
       (hs : (string * string) list)
-      (bodyLength : int)
+      (actualBody : byte array)
       : (string * string) list =
       hs
       |> List.map
            (fun (k, v) ->
              match k, v with
              // Json can be different lengths, this plugs in the expected length
-             | "Content-Length", "LENGTH" -> (k, string bodyLength)
+             | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
              | _ -> (k, v))
       |> List.sortBy Tuple2.first
 
@@ -175,6 +173,7 @@ let t filename =
         let host = $"test-{name}.builtwithdark.localhost:{port}"
         let request =
           request |> String.replace "HOST" host |> toBytes |> Http.setHeadersToCRLF
+
 
         do! stream.WriteAsync(request, 0, request.Length)
 
@@ -213,8 +212,8 @@ let t filename =
         // Parse and normalize the response
         let actual = Http.split response
         let expected = Http.split expectedResponse
-        let eHeaders = normalizeExpectedHeaders expected.headers actual.body.Length
-        let aHeaders = normalizeHeaders server actual.headers expected.body
+        let eHeaders = normalizeExpectedHeaders expected.headers actual.body
+        let aHeaders = normalizeActualHeaders actual.headers
 
         // Test as bytes, json, or strings
         if expected.body
