@@ -13,10 +13,12 @@ Origin: https://interestingwebsite.com
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: https://interestingwebsite.com
+Access-Control-Allow-Origin: https://interestingwebsite.com // FSHARPONLY
+access-control-allow-origin: https://interestingwebsite.com // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: 17
 
 "hello alice-bob"

@@ -15,5 +15,6 @@ Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: 13
 Connection: keep-alive

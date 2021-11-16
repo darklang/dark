@@ -11,10 +11,12 @@ Content-Length: 0
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
-Server: darklang // OCAMLONLY - caused by test framework
+Server: nginx/1.16.1
+Connection: keep-alive // OCAMLONLY - caused by test framework
 Server: testservername
 Content-Length: 8
 

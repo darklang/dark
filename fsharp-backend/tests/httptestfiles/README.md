@@ -47,10 +47,12 @@ Responses are the expected response from the server. An example looks like this:
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-content-type: application/json; charset=utf-8
-Access-Control-Allow-Origin: *
+Content-Type: application/json; charset=utf-8
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: LENGTH
 
 {

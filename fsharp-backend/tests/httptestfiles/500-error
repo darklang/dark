@@ -12,9 +12,11 @@ HTTP/1.1 500 Internal Server Error
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-type: text/plain // OCAMLONLY
 Content-type: text/plain; charset=utf-8 // FSHARPONLY
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: 161
 
 Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error).

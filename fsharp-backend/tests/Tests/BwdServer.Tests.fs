@@ -137,7 +137,7 @@ let t filename =
       hs
       |> List.map
            (fun (k, v) ->
-             match String.toLowercase k, v with
+             match k, v with
              // Json can be different lengths, this plugs in the expected length
              | "Content-Length", "LENGTH" -> (k, string bodyLength)
              | _ -> (k, v))

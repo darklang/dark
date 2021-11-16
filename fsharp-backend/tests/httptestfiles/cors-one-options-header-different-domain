@@ -5,7 +5,8 @@
 
 [request]
 OPTIONS / HTTP/1.1
-Access-Control-Allow-Origin: https://interestingwebsite.com
+Access-Control-Allow-Origin: https://interestingwebsite.com // FSHARPONLY
+access-control-allow-origin: https://interestingwebsite.com // OCAMLONLY
 Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
@@ -14,6 +15,7 @@ Content-Length: 0
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: 0
 

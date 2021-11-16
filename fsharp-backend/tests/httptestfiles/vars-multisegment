@@ -9,10 +9,12 @@ Content-Length: 0
 
 [response]
 HTTP/1.1 200 OK
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-type: text/plain; charset=utf-8
 Content-length: 23
 

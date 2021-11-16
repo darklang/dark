@@ -6,15 +6,17 @@ OPTIONS / HTTP/1.1
 Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
-Access-Control-Allow-Origin: null
+Access-Control-Allow-Origin: null // FSHARPONLY
+access-control-allow-origin: null // OCAMLONLY
 
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Headers: *
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLYAccess-Control-Allow-Headers: *
 Access-Control-Allow-Methods: get,put,post,delete,patch,head,options
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: 0
 

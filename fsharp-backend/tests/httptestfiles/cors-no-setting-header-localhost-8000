@@ -11,10 +11,12 @@ Origin: http://localhost:8000
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: http://localhost:8000
+Access-Control-Allow-Origin: http://localhost:8000 // FSHARPONLY
+access-control-allow-origin: http://localhost:8000 // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: 17
 
 "hello alice-bob"

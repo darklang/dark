@@ -11,10 +11,12 @@ Origin: http://localhost:3000
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: http://localhost:3000
+Access-Control-Allow-Origin: http://localhost:3000 // FSHARPONLY
+access-control-allow-origin: http://localhost:3000 // OCAMLONLY
 Access-Control-Allow-Headers: *
 Access-Control-Allow-Methods: get,put,post,delete,patch,head,options
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: 0
 

@@ -25,9 +25,10 @@ Content-Type: image/jpeg,
 [response]
 HTTP/1.1 400 Bad Request
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-content-type: text/plain
+Content-Type: text/plain
 x-darklang-execution-id: 0123456789
-Server: darklang
+Server: nginx/1.16.1
+Connection: keep-alive
 Content-Length: LENGTH
 
 Unknown Content-type -- we assumed application/json but invalid JSON was sent
