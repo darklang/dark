@@ -24,7 +24,8 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
     (try
       body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
      with
-     | e -> Exception.raiseGrandUser "Invalid json")
+     | e ->
+       Exception.raiseGrandUser $"Invalid json: {UTF8.ofBytesWithReplacement body}")
   | Some MediaType.Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
   // CLEANUP: text should just be text
   | Some (MediaType.Text _)
