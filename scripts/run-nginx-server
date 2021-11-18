@@ -6,6 +6,7 @@
 ##################
 sudo killall nginx
 sudo killall -9 nginx
+sudo rm -f /var/log/nginx/*.log
 
 until [[ "$(sudo netstat -ltnp | grep -w ':9000')" == "" ]]; do
   echo "Waiting for nginx (apiserver) to die..."
@@ -24,22 +25,6 @@ until [[ "$(sudo netstat -ltnp | grep -w ':8000')" == "" ]]; do
 done
 
 ##################
-# symlink so nginx logs are visible on the host
-##################
-
-if [[ ! -f "/home/dark/app/rundir/logs/nginx-access.log" ]]; then
-  sudo rm /var/log/nginx/access.log
-  touch /home/dark/app/rundir/logs/nginx-access.log
-  ln -s /home/dark/app/rundir/logs/nginx-access.log /var/log/nginx/access.log
-fi
-
-if [[ ! -f "/home/dark/app/rundir/logs/nginx-error.log" ]]; then
-  sudo rm /var/log/nginx/error.log
-  touch /home/dark/app/rundir/logs/nginx-error.log
-  ln -s /home/dark/app/rundir/logs/nginx-error.log /var/log/nginx/error.log
-fi
-
-##################
 # Set up each server individually, not sharing config, to match production
 ##################
 setup() {
@@ -48,8 +33,16 @@ setup() {
 
   sudo rm -Rf /etc/nginx-$name/
   sudo mkdir -p /etc/nginx-$name/conf.d
-  sudo ln -s /home/dark/app/containers/ocaml-nginx/base-nginx.conf /etc/nginx-$name/nginx.conf
-  sudo ln -s /home/dark/app/$source/nginx.conf /etc/nginx-$name/conf.d/$name-nginx.conf
+  sudo cp /home/dark/app/containers/ocaml-nginx/base-nginx.conf /etc/nginx-$name/nginx.conf
+  sudo cp /home/dark/app/$source/nginx.conf /etc/nginx-$name/conf.d/$name-nginx.conf
+
+  # Two log per server, in rundir
+  sudo sed -i /etc/nginx-$name/nginx.conf -e "s/error\.log/$name-error.log/" -e "s/access\.log/$name-access.log/"
+  sudo rm -f /home/dark/app/rundir/logs/nginx-$name-access.log
+  ln -s /var/log/nginx/$name-access.log /home/dark/app/rundir/logs/nginx-$name-access.log
+  sudo rm -f /home/dark/app/rundir/logs/nginx-$name-error.log
+  ln -s /var/log/nginx/$name-error.log /home/dark/app/rundir/logs/nginx-$name-error.log
+
   echo "Starting nginx ($name)"
   sudo nginx -c /etc/nginx-$name/nginx.conf
   echo "Started nginx ($name)"
@@ -65,9 +58,23 @@ setup_test() {
 
   sudo rm -Rf /etc/nginx-test-$name/
   sudo mkdir -p /etc/nginx-test-$name/conf.d
-  sudo ln -s /home/dark/app/containers/ocaml-nginx/base-nginx.conf /etc/nginx-test-$name/nginx.conf
+  sudo cp /home/dark/app/containers/ocaml-nginx/base-nginx.conf /etc/nginx-test-$name/nginx.conf
   sudo cp /home/dark/app/$source/nginx.conf /etc/nginx-test-$name/conf.d/test-$name-nginx.conf
-  sudo sed -i /etc/nginx-test-$name/conf.d/test-$name-nginx.conf -e "s/$listen_port/$new_listen_port/g" -e "s/$upstream_port/$new_upstream_port/g"
+
+  # Two log per server, in rundir
+  sudo sed -i /etc/nginx-test-$name/nginx.conf \
+    -e "s/error\.log/test-$name-error.log/" \
+    -e "s/access\.log/test-$name-access.log/"
+  sudo rm -f /home/dark/app/rundir/logs/nginx-test-$name-access.log
+  ln -s /var/log/nginx/test-$name-access.log /home/dark/app/rundir/logs/nginx-test-$name-access.log
+  sudo rm -f /home/dark/app/rundir/logs/nginx-test-$name-error.log
+  ln -s /var/log/nginx/test-$name-error.log /home/dark/app/rundir/logs/nginx-test-$name-error.log
+
+  # Use a test port
+  sudo sed -i /etc/nginx-test-$name/conf.d/test-$name-nginx.conf  \
+    -e "s/$listen_port/$new_listen_port/g" \
+    -e "s/$upstream_port/$new_upstream_port/g"
+
   echo "Starting nginx (test-$name)"
   sudo nginx -c /etc/nginx-test-$name/nginx.conf
   echo "Started nginx (test-$name)"
