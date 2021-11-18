@@ -288,7 +288,9 @@ def fsharp_backend_quick_build():
         --configuration {configuration} \
         src/Wasm/Wasm.fsproj"
 
-  return run_backend(start, build)
+    result = run_backend(start, build)
+
+  return result
 
 
 def fsharp_backend_full_build():
