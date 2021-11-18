@@ -305,10 +305,14 @@ open System.Buffers
 
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
-    // TODO: apparently it's faster to use a PipeReader, but that broke for us
-    let ms = new IO.MemoryStream()
-    do! ctx.Request.Body.CopyToAsync(ms)
-    return ms.ToArray()
+    // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
+    if ctx.Request.Method = "GET" then
+      return [||]
+    else
+      // TODO: apparently it's faster to use a PipeReader, but that broke for us
+      let ms = new IO.MemoryStream()
+      do! ctx.Request.Body.CopyToAsync(ms)
+      return ms.ToArray()
   }
 
 
