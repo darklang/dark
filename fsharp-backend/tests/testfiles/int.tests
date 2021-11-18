@@ -58,7 +58,7 @@ List.map_v0 (List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [3;0;1;2;3;0;1;2;
 
 15 % 5 = 0
 5 % 0 = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `0`" // FSHARPONLY
-5 % (-5) = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `-5`"  // FSHARPONLY
+5 % (-5) = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `-5`" // FSHARPONLY
 5 % 0 = Test.typeError_v0 "Expected the argument `b` argument passed to `%` to be positive, but it was `0`." // OCAMLONLY
 5 % (-5) = Test.typeError_v0 "Expected the argument `b` argument passed to `%` to be positive, but it was `-5`." // OCAMLONLY
 List.map_v0 (List.range_v0 -5 5) (fun v -> v % 4) = [ 3; 0; 1; 2; 3; 0; 1; 2; 3; 0; 1 ]
