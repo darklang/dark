@@ -95,6 +95,7 @@ let standardResponse
   : Task<HttpContext> =
   task {
     setHeader ctx "Access-Control-Allow-Origin" "*"
+    setHeader ctx "Server" "darklang"
 
     match contentType with
     | None -> ()
