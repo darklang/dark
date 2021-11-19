@@ -206,7 +206,7 @@ val last: 'a t -> 'a option
     {[Array.last [] = None]}
 *)
 
-val slice: ``to``: int -> from: int -> 'a t -> 'a t
+val slice: from: int -> ``to``: int -> 'a t -> 'a t
 (** Get a sub-section of a list. [from] is a zero-based index where we will start our slice.
 
     The [to] is a zero-based index that indicates the end of the slice.
