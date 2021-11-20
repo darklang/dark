@@ -143,6 +143,13 @@ Formatters".
 
 ## Debugging dotnet
 
+### Debugger
+
+The VSCode debugger works out of the box with Dark, supporting stepping,
+breakpoints, inspecting the stack, etc. You can edit 
+[`launch.json`](.vscode/launch.json) to change what tests are run or how 
+other binaries are started up, which should be straightforward.
+
 ### REPL (fsi)
 
 You can get a REPL with all of the Dark libraries loaded by running:
@@ -180,7 +187,7 @@ Our deployments are all defined in the [services](services) directory.
 
 A _service_ in our repo typically wraps a deployment, but it can sometimes mean
 other things, so we also have a number of other services, defined via yaml
-files, in (services)[services]. Some of the services are deployments that use
+files, in [services](services). Some of the services are deployments that use
 3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
 Google Cloud services. Some deployments just have a single container (eg
 [queue-scheduler](services/scheduler-deployment) and
