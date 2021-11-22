@@ -1,5 +1,5 @@
 [http-handler GET /]
-List.head_v0_ster []
+String.toInt_v1_ster "5"
 
 [request]
 GET / HTTP/1.1
@@ -8,15 +8,15 @@ Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
 
 [response]
-HTTP/1.1 500 Internal Server Error
+HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 Connection: keep-alive
-Content-Length: 33
-Content-Type: text/plain; charset=utf-8
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
+Content-Type: text/plain; charset=utf-8
 x-darklang-execution-id: 0123456789
+Content-Length: LENGTH
 
-Invalid conversion from errorrail
+5
