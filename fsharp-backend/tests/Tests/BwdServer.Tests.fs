@@ -352,8 +352,8 @@ let t filename =
             $"({server} as json)"
         | None ->
           Expect.equal
-            (actual.status, aHeaders, UTF8.ofBytesUnsafe actual.body)
-            (expected.status, eHeaders, UTF8.ofBytesUnsafe expected.body)
+            (actual.status, aHeaders, UTF8.ofBytesWithReplacement actual.body)
+            (expected.status, eHeaders, UTF8.ofBytesWithReplacement expected.body)
             $"({server} as string)"
 
       }
