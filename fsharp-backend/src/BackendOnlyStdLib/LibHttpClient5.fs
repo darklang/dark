@@ -9,7 +9,6 @@ open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
-module HttpHeaders = HttpClientHeaders
 
 module Errors = LibExecution.Errors
 
@@ -35,6 +34,28 @@ let parametersNoBody =
   [ Param.make "uri" TStr ""
     Param.make "query" (TDict TStr) ""
     Param.make "headers" (TDict TStr) "" ]
+
+
+// Header utility functions, deliberately kept separate from the Http
+// Middleware, as we want to be able to change them separately.
+
+let hasFormHeader (headers : HttpHeaders.T) : bool =
+  headers
+  |> HttpHeaders.get "content-type"
+  |> Option.map Tablecloth.String.toLowercase = Some
+                                                  "application/x-www-form-urlencoded"
+
+let hasJsonHeader (headers : HttpHeaders.T) : bool =
+  // CLEANUP: don't use contains for this
+  HttpHeaders.get "content-type" headers
+  |> Option.map (fun s -> s.Contains "application/json")
+  |> Option.defaultValue false
+
+let hasTextHeader (headers : HttpHeaders.T) : bool =
+  // CLEANUP: don't use contains for this
+  HttpHeaders.get "content-type" headers
+  |> Option.map (fun s -> s.Contains "text/plain")
+  |> Option.defaultValue false
 
 
 let guessContentType (body : Dval option) : string =
@@ -80,9 +101,9 @@ let encodeRequestBody
       // for more information. *)
       HttpClient.StringContent s
     // CLEANUP if there is a charset here, it uses json encoding
-    | DObj _ when HttpHeaders.hasFormHeader headers ->
+    | DObj _ when hasFormHeader headers ->
       HttpClient.FormContent(DvalRepr.toFormEncoding dv)
-    | dv when HttpHeaders.hasTextHeader headers ->
+    | dv when hasTextHeader headers ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
       HttpClient.StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv)
@@ -117,7 +138,7 @@ let sendRequest
             DvalRepr.ofQueryString response.body
           with
           | _ -> DStr "form decoding error"
-        elif HttpHeaders.hasJsonHeader response.headers then
+        elif hasJsonHeader response.headers then
           try
             DvalRepr.ofUnknownJsonV0 response.body
           with
