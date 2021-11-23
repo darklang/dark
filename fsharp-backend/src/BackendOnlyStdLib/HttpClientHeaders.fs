@@ -7,7 +7,10 @@ module BackendOnlyStdLib.HttpClientHeaders
 open Prelude
 
 let hasFormHeader (headers : HttpHeaders.T) : bool =
- headers |> HttpHeaders.get "content-type" |> Option.map Tablecloth.String.toLowercase = Some "application/x-www-form-urlencoded"
+  headers
+  |> HttpHeaders.get "content-type"
+  |> Option.map Tablecloth.String.toLowercase = Some
+                                                  "application/x-www-form-urlencoded"
 
 let hasJsonHeader (headers : HttpHeaders.T) : bool =
   // CLEANUP: don't use contains for this

@@ -62,7 +62,7 @@ let guessContentType (body : Dval option) : string =
 // have potentially had a Content-Type added to them based on the magic decision we've made.
 let encodeRequestBody
   (body : Dval option)
-  (headers: HttpHeaders.T)
+  (headers : HttpHeaders.T)
   : HttpClient.Content =
   match body with
   | Some dv ->
@@ -105,9 +105,7 @@ let sendRequest
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)
     let reqHeaders =
-      Map encodedReqHeaders
-      |> Map.add "Content-Type" contentType
-      |> Map.toList
+      Map encodedReqHeaders |> Map.add "Content-Type" contentType |> Map.toList
     let encodedReqBody = encodeRequestBody reqBody reqHeaders
 
     match! HttpClient.httpCall 0 false uri query verb reqHeaders encodedReqBody with

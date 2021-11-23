@@ -371,7 +371,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let program = Canvas.toProgram c
           let expr = expr.toRuntimeType ()
 
-          let request = Middleware.createRequest false url reqHeaders reqQuery reqBody
+          let request =
+            Middleware.createRequest false url reqHeaders reqQuery reqBody
 
           // Store trace - do not resolve task, send this into the ether
           let _timestamp =
@@ -379,7 +380,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // Do request
           let! (result, touchedTLIDs) =
-            HttpMiddleware.MiddlewareV0.executeRequest program tlid traceID routeVars request expr
+            HttpMiddleware.MiddlewareV0.executeRequest
+              program
+              tlid
+              traceID
+              routeVars
+              request
+              expr
 
           // FSTODO - move cors into runHttpRequest
           match! inferCorsAllowOriginHeader ctx canvasID with

@@ -21,7 +21,7 @@ module RT = RuntimeTypes
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
-type HttpHeaders = List<string*string>
+type HttpHeaders = List<string * string>
 
 
 type HttpResult =

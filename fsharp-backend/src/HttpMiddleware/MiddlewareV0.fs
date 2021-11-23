@@ -17,9 +17,14 @@ module Req = RequestV0
 module Resp = ResponseV0
 
 
-let createRequest (allowUnparseable : bool) (url : string) (headers :
-  List<string*string>) (query : List<string*string list>) (body : byte array) : RT.Dval =
-    Req.fromRequest allowUnparseable url headers query body
+let createRequest
+  (allowUnparseable : bool)
+  (url : string)
+  (headers : List<string * string>)
+  (query : List<string * string list>)
+  (body : byte array)
+  : RT.Dval =
+  Req.fromRequest allowUnparseable url headers query body
 
 let executeRequest
   (program : RT.ProgramContext)
@@ -43,4 +48,3 @@ let executeRequest
 
     return (Resp.toHttpResponse result, touchedTLIDs)
   }
-

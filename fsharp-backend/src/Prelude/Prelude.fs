@@ -1215,10 +1215,12 @@ module HttpHeaders =
   // couldn't make if the functionality was here.
   type Header = string * string
   type T = List<Header>
+
   let get (headerName) (headers : T) : string option =
     headers
     |> List.tryFind
-        (fun ((k : string), (_ : string)) -> String.equalsCaseInsensitive headerName k)
+         (fun ((k : string), (_ : string)) ->
+           String.equalsCaseInsensitive headerName k)
     |> Option.map (fun (k, v) -> v)
 
 

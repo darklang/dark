@@ -284,9 +284,7 @@ let t filename =
 
         let host = $"test-{name}.builtwithdark.localhost:{port}"
         let request =
-          test.request
-          |> replaceByteStrings "HOST" host
-          |> Http.setHeadersToCRLF
+          test.request |> replaceByteStrings "HOST" host |> Http.setHeadersToCRLF
 
 
         do! stream.WriteAsync(request, 0, request.Length)
@@ -387,4 +385,3 @@ let init (token : System.Threading.CancellationToken) : Task =
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
   (BwdServer.Server.webserver false port k8sPort).RunAsync(token)
-

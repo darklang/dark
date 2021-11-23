@@ -46,8 +46,7 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
   if reqbody.Length = 0 then
     RT.DNull
   else
-    let mt =
-      HeadersV0.getContentType headers |> Option.bind ContentType.toMediaType
+    let mt = HeadersV0.getContentType headers |> Option.bind ContentType.toMediaType
     parse mt reqbody
 
 
