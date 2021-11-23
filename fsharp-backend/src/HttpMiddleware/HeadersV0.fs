@@ -1,13 +1,10 @@
 module HttpMiddleware.HeadersV0
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
+// Header utilities for HttpMiddleware. Deliberately kept separate from
+// HttpClientHeaders, which may need to work differently at some point
 
 open Prelude
 open LibExecution.VendoredTablecloth
-
-type Header = string * string
-type T = List<Header>
 
 module MediaType =
   type T =
@@ -35,9 +32,6 @@ module MediaType =
     | "text/plain" -> Text
     | "text/html" -> Html
     | _ -> Other str
-
-
-
 
 module Charset =
   type T =
@@ -73,7 +67,7 @@ module ContentType =
     | KnownNoCharset (mt) -> Some mt
     | Unknown s -> None
 
-  let toHttpHeader (ct : T) : Header = "Content-Type", string ct
+  let toHttpHeader (ct : T) : HttpHeaders.Header = "Content-Type", string ct
 
   let parse (str : string) : T =
     match String.split ";" str |> List.map String.trim with
@@ -86,44 +80,15 @@ module ContentType =
 
   let text = (Known(MediaType.Text, Charset.Utf8))
   let json = (Known(MediaType.Json, Charset.Utf8))
-  let form = (KnownNoCharset MediaType.Form)
 
-  let textHeader : Header = toHttpHeader text
-  let jsonHeader : Header = toHttpHeader json
-  let formHeader : Header = toHttpHeader form
+  let textHeader : HttpHeaders.Header = toHttpHeader text
 
 
+let getContentType (headers : HttpHeaders.T) : Option<ContentType.T> =
+  headers |> HttpHeaders.get "Content-type" |> Option.map ContentType.parse
 
-let getHeader (headerKey : string) (headers : T) : string option =
+let getMediaType (headers : HttpHeaders.T) : Option<MediaType.T> =
   headers
-  |> List.tryFind
-       (fun ((k : string), (_ : string)) -> String.equalsCaseInsensitive headerKey k)
-  |> Option.map (fun (k, v) -> v)
-
-let getContentType (headers : T) : Option<ContentType.T> =
-  headers |> getHeader "Content-type" |> Option.map ContentType.parse
-
-let getMediaType (headers : T) : Option<MediaType.T> =
-  headers
-  |> getHeader "Content-type"
+  |> HttpHeaders.get "Content-type"
   |> Option.map ContentType.parse
   |> Option.bind ContentType.toMediaType
-
-let hasFormHeader (headers : T) : bool =
-  // CLEANUP: this doesn't work properly if a charset is included. But also, this was
-  // always false in OCaml because the string we compared against wasn't properly
-  // trimmed.
-  // getHeader "content-type" headers = Some formContentType
-  false
-
-let hasJsonHeader (headers : T) : bool =
-  // CLEANUP: don't use contains for this
-  getHeader "content-type" headers
-  |> Option.map (fun s -> s.Contains "application/json")
-  |> Option.defaultValue false
-
-let hasTextHeader (headers : T) : bool =
-  // CLEANUP: don't use contains for this
-  getHeader "content-type" headers
-  |> Option.map (fun s -> s.Contains "text/plain")
-  |> Option.defaultValue false

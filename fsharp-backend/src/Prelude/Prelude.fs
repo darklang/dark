@@ -1208,4 +1208,18 @@ module CanvasName =
   let create (name : string) : T =
     name |> validate |> Tablecloth.Result.unwrapUnsafe |> CanvasName
 
+module HttpHeaders =
+  // We include these here as the _most_ basic http header types and functionality.
+  // Anything even remotely more complicated should be put next to where it's used,
+  // as historically we've gotten a lot wrong here and needed to make changes that we
+  // couldn't make if the functionality was here.
+  type Header = string * string
+  type T = List<Header>
+  let get (headerName) (headers : T) : string option =
+    headers
+    |> List.tryFind
+        (fun ((k : string), (_ : string)) -> String.equalsCaseInsensitive headerName k)
+    |> Option.map (fun (k, v) -> v)
+
+
 let id (x : int) : id = uint64 x

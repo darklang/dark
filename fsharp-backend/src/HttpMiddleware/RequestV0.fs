@@ -9,7 +9,6 @@ open LibExecution.VendoredTablecloth
 module RT = LibExecution.RuntimeTypes
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
-module Charset = HeadersV0.Charset
 module DvalRepr = LibExecution.DvalRepr
 
 
@@ -64,7 +63,7 @@ let parseHeaders (headers : (string * string) list) =
 
 let parseUsing
   (fmt : MediaType.T)
-  (headers : HeadersV0.T)
+  (headers : HttpHeaders.T)
   (body : byte array)
   : RT.Dval =
   if body.Length = 0 || Some fmt <> HeadersV0.getMediaType headers then
@@ -89,8 +88,8 @@ let parseCookies (cookies : string) : RT.Dval =
        | k :: v :: _ -> (decode k, RT.DStr(decode v)))
   |> RT.Dval.obj
 
-let cookies (headers : HeadersV0.T) : RT.Dval =
-  HeadersV0.getHeader "cookie" headers
+let cookies (headers : HttpHeaders.T) : RT.Dval =
+  HttpHeaders.get "cookie" headers
   |> Option.map parseCookies
   |> Option.defaultValue (RT.DObj Map.empty)
 

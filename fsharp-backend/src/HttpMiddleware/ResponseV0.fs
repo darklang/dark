@@ -1,14 +1,10 @@
 module HttpMiddleware.ResponseV0
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
-open LibExecution.VendoredTablecloth
 
 module RT = LibExecution.RuntimeTypes
 
-type HttpResponse = { statusCode : int; body : byte array; headers : HeadersV0.T }
+type HttpResponse = { statusCode : int; body : byte array; headers : HttpHeaders.T }
 
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
