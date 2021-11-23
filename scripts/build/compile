@@ -732,7 +732,7 @@ def ignore(filename):
   ignores = [
       ".git",
       ".merlin",
-      ".ionide"
+      ".ionide",
       ".browser-trigger",
       "scripts/build/compile",
       "scripts/deployment/shipit",
