@@ -1,17 +1,18 @@
-module LibExecution.HttpResponse
+module HttpMiddleware.ResponseV0
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open VendoredTablecloth
+open LibExecution.VendoredTablecloth
 
-module RT = RuntimeTypes
+module RT = LibExecution.RuntimeTypes
 
-type HttpResponse = { statusCode : int; body : byte array; headers : HttpHeaders.T }
+type HttpResponse = { statusCode : int; body : byte array; headers : HeadersV0.T }
 
-module ContentType = HttpHeaders.ContentType
-module MediaType = HttpHeaders.MediaType
+module ContentType = HeadersV0.ContentType
+module MediaType = HeadersV0.MediaType
+module DvalRepr = LibExecution.DvalRepr
 
 
 let inferContentTypeHeader (dv : RT.Dval) : ContentType.T =
@@ -36,7 +37,7 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
   | RT.DHttpResponse (RT.Redirect str) ->
     { statusCode = int 302; headers = [ "Location", str ]; body = [||] }
   | RT.DHttpResponse (RT.Response (code, headers, body)) ->
-    let contentType = HttpHeaders.getContentType headers
+    let contentType = HeadersV0.getContentType headers
     // Potential extra header
     let inferredContentTypeHeader =
       if contentType = None then
@@ -68,13 +69,13 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
     let message =
       "Application error: the executed code was not complete. This error can be resolved by the application author by completing the incomplete code."
     { statusCode = 500
-      headers = [ HttpHeaders.ContentType.textHeader ]
+      headers = [ ContentType.textHeader ]
       body = UTF8.toBytes message }
   | RT.DError _ ->
     let message =
       "Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error)."
     { statusCode = 500
-      headers = [ HttpHeaders.ContentType.textHeader ]
+      headers = [ ContentType.textHeader ]
       body = UTF8.toBytes message }
   | dv ->
     // for demonstrations sake, let's return 200 Okay when

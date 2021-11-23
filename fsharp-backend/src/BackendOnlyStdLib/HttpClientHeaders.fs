@@ -1,10 +1,14 @@
-module LibExecution.HttpHeaders
+module BackendOnlyStdLib.HttpClientHeaders
+
+// Header utility functions for HttpClient and LibHttpClient*. Might need to be split
+// into per-client versions in the future. Deliberately kept separate from the Http
+// Middleware, as we want to be able to change them separately.
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open VendoredTablecloth
+open LibExecution.VendoredTablecloth
 
 type Header = string * string
 type T = List<Header>

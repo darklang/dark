@@ -9,9 +9,9 @@ open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
 module DvalRepr = LibExecution.DvalRepr
-module HttpHeaders = LibExecution.HttpHeaders
-module ContentType = HttpHeaders.ContentType
-module MediaType = HttpHeaders.MediaType
+module HttpHeaders = HttpClientHeaders
+module ContentType = HttpClientHeaders.ContentType
+module MediaType = HttpClientHeaders.MediaType
 
 module Errors = LibExecution.Errors
 

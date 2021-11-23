@@ -1,15 +1,17 @@
-module LibExecution.HttpRequest
+module HttpMiddleware.RequestV0
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open VendoredTablecloth
+open LibExecution.VendoredTablecloth
 
-module RT = RuntimeTypes
-module ContentType = HttpHeaders.ContentType
-module MediaType = HttpHeaders.MediaType
-module Charset = HttpHeaders.Charset
+module RT = LibExecution.RuntimeTypes
+module ContentType = HeadersV0.ContentType
+module MediaType = HeadersV0.MediaType
+module Charset = HeadersV0.Charset
+module DvalRepr = LibExecution.DvalRepr
+
 
 // Internal invariant, _must_ be a DObj
 type T = RT.Dval
@@ -46,7 +48,7 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
     RT.DNull
   else
     let mt =
-      HttpHeaders.getContentType headers |> Option.bind ContentType.toMediaType
+      HeadersV0.getContentType headers |> Option.bind ContentType.toMediaType
     parse mt reqbody
 
 
@@ -62,10 +64,10 @@ let parseHeaders (headers : (string * string) list) =
 
 let parseUsing
   (fmt : MediaType.T)
-  (headers : HttpHeaders.T)
+  (headers : HeadersV0.T)
   (body : byte array)
   : RT.Dval =
-  if body.Length = 0 || Some fmt <> HttpHeaders.getMediaType headers then
+  if body.Length = 0 || Some fmt <> HeadersV0.getMediaType headers then
     RT.DNull
   else
     parse (Some fmt) body
@@ -87,8 +89,8 @@ let parseCookies (cookies : string) : RT.Dval =
        | k :: v :: _ -> (decode k, RT.DStr(decode v)))
   |> RT.Dval.obj
 
-let cookies (headers : HttpHeaders.T) : RT.Dval =
-  HttpHeaders.getHeader "cookie" headers
+let cookies (headers : HeadersV0.T) : RT.Dval =
+  HeadersV0.getHeader "cookie" headers
   |> Option.map parseCookies
   |> Option.defaultValue (RT.DObj Map.empty)
 

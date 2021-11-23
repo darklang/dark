@@ -26,7 +26,6 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
@@ -34,8 +33,7 @@ module Canvas = LibBackend.Canvas
 module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
-module Req = LibExecution.HttpRequest
-module Resp = LibExecution.HttpResponse
+module Middleware = HttpMiddleware.MiddlewareV0
 
 // ---------------
 // Headers
@@ -320,43 +318,14 @@ let getBody (ctx : HttpContext) : Task<byte array> =
 // ---------------
 // Handle builtwithdark request
 // ---------------
-let runHttpRequest
-  (c : Canvas.T)
-  (tlid : tlid)
-  (traceID : LibExecution.AnalysisTypes.TraceID)
-  (routeVars : List<string * RT.Dval>)
-  (request : RT.Dval)
-  (expr : RT.Expr)
-  : Task<Resp.HttpResponse * HashSet.T<tlid>> =
-  task {
-    let program = Canvas.toProgram c
-    let! state, touchedTLIDs = RealExe.createState traceID tlid program
-
-    // Build request
-    let symtable =
-      Map.ofList routeVars
-      |> Interpreter.withGlobals state
-      |> Map.add "request" request
-
-    // Execute
-    let! result = Interpreter.eval state symtable expr
-
-    return (Resp.toHttpResponse result, touchedTLIDs)
-  }
-
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     setHeader ctx "Server" "darklang"
     let executionID = LibService.Telemetry.executionID ()
     setHeader ctx "x-darklang-execution-id" (string executionID)
 
-    let loggerFactory = ctx.RequestServices.GetService<ILoggerFactory>()
-    let logger = loggerFactory.CreateLogger("logger")
-    let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
-
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
-      // CLEANUP: move execution ID header up
       let ownerName = Account.ownerNameFromCanvasName canvasName
       let ownerUsername = UserName.create (string ownerName)
 
@@ -380,17 +349,17 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         Canvas.loadHttpHandlers meta requestPath searchMethod
         |> Task.map Result.unwrapUnsafe
 
-      let pages = Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
-
-
       let url : string =
         let isHttps =
           getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
         ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
 
+      let pages = Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
+
       match pages with
       | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
 
+        // TODO: I think we could put this into the middleware
         let routeVars = Routing.routeInputVars route requestPath
 
         match routeVars with
@@ -398,16 +367,19 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! reqBody = getBody ctx
           let reqHeaders = getHeaders ctx
           let reqQuery = getQuery ctx
-          let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+
+          let program = Canvas.toProgram c
+          let expr = expr.toRuntimeType ()
+
+          let request = Middleware.createRequest false url reqHeaders reqQuery reqBody
 
           // Store trace - do not resolve task, send this into the ether
           let _timestamp =
             TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request
 
           // Do request
-          let expr = expr.toRuntimeType ()
           let! (result, touchedTLIDs) =
-            runHttpRequest c tlid traceID routeVars request expr
+            HttpMiddleware.MiddlewareV0.executeRequest program tlid traceID routeVars request expr
 
           // FSTODO - move cors into runHttpRequest
           match! inferCorsAllowOriginHeader ctx canvasID with
@@ -442,7 +414,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
-        let event = Req.fromRequest true url reqHeaders reqQuery reqBody
+        let event = Middleware.createRequest true url reqHeaders reqQuery reqBody
 
         let! timestamp =
           TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event

@@ -15,18 +15,19 @@ open LibBackend
 open VendoredTablecloth
 
 type AspHeaders = System.Net.Http.Headers.HttpHeaders
-module HttpHeaders = LibExecution.HttpHeaders
 
 module RT = RuntimeTypes
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
+type HttpHeaders = List<string*string>
+
 
 type HttpResult =
   { body : string
     code : int
-    headers : HttpHeaders.T
+    headers : HttpHeaders
     error : string }
 
 type ClientError = { url : string; error : string; code : int }
@@ -89,7 +90,7 @@ let httpClient : HttpClient =
   client
 
 // Convert .NET HttpHeaders into Dark-style headers
-let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
+let convertHeaders (headers : AspHeaders) : HttpHeaders =
   headers
   |> Seq.map
        (fun (kvp : KeyValuePair<string, seq<string>>) ->
@@ -105,7 +106,7 @@ let makeHttpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders.T)
+  (reqHeaders : HttpHeaders)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
@@ -286,7 +287,7 @@ let rec httpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders.T)
+  (reqHeaders : HttpHeaders)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
