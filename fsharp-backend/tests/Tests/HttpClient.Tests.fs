@@ -213,11 +213,11 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       let testCase = testCases.[testName]
 
       let actualHeaders =
-        BwdServer.getHeaders ctx
+        BwdServer.Server.getHeaders ctx
         |> Map
         // .NET always adds a Content-Length header, but OCaml doesn't
         |> Map.remove "Content-Length"
-      let! actualBody = BwdServer.getBody ctx
+      let! actualBody = BwdServer.Server.getBody ctx
 
       let actualStatus =
         $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
@@ -252,7 +252,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
                  || v.Contains "us-ascii" then
                 transcodeToLatin1 <- true
 
-            BwdServer.setHeader ctx k v)
+            BwdServer.Server.setHeader ctx k v)
           testCase.result.headers
 
         let data =

@@ -1,4 +1,4 @@
-module BwdServer
+module BwdServer.Server
 
 // This is the webserver for builtwithdark.com. It uses ASP.NET directly,
 // instead of a web framework, so we can tune the exact behaviour of headers

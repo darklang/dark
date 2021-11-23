@@ -386,5 +386,5 @@ open Microsoft.Extensions.Hosting
 let init (token : System.Threading.CancellationToken) : Task =
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
-  (BwdServer.webserver false port k8sPort).RunAsync(token)
+  (BwdServer.Server.webserver false port k8sPort).RunAsync(token)
 
