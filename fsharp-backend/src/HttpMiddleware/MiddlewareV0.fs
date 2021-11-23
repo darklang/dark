@@ -16,13 +16,13 @@ module Interpreter = LibExecution.Interpreter
 module Req = RequestV0
 module Resp = ResponseV0
 
-// FSTODO: Remove access to LibBackend from here
+// TODO: Remove access to LibBackend from here
 module Canvas = LibBackend.Canvas
 
 // ---------------
 // CORS
 // ---------------
-let inferCorsAllowOriginHeader
+let inferCorsOriginHeader
   (corsSetting : Option<Canvas.CorsSetting>)
   (headers : HttpHeaders.T)
   : string option =
@@ -51,6 +51,58 @@ let inferCorsAllowOriginHeader
     // return "null" explicitly
     | Some _, Some _ -> Some "null"
   header
+
+let addCorsHeaders
+  (reqHeaders : HttpHeaders.T)
+  (corsSetting : Option<Canvas.CorsSetting>)
+  (response : Resp.HttpResponse)
+  : Resp.HttpResponse =
+  inferCorsOriginHeader corsSetting reqHeaders
+  |> Option.map
+       (fun origin ->
+         { response with
+             headers = response.headers @ [ "Access-Control-Allow-Origin", origin ] })
+  |> Option.defaultValue response
+
+
+let optionsResponse
+  (reqHeaders : HttpHeaders.T)
+  (corsSetting : Option<Canvas.CorsSetting>)
+  : Option<Resp.HttpResponse> =
+  // When javascript in a browser tries to make an unusual cross-origin
+  // request (for example, a POST with a weird content-type or something with
+  // weird headers), the browser first makes an OPTIONS request to the
+  // server in order to get its permission to make that request. It includes
+  // "origin", the originating origin, and "access-control-request-headers",
+  // which is the list of headers the javascript would like to use.
+
+  // FSTODO
+  // (Ordinary GETs and some POSTs get handled in result_to_response, above,
+  // without an OPTIONS).
+
+  // Our strategy here is: if it's from an allowed origin (i.e., in the canvas
+  // cors_setting) to return an Access-Control-Allow-Origin header for that
+  // origin, to return Access-Control-Allow-Headers with the requested headers,
+  // and Access-Control-Allow-Methods for all of the methods we think might
+  // be useful.
+
+  let acReqHeaders = HttpHeaders.get "access-control-request-headers" reqHeaders
+  let allowHeaders = Option.defaultValue "*" acReqHeaders
+
+  (inferCorsOriginHeader corsSetting reqHeaders)
+  |> Option.map
+       (fun origin ->
+         { statusCode = 200
+           body = [||]
+           headers =
+             [ "Access-Control-Allow-Headers", allowHeaders
+               // CLEANUP: if the origin is null here, we probably shouldn't add the other headers
+               "Access-Control-Allow-Origin", origin
+               "Access-Control-Allow-Methods",
+               "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" ] })
+
+
+
 
 
 let createRequest
@@ -85,19 +137,6 @@ let executeProgram
     return (Resp.toHttpResponse result, touchedTLIDs)
   }
 
-let addCorsToResponse
-  (reqHeaders : HttpHeaders.T)
-  (corsSetting : Option<Canvas.CorsSetting>)
-  (response : Resp.HttpResponse)
-  : Resp.HttpResponse =
-  inferCorsAllowOriginHeader corsSetting reqHeaders
-  |> Option.map
-       (fun origin ->
-         { response with
-             headers = response.headers @ [ "Access-Control-Allow-Origin", origin ] })
-  |> Option.defaultValue response
-
-
 
 
 let executeHandler
@@ -123,8 +162,9 @@ let executeHandler
     // Both hooks fire off into the ether, to avoid waiting for the IO to complete
     traceHook request
 
-    let! (result, touchedTLIDs) = executeProgram program tlid traceID routeVars request expr
-    let result = addCorsToResponse headers corsSetting result
+    let! (result, touchedTLIDs) =
+      executeProgram program tlid traceID routeVars request expr
+    let result = addCorsHeaders headers corsSetting result
 
     // Both hooks fire off into the ether, to avoid waiting for the IO to complete
     notifyHook (HashSet.toList touchedTLIDs)

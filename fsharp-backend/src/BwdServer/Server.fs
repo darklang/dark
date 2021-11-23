@@ -34,6 +34,7 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 module Middleware = HttpMiddleware.MiddlewareV0
+module Resp = HttpMiddleware.ResponseV0
 
 // ---------------
 // Read from HttpContext
@@ -126,6 +127,21 @@ type System.IO.Pipelines.PipeWriter with
     }
     :> Task
 
+let writeResponseToContext
+  (ctx : HttpContext)
+  (response : Resp.HttpResponse)
+  : Task<unit> =
+  task {
+    ctx.Response.StatusCode <- response.statusCode
+    List.iter (fun (k, v) -> setHeader ctx k v) response.headers
+    ctx.Response.ContentLength <- int64 response.body.Length
+    if ctx.Request.Method <> "HEAD" then
+      // TODO: benchmark - this is apparently faster than streams
+      do! ctx.Response.BodyWriter.WriteAsync(response.body)
+  }
+
+
+
 
 let standardResponse
   (ctx : HttpContext)
@@ -208,43 +224,6 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
     | _ -> return! raise (LoadException(msg, code))
   }
 
-
-let optionsResponse (ctx : HttpContext) (corsSetting : Option<Canvas.CorsSetting>) : Task<HttpContext> =
-  task {
-    // FSTOOD: move this into middleware
-    // When javascript in a browser tries to make an unusual cross-origin
-    // request (for example, a POST with a weird content-type or something with
-    // weird headers), the browser first makes an OPTIONS request to the
-    // server in order to get its permission to make that request. It includes
-    // "origin", the originating origin, and "access-control-request-headers",
-    // which is the list of headers the javascript would like to use.
-
-    // FSTODO
-    // (Ordinary GETs and some POSTs get handled in result_to_response, above,
-    // without an OPTIONS).
-
-    // Our strategy here is: if it's from an allowed origin (i.e., in the canvas
-    // cors_setting) to return an Access-Control-Allow-Origin header for that
-    // origin, to return Access-Control-Allow-Headers with the requested headers,
-    // and Access-Control-Allow-Methods for all of the methods we think might
-    // be useful.
-
-    let reqHeaders = getHeaders ctx
-    let acReqHeaders = HttpHeaders.get "access-control-request-headers" reqHeaders
-    let allowHeaders = Option.defaultValue "*" acReqHeaders
-
-    match Middleware.inferCorsAllowOriginHeader corsSetting reqHeaders with
-    | None -> return ctx
-    | Some origin ->
-      ctx.Response.StatusCode <- 200
-      // CLEANUP: if the origin is null here, we probably shouldn't add the other headers
-      setHeader ctx "Access-Control-Allow-Headers" allowHeaders
-      setHeader ctx "Access-Control-Allow-Origin" origin
-      let methods = "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS"
-      setHeader ctx "Access-Control-Allow-Methods" methods
-      ctx.Response.ContentLength <- 0L
-      return ctx
-  }
 
 
 // ---------------
@@ -337,6 +316,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let reqHeaders = getHeaders ctx
           let reqQuery = getQuery ctx
 
+          // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
+          // and entirely into code in some middleware
           let! corsSetting = Canvas.fetchCORSSetting c.meta.id
 
           let program = Canvas.toProgram c
@@ -367,13 +348,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               expr
               corsSetting
 
-          // Put response into ctx
-          ctx.Response.StatusCode <- result.statusCode
-          List.iter (fun (k, v) -> setHeader ctx k v) result.headers
-          ctx.Response.ContentLength <- int64 result.body.Length
-          if method <> "HEAD" then
-            // TODO: benchmark - this is apparently faster than streams
-            do! ctx.Response.BodyWriter.WriteAsync(result.body)
+          do! writeResponseToContext ctx result
 
           return ctx
 
@@ -384,7 +359,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         return! faviconResponse ctx
       | [] when ctx.Request.Method = "OPTIONS" ->
         let! corsSetting = Canvas.fetchCORSSetting c.meta.id
-        return! optionsResponse ctx corsSetting
+        let reqHeaders = getHeaders ctx
+        match Middleware.optionsResponse reqHeaders corsSetting with
+        | Some response -> do! writeResponseToContext ctx response
+        | None -> ()
+        return ctx
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
