@@ -113,8 +113,8 @@ let sendRequest
     match! HttpClient.httpCall 0 false uri query verb reqHeaders encodedReqBody with
     | Ok response ->
       let parsedResponseBody =
-        // CLEANUP: form header never triggers. But is it even needed?
-        if HttpHeaders.hasFormHeader response.headers then
+        // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
+        if false then // HttpHeaders.hasFormHeader response.headers
           try
             DvalRepr.ofQueryString response.body
           with

@@ -7,11 +7,7 @@ module BackendOnlyStdLib.HttpClientHeaders
 open Prelude
 
 let hasFormHeader (headers : HttpHeaders.T) : bool =
-  // CLEANUP: this doesn't work properly if a charset is included. But also, this was
-  // always false in OCaml because the string we compared against wasn't properly
-  // trimmed.
-  // getHeader "content-type" headers = Some formContentType
-  false
+ headers |> HttpHeaders.get "content-type" |> Option.map Tablecloth.String.toLowercase = Some "application/x-www-form-urlencoded"
 
 let hasJsonHeader (headers : HttpHeaders.T) : bool =
   // CLEANUP: don't use contains for this
