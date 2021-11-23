@@ -36,6 +36,48 @@ module TI = LibBackend.TraceInputs
 module Middleware = HttpMiddleware.MiddlewareV0
 
 // ---------------
+// Read from HttpContext
+// ---------------
+let getHeaders (ctx : HttpContext) : List<string * string> =
+  ctx.Request.Headers
+  |> Seq.map
+       (fun (kvp : KeyValuePair<string, StringValues>) ->
+         (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
+  |> Seq.toList
+
+let getQuery (ctx : HttpContext) : List<string * List<string>> =
+  ctx.Request.Query
+  |> Seq.map
+       (fun (kvp : KeyValuePair<string, StringValues>) ->
+         (kvp.Key,
+          // If there are duplicates, .NET puts them in the same StringValues.
+          // However, it doesn't parse commas. We want a list if there are commas,
+          // but we want to overwrite if there are two of the same headers.
+          // CLEANUP this isn't to say that this is good behaviour
+          kvp.Value.ToArray()
+          |> Array.toList
+          |> List.tryLast
+          |> Option.defaultValue ""
+          |> String.split ","))
+  |> Seq.toList
+
+open System.Buffers
+
+let getBody (ctx : HttpContext) : Task<byte array> =
+  task {
+    // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
+    if ctx.Request.Method = "GET" then
+      return [||]
+    else
+      // TODO: apparently it's faster to use a PipeReader, but that broke for us
+      let ms = new IO.MemoryStream()
+      do! ctx.Request.Body.CopyToAsync(ms)
+      return ms.ToArray()
+  }
+
+
+
+// ---------------
 // Headers
 // ---------------
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
@@ -166,44 +208,10 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
     | _ -> return! raise (LoadException(msg, code))
   }
 
-// ---------------
-// CORS
-// ---------------
-let inferCorsAllowOriginHeader
-  (ctx : HttpContext)
-  (canvasID : CanvasID)
-  : Task<string option> =
+
+let optionsResponse (ctx : HttpContext) (corsSetting : Option<Canvas.CorsSetting>) : Task<HttpContext> =
   task {
-    let! corsSetting = Canvas.fetchCORSSetting canvasID
-    let originHeader = getHeader ctx.Request.Headers "Origin"
-
-    let defaultOrigins =
-      [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
-
-    let header =
-      match (originHeader, corsSetting) with
-      // if there's no explicit canvas setting, allow common localhosts
-      | Some origin, None when List.contains origin defaultOrigins -> Some origin
-      // if there's no explicit canvas setting and no default match, fall back to "*"
-      | _, None -> Some "*"
-      // If there's a "*" in the setting, always use it.
-      // This is help as a debugging aid since users will always see
-      // Access-Control-Allow-Origin: * in their browsers, even if the
-      // request has no Origin.
-      | _, Some Canvas.AllOrigins -> Some "*"
-      // if there's no supplied origin, don't set the header at all.
-      | None, _ -> None
-      // Return the origin if and only if it's in the setting
-      | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
-        Some origin
-      // Otherwise: there was a supplied origin and it's not in the setting.
-      // return "null" explicitly
-      | Some _, Some _ -> Some "null"
-    return header
-  }
-
-let optionsResponse (ctx : HttpContext) (canvasID : CanvasID) : Task<HttpContext> =
-  task {
+    // FSTOOD: move this into middleware
     // When javascript in a browser tries to make an unusual cross-origin
     // request (for example, a POST with a weird content-type or something with
     // weird headers), the browser first makes an OPTIONS request to the
@@ -221,10 +229,11 @@ let optionsResponse (ctx : HttpContext) (canvasID : CanvasID) : Task<HttpContext
     // and Access-Control-Allow-Methods for all of the methods we think might
     // be useful.
 
-    let reqHeaders = getHeader ctx.Request.Headers "access-control-request-headers"
-    let allowHeaders = Option.defaultValue "*" reqHeaders
+    let reqHeaders = getHeaders ctx
+    let acReqHeaders = HttpHeaders.get "access-control-request-headers" reqHeaders
+    let allowHeaders = Option.defaultValue "*" acReqHeaders
 
-    match! inferCorsAllowOriginHeader ctx canvasID with
+    match Middleware.inferCorsAllowOriginHeader corsSetting reqHeaders with
     | None -> return ctx
     | Some origin ->
       ctx.Response.StatusCode <- 200
@@ -273,46 +282,6 @@ let canonicalizeURL (toHttps : bool) (url : string) =
     string uri.Uri // Use .Uri or it will slip in a port number
   else
     url
-
-// ---------------
-// Read from HttpContext
-// ---------------
-let getHeaders (ctx : HttpContext) : List<string * string> =
-  ctx.Request.Headers
-  |> Seq.map
-       (fun (kvp : KeyValuePair<string, StringValues>) ->
-         (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
-  |> Seq.toList
-
-let getQuery (ctx : HttpContext) : List<string * List<string>> =
-  ctx.Request.Query
-  |> Seq.map
-       (fun (kvp : KeyValuePair<string, StringValues>) ->
-         (kvp.Key,
-          // If there are duplicates, .NET puts them in the same StringValues.
-          // However, it doesn't parse commas. We want a list if there are commas,
-          // but we want to overwrite if there are two of the same headers.
-          // CLEANUP this isn't to say that this is good behaviour
-          kvp.Value.ToArray()
-          |> Array.toList
-          |> List.tryLast
-          |> Option.defaultValue ""
-          |> String.split ","))
-  |> Seq.toList
-
-open System.Buffers
-
-let getBody (ctx : HttpContext) : Task<byte array> =
-  task {
-    // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
-    if ctx.Request.Method = "GET" then
-      return [||]
-    else
-      // TODO: apparently it's faster to use a PipeReader, but that broke for us
-      let ms = new IO.MemoryStream()
-      do! ctx.Request.Body.CopyToAsync(ms)
-      return ms.ToArray()
-  }
 
 
 // ---------------
@@ -368,30 +337,35 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let reqHeaders = getHeaders ctx
           let reqQuery = getQuery ctx
 
+          let! corsSetting = Canvas.fetchCORSSetting c.meta.id
+
           let program = Canvas.toProgram c
           let expr = expr.toRuntimeType ()
 
-          let request =
-            Middleware.createRequest false url reqHeaders reqQuery reqBody
-
-          // Store trace - do not resolve task, send this into the ether
-          let _timestamp =
+          // Store trace - Do not resolve task, send this into the ether
+          let traceHook (request : RT.Dval) : unit =
             TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request
+            |> ignore<Task<DateTime>>
+
+          // Send to pusher - Do not resolve task, send this into the ether
+          let notifyHook (touchedTLIDs : List<tlid>) : unit =
+            Pusher.pushNewTraceID executionID canvasID traceID touchedTLIDs
 
           // Do request
-          let! (result, touchedTLIDs) =
-            HttpMiddleware.MiddlewareV0.executeRequest
-              program
+          let! result =
+            Middleware.executeHandler
               tlid
               traceID
+              traceHook
+              notifyHook
+              url
               routeVars
-              request
+              reqHeaders
+              reqQuery
+              reqBody
+              program
               expr
-
-          // FSTODO - move cors into runHttpRequest
-          match! inferCorsAllowOriginHeader ctx canvasID with
-          | Some origin -> setHeader ctx "Access-Control-Allow-Origin" origin
-          | None -> ()
+              corsSetting
 
           // Put response into ctx
           ctx.Response.StatusCode <- result.statusCode
@@ -401,13 +375,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
             // TODO: benchmark - this is apparently faster than streams
             do! ctx.Response.BodyWriter.WriteAsync(result.body)
 
-          // Send to pusher - Do not resolve task, send this into the ether
-          Pusher.pushNewTraceID
-            executionID
-            canvasID
-            traceID
-            (HashSet.toList touchedTLIDs)
-
           return ctx
 
         | None -> // vars didnt parse
@@ -416,7 +383,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
       | [] when ctx.Request.Method = "OPTIONS" ->
-        return! optionsResponse ctx canvasID
+        let! corsSetting = Canvas.fetchCORSSetting c.meta.id
+        return! optionsResponse ctx corsSetting
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx

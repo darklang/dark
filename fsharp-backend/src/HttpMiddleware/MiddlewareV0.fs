@@ -16,6 +16,42 @@ module Interpreter = LibExecution.Interpreter
 module Req = RequestV0
 module Resp = ResponseV0
 
+// FSTODO: Remove access to LibBackend from here
+module Canvas = LibBackend.Canvas
+
+// ---------------
+// CORS
+// ---------------
+let inferCorsAllowOriginHeader
+  (corsSetting : Option<Canvas.CorsSetting>)
+  (headers : HttpHeaders.T)
+  : string option =
+  let originHeader = HttpHeaders.get "Origin" headers
+
+  let defaultOrigins =
+    [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
+
+  let header =
+    match (originHeader, corsSetting) with
+    // if there's no explicit canvas setting, allow common localhosts
+    | Some origin, None when List.contains origin defaultOrigins -> Some origin
+    // if there's no explicit canvas setting and no default match, fall back to "*"
+    | _, None -> Some "*"
+    // If there's a "*" in the setting, always use it.
+    // This is help as a debugging aid since users will always see
+    // Access-Control-Allow-Origin: * in their browsers, even if the
+    // request has no Origin.
+    | _, Some Canvas.AllOrigins -> Some "*"
+    // if there's no supplied origin, don't set the header at all.
+    | None, _ -> None
+    // Return the origin if and only if it's in the setting
+    | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
+      Some origin
+    // Otherwise: there was a supplied origin and it's not in the setting.
+    // return "null" explicitly
+    | Some _, Some _ -> Some "null"
+  header
+
 
 let createRequest
   (allowUnparseable : bool)
@@ -26,7 +62,7 @@ let createRequest
   : RT.Dval =
   Req.fromRequest allowUnparseable url headers query body
 
-let executeRequest
+let executeProgram
   (program : RT.ProgramContext)
   (tlid : tlid)
   (traceID : LibExecution.AnalysisTypes.TraceID)
@@ -47,4 +83,51 @@ let executeRequest
     let! result = Interpreter.eval state symtable expr
 
     return (Resp.toHttpResponse result, touchedTLIDs)
+  }
+
+let addCorsToResponse
+  (reqHeaders : HttpHeaders.T)
+  (corsSetting : Option<Canvas.CorsSetting>)
+  (response : Resp.HttpResponse)
+  : Resp.HttpResponse =
+  inferCorsAllowOriginHeader corsSetting reqHeaders
+  |> Option.map
+       (fun origin ->
+         { response with
+             headers = response.headers @ [ "Access-Control-Allow-Origin", origin ] })
+  |> Option.defaultValue response
+
+
+
+
+let executeHandler
+  // framework stuff
+  (tlid : tlid)
+  (traceID : LibExecution.AnalysisTypes.TraceID)
+  (traceHook : RT.Dval -> unit)
+  (notifyHook : List<tlid> -> unit)
+  // received from granduser
+  (url : string)
+  (routeVars : List<string * RT.Dval>)
+  (headers : HttpHeaders.T)
+  (query : List<string * List<string>>)
+  (body : byte array)
+  // the program we're executing
+  (program : RT.ProgramContext)
+  (expr : RT.Expr)
+  (corsSetting : Option<Canvas.CorsSetting>)
+  : Task<Resp.HttpResponse> =
+  task {
+    let request = createRequest false url headers query body
+
+    // Both hooks fire off into the ether, to avoid waiting for the IO to complete
+    traceHook request
+
+    let! (result, touchedTLIDs) = executeProgram program tlid traceID routeVars request expr
+    let result = addCorsToResponse headers corsSetting result
+
+    // Both hooks fire off into the ether, to avoid waiting for the IO to complete
+    notifyHook (HashSet.toList touchedTLIDs)
+
+    return result
   }
