@@ -1,6 +1,6 @@
 *Paket.Restore.targets eol=crlf
 
-fsharp-backend/tests/httptestfiles/favicon-fallback -text
-fsharp-backend/tests/httptestfiles/request-header-transfer-encoding -text
-fsharp-backend/tests/httptestfiles/request-header-transfer-encoding-json -text
-fsharp-backend/tests/httptestfiles/request-path-start-0-to-3 -text
+/fsharp-backend/tests/httptestfiles/favicon-fallback -text
+/fsharp-backend/tests/httptestfiles/request-header-transfer-encoding -text
+/fsharp-backend/tests/httptestfiles/request-header-transfer-encoding-json -text
+/fsharp-backend/tests/httptestfiles/request-path-start-0-to-3 -text
