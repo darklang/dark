@@ -23,6 +23,157 @@ type Server =
   | OCaml
   | FSharp
 
+type Test =
+  { handlers : List<string * string * string>
+    cors : Option<string>
+    customDomain : Option<string>
+    request : byte array
+    response : byte array }
+
+type TestParsingState =
+  | Limbo
+  | InHttpHandler
+  | InResponse
+  | InRequest
+
+let nl = byte '\n'
+
+// Take a byte array and split it by newline, returning a list of lists. The
+// arrays do NOT have the newlines in them.
+
+let splitAtNewlines (bytes : byte array) : byte list list =
+  bytes
+  |> Array.fold
+       [ [] ]
+       (fun state b ->
+         if b = nl then
+           [] :: state
+         else
+           match state with
+           | [] -> failwith "can't have no entries"
+           | head :: rest -> (b :: head) :: rest)
+  |> List.map List.reverse
+  |> List.reverse
+
+let findIndex (pattern : 'a list) (list : 'a list) : int option =
+  if pattern.Length = 0 || list.Length < pattern.Length then
+    None
+  else
+    let mutable i = 0
+    let mutable result = None
+    while result = None && i < list.Length - pattern.Length do
+      let mutable matches = true
+      let mutable j = 0
+      while matches && j < pattern.Length do
+        if list.[i + j] <> pattern.[j] then
+          matches <- false
+          j <- pattern.Length // stop early
+        else
+          j <- j + 1
+      if matches then result <- Some i else i <- i + 1
+    result
+
+
+
+// Parse the test line-by-line. We don't use regex here because we want to test more than strings
+let parseTest (bytes : byte array) : Test =
+  let lines : List<List<byte>> = bytes |> splitAtNewlines
+  let emptyTest =
+    { handlers = []
+      cors = None
+      customDomain = None
+      request = [||]
+      response = [||] }
+  lines
+  |> List.fold
+       (Limbo, emptyTest)
+       (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
+         let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
+         match asString with
+         | Regex "\[cors (\S+)]" [ cors ] ->
+           (Limbo, { result with cors = Some cors })
+         | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
+           (Limbo, { result with customDomain = Some customDomain })
+         | "[request]" -> (InRequest, result)
+         | "[response]" -> (InResponse, result)
+         | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
+           (InHttpHandler,
+            { result with handlers = result.handlers @ [ (method, route, "") ] })
+         | _ ->
+           match state with
+           | InHttpHandler ->
+             let newHandlers =
+               match List.reverse result.handlers with
+               | [] -> failwith "There should be handlers already"
+               | (method, route, text) :: other ->
+                 List.reverse ((method, route, text + asString + "\n") :: other)
+             InHttpHandler, { result with handlers = newHandlers }
+           | InResponse ->
+             InResponse,
+             { result with
+                 response =
+                   Array.concat [| result.response; Array.ofList line; [| nl |] |] }
+           | InRequest ->
+             InRequest,
+             { result with
+                 request =
+                   Array.concat [| result.request; Array.ofList line; [| nl |] |] }
+           | Limbo ->
+             if line.Length = 0 then
+               (Limbo, result)
+             else
+               failwith $"Line received while not in any state: {line}")
+  |> Tuple2.second
+  |> fun test ->
+       // Remove the superfluously added newline on response (keep it on the request though)
+       { test with response = Array.slice 0 -1 test.response }
+
+// Replace `pattern` in the byte array with `replacement` - both are provided as strings
+// for convenience, but obviously both will be converted to bytes
+let replaceByteStrings
+  (pattern : string)
+  (replacement : string)
+  (bytes : byte array)
+  : byte array =
+  let patternBytes = UTF8.toBytes pattern
+  let replacementBytes = UTF8.toBytes replacement |> Array.toList |> List.reverse
+  let list = Array.toList bytes
+  if pattern.Length = 0 || bytes.Length < pattern.Length then
+    bytes
+  else
+    // For each element of bytes, try to match every element of pattern with it. If
+    // it matches, add in the relacement and skip the rest of the pattern, otherwise
+    // skip
+    let mutable result = [] // Add in reverse
+    let mutable i = 0
+    while i < bytes.Length - pattern.Length do
+      let mutable matches = true
+      let mutable j = 0
+      while j < pattern.Length do
+        if bytes.[i + j] <> patternBytes.[j] then
+          matches <- false
+          j <- pattern.Length // stop early
+        else
+          j <- j + 1
+      if matches then
+        // matched: save replacement, skip rest of pattern
+        result <- replacementBytes @ result
+        i <- i + pattern.Length
+      else
+        // not matched, char is in result, look at next char
+        result <- bytes.[i] :: result
+        i <- i + 1
+    // Add the final ones we skipped above
+    for i = i to bytes.Length - 1 do
+      result <- bytes.[i] :: result
+    // bytes are added in reverse, so one more reverse needed
+    result |> List.reverse |> List.toArray
+
+
+
+
+
+
 let t filename =
   testTask $"Httpfiles: {filename}" {
     let skip = String.startsWith "_" filename
@@ -30,44 +181,16 @@ let t filename =
     let name = $"bwdserver-{name}"
     let testName = $"test-{name}"
     do! TestUtils.clearCanvasData (CanvasName.create testName)
-    let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
-    let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
     let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
-    let contents = toStr contents
 
-    let request, expectedResponse, httpDefs, cors, customDomain =
-      // TODO: use FsRegex instead
-      let m =
-        Regex.Match(
-          contents,
-          ("^((\[http-handler \S+ \S+\]\n.*?\n)+)"
-           + "(\[cors .*\]\n+)?"
-           + "(\[custom-domain .*\]\n+)?"
-           + "\[request\]\n(.*)"
-           + "\[response\]\n(.*)$"),
-          RegexOptions.Singleline
-        )
-
-      if not m.Success then failwith $"incorrect format in {name}"
-      let g = m.Groups
-
-      (g.[5].Value, g.[6].Value, g.[1].Value, g.[3].Value, g.[4].Value)
+    let test = parseTest contents
 
     let oplists =
-      Regex.Matches(
-        httpDefs,
-        "^\[http-handler (\S+) (\S+)\]\n(.*?)\n$",
-        RegexOptions.Multiline ||| RegexOptions.Singleline
-      )
-      |> Seq.toList
+      test.handlers
       |> List.map
-           (fun m ->
-             let progString = m.Groups.[3].Value
-             let httpRoute = m.Groups.[2].Value
-             let httpMethod = m.Groups.[1].Value
-
+           (fun (httpMethod, httpRoute, progString) ->
              let (source : PT.Expr) =
                progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
@@ -92,29 +215,18 @@ let t filename =
     do! Canvas.saveTLIDs meta oplists
 
     // CORS
-    do!
-      task {
-        let m = Regex.Match(cors, "^\[cors (.*)\]\n*$", RegexOptions.Singleline)
-        if m.Success then
-          match m.Groups.[1].Value with
-          | "" -> do! Canvas.updateCorsSetting meta.id None
-          | "*" -> do! Canvas.updateCorsSetting meta.id (Some Canvas.AllOrigins)
-          | domains ->
-            let domains = (Canvas.Origins(String.split "," domains))
-            do! Canvas.updateCorsSetting meta.id (Some domains)
-      }
+    match test.cors with
+    | None -> ()
+    | Some "" -> do! Canvas.updateCorsSetting meta.id None
+    | Some "*" -> do! Canvas.updateCorsSetting meta.id (Some Canvas.AllOrigins)
+    | Some domains ->
+      let domains = (Canvas.Origins(String.split "," domains))
+      do! Canvas.updateCorsSetting meta.id (Some domains)
 
     // Custom domains
-    do!
-      task {
-        let m =
-          Regex.Match(
-            customDomain,
-            "^\[custom-domain (.*)\]\n*$",
-            RegexOptions.Singleline
-          )
-        if m.Success then do! Routing.addCustomDomain m.Groups.[1].Value meta.name
-      }
+    match test.customDomain with
+    | Some cd -> do! Routing.addCustomDomain cd meta.name
+    | None -> ()
 
     let normalizeActualHeaders
       (hs : (string * string) list)
@@ -167,12 +279,12 @@ let t filename =
         use stream = client.GetStream()
         stream.ReadTimeout <- 1000 // responses should be instant, right?
 
-        if request.Contains("LENGTH") then
+        if test.request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH" then
           Expect.isFalse true "LENGTH substitution not done on request"
 
         let host = $"test-{name}.builtwithdark.localhost:{port}"
         let request =
-          request |> String.replace "HOST" host |> toBytes |> Http.setHeadersToCRLF
+          test.request |> replaceByteStrings "HOST" host |> Http.setHeadersToCRLF
 
 
         do! stream.WriteAsync(request, 0, request.Length)
@@ -185,28 +297,33 @@ let t filename =
 
         // Prepare expected response
         let expectedResponse =
-          expectedResponse
-          |> String.splitOnNewline
+          test.response
+          |> splitAtNewlines
           |> List.filterMap
                (fun line ->
-                 if String.includes "// " line then
-                   if String.includes "OCAMLONLY" line && server = FSharp then
+                 let asString = line |> List.toArray |> UTF8.ofBytesWithReplacement
+                 if String.includes "// " asString then
+                   if String.includes "OCAMLONLY" asString && server = FSharp then
                      None
-                   else if String.includes "FSHARPONLY" line && server = OCaml then
+                   else if String.includes "FSHARPONLY" asString && server = OCaml then
                      None
-                   else if String.includes "KEEP" line then
+                   else if String.includes "KEEP" asString then
                      Some line
                    else
-                     // Remove OCAMLONLY and FSHARPONLY
-                     line
-                     |> String.split "// "
-                     |> List.head
-                     |> Option.map String.trim_right
+                     // Remove comments, including OCAMLONLY and FSHARPONLY
+                     let index =
+                       findIndex [ byte ' '; byte '/'; byte '/' ] line
+                       |> Option.orElse (findIndex [ byte '/'; byte '/' ] line)
+                       |> Option.unwrapUnsafe
+                     line |> List.splitAt index |> Tuple2.first |> Some
                  else
                    Some line)
-          |> String.concat "\n"
-          |> String.replace "HOST" host
-          |> toBytes
+          |> List.map (fun l -> List.append l [ nl ])
+          |> List.flatten
+          |> List.initial // remove final newline which we don't want
+          |> Option.unwrapUnsafe
+          |> List.toArray
+          |> replaceByteStrings "HOST" host
           |> Http.setHeadersToCRLF
 
         // Parse and normalize the response
@@ -215,37 +332,27 @@ let t filename =
         let eHeaders = normalizeExpectedHeaders expected.headers actual.body
         let aHeaders = normalizeActualHeaders actual.headers
 
-        // Test as bytes, json, or strings
-        if expected.body
-           |> Array.any
-                (fun b -> b <> 10uy && b <> 13uy && not (Char.isPrintable (char b))) then
-          // print as bytes for better readability
-          Expect.equal
-            (actual.status, aHeaders, actual.body)
-            (expected.status, eHeaders, expected.body)
-            $"({server} as bytes)"
-        else
-          // Json can be different shapes but equally valid
-          let asJson =
-            try
-              Some(
-                LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe actual.body),
-                LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe expected.body)
-              )
-            with
-            | e -> None
+        // Test as json or strings
+        let asJson =
+          try
+            Some(
+              LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe actual.body),
+              LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe expected.body)
+            )
+          with
+          | e -> None
 
-          match asJson with
-          | Some (aJson, eJson) ->
-            Expect.equal
-              (actual.status, aHeaders, string aJson)
-              (expected.status, eHeaders, string eJson)
-              $"({server} as json)"
-          | None ->
-            Expect.equal
-              (actual.status, aHeaders, UTF8.ofBytesUnsafe actual.body)
-              (expected.status, eHeaders, UTF8.ofBytesUnsafe expected.body)
-              $"({server} as string)"
+        match asJson with
+        | Some (aJson, eJson) ->
+          Expect.equal
+            (actual.status, aHeaders, string aJson)
+            (expected.status, eHeaders, string eJson)
+            $"({server} as json)"
+        | None ->
+          Expect.equal
+            (actual.status, aHeaders, UTF8.ofBytesWithReplacement actual.body)
+            (expected.status, eHeaders, UTF8.ofBytesWithReplacement expected.body)
+            $"({server} as string)"
 
       }
 
@@ -265,6 +372,8 @@ let testsFromFiles =
   |> Array.filter ((<>) "tests/httptestfiles/README.md")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
+  |> List.filter ((<>) ".gitattributes")
+  |> List.filter ((<>) "README.md")
   |> List.map t
 
 
@@ -277,136 +386,4 @@ open Microsoft.Extensions.Hosting
 let init (token : System.Threading.CancellationToken) : Task =
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
-  (BwdServer.webserver false port k8sPort).RunAsync(token)
-
-
-// FSTODO
-// let t_result_to_response_works () =
-//   let req =
-//     Req.make
-//       ~headers:(Header.init ())
-//       (Uri.of_string "http://test.builtwithdark.com/")
-//   in
-//   let req_example_com =
-//     Req.make
-//       ~headers:(Header.of_list [("Origin", "https://example.com")])
-//       (Uri.of_string "http://test.builtwithdark.com/")
-//   in
-//   let req_google_com =
-//     Req.make
-//       ~headers:(Header.of_list [("Origin", "https://google.com")])
-//       (Uri.of_string "http://test.builtwithdark.com/")
-//   in
-//   let c = ops2c_exn "test" [] in
-//   ignore
-//     (List.map
-//        ~f:(fun (dval, req, cors_setting, check) ->
-//          Canvas.update_cors_setting c cors_setting ;
-//          dval
-//          |> Webserver.result_to_response ~c ~execution_id ~req
-//          |> Libcommon.Telemetry.with_root "test" (fun span ->
-//                 Webserver.respond_or_redirect span)
-//          |> Lwt_main.run
-//          |> fst
-//          |> check)
-//        [ ( exec_ast (record [])
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "objects get application/json content-type"
-//                (Some "application/json; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (list [int 1; int 2])
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "lists get application/json content-type"
-//                (Some "application/json; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (int 2)
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "other things get text/plain content-type"
-//                (Some "text/plain; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (fn "Http::success" [record []])
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "Http::success gets application/json"
-//                (Some "application/json; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (int 1)
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "without any other settings, we get Access-Control-Allow-Origin: *."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( DError (SourceNone, "oh no :(")
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "we get Access-Control-Allow-Origin: * even for errors."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( DIncomplete SourceNone
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "we get Access-Control-Allow-Origin: * even for incompletes."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req
-//          , Some Canvas.AllOrigins
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with explicit wildcard setting, we get Access-Control-Allow-Origin: *."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req
-//          , Some (Canvas.Origins ["https://example.com"])
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with allowlist setting and no Origin, we get no Access-Control-Allow-Origin"
-//                None
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req_example_com
-//          , Some (Canvas.Origins ["https://example.com"])
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with allowlist setting and matching Origin, we get good Access-Control-Allow-Origin"
-//                (Some "https://example.com")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req_google_com
-//          , Some (Canvas.Origins ["https://example.com"])
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with allowlist setting and mismatched Origin, we get null Access-Control-Allow-Origin"
-//                (Some "null")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") ) ]) ;
-//   ()
-//
+  (BwdServer.Server.webserver false port k8sPort).RunAsync(token)

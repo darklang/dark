@@ -31,6 +31,10 @@ type Server =
   | FSharp
   | OCaml
 
+
+let canonicalizeDate (d : System.DateTime) : System.DateTime =
+  d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
+
 let ident = Fun.identity
 
 type User = { client : HttpClient; csrf : string }
@@ -320,6 +324,17 @@ let testGetTraceData =
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
 
+    let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
+      t
+      |> Option.map
+           (fun t ->
+             { t with
+                 trace =
+                   t.trace
+                   |> Tuple2.mapSecond
+                        (fun td ->
+                          { td with timestamp = canonicalizeDate td.timestamp }) })
+
     do!
       body
       |> deserialize<Traces.AllTraces.T>
@@ -328,15 +343,14 @@ let testGetTraceData =
       |> List.map
            (fun (tlid, traceID) ->
              task {
+               let (ps : Traces.TraceData.Params) =
+                 { tlid = tlid; trace_id = traceID }
                do!
-                 let (ps : Traces.TraceData.Params) =
-                   { tlid = tlid; trace_id = traceID }
-
                  postApiTestCases
                    "get_trace_data"
                    (serialize ps)
                    (deserialize<Traces.TraceData.T>)
-                   ident
+                   canonicalize
              })
 
       |> Task.flatten
@@ -581,8 +595,6 @@ let testDelete404s =
 let testInitialLoadReturnsTheSame =
   let deserialize v = Json.OCamlCompatible.deserialize<InitialLoad.T> v
 
-  let canonicalizeDate (d : System.DateTime) : System.DateTime =
-    d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
 
   let canonicalize (v : InitialLoad.T) : InitialLoad.T =
     let clearTypes (tl : ORT.toplevel) =

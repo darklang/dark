@@ -188,7 +188,7 @@ let groupBy (f : 'v -> 'k) (a : 'v array) : Map<'k, 'v list> =
 
 let group_by f a = groupBy f a
 
-let slice ``to`` from array =
+let slice from ``to`` array =
   let sliceFrom =
     if from >= 0 then
       min (length array) from

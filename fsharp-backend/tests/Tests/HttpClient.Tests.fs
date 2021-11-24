@@ -213,11 +213,11 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       let testCase = testCases.[testName]
 
       let actualHeaders =
-        BwdServer.getHeaders ctx
+        BwdServer.Server.getHeaders ctx
         |> Map
         // .NET always adds a Content-Length header, but OCaml doesn't
         |> Map.remove "Content-Length"
-      let! actualBody = BwdServer.getBody ctx
+      let! actualBody = BwdServer.Server.getBody ctx
 
       let actualStatus =
         $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
@@ -252,7 +252,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
                  || v.Contains "us-ascii" then
                 transcodeToLatin1 <- true
 
-            BwdServer.setHeader ctx k v)
+            BwdServer.Server.setHeader ctx k v)
           testCase.result.headers
 
         let data =
@@ -267,12 +267,12 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
         match compression with
         | Some algo ->
-          let stream =
+          let stream : Stream =
             let body = ctx.Response.Body
             match algo with
-            | Gzip -> new GZipStream(body, CompressionMode.Compress) :> Stream
-            | Brotli -> new BrotliStream(body, CompressionMode.Compress) :> Stream
-            | Deflate -> new DeflateStream(body, CompressionMode.Compress) :> Stream
+            | Gzip -> new GZipStream(body, CompressionMode.Compress)
+            | Brotli -> new BrotliStream(body, CompressionMode.Compress)
+            | Deflate -> new DeflateStream(body, CompressionMode.Compress)
           do! stream.WriteAsync(data, 0, data.Length)
           do! stream.FlushAsync()
           do! stream.DisposeAsync()
@@ -336,8 +336,7 @@ type Logger() =
 
 type LoggerProvider() =
   interface ILoggerProvider with
-    member this.CreateLogger(_categoryName : string) : ILogger =
-      new Logger() :> ILogger
+    member this.CreateLogger(_categoryName : string) : ILogger = new Logger()
 
     member this.Dispose() : unit = ()
 
@@ -355,7 +354,7 @@ let configureLogging (builder : ILoggingBuilder) : unit =
 
 
 let configureApp (app : IApplicationBuilder) =
-  let handler (ctx : HttpContext) = runTestHandler ctx :> Task
+  let handler (ctx : HttpContext) : Task = runTestHandler ctx
   app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit = ()
@@ -387,6 +386,7 @@ let testsFromFiles =
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
   |> List.filter ((<>) "README.md")
+  |> List.filter ((<>) ".gitattributes")
   |> List.map t
 
 let tests = testList "HttpClient" [ testList "From files" testsFromFiles ]

@@ -15,18 +15,19 @@ open LibBackend
 open VendoredTablecloth
 
 type AspHeaders = System.Net.Http.Headers.HttpHeaders
-module HttpHeaders = LibExecution.HttpHeaders
 
 module RT = RuntimeTypes
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
+type HttpHeaders = List<string * string>
+
 
 type HttpResult =
   { body : string
     code : int
-    headers : HttpHeaders.T
+    headers : HttpHeaders
     error : string }
 
 type ClientError = { url : string; error : string; code : int }
@@ -78,7 +79,7 @@ let socketHandler : HttpMessageHandler =
 
   // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false
-  handler :> HttpMessageHandler
+  handler
 
 
 let httpClient : HttpClient =
@@ -89,7 +90,7 @@ let httpClient : HttpClient =
   client
 
 // Convert .NET HttpHeaders into Dark-style headers
-let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
+let convertHeaders (headers : AspHeaders) : HttpHeaders =
   headers
   |> Seq.map
        (fun (kvp : KeyValuePair<string, seq<string>>) ->
@@ -105,7 +106,7 @@ let makeHttpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders.T)
+  (reqHeaders : HttpHeaders)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
@@ -194,14 +195,14 @@ let makeHttpCall
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
         use! responseStream = response.Content.ReadAsStreamAsync()
-        use contentStream =
+        use contentStream : Stream =
           let decompress = CompressionMode.Decompress
           // The version of Curl we used in OCaml does not support zstd, so omitting
           // that won't break anything.
           match String.toLowercase encoding with
-          | "br" -> new BrotliStream(responseStream, decompress) :> Stream
-          | "gzip" -> new GZipStream(responseStream, decompress) :> Stream
-          | "deflate" -> new DeflateStream(responseStream, decompress) :> Stream
+          | "br" -> new BrotliStream(responseStream, decompress)
+          | "gzip" -> new GZipStream(responseStream, decompress)
+          | "deflate" -> new DeflateStream(responseStream, decompress)
           | "" -> responseStream
           | _ -> raise (InvalidEncodingException(int response.StatusCode))
 
@@ -286,7 +287,7 @@ let rec httpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders.T)
+  (reqHeaders : HttpHeaders)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {

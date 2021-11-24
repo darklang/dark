@@ -14,9 +14,9 @@ Content-Type: text/plain; charset=utf-8
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
-Server: nginx/1.16.1
+Server: nginx/1.16.1 // OCAMLONLY
+Server: darklang // FSHARPONLY
 Connection: keep-alive
 Content-Length: LENGTH
 
-"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // OCAMLONLY
-"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,," // FSHARPONLY
+"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,,"
