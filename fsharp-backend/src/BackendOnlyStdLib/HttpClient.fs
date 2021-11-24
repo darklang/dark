@@ -79,7 +79,7 @@ let socketHandler : HttpMessageHandler =
 
   // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false
-  handler :> HttpMessageHandler
+  handler
 
 
 let httpClient : HttpClient =
@@ -195,14 +195,14 @@ let makeHttpCall
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
         use! responseStream = response.Content.ReadAsStreamAsync()
-        use contentStream =
+        use contentStream : Stream =
           let decompress = CompressionMode.Decompress
           // The version of Curl we used in OCaml does not support zstd, so omitting
           // that won't break anything.
           match String.toLowercase encoding with
-          | "br" -> new BrotliStream(responseStream, decompress) :> Stream
-          | "gzip" -> new GZipStream(responseStream, decompress) :> Stream
-          | "deflate" -> new DeflateStream(responseStream, decompress) :> Stream
+          | "br" -> new BrotliStream(responseStream, decompress)
+          | "gzip" -> new GZipStream(responseStream, decompress)
+          | "deflate" -> new DeflateStream(responseStream, decompress)
           | "" -> responseStream
           | _ -> raise (InvalidEncodingException(int response.StatusCode))
 

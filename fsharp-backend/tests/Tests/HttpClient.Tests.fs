@@ -267,12 +267,12 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
         match compression with
         | Some algo ->
-          let stream =
+          let stream : Stream =
             let body = ctx.Response.Body
             match algo with
-            | Gzip -> new GZipStream(body, CompressionMode.Compress) :> Stream
-            | Brotli -> new BrotliStream(body, CompressionMode.Compress) :> Stream
-            | Deflate -> new DeflateStream(body, CompressionMode.Compress) :> Stream
+            | Gzip -> new GZipStream(body, CompressionMode.Compress)
+            | Brotli -> new BrotliStream(body, CompressionMode.Compress)
+            | Deflate -> new DeflateStream(body, CompressionMode.Compress)
           do! stream.WriteAsync(data, 0, data.Length)
           do! stream.FlushAsync()
           do! stream.DisposeAsync()
@@ -337,7 +337,7 @@ type Logger() =
 type LoggerProvider() =
   interface ILoggerProvider with
     member this.CreateLogger(_categoryName : string) : ILogger =
-      new Logger() :> ILogger
+      new Logger()
 
     member this.Dispose() : unit = ()
 
@@ -355,7 +355,7 @@ let configureLogging (builder : ILoggingBuilder) : unit =
 
 
 let configureApp (app : IApplicationBuilder) =
-  let handler (ctx : HttpContext) = runTestHandler ctx :> Task
+  let handler (ctx : HttpContext) : Task = runTestHandler ctx
   app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit = ()

@@ -101,7 +101,6 @@ module AspNet =
           send (Telemetry.executionID ()) [] e
           raise e
       }
-      :> Task
 
 
 

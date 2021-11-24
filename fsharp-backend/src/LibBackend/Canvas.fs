@@ -626,7 +626,7 @@ let saveTLIDs
                                    "pos", Sql.jsonbOrNone pos ]
                |> Sql.executeStatementAsync
            })
-    |> List.map (fun (t : Task<unit>) -> t :> Task)
+    |> List.map (fun t -> t : Task)
     |> Task.WhenAll
   with
   | e -> reraise () // pageable

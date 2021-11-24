@@ -125,7 +125,6 @@ type System.IO.Pipelines.PipeWriter with
       let! (_ : IO.Pipelines.FlushResult) = this.WriteAsync(ReadOnlyMemory bytes)
       return ()
     }
-    :> Task
 
 let writeResponseToContext
   (ctx : HttpContext)
@@ -418,7 +417,6 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         print (string e)
         return raise e
      })
-    :> Task
 
   app
   |> LibService.Rollbar.AspNet.addRollbarToApp
@@ -428,7 +426,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app ->
        // Last chance exception handler
        let exceptionHandler (ctx : HttpContext) : Task =
-         internalErrorResponse ctx |> Task.FromResult :> Task
+         internalErrorResponse ctx
        let exceptionHandlerOptions = ExceptionHandlerOptions()
        // FSTODO log/honeycomb
        exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
