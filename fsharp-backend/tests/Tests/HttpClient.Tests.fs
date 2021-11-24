@@ -386,6 +386,7 @@ let testsFromFiles =
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
   |> List.filter ((<>) "README.md")
+  |> List.filter ((<>) ".gitattributes")
   |> List.map t
 
 let tests = testList "HttpClient" [ testList "From files" testsFromFiles ]

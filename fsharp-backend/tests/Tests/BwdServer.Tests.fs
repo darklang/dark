@@ -372,6 +372,8 @@ let testsFromFiles =
   |> Array.filter ((<>) "tests/httptestfiles/README.md")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
+  |> List.filter ((<>) ".gitattributes")
+  |> List.filter ((<>) "README.md")
   |> List.map t
 
 

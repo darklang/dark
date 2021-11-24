@@ -122,6 +122,7 @@ let fileTests () : Test =
 
   System.IO.Directory.GetFiles(dir, "*.tests")
   |> Array.filter ((<>) "README.md")
+  |> Array.filter ((<>) ".gitattributes")
   |> Array.map
        (fun file ->
          let filename = System.IO.Path.GetFileName file
