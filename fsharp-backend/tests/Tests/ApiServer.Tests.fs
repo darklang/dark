@@ -325,7 +325,15 @@ let testGetTraceData =
     let! body = o.Content.ReadAsStringAsync()
 
     let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
-      t |> Option.map (fun t -> { t with trace = t.trace |> Tuple2.mapSecond (fun td -> { td with timestamp = canonicalizeDate td.timestamp }) } )
+      t
+      |> Option.map
+           (fun t ->
+             { t with
+                 trace =
+                   t.trace
+                   |> Tuple2.mapSecond
+                        (fun td ->
+                          { td with timestamp = canonicalizeDate td.timestamp }) })
 
     do!
       body
@@ -335,7 +343,8 @@ let testGetTraceData =
       |> List.map
            (fun (tlid, traceID) ->
              task {
-               let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
+               let (ps : Traces.TraceData.Params) =
+                 { tlid = tlid; trace_id = traceID }
                do!
                  postApiTestCases
                    "get_trace_data"

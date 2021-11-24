@@ -425,8 +425,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> LibService.Kubernetes.configureApp healthCheckPort
   |> fun app ->
        // Last chance exception handler
-       let exceptionHandler (ctx : HttpContext) : Task =
-         internalErrorResponse ctx
+       let exceptionHandler (ctx : HttpContext) : Task = internalErrorResponse ctx
        let exceptionHandlerOptions = ExceptionHandlerOptions()
        // FSTODO log/honeycomb
        exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler

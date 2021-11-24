@@ -336,8 +336,7 @@ type Logger() =
 
 type LoggerProvider() =
   interface ILoggerProvider with
-    member this.CreateLogger(_categoryName : string) : ILogger =
-      new Logger()
+    member this.CreateLogger(_categoryName : string) : ILogger = new Logger()
 
     member this.Dispose() : unit = ()
 
