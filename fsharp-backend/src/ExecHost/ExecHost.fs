@@ -16,53 +16,34 @@ open System.Threading.Tasks
 open Prelude
 open Tablecloth
 
-open Argu
+let runMigrations () =
+  print $"Running migrations"
+  LibBackend.Migrations.run ()
 
-type EmergencyLogin =
-    | [<MainCommand; ExactlyOnce>] User of user:string
 
-    interface IArgParserTemplate with
-        member this.Usage =
-            match this with
-            | User _ -> "The username to create a session for"
-
-and RunMigrations =
-    | [<Hidden>] Nothing
-
-    interface IArgParserTemplate with
-        member this.Usage =
-            match this with
-            | Nothing -> "<no arguments>"
-
-[<RequireSubcommand>]
-type Arguments =
-    | [<CliPrefix(CliPrefix.None)>] Emergency_Login of ParseResults<EmergencyLogin>
-    | [<CliPrefix(CliPrefix.None)>] Run_Migrations of ParseResults<RunMigrations>
-
-    interface IArgParserTemplate with
-        member this.Usage =
-            match this with
-            | Run_Migrations _ -> "Run migrations"
-            | Emergency_Login _ -> "Login a user in production"
-
-let parser = ArgumentParser.Create<Arguments>(programName = "ExecHost")
+let emergencyLogin (username : string) =
+  print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
+  // FSTODO: validate the user exists
+  let authData = (LibBackend.Session.insert username).Result
+  print $"See docs/emergency-login.md for instructions. Your values are
+Name = __session
+Value = {authData.sessionKey}
+Domain = {LibBackend.Config.cookieDomain}
+(note: initial dot is _important_)"
+  ()
 
 [<EntryPoint>]
 let main args : int =
   try
     LibBackend.Init.init "execHost"
-    let cliArgs = parser.ParseCommandLine args
-    let runMigrations = cliArgs.TryGetResult Run_Migrations
-    let login = cliArgs.TryGetResult Emergency_Login
-
-
-    debuG "login" login
-    debuG "runMigrations" runMigrations
-    // FSTODO send message to slack
-    // (runBenchmark filename iterations warmUpCount).GetAwaiter().GetResult()
+    // FSTODO reportToRollbar commands
+    match args with
+    | [|"emergency-login"; username |] -> emergencyLogin username
+    | [|"run-migrations"|] -> runMigrations ()
+    | _ ->
+      print ("Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n" + "USAGE: ExecHost run-migrations")
     0
   with
   | e ->
-    // FSTODO rollbar
     print e.Message
     1
