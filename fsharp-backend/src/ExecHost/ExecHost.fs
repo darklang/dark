@@ -25,7 +25,8 @@ let emergencyLogin (username : string) =
   print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
   // FSTODO: validate the user exists
   let authData = (LibBackend.Session.insert username).Result
-  print $"See docs/emergency-login.md for instructions. Your values are
+  print
+    $"See docs/emergency-login.md for instructions. Your values are
 Name = __session
 Value = {authData.sessionKey}
 Domain = {LibBackend.Config.cookieDomain}
@@ -38,10 +39,13 @@ let main args : int =
     LibBackend.Init.init "execHost"
     // FSTODO reportToRollbar commands
     match args with
-    | [|"emergency-login"; username |] -> emergencyLogin username
-    | [|"run-migrations"|] -> runMigrations ()
+    | [| "emergency-login"; username |] -> emergencyLogin username
+    | [| "run-migrations" |] -> runMigrations ()
     | _ ->
-      print ("Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n" + "USAGE: ExecHost run-migrations")
+      print (
+        "Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n"
+        + "USAGE: ExecHost run-migrations"
+      )
     0
   with
   | e ->
