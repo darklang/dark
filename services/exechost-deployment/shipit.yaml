@@ -1,4 +1,6 @@
 k8s:
+  manually-deployed:
+    configs: []
   release:
     config-template: exechost-deployment.template.yaml
     versioned-configmaps:
