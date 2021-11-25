@@ -1,0 +1,12 @@
+k8s:
+  release:
+    config-template: exechost-deployment.template.yaml
+    versioned-configmaps:
+      app-config:
+        env-file: ../../config/gke-builtwithdark
+    containers:
+      - gcp-exechost
+    builtins:
+      - CLOUDSQL_INSTANCE_NAME
+    expected-args:
+      - CHANGE_CAUSE
