@@ -7,7 +7,6 @@ set -euo pipefail
 
 DIR=$(mktemp -d --suffix _gcp-exechost-builddir)
 
-cp -R backend/templates "$DIR/"
 cp -R scripts "$DIR/"
 
 mkdir -p "$DIR/app"
