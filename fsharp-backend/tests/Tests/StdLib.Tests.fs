@@ -92,6 +92,19 @@ let oldFunctionsAreDeprecated =
       !counts
   }
 
+let intInfixMatch =
+  test "int infix functions match" {
+    let actual = LibExecution.Errors.intInfixFns
+    let expected =
+      LibExecutionStdLib.StdLib.infixFnMapping
+      |> Map.filterWithIndex (fun name _ -> name.module_ = "Int")
+      |> Map.values
+      |> List.map (fun name -> name.function_)
+      |> Set
+
+    Expect.equal actual expected "We didn't miss any infix functions"
+  }
+
 
 // FSTODO
 // let t_dark_internal_fns_are_internal () =
@@ -105,4 +118,4 @@ let oldFunctionsAreDeprecated =
 //     [check_access "test"; check_access "test_admin"]
 //     [None; Some DNull]
 
-let tests = testList "stdlib" [ equalsOCaml; oldFunctionsAreDeprecated ]
+let tests = testList "stdlib" [ equalsOCaml; oldFunctionsAreDeprecated; intInfixMatch ]
