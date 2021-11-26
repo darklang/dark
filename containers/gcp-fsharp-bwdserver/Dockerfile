@@ -1,4 +1,4 @@
-# Dockerfile for the main Dark app
+# Dockerfile for the grand-user facing Dark app at builtwithdark.com
 
 FROM dark-fsharp-service:latest
 

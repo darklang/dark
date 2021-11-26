@@ -15,5 +15,6 @@ mkdir -p "$DIR/app"
 cp containers/gcp-exechost/Dockerfile "$DIR/Dockerfile"
 cp containers/gcp-exechost/sleep.sh "$DIR/"
 cp -R fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/* "$DIR/app/"
+chmod +x "$DIR/app/sleep.sh"
 
 echo "${DIR}"
