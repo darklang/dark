@@ -124,10 +124,7 @@ let validateAccount (account : Account) : Result<unit, string> =
 
 // Passwords set here are only valid locally, production uses auth0 to check
 // access
-let upsertAccount
-  (admin : bool)
-  (account : Account)
-  : Task<Result<unit, string>> =
+let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>> =
   task {
     match validateAccount account with
     | Ok () ->
