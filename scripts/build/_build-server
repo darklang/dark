@@ -75,6 +75,14 @@ def run_server():
   return exit
 
 
+def run_fsharp_server():
+  exit = compile(["scripts/run-fsharp-server"])
+  print("--------------------------")
+  print("-- Started server ")
+  print("--------------------------")
+  return exit
+
+
 def background_task(fn, name):
   t = threading.Thread(target=fn)
   t.name = name
@@ -140,8 +148,8 @@ def main():
         sys.exit(1)
   else:
     if should_serve:
-      #FSTODO
       run_server()
+      run_fsharp_server()
 
   if should_watch:
     import watchgod
