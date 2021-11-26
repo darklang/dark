@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exechost-deployment
+  annotations:
+    kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: exechost
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: exechost
+    spec:
+      containers:
+        - name: exechost-ctr
+          image: "gcr.io/balmy-ground-195100/gcp-exechost:{IMAGEID:gcp-exechost}"
+          # Resource limits + requests are intentionally the same, to ensure
+          # this pod is a 'Guaranteed' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "1000Mi"
+              cpu: "125m"
+            limits:
+              memory: "1000Mi"
+              cpu: "125m"
+          envFrom:
+            - configMapRef:
+                name: "{VERSIONED-CONFIGMAP:app-config}"
+          env:
+            - name: DARK_CONFIG_RUNNING_IN_GKE
+              value: "true"
+            # rollbar
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar
+                  key: post_token
+            - name: DARK_CONFIG_PUSHER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: secret
+            # database (sql server in the same pod)
+            - name: DARK_CONFIG_DB_HOST
+              value: 127.0.0.1
+            - name: DARK_CONFIG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: username
+            - name: DARK_CONFIG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: password
+            # honeycomb
+            - name: DARK_CONFIG_HONEYCOMB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: honeycomb
+                  key: api-key
+
+
+        #########################
+        # Postgres proxy config
+        # To connect to postgres from kubernetes, we need to add a proxy. See
+        # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
+        # Note in particular that we needed to create a service account and a
+        # set of GKE secrets, listed below, to manage this.
+        #########################
+        - name: cloudsql-proxy
+          image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "125m"
+            limits:
+              memory: "500Mi"
+              cpu: "125m"
+          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
+          volumeMounts:
+            - name: cloudsql-instance-credentials
+              mountPath: /secrets/cloudsql
+              readOnly: true
+
+      volumes:
+        - name: cloudsql-instance-credentials
+          secret:
+            secretName: cloudsql-instance-credentials

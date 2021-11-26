@@ -304,6 +304,7 @@ jobs:
             - fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
             - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
             - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
+            - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
             - backend/static/BlazorWorker.js
             - backend/static/blazor
       - show-large-files-and-directories

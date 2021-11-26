@@ -98,8 +98,6 @@ let clear (key : string) : Task<unit> =
 // of_header backend cookie_key (req |> Cohttp_lwt_unix.Request.headers)
 //
 //
-//   let new_for_username username = generate backend (session_data username)
-
 // let getUserName (x : int) : string = "todo"
 
 //   let username_for session =
