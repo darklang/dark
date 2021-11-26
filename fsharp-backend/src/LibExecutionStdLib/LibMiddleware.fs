@@ -96,7 +96,7 @@ let varB = TVariable "b"
 //       fn =
 //         (function
 //         | _, [ DStr url ] ->
-//           // FSTODO: could do with some fuzzing here
+//           // TODO: could do with some fuzzing here
 //           let queryString = System.Uri(url).Query
 //           let nvc = System.Web.HttpUtility.ParseQueryString queryString
 
@@ -163,7 +163,7 @@ let varB = TVariable "b"
 //       fn =
 //         let urlSafe =
 //           (let allowed =
-//             // FSTODO: this adds extra safe characters ("=,&") to avoid having
+//             // TODO: this adds extra safe characters ("=,&") to avoid having
 //             // to parse the query string (using the .NET utilities to do so
 //             // might throw away info we need, as well.) This is wrong and
 //             // probably has edge cases. Needs fuzzing at least.
@@ -268,7 +268,7 @@ let varB = TVariable "b"
 //         "Parse the headers string into a dict. If multiple headers of the same key exist, the latest one wins."
 //       fn =
 //         (function
-//         // FSTODO
+//         // TODO
 //         | _, [] -> Ply(DObj(Map []))
 //         | _ -> incorrectArgs ())
 //       sqlSpec = NotYetImplementedTODO
@@ -284,7 +284,7 @@ let varB = TVariable "b"
 //         "Parse the headers string into a dict. If multiple headers of the same key exist, the latest one wins."
 //       fn =
 //         (function
-//         // FSTODO
+//         // TODO
 //         | _, [] -> Ply(DObj(Map []))
 //         | _ -> incorrectArgs ())
 //       sqlSpec = NotYetImplementedTODO
@@ -392,16 +392,16 @@ let varB = TVariable "b"
 //         (function
 //         | _, [ DStr _ as url; DObj headers; DBytes bodyBytes as body ] ->
 //           let body = if bodyBytes.Length = 0 then DNull else body
-//           let cookies = DObj Map.empty // FSTODO
-//           let formBody = DNull // FSTODO
+//           let cookies = DObj Map.empty // TODO
+//           let formBody = DNull // TODO
 //           let fullBody = DStr ""
-//           let jsonBody = DNull // FSTODO
+//           let jsonBody = DNull // TODO
 
 //           let headers =
 //             headers
 //             |> Map.toList
 //             |> List.map (fun (k, v) -> (String.toLowercase k, v))
-//             |> (@) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
+//             |> (@) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // TODO wtf
 //             |> Map.ofList
 //             |> DObj
 
