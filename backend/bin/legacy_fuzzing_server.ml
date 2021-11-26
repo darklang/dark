@@ -107,7 +107,6 @@ let server () =
         let headers = Header.init () in
         S.respond_string ~status:`Not_found ~body:"" ~headers ()
   in
-  (* FSTODO: make port configurable *)
   S.create
     ~stop
     ~mode:(`TCP (`Port Libservice.Config.legacy_fuzzing_server_port))

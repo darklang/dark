@@ -424,7 +424,6 @@ type execute_type =
 
 let execute (json : string) : string =
   try
-    (* FSTODO: no longer a good reason not to test the rest of them *)
     let account_id, canvas_id, program, args, dbs, user_fns =
       json
       |> Yojson.Safe.from_string

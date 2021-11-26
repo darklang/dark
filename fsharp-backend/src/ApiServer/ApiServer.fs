@@ -59,8 +59,8 @@ let endpoints : Endpoint list =
            api "initial_load" (h InitialLoad.initialLoad R)
            api "insert_secret" (h Secrets.Insert.insert RW)
            api "packages" (h Packages.List.packages R)
-           // FSTODO: packages/upload_function
-           // FSTODO: save_test handler
+           // FSLATER: packages/upload_function
+           // FSLATER: save_test handler
            api "trigger_handler" (h Execution.Handler.trigger RW)
            api "worker_schedule" (h Workers.Scheduler.updateSchedule RW) ] ]
 
