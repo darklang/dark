@@ -118,4 +118,5 @@ let intInfixMatch =
 //     [check_access "test"; check_access "test_admin"]
 //     [None; Some DNull]
 
-let tests = testList "stdlib" [ equalsOCaml; oldFunctionsAreDeprecated; intInfixMatch ]
+let tests =
+  testList "stdlib" [ equalsOCaml; oldFunctionsAreDeprecated; intInfixMatch ]
