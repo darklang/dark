@@ -37,7 +37,8 @@ Domain = {LibBackend.Config.cookieDomain}
 let main args : int =
   try
     LibBackend.Init.init "execHost"
-  with e ->
+  with
+  | e ->
     // FSTODO rollbar
     raise e
 
