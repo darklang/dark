@@ -62,7 +62,7 @@ let prodHashReplacementsString : Lazy<string> =
   lazy (prodHashReplacements.Force() |> Json.Vanilla.serialize)
 
 
-// FSTODO: clickjacking/ CSP/ frame-ancestors
+// TODO: clickjacking/ CSP/ frame-ancestors
 let uiHtml
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
