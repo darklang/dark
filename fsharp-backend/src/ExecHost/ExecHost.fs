@@ -37,6 +37,11 @@ Domain = {LibBackend.Config.cookieDomain}
 let main args : int =
   try
     LibBackend.Init.init "execHost"
+  with e ->
+    // FSTODO rollbar
+    raise e
+
+  try
     // FSTODO reportToRollbar commands
     match args with
     | [| "emergency-login"; username |] -> emergencyLogin username
