@@ -539,14 +539,14 @@ module Dval =
   let parseInt (i : string) = DInt(parseInt64 i)
 
   let floatParts (sign : Sign, whole : bigint, fraction : bigint) : Dval =
-    // FSTODO - add sourceID to errors
+    // TODO - add sourceID to errors
     try
       DFloat(makeFloat (sign = Positive) whole fraction)
     with
     | _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
   let floatStringParts (sign : Sign, whole : string, fraction : string) : Dval =
-    // FSTODO - add sourceID to errors
+    // TODO - add sourceID to errors
     try
       DFloat(parseFloat whole fraction)
     with
