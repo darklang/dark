@@ -1,4 +1,4 @@
-# Dockerfile for the main Dark app
+# Dockerfile for the the execHost container
 
 FROM dark-fsharp-service:latest
 

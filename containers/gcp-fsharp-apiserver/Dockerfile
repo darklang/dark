@@ -1,4 +1,4 @@
-# Dockerfile for the main Dark app
+# Dockerfile for the editor-facing backend
 
 FROM dark-fsharp-service:latest
 
