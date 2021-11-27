@@ -125,7 +125,7 @@ test.describe.parallel("Integration Tests", async () => {
       saveMessage(testInfo, msg);
     });
     const testname = testInfo.title;
-    var url = `/a/test-${testname}?integration-test=true`;
+    var url = `/a/test-${testname}?integration-test=true&use-blazor=true`;
 
     var username = "test";
     if (testname.match(/_as_admin/)) {
