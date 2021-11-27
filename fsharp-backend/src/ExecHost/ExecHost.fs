@@ -38,30 +38,34 @@ let emergencyLogin (username : string) : Task<unit> =
 
 [<EntryPoint>]
 let main args : int =
-  try
-    LibBackend.Init.init "execHost"
-  with
-  | e ->
-    // FSTODO rollbar
-    raise e
+  let mainTask = task {
+    try
+      LibBackend.Init.init "execHost"
+    with
+    | e ->
+      // FSTODO rollbar
+      raise e
 
-  try
-    // FSTODO reportToRollbar commands
-    match args with
-    | [| "emergency-login"; username |] ->
-      (emergencyLogin username).Result
-      0
-    | [| "run-migrations" |] ->
-      runMigrations ()
-      0
-    | _ ->
-      print (
-        "Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n"
-        + "USAGE: ExecHost run-migrations"
-      )
-      1
-  with
-  | e ->
-    print e.Message
-    print e.StackTrace
-    1
+    try
+      // FSTODO reportToRollbar commands
+      match args with
+      | [| "emergency-login"; username |] ->
+        do! emergencyLogin username
+        return 0
+      | [| "run-migrations" |] ->
+        runMigrations ()
+        return 0
+      | _ ->
+        print (
+          "Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n"
+          + "USAGE: ExecHost run-migrations"
+        )
+        return 1
+    with
+    | e ->
+      print e.Message
+      print e.StackTrace
+      return 1
+  }
+  mainTask.RunSynchronously()
+  mainTask.Result
