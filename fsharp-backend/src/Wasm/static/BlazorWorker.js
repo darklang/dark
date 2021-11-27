@@ -872,14 +872,15 @@ D-REMOVED */
     hashReplacements = JSON.parse(hashReplacements);
     function toDarklangSetupUri(file) {
       file = file.replace(/_framework\//, "");
-      let hashed = hashReplacements["/" + file];
+      file = "/blazor/" + file;
+      let hashed = hashReplacements[file];
       if (hashed) {
         // Remove the starting slash
         hashed = hashed.substring(1);
       } else {
         hashed = file;
       }
-      return `${appRoot}/blazor/${hashed}`;
+      return `${appRoot}/${hashed}`;
     }
 
     // =======================
