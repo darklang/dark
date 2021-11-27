@@ -63,6 +63,12 @@ let main args : int =
           )
           return 1
       with
+      | :? System.TypeInitializationException as e ->
+        print e.Message
+        print e.StackTrace
+        print e.InnerException.Message
+        print e.InnerException.StackTrace
+        return 1
       | e ->
         print e.Message
         print e.StackTrace
