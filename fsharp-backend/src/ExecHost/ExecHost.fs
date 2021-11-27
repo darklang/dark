@@ -21,17 +21,20 @@ let runMigrations () =
   LibBackend.Migrations.run ()
 
 
-let emergencyLogin (username : string) =
-  print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
-  // FSTODO: validate the user exists
-  let authData = (LibBackend.Session.insert username).Result
-  print
-    $"See docs/emergency-login.md for instructions. Your values are
-Name = __session
-Value = {authData.sessionKey}
-Domain = {LibBackend.Config.cookieDomain}
-(note: initial dot is _important_)"
-  ()
+let emergencyLogin (username : string) : Task<unit> =
+  task {
+    print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
+    // validate the user exists
+    let! _username = LibBackend.Account.getUser (UserName.create username)
+    let! authData = LibBackend.Session.insert username
+    print
+      $"See docs/emergency-login.md for instructions. Your values are
+  Name = __session
+  Value = {authData.sessionKey}
+  Domain = {LibBackend.Config.cookieDomain}
+  (note: initial dot is _important_)"
+    return ()
+  }
 
 [<EntryPoint>]
 let main args : int =
@@ -45,7 +48,7 @@ let main args : int =
   try
     // FSTODO reportToRollbar commands
     match args with
-    | [| "emergency-login"; username |] -> emergencyLogin username
+    | [| "emergency-login"; username |] -> (emergencyLogin username).Result
     | [| "run-migrations" |] -> runMigrations ()
     | _ ->
       print (

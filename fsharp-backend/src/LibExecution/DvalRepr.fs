@@ -355,7 +355,7 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
            w.WritePropertyName "Error"
            writeDval dv))
   | DBytes bytes ->
-    //FSTODO: rather than using a mutable byte array, should this be a readonly span?
+    // CLEANUP: rather than using a mutable byte array, should this be a readonly span?
     w.WriteValue(System.Convert.ToBase64String bytes)
 
 

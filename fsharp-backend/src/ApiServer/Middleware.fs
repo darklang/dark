@@ -277,7 +277,6 @@ let withPermissionMiddleware
       if Auth.permitted permissionNeeded permission then
         let (_ : HttpContext) =
           ctx |> saveCanvasInfo canvasInfo |> savePermission permission
-        // FSTODO load integration test
         t "with-permission-middleware"
 
         return! next ctx

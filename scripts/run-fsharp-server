@@ -32,8 +32,6 @@ TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 
 # Stop the server processes
 echo "Stopping servers"
-#sudo pkill -f nginx || true # FSTODO
-#FSTODO
 sudo pkill -f "ApiServer" || true
 sudo pkill -f "BwdServer" || true
 sudo pkill -f "ApiServer2" || true

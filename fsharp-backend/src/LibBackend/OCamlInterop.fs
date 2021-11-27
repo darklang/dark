@@ -29,8 +29,11 @@ let digest () = "0e91e490041f06fae012f850231eb6ab"
 // ----------------
 // Getting values from OCaml
 // ----------------
-// FSTODO: this is not the right way I think
-let client = new System.Net.Http.HttpClient()
+
+let client =
+  // In .NET 6, this is fine without having to do anything about socket exhaustion or
+  // DNS.
+  new System.Net.Http.HttpClient()
 
 let legacyReq
   (endpoint : string)

@@ -641,7 +641,7 @@ let localOnlyTests =
         testInitialLoadReturnsTheSame
         testInsertDeleteSecrets
         testPostApi "packages" "" (deserialize<Packages.List.T>) ident
-        // FSTODO upload_package
+        // TODO upload_package
         testTriggerHandler
         // FSTODO worker_schedule
         ]

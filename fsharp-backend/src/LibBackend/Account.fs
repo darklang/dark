@@ -36,10 +36,6 @@ type UserInfoAndCreatedAt =
     id : UserID
     createdAt : System.DateTime }
 
-type Validate =
-  | Validate
-  | DontValidate
-
 // **********************
 // Special usernames
 // **********************
@@ -128,16 +124,9 @@ let validateAccount (account : Account) : Result<unit, string> =
 
 // Passwords set here are only valid locally, production uses auth0 to check
 // access
-let upsertAccount
-  (admin : bool)
-  (validate : Validate)
-  (account : Account)
-  : Task<Result<unit, string>> =
+let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>> =
   task {
-    // FSTODO - this used to be default true
-    let result = if validate = Validate then validateAccount account else Ok() in
-
-    match result with
+    match validateAccount account with
     | Ok () ->
       return!
         Sql.query
@@ -157,7 +146,7 @@ let upsertAccount
                             ("password", account.password |> string |> Sql.string) ]
         |> Sql.executeStatementAsync
         |> Task.map Ok
-    | Error _ -> return result
+    | Error _ as result -> return result
   }
 
 let upsertAdmin = upsertAccount true
@@ -350,7 +339,6 @@ let initTestAccounts () : Task<unit> =
   task {
     let! test_unhashed =
       upsertNonAdmin
-        Validate
         { username = UserName.create "test_unhashed"
           password = Password.fromHash "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+unhashed@darklang.com"
@@ -360,7 +348,6 @@ let initTestAccounts () : Task<unit> =
 
     let! test =
       upsertNonAdmin
-        Validate
         { username = UserName.create "test"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test@darklang.com"
@@ -370,7 +357,6 @@ let initTestAccounts () : Task<unit> =
 
     let! test_admin =
       upsertAdmin
-        Validate
         { username = UserName.create "test_admin"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+admin@darklang.com"
@@ -390,7 +376,6 @@ let initBannedAccounts () : Task<unit> =
              task {
                let! result =
                  upsertNonAdmin
-                   Validate
                    { username = username
                      password = Password.invalid
                      email = $"ops+{username}@darklang.com"
@@ -410,7 +395,6 @@ let initAdmins () : Task<unit> =
 
     let! darkUser =
       upsertAdmin
-        Validate
         { username = UserName.create "dark"
           password = password
           email = "ops+darkuser@darklang.com"
@@ -420,7 +404,6 @@ let initAdmins () : Task<unit> =
 
     let! paulUser =
       upsertAdmin
-        Validate
         { username = UserName.create "paul"
           password = password
           email = "paul@darklang.com"
@@ -436,7 +419,6 @@ let initUsefulCanvases () : Task<unit> =
   task {
     let! darkUser =
       upsertNonAdmin
-        Validate
         { username = UserName.create "sample"
           password = Password.invalid
           email = "opsample@darklang.com"
