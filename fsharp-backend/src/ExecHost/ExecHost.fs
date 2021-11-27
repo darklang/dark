@@ -68,5 +68,4 @@ let main args : int =
         print e.StackTrace
         return 1
     }
-  mainTask.RunSynchronously()
   mainTask.Result
