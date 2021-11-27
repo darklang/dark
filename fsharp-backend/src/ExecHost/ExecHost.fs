@@ -48,15 +48,20 @@ let main args : int =
   try
     // FSTODO reportToRollbar commands
     match args with
-    | [| "emergency-login"; username |] -> (emergencyLogin username).Result
-    | [| "run-migrations" |] -> runMigrations ()
+    | [| "emergency-login"; username |] ->
+      (emergencyLogin username).Result
+      0
+    | [| "run-migrations" |] ->
+      runMigrations ()
+      0
     | _ ->
       print (
         "Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n"
         + "USAGE: ExecHost run-migrations"
       )
-    0
+      1
   with
   | e ->
     print e.Message
+    print e.StackTrace
     1
