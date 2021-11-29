@@ -99,6 +99,8 @@ module AspNet =
         with
         | e ->
           send (Telemetry.executionID ()) [] e
+          print e.Message
+          print e.StackTrace
           raise e
       }
 
