@@ -87,7 +87,7 @@ let filter_with_index f m = filterWithIndex f m
 
 let partition f m = Map.partition f m
 
-let find f m = Map.tryFindKey f m |> Option.map (fun k -> (k, m.[k]))
+let find f m = Map.tryFindKey f m |> Option.map (fun k -> (k, m[k]))
 
 let any f m = Map.exists (fun _ v -> f v) m
 

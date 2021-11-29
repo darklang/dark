@@ -169,7 +169,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   // Note to self: LongIdent = Ident list
   | SynExpr.LongIdent (_, LongIdentWithDots ([ modName; fnName ], _), _, _) when
-    System.Char.IsUpper(modName.idText.[0])
+    System.Char.IsUpper(modName.idText[0])
     ->
     let module_ = modName.idText
 

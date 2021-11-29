@@ -80,7 +80,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
 // Headers
 // ---------------
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-  ctx.Response.Headers.[name] <- StringValues([| value |])
+  ctx.Response.Headers[ name ] <- StringValues([| value |])
 
 let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   match hs.TryGetValue name with

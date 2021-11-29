@@ -64,15 +64,15 @@ module Sort =
 
           cont <- false // break
         else
-          let v0 = localCopyofHalfOfArray.[leftHalfIndex]
-          let v1 = arrayToSort.[rightHalfIndex]
+          let v0 = localCopyofHalfOfArray[leftHalfIndex]
+          let v1 = arrayToSort[rightHalfIndex]
           let! comparisonResult = comparer v0 v1
 
           if comparisonResult <= 0 then
-            arrayToSort.[i + index] <- v0
+            arrayToSort[i + index] <- v0
             leftHalfIndex <- leftHalfIndex + 1
           else
-            arrayToSort.[i + index] <- v1
+            arrayToSort[i + index] <- v1
             rightHalfIndex <- rightHalfIndex + 1
     }
 
@@ -87,13 +87,13 @@ module Sort =
       if length <= 1 then
         return ()
       elif length = 2 then
-        let v0 = arrayToSort.[index]
-        let v1 = arrayToSort.[index + 1]
+        let v0 = arrayToSort[index]
+        let v1 = arrayToSort[index + 1]
         let! result = comparer v0 v1
 
         if result > 0 then
-          arrayToSort.[index] <- v1
-          arrayToSort.[index + 1] <- v0
+          arrayToSort[index] <- v1
+          arrayToSort[index + 1] <- v0
 
       else
         let halfLen = length / 2
@@ -1279,7 +1279,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList [] ] -> Ply(DOption None)
         | _, [ DList l ] ->
-          Ply(Dval.optionJust l.[System.Random.Shared.Next l.Length])
+          Ply(Dval.optionJust l[System.Random.Shared.Next l.Length])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

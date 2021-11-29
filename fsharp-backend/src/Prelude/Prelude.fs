@@ -253,9 +253,9 @@ let readFloat (f : float) : (bigint * bigint) =
   let asStr = f.ToString("G53").Split "."
 
   if asStr.Length = 1 then
-    parseBigint asStr.[0], 0I
+    parseBigint asStr[0], 0I
   else
-    parseBigint asStr.[0], parseBigint asStr.[1]
+    parseBigint asStr[0], parseBigint asStr[1]
 
 
 let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float =
@@ -525,7 +525,7 @@ module Dictionary =
   let get = FSharpPlus.Dictionary.tryGetValue
 
   let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : T<'k, 'v> =
-    d.[k] <- v
+    d[k] <- v
     d
 
   let empty () : T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>()
@@ -544,7 +544,7 @@ module Dictionary =
 
   let fromList (l : List<'k * 'v>) : T<'k, 'v> =
     let result = empty ()
-    List.iter (fun (k, v) -> result.[k] <- v) l
+    List.iter (fun (k, v) -> result[k] <- v) l
     result
 
 
@@ -612,7 +612,7 @@ module Json =
             match reader.TokenType with
             | JsonToken.EndArray -> acc
             | _ ->
-              let value = serializer.Deserialize(reader, fields.[index].PropertyType)
+              let value = serializer.Deserialize(reader, fields[index].PropertyType)
 
               reader.Read() |> ignore<bool>
               read (index + 1) (acc @ [ value ])
@@ -638,7 +638,7 @@ module Json =
         serializer.Serialize(writer, list)
 
       override _.ReadJson(reader, t, _, serializer) =
-        let itemType = t.GetGenericArguments().[0]
+        let itemType = t.GetGenericArguments()[0]
 
         let collectionType =
           typedefof<System.Collections.Generic.IEnumerable<_>>.MakeGenericType
@@ -654,8 +654,8 @@ module Json =
 
         let rec make =
           function
-          | [] -> FSharpValue.MakeUnion(cases.[0], [||])
-          | head :: tail -> FSharpValue.MakeUnion(cases.[1], [| head; (make tail) |])
+          | [] -> FSharpValue.MakeUnion(cases[0], [||])
+          | head :: tail -> FSharpValue.MakeUnion(cases[1], [| head; (make tail) |])
 
         make (collection |> Seq.toList)
 
@@ -679,7 +679,7 @@ module Json =
             match reader.TokenType with
             | JsonToken.EndArray -> acc
             | _ ->
-              let value = deserialize (itemTypes.[index])
+              let value = deserialize (itemTypes[index])
               advance ()
               read (index + 1) (acc @ [ value ])
 
@@ -733,7 +733,7 @@ module Json =
             null
           else
             let _, fields = FSharpValue.GetUnionFields(value, value.GetType())
-            fields.[0]
+            fields[0]
 
         serializer.Serialize(writer, value)
 
@@ -747,9 +747,9 @@ module Json =
         let cases = FSharpType.GetUnionCases(t)
 
         if reader.TokenType = JsonToken.Null then
-          FSharpValue.MakeUnion(cases.[0], [||])
+          FSharpValue.MakeUnion(cases[0], [||])
         else
-          let innerType = t.GetGenericArguments().[0]
+          let innerType = t.GetGenericArguments()[0]
 
           let innerType =
             if innerType.IsValueType then
@@ -760,9 +760,9 @@ module Json =
           let value = serializer.Deserialize(reader, innerType)
 
           if value = null then
-            FSharpValue.MakeUnion(cases.[0], [||])
+            FSharpValue.MakeUnion(cases[0], [||])
           else
-            FSharpValue.MakeUnion(cases.[1], [| value |])
+            FSharpValue.MakeUnion(cases[1], [| value |])
 
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()

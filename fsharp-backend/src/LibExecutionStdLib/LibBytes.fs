@@ -38,11 +38,11 @@ let fns : List<BuiltInFn> =
           let buf = new StringBuilder(len * 2)
 
           for i = 0 to len - 1 do
-            let byte = bytes.[i] |> int
+            let byte = bytes[i] |> int
 
             buf
-              .Append(hexUppercaseLookup.[((byte >>> 4) &&& 0xF)])
-              .Append(hexUppercaseLookup.[(byte &&& 0xF)])
+              .Append(hexUppercaseLookup[((byte >>> 4) &&& 0xF)])
+              .Append(hexUppercaseLookup[(byte &&& 0xF)])
             |> ignore<StringBuilder>
 
           buf |> string |> DStr |> Ply

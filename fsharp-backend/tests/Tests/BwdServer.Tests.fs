@@ -63,7 +63,7 @@ let findIndex (pattern : 'a list) (list : 'a list) : int option =
       let mutable matches = true
       let mutable j = 0
       while matches && j < pattern.Length do
-        if list.[i + j] <> pattern.[j] then
+        if list[i + j] <> pattern[j] then
           matches <- false
           j <- pattern.Length // stop early
         else
@@ -147,7 +147,7 @@ let replaceByteStrings
       let mutable matches = true
       let mutable j = 0
       while j < pattern.Length do
-        if bytes.[i + j] <> patternBytes.[j] then
+        if bytes[i + j] <> patternBytes[j] then
           matches <- false
           j <- pattern.Length // stop early
         else
@@ -158,11 +158,11 @@ let replaceByteStrings
         i <- i + pattern.Length
       else
         // not matched, char is in result, look at next char
-        result <- bytes.[i] :: result
+        result <- bytes[i] :: result
         i <- i + 1
     // Add the final ones we skipped above
     for i = i to bytes.Length - 1 do
-      result <- bytes.[i] :: result
+      result <- bytes[i] :: result
     // bytes are added in reverse, so one more reverse needed
     result |> List.reverse |> List.toArray
 

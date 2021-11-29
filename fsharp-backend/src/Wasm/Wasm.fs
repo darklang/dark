@@ -15,9 +15,11 @@ module ORT = LibExecution.OCamlTypes.RuntimeT
 module DvalRepr = LibExecution.DvalRepr
 
 module ClientInterop =
+  // -----------------------
+  // DB types
+  // -----------------------
   // CLEANUP There is a subtly different definition of DBs, which is that the
   // type should be a DType, but the client gives us a string instead.
-
   type client_col = string OT.or_blank * string OT.or_blank
 
   type client_db_migration =
@@ -35,6 +37,7 @@ module ClientInterop =
       version : int64
       old_migrations : client_db_migration list
       active_migration : client_db_migration option }
+
 
   let convert_col ((name, tipe) : client_col) : ORT.DbT.col =
     match tipe with
@@ -62,10 +65,35 @@ module ClientInterop =
       old_migrations = List.map convert_migration db.old_migrations
       active_migration = Option.map convert_migration db.active_migration }
 
+  // -----------------------
+  // Analysis types
+  // -----------------------
+  // Cleanup: Dvals are different, and there are dvals in analysis results
+  type InputVars = List<string * ORT.dval>
+
+  type FunctionResult =
+    AT.FnName * id * AT.FunctionArgHash * AT.HashVersion * ORT.dval
+
+  type TraceData =
+    { input : InputVars
+      timestamp : System.DateTime
+      function_results : List<FunctionResult> }
+
+  let convert_trace_data (td : TraceData) : AT.TraceData =
+    { input = List.map (fun (s, dv) -> (s, OT.Convert.ocamlDval2rt dv)) td.input
+      timestamp = td.timestamp
+      function_results =
+        List.map
+          (fun (a, b, c, d, dv) -> (a, b, c, d, OT.Convert.ocamlDval2rt dv))
+          td.function_results }
+
+  // -----------------------
+  // High-level defs
+  // -----------------------
   type handler_analysis_param =
     { handler : ORT.fluidExpr ORT.HandlerT.handler
       trace_id : AT.TraceID
-      trace_data : AT.TraceData
+      trace_data : TraceData
       (* dont use a trace as this isn't optional *)
       dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
@@ -75,7 +103,7 @@ module ClientInterop =
   type function_analysis_param =
     { func : ORT.fluidExpr ORT.user_fn
       trace_id : AT.TraceID
-      trace_data : AT.TraceData
+      trace_data : TraceData
       (* dont use a trace as this isn't optional *)
       dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
@@ -198,7 +226,7 @@ module Eval =
       runAnalysis
         ah.handler.tlid
         ah.trace_id
-        ah.trace_data
+        (ClientInterop.convert_trace_data ah.trace_data)
         ah.user_fns
         ah.user_tipes
         (List.map ClientInterop.convert_db ah.dbs)
@@ -207,7 +235,7 @@ module Eval =
       runAnalysis
         af.func.tlid
         af.trace_id
-        af.trace_data
+        (ClientInterop.convert_trace_data af.trace_data)
         af.user_fns
         af.user_tipes
         (List.map ClientInterop.convert_db af.dbs)
@@ -268,6 +296,8 @@ type EvalWorker =
       with
       | e ->
         System.Console.WriteLine("Error running analysis in Blazor")
+        System.Console.WriteLine($"with message: {message}")
+        System.Console.WriteLine($"and error:\n")
         System.Console.WriteLine(e)
         return Error(string e)
     }

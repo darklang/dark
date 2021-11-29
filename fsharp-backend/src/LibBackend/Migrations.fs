@@ -71,7 +71,7 @@ let runSystemMigration (name : string) (sql : string) : unit =
       |> Sql.executeTransaction [ sql, []
                                   recordMigrationStmt, [ recordMigrationParams ] ]
 
-    assertEq "recorded migrations" 1 counts.[1]
+    assertEq "recorded migrations" 1 counts[1]
 
     ()
 

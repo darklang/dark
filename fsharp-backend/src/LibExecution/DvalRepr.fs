@@ -1052,7 +1052,7 @@ let parseQueryString (queryString : string) : List<string * List<string>> =
   |> Array.map (fun key ->
     let values = nvc.GetValues key
     let split =
-      values.[values.Length - 1] |> FSharpPlus.String.split [| "," |] |> Seq.toList
+      values[values.Length - 1] |> FSharpPlus.String.split [| "," |] |> Seq.toList
 
     if isNull key then
       // All the values with no key are by GetValues, so make each one a value

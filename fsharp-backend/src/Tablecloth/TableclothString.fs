@@ -32,7 +32,7 @@ let isEmpty s = length s = 0
 
 let is_empty s = isEmpty s
 
-let get (i : int) (s : string) = s.[i]
+let get (i : int) (s : string) = s[i]
 
 let getAt index s =
   if index >= 0 && index < length s then Some(get index s) else None
@@ -44,13 +44,13 @@ let get_at index s = getAt index s
 let uncons (s : string) : (char * string) option =
   (match s with
    | "" -> None
-   | s -> Some(s.[0], s.[1 .. (String.length s - 1)]))
+   | s -> Some(s[0], s[1 .. (String.length s - 1)]))
 
-let dropLeft (count : int) (s : string) = s.[count..]
+let dropLeft (count : int) (s : string) = s[count..]
 
 let drop_left count s = dropLeft count s
 
-let dropRight (count : int) (s : string) = s.[0 .. (s.Length - (count + 1))]
+let dropRight (count : int) (s : string) = s[0 .. (s.Length - (count + 1))]
 
 let drop_right count s = dropRight count s
 
@@ -74,16 +74,16 @@ let to_uppercase s = toUppercase s
 
 let capitalize (s : string) =
   if s.Length = 0 then ""
-  else if s.Length = 1 then System.Char.ToUpper(s.[0]).ToString()
-  else System.Char.ToUpper(s.[0]).ToString() + s.[1..]
+  else if s.Length = 1 then System.Char.ToUpper(s[0]).ToString()
+  else System.Char.ToUpper(s[0]).ToString() + s[1..]
 
 let uncapitalize (s : string) =
   if s.Length = 0 then ""
-  else if s.Length = 1 then System.Char.ToLower(s.[0]).ToString()
-  else System.Char.ToLower(s.[0]).ToString() + s.[1..]
+  else if s.Length = 1 then System.Char.ToLower(s[0]).ToString()
+  else System.Char.ToLower(s[0]).ToString() + s[1..]
 
 let isCapitalized (s : string) =
-  if s.Length = 0 then false else System.Char.IsUpper(s.[0])
+  if s.Length = 0 then false else System.Char.IsUpper(s[0])
 
 let is_capitalized s = isCapitalized s
 
@@ -102,7 +102,7 @@ let reverse (s : string) =
 
   graphemes |> Seq.toList |> List.reverse |> String.concat ""
 
-let slice from ``to`` (str : string) = str.[from..``to``]
+let slice from ``to`` (str : string) = str[from..``to``]
 
 let indexOf (needle : string) (haystack : string) : int option =
   let result = haystack.IndexOf(needle) in if result = -1 then None else Some result

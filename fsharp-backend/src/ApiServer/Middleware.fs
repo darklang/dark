@@ -172,10 +172,10 @@ type dataID =
 type ExecutionID = LibService.Telemetry.ExecutionID
 
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
-  ctx.Items.[string id] <- value
+  ctx.Items[ string id ] <- value
   ctx
 
-let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items.[$"{id}"] :?> 'a
+let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items[$"{id}"] :?> 'a
 
 let loadSessionData (ctx : HttpContext) : Session.T =
   load'<Session.T> SessionData ctx
@@ -288,7 +288,7 @@ let executionIDMiddleware : HttpHandler =
       let executionID = LibService.Telemetry.executionID ()
       let newCtx = saveExecutionID executionID ctx
       let headerValue = StringValues([| string executionID |])
-      ctx.Response.Headers.["x-darklang-execution-id"] <- headerValue
+      ctx.Response.Headers[ "x-darklang-execution-id" ] <- headerValue
       return! next newCtx
     })
 
