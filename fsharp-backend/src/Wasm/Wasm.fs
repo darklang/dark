@@ -268,6 +268,8 @@ type EvalWorker =
       with
       | e ->
         System.Console.WriteLine("Error running analysis in Blazor")
+        System.Console.WriteLine($"with message: {message}")
+        System.Console.WriteLine($"and error:\n")
         System.Console.WriteLine(e)
         return Error(string e)
     }
