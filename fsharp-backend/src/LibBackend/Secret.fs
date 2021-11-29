@@ -22,9 +22,8 @@ let getCanvasSecrets (canvasID : CanvasID) : Task<List<Secret>> =
      WHERE canvas_id = @canvasID
      ORDER BY created_at DESC"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync
-       (fun read ->
-         { name = read.string "secret_name"; value = read.string "secret_value" })
+  |> Sql.executeAsync (fun read ->
+    { name = read.string "secret_name"; value = read.string "secret_value" })
 
 let insert (canvasID : CanvasID) (name : string) (value : string) : Task<unit> =
   Sql.query

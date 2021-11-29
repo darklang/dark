@@ -268,16 +268,15 @@ let allDeploysInCanvas
     "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys
     WHERE canvas_id=@canvasID ORDER BY created_at DESC LIMIT 25"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync
-       (fun read ->
-         let deployHash = read.string "deploy_hash"
+  |> Sql.executeAsync (fun read ->
+    let deployHash = read.string "deploy_hash"
 
-         let status, lastUpdate =
-           match read.dateTimeOrNone "live_at" with
-           | Some datetime -> Deployed, datetime
-           | None -> Deploying, read.dateTime "created_at"
+    let status, lastUpdate =
+      match read.dateTimeOrNone "live_at" with
+      | Some datetime -> Deployed, datetime
+      | None -> Deploying, read.dateTime "created_at"
 
-         { deployHash = deployHash
-           url = url canvasName canvasID deployHash Short
-           status = status
-           lastUpdate = lastUpdate })
+    { deployHash = deployHash
+      url = url canvasName canvasID deployHash Short
+      status = status
+      lastUpdate = lastUpdate })

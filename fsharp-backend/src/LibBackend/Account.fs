@@ -173,8 +173,7 @@ let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
      FROM accounts
      WHERE accounts.id = @userid"
   |> Sql.parameters [ "userid", Sql.uuid userID ]
-  |> Sql.executeRowOptionAsync
-       (fun read -> read.string "username" |> UserName.create)
+  |> Sql.executeRowOptionAsync (fun read -> read.string "username" |> UserName.create)
 
 let getUser (username : UserName.T) : Task<Option<UserInfo>> =
   Sql.query
@@ -182,13 +181,12 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
      FROM accounts
      WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeRowOptionAsync
-       (fun read ->
-         { username = username
-           name = read.string "name"
-           email = read.string "email"
-           admin = read.bool "admin"
-           id = read.uuid "id" })
+  |> Sql.executeRowOptionAsync (fun read ->
+    { username = username
+      name = read.string "name"
+      email = read.string "email"
+      admin = read.bool "admin"
+      id = read.uuid "id" })
 
 let getUserCreatedAt (username : UserName.T) : Task<System.DateTime> =
   Sql.query
@@ -206,15 +204,14 @@ let getUserAndCreatedAtAndAnalyticsMetadata
      FROM accounts
      WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeRowOptionAsync
-       (fun read ->
-         { username = username
-           name = read.string "name"
-           email = read.string "email"
-           admin = read.bool "admin"
-           id = read.uuid "id"
-           createdAt = read.dateTime "created_at" },
-         read.string "segment_metadata")
+  |> Sql.executeRowOptionAsync (fun read ->
+    { username = username
+      name = read.string "name"
+      email = read.string "email"
+      admin = read.bool "admin"
+      id = read.uuid "id"
+      createdAt = read.dateTime "created_at" },
+    read.string "segment_metadata")
 
 let getUserByEmail (email : string) : Task<Option<UserInfo>> =
   Sql.query
@@ -222,13 +219,12 @@ let getUserByEmail (email : string) : Task<Option<UserInfo>> =
      FROM accounts
      WHERE accounts.email = @email"
   |> Sql.parameters [ "email", Sql.string email ]
-  |> Sql.executeRowOptionAsync
-       (fun read ->
-         { username = UserName.create (read.string "username")
-           name = read.string "name"
-           email = email
-           admin = read.bool "admin"
-           id = read.uuid "id" })
+  |> Sql.executeRowOptionAsync (fun read ->
+    { username = UserName.create (read.string "username")
+      name = read.string "name"
+      email = email
+      admin = read.bool "admin"
+      id = read.uuid "id" })
 
 let getUsers : Task<List<UserName.T>> =
   Sql.query
@@ -274,18 +270,16 @@ let authenticate
     "SELECT username, password from accounts
       WHERE accounts.username = @usernameOrEmail OR accounts.email = @usernameOrEmail"
   |> Sql.parameters [ "usernameOrEmail", Sql.string usernameOrEmail ]
-  |> Sql.executeRowOptionAsync
-       (fun read -> (read.string "username", read.string "password"))
+  |> Sql.executeRowOptionAsync (fun read ->
+    (read.string "username", read.string "password"))
   |> Task.map (
-    Option.andThen
-      (fun (username, password) ->
-        let dbHash =
-          password |> Base64.decodeFromString |> UTF8.ofBytesWithReplacement
+    Option.andThen (fun (username, password) ->
+      let dbHash = password |> Base64.decodeFromString |> UTF8.ofBytesWithReplacement
 
-        if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
-          Some(username)
-        else
-          None)
+      if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
+        Some(username)
+      else
+        None)
   )
 
 let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
@@ -371,18 +365,17 @@ let initBannedAccounts () : Task<unit> =
   task {
     do!
       bannedUsernames
-      |> Task.iterSequentially
-           (fun username ->
-             task {
-               let! result =
-                 upsertNonAdmin
-                   { username = username
-                     password = Password.invalid
-                     email = $"ops+{username}@darklang.com"
-                     name = $"Disallowed account {username}" }
+      |> Task.iterSequentially (fun username ->
+        task {
+          let! result =
+            upsertNonAdmin
+              { username = username
+                password = Password.invalid
+                email = $"ops+{username}@darklang.com"
+                name = $"Disallowed account {username}" }
 
-               return Result.unwrapUnsafe result
-             })
+          return Result.unwrapUnsafe result
+        })
 
     return ()
   }

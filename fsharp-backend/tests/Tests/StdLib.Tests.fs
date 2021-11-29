@@ -73,18 +73,17 @@ let oldFunctionsAreDeprecated =
       LibTest.fns @ LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
 
     fns
-    |> List.iter
-         (fun fn ->
-           let key = string { fn.name with version = 0 }
+    |> List.iter (fun fn ->
+      let key = string { fn.name with version = 0 }
 
-           if fn.deprecated = RT.NotDeprecated then
-             counts
-             := Map.update
-                  key
-                  (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
-                  !counts
+      if fn.deprecated = RT.NotDeprecated then
+        counts
+        := Map.update
+             key
+             (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
+             !counts
 
-           ())
+      ())
 
     Map.iter
       (fun name count ->

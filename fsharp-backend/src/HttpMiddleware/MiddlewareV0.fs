@@ -58,10 +58,9 @@ let addCorsHeaders
   (response : Resp.HttpResponse)
   : Resp.HttpResponse =
   inferCorsOriginHeader corsSetting reqHeaders
-  |> Option.map
-       (fun origin ->
-         { response with
-             headers = response.headers @ [ "Access-Control-Allow-Origin", origin ] })
+  |> Option.map (fun origin ->
+    { response with
+        headers = response.headers @ [ "Access-Control-Allow-Origin", origin ] })
   |> Option.defaultValue response
 
 
@@ -90,16 +89,14 @@ let optionsResponse
   let allowHeaders = Option.defaultValue "*" acReqHeaders
 
   (inferCorsOriginHeader corsSetting reqHeaders)
-  |> Option.map
-       (fun origin ->
-         { statusCode = 200
-           body = [||]
-           headers =
-             [ "Access-Control-Allow-Headers", allowHeaders
-               // CLEANUP: if the origin is null here, we probably shouldn't add the other headers
-               "Access-Control-Allow-Origin", origin
-               "Access-Control-Allow-Methods",
-               "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" ] })
+  |> Option.map (fun origin ->
+    { statusCode = 200
+      body = [||]
+      headers =
+        [ "Access-Control-Allow-Headers", allowHeaders
+          // CLEANUP: if the origin is null here, we probably shouldn't add the other headers
+          "Access-Control-Allow-Origin", origin
+          "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" ] })
 
 
 

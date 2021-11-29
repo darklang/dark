@@ -41,8 +41,8 @@ let rec queryExactFields
                       "darkVersion", Sql.int currentDarkVersion
                       "canvasID", Sql.uuid state.program.canvasID
                       "fields", Sql.queryableDvalMap queryObj ]
-  |> Sql.executeAsync
-       (fun read -> (read.string "key", read.string "data" |> toObj db))
+  |> Sql.executeAsync (fun read ->
+    (read.string "key", read.string "data" |> toObj db))
 
 
 // Handle the DB hacks while converting this into a DVal
@@ -208,8 +208,8 @@ and getMany
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion
                       "keys", Sql.stringArray (Array.ofList keys) ]
-  |> Sql.executeAsync
-       (fun read -> (read.string "key", read.string "data" |> toObj db))
+  |> Sql.executeAsync (fun read ->
+    (read.string "key", read.string "data" |> toObj db))
 
 
 and getManyWithKeys
@@ -232,8 +232,8 @@ and getManyWithKeys
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion
                       "keys", Sql.stringArray (Array.ofList keys) ]
-  |> Sql.executeAsync
-       (fun read -> (read.string "key", read.string "data" |> toObj db))
+  |> Sql.executeAsync (fun read ->
+    (read.string "key", read.string "data" |> toObj db))
 
 
 let getAll
@@ -253,8 +253,8 @@ let getAll
                       "canvasID", Sql.uuid state.program.canvasID
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
-  |> Sql.executeAsync
-       (fun read -> (read.string "key", read.string "data" |> toObj db))
+  |> Sql.executeAsync (fun read ->
+    (read.string "key", read.string "data" |> toObj db))
 
 // Reusable function that provides the template for the SqlCompiler query functions
 let doQuery
@@ -304,8 +304,8 @@ let query
 
     return!
       results
-      |> Sql.executeAsync
-           (fun read -> (read.string "key", read.string "data" |> toObj db))
+      |> Sql.executeAsync (fun read ->
+        (read.string "key", read.string "data" |> toObj db))
   }
 
 let queryValues
@@ -419,8 +419,8 @@ let statsPluck
                       "canvasID", Sql.uuid canvasID
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
-  |> Sql.executeRowOptionAsync
-       (fun read -> toObj db (read.string "data"), read.string "key")
+  |> Sql.executeRowOptionAsync (fun read ->
+    toObj db (read.string "data"), read.string "key")
 
 let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<int> =
   Sql.query

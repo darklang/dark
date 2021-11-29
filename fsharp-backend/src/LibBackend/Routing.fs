@@ -29,14 +29,12 @@ let routeToPostgresPattern (route : string) : string =
 
   // https://www.postgresql.org/docs/9.6/functions-matching.html
   route
-  |> String.collect
-       (function
-       | '%' -> "\\%"
-       | '_' -> "\\_"
-       | other -> string other)
+  |> String.collect (function
+    | '%' -> "\\%"
+    | '_' -> "\\_"
+    | other -> string other)
   |> splitUriPath
-  |> Array.map
-       (fun segment -> if String.startsWith ":" segment then "%" else segment)
+  |> Array.map (fun segment -> if String.startsWith ":" segment then "%" else segment)
   |> String.concat "/"
   |> (+) "/"
 
@@ -58,19 +56,17 @@ let routeInputVars
   let doBinding route path =
     // We know route length = requestPath length
     List.zip route path
-    |> List.fold
-         (Some [])
-         (fun acc (r, p) ->
-           Option.bind
-             (fun acc ->
-               match routeVariable r with
-               | Some rv -> Some((rv, RT.DStr p) :: acc)
-               | None ->
-                 // Concretized match, or we were passed a Postgres wildcard
-                 // and should treat this as a match.
-                 // Otherwise, this route/path do not match and should fail
-                 if r = p || r = "%" then Some acc else None)
-             acc)
+    |> List.fold (Some []) (fun acc (r, p) ->
+      Option.bind
+        (fun acc ->
+          match routeVariable r with
+          | Some rv -> Some((rv, RT.DStr p) :: acc)
+          | None ->
+            // Concretized match, or we were passed a Postgres wildcard
+            // and should treat this as a match.
+            // Otherwise, this route/path do not match and should fail
+            if r = p || r = "%" then Some acc else None)
+        acc)
 
   let splitRoute = splitUriPath route |> Array.toList
   let splitRequestPath = splitUriPath requestPath |> Array.toList
@@ -187,8 +183,7 @@ let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.
      FROM custom_domains
      WHERE host = @host"
   |> Sql.parameters [ "host", Sql.string customDomain ]
-  |> Sql.executeRowOptionAsync
-       (fun read -> read.string "canvas" |> CanvasName.create)
+  |> Sql.executeRowOptionAsync (fun read -> read.string "canvas" |> CanvasName.create)
 
 
 let addCustomDomain

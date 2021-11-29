@@ -115,9 +115,8 @@ and unifyUserRecordWithDvalMap
   : Result<unit, List<Error.T>> =
   let completeDefinition =
     definition
-    |> List.filterMap
-         (fun (d : UserType.RecordField) ->
-           if d.name = "" then None else Some(d.name, d.typ))
+    |> List.filterMap (fun (d : UserType.RecordField) ->
+      if d.name = "" then None else Some(d.name, d.typ))
     |> Map.ofList
 
   let definitionNames = completeDefinition |> Map.keys |> Set.ofList
@@ -127,12 +126,8 @@ and unifyUserRecordWithDvalMap
   if sameNames then
     value
     |> Map.toList
-    |> List.map
-         (fun (key, data) ->
-           unify
-             userTypes
-             (Map.get key completeDefinition |> Option.unwrapUnsafe)
-             data)
+    |> List.map (fun (key, data) ->
+      unify userTypes (Map.get key completeDefinition |> Option.unwrapUnsafe) data)
     |> combineErrorsUnit
     |> Result.mapError List.concat
   else

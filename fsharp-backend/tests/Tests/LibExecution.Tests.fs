@@ -123,171 +123,155 @@ let fileTests () : Test =
   System.IO.Directory.GetFiles(dir, "*.tests")
   |> Array.filter ((<>) "README.md")
   |> Array.filter ((<>) ".gitattributes")
-  |> Array.map
-       (fun file ->
-         let filename = System.IO.Path.GetFileName file
-         let emptyTest = { recording = false; name = ""; dbs = []; code = "" }
+  |> Array.map (fun file ->
+    let filename = System.IO.Path.GetFileName file
+    let emptyTest = { recording = false; name = ""; dbs = []; code = "" }
 
-         let emptyFn =
-           { recording = false; name = ""; parameters = []; code = ""; tlid = id 7 }
+    let emptyFn =
+      { recording = false; name = ""; parameters = []; code = ""; tlid = id 7 }
 
-         let emptyGroup = { name = ""; tests = []; dbs = [] }
+    let emptyGroup = { name = ""; tests = []; dbs = [] }
 
-         // for recording a multiline test
-         let mutable currentTest = emptyTest
-         // for recording a multiline function
-         let mutable currentFn = emptyFn
-         // for recording a bunch if single-line tests grouped together
-         let mutable currentGroup = emptyGroup
-         let mutable allTests = []
-         let mutable functions : Map<string, PT.UserFunction.T> = Map.empty
-         let mutable dbs : Map<string, PT.DB.T> = Map.empty
+    // for recording a multiline test
+    let mutable currentTest = emptyTest
+    // for recording a multiline function
+    let mutable currentFn = emptyFn
+    // for recording a bunch if single-line tests grouped together
+    let mutable currentGroup = emptyGroup
+    let mutable allTests = []
+    let mutable functions : Map<string, PT.UserFunction.T> = Map.empty
+    let mutable dbs : Map<string, PT.DB.T> = Map.empty
 
-         let finish () =
-           if currentTest.recording then
-             let newTestCase =
-               t currentTest.name currentTest.code currentTest.dbs functions
+    let finish () =
+      if currentTest.recording then
+        let newTestCase =
+          t currentTest.name currentTest.code currentTest.dbs functions
 
-             allTests <- allTests @ [ newTestCase ]
+        allTests <- allTests @ [ newTestCase ]
 
-           if List.length currentGroup.tests > 0 then
-             let newTestCase = testList currentGroup.name currentGroup.tests
-             allTests <- allTests @ [ newTestCase ]
+      if List.length currentGroup.tests > 0 then
+        let newTestCase = testList currentGroup.name currentGroup.tests
+        allTests <- allTests @ [ newTestCase ]
 
-           if currentFn.recording then
-             let (fn : PT.UserFunction.T) =
-               { tlid = currentFn.tlid
-                 name = currentFn.name
-                 nameID = gid ()
-                 returnType = PT.TVariable "a"
-                 returnTypeID = gid ()
-                 description = "test function"
-                 infix = false
-                 body = (FSharpToExpr.parsePTExpr currentFn.code)
-                 parameters = currentFn.parameters }
+      if currentFn.recording then
+        let (fn : PT.UserFunction.T) =
+          { tlid = currentFn.tlid
+            name = currentFn.name
+            nameID = gid ()
+            returnType = PT.TVariable "a"
+            returnTypeID = gid ()
+            description = "test function"
+            infix = false
+            body = (FSharpToExpr.parsePTExpr currentFn.code)
+            parameters = currentFn.parameters }
 
-             functions <- Map.add currentFn.name fn functions
+        functions <- Map.add currentFn.name fn functions
 
-           // Clear settings
-           currentTest <- emptyTest
-           currentFn <- emptyFn
-           currentGroup <- emptyGroup
+      // Clear settings
+      currentTest <- emptyTest
+      currentFn <- emptyFn
+      currentGroup <- emptyGroup
 
-         (dir + filename)
-         |> System.IO.File.ReadLines
-         |> Seq.iteri
-              (fun i line ->
-                let i = i + 1
+    (dir + filename)
+    |> System.IO.File.ReadLines
+    |> Seq.iteri (fun i line ->
+      let i = i + 1
 
-                // This format is described in testfiles/README.md. If you make
-                // any changes, update that file.
-                match line with
-                // [tests] indicator
-                | Regex @"^\[tests\.(.*)\] with DB (.*)$" [ name; dbName ] ->
-                  finish ()
+      // This format is described in testfiles/README.md. If you make
+      // any changes, update that file.
+      match line with
+      // [tests] indicator
+      | Regex @"^\[tests\.(.*)\] with DB (.*)$" [ name; dbName ] ->
+        finish ()
 
-                  match Map.get dbName dbs with
-                  | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
-                  | None -> failwith $"No DB named {dbName} found"
+        match Map.get dbName dbs with
+        | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
+        | None -> failwith $"No DB named {dbName} found"
 
-                  currentGroup <- { currentGroup with name = name }
-                | Regex @"^\[tests\.(.*)\]$" [ name ] ->
-                  finish ()
-                  currentGroup <- { currentGroup with name = name }
-                // [db] declaration
-                | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
-                  finish ()
+        currentGroup <- { currentGroup with name = name }
+      | Regex @"^\[tests\.(.*)\]$" [ name ] ->
+        finish ()
+        currentGroup <- { currentGroup with name = name }
+      // [db] declaration
+      | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
+        finish ()
 
-                  let (db : PT.DB.T) =
-                    { tlid = id i
-                      pos = { x = 0; y = 0 }
-                      name = name
-                      nameID = gid ()
-                      version = 0
-                      cols =
-                        definition
-                        |> Json.Vanilla.deserialize<Map<string, string>>
-                        |> Map.mapWithIndex
-                             (fun k v ->
-                               ({ name = k
-                                  nameID = gid ()
-                                  typ =
-                                    if v = "" then None else Some(PT.DType.parse v)
-                                  typeID = gid () } : PT.DB.Col))
-                        |> Map.values }
+        let (db : PT.DB.T) =
+          { tlid = id i
+            pos = { x = 0; y = 0 }
+            name = name
+            nameID = gid ()
+            version = 0
+            cols =
+              definition
+              |> Json.Vanilla.deserialize<Map<string, string>>
+              |> Map.mapWithIndex (fun k v ->
+                ({ name = k
+                   nameID = gid ()
+                   typ = if v = "" then None else Some(PT.DType.parse v)
+                   typeID = gid () } : PT.DB.Col))
+              |> Map.values }
 
-                  dbs <- Map.add name db dbs
-                // [function] declaration
-                | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
-                  finish ()
+        dbs <- Map.add name db dbs
+      // [function] declaration
+      | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
+        finish ()
 
-                  let parameters : List<PT.UserFunction.Parameter> =
-                    definition
-                    |> String.split " "
-                    |> List.map
-                         (fun name ->
-                           { name = name
-                             nameID = gid ()
-                             description = ""
-                             typ = Some(PT.TVariable "a")
-                             typeID = gid () })
+        let parameters : List<PT.UserFunction.Parameter> =
+          definition
+          |> String.split " "
+          |> List.map (fun name ->
+            { name = name
+              nameID = gid ()
+              description = ""
+              typ = Some(PT.TVariable "a")
+              typeID = gid () })
 
-                  currentFn <-
-                    { tlid = id i
-                      recording = true
-                      name = name
-                      parameters = parameters
-                      code = "" }
-                // [test] with DB indicator
-                | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
-                  finish ()
+        currentFn <-
+          { tlid = id i
+            recording = true
+            name = name
+            parameters = parameters
+            code = "" }
+      // [test] with DB indicator
+      | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
+        finish ()
 
-                  match Map.get dbName dbs with
-                  | Some db -> currentTest <- { currentTest with dbs = [ db ] }
-                  | None -> failwith $"No DB named {dbName} found"
+        match Map.get dbName dbs with
+        | Some db -> currentTest <- { currentTest with dbs = [ db ] }
+        | None -> failwith $"No DB named {dbName} found"
 
-                  currentTest <-
-                    { currentTest with
-                        name = $"{name} (line {i})"
-                        recording = true }
-                // [test] indicator (no DB)
-                | Regex @"^\[test\.(.*)\]$" [ name ] ->
-                  finish ()
+        currentTest <-
+          { currentTest with name = $"{name} (line {i})"; recording = true }
+      // [test] indicator (no DB)
+      | Regex @"^\[test\.(.*)\]$" [ name ] ->
+        finish ()
 
-                  currentTest <-
-                    { currentTest with
-                        name = $"{name} (line {i})"
-                        recording = true }
-                // Skip whitespace lines
-                | Regex @"^\s*$" [] -> ()
-                // Skip whole-line comments
-                | Regex @"^\s*//.*$" [] when
-                  currentTest.recording || currentFn.recording
-                  ->
-                  ()
-                // Append to the current test string
-                | _ when currentTest.recording ->
-                  currentTest <-
-                    { currentTest with code = currentTest.code + "\n" + line }
-                | _ when currentFn.recording ->
-                  currentFn <- { currentFn with code = currentFn.code + "\n" + line }
-                // 1-line test
-                | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
-                  let test =
-                    t $"{comment} (line {i})" code currentGroup.dbs functions
+        currentTest <-
+          { currentTest with name = $"{name} (line {i})"; recording = true }
+      // Skip whitespace lines
+      | Regex @"^\s*$" [] -> ()
+      // Skip whole-line comments
+      | Regex @"^\s*//.*$" [] when currentTest.recording || currentFn.recording -> ()
+      // Append to the current test string
+      | _ when currentTest.recording ->
+        currentTest <- { currentTest with code = currentTest.code + "\n" + line }
+      | _ when currentFn.recording ->
+        currentFn <- { currentFn with code = currentFn.code + "\n" + line }
+      // 1-line test
+      | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
+        let test = t $"{comment} (line {i})" code currentGroup.dbs functions
 
-                  currentGroup <-
-                    { currentGroup with tests = currentGroup.tests @ [ test ] }
-                | Regex @"^(.*)\s*$" [ code ] ->
-                  let test = t $"line {i}" code currentGroup.dbs functions
+        currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
+      | Regex @"^(.*)\s*$" [ code ] ->
+        let test = t $"line {i}" code currentGroup.dbs functions
 
-                  currentGroup <-
-                    { currentGroup with tests = currentGroup.tests @ [ test ] }
+        currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 
-                | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
+      | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
-         finish ()
-         testList $"Tests from {filename}" allTests)
+    finish ()
+    testList $"Tests from {filename}" allTests)
   |> Array.toList
   |> testList "All files"
 

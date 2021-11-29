@@ -29,16 +29,15 @@ let getNoCSRF (key : string) : Task<Option<T>> =
      FROM session
      WHERE session_key = @key"
   |> Sql.parameters [ "key", Sql.string key ]
-  |> Sql.executeRowOptionAsync
-       (fun read ->
-         let serializedData = read.string "session_data"
-         let date = read.dateTime "expire_date"
-         let data = Json.Vanilla.deserialize<JsonData> serializedData
+  |> Sql.executeRowOptionAsync (fun read ->
+    let serializedData = read.string "session_data"
+    let date = read.dateTime "expire_date"
+    let data = Json.Vanilla.deserialize<JsonData> serializedData
 
-         { username = data.username
-           expiry = date
-           csrfToken = data.csrf_token
-           key = key })
+    { username = data.username
+      expiry = date
+      csrfToken = data.csrf_token
+      key = key })
 
 // Get the sessionData
 let get (key : string) (csrfToken : string) : Task<Option<T>> =

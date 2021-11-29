@@ -77,8 +77,8 @@ let loginUiTemplate : string = LibBackend.File.readfile Config.Templates "login.
 let loginPage : HttpHandler =
   // CLEANUP move these into config urls
   if Config.useLoginDarklangComForLogin then
-    handleContext
-      (fun ctx -> redirectTo false "https://login.darklang.com" earlyReturn ctx)
+    handleContext (fun ctx ->
+      redirectTo false "https://login.darklang.com" earlyReturn ctx)
   else
     (Middleware.loggedOutHtmlHandler (fun _ -> task { return loginUiTemplate }))
 

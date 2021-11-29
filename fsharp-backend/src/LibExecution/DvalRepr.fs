@@ -314,32 +314,29 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DObj o ->
-    w.writeObject
-      (fun () ->
-        Map.iter
-          (fun k v ->
-            w.WritePropertyName k
-            writeDval v)
-          o)
+    w.writeObject (fun () ->
+      Map.iter
+        (fun k v ->
+          w.WritePropertyName k
+          writeDval v)
+        o)
   | DFnVal _ ->
     (* See docs/dblock-serialization.ml *)
     w.WriteNull()
   | DIncomplete _ -> w.WriteNull()
   | DChar c -> w.WriteValue c
   | DError (_, msg) ->
-    w.writeObject
-      (fun () ->
-        w.WritePropertyName "Error"
-        w.WriteValue msg)
+    w.writeObject (fun () ->
+      w.WritePropertyName "Error"
+      w.WriteValue msg)
   | DHttpResponse (Redirect _) -> writeDval DNull
   | DHttpResponse (Response (_, _, response)) -> writeDval response
   | DDB dbName -> w.WriteValue dbName
   | DDate date -> w.WriteValue(date.toIsoString ())
   | DPassword hashed ->
-    w.writeObject
-      (fun () ->
-        w.WritePropertyName "Error"
-        w.WriteValue "Password is redacted")
+    w.writeObject (fun () ->
+      w.WritePropertyName "Error"
+      w.WriteValue "Password is redacted")
   | DUuid uuid -> w.WriteValue uuid
   | DOption opt ->
     match opt with
@@ -350,10 +347,9 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
     (match res with
      | Ok dv -> writeDval dv
      | Error dv ->
-       w.writeObject
-         (fun () ->
-           w.WritePropertyName "Error"
-           writeDval dv))
+       w.writeObject (fun () ->
+         w.WritePropertyName "Error"
+         writeDval dv))
   | DBytes bytes ->
     // CLEANUP: rather than using a mutable byte array, should this be a readonly span?
     w.WriteValue(System.Convert.ToBase64String bytes)
@@ -370,10 +366,9 @@ let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
   | JList [ JString "Response"; JInteger code; JList headers ] ->
     let headers =
       headers
-      |> List.map
-           (function
-           | JList [ JString k; JString v ] -> (k, v)
-           | _ -> failwith "Invalid DHttpResponse headers")
+      |> List.map (function
+        | JList [ JString k; JString v ] -> (k, v)
+        | _ -> failwith "Invalid DHttpResponse headers")
 
     Response(code, headers, dv)
   | _ -> failwith "invalid response json"
@@ -528,28 +523,25 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   let writeDval = unsafeDvalToJsonValueV0 w redact
 
   let wrapStringValue (typ : string) (str : string) =
-    w.writeObject
-      (fun () ->
-        w.WritePropertyName "type"
-        w.WriteValue(typ)
-        w.WritePropertyName "value"
-        w.WriteValue(str))
+    w.writeObject (fun () ->
+      w.WritePropertyName "type"
+      w.WriteValue(typ)
+      w.WritePropertyName "value"
+      w.WriteValue(str))
 
   let wrapNullValue (typ : string) =
-    w.writeObject
-      (fun () ->
-        w.WritePropertyName "type"
-        w.WriteValue(typ)
-        w.WritePropertyName "value"
-        w.WriteNull())
+    w.writeObject (fun () ->
+      w.WritePropertyName "type"
+      w.WriteValue(typ)
+      w.WritePropertyName "value"
+      w.WriteNull())
 
   let wrapNestedDvalValue (typ : string) (dv : Dval) =
-    w.writeObject
-      (fun () ->
-        w.WritePropertyName "type"
-        w.WriteValue(typ)
-        w.WritePropertyName "value"
-        writeDval dv)
+    w.writeObject (fun () ->
+      w.WritePropertyName "type"
+      w.WriteValue(typ)
+      w.WritePropertyName "value"
+      writeDval dv)
 
   match dv with
   (* basic types *)
@@ -560,13 +552,12 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DObj o ->
-    w.writeObject
-      (fun () ->
-        Map.iter
-          (fun k v ->
-            w.WritePropertyName k
-            writeDval v)
-          o)
+    w.writeObject (fun () ->
+      Map.iter
+        (fun k v ->
+          w.WritePropertyName k
+          writeDval v)
+        o)
   | DFnVal _ ->
     // See docs/dblock-serialization.md
     wrapNullValue "block"
@@ -574,39 +565,33 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   | DChar c -> wrapStringValue "character" c
   | DError (_, msg) -> wrapStringValue "error" msg
   | DHttpResponse (h) ->
-    w.writeObject
-      (fun () ->
-        w.WritePropertyName "type"
-        w.WriteValue "response"
-        w.WritePropertyName "value"
+    w.writeObject (fun () ->
+      w.WritePropertyName "type"
+      w.WriteValue "response"
+      w.WritePropertyName "value"
 
-        w.writeArray
-          (fun () ->
-            match h with
-            | Redirect str ->
-              w.writeArray
-                (fun () ->
-                  w.WriteValue "Redirect"
-                  w.WriteValue str)
+      w.writeArray (fun () ->
+        match h with
+        | Redirect str ->
+          w.writeArray (fun () ->
+            w.WriteValue "Redirect"
+            w.WriteValue str)
 
-              writeDval DNull
-            | Response (code, headers, hdv) ->
-              w.writeArray
-                (fun () ->
-                  w.WriteValue "Response"
-                  w.WriteValue code
+          writeDval DNull
+        | Response (code, headers, hdv) ->
+          w.writeArray (fun () ->
+            w.WriteValue "Response"
+            w.WriteValue code
 
-                  w.writeArray
-                    (fun () ->
-                      List.iter
-                        (fun (k : string, v : string) ->
-                          w.writeArray
-                            (fun () ->
-                              w.WriteValue k
-                              w.WriteValue v))
-                        headers))
+            w.writeArray (fun () ->
+              List.iter
+                (fun (k : string, v : string) ->
+                  w.writeArray (fun () ->
+                    w.WriteValue k
+                    w.WriteValue v))
+                headers))
 
-              writeDval hdv))
+          writeDval hdv))
   | DDB dbname -> wrapStringValue "datastore" dbname
   | DDate date -> wrapStringValue "date" (date.toIsoString ())
   | DPassword (Password hashed) ->
@@ -623,23 +608,21 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   | DResult res ->
     (match res with
      | Ok rdv ->
-       w.writeObject
-         (fun () ->
-           w.WritePropertyName "type"
-           w.WriteValue("result")
-           w.WritePropertyName "constructor"
-           w.WriteValue("Ok")
-           w.WritePropertyName "values"
-           w.writeArray (fun () -> writeDval rdv))
+       w.writeObject (fun () ->
+         w.WritePropertyName "type"
+         w.WriteValue("result")
+         w.WritePropertyName "constructor"
+         w.WriteValue("Ok")
+         w.WritePropertyName "values"
+         w.writeArray (fun () -> writeDval rdv))
      | Error rdv ->
-       w.writeObject
-         (fun () ->
-           w.WritePropertyName "type"
-           w.WriteValue("result")
-           w.WritePropertyName "constructor"
-           w.WriteValue("Error")
-           w.WritePropertyName "values"
-           w.writeArray (fun () -> writeDval rdv)))
+       w.writeObject (fun () ->
+         w.WritePropertyName "type"
+         w.WriteValue("result")
+         w.WritePropertyName "constructor"
+         w.WriteValue("Error")
+         w.WritePropertyName "values"
+         w.writeArray (fun () -> writeDval rdv)))
   | DBytes bytes ->
     // Note that the OCaml version uses the non-url-safe b64 encoding here
     bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
@@ -706,18 +689,16 @@ let ofInternalRoundtrippableV0 (str : string) : Dval =
 // -------------------------
 
 let toInternalQueryableV1 (dvalMap : DvalMap) : string =
-  writeJson
-    (fun w ->
-      w.WriteStartObject()
+  writeJson (fun w ->
+    w.WriteStartObject()
 
-      dvalMap
-      |> Map.toList
-      |> List.iter
-           (fun (k, dval) ->
-             (w.WritePropertyName k
-              unsafeDvalToJsonValueV0 w false dval))
+    dvalMap
+    |> Map.toList
+    |> List.iter (fun (k, dval) ->
+      (w.WritePropertyName k
+       unsafeDvalToJsonValueV0 w false dval))
 
-      w.WriteEnd())
+    w.WriteEnd())
 
 let isQueryableDval (dval : Dval) : bool =
   match dval with
@@ -984,13 +965,12 @@ let toStringPairsExn (dv : Dval) : (string * string) list =
   | DObj obj ->
     obj
     |> Map.toList
-    |> List.map
-         (function
-         | (k, DStr v) -> (k, v)
-         | (k, v) ->
-           // CLEANUP: this is just to keep the error messages the same with OCaml. It's safe to change the error message
-           // failwith $"Expected a string, but got: {toDeveloperReprV0 v}"
-           failwith "expecting str")
+    |> List.map (function
+      | (k, DStr v) -> (k, v)
+      | (k, v) ->
+        // CLEANUP: this is just to keep the error messages the same with OCaml. It's safe to change the error message
+        // failwith $"Expected a string, but got: {toDeveloperReprV0 v}"
+        failwith "expecting str")
   | _ ->
     // CLEANUP As above
     // $"Expected a string, but got: {toDeveloperReprV0 dv}"
@@ -1039,17 +1019,16 @@ let queryToEncodedString (queryParams : (List<string * List<string>>)) : string 
   | [ key, [] ] -> urlEncodeKey key
   | _ ->
     queryParams
-    |> List.map
-         (fun (k, vs) ->
-           let k = k |> urlEncodeKey
-           vs
-           |> List.map urlEncodeValue
-           |> fun vs ->
-                if vs = [] then
-                  k
-                else
-                  let vs = String.concat "," vs
-                  $"{k}={vs}")
+    |> List.map (fun (k, vs) ->
+      let k = k |> urlEncodeKey
+      vs
+      |> List.map urlEncodeValue
+      |> fun vs ->
+           if vs = [] then
+             k
+           else
+             let vs = String.concat "," vs
+             $"{k}={vs}")
     |> String.concat "&"
 
 let toQuery (dv : Dval) : List<string * List<string>> =
@@ -1057,12 +1036,11 @@ let toQuery (dv : Dval) : List<string * List<string>> =
   | DObj kvs ->
     kvs
     |> Map.toList
-    |> List.map
-         (fun (k, value) ->
-           match value with
-           | DNull -> (k, [])
-           | DList l -> (k, List.map toUrlStringExn l)
-           | _ -> (k, [ toUrlStringExn value ]))
+    |> List.map (fun (k, value) ->
+      match value with
+      | DNull -> (k, [])
+      | DList l -> (k, List.map toUrlStringExn l)
+      | _ -> (k, [ toUrlStringExn value ]))
   | _ -> failwith "attempting to use non-object as query param" // CODE exception
 
 
@@ -1071,30 +1049,26 @@ let parseQueryString (queryString : string) : List<string * List<string>> =
   // This will eat any intended question mark, so add one
   let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
   nvc.AllKeys
-  |> Array.map
-       (fun key ->
-         let values = nvc.GetValues key
-         let split =
-           values.[values.Length - 1]
-           |> FSharpPlus.String.split [| "," |]
-           |> Seq.toList
+  |> Array.map (fun key ->
+    let values = nvc.GetValues key
+    let split =
+      values.[values.Length - 1] |> FSharpPlus.String.split [| "," |] |> Seq.toList
 
-         if isNull key then
-           // All the values with no key are by GetValues, so make each one a value
-           values |> Array.toList |> List.map (fun k -> (k, []))
-         else
-           [ (key, split) ])
+    if isNull key then
+      // All the values with no key are by GetValues, so make each one a value
+      values |> Array.toList |> List.map (fun k -> (k, []))
+    else
+      [ (key, split) ])
   |> List.concat
 
 let ofQuery (query : List<string * List<string>>) : Dval =
   query
-  |> List.map
-       (fun (k, v) ->
-         match v with
-         | [] -> k, DNull
-         | [ "" ] -> k, DNull // CLEANUP this should be a string
-         | [ v ] -> k, DStr v
-         | list -> k, DList(List.map DStr list))
+  |> List.map (fun (k, v) ->
+    match v with
+    | [] -> k, DNull
+    | [ "" ] -> k, DNull // CLEANUP this should be a string
+    | [ v ] -> k, DStr v
+    | list -> k, DList(List.map DStr list))
   |> Map
   |> DObj
 
@@ -1179,12 +1153,10 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
     else
       let rows =
         o
-        |> Map.fold
-             []
-             (fun l key value ->
-               (Array.concat [ UTF8.toBytes (key + ": ")
-                               toHashableRepr indent false value ]
-                :: l))
+        |> Map.fold [] (fun l key value ->
+          (Array.concat [ UTF8.toBytes (key + ": ")
+                          toHashableRepr indent false value ]
+           :: l))
         |> List.intersperse (UTF8.toBytes ("," + inl))
 
       Array.concat (

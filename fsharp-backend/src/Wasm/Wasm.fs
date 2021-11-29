@@ -108,14 +108,13 @@ module Eval =
       |> Map
 
     results
-    |> List.filterMap
-         (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
-           if string fnName = rFnName
-              && callerID = rCallerID
-              && hash = ((Map.tryFind hashVersion hashes) |> Option.unwrapUnsafe) then
-             Some dval
-           else
-             None)
+    |> List.filterMap (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
+      if string fnName = rFnName
+         && callerID = rCallerID
+         && hash = ((Map.tryFind hashVersion hashes) |> Option.unwrapUnsafe) then
+        Some dval
+      else
+        None)
     |> List.head
     (* We don't use the time, so just hack it to get the interface right. *)
     |> Option.map (fun dv -> (dv, System.DateTime.Now))
@@ -179,14 +178,13 @@ module Eval =
       let ocamlResults =
         dvalResults
         |> Dictionary.toList
-        |> List.map
-             (fun (k, v) ->
-               k,
-               match v with
-               | AT.ExecutedResult dv ->
-                 ClientInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
-               | AT.NonExecutedResult dv ->
-                 ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
+        |> List.map (fun (k, v) ->
+          k,
+          match v with
+          | AT.ExecutedResult dv ->
+            ClientInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
+          | AT.NonExecutedResult dv ->
+            ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
         |> Dictionary.fromList
 
       return (traceID, ocamlResults)

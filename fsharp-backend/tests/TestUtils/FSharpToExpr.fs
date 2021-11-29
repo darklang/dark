@@ -260,11 +260,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     eMatch (c cond) (List.map convertClause clauses)
   | SynExpr.Record (_, _, fields, _) ->
     fields
-    |> List.map
-         (function
-         | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
-           (nameOrBlank name.idText, c expr)
-         | f -> failwith $"Not an expected field {f}")
+    |> List.map (function
+      | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
+        (nameOrBlank name.idText, c expr)
+      | f -> failwith $"Not an expected field {f}")
     |> eRecord
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
   | SynExpr.Do (expr, _) -> c expr // just unwrap

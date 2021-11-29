@@ -1218,9 +1218,8 @@ module HttpHeaders =
 
   let get (headerName) (headers : T) : string option =
     headers
-    |> List.tryFind
-         (fun ((k : string), (_ : string)) ->
-           String.equalsCaseInsensitive headerName k)
+    |> List.tryFind (fun ((k : string), (_ : string)) ->
+      String.equalsCaseInsensitive headerName k)
     |> Option.map (fun (k, v) -> v)
 
 

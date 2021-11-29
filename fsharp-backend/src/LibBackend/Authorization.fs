@@ -128,8 +128,8 @@ let grantedPermission
        AND user_.username = @username"
   |> Sql.parameters [ "username", Sql.string (username |> string)
                       "ownerName", Sql.string (ownerName |> string) ]
-  |> Sql.executeRowOptionAsync
-       (fun read -> read.string "permission" |> Permission.parse)
+  |> Sql.executeRowOptionAsync (fun read ->
+    read.string "permission" |> Permission.parse)
 
 
 // If a user is an admin they get write on everything.

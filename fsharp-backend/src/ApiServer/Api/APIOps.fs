@@ -95,18 +95,16 @@ let addOp (ctx : HttpContext) : Task<T> =
       do!
         (oldOps @ newOps)
         |> Op.oplist2TLIDOplists
-        |> List.map
-             (fun (tlid, oplists) ->
-               let (tl, deleted) =
-                 match Map.get tlid toplevels with
-                 | Some tl -> tl, C.NotDeleted
-                 | None ->
-                   match Map.get tlid deletedToplevels with
-                   | Some tl -> tl, C.Deleted
-                   | None ->
-                     failwith "couldn't find the TL we supposedly just looked up"
+        |> List.map (fun (tlid, oplists) ->
+          let (tl, deleted) =
+            match Map.get tlid toplevels with
+            | Some tl -> tl, C.NotDeleted
+            | None ->
+              match Map.get tlid deletedToplevels with
+              | Some tl -> tl, C.Deleted
+              | None -> failwith "couldn't find the TL we supposedly just looked up"
 
-               (tlid, oplists, tl, deleted))
+          (tlid, oplists, tl, deleted))
         |> C.saveTLIDs canvasInfo
 
 
@@ -127,20 +125,18 @@ let addOp (ctx : HttpContext) : Task<T> =
     // NB: I believe we only send one op at a time, but the type is op list
     newOps
     // MoveTL and TLSavepoint make for noisy data, so exclude it from heapio
-    |> List.filter
-         (function
-         | PT.MoveTL _
-         | PT.TLSavepoint _ -> false
-         | _ -> true)
-    |> List.iter
-         (fun op ->
-           LibService.HeapAnalytics.track
-             executionID
-             canvasInfo.id
-             canvasInfo.name
-             canvasInfo.owner
-             (Op.eventNameOfOp op)
-             Map.empty)
+    |> List.filter (function
+      | PT.MoveTL _
+      | PT.TLSavepoint _ -> false
+      | _ -> true)
+    |> List.iter (fun op ->
+      LibService.HeapAnalytics.track
+        executionID
+        canvasInfo.id
+        canvasInfo.name
+        canvasInfo.owner
+        (Op.eventNameOfOp op)
+        Map.empty)
 
     t "6-send-event-to-heapio"
 

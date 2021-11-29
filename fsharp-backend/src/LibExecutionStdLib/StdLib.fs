@@ -49,10 +49,8 @@ let infixFnMapping =
     ("", "notEquals", 0), ("", "!=")
     ("Bool", "and", 0), ("", "&&")
     ("Bool", "or", 0), ("", "||") ]
-  |> List.map
-       (fun ((module_, name, version), (newMod, opName)) ->
-         FQFnName.stdlibFnName module_ name version,
-         FQFnName.stdlibFnName newMod opName 0)
+  |> List.map (fun ((module_, name, version), (newMod, opName)) ->
+    FQFnName.stdlibFnName module_ name version, FQFnName.stdlibFnName newMod opName 0)
   |> Map
 
 // set of infix names

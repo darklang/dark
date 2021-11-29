@@ -193,12 +193,8 @@ let testUiReturnsTheSame =
 
     let builtins =
       allBuiltins
-      |> List.filter
-           (fun fn ->
-             Functions.fsharpOnlyFns
-             |> Lazy.force
-             |> Set.contains (string fn.name)
-             |> not)
+      |> List.filter (fun fn ->
+        Functions.fsharpOnlyFns |> Lazy.force |> Set.contains (string fn.name) |> not)
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
       |> Set
 
@@ -313,7 +309,8 @@ let testPostApi
   (canonicalizeBody : 'a -> 'a)
   : Test =
   testTask $"{api} API returns same" {
-    return! postApiTestCases api body deserialize canonicalizeBody }
+    return! postApiTestCases api body deserialize canonicalizeBody
+  }
 
 
 let testGetTraceData =
@@ -326,32 +323,28 @@ let testGetTraceData =
 
     let canonicalize (t : Traces.TraceData.T) : Traces.TraceData.T =
       t
-      |> Option.map
-           (fun t ->
-             { t with
-                 trace =
-                   t.trace
-                   |> Tuple2.mapSecond
-                        (fun td ->
-                          { td with timestamp = canonicalizeDate td.timestamp }) })
+      |> Option.map (fun t ->
+        { t with
+            trace =
+              t.trace
+              |> Tuple2.mapSecond (fun td ->
+                { td with timestamp = canonicalizeDate td.timestamp }) })
 
     do!
       body
       |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
       |> List.take 5 // lets not get carried away
-      |> List.map
-           (fun (tlid, traceID) ->
-             task {
-               let (ps : Traces.TraceData.Params) =
-                 { tlid = tlid; trace_id = traceID }
-               do!
-                 postApiTestCases
-                   "get_trace_data"
-                   (serialize ps)
-                   (deserialize<Traces.TraceData.T>)
-                   canonicalize
-             })
+      |> List.map (fun (tlid, traceID) ->
+        task {
+          let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
+          do!
+            postApiTestCases
+              "get_trace_data"
+              (serialize ps)
+              (deserialize<Traces.TraceData.T>)
+              canonicalize
+        })
 
       |> Task.flatten
   }
@@ -404,11 +397,10 @@ let testTriggerHandler =
       initialLoad.toplevels
       |> Convert.ocamlToplevel2PT
       |> Tuple2.first
-      |> List.filterMap
-           (fun h ->
-             match h.spec with
-             | PT.Handler.HTTP ("/a-test-handler/:user", "POST", _) -> Some h.tlid
-             | _ -> None)
+      |> List.filterMap (fun h ->
+        match h.spec with
+        | PT.Handler.HTTP ("/a-test-handler/:user", "POST", _) -> Some h.tlid
+        | _ -> None)
       |> List.head
       |> Option.unwrapUnsafe
 
@@ -435,18 +427,16 @@ let testWorkerStats =
       initialLoad.toplevels
       |> Convert.ocamlToplevel2PT
       |> Tuple2.first
-      |> List.filterMap
-           (fun h ->
-             match h.spec with
-             | PT.Handler.Worker _ -> Some h.tlid
-             | _ -> None)
-      |> List.map
-           (fun tlid ->
-             postApiTestCases
-               "get_worker_stats"
-               (serialize ({ tlid = tlid } : Workers.WorkerStats.Params))
-               (deserialize<Workers.WorkerStats.T>)
-               ident)
+      |> List.filterMap (fun h ->
+        match h.spec with
+        | PT.Handler.Worker _ -> Some h.tlid
+        | _ -> None)
+      |> List.map (fun tlid ->
+        postApiTestCases
+          "get_worker_stats"
+          (serialize ({ tlid = tlid } : Workers.WorkerStats.Params))
+          (deserialize<Workers.WorkerStats.T>)
+          ident)
       |> Task.flatten
   }
 
@@ -466,8 +456,8 @@ let testInsertDeleteSecrets =
 
         return
           initialLoad.secrets
-          |> List.filter
-               (fun (s : InitialLoad.ApiSecret) -> s.secret_name = secretName)
+          |> List.filter (fun (s : InitialLoad.ApiSecret) ->
+            s.secret_name = secretName)
           |> List.map (fun (s : InitialLoad.ApiSecret) -> s.secret_value)
           |> List.head
       }
@@ -541,9 +531,8 @@ let testDelete404s =
 
         return
           f404s
-          |> List.filter
-               (fun ((space, name, modifier, _, _) : TI.F404) ->
-                 space = "HTTP" && name = path && modifier = "GET")
+          |> List.filter (fun ((space, name, modifier, _, _) : TI.F404) ->
+            space = "HTTP" && name = path && modifier = "GET")
           |> List.head
       }
 
@@ -726,12 +715,11 @@ let cookies =
 
         let cookie =
           getHeader "set-cookie"
-          |> Option.andThen
-               (fun c ->
-                 match String.split ";" c with
-                 | h :: rest when String.startsWith "__session" h ->
-                   rest |> String.concat ";" |> String.trim |> Some
-                 | split -> None)
+          |> Option.andThen (fun c ->
+            match String.split ";" c with
+            | h :: rest when String.startsWith "__session" h ->
+              rest |> String.concat ";" |> String.trim |> Some
+            | split -> None)
 
         let location = getHeader "location"
 

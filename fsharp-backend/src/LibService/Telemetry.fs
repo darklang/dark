@@ -146,5 +146,5 @@ module AspNet =
     (serviceName : string)
     (services : IServiceCollection)
     : IServiceCollection =
-    services.AddOpenTelemetryTracing
-      (fun builder -> addTelemetry builder |> ignore<TracerProviderBuilder>)
+    services.AddOpenTelemetryTracing (fun builder ->
+      addTelemetry builder |> ignore<TracerProviderBuilder>)

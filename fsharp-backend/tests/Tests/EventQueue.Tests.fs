@@ -95,15 +95,14 @@ let testEventQueueIsFifo =
     use span = Span.root "test"
 
     do!
-      Sql.withTransaction
-        (fun () ->
-          task {
-            do! checkDequeue span 1L "apple"
-            do! checkDequeue span 2L "apple"
-            do! checkDequeue span 3L "banana"
-            do! checkDequeue span 4L "apple"
-            return Ok(Some RT.DNull)
-          })
+      Sql.withTransaction (fun () ->
+        task {
+          do! checkDequeue span 1L "apple"
+          do! checkDequeue span 2L "apple"
+          do! checkDequeue span 3L "banana"
+          do! checkDequeue span 4L "apple"
+          return Ok(Some RT.DNull)
+        })
   }
 
 let testGetWorkerSchedulesForCanvas =

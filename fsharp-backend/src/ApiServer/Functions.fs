@@ -108,8 +108,8 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
 
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
-  |> List.filter
-       (fun fn -> not (Set.contains (string fn.name) (Lazy.force fsharpOnlyFns)))
+  |> List.filter (fun fn ->
+    not (Set.contains (string fn.name) (Lazy.force fsharpOnlyFns)))
   |> List.map convertFn
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize
@@ -119,10 +119,9 @@ let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)
 let nonAdminFunctions : Lazy<string> =
   lazy
     (allFunctions
-     |> List.filter
-          (function
-          | { name = { module_ = "DarkInternal" } } -> false
-          | _ -> true)
+     |> List.filter (function
+       | { name = { module_ = "DarkInternal" } } -> false
+       | _ -> true)
      |> functionsToString)
 
 

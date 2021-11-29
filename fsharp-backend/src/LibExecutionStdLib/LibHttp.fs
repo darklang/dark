@@ -62,11 +62,10 @@ let fns : List<BuiltInFn> =
         | _, [ dv; DObj o; DInt code ] ->
           let pairs =
             Map.toList o
-            |> List.map
-                 (fun (k, v) ->
-                   match k, v with
-                   | k, DStr v -> k, v
-                   | k, v -> Errors.throw (Errors.argumentWasnt "a string" "value" v))
+            |> List.map (fun (k, v) ->
+              match k, v with
+              | k, DStr v -> k, v
+              | k, v -> Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
           Ply(DHttpResponse(Response(code, pairs, dv)))
         | _ -> incorrectArgs ())
@@ -86,11 +85,10 @@ let fns : List<BuiltInFn> =
         | _, [ dv; DObj o; DInt code ] ->
           let pairs =
             Map.toList o
-            |> List.map
-                 (fun (k, v) ->
-                   match k, v with
-                   | k, DStr v -> k, v
-                   | k, v -> Errors.throw (Errors.argumentWasnt "a string" "value" v))
+            |> List.map (fun (k, v) ->
+              match k, v with
+              | k, DStr v -> k, v
+              | k, v -> Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
           Ply(DHttpResponse(Response(code, pairs, dv)))
         | _ -> incorrectArgs ())
@@ -269,22 +267,21 @@ let fns : List<BuiltInFn> =
           o
           // Transform a DOBj into a cookie list of individual cookie params
           |> Map.toList
-          |> List.map
-               (fun (x, y) ->
-                 match (String.toLowercase x, y) with
-                 // Single boolean set-cookie params
-                 | "secure", DBool b
-                 | "httponly", DBool b -> if b then [ x ] else []
-                 // X=y set-cookie params
-                 | "path", DStr str
-                 | "domain", DStr str
-                 | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
-                 | "max-age", DInt i
-                 | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
-                 // Throw if there's not a good way to transform the k/v pair
-                 | _ ->
-                   Errors.throw
-                     $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
+          |> List.map (fun (x, y) ->
+            match (String.toLowercase x, y) with
+            // Single boolean set-cookie params
+            | "secure", DBool b
+            | "httponly", DBool b -> if b then [ x ] else []
+            // X=y set-cookie params
+            | "path", DStr str
+            | "domain", DStr str
+            | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
+            | "max-age", DInt i
+            | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
+            // Throw if there's not a good way to transform the k/v pair
+            | _ ->
+              Errors.throw
+                $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
           // Combine it into a set-cookie header
           |> List.concat
           |> String.concat "; "
@@ -314,22 +311,21 @@ let fns : List<BuiltInFn> =
           o
           // Transform a DOBj into a cookie list of individual cookie params
           |> Map.toList
-          |> List.map
-               (fun (x, y) ->
-                 match (String.toLowercase x, y) with
-                 // Single boolean set-cookie params
-                 | "secure", DBool b
-                 | "httponly", DBool b -> if b then [ x ] else []
-                 // X=y set-cookie params
-                 | "path", DStr str
-                 | "domain", DStr str
-                 | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
-                 | "max-age", DInt i
-                 | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
-                 // Throw if there's not a good way to transform the k/v pair
-                 | _ ->
-                   Errors.throw
-                     $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
+          |> List.map (fun (x, y) ->
+            match (String.toLowercase x, y) with
+            // Single boolean set-cookie params
+            | "secure", DBool b
+            | "httponly", DBool b -> if b then [ x ] else []
+            // X=y set-cookie params
+            | "path", DStr str
+            | "domain", DStr str
+            | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
+            | "max-age", DInt i
+            | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
+            // Throw if there's not a good way to transform the k/v pair
+            | _ ->
+              Errors.throw
+                $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
           // Combine it into a set-cookie header
           |> List.concat
           |> String.concat "; "

@@ -61,9 +61,8 @@ let stringChoice name (options : (string * 'a) list) : 'a =
   options
   |> List.tryFind (fun (k, _) -> k = v)
   |> Option.map Tuple2.second
-  |> Option.defaultWith
-       (fun () ->
-         let options = options |> List.map Tuple2.first |> String.concat ", "
-         failwith $"Envvar is not a valid option: '{name}' not in [{options}]")
+  |> Option.defaultWith (fun () ->
+    let options = options |> List.map Tuple2.first |> String.concat ", "
+    failwith $"Envvar is not a valid option: '{name}' not in [{options}]")
 
 let password (name : string) : string = getEnvExn name

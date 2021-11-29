@@ -50,12 +50,11 @@ let prodHashReplacements : Lazy<Map<string, string>> =
      |> Map.remove "__date"
      |> Map.remove ".gitkeep"
      // Only hash our assets, not vendored assets
-     |> Map.filterWithIndex
-          (fun k _ ->
-            not (String.includes "vendor/" k || String.includes "blazor/" k))
+     |> Map.filterWithIndex (fun k _ ->
+       not (String.includes "vendor/" k || String.includes "blazor/" k))
      |> Map.toList
-     |> List.map
-          (fun (filename, hash) -> ($"/{filename}", hashedFilename filename hash))
+     |> List.map (fun (filename, hash) ->
+       ($"/{filename}", hashedFilename filename hash))
      |> Map.ofList)
 
 let prodHashReplacementsString : Lazy<string> =
@@ -118,9 +117,8 @@ let uiHtml
   if shouldHash then
     prodHashReplacements
     |> Lazy.force
-    |> Map.iter
-         (fun filename hash ->
-           t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
+    |> Map.iter (fun filename hash ->
+      t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
 
   string t
 

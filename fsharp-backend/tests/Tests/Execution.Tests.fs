@@ -76,7 +76,8 @@ let testExecFunctionTLIDs : Test =
 
 
 let testErrorRailUsedInAnalysis : Test =
-  testTask "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
+  testTask
+    "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
 
     let! state = executionStateFor "test" Map.empty Map.empty
 
@@ -98,7 +99,8 @@ let testErrorRailUsedInAnalysis : Test =
   }
 
 let testOtherDbQueryFunctionsHaveAnalysis : Test =
-  testTask "The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends." {
+  testTask
+    "The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends." {
     let varID = gid ()
 
     let (db : DB.T) =
@@ -372,10 +374,9 @@ let testMatchPreview : Test =
         let argIDs = ref []
 
         arg
-        |> Ast.postTraversal
-             (fun e ->
-               argIDs := (Expr.toID e) :: !argIDs
-               e)
+        |> Ast.postTraversal (fun e ->
+          argIDs := (Expr.toID e) :: !argIDs
+          e)
         |> ignore<Expr>
 
         let expectedIDs = (mid :: !argIDs) @ List.map Tuple3.first expected |> Set
@@ -384,16 +385,15 @@ let testMatchPreview : Test =
         results
         |> Dictionary.keys
         |> Seq.toList
-        |> List.iter
-             (fun id ->
-               if not (Set.contains id expectedIDs) then
-                 match Dictionary.get id results with
-                 | Some (AT.ExecutedResult dv) ->
-                   Expect.isTrue
-                     false
-                     $"{msg}: found unexpected execution result ({id}: {dv})"
-                 | None -> Expect.isTrue false "missing value"
-                 | Some (AT.NonExecutedResult _) -> ())
+        |> List.iter (fun id ->
+          if not (Set.contains id expectedIDs) then
+            match Dictionary.get id results with
+            | Some (AT.ExecutedResult dv) ->
+              Expect.isTrue
+                false
+                $"{msg}: found unexpected execution result ({id}: {dv})"
+            | None -> Expect.isTrue false "missing value"
+            | Some (AT.NonExecutedResult _) -> ())
       }
 
     let er x = AT.ExecutedResult x in

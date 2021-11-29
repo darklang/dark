@@ -43,6 +43,7 @@ type Limit =
 
 // Note that this returns munged version of the name, that are designed for
 // pattern matching using postgres' LIKE syntax. *)
+// CLEANUP: nulls are allowed for name, modules, and modifiers. Why?
 let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
   Sql.query
     "SELECT tlid, module, name, modifier FROM toplevel_oplists
@@ -52,10 +53,9 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
         AND modifier IS NOT NULL
         AND tipe = 'handler'::toplevel_type"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync
-       (fun read ->
-         (read.tlid "tlid",
-          (read.string "module", read.string "name", read.string "modifier")))
+  |> Sql.executeAsync (fun read ->
+    (read.tlid "tlid",
+     (read.string "module", read.string "name", read.string "modifier")))
 
 // -------------------------
 // Event data *)
@@ -111,13 +111,12 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   Sql.query sql
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "timestamp", Sql.timestamp timestamp ]
-  |> Sql.executeAsync
-       (fun read ->
-         (read.string "module",
-          read.string "path",
-          read.string "modifier",
-          read.dateTime "timestamp",
-          read.uuid "trace_id"))
+  |> Sql.executeAsync (fun read ->
+    (read.string "module",
+     read.string "path",
+     read.string "modifier",
+     read.dateTime "timestamp",
+     read.uuid "trace_id"))
 
 
 // let list_event_descs
@@ -174,12 +173,11 @@ let loadEvents
                       "module", Sql.string module_
                       "route", Sql.string route
                       "modifier", Sql.string modifier ]
-  |> Sql.executeAsync
-       (fun read ->
-         (read.string "path",
-          read.uuid "trace_id",
-          read.dateTime "timestamp",
-          read.string "value" |> LibExecution.DvalRepr.ofInternalRoundtrippableV0))
+  |> Sql.executeAsync (fun read ->
+    (read.string "path",
+     read.uuid "trace_id",
+     read.dateTime "timestamp",
+     read.string "value" |> LibExecution.DvalRepr.ofInternalRoundtrippableV0))
 
 
 let loadEventForTrace
@@ -192,11 +190,10 @@ let loadEventForTrace
          AND trace_id = @traceID
        LIMIT 1"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
-  |> Sql.executeRowOptionAsync
-       (fun read ->
-         (read.string "path",
-          read.dateTime "timestamp",
-          read.string "value" |> LibExecution.DvalRepr.ofInternalRoundtrippableV0))
+  |> Sql.executeRowOptionAsync (fun read ->
+    (read.string "path",
+     read.dateTime "timestamp",
+     read.string "value" |> LibExecution.DvalRepr.ofInternalRoundtrippableV0))
 
 
 let mungePathForPostgres (module_ : string) (path : string) =
@@ -247,8 +244,8 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
 
     return
       events
-      |> List.filter
-           (fun e -> not (List.exists (fun (_tlid, h) -> matchEvent h e) handlers))
+      |> List.filter (fun e ->
+        not (List.exists (fun (_tlid, h) -> matchEvent h e) handlers))
   }
 
 let getRecent404s (canvasID : CanvasID) : Task<F404 list> =
