@@ -367,7 +367,8 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
            AND tipe = 'handler'
            AND module = 'WORKER'"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-      |> Sql.executeAsync (fun read -> (read.string "name", WorkerStates.Running))
+      |> Sql.executeAsync (fun read ->
+        (read.stringOrNone "name" |> Option.unwrap "", WorkerStates.Running))
 
     let states = Map.fromList states
 
