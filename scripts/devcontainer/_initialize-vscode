@@ -11,8 +11,5 @@ else
   home=$(wslpath $1)
 fi
 
-echo "making ~/.dark_bash_history to share bash history with the Dark container"
-touch "${home}/.dark_bash_history"
-
 # We just need the directory to exist
 mkdir -p "${home}/.config/gcloud"
