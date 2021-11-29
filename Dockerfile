@@ -15,9 +15,9 @@
 # as part of that build. Search for DOCKERFILE_REPO for where to make that
 # change.
 
-FROM ubuntu:20.04@sha256:376209074d481dca0a9cf4282710cd30a9e7ff402dea8261acdaaf57a18971dd as dark-base
+FROM ubuntu:20.04@sha256:7cc0576c7c0ec2384de5cbf245f41567e922aab1b075f3e8ad565f508032df17 as dark-base
 
-ENV FORCE_BUILD 2
+ENV FORCE_BUILD 3
 
 # These are reasonable defaults, and what the dark uid/gid would be if we didn't
 # specify values. By exposing them as build-args, we can set these values to
