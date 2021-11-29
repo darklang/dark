@@ -357,9 +357,9 @@ RUN dotnet tool install -g dotnet-sos
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
-ENV PATH "$PATH:/home/dark/bin"
-RUN dotnet tool install fantomas-tool --version 4.5.7 --tool-path ~/bin
+RUN dotnet tool install fantomas-tool --version 4.6.0-alpha-008 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
+ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 #############
 # tunnel user
