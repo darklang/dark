@@ -41,25 +41,23 @@ module Resp = HttpMiddleware.ResponseV0
 // ---------------
 let getHeaders (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
-  |> Seq.map
-       (fun (kvp : KeyValuePair<string, StringValues>) ->
-         (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
+  |> Seq.map (fun (kvp : KeyValuePair<string, StringValues>) ->
+    (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
   |> Seq.toList
 
 let getQuery (ctx : HttpContext) : List<string * List<string>> =
   ctx.Request.Query
-  |> Seq.map
-       (fun (kvp : KeyValuePair<string, StringValues>) ->
-         (kvp.Key,
-          // If there are duplicates, .NET puts them in the same StringValues.
-          // However, it doesn't parse commas. We want a list if there are commas,
-          // but we want to overwrite if there are two of the same headers.
-          // CLEANUP this isn't to say that this is good behaviour
-          kvp.Value.ToArray()
-          |> Array.toList
-          |> List.tryLast
-          |> Option.defaultValue ""
-          |> String.split ","))
+  |> Seq.map (fun (kvp : KeyValuePair<string, StringValues>) ->
+    (kvp.Key,
+     // If there are duplicates, .NET puts them in the same StringValues.
+     // However, it doesn't parse commas. We want a list if there are commas,
+     // but we want to overwrite if there are two of the same headers.
+     // CLEANUP this isn't to say that this is good behaviour
+     kvp.Value.ToArray()
+     |> Array.toList
+     |> List.tryLast
+     |> Option.defaultValue ""
+     |> String.split ","))
   |> Seq.toList
 
 open System.Buffers
@@ -416,7 +414,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       | e ->
         print (string e)
         return raise e
-     })
+    })
 
   app
   |> LibService.Rollbar.AspNet.addRollbarToApp

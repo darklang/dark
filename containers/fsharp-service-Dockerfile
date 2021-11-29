@@ -5,13 +5,12 @@
 FROM amd64/buildpack-deps:focal-curl as installer
 
 # Retrieve .NET
-RUN curl -SL --output dotnet.tar.gz https://storage.googleapis.com/dotnet6-rc1/dotnet-sdk-linux-x64.tar.gz \
-    && dotnet_sha512='6A93D9F092D8DC3FE1FFFE784028D6C4BA62868C8AF64F97BA403242F9360C772F6A32A907BE580561FB0EFF901640B9895076E000F53A1CA4250CD16F1AB1B2' \
+RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/6.0.100/dotnet-sdk-6.0.100-linux-x64.tar.gz \
+    && dotnet_sha512='cb0d174a79d6294c302261b645dba6a479da8f7cf6c1fe15ae6998bc09c5e0baec810822f9e0104e84b0efd51fdc0333306cb2a0a6fcdbaf515a8ad8cf1af25b' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && mkdir -p /dotnet \
     && tar -ozxf dotnet.tar.gz -C /dotnet \
     && rm dotnet.tar.gz
-
 
 # Our container
 FROM dark-base-service:latest
@@ -33,7 +32,7 @@ RUN sudo apt-get update \
 ENV \
     # Configure web servers to bind to port 80 when present
     ASPNETCORE_URLS=http://+:80 \
-    DOTNET_SDK_VERSION=6.0.100-rc.1.21417.9 \
+    DOTNET_SDK_VERSION=6.0.100 \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_EnableDiagnostics=0
 

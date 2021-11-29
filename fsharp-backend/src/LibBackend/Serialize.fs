@@ -106,10 +106,10 @@ let loadOnlyRenderedTLIDs
            OR tipe = 'user_function'::toplevel_type
            OR tipe = 'user_tipe'::toplevel_type)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync
-       (fun read -> (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
-  |> Task.bind
-       (fun list -> list |> List.map OCamlInterop.toplevelBin2Json |> Task.flatten)
+  |> Sql.executeAsync (fun read ->
+    (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
+  |> Task.bind (fun list ->
+    list |> List.map OCamlInterop.toplevelBin2Json |> Task.flatten)
 
 
 let fetchReleventTLIDsForHTTP
@@ -336,17 +336,16 @@ let fetchActiveCrons (span : Span.T) : Task<List<CronScheduleData>> =
              AND modifier IS NOT NULL
              AND modifier <> ''
              AND toplevel_oplists.name IS NOT NULL"
-      |> Sql.executeAsync
-           (fun read ->
-             { canvasID = read.uuid "canvas_id"
-               ownerID = read.uuid "account_id"
-               canvasName = read.string "canvas_name" |> CanvasName.create
-               tlid = read.id "tlid"
-               cronName = read.string "handler_name"
-               interval =
-                 read.string "modifier"
-                 // FSTODO: this is new behaviour, so add a test
-                 // we can save empty strings here, but we shouldn't be fetching them
-                 |> PT.Handler.CronInterval.parse
-                 |> Option.unwrapUnsafe })
+      |> Sql.executeAsync (fun read ->
+        { canvasID = read.uuid "canvas_id"
+          ownerID = read.uuid "account_id"
+          canvasName = read.string "canvas_name" |> CanvasName.create
+          tlid = read.id "tlid"
+          cronName = read.string "handler_name"
+          interval =
+            read.string "modifier"
+            // FSTODO: this is new behaviour, so add a test
+            // we can save empty strings here, but we shouldn't be fetching them
+            |> PT.Handler.CronInterval.parse
+            |> Option.unwrapUnsafe })
   }

@@ -70,11 +70,10 @@ type HttpContextExtensions() =
 
 let queryString (queries : List<string * string>) : string =
   queries
-  |> List.map
-       (fun (k, v) ->
-         let k = System.Web.HttpUtility.UrlEncode k
-         let v = System.Web.HttpUtility.UrlEncode v
-         $"{k}={v}")
+  |> List.map (fun (k, v) ->
+    let k = System.Web.HttpUtility.UrlEncode k
+    let v = System.Web.HttpUtility.UrlEncode v
+    $"{k}={v}")
   |> String.concat "&"
 
 let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
@@ -90,41 +89,38 @@ let notFound (ctx : HttpContext) : Task<HttpContext option> =
   }
 
 let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
-  handleContext
-    (fun ctx ->
-      task {
-        let! result = f ctx
-        let t = startTimer ctx
-        let! newCtx = ctx.WriteHtmlStringAsync result
-        t "writeResponse"
-        return newCtx
-      })
+  handleContext (fun ctx ->
+    task {
+      let! result = f ctx
+      let t = startTimer ctx
+      let! newCtx = ctx.WriteHtmlStringAsync result
+      t "writeResponse"
+      return newCtx
+    })
 
 let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
-  handleContext
-    (fun ctx ->
-      task {
-        let! result = f ctx
+  handleContext (fun ctx ->
+    task {
+      let! result = f ctx
+      let t = startTimer ctx
+      let! newCtx = ctx.WriteJsonAsync result
+      t "serialize-to-json"
+      return newCtx
+    })
+
+let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
+  handleContext (fun ctx ->
+    task {
+      match! f ctx with
+      | Some result ->
         let t = startTimer ctx
         let! newCtx = ctx.WriteJsonAsync result
         t "serialize-to-json"
         return newCtx
-      })
-
-let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
-  handleContext
-    (fun ctx ->
-      task {
-        match! f ctx with
-        | Some result ->
-          let t = startTimer ctx
-          let! newCtx = ctx.WriteJsonAsync result
-          t "serialize-to-json"
-          return newCtx
-        | None ->
-          ctx.SetStatusCode 404
-          return! ctx.WriteJsonAsync "Not found"
-      })
+      | None ->
+        ctx.SetStatusCode 404
+        return! ctx.WriteJsonAsync "Not found"
+    })
 
 // Either redirect to a login page, or apply the passed function if a
 // redirection is inappropriate (eg for the API)

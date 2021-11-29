@@ -264,29 +264,19 @@ let dequeue (parent : Span.T) : Task<Option<T>> =
      ORDER BY e.id ASC
      FOR UPDATE OF e SKIP LOCKED
      LIMIT 1"
-  |> Sql.executeRowOptionAsync
-       (fun read ->
-         let id = read.id "id"
-         let value = read.string "value"
-         let retries = read.int "retries"
-         let canvasID = read.uuid "canvas_id"
-         let ownerID = read.uuid "account_id"
-         let canvasName = read.string "canvas_name"
-         let space = read.string "space"
-         let name = read.string "event_name"
-         let modifier = read.string "modifier"
-         let delay = read.doubleOrNone "queue_delay_ms" |> Option.defaultValue 0.0
+  |> Sql.executeRowOptionAsync (fun read ->
+    let id = read.id "id"
+    let value = read.string "value"
+    let retries = read.int "retries"
+    let canvasID = read.uuid "canvas_id"
+    let ownerID = read.uuid "account_id"
+    let canvasName = read.string "canvas_name"
+    let space = read.string "space"
+    let name = read.string "event_name"
+    let modifier = read.string "modifier"
+    let delay = read.doubleOrNone "queue_delay_ms" |> Option.defaultValue 0.0
 
-         (id,
-          value,
-          retries,
-          canvasID,
-          ownerID,
-          canvasName,
-          space,
-          name,
-          modifier,
-          delay))
+    (id, value, retries, canvasID, ownerID, canvasName, space, name, modifier, delay))
   |> Task.map (
     Option.map
       (fun (id,
@@ -392,15 +382,13 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
     // any worker that has (in order) a pause or a block *)
     return
       pauses @ blocks
-      |> List.fold
-           states
-           (fun states r ->
-             let v =
-               match r.ruleType with
-               | SchedulingRule.RuleType.Block -> WorkerStates.Blocked
-               | SchedulingRule.RuleType.Pause -> WorkerStates.Paused in
+      |> List.fold states (fun states r ->
+        let v =
+          match r.ruleType with
+          | SchedulingRule.RuleType.Block -> WorkerStates.Blocked
+          | SchedulingRule.RuleType.Pause -> WorkerStates.Paused in
 
-             Map.add r.handlerName v states)
+        Map.add r.handlerName v states)
   }
 
 

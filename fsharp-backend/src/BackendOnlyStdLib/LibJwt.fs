@@ -118,29 +118,28 @@ module Legacy =
   and appendString (v : Vector) (s : string) : unit =
     s
     |> UTF8.toBytes
-    |> Array.iter
-         (fun b ->
-           match b with
-           // " - quote
-           | 0x22uy -> append v "\\\""
-           // \ - backslash
-           | 0x5cuy -> append v "\\\\"
-           // \b - backspace
-           | 0x08uy -> append v "\\b"
-           // \f - form feed
-           | 0x0cuy -> append v "\\f"
-           // \n - new line
-           | 0x0auy -> append v "\\n"
-           // \r  - carriage return
-           | 0x0duy -> append v "\\r"
-           // \t - tab
-           | 0x09uy -> append v "\\t"
-           // write_control_char
-           | b when b >= 0uy && b <= 0x1fuy ->
-             append v "\\u"
-             append v (b.ToString("x4"))
-           | 0x7fuy -> append v "\\u007f"
-           | b -> v.Add b)
+    |> Array.iter (fun b ->
+      match b with
+      // " - quote
+      | 0x22uy -> append v "\\\""
+      // \ - backslash
+      | 0x5cuy -> append v "\\\\"
+      // \b - backspace
+      | 0x08uy -> append v "\\b"
+      // \f - form feed
+      | 0x0cuy -> append v "\\f"
+      // \n - new line
+      | 0x0auy -> append v "\\n"
+      // \r  - carriage return
+      | 0x0duy -> append v "\\r"
+      // \t - tab
+      | 0x09uy -> append v "\\t"
+      // write_control_char
+      | b when b >= 0uy && b <= 0x1fuy ->
+        append v "\\u"
+        append v (b.ToString("x4"))
+      | 0x7fuy -> append v "\\u007f"
+      | b -> v.Add b)
 
   and toString' (v : Vector) (j : Yojson) : unit =
     match j with
@@ -162,9 +161,8 @@ module Legacy =
       let mutable needsZero = true
 
       String.toArray s
-      |> Array.iter
-           (fun d ->
-             if d >= '0' && d <= '9' || d = '-' then () else needsZero <- false)
+      |> Array.iter (fun d ->
+        if d >= '0' && d <= '9' || d = '-' then () else needsZero <- false)
 
       if needsZero then append v ".0"
 

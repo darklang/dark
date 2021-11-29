@@ -7,11 +7,9 @@ type t = string
 module String = FSharp.Core.String
 
 let initialize f length =
-  String.init
-    length
-    (fun i ->
-      let c : char = (f i)
-      c.ToString())
+  String.init length (fun i ->
+    let c : char = (f i)
+    c.ToString())
 
 let repeat count s = String.replicate count s
 
@@ -46,13 +44,13 @@ let get_at index s = getAt index s
 let uncons (s : string) : (char * string) option =
   (match s with
    | "" -> None
-   | s -> Some(s.[0], s.[1..(String.length s - 1)]))
+   | s -> Some(s.[0], s.[1 .. (String.length s - 1)]))
 
 let dropLeft (count : int) (s : string) = s.[count..]
 
 let drop_left count s = dropLeft count s
 
-let dropRight (count : int) (s : string) = s.[0..(s.Length - (count + 1))]
+let dropRight (count : int) (s : string) = s.[0 .. (s.Length - (count + 1))]
 
 let drop_right count s = dropRight count s
 

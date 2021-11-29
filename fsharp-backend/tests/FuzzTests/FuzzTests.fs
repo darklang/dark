@@ -209,19 +209,17 @@ module OCamlInterop =
   type Generator =
     static member Expr() =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           // characters are not yet supported in OCaml
-           | PT.ECharacter _ -> false
-           | _ -> true)
+      |> Arb.filter (function
+        // characters are not yet supported in OCaml
+        | PT.ECharacter _ -> false
+        | _ -> true)
 
     static member Pattern() =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           // characters are not yet supported in OCaml
-           | PT.PCharacter _ -> false
-           | _ -> true)
+      |> Arb.filter (function
+        // characters are not yet supported in OCaml
+        | PT.PCharacter _ -> false
+        | _ -> true)
 
     static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
@@ -398,12 +396,11 @@ module DeveloperRepr =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           | RT.DFnVal _ -> false
-           | RT.DFloat 0.0 -> false
-           | RT.DFloat infinity -> false
-           | _ -> true)
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | RT.DFloat 0.0 -> false
+        | RT.DFloat infinity -> false
+        | _ -> true)
 
 
   let equalsOCaml (dv : RT.Dval) : bool =
@@ -423,10 +420,9 @@ module HttpClient =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           | RT.DFnVal _ -> false
-           | _ -> true)
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | _ -> true)
 
   type QueryStringGenerator =
     static member SafeString() : Arbitrary<string> =
@@ -483,10 +479,9 @@ module EndUserReadable =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           | RT.DFnVal _ -> false
-           | _ -> true)
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | _ -> true)
 
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
@@ -504,11 +499,10 @@ module Hashing =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           // not supported in OCaml
-           | RT.DFnVal _ -> false
-           | _ -> true)
+      |> Arb.filter (function
+        // not supported in OCaml
+        | RT.DFnVal _ -> false
+        | _ -> true)
 
   // The format here is used to get values from the DB, so this has to be 100% identical
   let equalsOCamlToHashable (dv : RT.Dval) : bool =
@@ -542,10 +536,9 @@ module PrettyMachineJson =
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           | RT.DFnVal _ -> false
-           | _ -> true)
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | _ -> true)
 
   let equalsOCaml (dv : RT.Dval) : bool =
     let actual =
@@ -575,11 +568,10 @@ module LibJwtJson =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           // They're all printed as blocks, but the OCamlInterop doesn't work great - no point in fixing though
-           | RT.DFnVal _ -> false
-           | _ -> true)
+      |> Arb.filter (function
+        // They're all printed as blocks, but the OCamlInterop doesn't work great - no point in fixing though
+        | RT.DFnVal _ -> false
+        | _ -> true)
 
   // This should produce absolutely identical JSON to the OCaml function or customers will have an unexpected change
   let equalsOCaml (dv : RT.Dval) : bool =
@@ -674,13 +666,12 @@ module ExecutePureFunctions =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           // These all break the serialization to OCaml
-           | RT.DPassword _ -> false
-           | RT.DFnVal _ -> false
-           | RT.DFloat f -> filterFloat f
-           | _ -> true)
+      |> Arb.filter (function
+        // These all break the serialization to OCaml
+        | RT.DPassword _ -> false
+        | RT.DFnVal _ -> false
+        | RT.DFloat f -> filterFloat f
+        | _ -> true)
 
     static member DType() : Arbitrary<RT.DType> =
       let rec isSupportedType =
@@ -970,23 +961,21 @@ module ExecutePureFunctions =
             gen {
               let fns =
                 (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns)
-                |> List.filter
-                     (fun fn ->
-                       let name = string fn.name
-                       let has set = Set.contains name set
-                       let different = has allowedErrors.knownDifferingFunctions
-                       let fsOnly = has (ApiServer.Functions.fsharpOnlyFns.Force())
+                |> List.filter (fun fn ->
+                  let name = string fn.name
+                  let has set = Set.contains name set
+                  let different = has allowedErrors.knownDifferingFunctions
+                  let fsOnly = has (ApiServer.Functions.fsharpOnlyFns.Force())
 
-                       if different || fsOnly then
-                         false
-                       elif allowedErrors.functionToTest = None then
-                         // FSTODO: Add JWT and X509 functions here
-                         fn.previewable = RT.Pure
-                         || fn.previewable = RT.ImpurePreviewable
-                       elif Some name = allowedErrors.functionToTest then
-                         true
-                       else
-                         false)
+                  if different || fsOnly then
+                    false
+                  elif allowedErrors.functionToTest = None then
+                    // FSTODO: Add JWT and X509 functions here
+                    fn.previewable = RT.Pure || fn.previewable = RT.ImpurePreviewable
+                  elif Some name = allowedErrors.functionToTest then
+                    true
+                  else
+                    false)
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
               let name = fns.[fnIndex].name
@@ -1052,69 +1041,61 @@ module ExecutePureFunctions =
                   }
 
                 Gen.frequency [ (1, randomValue); (99, specific) ]
-                |> Gen.filter
-                     (fun dv ->
-                       // Avoid triggering known errors in OCaml
-                       match (i,
-                              dv,
-                              prevArgs,
-                              name.module_,
-                              name.function_,
-                              name.version)
-                         with
-                       // Specific OCaml exception (use `when`s here)
-                       | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
-                       | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" ->
-                         false
-                       | 1, RT.DInt i, _, "Int", "power", 0
-                       | 1, RT.DInt i, _, "", "^", 0 when i < 0L -> false
-                       // Int Overflow
-                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
-                       | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
-                         i <> 1L
-                         && i <> (-1L)
-                         && isValidOCamlInt i
-                         && i <= 2000L
-                         && isValidOCamlInt (int64 (bigint e ** (int i)))
-                       | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
-                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
-                         isValidOCamlInt (e * i)
-                       | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
-                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
-                         isValidOCamlInt (e + i)
-                       | 1, RT.DInt i, [ RT.DInt e ], "", "-", 0
-                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
-                         isValidOCamlInt (e - i)
-                       | 0, RT.DList l, _, "Int", "sum", 0 ->
-                         l
-                         |> List.map
-                              (function
-                              | RT.DInt i -> i
-                              | _ -> 0L)
-                         |> List.fold 0L (+)
-                         |> isValidOCamlInt
-                       // Int overflow converting from Floats
-                       | 0, RT.DFloat f, _, "Float", "floor", 0
-                       | 0, RT.DFloat f, _, "Float", "roundDown", 0
-                       | 0, RT.DFloat f, _, "Float", "roundTowardsZero", 0
-                       | 0, RT.DFloat f, _, "Float", "round", 0
-                       | 0, RT.DFloat f, _, "Float", "ceiling", 0
-                       | 0, RT.DFloat f, _, "Float", "roundUp", 0
-                       | 0, RT.DFloat f, _, "Float", "truncate", 0 ->
-                         f |> int64 |> isValidOCamlInt
-                       // gmtime out of range
-                       | 1, RT.DInt i, _, "Date", "sub", 0
-                       | 1, RT.DInt i, _, "Date", "subtract", 0
-                       | 1, RT.DInt i, _, "Date", "add", 0
-                       | 0, RT.DInt i, _, "Date", "fromSeconds", 0 -> i < 10000000L
-                       // Out of memory
-                       | _, RT.DInt i, _, "List", "range", 0
-                       | 0, RT.DInt i, _, "List", "repeat", 0
-                       | 2, RT.DInt i, _, "String", "padEnd", 0
-                       | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000L
-                       // Exception
-                       | 0, _, _, "", "toString", 0 -> not (containsBytes dv)
-                       | _ -> true)
+                |> Gen.filter (fun dv ->
+                  // Avoid triggering known errors in OCaml
+                  match (i, dv, prevArgs, name.module_, name.function_, name.version)
+                    with
+                  // Specific OCaml exception (use `when`s here)
+                  | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
+                  | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" -> false
+                  | 1, RT.DInt i, _, "Int", "power", 0
+                  | 1, RT.DInt i, _, "", "^", 0 when i < 0L -> false
+                  // Int Overflow
+                  | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
+                  | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
+                    i <> 1L
+                    && i <> (-1L)
+                    && isValidOCamlInt i
+                    && i <= 2000L
+                    && isValidOCamlInt (int64 (bigint e ** (int i)))
+                  | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
+                  | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
+                    isValidOCamlInt (e * i)
+                  | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
+                  | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
+                    isValidOCamlInt (e + i)
+                  | 1, RT.DInt i, [ RT.DInt e ], "", "-", 0
+                  | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
+                    isValidOCamlInt (e - i)
+                  | 0, RT.DList l, _, "Int", "sum", 0 ->
+                    l
+                    |> List.map (function
+                      | RT.DInt i -> i
+                      | _ -> 0L)
+                    |> List.fold 0L (+)
+                    |> isValidOCamlInt
+                  // Int overflow converting from Floats
+                  | 0, RT.DFloat f, _, "Float", "floor", 0
+                  | 0, RT.DFloat f, _, "Float", "roundDown", 0
+                  | 0, RT.DFloat f, _, "Float", "roundTowardsZero", 0
+                  | 0, RT.DFloat f, _, "Float", "round", 0
+                  | 0, RT.DFloat f, _, "Float", "ceiling", 0
+                  | 0, RT.DFloat f, _, "Float", "roundUp", 0
+                  | 0, RT.DFloat f, _, "Float", "truncate", 0 ->
+                    f |> int64 |> isValidOCamlInt
+                  // gmtime out of range
+                  | 1, RT.DInt i, _, "Date", "sub", 0
+                  | 1, RT.DInt i, _, "Date", "subtract", 0
+                  | 1, RT.DInt i, _, "Date", "add", 0
+                  | 0, RT.DInt i, _, "Date", "fromSeconds", 0 -> i < 10000000L
+                  // Out of memory
+                  | _, RT.DInt i, _, "List", "range", 0
+                  | 0, RT.DInt i, _, "List", "repeat", 0
+                  | 2, RT.DInt i, _, "String", "padEnd", 0
+                  | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000L
+                  // Exception
+                  | 0, _, _, "", "toString", 0 -> not (containsBytes dv)
+                  | _ -> true)
 
               match List.length signature with
               | 0 -> return (name, [])

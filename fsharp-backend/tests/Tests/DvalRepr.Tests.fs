@@ -188,16 +188,15 @@ let allRoundtrips =
 
   let all =
     TestUtils.sampleDvals
-    |> List.filter
-         (function
-         // interoperable tests do not support passwords because it's very
-         // hard/risky to get legacyserver to roundtrip them correctly without
-         // compromising the redaction protections. We do password tests in the
-         // rest of the file so lets not confuse these tests.
-         | (_, RT.DPassword _) -> false
-         // These can't be parsed by the roundtrip tests so skip
-         | (_, RT.DInt i) -> i > -4611686018427387904L && i < 4611686018427387904L
-         | _ -> true)
+    |> List.filter (function
+      // interoperable tests do not support passwords because it's very
+      // hard/risky to get legacyserver to roundtrip them correctly without
+      // compromising the redaction protections. We do password tests in the
+      // rest of the file so lets not confuse these tests.
+      | (_, RT.DPassword _) -> false
+      // These can't be parsed by the roundtrip tests so skip
+      | (_, RT.DInt i) -> i > -4611686018427387904L && i < 4611686018427387904L
+      | _ -> true)
 
   let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
 

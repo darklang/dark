@@ -94,10 +94,9 @@ let requiredContextToValidateOplist (oplist : PT.Oplist) : RequiredContext =
   else
     oplist
     |> List.map requiredContextToValidate
-    |> List.maxBy
-         (function
-         | AllDatastores -> 1
-         | NoContext -> 0)
+    |> List.maxBy (function
+      | AllDatastores -> 1
+      | NoContext -> 0)
 
 
 let isDeprecated (op : PT.Op) : bool = false
@@ -226,39 +225,38 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
 // NOTE: DO NOT UPDATE WITHOUT UPDATING THE CLIENT-SIDE LIST
 let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
   ops
-  |> List.filter
-       (fun op ->
-         match op with
-         | PT.SetHandler _
-         | PT.SetFunction _
-         | PT.SetType _
-         | PT.MoveTL _
-         | PT.SetDBColName _
-         | PT.ChangeDBColName _
-         | PT.ChangeDBColType _
-         | PT.SetExpr _
-         | PT.CreateDBMigration _
-         | PT.SetDBColNameInDBMigration _
-         | PT.SetDBColTypeInDBMigration _
-         | PT.UndoTL _
-         | PT.RedoTL _
-         | PT.TLSavepoint _
-         | PT.RenameDBname _ -> false
-         | PT.CreateDB _
-         | PT.AddDBCol _
-         | PT.SetDBColType _
-         | PT.DeleteTL _
-         | PT.DeprecatedInitDBm _
-         | PT.DeleteFunction _
-         | PT.AddDBColToDBMigration _
-         | PT.AbandonDBMigration _
-         | PT.DeleteColInDBMigration _
-         | PT.DeleteDBCol _
-         | PT.CreateDBWithBlankOr _
-         | PT.DeleteTLForever _
-         | PT.DeleteFunctionForever _
-         | PT.DeleteType _
-         | PT.DeleteTypeForever _ -> true)
+  |> List.filter (fun op ->
+    match op with
+    | PT.SetHandler _
+    | PT.SetFunction _
+    | PT.SetType _
+    | PT.MoveTL _
+    | PT.SetDBColName _
+    | PT.ChangeDBColName _
+    | PT.ChangeDBColType _
+    | PT.SetExpr _
+    | PT.CreateDBMigration _
+    | PT.SetDBColNameInDBMigration _
+    | PT.SetDBColTypeInDBMigration _
+    | PT.UndoTL _
+    | PT.RedoTL _
+    | PT.TLSavepoint _
+    | PT.RenameDBname _ -> false
+    | PT.CreateDB _
+    | PT.AddDBCol _
+    | PT.SetDBColType _
+    | PT.DeleteTL _
+    | PT.DeprecatedInitDBm _
+    | PT.DeleteFunction _
+    | PT.AddDBColToDBMigration _
+    | PT.AbandonDBMigration _
+    | PT.DeleteColInDBMigration _
+    | PT.DeleteDBCol _
+    | PT.CreateDBWithBlankOr _
+    | PT.DeleteTLForever _
+    | PT.DeleteFunctionForever _
+    | PT.DeleteType _
+    | PT.DeleteTypeForever _ -> true)
 
 type AddOpResult =
   { toplevels : ORT.toplevel list (* replace *)

@@ -295,58 +295,56 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
       WHERE P.user_id = A.id
         AND P.author_id = O.id"
   |> Sql.parameters []
-  |> Sql.executeAsync
-       (fun read ->
-         (read.string "username",
-          read.string "package",
-          read.string "module",
-          read.string "fnname",
-          read.int "version",
-          read.bytea "body",
-          read.string "return_type",
-          read.string "parameters",
-          read.string "description",
-          read.string "author",
-          read.bool "deprecated",
-          read.int64 "tlid"))
-  |> Task.bind
-       (fun fns ->
-         fns
-         |> List.map
-              (fun (username,
-                    package,
-                    module_,
-                    fnname,
-                    version,
-                    body,
-                    returnType,
-                    parameters,
-                    description,
-                    author,
-                    deprecated,
-                    tlid) ->
-                task {
-                  let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
+  |> Sql.executeAsync (fun read ->
+    (read.string "username",
+     read.string "package",
+     read.string "module",
+     read.string "fnname",
+     read.int "version",
+     read.bytea "body",
+     read.string "return_type",
+     read.string "parameters",
+     read.string "description",
+     read.string "author",
+     read.bool "deprecated",
+     read.int64 "tlid"))
+  |> Task.bind (fun fns ->
+    fns
+    |> List.map
+      (fun (username,
+            package,
+            module_,
+            fnname,
+            version,
+            body,
+            returnType,
+            parameters,
+            description,
+            author,
+            deprecated,
+            tlid) ->
+        task {
+          let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
 
-                  return
-                    ({ name =
-                         { owner = username
-                           package = package
-                           module_ = module_
-                           function_ = fnname
-                           version = version }
-                       body = expr
-                       returnType = PT.DType.parse returnType
-                       parameters =
-                         parameters
-                         |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
-                         |> List.map Convert.ocamlPackageManagerParameter2PT
-                       description = description
-                       author = author
-                       deprecated = deprecated
-                       tlid = tlid |> uint64 } : PT.Package.Fn)
-                })
-         |> Task.flatten)
+          return
+            ({ name =
+                 { owner = username
+                   package = package
+                   module_ = module_
+                   function_ = fnname
+                   version = version }
+               body = expr
+               returnType = PT.DType.parse returnType
+               parameters =
+                 parameters
+                 |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
+                 |> List.map Convert.ocamlPackageManagerParameter2PT
+               description = description
+               author = author
+               deprecated = deprecated
+               tlid = tlid |> uint64 } : PT.Package.Fn)
+        })
+    |> Task.flatten)
 
 // TODO: this keeps a cached version so we're not loading them all the time.
 // Of course, this won't be up to date if we add more functions. Given that all

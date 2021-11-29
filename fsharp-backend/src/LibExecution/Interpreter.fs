@@ -89,18 +89,17 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ERecord (id, pairs) ->
       let! evaluated =
         pairs
-        |> Ply.List.mapSequentially
-             (fun (k, v) ->
-               uply {
-                 match (k, v) with
-                 | "", v ->
-                   let! (_ : Dval) = eval state st v
-                   return None
-                 | keyname, v ->
-                   match! eval state st v with
-                   | DIncomplete _ -> return None
-                   | dv -> return Some(keyname, dv)
-               })
+        |> Ply.List.mapSequentially (fun (k, v) ->
+          uply {
+            match (k, v) with
+            | "", v ->
+              let! (_ : Dval) = eval state st v
+              return None
+            | keyname, v ->
+              match! eval state st v with
+              | DIncomplete _ -> return None
+              | dv -> return Some(keyname, dv)
+          })
 
       let evaluated = List.choose Operators.id evaluated
 

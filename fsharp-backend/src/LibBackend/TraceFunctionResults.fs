@@ -65,13 +65,12 @@ let load
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "traceID", Sql.uuid traceID
                       "tlid", Sql.id tlid ]
-  |> Sql.executeAsync
-       (fun read ->
-         (read.string "fnname",
-          read.tlid "id",
-          read.string "hash",
-          read.intOrNone "hash_version" |> Option.unwrap 0,
-          read.string "value" |> DvalRepr.ofInternalRoundtrippableV0))
+  |> Sql.executeAsync (fun read ->
+    (read.string "fnname",
+     read.tlid "id",
+     read.string "hash",
+     read.intOrNone "hash_version" |> Option.unwrap 0,
+     read.string "value" |> DvalRepr.ofInternalRoundtrippableV0))
 
 
 // (** trim_results_for_canvas is like trim_results but for a single canvas.

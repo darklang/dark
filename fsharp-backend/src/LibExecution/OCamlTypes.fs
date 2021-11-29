@@ -568,12 +568,10 @@ module Convert =
     (list : List<ORT.toplevel>)
     : List<PT.Handler.T> * List<PT.DB.T> =
     list
-    |> List.fold
-         ([], [])
-         (fun (hs, dbs) tl ->
-           match tl.data with
-           | ORT.Handler h -> (hs @ [ ocamlHandler2PT tl.pos h ], dbs)
-           | ORT.DB db -> (hs, dbs @ [ ocamlDB2PT tl.pos db ]))
+    |> List.fold ([], []) (fun (hs, dbs) tl ->
+      match tl.data with
+      | ORT.Handler h -> (hs @ [ ocamlHandler2PT tl.pos h ], dbs)
+      | ORT.DB db -> (hs, dbs @ [ ocamlDB2PT tl.pos db ]))
 
   module BSTypes =
     type tl =
@@ -929,26 +927,24 @@ module Convert =
     toplevels
     |> Map.values
     |> List.ofSeq
-    |> List.fold
-         ([], [], [])
-         (fun (tls, ufns, uts) tl ->
-           match tl with
-           | PT.TLHandler h ->
-             let ocamlHandler = pt2ocamlHandler h
+    |> List.fold ([], [], []) (fun (tls, ufns, uts) tl ->
+      match tl with
+      | PT.TLHandler h ->
+        let ocamlHandler = pt2ocamlHandler h
 
-             let ocamlTL : ORT.toplevel =
-               { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
+        let ocamlTL : ORT.toplevel =
+          { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
 
-             tls @ [ ocamlTL ], ufns, uts
-           | PT.TLDB db ->
-             let ocamlDB = pt2ocamlDB db
+        tls @ [ ocamlTL ], ufns, uts
+      | PT.TLDB db ->
+        let ocamlDB = pt2ocamlDB db
 
-             let ocamlTL : ORT.toplevel =
-               { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
+        let ocamlTL : ORT.toplevel =
+          { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
 
-             tls @ [ ocamlTL ], ufns, uts
-           | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
-           | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
+        tls @ [ ocamlTL ], ufns, uts
+      | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
+      | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
   let ocamlPackageManagerParameter2PT
     (o : PackageManager.parameter)

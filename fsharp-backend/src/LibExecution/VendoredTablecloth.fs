@@ -53,7 +53,9 @@ module String =
 
   let trim (s : string) : string = s.Trim()
   let dropLeft (count : int) (s : string) : string = s.[count..]
-  let dropRight (count : int) (s : string) : string = s.[0..(s.Length - (count + 1))]
+
+  let dropRight (count : int) (s : string) : string =
+    s.[0 .. (s.Length - (count + 1))]
 
   let replace (old : string) (newStr : string) (s : string) : string =
     s.Replace(old, newStr)

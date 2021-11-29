@@ -43,15 +43,13 @@ let nl = byte '\n'
 
 let splitAtNewlines (bytes : byte array) : byte list list =
   bytes
-  |> Array.fold
-       [ [] ]
-       (fun state b ->
-         if b = nl then
-           [] :: state
-         else
-           match state with
-           | [] -> failwith "can't have no entries"
-           | head :: rest -> (b :: head) :: rest)
+  |> Array.fold [ [] ] (fun state b ->
+    if b = nl then
+      [] :: state
+    else
+      match state with
+      | [] -> failwith "can't have no entries"
+      | head :: rest -> (b :: head) :: rest)
   |> List.map List.reverse
   |> List.reverse
 
@@ -86,43 +84,42 @@ let parseTest (bytes : byte array) : Test =
       response = [||] }
   lines
   |> List.fold
-       (Limbo, emptyTest)
-       (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
-         let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
-         match asString with
-         | Regex "\[cors (\S+)]" [ cors ] ->
-           (Limbo, { result with cors = Some cors })
-         | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
-           (Limbo, { result with customDomain = Some customDomain })
-         | "[request]" -> (InRequest, result)
-         | "[response]" -> (InResponse, result)
-         | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
-           (InHttpHandler,
-            { result with handlers = result.handlers @ [ (method, route, "") ] })
-         | _ ->
-           match state with
-           | InHttpHandler ->
-             let newHandlers =
-               match List.reverse result.handlers with
-               | [] -> failwith "There should be handlers already"
-               | (method, route, text) :: other ->
-                 List.reverse ((method, route, text + asString + "\n") :: other)
-             InHttpHandler, { result with handlers = newHandlers }
-           | InResponse ->
-             InResponse,
-             { result with
-                 response =
-                   Array.concat [| result.response; Array.ofList line; [| nl |] |] }
-           | InRequest ->
-             InRequest,
-             { result with
-                 request =
-                   Array.concat [| result.request; Array.ofList line; [| nl |] |] }
-           | Limbo ->
-             if line.Length = 0 then
-               (Limbo, result)
-             else
-               failwith $"Line received while not in any state: {line}")
+    (Limbo, emptyTest)
+    (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
+      let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
+      match asString with
+      | Regex "\[cors (\S+)]" [ cors ] -> (Limbo, { result with cors = Some cors })
+      | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
+        (Limbo, { result with customDomain = Some customDomain })
+      | "[request]" -> (InRequest, result)
+      | "[response]" -> (InResponse, result)
+      | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
+        (InHttpHandler,
+         { result with handlers = result.handlers @ [ (method, route, "") ] })
+      | _ ->
+        match state with
+        | InHttpHandler ->
+          let newHandlers =
+            match List.reverse result.handlers with
+            | [] -> failwith "There should be handlers already"
+            | (method, route, text) :: other ->
+              List.reverse ((method, route, text + asString + "\n") :: other)
+          InHttpHandler, { result with handlers = newHandlers }
+        | InResponse ->
+          InResponse,
+          { result with
+              response =
+                Array.concat [| result.response; Array.ofList line; [| nl |] |] }
+        | InRequest ->
+          InRequest,
+          { result with
+              request =
+                Array.concat [| result.request; Array.ofList line; [| nl |] |] }
+        | Limbo ->
+          if line.Length = 0 then
+            (Limbo, result)
+          else
+            failwith $"Line received while not in any state: {line}")
   |> Tuple2.second
   |> fun test ->
        // Remove the superfluously added newline on response (keep it on the request though)
@@ -189,27 +186,25 @@ let t filename =
 
     let oplists =
       test.handlers
-      |> List.map
-           (fun (httpMethod, httpRoute, progString) ->
-             let (source : PT.Expr) =
-               progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+      |> List.map (fun (httpMethod, httpRoute, progString) ->
+        let (source : PT.Expr) =
+          progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
-             let gid = Prelude.gid
+        let gid = Prelude.gid
 
-             let ids : PT.Handler.ids =
-               { moduleID = gid (); nameID = gid (); modifierID = gid () }
+        let ids : PT.Handler.ids =
+          { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-             let h : PT.Handler.T =
-               { tlid = gid ()
-                 pos = { x = 0; y = 0 }
-                 ast = source
-                 spec =
-                   PT.Handler.HTTP(route = httpRoute, method = httpMethod, ids = ids) }
+        let h : PT.Handler.T =
+          { tlid = gid ()
+            pos = { x = 0; y = 0 }
+            ast = source
+            spec = PT.Handler.HTTP(route = httpRoute, method = httpMethod, ids = ids) }
 
-             (h.tlid,
-              [ PT.SetHandler(h.tlid, h.pos, h) ],
-              PT.TLHandler h,
-              Canvas.NotDeleted))
+        (h.tlid,
+         [ PT.SetHandler(h.tlid, h.pos, h) ],
+         PT.TLHandler h,
+         Canvas.NotDeleted))
 
     let! (meta : Canvas.Meta) = testCanvasInfo testName
     do! Canvas.saveTLIDs meta oplists
@@ -232,12 +227,11 @@ let t filename =
       (hs : (string * string) list)
       : (string * string) list =
       hs
-      |> List.map
-           (fun (k, v) ->
-             match k, v with
-             | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
-             | "x-darklang-execution-id", _ -> k, "0123456789"
-             | other -> (k, v))
+      |> List.map (fun (k, v) ->
+        match k, v with
+        | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
+        | "x-darklang-execution-id", _ -> k, "0123456789"
+        | other -> (k, v))
       |> List.sortBy Tuple2.first // FSTODO ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders
@@ -245,12 +239,11 @@ let t filename =
       (actualBody : byte array)
       : (string * string) list =
       hs
-      |> List.map
-           (fun (k, v) ->
-             match k, v with
-             // Json can be different lengths, this plugs in the expected length
-             | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
-             | _ -> (k, v))
+      |> List.map (fun (k, v) ->
+        match k, v with
+        // Json can be different lengths, this plugs in the expected length
+        | "Content-Length", "LENGTH" -> (k, string actualBody.Length)
+        | _ -> (k, v))
       |> List.sortBy Tuple2.first
 
 
@@ -266,7 +259,7 @@ let t filename =
 
         let mutable connected = false
 
-        for i in 1 .. 10 do
+        for i in 1..10 do
           try
             if not connected then
               do! client.ConnectAsync("127.0.0.1", port)
@@ -299,25 +292,24 @@ let t filename =
         let expectedResponse =
           test.response
           |> splitAtNewlines
-          |> List.filterMap
-               (fun line ->
-                 let asString = line |> List.toArray |> UTF8.ofBytesWithReplacement
-                 if String.includes "// " asString then
-                   if String.includes "OCAMLONLY" asString && server = FSharp then
-                     None
-                   else if String.includes "FSHARPONLY" asString && server = OCaml then
-                     None
-                   else if String.includes "KEEP" asString then
-                     Some line
-                   else
-                     // Remove comments, including OCAMLONLY and FSHARPONLY
-                     let index =
-                       findIndex [ byte ' '; byte '/'; byte '/' ] line
-                       |> Option.orElse (findIndex [ byte '/'; byte '/' ] line)
-                       |> Option.unwrapUnsafe
-                     line |> List.splitAt index |> Tuple2.first |> Some
-                 else
-                   Some line)
+          |> List.filterMap (fun line ->
+            let asString = line |> List.toArray |> UTF8.ofBytesWithReplacement
+            if String.includes "// " asString then
+              if String.includes "OCAMLONLY" asString && server = FSharp then
+                None
+              else if String.includes "FSHARPONLY" asString && server = OCaml then
+                None
+              else if String.includes "KEEP" asString then
+                Some line
+              else
+                // Remove comments, including OCAMLONLY and FSHARPONLY
+                let index =
+                  findIndex [ byte ' '; byte '/'; byte '/' ] line
+                  |> Option.orElse (findIndex [ byte '/'; byte '/' ] line)
+                  |> Option.unwrapUnsafe
+                line |> List.splitAt index |> Tuple2.first |> Some
+            else
+              Some line)
           |> List.map (fun l -> List.append l [ nl ])
           |> List.flatten
           |> List.initial // remove final newline which we don't want

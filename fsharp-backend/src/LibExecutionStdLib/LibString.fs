@@ -78,15 +78,14 @@ let fns : List<BuiltInFn> =
         | state, [ DStr s; DFnVal b ] ->
           (String.toEgcSeq s
            |> Seq.toList
-           |> Ply.List.mapSequentially
-                (fun te ->
-                  (LibExecution.Interpreter.applyFnVal
-                    state
-                    (id 0)
-                    b
-                    [ DChar te ]
-                    NotInPipe
-                    NoRail))
+           |> Ply.List.mapSequentially (fun te ->
+             (LibExecution.Interpreter.applyFnVal
+               state
+               (id 0)
+               b
+               [ DChar te ]
+               NotInPipe
+               NoRail))
            |> (fun dvals ->
              (uply {
                let! (dvals : List<Dval>) = dvals
@@ -103,7 +102,7 @@ let fns : List<BuiltInFn> =
 
                  let str = String.concat "" chars
                  return DStr str
-              })))
+             })))
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -563,10 +562,9 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
           DStr(
             l
-            |> List.map
-                 (function
-                 | DChar c -> c
-                 | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
+            |> List.map (function
+              | DChar c -> c
+              | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
             |> String.concat ""
           )
           |> Ply
@@ -893,10 +891,9 @@ let fns : List<BuiltInFn> =
         | _, [ DStr haystack; DStr needle ] -> DBool(haystack.Contains needle) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec =
-        SqlCallback2
-          (fun lookingIn searchingFor ->
-            // strpos returns indexed from 1; 0 means missing
-            $"(strpos({lookingIn}, {searchingFor}) > 0)")
+        SqlCallback2 (fun lookingIn searchingFor ->
+          // strpos returns indexed from 1; 0 means missing
+          $"(strpos({lookingIn}, {searchingFor}) > 0)")
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "contains" 0) }
     { name = fn "String" "contains" 0
@@ -909,10 +906,9 @@ let fns : List<BuiltInFn> =
         | _, [ DStr haystack; DStr needle ] -> Ply(DBool(haystack.Contains needle))
         | _ -> incorrectArgs ())
       sqlSpec =
-        SqlCallback2
-          (fun lookingIn searchingFor ->
-            // strpos returns indexed from 1; 0 means missing
-            $"strpos({lookingIn}, {searchingFor}) > 0")
+        SqlCallback2 (fun lookingIn searchingFor ->
+          // strpos returns indexed from 1; 0 means missing
+          $"strpos({lookingIn}, {searchingFor}) > 0")
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "slice" 0

@@ -29,11 +29,10 @@ let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
 
       return
         packages
-        |> List.map
-             (fun (f : PT.Package.Fn) ->
-               (RT.FQFnName.Package f.name, PT.Package.toRuntimeType f))
+        |> List.map (fun (f : PT.Package.Fn) ->
+          (RT.FQFnName.Package f.name, PT.Package.toRuntimeType f))
         |> Map.ofList
-     })
+    })
 
 let libraries : Lazy<Task<RT.Libraries>> =
   lazy
@@ -44,7 +43,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
       return { stdlib = stdlibFns; packageFns = packageFns }
-     })
+    })
 
 
 let createState

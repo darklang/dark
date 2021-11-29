@@ -145,25 +145,23 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
 
       return
         events
-        |> List.filterMap
-             (fun (traceID, path) ->
+        |> List.filterMap (fun (traceID, path) ->
 
-               match h.spec with
-               | PT.Handler.Spec.HTTP _ ->
-                 // Ensure we only return trace_ids that would bind to this
-                 // handler if the trace was executed for real now. (There
-                 // may be other handlers which also match the route)
-                 c.handlers
-                 // Filter and order the handlers that would match the trace's path
-                 |> Map.values
-                 |> Routing.filterMatchingHandlers path
-                 |> List.head
-                 |> Option.bind
-                      (fun matching ->
-                        if matching.tlid = h.tlid then Some traceID else None)
-               | _ ->
-                 // Don't use HTTP filtering stack for non-HTTP traces
-                 Some traceID)
+          match h.spec with
+          | PT.Handler.Spec.HTTP _ ->
+            // Ensure we only return trace_ids that would bind to this
+            // handler if the trace was executed for real now. (There
+            // may be other handlers which also match the route)
+            c.handlers
+            // Filter and order the handlers that would match the trace's path
+            |> Map.values
+            |> Routing.filterMatchingHandlers path
+            |> List.head
+            |> Option.bind (fun matching ->
+              if matching.tlid = h.tlid then Some traceID else None)
+          | _ ->
+            // Don't use HTTP filtering stack for non-HTTP traces
+            Some traceID)
         // If there's no matching traces, add the default trace
         |> (function
         | [] -> [ traceIDofTLID h.tlid ]

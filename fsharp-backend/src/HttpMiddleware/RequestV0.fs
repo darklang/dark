@@ -80,11 +80,10 @@ let parseCookies (cookies : string) : RT.Dval =
   |> String.split ";"
   |> List.map String.trim
   |> List.map (fun s -> s.Split("=", 2) |> Array.toList)
-  |> List.map
-       (function
-       | [] -> ("", RT.DNull) // skip empty rows
-       | [ _ ] -> ("", RT.DNull) // skip rows with only a key
-       | k :: v :: _ -> (decode k, RT.DStr(decode v)))
+  |> List.map (function
+    | [] -> ("", RT.DNull) // skip empty rows
+    | [ _ ] -> ("", RT.DNull) // skip rows with only a key
+    | k :: v :: _ -> (decode k, RT.DStr(decode v)))
   |> RT.Dval.obj
 
 let cookies (headers : HttpHeaders.T) : RT.Dval =

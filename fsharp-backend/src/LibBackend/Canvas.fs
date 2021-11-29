@@ -245,10 +245,9 @@ let verify (c : T) : Result<T, string list> =
     |> List.groupBy (fun db -> db.name)
     |> Map.filter (fun db -> List.length db > 1)
     |> Map.values
-    |> List.map
-         (fun names ->
-           let names = List.map (fun db -> db.name)
-           $"Duplicate DB names: {names}")
+    |> List.map (fun names ->
+      let names = List.map (fun db -> db.name)
+      $"Duplicate DB names: {names}")
 
   match dupedNames with
   | [] -> Ok c
@@ -264,25 +263,22 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
 let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
   Sql.query "SELECT cors_setting FROM canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeRowAsync
-       (fun read ->
-         match read.stringOrNone "cors_setting" with
-         | None -> None
-         | Some str ->
-           let json = System.Text.Json.JsonDocument.Parse str
+  |> Sql.executeRowAsync (fun read ->
+    match read.stringOrNone "cors_setting" with
+    | None -> None
+    | Some str ->
+      let json = System.Text.Json.JsonDocument.Parse str
 
-           match json.RootElement.ValueKind with
-           | System.Text.Json.JsonValueKind.String when
-             json.RootElement.GetString() = "*"
-             ->
-             Some AllOrigins
-           | System.Text.Json.JsonValueKind.Array ->
-             json.RootElement.EnumerateArray()
-             |> Seq.map string
-             |> Seq.toList
-             |> Origins
-             |> Some
-           | _ -> failwith "invalid json in CorsSettings")
+      match json.RootElement.ValueKind with
+      | System.Text.Json.JsonValueKind.String when json.RootElement.GetString() = "*" ->
+        Some AllOrigins
+      | System.Text.Json.JsonValueKind.Array ->
+        json.RootElement.EnumerateArray()
+        |> Seq.map string
+        |> Seq.toList
+        |> Origins
+        |> Some
+      | _ -> failwith "invalid json in CorsSettings")
 
 let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
@@ -392,16 +388,14 @@ let loadOplists
   Sql.query query
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "data"))
-  |> Task.bind
-       (fun list ->
-         list
-         |> List.map
-              (fun (tlid, data) ->
-                task {
-                  let! oplist = OCamlInterop.oplistOfBinary data
-                  return (tlid, oplist)
-                })
-         |> Task.flatten)
+  |> Task.bind (fun list ->
+    list
+    |> List.map (fun (tlid, data) ->
+      task {
+        let! oplist = OCamlInterop.oplistOfBinary data
+        return (tlid, oplist)
+      })
+    |> Task.flatten)
 
 
 let loadFrom
@@ -548,55 +542,54 @@ let saveTLIDs
     // have been deleted or undone, and therefore not appear, but it's
     // important to record them.
     oplists
-    |> List.map
-         (fun (tlid, oplist, tl, deleted) ->
-           task {
-             let string2option (s : string) : Option<string> =
-               if s = "" then None else Some s
+    |> List.map (fun (tlid, oplist, tl, deleted) ->
+      task {
+        let string2option (s : string) : Option<string> =
+          if s = "" then None else Some s
 
-             let deleted =
-               match deleted with
-               | Deleted -> true
-               | NotDeleted -> false
+        let deleted =
+          match deleted with
+          | Deleted -> true
+          | NotDeleted -> false
 
-             let routingNames =
-               match tl with
-               | PT.TLHandler ({ spec = spec }) ->
-                 match spec with
-                 | PT.Handler.HTTP _ ->
-                   Some(
-                     spec.module' (),
-                     Routing.routeToPostgresPattern (spec.name ()),
-                     spec.modifier ()
-                   )
-                 | PT.Handler.Worker _
-                 | PT.Handler.OldWorker _
-                 | PT.Handler.Cron _
-                 | PT.Handler.REPL _ ->
-                   Some(spec.module' (), spec.name (), spec.modifier ())
-               | PT.TLDB _
-               | PT.TLType _
-               | PT.TLFunction _ -> None
+        let routingNames =
+          match tl with
+          | PT.TLHandler ({ spec = spec }) ->
+            match spec with
+            | PT.Handler.HTTP _ ->
+              Some(
+                spec.module' (),
+                Routing.routeToPostgresPattern (spec.name ()),
+                spec.modifier ()
+              )
+            | PT.Handler.Worker _
+            | PT.Handler.OldWorker _
+            | PT.Handler.Cron _
+            | PT.Handler.REPL _ ->
+              Some(spec.module' (), spec.name (), spec.modifier ())
+          | PT.TLDB _
+          | PT.TLType _
+          | PT.TLFunction _ -> None
 
-             let (module_, name, modifier) =
-               match routingNames with
-               | Some (module_, name, modifier) ->
-                 (string2option module_, string2option name, string2option modifier)
-               | None -> None, None, None
+        let (module_, name, modifier) =
+          match routingNames with
+          | Some (module_, name, modifier) ->
+            (string2option module_, string2option name, string2option modifier)
+          | None -> None, None, None
 
-             let pos =
-               match tl with
-               | PT.TLHandler ({ pos = pos })
-               | PT.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
-               | PT.TLType _ -> None
-               | PT.TLFunction _ -> None
+        let pos =
+          match tl with
+          | PT.TLHandler ({ pos = pos })
+          | PT.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
+          | PT.TLType _ -> None
+          | PT.TLFunction _ -> None
 
-             let! oplist = OCamlInterop.oplistToBinary oplist
-             let! oplistCache = OCamlInterop.toplevelToCachedBinary tl
+        let! oplist = OCamlInterop.oplistToBinary oplist
+        let! oplistCache = OCamlInterop.toplevelToCachedBinary tl
 
-             return!
-               Sql.query
-                 "INSERT INTO toplevel_oplists
+        return!
+          Sql.query
+            "INSERT INTO toplevel_oplists
                   (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
                    rendered_oplist_cache, deleted, pos)
                   VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
@@ -612,20 +605,20 @@ let saveTLIDs
                       rendered_oplist_cache = @renderedOplistCache,
                       deleted = @deleted,
                       pos = @pos"
-               |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                                   "accountID", Sql.uuid meta.owner
-                                   "tlid", Sql.id tlid
-                                   "digest", Sql.string (OCamlInterop.digest ())
-                                   "typ", Sql.string (tl.toDBTypeString ())
-                                   "name", Sql.stringOrNone name
-                                   "module", Sql.stringOrNone module_
-                                   "modifier", Sql.stringOrNone modifier
-                                   "data", Sql.bytea oplist
-                                   "renderedOplistCache", Sql.bytea oplistCache
-                                   "deleted", Sql.bool deleted
-                                   "pos", Sql.jsonbOrNone pos ]
-               |> Sql.executeStatementAsync
-           })
+          |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                              "accountID", Sql.uuid meta.owner
+                              "tlid", Sql.id tlid
+                              "digest", Sql.string (OCamlInterop.digest ())
+                              "typ", Sql.string (tl.toDBTypeString ())
+                              "name", Sql.stringOrNone name
+                              "module", Sql.stringOrNone module_
+                              "modifier", Sql.stringOrNone modifier
+                              "data", Sql.bytea oplist
+                              "renderedOplistCache", Sql.bytea oplistCache
+                              "deleted", Sql.bool deleted
+                              "pos", Sql.jsonbOrNone pos ]
+          |> Sql.executeStatementAsync
+      })
     |> List.map (fun t -> t : Task)
     |> Task.WhenAll
   with
@@ -681,15 +674,14 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
       meta
       |> loadJsonFromDisk Config.Testdata
       |> Result.unwrapUnsafe
-      |> List.map
-           (fun (tlid, oplist) ->
-             let tl =
-               fromOplist meta [] oplist
-               |> Result.unwrapUnsafe
-               |> toplevels
-               |> Map.get tlid
-               |> Option.unwrapUnsafe
-             (tlid, oplist, tl, NotDeleted))
+      |> List.map (fun (tlid, oplist) ->
+        let tl =
+          fromOplist meta [] oplist
+          |> Result.unwrapUnsafe
+          |> toplevels
+          |> Map.get tlid
+          |> Option.unwrapUnsafe
+        (tlid, oplist, tl, NotDeleted))
 
     do! saveTLIDs meta oplists
     return ()

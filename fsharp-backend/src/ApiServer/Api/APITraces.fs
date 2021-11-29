@@ -106,10 +106,9 @@ module AllTraces =
       let! hTraces =
         c.handlers
         |> Map.values
-        |> List.map
-             (fun h ->
-               Traces.traceIDsForHandler c h
-               |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
+        |> List.map (fun h ->
+          Traces.traceIDsForHandler c h
+          |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
         |> Task.flatten
         |> Task.map List.concat
 
@@ -118,10 +117,9 @@ module AllTraces =
       let! ufTraces =
         c.userFunctions
         |> Map.values
-        |> List.map
-             (fun uf ->
-               Traces.traceIDsForUserFn c.meta.id uf.tlid
-               |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
+        |> List.map (fun uf ->
+          Traces.traceIDsForUserFn c.meta.id uf.tlid
+          |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
         |> Task.flatten
         |> Task.map List.concat
 

@@ -209,16 +209,15 @@ let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel>) : Task<Canvas.T>
   task {
     let descs =
       tls
-      |> List.map
-           (fun tl ->
-             let tlid = tl.toTLID ()
+      |> List.map (fun tl ->
+        let tlid = tl.toTLID ()
 
-             let op =
-               match tl with
-               | PT.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
-               | _ -> failwith "not yet supported in canvasForTLs"
+        let op =
+          match tl with
+          | PT.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
+          | _ -> failwith "not yet supported in canvasForTLs"
 
-             (tlid, [ op ], tl, Canvas.NotDeleted))
+        (tlid, [ op ], tl, Canvas.NotDeleted))
 
     do! Canvas.saveTLIDs meta descs
     return! Canvas.loadAll meta |> Task.map Result.unwrapUnsafe
@@ -235,7 +234,8 @@ let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
     (List.mapi
       (fun i (input, expected) ->
         test $"{name}[{i}]: ({input}) -> {expected}" {
-          Expect.equal (fn input) expected "" })
+          Expect.equal (fn input) expected ""
+        })
       values)
 
 let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>) =
@@ -244,7 +244,8 @@ let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>
     (List.mapi
       (fun i (input1, input2, expected) ->
         test $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
-          Expect.equal (fn input1 input2) expected "" })
+          Expect.equal (fn input1 input2) expected ""
+        })
       values)
 
 let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) =
@@ -618,47 +619,28 @@ module Expect =
     | DBytes _, _ -> check path actual expected
 
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
-    dvalEqualityBaseFn
-      []
-      actual
-      expected
-      (fun path a e -> Expect.equal a e $"{msg}: {pathToString path}")
+    dvalEqualityBaseFn [] actual expected (fun path a e ->
+      Expect.equal a e $"{msg}: {pathToString path}")
 
   let rec equalPattern
     (actual : Pattern)
     (expected : Pattern)
     (msg : string)
     : unit =
-    patternEqualityBaseFn
-      true
-      []
-      actual
-      expected
-      (fun path a e -> Expect.equal a e $"{msg}: {pathToString path}")
+    patternEqualityBaseFn true [] actual expected (fun path a e ->
+      Expect.equal a e $"{msg}: {pathToString path}")
 
   let rec equalPatternIgnoringIDs (actual : Pattern) (expected : Pattern) : unit =
-    patternEqualityBaseFn
-      false
-      []
-      actual
-      expected
-      (fun path a e -> Expect.equal a e (pathToString path))
+    patternEqualityBaseFn false [] actual expected (fun path a e ->
+      Expect.equal a e (pathToString path))
 
   let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
-    exprEqualityBaseFn
-      true
-      []
-      actual
-      expected
-      (fun path a e -> Expect.equal a e $"{msg}: {pathToString path}")
+    exprEqualityBaseFn true [] actual expected (fun path a e ->
+      Expect.equal a e $"{msg}: {pathToString path}")
 
   let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
-    exprEqualityBaseFn
-      false
-      []
-      actual
-      expected
-      (fun path a e -> Expect.equal a e (pathToString path))
+    exprEqualityBaseFn false [] actual expected (fun path a e ->
+      Expect.equal a e (pathToString path))
 
 let dvalEquality (left : Dval) (right : Dval) : bool =
   let success = ref true
@@ -696,9 +678,8 @@ let interestingFloats : List<string * float> =
       "tau", System.Math.Tau ]
 
   initial
-  |> List.flatMap
-       (fun (doc, v) ->
-         [ ($"{doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
+  |> List.flatMap (fun (doc, v) ->
+    [ ($"{doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
 
 let interestingInts : List<string * int64> =
   [ ("int0", 0L)
@@ -711,9 +692,8 @@ let interestingInts : List<string * int64> =
     ("int_max_53_bits", 4503599627370496L)
     ("int_above_53_bits", 4503599627370497L)
     ("int_max_63_bits", 4611686018427387903L) ]
-  |> List.flatMap
-       (fun (doc, v) ->
-         [ ($"{doc} - 1", v - 1L); ($"{doc} + 0", v); ($"{doc} + 1", v + 1L) ])
+  |> List.flatMap (fun (doc, v) ->
+    [ ($"{doc} - 1", v - 1L); ($"{doc} + 0", v); ($"{doc} + 1", v + 1L) ])
 
 let sampleDvals : List<string * Dval> =
   (List.map (fun (doc, i) -> ($"int {doc}", DInt i)) interestingInts)
@@ -792,15 +772,14 @@ module Http =
 
     text
     |> Array.toList
-    |> List.collect
-         (fun b ->
-           if not inBody && b = byte '\n' then
-             if justSawNewline then inBody <- true
-             justSawNewline <- true
-             [ byte '\r'; b ]
-           else
-             justSawNewline <- false
-             [ b ])
+    |> List.collect (fun b ->
+      if not inBody && b = byte '\n' then
+        if justSawNewline then inBody <- true
+        justSawNewline <- true
+        [ byte '\r'; b ]
+      else
+        justSawNewline <- false
+        [ b ])
     |> List.toArray
 
   let split (response : byte array) : T =
@@ -836,11 +815,10 @@ module Http =
     let headers =
       headers
       |> List.reverse
-      |> List.map
-           (fun s ->
-             match String.split ":" s with
-             | k :: vs -> (k, vs |> String.concat ":" |> String.trimLeft)
-             | _ -> failwith $"not a valid header: {s}")
+      |> List.map (fun s ->
+        match String.split ":" s with
+        | k :: vs -> (k, vs |> String.concat ":" |> String.trimLeft)
+        | _ -> failwith $"not a valid header: {s}")
 
 
     { status = status |> List.toArray |> UTF8.ofBytesUnsafe

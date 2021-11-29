@@ -410,7 +410,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt start; DInt stop ] ->
-          [ start .. stop ] |> List.map DInt |> DList |> Ply
+          [ start..stop ] |> List.map DInt |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -582,12 +582,11 @@ let fns : List<BuiltInFn> =
             // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
             let! withKeys =
               list
-              |> Ply.List.mapSequentially
-                   (fun v ->
-                     uply {
-                       let! key = fn v
-                       return (key, v)
-                     })
+              |> Ply.List.mapSequentially (fun v ->
+                uply {
+                  let! key = fn v
+                  return (key, v)
+                })
 
             return withKeys |> List.sortBy fst |> List.map snd |> DList
           }

@@ -496,9 +496,8 @@ module Dval =
         false
       else
         List.zip actual expected
-        |> List.all
-             (fun ((aField, aVal), (eField, eType)) ->
-               aField = eField && typeMatches eType aVal)
+        |> List.all (fun ((aField, aVal), (eField, eType)) ->
+          aField = eField && typeMatches eType aVal)
     | DObj _, TUserType _ -> false // not used
     | DFnVal (Lambda l), TFn (parameters, _) ->
       List.length parameters = List.length l.parameters

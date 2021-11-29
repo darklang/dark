@@ -60,11 +60,10 @@ let loadForAnalysis
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "tlid", Sql.id tlid
                       "traceID", Sql.uuid traceID ]
-  |> Sql.executeRowOptionAsync
-       (fun read ->
-         (read.string "arguments_json"
-          |> DvalRepr.ofInternalRoundtrippableV0
-          |> fun dv -> RT.Dval.toPairs dv, read.dateTime "timestamp"))
+  |> Sql.executeRowOptionAsync (fun read ->
+    (read.string "arguments_json"
+     |> DvalRepr.ofInternalRoundtrippableV0
+     |> fun dv -> RT.Dval.toPairs dv, read.dateTime "timestamp"))
 
 
 let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =

@@ -32,14 +32,13 @@ let normalizeHeaders
   (headers : (string * string) list)
   : (string * string) list =
   headers
-  |> List.map
-       (function
-       // make writing tests easier
-       | (key, "HOST") when String.equalsCaseInsensitive "Host" key -> (key, host)
-       // optionally change content length for writing responses more easily
-       | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
-         (key, string body.Length)
-       | other -> other)
+  |> List.map (function
+    // make writing tests easier
+    | (key, "HOST") when String.equalsCaseInsensitive "Host" key -> (key, host)
+    // optionally change content length for writing responses more easily
+    | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
+      (key, string body.Length)
+    | other -> other)
 
 let randomBytes =
   [ 0x2euy; 0x0Auy; 0xE8uy; 0xE6uy; 0xF1uy; 0xE0uy; 0x9Buy; 0xA6uy; 0xEuy ]
@@ -364,14 +363,13 @@ let webserver () =
   Host.CreateDefaultBuilder()
   |> fun h -> h.ConfigureLogging(configureLogging)
   |> fun h ->
-       h.ConfigureWebHost
-         (fun wh ->
-           wh
-           |> fun wh -> wh.UseKestrel()
-           |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpClientPort}")
-           |> fun wh -> wh.ConfigureServices(configureServices)
-           |> fun wh -> wh.Configure(configureApp)
-           |> ignore<IWebHostBuilder>)
+       h.ConfigureWebHost (fun wh ->
+         wh
+         |> fun wh -> wh.UseKestrel()
+         |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpClientPort}")
+         |> fun wh -> wh.ConfigureServices(configureServices)
+         |> fun wh -> wh.Configure(configureApp)
+         |> ignore<IWebHostBuilder>)
   |> fun h -> h.Build()
 
 // run a webserver to read test input

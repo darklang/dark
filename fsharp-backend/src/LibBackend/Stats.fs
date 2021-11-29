@@ -25,17 +25,16 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
   let ownerID = c.meta.owner
 
   tlids
-  |> List.filterMap
-       (fun tlid -> Map.get tlid c.dbs |> Option.map (fun db -> (tlid, db)))
-  |> List.map
-       (fun (tlid, db) ->
-         task {
-           let db = PT.DB.toRuntimeType db
-           // CLEANUP this is a lot of reqs
-           let! count = UserDB.statsCount canvasID ownerID db
-           let! example = UserDB.statsPluck canvasID ownerID db
-           return (tlid, { count = count; example = example })
-         })
+  |> List.filterMap (fun tlid ->
+    Map.get tlid c.dbs |> Option.map (fun db -> (tlid, db)))
+  |> List.map (fun (tlid, db) ->
+    task {
+      let db = PT.DB.toRuntimeType db
+      // CLEANUP this is a lot of reqs
+      let! count = UserDB.statsCount canvasID ownerID db
+      let! example = UserDB.statsPluck canvasID ownerID db
+      return (tlid, { count = count; example = example })
+    })
   |> Task.flatten
   |> Task.map Map.ofList
 

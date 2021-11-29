@@ -15,9 +15,9 @@
 # as part of that build. Search for DOCKERFILE_REPO for where to make that
 # change.
 
-FROM ubuntu:20.04@sha256:376209074d481dca0a9cf4282710cd30a9e7ff402dea8261acdaaf57a18971dd as dark-base
+FROM ubuntu:20.04@sha256:7cc0576c7c0ec2384de5cbf245f41567e922aab1b075f3e8ad565f508032df17 as dark-base
 
-ENV FORCE_BUILD 2
+ENV FORCE_BUILD 3
 
 # These are reasonable defaults, and what the dark uid/gid would be if we didn't
 # specify values. By exposing them as build-args, we can set these values to
@@ -357,9 +357,9 @@ RUN dotnet tool install -g dotnet-sos
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
-ENV PATH "$PATH:/home/dark/bin"
-RUN dotnet tool install fantomas-tool --version 4.5.7 --tool-path ~/bin
+RUN dotnet tool install fantomas-tool --version 4.6.0-alpha-008 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
+ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 #############
 # tunnel user
