@@ -87,7 +87,8 @@ let run () : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
   let migrations = names ()
-  print $"migrations: {migrations}"
+  print $"migrations: \n"
+  List.iter (fun m -> print $" - {m}") migrations
 
   List.iter
     (fun name ->
