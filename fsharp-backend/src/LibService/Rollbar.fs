@@ -63,8 +63,8 @@ let send
   try
     print "sending exception to rollbar"
     let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
-    state.["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
-    state.["execution_id"] <- string executionID
+    state["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
+    state["execution_id"] <- string executionID
     List.iter
       (fun (k, v) ->
         Dictionary.add k (v :> obj) state |> ignore<Dictionary.T<string, obj>>)

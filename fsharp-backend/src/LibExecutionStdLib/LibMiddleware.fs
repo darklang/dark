@@ -106,7 +106,7 @@ let varB = TVariable "b"
 //                  let values = nvc.GetValues key
 
 //                  let value =
-//                    let split = values.[values.Length - 1] |> String.split ","
+//                    let split = values[values.Length - 1] |> String.split ","
 
 //                    match split with
 //                    | [] -> DNull
@@ -170,7 +170,7 @@ let varB = TVariable "b"
 //             "/?:@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-~=,&"
 
 //            let mutable safe = (Array.init 256 (fun _ -> false))
-//            Array.iter (fun b -> safe.[int b] <- true) (UTF8.toBytes allowed)
+//            Array.iter (fun b -> safe[int b] <- true) (UTF8.toBytes allowed)
 //            safe)
 
 //         (function
@@ -182,7 +182,7 @@ let varB = TVariable "b"
 //           |> Array.iter
 //                (fun b ->
 //                  let (_ : System.Text.StringBuilder) =
-//                    if urlSafe.[int b] then
+//                    if urlSafe[int b] then
 //                      result.Append(char b)
 //                    else
 //                      result.AppendFormat("%{0:X2}", b)

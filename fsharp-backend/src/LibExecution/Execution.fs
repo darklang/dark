@@ -94,6 +94,6 @@ let traceDvals () : Dictionary.T<id, AT.ExecutionResult> * RT.TraceDval =
       (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
 
     // Overwrites if present, which is what we want
-    results.[id] <- result
+    results[id] <- result
 
   (results, trace)

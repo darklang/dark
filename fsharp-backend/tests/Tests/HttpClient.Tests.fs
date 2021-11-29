@@ -83,7 +83,7 @@ let t filename =
     if not m.Success then failwith $"incorrect format in {name}"
     let g = m.Groups
 
-    (g.[2].Value, g.[3].Value, g.[4].Value)
+    (g[2].Value, g[3].Value, g[4].Value)
 
   let expected =
     expectedRequest |> UTF8.toBytes |> Http.setHeadersToCRLF |> Http.split
@@ -99,7 +99,7 @@ let t filename =
         headers = normalizeHeaders newResponseBody response.headers
         body = newResponseBody }
 
-  testCases.[name] <- { expected = expected; result = response }
+  testCases[name] <- { expected = expected; result = response }
 
 
   // Load the testcases first so that redirection works
@@ -209,7 +209,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       let testName =
         let segment = System.Uri(ctx.Request.Path.Value).Segments.[1]
         if String.endsWith "/" segment then String.dropRight 1 segment else segment
-      let testCase = testCases.[testName]
+      let testCase = testCases[testName]
 
       let actualHeaders =
         BwdServer.Server.getHeaders ctx

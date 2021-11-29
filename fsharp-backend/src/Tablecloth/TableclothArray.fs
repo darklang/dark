@@ -29,9 +29,9 @@ let isEmpty a = length a = 0
 
 let is_empty a = isEmpty a
 
-let first t = if length t < 1 then None else Some t.[0]
+let first t = if length t < 1 then None else Some t[0]
 
-let last t = if length t < 1 then None else Some t.[length t - 1]
+let last t = if length t < 1 then None else Some t[length t - 1]
 
 let get i a = Array.get a i
 
@@ -78,9 +78,9 @@ let count f a =
     a
 
 let swap (i : int) (j : int) (a : 'a array) =
-  let temp = a.[i]
-  a.[i] <- a.[j]
-  a.[j] <- temp
+  let temp = a[i]
+  a[i] <- a[j]
+  a[j] <- temp
   ()
 
 let find f a =
@@ -111,7 +111,7 @@ let map_with_index f a = mapWithIndex f a
 let map2 (f : 'a -> 'b -> 'c) (a : 'a array) (b : 'b array) =
   let minLength = min (length a) (length b) in
 
-  Array.init minLength (fun i -> f a.[i] b.[i])
+  Array.init minLength (fun i -> f a[i] b[i])
 
 
 let zip a b = map2 (fun left right -> (left, right)) a b
@@ -123,7 +123,7 @@ let map3
   (arrayC : 'c array)
   =
   let minLength = min (length arrayA) (min (length arrayC) (length arrayB))
-  Array.init minLength (fun i -> f arrayA.[i] arrayB.[i] arrayC.[i])
+  Array.init minLength (fun i -> f arrayA[i] arrayB[i] arrayC[i])
 
 
 let partition f a = Array.partition f a
@@ -204,7 +204,7 @@ let slice from ``to`` array =
   if sliceFrom >= sliceTo then
     [||]
   else
-    Array.init (sliceTo - sliceFrom) (fun i -> array.[i + sliceFrom])
+    Array.init (sliceTo - sliceFrom) (fun i -> array[i + sliceFrom])
 
 
 let sliding step size a =
@@ -214,7 +214,7 @@ let sliding step size a =
     [||]
   else
     initialize
-      (fun i -> initialize (fun j -> a.[(i * step) + j]) size)
+      (fun i -> initialize (fun j -> a[(i * step) + j]) size)
       (1 + ((n - size) / step))
 
 
@@ -271,7 +271,7 @@ let equal (f : 'a -> 'a -> bool) a b =
     true
   else
     let rec loop index =
-      if index = length a then true else f a.[index] b.[index] && loop (index + 1)
+      if index = length a then true else f a[index] b[index] && loop (index + 1)
 
     loop 0
 
@@ -285,7 +285,7 @@ let compare (f : 'a -> 'a -> int) a b =
         if index = length a then
           0
         else
-          match f a.[index] b.[index] with
+          match f a[index] b[index] with
           | 0 -> loop (index + 1)
           | result -> result
 

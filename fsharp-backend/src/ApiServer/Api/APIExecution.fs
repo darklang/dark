@@ -99,7 +99,7 @@ module Handler =
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
       let c = Result.unwrapUnsafe c
       let program = Canvas.toProgram c
-      let expr = c.handlers.[p.tlid].ast.toRuntimeType ()
+      let expr = c.handlers[ p.tlid ].ast.toRuntimeType ()
       t "load-canvas"
 
       let! state, touchedTLIDs = RealExe.createState p.trace_id p.tlid program

@@ -169,14 +169,14 @@ let fns : List<BuiltInFn> =
 
 
           for i = 0 to n - 1 do
-            let (c : byte) = bytes.[i]
+            let (c : byte) = bytes[i]
 
             if ((is_hex c) || (is_special c)) then
               sb.Append(char c) |> ignore<Text.StringBuilder>
-            elif (bytes.[i] = byte '%') then
+            elif (bytes[i] = byte '%') then
               // We're expecting already escaped strings so ignore the escapes
               if i + 2 < n then
-                if is_hex bytes.[i + 1] && is_hex bytes.[i + 2] then
+                if is_hex bytes[i + 1] && is_hex bytes[i + 2] then
                   sb.Append(char c) |> ignore<Text.StringBuilder>
                 else
                   sb.Append "%25" |> ignore<Text.StringBuilder>

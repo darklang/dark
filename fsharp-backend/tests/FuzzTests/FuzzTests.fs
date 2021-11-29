@@ -978,8 +978,8 @@ module ExecutePureFunctions =
                     false)
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
-              let name = fns.[fnIndex].name
-              let signature = fns.[fnIndex].parameters
+              let name = fns[fnIndex].name
+              let signature = fns[fnIndex].parameters
 
               let unifiesWith (typ : RT.DType) =
                 (fun dv ->
@@ -1031,7 +1031,7 @@ module ExecutePureFunctions =
                     | "String::padEnd", 1 ->
                       let! v = Generators.char ()
                       return RT.DStr v
-                    | _ -> return! genDval signature.[i].typ
+                    | _ -> return! genDval signature[i].typ
                   }
                 // Still throw in random data occasionally test errors, edge-cases, etc.
                 let randomValue =
@@ -1194,9 +1194,9 @@ module ExecutePureFunctions =
                 if sameGroups && actualMatch.Groups.Count > 1 then
                   // start at 1, because 0 is the whole match
                   for i = 1 to actualMatch.Groups.Count - 1 do
-                    let group = actualMatch.Groups.[i]
+                    let group = actualMatch.Groups[i]
                     actualGroupMatches.Add(group.Name, group.Value)
-                    let group = expectedMatch.Groups.[i]
+                    let group = expectedMatch.Groups[i]
                     expectedGroupMatches.Add(group.Name, group.Value)
 
                 let dToL d = Dictionary.toList d |> List.sortBy Tuple2.first

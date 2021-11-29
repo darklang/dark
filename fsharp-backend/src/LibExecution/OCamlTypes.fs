@@ -332,7 +332,7 @@ module Convert =
     | ORT.FPString fp -> PT.PString(fp.patternID, fp.str)
     | ORT.FPFloat (_, id, w, f) ->
       let whole = parseBigint w
-      let sign = if w.[0] = '-' then Negative else Positive
+      let sign = if w[0] = '-' then Negative else Positive
       PT.PFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
     | ORT.FPNull (_, id) -> PT.PNull id
     | ORT.FPBlank (_, id) -> PT.PBlank id
@@ -351,7 +351,7 @@ module Convert =
     | ORT.EString (id, str) -> PT.EString(id, str)
     | ORT.EFloat (id, w, f) ->
       let whole = parseBigint w
-      let sign = if w.[0] = '-' then Negative else Positive
+      let sign = if w[0] = '-' then Negative else Positive
       PT.EFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
     | ORT.EBool (id, b) -> PT.EBool(id, b)
     | ORT.ENull id -> PT.ENull id
