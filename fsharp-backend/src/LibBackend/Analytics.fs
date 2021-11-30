@@ -17,8 +17,9 @@ open Tablecloth
 
 // We call this in two contexts: DarkInternal:: fns, and
 // bin/heapio_identify_users.exe.
-let identifyUser (executionID : ExecutionID) (username : UserName.T) : Task<unit> =
+let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
   task {
+    // FSTODO: check that analytics_metadata has been set correctly
     match! Account.getUserAndCreatedAtAndAnalyticsMetadata username with
     | None ->
       // FSTODO
@@ -74,3 +75,4 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : Task<unit
       //     payload
       return ()
   }
+  |> ignore<Task<unit>>

@@ -33,7 +33,6 @@ let canvasIDForCanvasName
                       "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
-let canvasIDForCanvasNameOption = Exception.catch2 canvasIDForCanvasName
 
 let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   task {

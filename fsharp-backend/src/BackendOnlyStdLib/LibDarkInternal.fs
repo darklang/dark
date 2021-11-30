@@ -191,7 +191,6 @@ let fns : List<BuiltInFn> =
               | Ok () -> return DStr ""
               | Error msg -> return Exception.raiseGrandUser msg
             }
-
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -226,30 +225,26 @@ which was randomly generated. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name; DObj analytics_metadata ] ->
+          | state, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
             uply {
-              let result =
-                Account.insertUser username email name analytics_metadata ()
-                |> Result.map (fun () ->
-                  LibBackend.Analytics.identifyUser state.executionID username)
-                |> Result.bind (fun () ->
-                  let toCanvasName =
-                    $"{username}-{LibService.Config.gettingStartedCanvasName}"
-                  let fromCanvasName = LibService.Config.gettingStartedCanvasSource
-                  do!
-                    LibBackend.CanvasClone.cloneCanvas
-                      (CanvasName.create fromCanvasName)
-                      (CanvasName.create toCanvasName)
-                      // Don't preserve history here, it isn't useful and
-                      // we don't currently have visibility into canvas
-                      // history, so we'd rather not share unknown sample-
-                      // history with users in case it contains
-                      // sensitive information like access keys.
-                      false)
-              return
-                match result with
-                | Ok () -> DResult(Ok(DStr ""))
-                | Error msg -> DResult(Error(DStr msg))
+              let username = UserName.create username
+              let! user =
+                Account.insertUser username email name (Some analyticsMetadata)
+              LibBackend.Analytics.identifyUser state.executionID username
+              let toCanvasName =
+                $"{username}-{LibService.Config.gettingStartedCanvasName}"
+              let fromCanvasName = LibService.Config.gettingStartedCanvasSource
+              do!
+                LibBackend.CanvasClone.cloneCanvas
+                  (CanvasName.create fromCanvasName)
+                  (CanvasName.create toCanvasName)
+                  // Don't preserve history here, it isn't useful and
+                  // we don't currently have visibility into canvas
+                  // history, so we'd rather not share unknown sample-
+                  // history with users in case it contains
+                  // sensitive information like access keys.
+                  false
+              return DResult(Ok(DStr ""))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -265,7 +260,21 @@ that's already taken, returns an error."
         "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name ] -> Ply DNull
+          | state, [ DStr username; DStr email; DStr name ] ->
+            uply {
+              let username = UserName.create username
+              let! result =
+                Account.upsertNonAdmin
+                  { username = username
+                    email = email
+                    name = name
+                    password = Password.invalid }
+              match result with
+              | Ok () ->
+                do Analytics.identifyUser state.executionID username
+                return DStr ""
+              | Error msg -> return Exception.raiseGrandUser msg
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -341,11 +350,12 @@ that's already taken, returns an error."
       description = "Set whether a user is an admin. Returns null."
       fn =
         internalFn (function
-          | _, [ DStr username; DBool admin ] ->
+          | state, [ DStr username; DBool admin ] ->
             uply {
-              do! Account.setAdmin admin (UserName.create username)
+              let username = UserName.create username
+              do! Account.setAdmin admin username
               // FSTODO: report to rollbar
-              do! LibBackend.Analytics.identifyUser state.executionID username
+              LibBackend.Analytics.identifyUser state.executionID username
               return DNull
             }
           | _ -> incorrectArgs ())
@@ -608,7 +618,7 @@ that's already taken, returns an error."
           | state, [ DStr canvasID; DStr event; payload ] ->
             (try
               Pusher.push
-                state.program.executionID
+                state.executionID
                 (canvasID |> System.Guid.Parse)
                 event
                 (payload |> DvalRepr.toInternalRoundtrippableV0)
@@ -627,9 +637,9 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr sessionKey ] ->
             uply {
-              match Auth.SessionSync.username_of_key sessionKey with
+              match! Session.getNoCSRF sessionKey with
               | None -> return DResult(Error(DStr "No session for cookie"))
-              | Some username -> return DResult(Ok(DStr username))
+              | Some session -> return DResult(Ok(DStr(string session.username)))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -716,42 +726,41 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "grantsFor" 0
       parameters = [ Param.make "org" TStr "" ]
-      returnType = TObj
+      returnType = varA
       description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
       fn =
         internalFn (function
           | _, [ DStr org ] ->
-            let grants = Authorization.grants_for (Unicode_string.to_string org)
-            grants
-            |> List.fold DvalMap.empty (fun map (user, perm) ->
-              DvalMap.insert
-                user
-
-                (perm |> Authorization.permission_to_string |> DStr)
-                map)
-            |> fun obj -> DObj obj
+            uply {
+              let! grants = Authorization.grantsFor (OwnerName.create org)
+              return
+                grants
+                |> List.map (fun (user, perm) ->
+                  (string user, perm |> string |> DStr))
+                |> Map
+                |> DObj
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "orgsFor" 0
       parameters = [ Param.make "username" TStr "" ]
-      returnType = TObj
+      returnType = varA
       description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
       fn =
         internalFn (function
           | _, [ DStr username ] ->
-            let orgs = Authorization.orgs_for (Unicode_string.to_string username)
-            orgs
-            |> List.fold DvalMap.empty (fun map (org, perm) ->
-              DvalMap.insert
-                org
-
-                (perm |> Authorization.permission_to_string |> DStr)
-                map)
-            |> fun obj -> DObj obj
+            uply {
+              let! orgs = Authorization.orgsFor (UserName.create username)
+              return
+                orgs
+                |> List.map (fun (org, perm) -> (string org, perm |> string |> DStr))
+                |> Map
+                |> DObj
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -763,13 +772,12 @@ that's already taken, returns an error."
       fn =
         internalFn (function
           | _, [ DStr username; DStr canvas ] ->
-            let auth_domain =
-              Account.auth_domain_for (Unicode_string.to_string canvas)
-            let username = Unicode_string.to_string username in
-            (match Authorization.permission auth_domain username with
-             | Some perm -> Authorization.permission_to_string perm
-             | None -> "")
-            |> DStr
+            uply {
+              let owner = Account.ownerNameFromCanvasName (CanvasName.create canvas)
+              match! Authorization.permission owner (UserName.create username) with
+              | Some perm -> return DStr(string perm)
+              | None -> return DStr ""
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -778,46 +786,46 @@ that's already taken, returns an error."
       parameters =
         [ Param.make "level" TStr ""
           Param.make "name" TStr ""
-          Param.make "log" TObj "" ]
-      returnType = TObj
+          Param.make "log" varA "" ]
+      returnType = varA
       description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
       fn =
         internalFn (function
           | _, [ DStr level; DStr name; DObj log ] ->
-            let name = name |> Unicode_string.to_string in
+            // FSTODO
             (* Logs are important; if we get a level we can't parse, fall back to
              * `Info and also error log *)
-            let levelStr = level |> Unicode_string.to_string in
-            let level =
-              levelStr
-              |> Log.string_to_level_opt
-              |> function
-                | Some level -> level
-                | None ->
-                  Log.erroR
-                    "DarkInternal::log no match"
-                    [ ("input_level", levelStr); ("log_name", name) ]
-                  Info
-            (* We could just leave the dval vals as strings and use params, but
-             * then we can't do numeric things (MAX, AVG, >, etc) with these
-             * logs *)
-            let jsonparams =
-              log
-              |> DvalMap.to_yojson (fun v ->
-                v |> Dval.to_pretty_machine_json_v1 |> Yojson.Safe.from_string)
-              |> function
-                | Assoc jsonparams -> jsonparams
-                | _ -> Exception.raiseInternal "Can't happen, bad log call"
-            let log =
-              log
-              |> DvalMap.insert_no_override
-                   "level"
+            // let level =
+            //   levelStr
+            //   |> Log.string_to_level_opt
+            //   |> function
+            //     | Some level -> level
+            //     | None ->
+            //       Log.erroR
+            //         "DarkInternal::log no match"
+            //         [ ("input_level", levelStr); ("log_name", name) ]
+            //       Info
+            // (* We could just leave the dval vals as strings and use params, but
+            //  * then we can't do numeric things (MAX, AVG, >, etc) with these
+            //  * logs *)
+            // let jsonparams =
+            //   log
+            //   |> DvalMap.to_yojson (fun v ->
+            //     v |> Dval.to_pretty_machine_json_v1 |> Yojson.Safe.from_string)
+            //   |> function
+            //     | Assoc jsonparams -> jsonparams
+            //     | _ -> Exception.raiseInternal "Can't happen, bad log call"
+            // let log =
+            //   log
+            //   |> DvalMap.insert_no_override
+            //        "level"
 
-                   (level |> Log.level_to_string |> DStr)
-              |> DvalMap.insert_no_override "name" (name |> DStr)
-            Log.pP level name jsonparams
-            DObj log
+            //        (level |> Log.level_to_string |> DStr)
+            //   |> DvalMap.insert_no_override "name" (name |> DStr)
+            // Log.pP level name jsonparams
+            // DObj log
+            Ply DNull
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -963,88 +971,116 @@ that's already taken, returns an error."
             uply {
               let username = UserName.create username
               let userID = Account.userIDForUserName username
-              let session_key =
-                try
-                  Auth.SessionSync.new_for_username username |> Result.Ok
-                with
-                | e -> Result.fail e
-              match session_key with
-              | Ok session_key -> return DResult(Ok(DStr session_key))
-              | Error e ->
-                (* If session creation fails, log and rollbar *)
-                // let err = Libexecution.Exception.exn_to_string e
-                // FSTODO
-                // Log.erroR
-                //   "DarkInternal::newSessionForUsername"
-                //   [ ("username", username); ("exception", err) ]
-                // let bt = Libexecution.Exception.get_backtrace ()
-                match
-                  Rollbar.report e bt (Other "Darklang") (string state.execution_id)
-                  with
-                | Success
-                | Disabled -> ()
-                | Failure ->
-                  Log.erroR "rollbar.report at DarkInternal::newSessionForUsername"
-                return DResult(Error(DStr "Failed to create session"))
+              let! session = Session.insert username
+              return DResult(Ok(DStr session.sessionKey))
+
+            // FSTODO - maybe put this in the general libInternal handler
+            (* If session creation fails, log and rollbar *)
+            // let err = Libexecution.Exception.exn_to_string e
+            // FSTODO
+            // Log.erroR
+            //   "DarkInternal::newSessionForUsername"
+            //   [ ("username", username); ("exception", err) ]
+            // let bt = Libexecution.Exception.get_backtrace ()
+            // match
+            //   Rollbar.report e bt (Other "Darklang") (string state.execution_id)
+            //   with
+            // | Success
+            // | Disabled -> ()
+            // | Failure ->
+            //   Log.erroR "rollbar.report at DarkInternal::newSessionForUsername"
+            // return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "" "" 0)
+
+    // FSTODO - maybe put this in the general libInternal handler
+    (* If session creation fails, log and rollbar *)
+    // let err = Libexecution.Exception.exn_to_string e
+    // FSTODO
+    // Log.erroR
+    //   "DarkInternal::newSessionForUsername"
+    //   [ ("username", username); ("exception", err) ]
+    // let bt = Libexecution.Exception.get_backtrace ()
+    // match
+    //   Rollbar.report e bt (Other "Darklang") (string state.execution_id)
+    //   with
+    // | Success
+    // | Disabled -> ()
+    // | Failure ->
+    //   Log.erroR "rollbar.report at DarkInternal::newSessionForUsername"
+    // return DResult(Error(DStr "Failed to create session"))
+    }
     { name = fn "DarkInternal" "newSessionForUsername" 1
       parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult
+      returnType = TResult(TStr, TStr)
       description =
         (* We need the csrf token for dark-cli to use *)
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey and csrfToken."
       fn =
         internalFn (function
-          | exec_state, [ DStr username ] ->
-            let username = Unicode_string.to_string username in
-
-            (match Account.userIDForUserName username with
-             | None -> DResult(Error(DStr("No user '" ^ username ^ "'")))
-             | Some _user_id ->
-               let session_key_and_csrf_token =
-                 try
-                   Auth.SessionSync.new_for_username_with_csrf_token username
-                   |> Result.Ok
-                 with
-                 | e -> Result.fail e
-               (match session_key_and_csrf_token with
-                | Ok session ->
-                  DResult(
-                    Ok(
-                      DObj(
-                        DvalMap.from_list [ ("sessionKey", DStr sessionKey)
-                                            ("csrfToken", DStr csrfToken) ]
-                      )
+          | state, [ DStr username ] ->
+            uply {
+              let username = UserName.create username
+              let userID = Account.userIDForUserName username
+              let! session = Session.insert username
+              return
+                DResult(
+                  Ok(
+                    DObj(
+                      Map [ ("sessionKey", DStr session.sessionKey)
+                            ("csrfToken", DStr session.csrfToken) ]
                     )
                   )
-                | Error e ->
-                  (* If session creation fails, log and rollbar *)
-                  let err = Libexecution.Exception.exn_to_string e
-                  Log.erroR
-                    "DarkInternal::newSessionForUsername_v1"
-                    [ ("username", username); ("exception", err) ]
-                  let bt = Libexecution.Exception.get_backtrace ()
-                  (match
-                    Rollbar.report
-                      e
-                      bt
-                      (Other "Darklang")
-                      (exec_state.execution_id |> Types.string_of_id)
-                     with
-                   | Success
-                   | Disabled -> ()
-                   | Failure ->
-                     Log.erroR
-                       "rollbar.report at DarkInternal::newSessionForUsername")
-                  DResult(Error(DStr "Failed to create session"))))
+                )
+            // FSTODO
+            (* If session creation fails, log and rollbar *)
+            // let err = Libexecution.Exception.exn_to_string e
+            // Log.erroR
+            //   "DarkInternal::newSessionForUsername_v1"
+            //   [ ("username", username); ("exception", err) ]
+            // let bt = Libexecution.Exception.get_backtrace ()
+            // (match
+            //   Rollbar.report
+            //     e
+            //     bt
+            //     (Other "Darklang")
+            //     (exec_state.execution_id |> Types.string_of_id)
+            //    with
+            //  | Success
+            //  | Disabled -> ()
+            //  | Failure ->
+            //    Log.erroR
+            //      "rollbar.report at DarkInternal::newSessionForUsername")
+            // return DResult(Error(DStr "Failed to create session")))
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+    // FSTODO
+    (* If session creation fails, log and rollbar *)
+    // let err = Libexecution.Exception.exn_to_string e
+    // Log.erroR
+    //   "DarkInternal::newSessionForUsername_v1"
+    //   [ ("username", username); ("exception", err) ]
+    // let bt = Libexecution.Exception.get_backtrace ()
+    // (match
+    //   Rollbar.report
+    //     e
+    //     bt
+    //     (Other "Darklang")
+    //     (exec_state.execution_id |> Types.string_of_id)
+    //    with
+    //  | Success
+    //  | Disabled -> ()
+    //  | Failure ->
+    //    Log.erroR
+    //      "rollbar.report at DarkInternal::newSessionForUsername")
+    // return DResult(Error(DStr "Failed to create session")))
+    }
     { name = fn "DarkInternal" "deleteSession" 0
       parameters = [ Param.make "session_key" TStr "" ]
       returnType = TInt
@@ -1066,7 +1102,7 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "getAndLogTableSizes" 0
       parameters = []
-      returnType = TObj
+      returnType = varA
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
@@ -1074,53 +1110,56 @@ in OCaml; its primary purpose is to send data to honeycomb, but also gives
 human-readable data."
       fn =
         internalFn (function
-          | exec_state, [] ->
-            let table_stats = Db.table_stats ()
-            (* Send logs to honeycomb. We could save some events by sending
-                 * these all as a single event - tablename.disk = 1, etc - but
-                 * by having an event per table, it's easier to query and graph:
-                 * `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`. (Also,
-                 * if/when we add more tables, the graph-query doesn't need to
-                 * be updated,)
-                 *
-                 * There are ~40k minutes/month, and 20 tables, so a 1/min cron
-                 * would consume 80k of our 1.5B monthly events. That seems
-                 * reasonable.
-                 *
-                 * The log statements all look like:
-                 * {"timestamp":"2020-05-29T00:20:08.769420000Z","level":"INFO","name":"postgres_table_sizes","relation":"Total","disk_bytes":835584,"rows":139,"disk_human":"816 kB","rows_human":"139"}
-                 * *)
-            table_stats
-            |> List.iter (fun ts ->
-              Log.infO
-                "postgres_table_sizes"
-                [ ("relation", String ts.relation)
-                  ("disk_bytes", Int ts.disk_bytes)
-                  ("rows", Int ts.rows)
-                  ("disk_human", String ts.disk_human)
-                  ("rows_human", String ts.rows_human) ])
-            (* Reformat a bit for human-usable dval output.
-                 * Example from my local dev: {
-                 *   Total: {
-                 *     disk: 835584,
-                 *     disk_human: "816 kB",
-                 *     rows: 139,
-                 *     rows_human: 139
-                 *   },
-                 *   access: {...},
-                 *   ...
-                 * } *)
-            let table_stats_for_dobj =
-              table_stats
-              |> List.map (fun ts ->
-                (ts.relation,
-                 [ ("disk_bytes", DInt(Dint.of_int ts.disk_bytes))
-                   ("rows", DInt(Dint.of_int ts.rows))
-                   ("disk_human", DStr ts.disk_human)
-                   ("rows_human", DStr ts.rows_human) ]
-                 |> DvalMap.from_list
-                 |> DObj))
-            table_stats_for_dobj |> DvalMap.from_list |> DObj
+          | state, [] ->
+            uply {
+              let! tableStats = Db.tableStats ()
+              // Send logs to honeycomb. We could save some events by sending
+              // these all as a single event - tablename.disk = 1, etc - but
+              // by having an event per table, it's easier to query and graph:
+              // `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`. (Also,
+              // if/when we add more tables, the graph-query doesn't need to
+              // be updated,)
+              //
+              // There are ~40k minutes/month, and 20 tables, so a 1/min cron
+              // would consume 80k of our 1.5B monthly events. That seems
+              // reasonable.
+              //
+              // The log statements all look like:
+              // {"timestamp":"2020-05-29T00:20:08.769420000Z","level":"INFO","name":"postgres_table_sizes","relation":"Total","disk_bytes":835584,"rows":139,"disk_human":"816 kB","rows_human":"139"}
+              // FSTODO
+              // tableStats
+              // |> List.iter (fun ts ->
+              //   Log.infO
+              //     "postgres_table_sizes"
+              //     [ ("relation", String ts.relation)
+              //       ("disk_bytes", Int ts.disk_bytes)
+              //       ("rows", Int ts.rows)
+              //       ("disk_human", String ts.disk_human)
+              //       ("rows_human", String ts.rows_human) ])
+              // Reformat a bit for human-usable dval output.
+              // * Example from my local dev: {
+              //     Total: {
+              //       disk: 835584,
+              //       diskHuman: "816 kB",
+              //       rows: 139,
+              //       rowsHuman: 139
+              //     },
+              //     access: {...},
+              //     ...
+              // }
+              return
+                tableStats
+                |> List.map (fun ts ->
+                  (ts.relation,
+                   [ ("disk_bytes", DInt(ts.diskBytes))
+                     ("rows", DInt(ts.rows))
+                     ("disk_human", DStr ts.diskHuman)
+                     ("rows_human", DStr ts.rowsHuman) ]
+                   |> Map
+                   |> DObj))
+                |> Map
+                |> DObj
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
