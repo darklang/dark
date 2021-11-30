@@ -6,9 +6,6 @@ open FSharp.Control.Tasks
 
 open Microsoft.AspNetCore.Http
 
-type ExecutionID = Telemetry.ExecutionID
-
-
 open Prelude
 open Tablecloth
 

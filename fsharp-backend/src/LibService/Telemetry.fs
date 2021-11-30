@@ -114,14 +114,7 @@ let addTelemetry (builder : TracerProviderBuilder) : TracerProviderBuilder =
 // An execution ID was an ID in the OCaml version, but sine we're using OpenTelemetry
 // from the start, we use the Activity ID instead (note that ASP.NET has
 // HttpContext.TraceIdentifier. It's unclear to me why that's different than the
-// Activity.ID
-type ExecutionID =
-  | ExecutionID of string
-
-  override this.ToString() : string =
-    let (ExecutionID str) = this
-    str
-
+// Activity.ID.
 // gets an executionID. The execution ID it returns will change as new
 // Activitys/Events are created, so the correct way to use this is to call it at the
 // root of execution and pass the result down.

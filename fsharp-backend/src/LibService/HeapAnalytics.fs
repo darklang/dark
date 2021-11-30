@@ -10,8 +10,6 @@ open System.Net.Http.Headers
 open Prelude
 open Tablecloth
 
-type ExecutionID = Telemetry.ExecutionID
-
 type IdentifyPayload =
   { identity : string
     app_id : string

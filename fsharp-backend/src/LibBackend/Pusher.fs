@@ -3,8 +3,6 @@ module LibBackend.Pusher
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-type ExecutionID = LibService.Telemetry.ExecutionID
-
 open Prelude
 open Tablecloth
 

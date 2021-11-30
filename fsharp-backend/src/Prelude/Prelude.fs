@@ -565,6 +565,17 @@ type tlid = uint64
 
 type id = uint64
 
+// In real code, only create these from LibService.Telemetry
+type ExecutionID =
+  | ExecutionID of string
+
+  override this.ToString() : string =
+    let (ExecutionID str) = this
+    str
+
+
+
+
 // This is important to prevent auto-serialization accidentally leaking this,
 // though it never should anyway
 type Password = Password of byte array

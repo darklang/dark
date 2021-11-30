@@ -196,7 +196,8 @@ module Eval =
             traceDval = traceDvalFn
             loadFnResult = loadFromTrace functionResults }
 
-      let state = Exe.createState libraries tracing tlid program
+      let executionID = ExecutionID "analysis"
+      let state = Exe.createState executionID libraries tracing tlid program
 
       let ast = (expr |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
       let inputVars = Map traceData.input

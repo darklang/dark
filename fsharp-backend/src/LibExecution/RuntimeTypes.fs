@@ -850,6 +850,7 @@ and ExecutionState =
     test : TestContext
     // TLID of the currently executing handler/fn
     tlid : tlid
+    executionID : ExecutionID
     executingFnName : Option<FQFnName.T>
     // Used for recursion detection in the editor. In the editor, we call all
     // paths to show live values, but with recursion that causes infinite
