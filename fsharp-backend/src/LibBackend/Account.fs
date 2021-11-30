@@ -226,7 +226,7 @@ let getUserByEmail (email : string) : Task<Option<UserInfo>> =
       admin = read.bool "admin"
       id = read.uuid "id" })
 
-let getUsers : Task<List<UserName.T>> =
+let getUsers () : Task<List<UserName.T>> =
   Sql.query
     "SELECT username
      FROM accounts"
