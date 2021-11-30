@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
       fn = internalFn (fun _ -> Ply DNull)
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = DeprecatedBecause "oldinternal" }
     { name = fn "DarkInternal" "migrateAllCanvases" 0
       parameters = []
       returnType = TNull
@@ -107,7 +107,7 @@ let fns : List<BuiltInFn> =
       fn = internalFn (fun _ -> Ply DNull)
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = DeprecatedBecause "oldinternal" }
     { name = fn "DarkInternal" "cleanupOldTraces" 0
       parameters = []
       returnType = TNull
@@ -115,7 +115,7 @@ let fns : List<BuiltInFn> =
       fn = internalFn (fun _ -> Ply DNull)
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTraces" 0) }
     { name = fn "DarkInternal" "cleanupOldTraces" 1
       parameters = []
       returnType = TFloat
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTracesForCanvas" 1) }
     { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
       parameters = [ Param.make "canvas_id" TUuid "" ]
       returnType = TFloat
@@ -138,7 +138,7 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = DeprecatedBecause "old internal" }
     { name = fn "DarkInternal" "checkCanvas" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TBool
@@ -153,7 +153,7 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = DeprecatedBecause "old internal" }
     { name = fn "DarkInternal" "migrateCanvas" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TResult(varA, TStr)
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = DeprecatedBecause "old internal" }
     { name = fn "DarkInternal" "upsertUser" 0
       parameters =
         [ Param.make "username" TStr ""
@@ -194,7 +194,7 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DarkInternal" "upsertUser" 1) }
     { name = fn "DarkInternal" "insertUser" 1
       parameters =
         [ Param.make "username" TStr ""
@@ -211,7 +211,7 @@ that's already taken, returns an error."
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DarkInternal" "insertUser" 2) }
     { name = fn "DarkInternal" "insertUser" 2
       parameters =
         [ Param.make "username" TStr ""
@@ -299,7 +299,7 @@ that's already taken, returns an error."
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DarkInternal" "getUser" 1) }
     { name = fn "DarkInternal" "getUser" 1
       parameters = [ Param.make "username" TStr "" ]
       returnType = TOption varA
@@ -605,7 +605,7 @@ that's already taken, returns an error."
       fn = internalFn (fun _ -> Ply DNull)
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DarkInternal" "pushStrollerEvent" 1) }
     { name = fn "DarkInternal" "pushStrollerEvent" 1
       parameters =
         [ Param.make "canvas_id" TStr ""
@@ -994,7 +994,7 @@ that's already taken, returns an error."
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0)
+      deprecated = ReplacedBy(fn "DarkInternal" "newSessionForUsername" 1)
 
     // FSTODO - maybe put this in the general libInternal handler
     (* If session creation fails, log and rollbar *)
