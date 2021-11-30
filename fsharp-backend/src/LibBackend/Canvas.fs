@@ -21,6 +21,31 @@ type CorsSetting =
 
 type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
 
+let canvasIDForCanvasName
+  (owner : UserID)
+  (canvasName : CanvasName.T)
+  : Task<CanvasID> =
+  // https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324
+  // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
+  Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
+  |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
+                      "owner", Sql.uuid owner
+                      "canvasName", Sql.string (string canvasName) ]
+  |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
+
+let canvasIDForCanvasNameOption = Exception.catch2 canvasIDForCanvasName
+
+let getMeta (canvasName : CanvasName.T) : Task<Meta> =
+  task {
+    let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
+    // CLEANUP put into single query
+    let! ownerID = Account.userIDForUserName ownerName
+    let! canvasID = canvasIDForCanvasName ownerID canvasName
+    return { id = canvasID; owner = ownerID; name = canvasName }
+  }
+
+
+
 // This includes just a subset of the key program data. It is rare that all of
 // the data for a canvas will be loaded. In addition, there is other canvas
 // data which is meaningful, such as Cors info, oplists, creation date. These
@@ -830,17 +855,6 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //   let elapsed = (Unix.gettimeofday () -. start) *. 1000.0 in
 //   (elapsed, a)
 
-
-let canvasIDForCanvasName
-  (owner : UserID)
-  (canvasName : CanvasName.T)
-  : Task<CanvasID> =
-  // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
-  Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
-  |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
-                      "owner", Sql.uuid owner
-                      "canvasName", Sql.string (string canvasName) ]
-  |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
 let toProgram (c : T) : RT.ProgramContext =
   let ownerID = c.meta.owner

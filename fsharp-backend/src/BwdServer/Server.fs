@@ -271,16 +271,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
-      let ownerName = Account.ownerNameFromCanvasName canvasName
-      let ownerUsername = UserName.create (string ownerName)
-
-      let! ownerID =
-        catch "user not found" 404 Account.userIDForUserName ownerUsername
-
-      // No error checking as this will create a canvas if none exists
-      let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
-
-      let meta : Canvas.Meta = { id = canvasID; owner = ownerID; name = canvasName }
+      let! meta = catch "user not found" 404 Canvas.getMeta canvasName
 
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
