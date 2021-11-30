@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# note: no set -e
+set -uo pipefail
+set +e
+
+# run the last segment of a pipeline in the current shell. This allows getting
+# the exit code.
+shopt -s lastpipe
+
+cd fsharp-backend && unbuffer dotnet "$@" 2>&1 | while read -r line; do
+  # this error consistently breaks our compile in the build script
+  if [[ "$line" == *"warning MSB3026: Could not copy "* ]]; then
+    "Saw a failed copy, killing servers"
+    killall ApiServer
+    killall ApiServer2
+    killall BwdServer
+    killall BwdServer2
+  fi
+  echo "$line";
+done

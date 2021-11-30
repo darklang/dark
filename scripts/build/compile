@@ -220,13 +220,13 @@ def fsharp_backend_test():
 
 def fsharp_tool_restore():
   start = time.time()
-  build = "cd fsharp-backend && unbuffer dotnet tool restore"
+  build = "./scripts/build/_dotnet-wrapper tool restore"
   return run_backend(start, build)
 
 
 def fsharp_paket_install():
   start = time.time()
-  build = "cd fsharp-backend && unbuffer dotnet paket install"
+  build = "./scripts/build/_dotnet-wrapper paket install"
   return run_backend(start, build)
 
 
@@ -234,7 +234,7 @@ def fsharp_paket_restore():
   start = time.time()
   # We run paket restore to match the lock file
   ci = "--verbose" if in_ci else ""
-  build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
+  build = f"./scripts/build/_dotnet-wrapper paket restore {ci}"
   return run_backend(start, build)
 
 
@@ -270,8 +270,7 @@ def fsharp_backend_quick_build():
     verbosity = "minimal"
     command = "build"
 
-  build = f"cd fsharp-backend \
-    && unbuffer dotnet {command} \
+  build = f"./scripts/build/_dotnet-wrapper {command} \
       -graphBuild:true \
       --no-restore \
       --verbosity {verbosity} \
@@ -282,8 +281,7 @@ def fsharp_backend_quick_build():
   start = time.time()
   # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
   if result and optimize:
-    build = f"cd fsharp-backend \
-      && unbuffer dotnet build \
+    build = f"./scripts/build/_dotnet-wrapper build \
         --verbosity {verbosity} \
         --configuration {configuration} \
         src/Wasm/Wasm.fsproj"
@@ -306,7 +304,7 @@ def fsharp_backend_full_build():
 
   # TODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
   build = f"cd fsharp-backend \
-    && unbuffer dotnet {command} \
+    && unbuffer ./scripts/build/_dotnet-wrapper {command} \
       --verbosity {verbosity} \
       --configuration {configuration}"
 
@@ -316,7 +314,7 @@ def fsharp_backend_full_build():
   # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
   if result and optimize:
     build = f"cd fsharp-backend \
-      && unbuffer dotnet build \
+      && unbuffer ./scripts/build/_dotnet-wrapper build \
         --verbosity {verbosity} \
         --configuration {configuration} \
         src/Wasm/Wasm.fsproj"
