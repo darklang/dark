@@ -82,6 +82,59 @@ module Exception =
     | DeveloperError msg
     | GrandUserError msg -> msg
 
+  let taskCatch (f : 'a -> Task<'r>) (a : 'a) : Task<Option<'r>> =
+    task {
+      try
+        let! result = f a
+        return Some result
+      with
+      | _ -> return None
+    }
+
+  let taskCatch2 (f : 'a -> 'b -> Task<'r>) (a : 'a) (b : 'b) : Task<Option<'r>> =
+    task {
+      try
+        let! result = f a b
+        return Some result
+      with
+      | _ -> return None
+    }
+
+  let taskCatch3
+    (f : 'a -> 'b -> 'c -> Task<'r>)
+    (a : 'a)
+    (b : 'b)
+    (c : 'c)
+    : Task<Option<'r>> =
+    task {
+      try
+        let! result = f a b c
+        return Some result
+      with
+      | _ -> return None
+    }
+
+
+  let catch (f : 'a -> 'r) (a : 'a) : Option<'r> =
+    try
+      Some(f a)
+    with
+    | _ -> None
+
+  let catch2 (f : 'a -> 'b -> 'r) (a : 'a) (b : 'b) : Option<'r> =
+    try
+      Some(f a b)
+    with
+    | _ -> None
+
+  let catch3 (f : 'a -> 'b -> 'c -> 'r) (a : 'a) (b : 'b) (c : 'c) : Option<'r> =
+    try
+      Some(f a b c)
+    with
+    | _ -> None
+
+
+
 
 
 // ----------------------
