@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> = []
 //               in
 //               ( match response with
 //               | Some dv ->
-//                   DResult (ResOk dv)
+//                   DResult (Ok dv)
 //               | None ->
 //                   DResult
 //                     (ResError
@@ -170,7 +170,7 @@ let fns : List<BuiltInFn> = []
 //                   []
 //                   ""
 //               in
-//               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
+//               DResult (Ok (DBytes (response |> RawBytes.of_string)))
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -197,7 +197,7 @@ let fns : List<BuiltInFn> = []
 //               in
 //               ( match response with
 //               | Some dv ->
-//                   DResult (ResOk dv)
+//                   DResult (Ok dv)
 //               | None ->
 //                   DResult
 //                     (ResError
@@ -263,7 +263,7 @@ let fns : List<BuiltInFn> = []
 //                   []
 //                   ""
 //               in
-//               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
+//               DResult (Ok (DBytes (response |> RawBytes.of_string)))
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -316,7 +316,7 @@ let fns : List<BuiltInFn> = []
 //               let body = Dval.dstr_of_string body in
 //               ( match body with
 //               | Some dv ->
-//                   DResult (ResOk (DResp (Response (code, headers), dv)))
+//                   DResult (Ok (DResp (Response (code, headers), dv)))
 //               | None ->
 //                   DResult
 //                     (ResError
@@ -372,7 +372,7 @@ let fns : List<BuiltInFn> = []
 //                 |> List.filter (fun (k, v) -> not (String.trim v = ""))
 //               in
 //               DResult
-//                 (ResOk
+//                 (Ok
 //                    (DResp
 //                       ( Response (code, headers)
 //                       , DBytes (body |> RawBytes.of_string) )))
@@ -427,7 +427,7 @@ let fns : List<BuiltInFn> = []
 //                 |> List.filter (fun (k, v) -> not (String.trim v = ""))
 //               in
 //               DResult
-//                 (ResOk
+//                 (Ok
 //                    (DResp
 //                       ( Response (code, headers)
 //                       , DBytes (body |> RawBytes.of_string) )))
@@ -481,7 +481,7 @@ let fns : List<BuiltInFn> = []
 //                 |> List.filter (fun (k, v) -> not (String.trim v = ""))
 //               in
 //               DResult
-//                 (ResOk
+//                 (Ok
 //                    (DResp
 //                       ( Response (code, headers)
 //                       , DBytes (body |> RawBytes.of_string) )))

@@ -911,9 +911,9 @@ let ofUnknownJsonV1 str =
 //       "<ErrorRail: " ^ show d ^ ">"
 //   | DResp (dh, dv) ->
 //       dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
-//   | DResult (ResOk d) ->
+//   | DResult (Ok d) ->
 //       "Ok " ^ show d
-//   | DResult (ResError d) ->
+//   | DResult (Error d) ->
 //       "Error " ^ show d
 //   | DOption (OptJust d) ->
 //       "Just " ^ show d

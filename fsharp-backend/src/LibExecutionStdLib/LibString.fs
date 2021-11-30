@@ -17,18 +17,6 @@ open LibExecution.VendoredTablecloth
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
 
-(* type coerces one list to another using a function *)
-
-// let list_coerce (f: Dval -> Option<'a>) (l: List<Dval>): Result<List<'a>, List<Dval> * Dval> =
-//   l
-//   |> List.map (fun dv ->
-//        match f dv with
-//        | Some v -> Result.Ok v
-//        | None -> Result.Error(l, dv))
-//   |> Result.all
-
-// let error_result msg =
-//   DResult(ResError(DStr msg))
 let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
