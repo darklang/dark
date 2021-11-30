@@ -279,16 +279,18 @@ let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //   with e -> Error (Exception.to_string e)
 //
 
-// (* ------------------------- *)
-// (* hosts *)
-// (* ------------------------- *)
-// let current_hosts () : string list =
-//   Db.fetch ~name:"oplists" "SELECT DISTINCT name FROM canvases" ~params:[]
-//   |> List.map ~f:List.hd_exn
-//   |> List.filter ~f:(fun h -> not (String.is_prefix ~prefix:"test-" h))
-//   |> List.dedup_and_sort ~compare
-//
-//
+// -------------------------
+// hosts
+// -------------------------
+let currentHosts () : Task<string list> =
+  task {
+    let! hosts =
+      Sql.query "SELECT DISTINCT name FROM canvases"
+      |> Sql.executeAsync (fun read -> read.string "name")
+    return
+      hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort
+  }
+
 
 // let tier_one_hosts () : string list =
 //   [ "ian-httpbin"

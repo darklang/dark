@@ -149,11 +149,11 @@ module Convert = OT.Convert
 // let add_function (fn : fn) : unit =
 //   let user =
 //     fn.user
-//     |> Account.id_of_username
+//     |> Account.userIDForUserName
 //     |> Option.value_exn ~message:"Invalid package owner"
 //   in
 //   let author =
-//     Account.id_of_username fn.author
+//     Account.userIDForUserName fn.author
 //     |> Option.value_exn ~message:"Invalid author"
 //   in
 //   let existing_version =

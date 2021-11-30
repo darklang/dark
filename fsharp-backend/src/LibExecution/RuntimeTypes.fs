@@ -87,6 +87,12 @@ module FQFnName =
         ->
         true
       | _ -> false
+    member this.isInternalFn() : bool =
+      match this with
+      | Stdlib std -> std.module_ = "DarkInternal"
+      | _ -> false
+
+
 
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"

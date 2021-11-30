@@ -331,17 +331,14 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
     createdAt = read.dateTime "created_at" }
 
 
-// (* DARK INTERNAL FN *)
-// (* Gets all event scheduling rules, as used by the queue-scheduler. *)
-// let get_all_scheduling_rules unit : Scheduling_rule.t list =
-//   Db.fetch
-//     ~name:"get_all_scheduling_rules"
-//     "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
-//     FROM scheduling_rules"
-//     ~params:[]
-//   |> List.map ~f:row_to_scheduling_rule
-//
-//
+// DARK INTERNAL FN
+// Gets all event scheduling rules, as used by the queue-scheduler.
+let getAllSchedulingRules unit : Task<List<SchedulingRule.T>> =
+  Sql.query
+    "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
+     FROM scheduling_rules"
+  |> Sql.executeAsync (fun read -> rowToSchedulingRule read)
+
 // Gets event scheduling rules for the specified canvas
 let getSchedulingRules (canvasID : CanvasID) : Task<List<SchedulingRule.T>> =
   Sql.query
