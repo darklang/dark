@@ -148,7 +148,7 @@ let tlidOplists2oplist (tos : PT.TLIDOplists) : PT.Oplist =
   tos |> List.unzip |> Tuple2.second |> List.concat
 
 
-let ast_of (op : PT.Op) : PT.Expr option =
+let astOf (op : PT.Op) : PT.Expr option =
   match op with
   | PT.SetFunction f -> Some f.body
   | PT.SetExpr (_, _, ast) -> Some ast
