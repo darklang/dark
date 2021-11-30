@@ -169,8 +169,6 @@ type dataID =
     | Permission -> "permission"
     | ExecutionID -> "executionID"
 
-type ExecutionID = LibService.Telemetry.ExecutionID
-
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx.Items[ string id ] <- value
   ctx
@@ -234,7 +232,7 @@ let userInfoMiddleware : HttpHandler =
       let t = startTimer ctx
       let sessionData = loadSessionData ctx
 
-      match! Account.getUser (UserName.create sessionData.username) with
+      match! Account.getUser sessionData.username with
       | None ->
         t "user-info-middleware"
         return! redirectOr notFound ctx

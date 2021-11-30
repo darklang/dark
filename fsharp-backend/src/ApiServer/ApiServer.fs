@@ -157,5 +157,5 @@ let main _ =
   | e ->
     print "Error starting ApiServer"
     print (string e)
-    LibService.Rollbar.send (LibService.Telemetry.ExecutionID "0") [] e
+    LibService.Rollbar.send (ExecutionID "0") [] e
     (-1)

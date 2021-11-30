@@ -114,7 +114,11 @@ let dequeueAndProcess
               return Ok None
             | Some h ->
               let! (state, touchedTLIDs) =
-                RealExecution.createState traceID h.tlid (Canvas.toProgram c)
+                RealExecution.createState
+                  executionID
+                  traceID
+                  h.tlid
+                  (Canvas.toProgram c)
 
               // FSTODO: add parent span to state
               // ~parent:(Some parent)

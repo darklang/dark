@@ -318,12 +318,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // Send to pusher - Do not resolve task, send this into the ether
           let notifyHook (touchedTLIDs : List<tlid>) : unit =
-            Pusher.pushNewTraceID executionID canvasID traceID touchedTLIDs
+            Pusher.pushNewTraceID executionID meta.id traceID touchedTLIDs
 
           // Do request
           let! result =
             Middleware.executeHandler
               tlid
+              executionID
               traceID
               traceHook
               notifyHook
@@ -359,12 +360,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let event = Middleware.createRequest true url reqHeaders reqQuery reqBody
 
         let! timestamp =
-          TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
+          TI.storeEvent meta.id traceID ("HTTP", requestPath, method) event
 
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.pushNew404
           executionID
-          canvasID
+          meta.id
           ("HTTP", requestPath, method, timestamp, traceID)
 
         return! noHandlerResponse ctx
@@ -463,5 +464,5 @@ let main _ =
   | e ->
     print "Error starting BwdServer"
     print (string e)
-    LibService.Rollbar.send (LibService.Telemetry.ExecutionID "0") [] e
+    LibService.Rollbar.send (ExecutionID "0") [] e
     (-1)

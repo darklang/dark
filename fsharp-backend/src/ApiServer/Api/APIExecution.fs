@@ -42,6 +42,7 @@ module Function =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
+      let executionID = Middleware.loadExecutionID ctx
       let! p = ctx.BindModelAsync<Params>()
       let args = List.map Convert.ocamlDval2rt p.args
       t "read-api"
@@ -51,7 +52,8 @@ module Function =
       t "load-canvas"
 
       let program = Canvas.toProgram c
-      let! (state, touchedTLIDs) = RealExe.createState p.trace_id p.tlid program
+      let! (state, touchedTLIDs) =
+        RealExe.createState executionID p.trace_id p.tlid program
       t "load-execution-state"
 
       let fnname = p.fnname |> PT.FQFnName.parse
@@ -86,6 +88,7 @@ module Handler =
   let trigger (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
+      let executionID = Middleware.loadExecutionID ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
 
@@ -102,7 +105,8 @@ module Handler =
       let expr = c.handlers[ p.tlid ].ast.toRuntimeType ()
       t "load-canvas"
 
-      let! state, touchedTLIDs = RealExe.createState p.trace_id p.tlid program
+      let! state, touchedTLIDs =
+        RealExe.createState executionID p.trace_id p.tlid program
       t "load-execution-state"
 
       // CLEANUP

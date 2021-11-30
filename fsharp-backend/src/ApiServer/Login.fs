@@ -101,7 +101,7 @@ let loginHandler : HttpHandler =
 
         return! redirectTo false $"/login?{qs}" earlyReturn ctx
       | Some username ->
-        let! sessionData = Session.insert username
+        let! sessionData = Session.insert (UserName.create username)
 
         ctx.Response.Cookies.Append(
           Session.cookieKey,

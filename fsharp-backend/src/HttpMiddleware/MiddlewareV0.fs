@@ -112,6 +112,7 @@ let createRequest
   Req.fromRequest allowUnparseable url headers query body
 
 let executeProgram
+  (executionID : ExecutionID)
   (program : RT.ProgramContext)
   (tlid : tlid)
   (traceID : LibExecution.AnalysisTypes.TraceID)
@@ -120,7 +121,7 @@ let executeProgram
   (expr : RT.Expr)
   : Task<Resp.HttpResponse * HashSet.T<tlid>> =
   task {
-    let! state, touchedTLIDs = RealExe.createState traceID tlid program
+    let! state, touchedTLIDs = RealExe.createState executionID traceID tlid program
 
     // Build request
     let symtable =
@@ -139,6 +140,7 @@ let executeProgram
 let executeHandler
   // framework stuff
   (tlid : tlid)
+  (executionID : ExecutionID)
   (traceID : LibExecution.AnalysisTypes.TraceID)
   (traceHook : RT.Dval -> unit)
   (notifyHook : List<tlid> -> unit)
@@ -160,7 +162,7 @@ let executeHandler
     traceHook request
 
     let! (result, touchedTLIDs) =
-      executeProgram program tlid traceID routeVars request expr
+      executeProgram executionID program tlid traceID routeVars request expr
     let result = addCorsHeaders headers corsSetting result
 
     // Both hooks fire off into the ether, to avoid waiting for the IO to complete
