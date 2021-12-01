@@ -461,7 +461,9 @@ let main _ =
     0
   with
   | e ->
-    print "Error starting BwdServer"
-    print (string e)
-    LibService.Rollbar.send (ExecutionID "0") [] e
+    LibService.Rollbar.sendException
+      "Error starting BwdServer"
+      (ExecutionID "BwdServer")
+      []
+      e
     (-1)

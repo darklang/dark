@@ -155,7 +155,9 @@ let main _ =
     0
   with
   | e ->
-    print "Error starting ApiServer"
-    print (string e)
-    LibService.Rollbar.send (ExecutionID "0") [] e
+    LibService.Rollbar.lastDitchBlocking
+      "Error starting ApiServer"
+      (ExecutionID "apiserver")
+      []
+      e
     (-1)
