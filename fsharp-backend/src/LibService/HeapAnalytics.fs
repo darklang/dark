@@ -10,6 +10,8 @@ open System.Net.Http.Headers
 open Prelude
 open Tablecloth
 
+module FireAndForget = LibService.FireAndForget
+
 type IdentifyPayload =
   { identity : string
     app_id : string
@@ -79,56 +81,40 @@ let heapioEvent
   (event : string)
   (msgType : Type)
   (payload : Map<string, string>)
-  : Task<unit> =
-  // FSTODO: discard the task, don't use it, same as with pusher
-  task {
-    // FSTODO
-    // let log_params = _log_params_for_heapio canvas_id canvas event user_id in
-    // Log.infO "pushing heapio event via stroller" log_params ;
-    use client = httpClient ()
-
-    // path
-    let endpoint =
-      match msgType with
-      | Track -> "api/track"
-      | Identify -> "api/add_user_properties"
-
-    let url = $"https://heapanalytics.com/{endpoint}"
-    let requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
-
-    // body
-    let payload =
-      _payloadForEvent executionID canvasName canvasID event owner payload
-
-    requestMessage.Content <- JsonContent.Create payload
-
-    // auth
-    let authenticationString =
-      $":{Config.heapioId}" |> UTF8.toBytes |> Base64.defaultEncodeToString
-
-    requestMessage.Headers.Authorization <-
-      AuthenticationHeaderValue("Basic", authenticationString)
-
-    let! result = client.SendAsync(requestMessage)
-
-    match result.StatusCode with
-    | System.Net.HttpStatusCode.Accepted ->
+  : unit =
+  FireAndForget.fireAndForgetTask "heapio.track" executionID (fun () ->
+    task {
       // FSTODO
-      // Log.infO
-      //   "pushed to heapio via stroller"
-      //   ~jsonparams:[("status", `Int code)]
-      //   ~params:log_params
-      ()
-    | _ ->
-      // FSTODO
-      // Log.erroR
-      //   "failed to push to heapio via stroller"
-      //   ~jsonparams:[("status", `Int code)]
-      //   ~params:log_params ) ;
-      ()
+      // let log_params = _log_params_for_heapio canvas_id canvas event user_id in
+      // Log.infO "pushing heapio event via stroller" log_params ;
+      use client = httpClient ()
 
-    return ()
-  }
+      // path
+      let endpoint =
+        match msgType with
+        | Track -> "api/track"
+        | Identify -> "api/add_user_properties"
+
+      let url = $"https://heapanalytics.com/{endpoint}"
+      let requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
+
+      // body
+      let payload =
+        _payloadForEvent executionID canvasName canvasID event owner payload
+
+      requestMessage.Content <- JsonContent.Create payload
+
+      // auth
+      let authenticationString =
+        $":{Config.heapioId}" |> UTF8.toBytes |> Base64.defaultEncodeToString
+
+      requestMessage.Headers.Authorization <-
+        AuthenticationHeaderValue("Basic", authenticationString)
+
+      let! result = client.SendAsync(requestMessage)
+      assertEq "heapid status" System.Net.HttpStatusCode.Accepted result.StatusCode
+      return ()
+    })
 
 // CLEANUP do bulk track
 let track
@@ -139,5 +125,5 @@ let track
   (event : string)
   (payload : Map<string, string>)
   : unit =
-  heapioEvent executionID canvasID canvasName owner event Track payload
-  |> ignore<Task<unit>>
+    heapioEvent executionID canvasID canvasName owner event Track payload
+

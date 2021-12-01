@@ -35,6 +35,7 @@ module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 module Middleware = HttpMiddleware.MiddlewareV0
 module Resp = HttpMiddleware.ResponseV0
+module FireAndForget = LibService.FireAndForget
 
 // ---------------
 // Read from HttpContext
@@ -313,8 +314,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
-            TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request
-            |> ignore<Task<DateTime>>
+            FireAndForget.fireAndForgetTask "store-event" executionID (fun () ->
+              TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request)
 
           // Send to pusher - Do not resolve task, send this into the ether
           let notifyHook (touchedTLIDs : List<tlid>) : unit =

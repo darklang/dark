@@ -7,6 +7,7 @@ open Prelude
 open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
+module FireAndForget = LibService.FireAndForget
 
 // PusherClient has own internal serializer which matches this interface.
 type Serializer() =
@@ -36,35 +37,19 @@ let push
   (eventName : string)
   (payload : 'x)
   : unit =
-  let client = Lazy.force pusherClient
-
-  // TODO: handle messages over 10k
-  // TODO: make channels private and end-to-end encrypted in order to add public canvases
-
-  let (_ : Task<unit>) =
+  FireAndForget.fireAndForgetTask $"pusher: {eventName}" executionID (fun () ->
     task {
-      try
-        let channel = $"canvas_{canvasID}"
-        // FSTODO add executionID
+      // TODO: handle messages over 10k
+      // TODO: make channels private and end-to-end encrypted in order to add public canvases
+      let client = Lazy.force pusherClient
+      let channel = $"canvas_{canvasID}"
 
-        let! (_ : PusherServer.ITriggerResult) =
-          client.TriggerAsync(channel, eventName, payload)
-
-        return ()
-      with
-      | e ->
-        // swallow this error
-        print $"Error Sending push to Pusher {eventName}: {canvasID}: {e}"
-
-        LibService.Rollbar.send
-          executionID
-          [ "canvasID", string canvasID; "event", eventName; "context", "pusher" ]
-          e
+      let! (_ : PusherServer.ITriggerResult) =
+        client.TriggerAsync(channel, eventName, payload)
 
       return ()
-    }
-  // do not wait for the push task to finish, just fire and forget
-  ()
+    })
+
 
 
 

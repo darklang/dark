@@ -1,6 +1,6 @@
 module LibBackend.Analytics
 
-// Analytics functions for usage
+// Analytics functions for users
 
 module Account = LibBackend.Account
 
@@ -14,28 +14,17 @@ open LibBackend.Db
 open Prelude
 open Tablecloth
 
+module FireAndForget = LibService.FireAndForget
+
 
 // We call this in two contexts: DarkInternal:: fns, and
 // bin/heapio_identify_users.exe.
 let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
-  task {
-    // FSTODO: check that analytics_metadata has been set correctly
-    match! Account.getUserAndCreatedAtAndAnalyticsMetadata username with
-    | None ->
-      // FSTODO
-      // let bt = Exception.get_backtrace () in
-      // let report =
-      //   Rollbar.report
-      //     (Exception.raiseInternal "No user found when calling heapio_identify user")
-      //     bt
-      //     (Other "heapio_identify_user")
-      //     "No execution id"
-      // match report with
-      // | Failure ->
-      //     // Log.erroR "Failed to Rollbar.report in heapio_identify_user"
-      // | _ -> return ()
-      return ()
-    | Some (userInfoAndCreatedAt, heapioMetadata) ->
+  FireAndForget.fireAndForgetTask "identify user" executionID (fun () ->
+    task {
+      // FSTODO: check that analytics_metadata has been set correctly
+      let! data = Account.getUserAndCreatedAtAndAnalyticsMetadata username
+      let (userInfoAndCreatedAt, heapioMetadata) = Option.unwrapUnsafe data
       let! _organization =
         task {
           let! orgs = Authorization.orgsFor username
@@ -74,5 +63,4 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
       //     Identify
       //     payload
       return ()
-  }
-  |> ignore<Task<unit>>
+    })
