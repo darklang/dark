@@ -5,6 +5,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Microsoft.AspNetCore.Http
+open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
 open Tablecloth
@@ -13,16 +14,26 @@ let mutable initialized = false
 
 let init (serviceName : string) : unit =
   print "Configuring rollbar"
-  // FSTODO: include host, ip address, serviceName
   let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
-  config.Environment <- Config.rollbarEnvironment
   config.Enabled <- Config.rollbarEnabled
+  config.CaptureUncaughtExceptions <- true // doesn't seem to work afaict
+  config.Environment <- Config.rollbarEnvironment
   config.LogLevel <- Rollbar.ErrorLevel.Error
-  // FSTODO add username
+  config.RethrowExceptionsAfterReporting <- false
+  config.ScrubFields <-
+    Array.append config.ScrubFields [| "Set-Cookie"; "Cookie"; "Authorization" |]
+  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
+  config.Transform <- fun payload -> payload.Data.Language <- "f#"
 
-  let (_ : Rollbar.IRollbar) =
-    Rollbar.RollbarLocator.RollbarInstance.Configure config
+  let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
+  state["service"] <- serviceName
+  config.Server <- Rollbar.DTOs.Server(state)
+  config.Server.Host <- Config.hostName
+  config.Server.Root <- Config.rootDir
+  config.Server.CodeVersion <- Config.buildHash
 
+  Rollbar.RollbarLocator.RollbarInstance.Configure config
+  |> ignore<Rollbar.IRollbar>
   initialized <- true
   ()
 
@@ -50,31 +61,91 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 
   string uri
 
-let send
+let createState
+  (message : string)
   (executionID : ExecutionID)
-  (metadata : List<string * string>)
+  (metadata : List<string * obj>)
+  : Dictionary.T<string, obj> =
+
+  let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
+  custom["message"] <- message
+  // CLEANUP rollbar has a built-in way to do this called "Service links"
+  custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
+  custom["execution_id"] <- string executionID
+  List.iter
+    (fun (k, v) ->
+      Dictionary.add k (v :> obj) custom |> ignore<Dictionary.T<string, obj>>)
+    metadata
+  custom
+
+
+let sendHttpException
+  (message : string)
+  (executionID : ExecutionID)
+  (metadata : List<string * obj>)
+  (ctx : HttpContext)
   (e : exn)
   : unit =
   assert initialized
-
   try
-    print "sending exception to rollbar"
-    let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
-    state["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
-    state["execution_id"] <- string executionID
-    List.iter
-      (fun (k, v) ->
-        Dictionary.add k (v :> obj) state |> ignore<Dictionary.T<string, obj>>)
-      metadata
-
-    let (_ : Rollbar.ILogger) =
-      Rollbar.RollbarLocator.RollbarInstance.Error(e, state)
-
-    ()
+    print $"rollbar: {message}"
+    print e.Message
+    print e.StackTrace
+    let custom = createState message executionID metadata
+    Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
+    |> ignore<Rollbar.ILogger>
   with
   | e ->
-    // FSTODO: log failure
     print "Exception when calling rollbar"
+    print e.Message
+    print e.StackTrace
+
+
+let sendException
+  (message : string)
+  (executionID : ExecutionID)
+  (metadata : List<string * obj>)
+  (e : exn)
+  : unit =
+  assert initialized
+  try
+    print $"rollbar: {message}"
+    print e.Message
+    print e.StackTrace
+    let custom = createState message executionID metadata
+    Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
+    |> ignore<Rollbar.ILogger>
+  with
+  | e ->
+    print "Exception when calling rollbar"
+    print e.Message
+    print e.StackTrace
+
+// Will block for 5 seconds to make sure this exception gets sent. Use for startup
+// and other places where the process is intended to end after this call.
+let lastDitchBlocking
+  (message : string)
+  (executionID : ExecutionID)
+  (metadata : List<string * obj>)
+  (e : exn)
+  : unit =
+  assert initialized
+  try
+    print $"last ditch rollbar: {message}"
+    print e.Message
+    print e.StackTrace
+    let custom = createState message executionID metadata
+    Rollbar
+      .RollbarLocator
+      .RollbarInstance
+      .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
+      .Error(e, custom)
+    |> ignore<Rollbar.ILogger>
+  with
+  | e ->
+    print "Exception when calling rollbar"
+    print e.Message
+    print e.StackTrace
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
@@ -95,9 +166,40 @@ module AspNet =
           do! this._nextRequestProcessor.Invoke(ctx)
         with
         | e ->
-          send (Telemetry.executionID ()) [] e
-          print e.Message
-          print e.StackTrace
+          assert initialized
+          try
+            let uri = ctx.Request.GetEncodedUrl()
+
+            print $"rollbar in http: {uri}"
+            print e.Message
+            print e.StackTrace
+
+            let executionID =
+              try
+                ctx.Items["executionID"] :?> ExecutionID
+              with
+              | _ -> ExecutionID "unavailable"
+
+            let metadata = ctxMetadataFn ctx
+            let custom = createState "http" executionID metadata
+
+            let package : Rollbar.IRollbarPackage =
+              new Rollbar.ExceptionPackage(
+                e,
+                $"{nameof (RollbarMiddleware)} processed uncaught exception."
+              )
+            // decorate tha package http info:
+            let package = HttpRequestPackageDecorator(package, ctx.Request, true)
+            let package =
+              new HttpResponsePackageDecorator(package, ctx.Response, true)
+
+            Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
+            |> ignore<Rollbar.ILogger>
+          with
+          | e ->
+            print "Exception when calling rollbar"
+            print e.Message
+            print e.StackTrace
           raise e
       }
 

@@ -13,9 +13,7 @@ open LibService.ConfigDsl
 
 let runDir = absoluteDir "DARK_CONFIG_RUNDIR"
 
-let rootDir = absoluteDir "DARK_CONFIG_ROOT_DIR"
-
-let backendDir = $"{rootDir}backend/"
+let backendDir = $"{LibService.Config.rootDir}backend/"
 
 let testdataDir = $"{backendDir}test_appdata/"
 
