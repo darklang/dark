@@ -266,9 +266,10 @@ let canonicalizeURL (toHttps : bool) (url : string) =
 // ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    setHeader ctx "Server" "darklang"
     let executionID = LibService.Telemetry.executionID ()
+    ctx.Items[ "executionID" ] <- executionID
     setHeader ctx "x-darklang-execution-id" (string executionID)
+    setHeader ctx "Server" "darklang"
 
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
