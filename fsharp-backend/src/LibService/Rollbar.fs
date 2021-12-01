@@ -158,7 +158,11 @@ module AspNet =
   // though). AFAICT, this allows HTTP vars to be shared across the Task using an
   // AsyncContext. This would make sense for a lot of ways to use Rollbar, but we use
   // telemetry for our context and only want to use rollbar for exception tracking.
-  type DarkRollbarMiddleware(nextRequestProcessor : RequestDelegate) =
+  type DarkRollbarMiddleware
+    (
+      nextRequestProcessor : RequestDelegate,
+      ctxMetadataFn : HttpContext -> List<string * obj>
+    ) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
     member this.Invoke(ctx : HttpContext) : Task =
       task {
@@ -209,8 +213,12 @@ module AspNet =
     // Nothing to do here, as rollbar is initialized above
     services
 
-  let addRollbarToApp (app : IApplicationBuilder) : IApplicationBuilder =
-    app.UseMiddleware<DarkRollbarMiddleware>()
+  let addRollbarToApp
+    (
+      app : IApplicationBuilder,
+      ctxMetadataFn : HttpContext -> List<string * obj>
+    ) : IApplicationBuilder =
+    app.UseMiddleware<DarkRollbarMiddleware>(ctxMetadataFn)
 
 
 

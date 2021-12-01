@@ -408,8 +408,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         return raise e
     })
 
-  app
-  |> LibService.Rollbar.AspNet.addRollbarToApp
+  LibService.Rollbar.AspNet.addRollbarToApp (app, (fun ctx -> []))
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort

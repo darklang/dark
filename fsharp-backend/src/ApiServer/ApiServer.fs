@@ -101,7 +101,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
-  |> LibService.Rollbar.AspNet.addRollbarToApp
+  |> fun app -> LibService.Rollbar.AspNet.addRollbarToApp (app, (fun ctx -> []))
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
