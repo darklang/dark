@@ -133,8 +133,6 @@ let main _ =
   try
     print "Starting ApiServer"
     LibBackend.Init.init "ApiServer"
-    // Breaks tests as they're being run simultaneously by the ocaml server
-    // LibBackend.Migrations.init ()
 
     let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
     let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
