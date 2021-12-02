@@ -8,6 +8,8 @@ open OpenTelemetry
 open OpenTelemetry.Trace
 open Honeycomb.OpenTelemetry
 
+open Microsoft.AspNetCore.Http.Extensions
+
 module Internal =
   // CLEANUP: can a DiagnosticSource be used here instead?
   let mutable _source : System.Diagnostics.ActivitySource = null
@@ -97,17 +99,64 @@ let honeycombOptions : HoneycombOptions =
   options.Endpoint <- Config.honeycombEndpoint
   options
 
+let enrichHttpRequests
+  (options : Instrumentation.AspNetCore.AspNetCoreInstrumentationOptions)
+  =
+  // https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Instrumentation.AspNetCore/README.md
+  let handler =
+    (fun (activity : Span.T) (eventName : string) (rawObject : obj) ->
+      match (eventName, rawObject) with
+      | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
+        // The .NET instrumentation uses http.{path,url}, etc, but we used
+        // request.whatever in the OCaml version. To make sure that I can compare
+        // the old and new requests, I'm also adding request.whatever for now, but
+        // they can be removed once it's been switched over. Events are infinitely
+        // wide so this shouldn't cause any issues.
+        // ; ("execution_id", `String (Types.string_of_id execution_id)) // FSTODO
+        let ipAddress =
+          try
+            httpRequest.Headers.["x-forward-for"].[0]
+            |> String.split ";"
+            |> List.head
+            |> Option.unwrap (
+              string httpRequest.HttpContext.Connection.RemoteIpAddress
+            )
+          with
+          | _ -> ""
+        activity
+          .SetTag("meta.type", "http_request")
+          .SetTag("meta.server_version", Config.buildHash)
+          .SetTag("http.remote_addr", httpRequest.Path)
+          .SetTag("request.method", httpRequest.Method)
+          .SetTag("request.path", httpRequest.Path)
+          .SetTag("request.remote_addr", httpRequest.Path)
+          .SetTag("request.host", httpRequest.Host)
+          .SetTag("request.url", UriHelper.GetEncodedUrl(httpRequest))
+          .SetTag(
+            ("request.header.user_agent",
+             Exception.catch (fun () -> httpRequest.Headers.["User-Agent"].[0])
+             |> Option.unwrap "")
+          )
+        |> ignore<Span.T>
+      | "OnStopActivity", (:? Microsoft.AspNetCore.Http.HttpResponse as httpResponse) ->
+        activity.SetTag("responseLength", httpResponse.ContentLength)
+        |> ignore<Span.T>
+      | _ -> ())
+  options.Enrich <- handler
+
 let addTelemetry (builder : TracerProviderBuilder) : TracerProviderBuilder =
   builder.Configure(
     (fun _ builder ->
       builder
       |> fun b ->
            match Config.telemetryExporter with
-           | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions)
+           | Config.Honeycomb ->
+             b.AddHoneycomb(honeycombOptions).AddConsoleExporter()
            | Config.NoExporter -> b
            | Config.Console -> b.AddConsoleExporter()
-      |> fun b -> b.AddAspNetCoreInstrumentation()
+      |> fun b -> b.AddAspNetCoreInstrumentation(enrichHttpRequests)
       |> fun b -> b.AddHttpClientInstrumentation()
+      // FSTODO AddSqlClientInstrumentation
       |> ignore<TracerProviderBuilder>)
   )
 
