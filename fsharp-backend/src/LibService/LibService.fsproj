@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Exception.fs" />
     <Compile Include="ConfigDsl.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Telemetry.fs" />

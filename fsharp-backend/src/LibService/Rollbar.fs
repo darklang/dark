@@ -9,6 +9,7 @@ open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
 open Tablecloth
+open Exception
 
 let mutable initialized = false
 
@@ -117,6 +118,7 @@ let sendException
     |> ignore<Rollbar.ILogger>
   with
   | e ->
+    // FSTODO use telemetry
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
@@ -143,6 +145,7 @@ let lastDitchBlocking
     |> ignore<Rollbar.ILogger>
   with
   | e ->
+    // FSTODO emit telemetry
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
@@ -200,11 +203,12 @@ module AspNet =
             Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
             |> ignore<Rollbar.ILogger>
           with
-          | e ->
+          | re ->
+            // FSTODO emit telemetry
             print "Exception when calling rollbar"
-            print e.Message
-            print e.StackTrace
-          raise e
+            print re.Message
+            print re.StackTrace
+          e.Reraise()
       }
 
 
