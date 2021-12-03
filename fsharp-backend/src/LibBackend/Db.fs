@@ -38,7 +38,7 @@ module Sql =
       | list -> return failwith $"Too many results, expected 0 or 1, got {list}"
     }
 
-  let executeRowOption
+  let executeRowOptionSync
     (reader : RowReader -> 't)
     (props : Sql.SqlProps)
     : Option<'t> =
@@ -56,7 +56,7 @@ module Sql =
       | result -> return failwith $"Too many results, expected 1, got {result}"
     }
 
-  let executeExists (props : Sql.SqlProps) : bool =
+  let executeExistsSync (props : Sql.SqlProps) : bool =
     match Sql.execute (fun read -> read.NpgsqlReader.GetBoolean 0) props with
     | [ true ] -> true
     | [] -> false
@@ -69,7 +69,7 @@ module Sql =
       return ()
     }
 
-  let executeStatement (props : Sql.SqlProps) : unit =
+  let executeStatementSync (props : Sql.SqlProps) : unit =
     let _count = Sql.executeNonQuery props
     ()
 

@@ -19,7 +19,7 @@ let isInitialized () : bool =
     "SELECT TRUE
      FROM pg_class
      WHERE relname = 'system_migrations'"
-  |> Sql.executeExists
+  |> Sql.executeExistsSync
 
 let initializeMigrationsTable () : unit =
   Sql.query
@@ -28,14 +28,14 @@ let initializeMigrationsTable () : unit =
      ( name TEXT PRIMARY KEY
      , execution_date TIMESTAMPTZ NOT NULL
      , sql TEXT NOT NULL)"
-  |> Sql.executeStatement
+  |> Sql.executeStatementSync
 
 let isAlreadyRun (name : string) : bool =
   Sql.query
     "SELECT TRUE from system_migrations
      WHERE name = @name"
   |> Sql.parameters [ "name", Sql.string name ]
-  |> Sql.executeExists
+  |> Sql.executeExistsSync
 
 
 let runSystemMigration (name : string) (sql : string) : unit =
@@ -55,18 +55,17 @@ let runSystemMigration (name : string) (sql : string) : unit =
   // allow special "pragma" to skip wrapping in a transaction
   // be VERY careful with this!
   | "--#[no_tx]" :: _ ->
-    Sql.query sql |> Sql.executeStatement
+    Sql.query sql |> Sql.executeStatementSync
 
     Sql.query recordMigrationStmt
     |> Sql.parameters recordMigrationParams
-    |> Sql.executeStatement
+    |> Sql.executeStatementSync
   | _ ->
     // a small number of migrations need this. We could move them to the
     // migrations themselves, but we need to match the OCaml version for now
     let sql = $"DO $do$\nBEGIN\n{sql};\nEND\n$do$"
 
     let counts =
-
       LibService.DBConnection.connect ()
       |> Sql.executeTransaction [ sql, []
                                   recordMigrationStmt, [ recordMigrationParams ] ]
