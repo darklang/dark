@@ -25,6 +25,8 @@ module Span =
     assert_ "Telemetry must be initialized before creating root" (result <> null)
     result
 
+  let current () : T = System.Diagnostics.Activity.Current
+
   // Spans created here should use `use` instead of `let` so that they are
   // promptly ended. Forgetting to use `use` will cause the end time to be
   // incorrectly delayed
@@ -99,11 +101,12 @@ let honeycombOptions : HoneycombOptions =
   options.Endpoint <- Config.honeycombEndpoint
   options
 
-let enrichHttpRequests
+let configureAspNetCore
   (options : Instrumentation.AspNetCore.AspNetCoreInstrumentationOptions)
   =
+
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Instrumentation.AspNetCore/README.md
-  let handler =
+  let enrich =
     (fun (activity : Span.T) (eventName : string) (rawObject : obj) ->
       match (eventName, rawObject) with
       | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
@@ -124,25 +127,25 @@ let enrichHttpRequests
           with
           | _ -> ""
         activity
-          .SetTag("meta.type", "http_request")
-          .SetTag("meta.server_version", Config.buildHash)
-          .SetTag("http.remote_addr", httpRequest.Path)
-          .SetTag("request.method", httpRequest.Method)
-          .SetTag("request.path", httpRequest.Path)
-          .SetTag("request.remote_addr", httpRequest.Path)
-          .SetTag("request.host", httpRequest.Host)
-          .SetTag("request.url", UriHelper.GetEncodedUrl(httpRequest))
-          .SetTag(
-            ("request.header.user_agent",
-             Exception.catch (fun () -> httpRequest.Headers.["User-Agent"].[0])
-             |> Option.unwrap "")
-          )
-        |> ignore<Span.T>
+        |> Span.addTag "meta.type" "http_request"
+        |> Span.addTag "meta.server_version" Config.buildHash
+        |> Span.addTag "http.remote_addr" ipAddress
+        |> Span.addTag "request.method" httpRequest.Method
+        |> Span.addTag "request.path" (string httpRequest.Path)
+        |> Span.addTag "request.remote_addr" ipAddress
+        |> Span.addTag "request.host" (string httpRequest.Host)
+        |> Span.addTag "request.url" (httpRequest.GetDisplayUrl())
+        |> Span.addTag'
+             "request.header.user_agent"
+             (string httpRequest.Headers.["User-Agent"])
       | "OnStopActivity", (:? Microsoft.AspNetCore.Http.HttpResponse as httpResponse) ->
-        activity.SetTag("responseLength", httpResponse.ContentLength)
-        |> ignore<Span.T>
+        activity
+        |> Span.addTag "response.contentLength" (string httpResponse.ContentLength)
+        |> Span.addTag "http.contentLength" (string httpResponse.ContentLength)
+        |> Span.addTag' "http.contentType" httpResponse.ContentType
       | _ -> ())
-  options.Enrich <- handler
+  options.Enrich <- enrich
+  options.RecordException <- true
 
 let addTelemetry (builder : TracerProviderBuilder) : TracerProviderBuilder =
   builder.Configure(
@@ -154,13 +157,13 @@ let addTelemetry (builder : TracerProviderBuilder) : TracerProviderBuilder =
              b.AddHoneycomb(honeycombOptions).AddConsoleExporter()
            | Config.NoExporter -> b
            | Config.Console -> b.AddConsoleExporter()
-      |> fun b -> b.AddAspNetCoreInstrumentation(enrichHttpRequests)
+      |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
       |> fun b -> b.AddHttpClientInstrumentation()
       // FSTODO AddSqlClientInstrumentation
       |> ignore<TracerProviderBuilder>)
   )
 
-// An execution ID was an ID in the OCaml version, but sine we're using OpenTelemetry
+// An execution ID was an ID in the OCaml version, but since we're using OpenTelemetry
 // from the start, we use the Activity ID instead (note that ASP.NET has
 // HttpContext.TraceIdentifier. It's unclear to me why that's different than the
 // Activity.ID.

@@ -21,8 +21,8 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
 open Tablecloth
+open LibService.Telemetry
 
-module Telemetry = LibService.Telemetry
 module Canvas = LibBackend.Canvas
 module Config = LibBackend.Config
 module Session = LibBackend.Session
@@ -237,8 +237,11 @@ let userInfoMiddleware : HttpHandler =
         t "user-info-middleware"
         return! redirectOr notFound ctx
       | Some user ->
-        // FSTODO: add canvas to tracing
-        ctx.SetHttpHeader("x-dark-username", user.username)
+        ctx.SetHttpHeader("x-darklang-username", user.username)
+        Span.current ()
+        |> Span.addTag "username" (string sessionData.username)
+        |> Span.addTagUUID "userID" user.id
+        |> Span.addTagBool' "is_admin" user.admin
         let newCtx = saveUserInfo user ctx
         t "user-info-middleware"
         return! next newCtx
@@ -272,7 +275,9 @@ let withPermissionMiddleware
         let (_ : HttpContext) =
           ctx |> saveCanvasInfo canvasInfo |> savePermission permission
         t "with-permission-middleware"
-
+        Span.current ()
+        |> Span.addTag "canvas" (string canvasName)
+        |> Span.addTag' "canvasID" (string canvasID)
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
@@ -286,7 +291,7 @@ let executionIDMiddleware : HttpHandler =
       let executionID = LibService.Telemetry.executionID ()
       let newCtx = saveExecutionID executionID ctx
       let headerValue = StringValues([| string executionID |])
-      ctx.Response.Headers[ "x-darklang-execution-id" ] <- headerValue
+      ctx.SetHttpHeader("x-darklang-execution-id", string executionID)
       return! next newCtx
     })
 
@@ -304,14 +309,23 @@ let antiClickjackingMiddleware : HttpHandler =
 let serverVersionMiddleware : HttpHandler =
   setHttpHeader "x-darklang-server-version" LibService.Config.buildHash
 
+let clientVersionMiddleware : HttpHandler =
+  (fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let clientVersion = ctx.Request.Headers.Item "client_version" |> string
+      Span.current ()
+      |> Span.addTag "request.header.client_version" clientVersion
+      // CLEANUP this was a bad name. Kept in until old data falls out of Honeycomb
+      |> Span.addTag' "request.header.x-darklang-client-version" clientVersion
+      return! next ctx
+    })
+
 let corsForLocalhostAssetsMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let result = next ctx
-
       if Option.isSome (ctx.TryGetQueryStringValue "localhost-assets") then
         ctx.SetHttpHeader("Access-Control-Allow_origin", "*")
-
       return! result
     })
 
@@ -329,6 +343,7 @@ let canvasMiddleware
 let htmlMiddleware : HttpHandler =
   executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> clientVersionMiddleware
   >=> corsForLocalhostAssetsMiddleware
   >=> antiClickjackingMiddleware
   >=> setStatusCode 200
@@ -347,6 +362,7 @@ let apiHandler
   : HttpHandler =
   executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> clientVersionMiddleware
   >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonHandler f
   >=> setStatusCode 200
@@ -358,6 +374,7 @@ let apiOptionHandler
   : HttpHandler =
   executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> clientVersionMiddleware
   >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonOptionHandler f
   >=> setStatusCode 200
@@ -369,6 +386,7 @@ let canvasHtmlHandler
   : HttpHandler =
   executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> clientVersionMiddleware
   >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> htmlHandler f
   >=> htmlMiddleware
