@@ -36,49 +36,15 @@ module Span =
     result
 
   let addEvent (name : string) (span : T) : unit =
-    let (_ : T) = span.AddEvent(System.Diagnostics.ActivityEvent name)
-    ()
+    if span <> null then
+      span.AddEvent(System.Diagnostics.ActivityEvent name) |> ignore<T>
 
-  let addTag (name : string) (value : string) (span : T) : T =
-    span.AddTag(name, value)
+  let addTag (name : string) (value : obj) (span : T) : unit =
+    if span <> null then span.AddTag(name, value) |> ignore<T> else ()
 
-  let addTagID (name : string) (value : id) (span : T) : T = span.AddTag(name, value)
-
-  let addTagFloat (name : string) (value : float) (span : T) : T =
-    span.AddTag(name, value)
-
-  let addTagInt (name : string) (value : int) (span : T) : T =
-    span.AddTag(name, value)
-
-  let addTagUUID (name : string) (value : System.Guid) (span : T) : T =
-    span.AddTag(name, value)
-
-  let addTagBool (name : string) (value : bool) (span : T) : T =
-    span.AddTag(name, value)
-
-  let addTag' (name : string) (value : string) (span : T) : unit =
-    let (_ : T) = span.AddTag(name, value)
-    ()
-
-  let addTagID' (name : string) (value : id) (span : T) : unit =
-    let (_ : T) = span.AddTag(name, value)
-    ()
-
-  let addTagFloat' (name : string) (value : float) (span : T) : unit =
-    let (_ : T) = span.AddTag(name, value)
-    ()
-
-  let addTagInt' (name : string) (value : int) (span : T) : unit =
-    let (_ : T) = span.AddTag(name, value)
-    ()
-
-  let addTagUUID' (name : string) (value : System.Guid) (span : T) : unit =
-    let (_ : T) = span.AddTag(name, value)
-    ()
-
-  let addTagBool' (name : string) (value : bool) (span : T) : unit =
-    let (_ : T) = span.AddTag(name, value)
-    ()
+  let addTags (tags : List<string * obj>) (span : T) : unit =
+    if span <> null then
+      List.iter (fun (name, value) -> addTag name value span) tags
 
 
 // Call, passing with serviceName for this service, such as "ApiServer"
@@ -127,22 +93,21 @@ let configureAspNetCore
           with
           | _ -> ""
         activity
-        |> Span.addTag "meta.type" "http_request"
-        |> Span.addTag "meta.server_version" Config.buildHash
-        |> Span.addTag "http.remote_addr" ipAddress
-        |> Span.addTag "request.method" httpRequest.Method
-        |> Span.addTag "request.path" (string httpRequest.Path)
-        |> Span.addTag "request.remote_addr" ipAddress
-        |> Span.addTag "request.host" (string httpRequest.Host)
-        |> Span.addTag "request.url" (httpRequest.GetDisplayUrl())
-        |> Span.addTag'
-             "request.header.user_agent"
-             (string httpRequest.Headers.["User-Agent"])
+        |> Span.addTags [ "meta.type", "http_request"
+                          "meta.server_version", Config.buildHash
+                          "http.remote_addr", ipAddress
+                          "request.method", httpRequest.Method
+                          "request.path", httpRequest.Path
+                          "request.remote_addr", ipAddress
+                          "request.host", httpRequest.Host
+                          "request.url", httpRequest.GetDisplayUrl()
+                          "request.header.user_agent",
+                          httpRequest.Headers["User-Agent"] ]
       | "OnStopActivity", (:? Microsoft.AspNetCore.Http.HttpResponse as httpResponse) ->
         activity
-        |> Span.addTag "response.contentLength" (string httpResponse.ContentLength)
-        |> Span.addTag "http.contentLength" (string httpResponse.ContentLength)
-        |> Span.addTag' "http.contentType" httpResponse.ContentType
+        |> Span.addTags [ "response.contentLength", httpResponse.ContentLength
+                          "http.contentLength", httpResponse.ContentLength
+                          "http.contentType", httpResponse.ContentType ]
       | _ -> ())
   options.Enrich <- enrich
   options.RecordException <- true

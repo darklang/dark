@@ -239,9 +239,9 @@ let userInfoMiddleware : HttpHandler =
       | Some user ->
         ctx.SetHttpHeader("x-darklang-username", user.username)
         Span.current ()
-        |> Span.addTag "username" (string sessionData.username)
-        |> Span.addTagUUID "userID" user.id
-        |> Span.addTagBool' "is_admin" user.admin
+        |> Span.addTags [ "username", sessionData.username
+                          "userID", user.id
+                          "is_admin", user.admin ]
         let newCtx = saveUserInfo user ctx
         t "user-info-middleware"
         return! next newCtx
@@ -276,8 +276,7 @@ let withPermissionMiddleware
           ctx |> saveCanvasInfo canvasInfo |> savePermission permission
         t "with-permission-middleware"
         Span.current ()
-        |> Span.addTag "canvas" (string canvasName)
-        |> Span.addTag' "canvasID" (string canvasID)
+        |> Span.addTags [ "canvas", canvasName; "canvasID", canvasID ]
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
@@ -312,11 +311,11 @@ let serverVersionMiddleware : HttpHandler =
 let clientVersionMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let clientVersion = ctx.Request.Headers.Item "client_version" |> string
+      let clientVersion = ctx.Request.Headers.Item "client_version"
       Span.current ()
-      |> Span.addTag "request.header.client_version" clientVersion
-      // CLEANUP this was a bad name. Kept in until old data falls out of Honeycomb
-      |> Span.addTag' "request.header.x-darklang-client-version" clientVersion
+      |> Span.addTags [ "request.header.client_version", clientVersion
+                        // CLEANUP this was a bad name. Kept in until old data falls out of Honeycomb
+                        "request.header.x-darklang-client-version", clientVersion ]
       return! next ctx
     })
 

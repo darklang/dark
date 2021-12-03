@@ -52,7 +52,7 @@ let addOp (ctx : HttpContext) : Task<T> =
     let canvasID = canvasInfo.id
 
     let! isLatest = Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
-    Span.current () |> Span.addTagInt' "op_ctr" p.opCtr
+    Span.current () |> Span.addTag "op_ctr" p.opCtr
 
     let newOps = Convert.ocamlOplist2PT p.ops
     let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
