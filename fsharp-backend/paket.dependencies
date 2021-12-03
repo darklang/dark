@@ -27,10 +27,11 @@ nuget PusherServer = 4.6.1
 nuget Rollbar = 4.0.3
 nuget Rollbar.NetCore.AspNet = 4.0.3
 nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.0
-nuget AspNetCore.HealthChecks.Npgsql = 6.0.1-rc1.2
+nuget AspNetCore.HealthChecks.Npgsql = 6.0.1-rc2.3
 
 // Tracing
 nuget Honeycomb.OpenTelemetry = 0.13.0-beta
+nuget Npgsql.OpenTelemetry = 6.0.0
 nuget System.Diagnostics.DiagnosticSource = 6.0.0
 nuget OpenTelemetry = 1.2.0-beta1
 nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.2.0-beta1

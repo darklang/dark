@@ -7,6 +7,7 @@ open Tablecloth
 open OpenTelemetry
 open OpenTelemetry.Trace
 open Honeycomb.OpenTelemetry
+open Npgsql
 
 open Microsoft.AspNetCore.Http.Extensions
 
@@ -124,7 +125,7 @@ let addTelemetry (builder : TracerProviderBuilder) : TracerProviderBuilder =
            | Config.Console -> b.AddConsoleExporter()
       |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
       |> fun b -> b.AddHttpClientInstrumentation()
-      // FSTODO AddSqlClientInstrumentation
+      |> fun b -> b.AddNpgsql()
       |> ignore<TracerProviderBuilder>)
   )
 
