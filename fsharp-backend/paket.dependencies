@@ -1,4 +1,4 @@
-version 6.0.6
+version 6.2.1
 
 source https://api.nuget.org/v3/index.json
 framework: net6.0

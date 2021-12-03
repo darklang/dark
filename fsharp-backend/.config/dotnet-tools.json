@@ -3,16 +3,12 @@
   "isRoot": true,
   "tools": {
     "paket": {
-      "version": "6.0.6",
+      "version": "6.2.1",
       "commands": ["paket"]
     },
     "dotnet-trace": {
-      "version": "5.0.236902",
+      "version": "6.0.257301",
       "commands": ["dotnet-trace"]
-    },
-    "fantomas-tool": {
-      "version": "4.5.4",
-      "commands": ["fantomas"]
     }
   }
 }
