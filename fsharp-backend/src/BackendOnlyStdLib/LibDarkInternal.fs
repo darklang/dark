@@ -791,44 +791,19 @@ that's already taken, returns an error."
           Param.make "name" TStr ""
           Param.make "log" varA "" ]
       returnType = varA
-      description =
-        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
+      description = "Write the log object to a honeycomb log."
       fn =
         internalFn (function
-          | _, [ DStr level; DStr name; DObj log ] ->
-            // FSTODO
-            (* Logs are important; if we get a level we can't parse, fall back to
-             * `Info and also error log *)
-            // let level =
-            //   levelStr
-            //   |> Log.string_to_level_opt
-            //   |> function
-            //     | Some level -> level
-            //     | None ->
-            //       Log.erroR
-            //         "DarkInternal::log no match"
-            //         [ ("input_level", levelStr); ("log_name", name) ]
-            //       Info
-            // (* We could just leave the dval vals as strings and use params, but
-            //  * then we can't do numeric things (MAX, AVG, >, etc) with these
-            //  * logs *)
-            // let jsonparams =
-            //   log
-            //   |> DvalMap.to_yojson (fun v ->
-            //     v |> Dval.to_pretty_machine_json_v1 |> Yojson.Safe.from_string)
-            //   |> function
-            //     | Assoc jsonparams -> jsonparams
-            //     | _ -> Exception.raiseInternal "Can't happen, bad log call"
-            // let log =
-            //   log
-            //   |> DvalMap.insert_no_override
-            //        "level"
-
-            //        (level |> Log.level_to_string |> DStr)
-            //   |> DvalMap.insert_no_override "name" (name |> DStr)
-            // Log.pP level name jsonparams
-            // DObj log
-            Ply DNull
+          | _, [ DStr level; DStr name; DObj log as result ] ->
+            let args =
+              log
+              |> Map.toList
+              // We could just leave the dval vals as strings and use params, but
+              // then we can't do numeric things (MAX, AVG, >, etc) with these
+              // logs
+              |> List.map (fun (k, v) -> (k, DvalRepr.toDeveloperReprV0 v :> obj))
+            Span.addEvent name (("level", level) :: args)
+            Ply result
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
