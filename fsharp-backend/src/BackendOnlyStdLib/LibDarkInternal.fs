@@ -39,8 +39,11 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
       | Some username ->
         let! canAccess = Account.canAccessOperations username
         if canAccess then
-          // CLEANUP add function name here
-          let span = Span.span "internal_fn" [ "user", username ]
+          let fnName =
+            state.executingFnName
+            |> Option.map string
+            |> Option.defaultValue "unknown"
+          let span = Span.span "internal_fn" [ "user", username; "fnName", fnName ]
           let! result = f (state, args)
           span.Stop()
           return result
@@ -969,50 +972,28 @@ that's already taken, returns an error."
         internalFn (function
           | state, [ DStr username ] ->
             uply {
-              let username = UserName.create username
-              let userID = Account.userIDForUserName username
-              let! session = Session.insert username
-              return DResult(Ok(DStr session.sessionKey))
-
-            // FSTODO - maybe put this in the general libInternal handler
-            (* If session creation fails, log and rollbar *)
-            // let err = Libexecution.Exception.exn_to_string e
-            // FSTODO
-            // Log.erroR
-            //   "DarkInternal::newSessionForUsername"
-            //   [ ("username", username); ("exception", err) ]
-            // let bt = Libexecution.Exception.get_backtrace ()
-            // match
-            //   Rollbar.report e bt (Other "Darklang") (string state.execution_id)
-            //   with
-            // | Success
-            // | Disabled -> ()
-            // | Failure ->
-            //   Log.erroR "rollbar.report at DarkInternal::newSessionForUsername"
-            // return DResult(Error(DStr "Failed to create session"))
+              try
+                let username = UserName.create username
+                let userID = Account.userIDForUserName username
+                let! session = Session.insert username
+                return DResult(Ok(DStr session.sessionKey))
+              with
+              | e ->
+                let err = string e
+                Span.addError
+                  "DarkInternal::newSessionForUserName"
+                  [ "username", username; "exception", err ]
+                LibService.Rollbar.sendException
+                  "Failed to create session"
+                  state.executionID
+                  []
+                  e
+                return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "newSessionForUsername" 1)
-
-    // FSTODO - maybe put this in the general libInternal handler
-    (* If session creation fails, log and rollbar *)
-    // let err = Libexecution.Exception.exn_to_string e
-    // FSTODO
-    // Log.erroR
-    //   "DarkInternal::newSessionForUsername"
-    //   [ ("username", username); ("exception", err) ]
-    // let bt = Libexecution.Exception.get_backtrace ()
-    // match
-    //   Rollbar.report e bt (Other "Darklang") (string state.execution_id)
-    //   with
-    // | Success
-    // | Disabled -> ()
-    // | Failure ->
-    //   Log.erroR "rollbar.report at DarkInternal::newSessionForUsername"
-    // return DResult(Error(DStr "Failed to create session"))
-    }
+      deprecated = ReplacedBy(fn "DarkInternal" "newSessionForUsername" 1) }
     { name = fn "DarkInternal" "newSessionForUsername" 1
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TStr, TStr)
@@ -1041,7 +1022,7 @@ that's already taken, returns an error."
                 let err = string e
                 Span.addError
                   "DarkInternal::newSessionForUserName_v1"
-                  [ "level", "error"; "username", username; "exception", err ]
+                  [ "username", username; "exception", err ]
                 LibService.Rollbar.sendException
                   "Failed to create session"
                   state.executionID
@@ -1052,28 +1033,7 @@ that's already taken, returns an error."
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = NotDeprecated
-    // FSTODO
-    (* If session creation fails, log and rollbar *)
-    // let err = Libexecution.Exception.exn_to_string e
-    // Log.erroR
-    //   "DarkInternal::newSessionForUsername_v1"
-    //   [ ("username", username); ("exception", err) ]
-    // let bt = Libexecution.Exception.get_backtrace ()
-    // (match
-    //   Rollbar.report
-    //     e
-    //     bt
-    //     (Other "Darklang")
-    //     (exec_state.execution_id |> Types.string_of_id)
-    //    with
-    //  | Success
-    //  | Disabled -> ()
-    //  | Failure ->
-    //    Log.erroR
-    //      "rollbar.report at DarkInternal::newSessionForUsername")
-    // return DResult(Error(DStr "Failed to create session")))
-    }
+      deprecated = NotDeprecated }
     { name = fn "DarkInternal" "deleteSession" 0
       parameters = [ Param.make "session_key" TStr "" ]
       returnType = TInt
