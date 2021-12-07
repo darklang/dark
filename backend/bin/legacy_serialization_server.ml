@@ -169,6 +169,8 @@ let server () =
 let () =
   try
     Libcommon.Log.infO "Starting legacy server" ;
+    (* We need this to ensure that infix is correct *)
+    Libbackend.Init.init ~run_side_effects:false ;
     (* see https://github.com/mirage/ocaml-cohttp/issues/511 *)
     let () = Lwt.async_exception_hook := ignore in
     ignore (Lwt_main.run (Nocrypto_entropy_lwt.initialize () >>= server))
