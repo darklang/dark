@@ -14,7 +14,8 @@ open LibExecution.RuntimeTypes
 
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
-module Span = LibService.Telemetry.Span
+module Telemetry = LibService.Telemetry
+module Span = Telemetry.Span
 
 open LibBackend
 
@@ -34,7 +35,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
     uply {
       match! state.program.accountID |> Account.usernameForUserID with
       | None ->
-        Exception.raiseInternal $"User not found with id: {state.program.accountID}"
+        Exception.raiseInternal $"User not found" [ "id", state.program.accountID ]
         return DNull
       | Some username ->
         let! canAccess = Account.canAccessOperations username
@@ -43,14 +44,16 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
             state.executingFnName
             |> Option.map string
             |> Option.defaultValue "unknown"
-          let span = Span.span "internal_fn" [ "user", username; "fnName", fnName ]
+          let span =
+            Telemetry.span "internal_fn" [ "user", username; "fnName", fnName ]
           let! result = f (state, args)
           span.Stop()
           return result
         else
           return
             Exception.raiseInternal
-              $"User executed an internal function but isn't an admin: {username}"
+              "User executed an internal function but isn't an admin"
+              [ "username", username ]
     })
 
 
@@ -802,7 +805,7 @@ that's already taken, returns an error."
               // then we can't do numeric things (MAX, AVG, >, etc) with these
               // logs
               |> List.map (fun (k, v) -> (k, DvalRepr.toDeveloperReprV0 v :> obj))
-            Span.addEvent name (("level", level) :: args)
+            Telemetry.addEvent name (("level", level) :: args)
             Ply result
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -955,13 +958,12 @@ that's already taken, returns an error."
               with
               | e ->
                 let err = string e
-                Span.addError
-                  "DarkInternal::newSessionForUserName"
-                  [ "username", username; "exception", err ]
+                let attrs = [ "username", username :> obj; "exception", err ]
+                Telemetry.addError "DarkInternal::newSessionForUserName" attrs
                 LibService.Rollbar.sendException
                   "Failed to create session"
                   state.executionID
-                  []
+                  attrs
                   e
                 return DResult(Error(DStr "Failed to create session"))
             }
@@ -995,13 +997,12 @@ that's already taken, returns an error."
               with
               | e ->
                 let err = string e
-                Span.addError
-                  "DarkInternal::newSessionForUserName_v1"
-                  [ "username", username; "exception", err ]
+                let attrs = [ "username", username :> obj; "exception", err ]
+                Telemetry.addError "DarkInternal::newSessionForUserName_v1" attrs
                 LibService.Rollbar.sendException
                   "Failed to create session"
                   state.executionID
-                  []
+                  attrs
                   e
                 return DResult(Error(DStr "Failed to create session"))
             }
@@ -1044,17 +1045,16 @@ human-readable data."
               // Send events to honeycomb. We could save some events by sending
               // these all as a single event - tablename.disk = 1, etc - but
               // by having an event per table, it's easier to query and graph:
-              // `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`. (Also,
-              // if/when we add more tables, the graph-query doesn't need to
-              // be updated,)
+              // `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`.
+              // (Also, if/when we add more tables, the graph-query doesn't need
+              // to be updated)
               //
               // There are ~40k minutes/month, and 20 tables, so a 1/min cron
               // would consume 80k of our 1.5B monthly events. That seems
               // reasonable.
-              let current = Span.current ()
               tableStats
               |> List.iter (fun ts ->
-                Span.addEvent
+                Telemetry.addEvent
                   "postgres_table_sizes"
                   [ ("relation", ts.relation)
                     ("disk_bytes", ts.diskBytes)

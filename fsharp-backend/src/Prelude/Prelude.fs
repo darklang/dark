@@ -28,7 +28,7 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // may be shown to users
 type DarkExceptionData =
   // Do not show to anyone, we need to rollbar this and address it
-  | InternalError of string
+  | InternalError of string * List<string * obj>
 
   // An error caused by the grand user making the request, show the error to the
   // requester no matter who they are
@@ -47,16 +47,44 @@ type DarkExceptionData =
   // number when it doesn't support it. We probably caused this by allowing it to
   // happen, so we definitely want to fix it, but it's OK to tell the developer what
   // happened (not grandusers though)
-  | LibraryError of string
+  | LibraryError of string * List<string * obj>
 
 exception DarkException of DarkExceptionData
 
+// This is for tracing
+let mutable exceptionCallback =
+  (fun (typ : string) (msg : string) (tags : List<string * obj>) -> ())
+
 module Exception =
-  let raiseGrandUser (msg : string) = raise (DarkException(GrandUserError(msg)))
-  let raiseDeveloper (msg : string) = raise (DarkException(DeveloperError(msg)))
-  let raiseEditor (msg : string) = raise (DarkException(EditorError(msg)))
-  let raiseInternal (msg : string) = raise (DarkException(InternalError(msg)))
-  let raiseLibrary (msg : string) = raise (DarkException(LibraryError(msg)))
+  let callExceptionCallback typ msg tags =
+    try
+      exceptionCallback typ msg tags
+    with
+    | _ ->
+      // We're completely screwed at this point
+      printf "Exception calling Exceptioncallback"
+
+  let raiseGrandUser (msg : string) =
+    callExceptionCallback "grand" msg []
+    raise (DarkException(GrandUserError(msg)))
+
+  let raiseDeveloper (msg : string) =
+    callExceptionCallback "grand" msg []
+    raise (DarkException(DeveloperError(msg)))
+
+  let raiseEditor (msg : string) =
+    callExceptionCallback "grand" msg []
+    raise (DarkException(EditorError(msg)))
+
+  // Note that we do not need to log if we get an internal error, it will be handled
+  // when it is caught (exceptions should always flow to the top if possible)
+  let raiseInternal (msg : string) (tags : List<string * obj>) =
+    callExceptionCallback "internal" msg tags
+    raise (DarkException(InternalError(msg, tags)))
+
+  let raiseLibrary (msg : string) (tags : List<string * obj>) =
+    callExceptionCallback "library" msg tags
+    raise (DarkException(LibraryError(msg, tags)))
 
   let toGrandUserMessage (e : DarkExceptionData) : string =
     match e with
@@ -69,15 +97,15 @@ module Exception =
   let toDeveloperMessage (e : DarkExceptionData) : string =
     match e with
     | InternalError _ -> ""
-    | LibraryError msg
+    | LibraryError (msg, _)
     | EditorError msg
     | DeveloperError msg
     | GrandUserError msg -> msg
 
   let toInternalMessage (e : DarkExceptionData) : string =
     match e with
-    | InternalError msg
-    | LibraryError msg
+    | InternalError (msg, _)
+    | LibraryError (msg, _)
     | EditorError msg
     | DeveloperError msg
     | GrandUserError msg -> msg

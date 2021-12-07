@@ -14,6 +14,7 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
+module Telemetry = LibService.Telemetry
 
 type CorsSetting =
   | AllOrigins
@@ -246,15 +247,11 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.DeleteTypeForever tlid -> deleteTypeForever tlid c
   with
   | e ->
-    // FSTODO
-    (* Log here so we have context, but then re-raise *)
-    // Log.erroR
-    //   "apply_op failure"
-    //   ~params:
-    //     [ ("host", !c.host)
-    //     ; ("op", Types.show_op op)
-    //     ; ("exn", Exception.to_string e) ] ;
-    fstodo (e.ToString())
+    // Log here so we have context, but then re-raise
+    Telemetry.addError
+      "apply_op failure"
+      [ ("host", c.meta.name); ("op", string op); ("exn", string e) ]
+    reraise ()
 
 
 // NOTE: If you add a new verification here, please ensure all places that

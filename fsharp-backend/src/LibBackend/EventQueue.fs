@@ -12,11 +12,11 @@ open Db
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
-open LibService.Telemetry
+
+module Telemetry = LibService.Telemetry
 
 module RT = LibExecution.RuntimeTypes
 
-type Activity = System.Diagnostics.Activity
 
 
 type Status =
@@ -252,8 +252,8 @@ let enqueue
   |> Sql.executeStatementAsync
 
 
-let dequeue (parent : Span.T) : Task<Option<T>> =
-  Span.addEvent "dequeue" []
+let dequeue (parent : Telemetry.Span.T) : Task<Option<T>> =
+  Telemetry.addEvent "dequeue" []
 
   Sql.query
     "SELECT e.id, e.value, e.retries, e.canvas_id, e.account_id, c.name as canvas_name, e.space, e.name as event_name, e.modifier,
@@ -292,7 +292,7 @@ let dequeue (parent : Span.T) : Task<Option<T>> =
         // FSTODO
         // log_queue_size Dequeue ~host canvas_id space name modifier ;
         // TODO better names
-        let (_ : Span.T) =
+        let (_ : Telemetry.Span.T) =
           parent
             .AddTag("queue_delay", delay)
             .AddTag("host", canvasName)
@@ -455,12 +455,9 @@ let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
 
 let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"
 
-let putBack (parent : Span.T) (item : T) (status : Status) : Task<unit> =
-  let span =
-    (Span.child "event_queue: put_back_transaction" parent)
-      .AddTag("status", string status)
-      .AddTag("retries", item.retries)
-    |> ignore<Activity>
+let putBack (parent : Telemetry.Span.T) (item : T) (status : Status) : Task<unit> =
+  (Telemetry.Span.child "event_queue: put_back_transaction" parent)
+  |> Telemetry.Span.addTags [ ("status", string status); ("retries", item.retries) ]
 
   match status with
   | OK ->
@@ -508,4 +505,4 @@ let putBack (parent : Span.T) (item : T) (status : Status) : Task<unit> =
     |> Sql.executeStatementAsync
 
 
-let finish (span : Span.T) (item : T) : Task<unit> = putBack span item OK
+let finish (span : Telemetry.Span.T) (item : T) : Task<unit> = putBack span item OK

@@ -97,7 +97,7 @@ let sendHttpException
     |> ignore<Rollbar.ILogger>
   with
   | e ->
-    LibService.Telemetry.Span.addError
+    Telemetry.addError
       "Exception when calling rollbar"
       [ "message", e.Message; "stackTrace", e.StackTrace ]
     print "Exception when calling rollbar"
@@ -121,7 +121,7 @@ let sendException
     |> ignore<Rollbar.ILogger>
   with
   | e ->
-    LibService.Telemetry.Span.addError
+    Telemetry.addError
       "Exception when calling rollbar"
       [ "message", e.Message; "stackTrace", e.StackTrace ]
     print "Exception when calling rollbar"
@@ -150,7 +150,7 @@ let lastDitchBlocking
     |> ignore<Rollbar.ILogger>
   with
   | e ->
-    LibService.Telemetry.Span.addError
+    Telemetry.addError
       "Exception when calling rollbar"
       [ "message", e.Message; "stackTrace", e.StackTrace ]
     print "Exception when calling rollbar"

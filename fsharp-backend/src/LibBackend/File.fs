@@ -36,11 +36,7 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
              && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
              && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
             |> debug "irreg") then
-    print $"SECURITY_VIOLATION: {f}"
-    failwith "FILE SECURITY VIOLATION"
-  // FSTODO
-  // (Log.erroR "SECURITY_VIOLATION" f
-  //  Exception.internal_ "FILE SECURITY VIOLATION")
+    Exception.raiseInternal "FILE SECURITY VIOLATION" [ "file", f ]
   else
     f
 

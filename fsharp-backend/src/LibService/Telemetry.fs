@@ -40,24 +40,38 @@ module Span =
     assert_ "Telemetry must be initialized before creating child" (result <> null)
     result
 
-  let span (name : string) (tags : List<string * obj>) : T =
-    let span = child name (current ())
-    List.iter (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<T>) tags
-    span
-
   let addTag (name : string) (value : obj) (span : T) : unit =
     span.AddTag(name, value) |> ignore<T>
 
   let addTags (tags : List<string * obj>) (span : T) : unit =
     List.iter (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<T>) tags
 
-  let addEvent (name : string) (tags : List<string * obj>) : unit =
-    let span = current ()
+  let addEvent (name : string) (tags : List<string * obj>) (span : T) : unit =
     let e = span.AddEvent(System.Diagnostics.ActivityEvent name)
     List.iter (fun (name, value : obj) -> e.AddTag(name, value) |> ignore<T>) tags
 
-  let addError (name : string) (tags : List<string * obj>) : unit =
-    addEvent name (("level", "error") :: tags)
+
+let span (name : string) (tags : List<string * obj>) : Span.T =
+  let span = Span.child name (Span.current ())
+  List.iter
+    (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<Span.T>)
+    tags
+  span
+
+let addTag (name : string) (value : obj) : unit =
+  Span.addTag name value (Span.current ())
+
+let addTags (tags : List<string * obj>) : unit = Span.addTags tags (Span.current ())
+
+let addEvent (name : string) (tags : List<string * obj>) : unit =
+  let span = Span.current ()
+  let e = span.AddEvent(System.Diagnostics.ActivityEvent name)
+  Span.addTags tags e
+
+let addError (name : string) (tags : List<string * obj>) : unit =
+  addEvent name (("level", "error") :: tags)
+
+
 
 
 // Call, passing with serviceName for this service, such as "ApiServer"
@@ -79,7 +93,11 @@ let init (serviceName : string) =
     fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
   System.Diagnostics.ActivitySource.AddActivityListener(activityListener)
 
-  debuG "internal.source" Internal._source
+  // Make sure exceptions make it into telemetry as soon as they're called
+  Prelude.exceptionCallback <-
+    (fun typ msg tags ->
+      addError msg (("exception", true) :: ("exceptionType", typ) :: tags))
+
 
 let honeycombOptions : HoneycombOptions =
   let options = HoneycombOptions()
