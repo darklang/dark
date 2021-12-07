@@ -40,14 +40,24 @@ module Span =
     assert_ "Telemetry must be initialized before creating child" (result <> null)
     result
 
-  let addEvent (name : string) (span : T) : unit =
-    span.AddEvent(System.Diagnostics.ActivityEvent name) |> ignore<T>
+  let span (name : string) (tags : List<string * obj>) : T =
+    let span = child name (current ())
+    List.iter (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<T>) tags
+    span
 
   let addTag (name : string) (value : obj) (span : T) : unit =
     span.AddTag(name, value) |> ignore<T>
 
   let addTags (tags : List<string * obj>) (span : T) : unit =
-    List.iter (fun (name, value) -> addTag name value span) tags
+    List.iter (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<T>) tags
+
+  let addEvent (name : string) (tags : List<string * obj>) : unit =
+    let span = current ()
+    let e = span.AddEvent(System.Diagnostics.ActivityEvent name)
+    List.iter (fun (name, value : obj) -> e.AddTag(name, value) |> ignore<T>) tags
+
+  let addError (name : string) (tags : List<string * obj>) : unit =
+    addEvent name (("level", "error") :: tags)
 
 
 // Call, passing with serviceName for this service, such as "ApiServer"

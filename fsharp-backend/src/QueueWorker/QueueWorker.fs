@@ -23,6 +23,7 @@ type Activity = System.Diagnostics.Activity
 let dequeueAndProcess
   (executionID : ExecutionID)
   : Task<Result<Option<RT.Dval>, exn>> =
+  // FSTODO: should have a root before here
   use root = Span.root "dequeue_and_process"
   root.AddTag("meta.process_id", string executionID) |> ignore<Activity>
 
@@ -34,7 +35,7 @@ let dequeueAndProcess
         with
         | e ->
           // exception occurred while dequeuing, no item to put back
-          Span.addEvent "Exception while dequeuing" root
+          Span.addEvent "Exception while dequeuing" []
           Task.FromResult(Error e)
 
       match event with

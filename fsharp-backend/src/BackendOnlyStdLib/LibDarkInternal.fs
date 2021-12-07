@@ -14,6 +14,7 @@ open LibExecution.RuntimeTypes
 
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
+module Span = LibService.Telemetry.Span
 
 open LibBackend
 
@@ -38,11 +39,10 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
       | Some username ->
         let! canAccess = Account.canAccessOperations username
         if canAccess then
-          // (Log.infO "internalFn" [ ("user", username); ("status", "starting") ]
-          // FSTODO:
+          // CLEANUP add function name here
+          let span = Span.span "internal_fn" [ "user", username ]
           let! result = f (state, args)
-          // FSTODO
-          //  Log.infO "internalFn" [ ("user", username); ("status", "finished") ]
+          span.Stop()
           return result
         else
           return
@@ -1023,38 +1023,31 @@ that's already taken, returns an error."
         internalFn (function
           | state, [ DStr username ] ->
             uply {
-              let username = UserName.create username
-              let userID = Account.userIDForUserName username
-              let! session = Session.insert username
-              return
-                DResult(
-                  Ok(
-                    DObj(
-                      Map [ ("sessionKey", DStr session.sessionKey)
-                            ("csrfToken", DStr session.csrfToken) ]
+              try
+                let username = UserName.create username
+                let userID = Account.userIDForUserName username
+                let! session = Session.insert username
+                return
+                  DResult(
+                    Ok(
+                      DObj(
+                        Map [ ("sessionKey", DStr session.sessionKey)
+                              ("csrfToken", DStr session.csrfToken) ]
+                      )
                     )
                   )
-                )
-            // FSTODO
-            (* If session creation fails, log and rollbar *)
-            // let err = Libexecution.Exception.exn_to_string e
-            // Log.erroR
-            //   "DarkInternal::newSessionForUsername_v1"
-            //   [ ("username", username); ("exception", err) ]
-            // let bt = Libexecution.Exception.get_backtrace ()
-            // (match
-            //   Rollbar.report
-            //     e
-            //     bt
-            //     (Other "Darklang")
-            //     (exec_state.execution_id |> Types.string_of_id)
-            //    with
-            //  | Success
-            //  | Disabled -> ()
-            //  | Failure ->
-            //    Log.erroR
-            //      "rollbar.report at DarkInternal::newSessionForUsername")
-            // return DResult(Error(DStr "Failed to create session")))
+              with
+              | e ->
+                let err = string e
+                Span.addError
+                  "DarkInternal::newSessionForUserName_v1"
+                  [ "level", "error"; "username", username; "exception", err ]
+                LibService.Rollbar.sendException
+                  "Failed to create session"
+                  state.executionID
+                  []
+                  e
+                return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1113,7 +1106,7 @@ human-readable data."
           | state, [] ->
             uply {
               let! tableStats = Db.tableStats ()
-              // Send logs to honeycomb. We could save some events by sending
+              // Send events to honeycomb. We could save some events by sending
               // these all as a single event - tablename.disk = 1, etc - but
               // by having an event per table, it's easier to query and graph:
               // `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`. (Also,
@@ -1123,21 +1116,18 @@ human-readable data."
               // There are ~40k minutes/month, and 20 tables, so a 1/min cron
               // would consume 80k of our 1.5B monthly events. That seems
               // reasonable.
-              //
-              // The log statements all look like:
-              // {"timestamp":"2020-05-29T00:20:08.769420000Z","level":"INFO","name":"postgres_table_sizes","relation":"Total","disk_bytes":835584,"rows":139,"disk_human":"816 kB","rows_human":"139"}
-              // FSTODO
-              // tableStats
-              // |> List.iter (fun ts ->
-              //   Log.infO
-              //     "postgres_table_sizes"
-              //     [ ("relation", String ts.relation)
-              //       ("disk_bytes", Int ts.disk_bytes)
-              //       ("rows", Int ts.rows)
-              //       ("disk_human", String ts.disk_human)
-              //       ("rows_human", String ts.rows_human) ])
+              let current = Span.current ()
+              tableStats
+              |> List.iter (fun ts ->
+                Span.addEvent
+                  "postgres_table_sizes"
+                  [ ("relation", ts.relation)
+                    ("disk_bytes", ts.diskBytes)
+                    ("rows", ts.rows)
+                    ("disk_human", ts.diskHuman)
+                    ("rows_human", ts.rowsHuman) ])
               // Reformat a bit for human-usable dval output.
-              // * Example from my local dev: {
+              // - Example from my local dev: {
               //     Total: {
               //       disk: 835584,
               //       diskHuman: "816 kB",

@@ -253,7 +253,7 @@ let enqueue
 
 
 let dequeue (parent : Span.T) : Task<Option<T>> =
-  Span.addEvent "dequeue" parent
+  Span.addEvent "dequeue" []
 
   Sql.query
     "SELECT e.id, e.value, e.retries, e.canvas_id, e.account_id, c.name as canvas_name, e.space, e.name as event_name, e.modifier,
