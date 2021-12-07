@@ -54,11 +54,10 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
       time_range = 604800 }
 
   let queryStr = Json.Vanilla.serialize query
+  let dataset = Config.honeycombDataset
 
   let uri =
-    System.Uri(
-      $"https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={queryStr}"
-    )
+    System.Uri($"https://ui.honeycomb.io/dark/datasets/{dataset}?query={queryStr}")
 
   string uri
 
@@ -71,6 +70,7 @@ let createState
   let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
   custom["message"] <- message
   // CLEANUP rollbar has a built-in way to do this called "Service links"
+  // CLEANUP we should search by traceID, we don't need to use executionID since they're the same now
   custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
   custom["execution_id"] <- string executionID
   List.iter

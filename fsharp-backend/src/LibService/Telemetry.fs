@@ -140,15 +140,12 @@ let addTelemetry
   |> fun b -> b.AddSource("Dark")
 
 
-// An execution ID was an ID in the OCaml version, but since we're using OpenTelemetry
-// from the start, we use the Activity ID instead (note that ASP.NET has
-// HttpContext.TraceIdentifier. It's unclear to me why that's different than the
-// Activity.ID.
-// gets an executionID. The execution ID it returns will change as new
-// Activitys/Spans/Events are created, so the correct way to use this is to call it
-// at the root of execution and pass the result down.
-// FSTODO do something here
-let executionID () = ExecutionID System.Diagnostics.Activity.Current.Id
+// An execution ID was an int64 ID in the OCaml version, but since we're using
+// OpenTelemetry from the start, we use the Trace ID instead. This should be used to
+// create a TraceID for anywhere there's a thread and a trace available. The
+// execution ID should be constant no matter when this is called in a thread, but for
+// safety, call it at the top and pass it down.
+let executionID () = ExecutionID(string System.Diagnostics.Activity.Current.TraceId)
 
 module Console =
   // For webservers, tracing is added by ASP.NET middlewares. For non-webservers, we

@@ -10,7 +10,9 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
 open Tablecloth
-open LibService.Telemetry
+
+module Telemetry = LibService.Telemetry
+module Span = Telemetry.Span
 
 module C = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
@@ -52,7 +54,7 @@ let addOp (ctx : HttpContext) : Task<T> =
     let canvasID = canvasInfo.id
 
     let! isLatest = Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
-    Span.current () |> Span.addTag "op_ctr" p.opCtr
+    t.span () |> Span.addTag "op_ctr" p.opCtr
 
     let newOps = Convert.ocamlOplist2PT p.ops
     let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
