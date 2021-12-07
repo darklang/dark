@@ -49,6 +49,23 @@ let startTimer (ctx : HttpContext) : (string -> unit) =
     let name = $"%03d{st.Metrics.Count}-{metricName}"
     st.Metrics.Add(ServerTimingMetric(name, result)))
 
+let stop (span : Span.T) (ctx : HttpContext) : unit =
+  span.Stop()
+  let result = span.Duration.TotalMilliseconds |> decimal
+  let st = getServerTiming ctx
+  let name = $"%03d{st.Metrics.Count}-{span.DisplayName}"
+  st.Metrics.Add(ServerTimingMetric(name, result))
+
+type TraceTimer = { next : string -> unit; stop : unit -> unit }
+
+let timer (ctx : HttpContext) : TraceTimer =
+  let parent = Span.current ()
+  let mutable child = null
+  { next =
+      fun name ->
+        if child <> null then stop child ctx
+        child <- Span.child name parent
+    stop = fun () -> if child <> null then stop child ctx }
 
 // --------------------
 // Generic middlewares
@@ -59,12 +76,12 @@ let startTimer (ctx : HttpContext) : (string -> unit) =
 type HttpContextExtensions() =
   [<Extension>]
   static member WriteJsonAsync<'T>(ctx : HttpContext, dataObj : 'T) =
-    let t = startTimer ctx
+    let span = Span.child "write-json-async" (Span.current ())
     ctx.SetContentType "application/json; charset=utf-8"
     // TODO: it's probably slower to have a separate serialization step, then
     // written into the body, vs writing directly into the body.
     let serialized = ctx.GetJsonSerializer().SerializeToBytes dataObj
-    t "serialized"
+    stop span ctx
     ctx.WriteBytesAsync serialized
 
 
@@ -92,9 +109,9 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
   handleContext (fun ctx ->
     task {
       let! result = f ctx
-      let t = startTimer ctx
+      let span = Span.child "write-html-response" (Span.current ())
       let! newCtx = ctx.WriteHtmlStringAsync result
-      t "writeResponse"
+      stop span ctx
       return newCtx
     })
 
@@ -102,9 +119,7 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
   handleContext (fun ctx ->
     task {
       let! result = f ctx
-      let t = startTimer ctx
       let! newCtx = ctx.WriteJsonAsync result
-      t "serialize-to-json"
       return newCtx
     })
 
@@ -113,9 +128,7 @@ let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
     task {
       match! f ctx with
       | Some result ->
-        let t = startTimer ctx
         let! newCtx = ctx.WriteJsonAsync result
-        t "serialize-to-json"
         return newCtx
       | None ->
         ctx.SetStatusCode 404
@@ -205,7 +218,7 @@ let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
 let sessionDataMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let t = startTimer ctx
+      let span = Span.child "session-data-middleware" (Span.current ())
       let sessionKey = ctx.Request.Cookies.Item Session.cookieKey
 
       let! session =
@@ -217,11 +230,11 @@ let sessionDataMiddleware : HttpHandler =
 
       match session with
       | None ->
-        t "session-data-middleware"
+        stop span ctx
         return! redirectOr unauthorized ctx
       | Some sessionData ->
         let newCtx = saveSessionData sessionData ctx
-        t "session-data-middleware"
+        stop span ctx
         return! next newCtx
     })
 
@@ -229,12 +242,12 @@ let sessionDataMiddleware : HttpHandler =
 let userInfoMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let t = startTimer ctx
+      let span = Span.child "user-info-middleware" (Span.current ())
       let sessionData = loadSessionData ctx
 
       match! Account.getUser sessionData.username with
       | None ->
-        t "user-info-middleware"
+        stop span ctx
         return! redirectOr notFound ctx
       | Some user ->
         ctx.SetHttpHeader("x-darklang-username", user.username)
@@ -243,7 +256,7 @@ let userInfoMiddleware : HttpHandler =
                           "userID", user.id
                           "is_admin", user.admin ]
         let newCtx = saveUserInfo user ctx
-        t "user-info-middleware"
+        stop span ctx
         return! next newCtx
     })
 
@@ -257,7 +270,7 @@ let withPermissionMiddleware
   : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let t = startTimer ctx
+      let span = Span.child "with-permission-middleware" (Span.current ())
       let user = loadUserInfo ctx
       // CLEANUP: reduce to one query
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
@@ -274,13 +287,13 @@ let withPermissionMiddleware
       if Auth.permitted permissionNeeded permission then
         let (_ : HttpContext) =
           ctx |> saveCanvasInfo canvasInfo |> savePermission permission
-        t "with-permission-middleware"
+        stop span ctx
         Span.current ()
         |> Span.addTags [ "canvas", canvasName; "canvasID", canvasID ]
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
-        t "with-permission-middleware"
+        stop span ctx
         return! unauthorized ctx
     })
 
@@ -311,7 +324,7 @@ let serverVersionMiddleware : HttpHandler =
 let clientVersionMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let clientVersion = ctx.Request.Headers.Item "client_version"
+      let clientVersion = ctx.Request.Headers.Item "x-darklang-client-version"
       Span.current ()
       |> Span.addTags [ "request.header.client_version", clientVersion
                         // CLEANUP this was a bad name. Kept in until old data falls out of Honeycomb
