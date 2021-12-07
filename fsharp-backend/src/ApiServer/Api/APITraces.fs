@@ -41,18 +41,18 @@ module TraceData =
 
   let getTraceData (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
-      t "read-api"
 
+      t.next "load-canvas"
       let! (c : Canvas.T) =
         Canvas.loadTLIDs canvasInfo [ p.tlid ] |> Task.map Result.unwrapUnsafe
 
-      t "load-canvas"
 
       // CLEANUP: we dont need the handlers or functions at all here, just for the sample
       // values which we can do on the client instead
+      t.next "load-trace"
       let handler = c.handlers |> Map.get p.tlid
 
       let! trace =
@@ -63,8 +63,8 @@ module TraceData =
           | Some u -> Traces.userfnTrace c.meta.id p.trace_id u |> Task.map Some
           | None -> Task.FromResult None
 
-      t "load-trace"
 
+      t.next "write-api"
       // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
       let (trace : Option<Trace>) =
         match trace with
@@ -84,7 +84,7 @@ module TraceData =
           )
         | None -> None
 
-      t "write-api"
+      t.stop ()
       return Option.map (fun t -> { trace = t }) trace
     }
 
@@ -94,15 +94,15 @@ module AllTraces =
 
   let fetchAll (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      t "read-api"
 
       // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
       // CLEANUP don't load traces for deleted handlers
+      t.next "load-canvas"
       let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
-      t "load-canvas"
 
+      t.next "fetch-handler-traces"
       let! hTraces =
         c.handlers
         |> Map.values
@@ -112,8 +112,8 @@ module AllTraces =
         |> Task.flatten
         |> Task.map List.concat
 
-      t "fetch-handler-traces"
 
+      t.next "fetch-userfn-traces"
       let! ufTraces =
         c.userFunctions
         |> Map.values
@@ -123,8 +123,8 @@ module AllTraces =
         |> Task.flatten
         |> Task.map List.concat
 
-      t "fetch-userfn-traces"
       // FSTODO pageable
+      t.stop ()
 
       return { traces = hTraces @ ufTraces }
     }

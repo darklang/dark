@@ -28,14 +28,14 @@ module WorkerStats =
 
   let getStats (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
-      t "read-api"
 
+      t.next "analyse-worker-stats"
       let! result = Stats.workerStats canvasInfo.id p.tlid
-      t "analyse-worker-stats"
 
+      t.stop ()
       return { count = result }
     }
 
@@ -45,26 +45,26 @@ module Scheduler =
 
   let updateSchedule (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
-      t "read-api"
 
+      t.next "schedule-worker"
       match p.schedule with
       | "pause" -> do! EQ.pauseWorker canvasInfo.id p.name
       | "run" -> do! EQ.unpauseWorker canvasInfo.id p.name
       | _ -> failwith "Invalid schedule"
 
-      t "schedule-worker"
 
+      t.next "get-worker-schedule"
       let! ws = EQ.getWorkerSchedules canvasInfo.id
-      t "get-worker-schedule"
 
+      t.next "update-pusher"
       // TODO: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
       let executionID = Middleware.loadExecutionID ctx
       LibBackend.Pusher.pushWorkerStates executionID canvasInfo.id ws
-      t "update-pusher"
 
+      t.stop ()
       return ws
     }

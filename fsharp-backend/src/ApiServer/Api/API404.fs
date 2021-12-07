@@ -18,12 +18,12 @@ module List =
 
   let get (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      t "read-api"
 
+      t.next "get-recent-404s"
       let! f404s = TI.getRecent404s canvasInfo.id
-      t "get-recent-404s"
+      t.stop ()
       return { f404s = f404s }
     }
 
@@ -33,13 +33,13 @@ module Delete =
 
   let delete (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
-      t "read-api"
 
+      t.next "delete-404"
       do! TI.delete404s canvasInfo.id p.space p.path p.modifier
-      t "delete-404"
 
+      t.stop ()
       return { result = "deleted" }
     }

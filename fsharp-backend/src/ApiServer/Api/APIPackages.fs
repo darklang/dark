@@ -22,17 +22,16 @@ module List =
 
   let packages (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
-      t "read-api"
+      let t = Middleware.startTimer "read-api" ctx
 
+      t.next "load-functions"
       let! fns = Lazy.force LibBackend.PackageManager.cachedForAPI
-      t "load-functions"
 
+      t.next "convert"
       let result = fns |> List.map Convert.pt2ocamlPackageManagerFn
-      t "write-api"
+      t.stop ()
       return result
     }
-
 
 
 // | `POST, ["api"; canvas; "packages"; "upload_function"] when user.admin ->

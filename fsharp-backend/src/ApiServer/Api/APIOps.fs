@@ -44,7 +44,7 @@ let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
 let addOp (ctx : HttpContext) : Task<T> =
   task {
-    let t = Middleware.startTimer ctx
+    let t = Middleware.startTimer "read-api" ctx
     let canvasInfo = Middleware.loadCanvasInfo ctx
     let executionID = Middleware.loadExecutionID ctx
 
@@ -56,8 +56,8 @@ let addOp (ctx : HttpContext) : Task<T> =
 
     let newOps = Convert.ocamlOplist2PT p.ops
     let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
-    t "read-api"
 
+    t.next "load-saved-ops"
     let! dbTLIDs =
       match Op.requiredContextToValidateOplist newOps with
       | Op.NoContext -> Task.FromResult []
@@ -73,8 +73,8 @@ let addOp (ctx : HttpContext) : Task<T> =
 
     let c = C.fromOplist canvasInfo oldOps newOps |> Result.unwrapUnsafe
 
-    t "2-load-saved-ops"
 
+    t.next "to-frontend"
     let toplevels = C.toplevels c
     let deletedToplevels = C.deletedToplevels c
 
@@ -89,8 +89,7 @@ let addOp (ctx : HttpContext) : Task<T> =
         user_tipes = types
         deleted_user_tipes = dTypes }
 
-    t "3-to-frontend"
-
+    t.next "save-to-disk"
     // work out the result before we save it, in case it has a
     // stackoverflow or other crashing bug
     if causesAnyChanges newOps then
@@ -110,8 +109,7 @@ let addOp (ctx : HttpContext) : Task<T> =
         |> C.saveTLIDs canvasInfo
 
 
-    t "4-save-to-disk"
-
+    t.next "send-ops-to-pusher"
     let event =
       // To make this work with prodclone, we might want to have it specify
       // more ... else people's prodclones will stomp on each other ...
@@ -122,8 +120,7 @@ let addOp (ctx : HttpContext) : Task<T> =
       else
         { result = empty; ``params`` = p }
 
-    t "5-send-ops-to-pusher"
-
+    t.next "send-event-to-heapio"
     // NB: I believe we only send one op at a time, but the type is op list
     newOps
     // MoveTL and TLSavepoint make for noisy data, so exclude it from heapio
@@ -140,7 +137,6 @@ let addOp (ctx : HttpContext) : Task<T> =
         (Op.eventNameOfOp op)
         Map.empty)
 
-    t "6-send-event-to-heapio"
-
+    t.stop ()
     return event
   }

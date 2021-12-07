@@ -32,40 +32,37 @@ module Auth = LibBackend.Authorization
 let (>=>) = Giraffe.Core.compose
 
 // --------------------
-// Server timing metrics
+// Telemetry and Server timing metrics
 // --------------------
-let getServerTiming (ctx : HttpContext) : Lib.AspNetCore.ServerTiming.IServerTiming =
-  ctx.RequestServices.GetService<Lib.AspNetCore.ServerTiming.IServerTiming>()
+type TraceTimer =
+  { next : string -> unit
+    stop : unit -> unit
+    span : unit -> Span.T }
 
-// returns a function to be called which will record the elapsed time
-let startTimer (ctx : HttpContext) : (string -> unit) =
-  let st = getServerTiming ctx
-  let sw = System.Diagnostics.Stopwatch()
-  sw.Start()
+// Returns a value to help tracing and setting ServerTiming headers. It immediately
+// starts a Span named [initialName]. It returns a value [t], and when you call
+// [t.next name], it automatically ends the current span and starts a new one with the new
+// name. It also records a server-timing header for each span when it ends, using the
+// duration from the Span.
+// Call [t.stop()] at the end, or the final span duration will be incorrect.
 
-  (fun metricName ->
-    let result = (sw.Elapsed.TotalMilliseconds) |> decimal
-    sw.Restart()
-    let name = $"%03d{st.Metrics.Count}-{metricName}"
-    st.Metrics.Add(ServerTimingMetric(name, result)))
-
-let stop (span : Span.T) (ctx : HttpContext) : unit =
-  span.Stop()
-  let result = span.Duration.TotalMilliseconds |> decimal
-  let st = getServerTiming ctx
-  let name = $"%03d{st.Metrics.Count}-{span.DisplayName}"
-  st.Metrics.Add(ServerTimingMetric(name, result))
-
-type TraceTimer = { next : string -> unit; stop : unit -> unit }
-
-let timer (ctx : HttpContext) : TraceTimer =
+let startTimer (initialName : string) (ctx : HttpContext) : TraceTimer =
   let parent = Span.current ()
-  let mutable child = null
+  let mutable child = Span.child initialName parent
+  let st =
+    ctx.RequestServices.GetService<Lib.AspNetCore.ServerTiming.IServerTiming>()
+  let stop () : unit =
+    child.Stop()
+    let result = child.Duration.TotalMilliseconds |> decimal
+    let name = $"%03d{st.Metrics.Count}-{child.DisplayName}"
+    st.Metrics.Add(ServerTimingMetric(name, result))
   { next =
       fun name ->
-        if child <> null then stop child ctx
+        stop ()
         child <- Span.child name parent
-    stop = fun () -> if child <> null then stop child ctx }
+    span = fun () -> child
+    stop = fun () -> stop () }
+
 
 // --------------------
 // Generic middlewares
@@ -76,12 +73,12 @@ let timer (ctx : HttpContext) : TraceTimer =
 type HttpContextExtensions() =
   [<Extension>]
   static member WriteJsonAsync<'T>(ctx : HttpContext, dataObj : 'T) =
-    let span = Span.child "write-json-async" (Span.current ())
+    let t = startTimer "write-json-async" ctx
     ctx.SetContentType "application/json; charset=utf-8"
     // TODO: it's probably slower to have a separate serialization step, then
     // written into the body, vs writing directly into the body.
     let serialized = ctx.GetJsonSerializer().SerializeToBytes dataObj
-    stop span ctx
+    t.stop ()
     ctx.WriteBytesAsync serialized
 
 
@@ -109,9 +106,9 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
   handleContext (fun ctx ->
     task {
       let! result = f ctx
-      let span = Span.child "write-html-response" (Span.current ())
+      let t = startTimer "write-html-response" ctx
       let! newCtx = ctx.WriteHtmlStringAsync result
-      stop span ctx
+      t.stop ()
       return newCtx
     })
 
@@ -218,7 +215,7 @@ let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
 let sessionDataMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let span = Span.child "session-data-middleware" (Span.current ())
+      let t = startTimer "session-data-middleware" ctx
       let sessionKey = ctx.Request.Cookies.Item Session.cookieKey
 
       let! session =
@@ -230,11 +227,11 @@ let sessionDataMiddleware : HttpHandler =
 
       match session with
       | None ->
-        stop span ctx
+        t.stop ()
         return! redirectOr unauthorized ctx
       | Some sessionData ->
         let newCtx = saveSessionData sessionData ctx
-        stop span ctx
+        t.stop ()
         return! next newCtx
     })
 
@@ -242,12 +239,12 @@ let sessionDataMiddleware : HttpHandler =
 let userInfoMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let span = Span.child "user-info-middleware" (Span.current ())
+      let t = startTimer "user-info-middleware" ctx
       let sessionData = loadSessionData ctx
 
       match! Account.getUser sessionData.username with
       | None ->
-        stop span ctx
+        t.stop ()
         return! redirectOr notFound ctx
       | Some user ->
         ctx.SetHttpHeader("x-darklang-username", user.username)
@@ -256,7 +253,7 @@ let userInfoMiddleware : HttpHandler =
                           "userID", user.id
                           "is_admin", user.admin ]
         let newCtx = saveUserInfo user ctx
-        stop span ctx
+        t.stop ()
         return! next newCtx
     })
 
@@ -270,7 +267,7 @@ let withPermissionMiddleware
   : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let span = Span.child "with-permission-middleware" (Span.current ())
+      let t = startTimer "with-permission-middleware" ctx
       let user = loadUserInfo ctx
       // CLEANUP: reduce to one query
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
@@ -287,13 +284,12 @@ let withPermissionMiddleware
       if Auth.permitted permissionNeeded permission then
         let (_ : HttpContext) =
           ctx |> saveCanvasInfo canvasInfo |> savePermission permission
-        stop span ctx
-        Span.current ()
-        |> Span.addTags [ "canvas", canvasName; "canvasID", canvasID ]
+        t.span () |> Span.addTags [ "canvas", canvasName; "canvasID", canvasID ]
+        t.stop ()
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
-        stop span ctx
+        t.stop ()
         return! unauthorized ctx
     })
 

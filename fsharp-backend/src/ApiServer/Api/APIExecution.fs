@@ -40,29 +40,29 @@ module Function =
 
   let execute (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let executionID = Middleware.loadExecutionID ctx
       let! p = ctx.BindModelAsync<Params>()
       let args = List.map Convert.ocamlDval2rt p.args
-      t "read-api"
 
+      t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
       let c = Result.unwrapUnsafe c
-      t "load-canvas"
 
+      t.next "load-execution-state"
       let program = Canvas.toProgram c
       let! (state, touchedTLIDs) =
         RealExe.createState executionID p.trace_id p.tlid program
-      t "load-execution-state"
 
+      t.next "execute-function"
       let fnname = p.fnname |> PT.FQFnName.parse
       let! result = Exe.executeFunction state p.caller_id args fnname
-      t "execute-function"
 
+      t.next "get-unlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
-      t "get-unlocked"
 
+      t.next "write-api"
       let hashVersion = DvalRepr.currentHashVersion
       let hash = DvalRepr.hash hashVersion args
 
@@ -73,7 +73,7 @@ module Function =
           touched_tlids = HashSet.toList touchedTLIDs
           unlocked_dbs = unlocked }
 
-      t "write-api"
+      t.stop ()
       return result
     }
 
@@ -87,7 +87,7 @@ module Handler =
 
   let trigger (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let executionID = Middleware.loadExecutionID ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
@@ -97,28 +97,25 @@ module Handler =
         |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
         |> Map.ofList
 
-      t "read-api"
-
+      t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
       let c = Result.unwrapUnsafe c
       let program = Canvas.toProgram c
       let expr = c.handlers[ p.tlid ].ast.toRuntimeType ()
-      t "load-canvas"
 
+      t.next "load-execution-state"
       let! state, touchedTLIDs =
         RealExe.createState executionID p.trace_id p.tlid program
-      t "load-execution-state"
 
+      t.next "execute-handler"
       // CLEANUP
       // since this ignores the result, it doesn't go through the http result
       // handling function. This might not matter
       let! (_result : RT.Dval) = Exe.executeHandler state inputVars expr
 
-      t "execute-handler"
-
+      t.next "write-api"
       let result = { touched_tlids = touchedTLIDs |> HashSet.toList }
 
-      t "write-api"
-
+      t.stop ()
       return result
     }

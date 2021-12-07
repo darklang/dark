@@ -124,20 +124,25 @@ let uiHtml
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
+    let t = Middleware.startTimer "read-request" ctx
     let user = Middleware.loadUserInfo ctx
     let sessionData = Middleware.loadSessionData ctx
     let canvasInfo = Middleware.loadCanvasInfo ctx
-    let! createdAt = Account.getUserCreatedAt user.username
     let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
 
+    t.next "create-at"
+    let! createdAt = Account.getUserCreatedAt user.username
+
     // Create the data for integration tests
+    t.next "integration-tests"
     let integrationTests =
       ctx.TryGetQueryStringValue "integration-test" |> Option.isSome
 
     if integrationTests && Config.allowTestRoutes then
       do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
 
-    return
+    t.next "html-response"
+    let result =
       uiHtml
         canvasInfo.id
         canvasInfo.name
@@ -145,4 +150,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
         localhostAssets
         createdAt
         user
+
+    t.stop ()
+    return result
   }

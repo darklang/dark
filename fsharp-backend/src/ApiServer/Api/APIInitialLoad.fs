@@ -66,8 +66,7 @@ type T =
 
 let initialLoad (ctx : HttpContext) : Task<T> =
   task {
-    let t = Middleware.timer ctx
-    t.next "read-api"
+    let t = Middleware.startTimer "read-api" ctx
     let user = Middleware.loadUserInfo ctx
     let canvasInfo = Middleware.loadCanvasInfo ctx
     let permission = Middleware.loadPermission ctx

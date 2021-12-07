@@ -24,18 +24,19 @@ module Insert =
 
   let insert (ctx : HttpContext) : Task<T> =
     task {
+      let t = Middleware.startTimer "read-api" ctx
       try
-        let t = Middleware.startTimer ctx
+        t.next "read-api"
         let canvasInfo = Middleware.loadCanvasInfo ctx
         let! p = ctx.BindModelAsync<Params>()
-        t "read-api"
 
+        t.next "insert-secret"
         do! LibBackend.Secret.insert canvasInfo.id p.secret_name p.secret_value
-        t "insert-secret"
 
+        t.next "get-secrets"
         let! secrets = LibBackend.Secret.getCanvasSecrets canvasInfo.id
-        t "get-secrets"
 
+        t.next "write-api"
         let result =
           { secrets =
               List.map
@@ -43,7 +44,7 @@ module Insert =
                   { secret_name = s.name; secret_value = s.value })
                 secrets }
 
-        t "write-api"
+        t.stop ()
 
         return result
 
@@ -57,6 +58,7 @@ module Insert =
         else
           raise e
 
+        t.stop ()
         return { secrets = [] }
     }
 
@@ -67,18 +69,18 @@ module Delete =
 
   let delete (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
+      let t = Middleware.startTimer "read-api" ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
-      t "read-api"
 
       // CLEANUP: only do this if the secret is not used on the canvas
+      t.next "delete-secret"
       do! LibBackend.Secret.delete canvasInfo.id p.secret_name
-      t "delete-secret"
 
+      t.next "get-secrets"
       let! secrets = LibBackend.Secret.getCanvasSecrets canvasInfo.id
-      t "get-secrets"
 
+      t.next "write-api"
       let result =
         { secrets =
             List.map
@@ -86,7 +88,6 @@ module Delete =
                 { secret_name = s.name; secret_value = s.value })
               secrets }
 
-      t "write-api"
-
+      t.stop ()
       return result
     }
