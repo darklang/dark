@@ -64,51 +64,73 @@ module Exception =
       // We're completely screwed at this point
       printf "Exception calling Exceptioncallback"
 
+  // A grand user exception was caused by the incorrect actions of a grand user. The
+  // msg is suitable to show to the grand user. We don't care about grandUser
+  // exceptions, they're normal.
   let raiseGrandUser (msg : string) =
     callExceptionCallback "grand" msg []
     raise (DarkException(GrandUserError(msg)))
 
+  // A developer exception is one caused by the incorrect actions of our
+  // user/developer. The msg is suitable to show to the user.
   let raiseDeveloper (msg : string) =
-    callExceptionCallback "grand" msg []
+    callExceptionCallback "developer" msg []
     raise (DarkException(DeveloperError(msg)))
 
+  // An editor exception is one which is caused by an invalid action on the part of
+  // the Dark editor. We are interested in these. The message may be shown to the
+  // logged-in user, and should be suitable for this.
   let raiseEditor (msg : string) =
-    callExceptionCallback "grand" msg []
+    callExceptionCallback "editor" msg []
     raise (DarkException(EditorError(msg)))
 
-  // Note that we do not need to log if we get an internal error, it will be handled
-  // when it is caught (exceptions should always flow to the top if possible)
+  // An internal error. Should be rollbarred, and should not be shown to users.
   let raiseInternal (msg : string) (tags : List<string * obj>) =
     callExceptionCallback "internal" msg tags
     raise (DarkException(InternalError(msg, tags)))
 
+  // An error in library code - should not be shown to grand users. May be shown to
+  // logged-in developers (most typically in a DError or a Result).
   let raiseLibrary (msg : string) (tags : List<string * obj>) =
     callExceptionCallback "library" msg tags
     raise (DarkException(LibraryError(msg, tags)))
 
-  let toGrandUserMessage (e : DarkExceptionData) : string =
+  let toGrandUserMessage (e : exn) : Option<string> =
     match e with
-    | InternalError _
-    | DeveloperError _
-    | LibraryError _
-    | EditorError _ -> ""
-    | GrandUserError msg -> msg
+    | DarkException(InternalError _)
+    | DarkException(DeveloperError _)
+    | DarkException(LibraryError _)
+    | DarkException(EditorError _) -> None
+    | DarkException(GrandUserError msg) -> Some msg
+    | _ -> None
 
-  let toDeveloperMessage (e : DarkExceptionData) : string =
+  let toDeveloperMessage (e : exn) : Option<string> =
     match e with
-    | InternalError _ -> ""
-    | LibraryError (msg, _)
-    | EditorError msg
-    | DeveloperError msg
-    | GrandUserError msg -> msg
+    | DarkException(InternalError _) -> None
+    | DarkException(DeveloperError msg)
+    | DarkException(LibraryError (msg, _))
+    | DarkException(EditorError msg)
+    | DarkException(GrandUserError msg) -> Some msg
+    | _ -> None
 
-  let toInternalMessage (e : DarkExceptionData) : string =
+  let toInternalMessage (e : exn) : Option<string * List<string*obj>> =
     match e with
-    | InternalError (msg, _)
-    | LibraryError (msg, _)
-    | EditorError msg
-    | DeveloperError msg
-    | GrandUserError msg -> msg
+    | DarkException(InternalError (msg, tags))
+    | DarkException(LibraryError (msg, tags)) -> Some (msg, tags)
+    | DarkException(DeveloperError msg)
+    | DarkException(EditorError msg)
+    | DarkException(GrandUserError msg) -> Some (msg, [])
+    | e -> Some( e.Message, [])
+
+  // FSTODO
+  let shouldPage  (e : exn) : bool =
+    match e with
+    | DarkException(GrandUserError _)
+    | DarkException(InternalError _)
+    | DarkException(DeveloperError _)
+    | DarkException(EditorError _)
+    | DarkException(LibraryError _) -> false
+    | _ -> true
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
     task {
