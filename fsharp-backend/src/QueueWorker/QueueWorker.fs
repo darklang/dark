@@ -16,7 +16,8 @@ module EQ = EventQueue
 module TI = TraceInputs
 module Execution = LibExecution.Execution
 
-open LibService.Telemetry
+module Telemetry = LibService.Telemetry
+module Span = Telemetry.Span
 
 type Activity = System.Diagnostics.Activity
 
@@ -25,7 +26,7 @@ let dequeueAndProcess
   : Task<Result<Option<RT.Dval>, exn>> =
   // FSTODO: should have a root before here
   use root = Span.root "dequeue_and_process"
-  root.AddTag("meta.process_id", string executionID) |> ignore<Activity>
+  Span.addTag "meta.process_id" (string executionID) root
 
   Sql.withTransaction (fun () ->
     task {
@@ -35,7 +36,7 @@ let dequeueAndProcess
         with
         | e ->
           // exception occurred while dequeuing, no item to put back
-          Span.addEvent "Exception while dequeuing" []
+          Telemetry.addEvent "Exception while dequeuing" []
           Task.FromResult(Error e)
 
       match event with
