@@ -48,22 +48,21 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.MoveTL _ -> false
 
 
-(** [onlyOpsSinceLastSavepoint ops] When we clone a canvas, we sometimes
-   * want to only copy over ops since the last toplevel definition (create) op - this erases
-   * history, which is invisible and we don't really know at clone-time what's
-   * in there, because we don't have any UI for inspecting history, nor do we
-   * store timestamps or edited-by-user for ops
-   * ("git blame"). *)
+// [onlyOpsSinceLastSavepoint ops] When we clone a canvas, we sometimes
+// want to only copy over ops since the last toplevel definition (create) op - this erases
+// history, which is invisible and we don't really know at clone-time what's
+// in there, because we don't have any UI for inspecting history, nor do we
+// store timestamps or edited-by-user for ops ("git blame").
 let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
-  let encounteredCreateOp = ref false in
+  let mutable encounteredCreateOp = false in
 
   List.reverse ops
   |> List.takeWhile (fun op ->
-    if !encounteredCreateOp then
+    if encounteredCreateOp then
       false
     else
-      (encounteredCreateOp := isOpThatCreatesToplevel op
-       true))
+      encounteredCreateOp <- isOpThatCreatesToplevel op
+      true)
   |> List.reverse
 
 
@@ -134,7 +133,7 @@ let cloneCanvas
 
     let! toMeta = Canvas.getMeta toCanvasName
     let! toTLIDs = Serialize.fetchAllTLIDs toMeta.id
-    if toTLIDs <> [] then Exception.raiseInternal "destination already exists"
+    if toTLIDs <> [] then Exception.raiseInternal "destination already exists" []
 
     // Transform the ops - remove pre-savepoint ops and update hosts (canvas names) in string literals
     let toOps =
