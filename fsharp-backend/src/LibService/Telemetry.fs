@@ -183,6 +183,8 @@ module Console =
     |> addTelemetry serviceName
     |> fun tp -> tp.Build()
     |> ignore<TracerProvider>
+    // Create a root span
+    Span.root serviceName |> ignore<Span.T>
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
