@@ -202,7 +202,7 @@ module AspNet =
                 e,
                 $"{nameof (RollbarMiddleware)} processed uncaught exception."
               )
-            // decorate tha package http info:
+            // decorate the http info
             let package = HttpRequestPackageDecorator(package, ctx.Request, true)
             let package =
               new HttpResponsePackageDecorator(package, ctx.Response, true)
@@ -211,7 +211,9 @@ module AspNet =
             |> ignore<Rollbar.ILogger>
           with
           | re ->
-            // FSTODO emit telemetry
+            Telemetry.addError
+              "Exception when calling rollbar"
+              [ "message", re.Message; "stackTrace", re.StackTrace ]
             print "Exception when calling rollbar"
             print re.Message
             print re.StackTrace
