@@ -11,6 +11,8 @@ open Npgsql
 open Npgsql.FSharp
 open Db
 
+module Telemetry = LibService.Telemetry
+
 open Prelude
 open Tablecloth
 
@@ -92,10 +94,10 @@ let run () : unit =
     (fun name ->
       if isAlreadyRun name then
         print $"migration already run: {name}"
-        () // FSTODO Log.infO "migration already run" name
+        Telemetry.addEvent "migration already run" [ "data", name ]
       else
         print $"new migration: {name}"
-        // FSTODO Log.infO "new migration" name ;
+        Telemetry.addEvent "new migration" [ "data", name ]
         let sql = File.readfile Config.Migrations name
         runSystemMigration name sql)
     migrations

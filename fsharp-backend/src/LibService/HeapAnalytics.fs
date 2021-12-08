@@ -53,16 +53,6 @@ let _payloadForEvent
     app_id = Config.heapioId
     properties = properties }
 
-// FSTODO
-// let _log_params_for_heapio ~canvas ~canvas_id ~event ~(user_id : Uuidm.t) :
-//     (string * string) list =
-//   [ ("canvas", canvas)
-//   ; ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
-//   ; ("event", event)
-//   ; ("userid", Some (user_id |> Uuidm.to_string)) ]
-//   |> Ply.List.filterMapSequentially ~f:(fun (k, v) ->
-//          match v with Some v -> Some (k, v) | _ -> None)
-
 // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
 let _socketsHandler =
   let socketsHandler = new SocketsHttpHandler()
@@ -84,9 +74,13 @@ let heapioEvent
   : unit =
   FireAndForget.fireAndForgetTask "heapio.track" executionID (fun () ->
     task {
-      // FSTODO
-      // let log_params = _log_params_for_heapio canvas_id canvas event user_id in
-      // Log.infO "pushing heapio event via stroller" log_params ;
+      Telemetry.addEvent
+        // CLEANUP rate limit this, it will double our events otherwise
+        "pushing heapio event via stroller" // CLEANUP it's not via stroller
+        [ ("canvas", canvasName :> obj)
+          ("canvas_id", canvasID)
+          ("event", event)
+          ("userid", owner) ]
       use client = httpClient ()
 
       // path
@@ -125,5 +119,4 @@ let track
   (event : string)
   (payload : Map<string, string>)
   : unit =
-    heapioEvent executionID canvasID canvasName owner event Track payload
-
+  heapioEvent executionID canvasID canvasName owner event Track payload
