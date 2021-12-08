@@ -77,7 +77,16 @@ dependencies = [
  "block-padding",
  "byte-tools",
  "byteorder",
- "generic-array",
+ "generic-array 0.12.0",
+]
+
+[[package]]
+name = "block-buffer"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1d36a02058e76b040de25a4464ba1c80935655595b661505c8b39b664828b95"
+dependencies = [
+ "generic-array 0.14.4",
 ]
 
 [[package]]
@@ -265,13 +274,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "crypto-mac"
-version = "0.7.0"
+name = "crypto-common"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4434400df11d95d556bac068ddfedd482915eb18fe8bea89bc80b6e4b1c179e5"
+checksum = "567569e659735adb39ff2d4c20600f7cd78be5471f8c58ab162bce3c03fdbc5f"
 dependencies = [
- "generic-array",
- "subtle",
+ "generic-array 0.14.4",
 ]
 
 [[package]]
@@ -300,7 +308,19 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f47366984d3ad862010e22c7ce81a7dbcaebbdfb37241a620f8b6596ee135c"
 dependencies = [
- "generic-array",
+ "generic-array 0.12.0",
+]
+
+[[package]]
+name = "digest"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8549e6bfdecd113b7e221fe60b433087f6957387a20f8118ebca9b12af19143d"
+dependencies = [
+ "block-buffer 0.10.0",
+ "crypto-common",
+ "generic-array 0.14.4",
+ "subtle",
 ]
 
 [[package]]
@@ -435,6 +455,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "generic-array"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "501466ecc8a30d1d3b7fc9229b122b2ce8ed6e9d9223f1138d4babb253e51817"
+dependencies = [
+ "typenum",
+ "version_check",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -465,12 +495,11 @@ dependencies = [
 
 [[package]]
 name = "hmac"
-version = "0.7.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dcb5e64cda4c23119ab41ba960d1e170a774c8e4b9d9e6a9bc18aabf5e59695"
+checksum = "ddca131f3e7f2ce2df364b57949a9d47915cfbd35e46cfee355ccebbf794d6a2"
 dependencies = [
- "crypto-mac",
- "digest",
+ "digest 0.10.0",
 ]
 
 [[package]]
@@ -1185,8 +1214,8 @@ version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a256f46ea78a0c0d9ff00077504903ac881a1dafdc20da66545699e7776b3e69"
 dependencies = [
- "block-buffer",
- "digest",
+ "block-buffer 0.7.0",
+ "digest 0.8.0",
  "fake-simd",
  "opaque-debug",
 ]
@@ -1246,9 +1275,9 @@ checksum = "00caf261d6f90f588f8450b8e1230fa0d5be49ee6140fdfbcb55335aff350970"
 
 [[package]]
 name = "subtle"
-version = "1.0.0"
+version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d67a5a62ba6e01cb2192ff309324cb4875d0c451d55fe2319433abe7a05a8ee"
+checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "syn"
@@ -1433,9 +1462,9 @@ dependencies = [
 
 [[package]]
 name = "typenum"
-version = "1.10.0"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "612d636f949607bdf9b123b4a6f6d966dedf3ff669f7f045890d3a4a73948169"
+checksum = "b63708a265f51345575b27fe43f9500ad611579e764c79edbc2037b1121959ec"
 
 [[package]]
 name = "unicase"
