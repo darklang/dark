@@ -3,13 +3,13 @@ module ApiServer.DBs
 // DB-related API endpoints
 
 open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
 module PT = LibExecution.ProgramTypes
 module OT = LibExecution.OCamlTypes
@@ -27,8 +27,8 @@ module Unlocked =
 
   let get (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
 
       t.next "getUnlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
@@ -44,9 +44,9 @@ module DBStats =
 
   let getStats (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! p = ctx.BindModelAsync<Params>()
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let! p = ctx.ReadJsonAsync<Params>()
 
       t.next "load-canvas"
       let! c = Canvas.loadAllDBs canvasInfo |> Task.map Result.unwrapUnsafe

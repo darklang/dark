@@ -97,39 +97,39 @@ module Exception =
 
   let toGrandUserMessage (e : exn) : Option<string> =
     match e with
-    | DarkException(InternalError _)
-    | DarkException(DeveloperError _)
-    | DarkException(LibraryError _)
-    | DarkException(EditorError _) -> None
-    | DarkException(GrandUserError msg) -> Some msg
+    | DarkException (InternalError _)
+    | DarkException (DeveloperError _)
+    | DarkException (LibraryError _)
+    | DarkException (EditorError _) -> None
+    | DarkException (GrandUserError msg) -> Some msg
     | _ -> None
 
   let toDeveloperMessage (e : exn) : Option<string> =
     match e with
-    | DarkException(InternalError _) -> None
-    | DarkException(DeveloperError msg)
-    | DarkException(LibraryError (msg, _))
-    | DarkException(EditorError msg)
-    | DarkException(GrandUserError msg) -> Some msg
+    | DarkException (InternalError _) -> None
+    | DarkException (DeveloperError msg)
+    | DarkException (LibraryError (msg, _))
+    | DarkException (EditorError msg)
+    | DarkException (GrandUserError msg) -> Some msg
     | _ -> None
 
-  let toInternalMessage (e : exn) : Option<string * List<string*obj>> =
+  let toInternalMessage (e : exn) : Option<string * List<string * obj>> =
     match e with
-    | DarkException(InternalError (msg, tags))
-    | DarkException(LibraryError (msg, tags)) -> Some (msg, tags)
-    | DarkException(DeveloperError msg)
-    | DarkException(EditorError msg)
-    | DarkException(GrandUserError msg) -> Some (msg, [])
-    | e -> Some( e.Message, [])
+    | DarkException (InternalError (msg, tags))
+    | DarkException (LibraryError (msg, tags)) -> Some(msg, tags)
+    | DarkException (DeveloperError msg)
+    | DarkException (EditorError msg)
+    | DarkException (GrandUserError msg) -> Some(msg, [])
+    | e -> Some(e.Message, [])
 
   // FSTODO
-  let shouldPage  (e : exn) : bool =
+  let shouldPage (e : exn) : bool =
     match e with
-    | DarkException(GrandUserError _)
-    | DarkException(InternalError _)
-    | DarkException(DeveloperError _)
-    | DarkException(EditorError _)
-    | DarkException(LibraryError _) -> false
+    | DarkException (GrandUserError _)
+    | DarkException (InternalError _)
+    | DarkException (DeveloperError _)
+    | DarkException (EditorError _)
+    | DarkException (LibraryError _) -> false
     | _ -> true
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
@@ -249,12 +249,21 @@ let print (string : string) : unit = NonBlockingConsole.WriteLine string
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
 // of operations.
-let debugTask (msg : string) (a : Ply.Ply<'a>) : Ply.Ply<'a> =
+let debugPly (msg : string) (a : Ply.Ply<'a>) : Ply.Ply<'a> =
   uply {
     let! a = a
     NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
     return a
   }
+
+let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
+  task {
+    let! a = a
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
+    return a
+  }
+
+
 
 let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
 

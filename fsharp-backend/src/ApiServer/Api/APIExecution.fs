@@ -3,13 +3,13 @@ module ApiServer.Execution
 // Execution API endpoints
 
 open Microsoft.AspNetCore.Http
-open Giraffe
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
+open Http
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -40,10 +40,10 @@ module Function =
 
   let execute (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      let executionID = Middleware.loadExecutionID ctx
-      let! p = ctx.BindModelAsync<Params>()
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let executionID = loadExecutionID ctx
+      let! p = ctx.ReadJsonAsync<Params>()
       let args = List.map Convert.ocamlDval2rt p.args
 
       t.next "load-canvas"
@@ -87,10 +87,10 @@ module Handler =
 
   let trigger (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let executionID = Middleware.loadExecutionID ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! p = ctx.BindModelAsync<Params>()
+      let t = startTimer "read-api" ctx
+      let executionID = loadExecutionID ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let! p = ctx.ReadJsonAsync<Params>()
 
       let inputVars =
         p.input

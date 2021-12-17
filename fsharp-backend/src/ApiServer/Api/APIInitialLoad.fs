@@ -3,13 +3,13 @@ module ApiServer.InitialLoad
 // InitialLoad API endpoint
 
 open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
 open Npgsql.FSharp
 open LibBackend.Db
@@ -66,10 +66,10 @@ type T =
 
 let initialLoad (ctx : HttpContext) : Task<T> =
   task {
-    let t = Middleware.startTimer "read-api" ctx
-    let user = Middleware.loadUserInfo ctx
-    let canvasInfo = Middleware.loadCanvasInfo ctx
-    let permission = Middleware.loadPermission ctx
+    let t = startTimer "read-api" ctx
+    let user = loadUserInfo ctx
+    let canvasInfo = loadCanvasInfo ctx
+    let permission = loadPermission ctx
 
     t.next "load-canvas"
     let! canvas = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe

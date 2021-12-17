@@ -13,6 +13,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Http.fs" />
     <Compile Include="Middleware.fs" />
     <Compile Include="Login.fs" />
     <Compile Include="Api/APIOps.fs" />

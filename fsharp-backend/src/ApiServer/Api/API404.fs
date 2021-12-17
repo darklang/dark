@@ -3,12 +3,13 @@ module ApiServer.F404s
 // Functions and API endpoints for the API
 
 open Microsoft.AspNetCore.Http
-open Giraffe
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
 module TI = LibBackend.TraceInputs
 
@@ -18,8 +19,8 @@ module List =
 
   let get (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
 
       t.next "get-recent-404s"
       let! f404s = TI.getRecent404s canvasInfo.id
@@ -33,9 +34,9 @@ module Delete =
 
   let delete (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! p = ctx.BindModelAsync<Params>()
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let! p = ctx.ReadJsonAsync<Params>()
 
       t.next "delete-404"
       do! TI.delete404s canvasInfo.id p.space p.path p.modifier

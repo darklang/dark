@@ -3,14 +3,13 @@ module ApiServer.Packages
 // API endpoints for Packages
 
 open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
+open Http
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -22,7 +21,7 @@ module List =
 
   let packages (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
+      let t = startTimer "read-api" ctx
 
       t.next "load-functions"
       let! fns = Lazy.force LibBackend.PackageManager.cachedForAPI

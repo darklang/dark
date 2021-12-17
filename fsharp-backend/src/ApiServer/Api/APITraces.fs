@@ -3,13 +3,13 @@ module ApiServer.Traces
 // API endpoints for Traces
 
 open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
 module PT = LibExecution.ProgramTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
@@ -41,9 +41,9 @@ module TraceData =
 
   let getTraceData (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! p = ctx.BindModelAsync<Params>()
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let! p = ctx.ReadJsonAsync<Params>()
 
       t.next "load-canvas"
       let! (c : Canvas.T) =
@@ -94,8 +94,8 @@ module AllTraces =
 
   let fetchAll (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
 
       // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
       // CLEANUP don't load traces for deleted handlers

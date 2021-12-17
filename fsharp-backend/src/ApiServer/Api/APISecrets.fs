@@ -3,13 +3,13 @@ module ApiServer.Secrets
 // API endpoints for Secrets
 
 open Microsoft.AspNetCore.Http
-open Giraffe
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
+open Http
 
 module PT = LibExecution.ProgramTypes
 module OT = LibExecution.OCamlTypes
@@ -24,11 +24,11 @@ module Insert =
 
   let insert (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
+      let t = startTimer "read-api" ctx
       try
         t.next "read-api"
-        let canvasInfo = Middleware.loadCanvasInfo ctx
-        let! p = ctx.BindModelAsync<Params>()
+        let canvasInfo = loadCanvasInfo ctx
+        let! p = ctx.ReadJsonAsync<Params>()
 
         t.next "insert-secret"
         do! LibBackend.Secret.insert canvasInfo.id p.secret_name p.secret_value
@@ -69,9 +69,9 @@ module Delete =
 
   let delete (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer "read-api" ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! p = ctx.BindModelAsync<Params>()
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let! p = ctx.ReadJsonAsync<Params>()
 
       // CLEANUP: only do this if the secret is not used on the canvas
       t.next "delete-secret"

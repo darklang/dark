@@ -3,13 +3,12 @@ module ApiServer.AddOps
 // Functions and API endpoints for the API
 
 open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
 open Tablecloth
+open Http
 
 module Telemetry = LibService.Telemetry
 module Span = Telemetry.Span
@@ -46,11 +45,11 @@ let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
 let addOp (ctx : HttpContext) : Task<T> =
   task {
-    let t = Middleware.startTimer "read-api" ctx
-    let canvasInfo = Middleware.loadCanvasInfo ctx
-    let executionID = Middleware.loadExecutionID ctx
+    let t = startTimer "read-api" ctx
+    let canvasInfo = loadCanvasInfo ctx
+    let executionID = loadExecutionID ctx
 
-    let! p = ctx.BindModelAsync<Params>()
+    let! p = ctx.ReadJsonAsync<Params>()
     let canvasID = canvasInfo.id
 
     let! isLatest = Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
