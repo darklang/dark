@@ -14,12 +14,37 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
+module Telemetry = LibService.Telemetry
 
 type CorsSetting =
   | AllOrigins
   | Origins of List<string>
 
 type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
+
+let canvasIDForCanvasName
+  (owner : UserID)
+  (canvasName : CanvasName.T)
+  : Task<CanvasID> =
+  // https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324
+  // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
+  Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
+  |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
+                      "owner", Sql.uuid owner
+                      "canvasName", Sql.string (string canvasName) ]
+  |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
+
+
+let getMeta (canvasName : CanvasName.T) : Task<Meta> =
+  task {
+    let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
+    // CLEANUP put into single query
+    let! ownerID = Account.userIDForUserName ownerName
+    let! canvasID = canvasIDForCanvasName ownerID canvasName
+    return { id = canvasID; owner = ownerID; name = canvasName }
+  }
+
+
 
 // This includes just a subset of the key program data. It is rare that all of
 // the data for a canvas will be loaded. In addition, there is other canvas
@@ -222,15 +247,11 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.DeleteTypeForever tlid -> deleteTypeForever tlid c
   with
   | e ->
-    // FSTODO
-    (* Log here so we have context, but then re-raise *)
-    // Log.erroR
-    //   "apply_op failure"
-    //   ~params:
-    //     [ ("host", !c.host)
-    //     ; ("op", Types.show_op op)
-    //     ; ("exn", Exception.to_string e) ] ;
-    fstodo (e.ToString())
+    // Log here so we have context, but then re-raise
+    Telemetry.addError
+      "apply_op failure"
+      [ ("host", c.meta.name); ("op", string op); ("exn", string e) ]
+    reraise ()
 
 
 // NOTE: If you add a new verification here, please ensure all places that
@@ -830,17 +851,6 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //   let elapsed = (Unix.gettimeofday () -. start) *. 1000.0 in
 //   (elapsed, a)
 
-
-let canvasIDForCanvasName
-  (owner : UserID)
-  (canvasName : CanvasName.T)
-  : Task<CanvasID> =
-  // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
-  Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
-  |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
-                      "owner", Sql.uuid owner
-                      "canvasName", Sql.string (string canvasName) ]
-  |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
 let toProgram (c : T) : RT.ProgramContext =
   let ownerID = c.meta.owner

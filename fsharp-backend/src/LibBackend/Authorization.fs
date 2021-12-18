@@ -75,44 +75,33 @@ let setUserAccess
     |> Sql.executeStatementAsync
 
 
-// (* Returns a list of (username, permission) pairs for a given auth_domain,
-//  * denoting who has been granted access to a given domain *)
-// let grants_for ~auth_domain : (Account.username * permission) list =
-//   Db.fetch
-//     ~name:"fetch_grants"
-//     "SELECT user_.username, permission FROM access
-//      INNER JOIN accounts user_ on access.access_account = user_.id
-//      INNER JOIN accounts org on access.organization_account = org.id
-//      WHERE org.username = $1"
-//     ~params:[String auth_domain]
-//   |> List.map ~f:(fun l ->
-//          match l with
-//          | [username; db_perm] ->
-//              (username, permission_of_db db_perm)
-//          | _ ->
-//              Exception.internal
-//                "bad format from Authorization.grants_for#fetch_grants")
-//
-//
-// (* Returns a list of (organization name, permission) pairs for a given username,
-//  * denoting which organizations the user has been granted permissions towards *)
-// let orgs_for ~(username : Account.username) : (string * permission) list =
-//   Db.fetch
-//     ~name:"fetch_orgs"
-//     "SELECT org.username, permission
-//      FROM access
-//      INNER JOIN accounts user_ on access.access_account = user_.id
-//      INNER JOIN accounts org on access.organization_account = org.id
-//      WHERE user_.username = $1"
-//     ~params:[String username]
-//   |> List.map ~f:(fun l ->
-//          match l with
-//          | [org; db_perm] ->
-//              (org, permission_of_db db_perm)
-//          | _ ->
-//              Exception.internal
-//                "bad format from Authorization.grants_for#fetch_orgs")
+// Returns a list of (username, permission) pairs for a given auth_domain,
+// denoting who has been granted access to a given domain
+let grantsFor (ownerName : OwnerName.T) : Task<List<UserName.T * Permission>> =
+  Sql.query
+    "SELECT user_.username, permission FROM access
+     INNER JOIN accounts user_ on access.access_account = user_.id
+     INNER JOIN accounts org on access.organization_account = org.id
+     WHERE org.username = @username"
+  |> Sql.parameters [ "username", Sql.string (string ownerName) ]
+  |> Sql.executeAsync (fun read ->
+    read.string "username" |> UserName.create,
+    read.string "permission" |> Permission.parse)
 
+
+// Returns a list of (organization name, permission) pairs for a given username,
+// denoting which organizations the user has been granted permissions towards
+let orgsFor (username : UserName.T) : Task<List<OrgName.T * Permission>> =
+  Sql.query
+    "SELECT org.username, permission
+     FROM access
+     INNER JOIN accounts user_ on access.access_account = user_.id
+     INNER JOIN accounts org on access.organization_account = org.id
+     WHERE user_.username = @username"
+  |> Sql.parameters [ "username", Sql.string (string username) ]
+  |> Sql.executeAsync (fun read ->
+    read.string "username" |> OrgName.create,
+    read.string "permission" |> Permission.parse)
 
 // If a user has a DB row indicating granted access to this auth_domain,
 // find it.

@@ -3,13 +3,13 @@ module ApiServer.DBs
 // DB-related API endpoints
 
 open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
 module PT = LibExecution.ProgramTypes
 module OT = LibExecution.OCamlTypes
@@ -27,12 +27,13 @@ module Unlocked =
 
   let get (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      t "loadCanvasInfo"
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
 
+      t.next "getUnlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
-      t "getUnlocked"
+
+      t.stop ()
       return { unlocked_dbs = unlocked }
     }
 
@@ -43,17 +44,17 @@ module DBStats =
 
   let getStats (ctx : HttpContext) : Task<T> =
     task {
-      let t = Middleware.startTimer ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! p = ctx.BindModelAsync<Params>()
-      t "read-api"
+      let t = startTimer "read-api" ctx
+      let canvasInfo = loadCanvasInfo ctx
+      let! p = ctx.ReadJsonAsync<Params>()
 
+      t.next "load-canvas"
       let! c = Canvas.loadAllDBs canvasInfo |> Task.map Result.unwrapUnsafe
-      t "load-canvas"
 
+      t.next "load-db-stats"
       let! result = Stats.dbStats c p.tlids
-      t "load-db-stats"
 
+      t.next "write-api"
       // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
       let (result : T) =
         Map.map
@@ -63,7 +64,6 @@ module DBStats =
                 Option.map (fun (dv, s) -> (Convert.rt2ocamlDval dv, s)) s.example })
           result
 
-      t "write-api"
-
+      t.stop ()
       return result
     }

@@ -16,15 +16,17 @@ module EQ = EventQueue
 module TI = TraceInputs
 module Execution = LibExecution.Execution
 
-open LibService.Telemetry
+module Telemetry = LibService.Telemetry
+module Span = Telemetry.Span
 
 type Activity = System.Diagnostics.Activity
 
 let dequeueAndProcess
   (executionID : ExecutionID)
   : Task<Result<Option<RT.Dval>, exn>> =
+  // FSTODO: should have a root before here
   use root = Span.root "dequeue_and_process"
-  root.AddTag("meta.process_id", string executionID) |> ignore<Activity>
+  Span.addTag "meta.process_id" (string executionID) root
 
   Sql.withTransaction (fun () ->
     task {
@@ -34,7 +36,7 @@ let dequeueAndProcess
         with
         | e ->
           // exception occurred while dequeuing, no item to put back
-          Span.addEvent "Exception while dequeuing" root
+          Telemetry.addEvent "Exception while dequeuing" []
           Task.FromResult(Error e)
 
       match event with
@@ -48,21 +50,18 @@ let dequeueAndProcess
             // Canvas.loadForEvent, but then so would the
             // error handling ... this may want a refactor
             use span = Span.child "Canvas.load_for_event_from_cache" root
-
             try
               let! c = Canvas.loadForEvent event
-
               let c =
                 c |> Result.mapError (String.concat ", ") |> Result.unwrapUnsafe
-
-              Span.addTagBool' "load_event_succeeded" true span
+              Span.addTag "load_event_succeeded" true span
               return Ok c
             with
             | e ->
               // exception occurred when processing an item, so put it back as an error
               do! EQ.putBack root event EQ.Err
               // CLEANUP why have these attributes a different name
-              Span.addTagBool' "event.load_success" false span
+              Span.addTag "event.load_success" false span
               return Error e
           }
 
@@ -74,13 +73,13 @@ let dequeueAndProcess
           let desc = EQ.toEventDesc event
 
           root
-          |> Span.addTag "canvas" (string host)
-          |> Span.addTagUUID "trace_id" traceID
-          |> Span.addTagUUID "canvas_id" canvasID
-          |> Span.addTag "module" event.space
-          |> Span.addTag "handler_name" event.name
-          |> Span.addTag "method" event.modifier
-          |> Span.addTagInt' "retries" event.retries
+          |> Span.addTags [ "canvas", host
+                            "trace_id", traceID
+                            "canvas_id", canvasID
+                            "module", event.space
+                            "handler_name", event.name
+                            "method", event.modifier
+                            "retries", event.retries ]
 
           try
             let! eventTimestamp = TI.storeEvent canvasID traceID desc event.value
@@ -92,9 +91,7 @@ let dequeueAndProcess
               |> List.head
 
             root
-            |> Span.addTag "host" (string host)
-            |> Span.addTag "event" (string desc)
-            |> Span.addTagID' "event_id" event.id
+            |> Span.addTags [ "host", host; "event", desc; "event_id", event.id ]
 
             match h with
             | None ->
@@ -106,7 +103,7 @@ let dequeueAndProcess
               // user is editing code, until something finally works. This is
               // annoying, but also unnecessary - so long as they have the
               // trace they can use it to build. So just drop it immediately.
-              Span.addTagFloat' "delay" event.delay root
+              Span.addTag "delay" event.delay root
               let space, name, modifier = desc
               let f404 = (space, name, modifier, eventTimestamp, traceID)
               Pusher.pushNew404 executionID canvasID f404
@@ -114,11 +111,15 @@ let dequeueAndProcess
               return Ok None
             | Some h ->
               let! (state, touchedTLIDs) =
-                RealExecution.createState traceID h.tlid (Canvas.toProgram c)
+                RealExecution.createState
+                  executionID
+                  traceID
+                  h.tlid
+                  (Canvas.toProgram c)
 
               // FSTODO: add parent span to state
               // ~parent:(Some parent)
-              Span.addTagID' "handler_id" h.tlid root
+              Span.addTag "handler_id" h.tlid root
               let symtable = Map.ofList [ ("event", event.value) ]
 
               let! result =
@@ -139,20 +140,20 @@ let dequeueAndProcess
                 | _ -> (RT.Dval.toType result).toOldString ()
 
               root
-              |> Span.addTag "result_tipe" resultType
-              |> Span.addTagBool' "event.execution_success" true
+              |> Span.addTags [ "result_tipe", resultType
+                                "event.execution_success", true ]
 
               do! EQ.finish root event
               return Ok(Some result)
           with
           | e ->
             // exception occurred when processing an item, so put it back as an error
-            Span.addTagBool' "event.execution_success" false root
+            Span.addTag "event.execution_success" false root
 
             try
               do! EQ.putBack root event EQ.Err
             with
-            | e -> Span.addTag' "error.msg" (string e) root
+            | e -> Span.addTag "error.msg" e root
 
             return Error e
         | Error e -> return Error e
@@ -170,4 +171,6 @@ let run (executionID : ExecutionID) : Task<Result<Option<RT.Dval>, exn>> =
 [<EntryPoint>]
 let main args : int =
   // FSTODO: implement
+  // call init fns
+  // healthcheck
   0

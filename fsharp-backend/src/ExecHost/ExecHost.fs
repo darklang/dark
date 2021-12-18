@@ -25,7 +25,8 @@ let emergencyLogin (username : string) : Task<unit> =
   task {
     print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
     // validate the user exists
-    let! _username = LibBackend.Account.getUser (UserName.create username)
+    let username = UserName.create username
+    let! _user = LibBackend.Account.getUser username
     let! authData = LibBackend.Session.insert username
     print
       $"See docs/emergency-login.md for instructions. Your values are

@@ -23,6 +23,7 @@
     <Compile Include="Password.fs" />
     <Compile Include="Account.fs" />
     <Compile Include="Authorization.fs" />
+    <Compile Include="Analytics.fs" />
     <Compile Include="Session.fs" />
     <Compile Include="OCamlInterop.fs" />
     <Compile Include="Routing.fs" />
@@ -42,6 +43,7 @@
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="Traces.fs" />
+    <Compile Include="CanvasClone.fs" />
     <Compile Include="Stats.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="Init.fs" />

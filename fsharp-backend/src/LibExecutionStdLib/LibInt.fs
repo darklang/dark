@@ -56,12 +56,12 @@ let fns : List<BuiltInFn> =
 
           (function
           | _, [DInt v; DInt m] ->
-            ( try DResult (ResOk (DInt (Dint.modulo_exn v m)))
+            ( try DResult (Ok (DInt (Dint.modulo_exn v m)))
               with e ->
                 if m <= Dint.of_int 0
                 then
                   DResult
-                    (ResError
+                    (Error
                        (DStr
                           ( "`modulus` must be positive but was "
                           ^ Dval.to_developer_repr_v0 (DInt m) )))

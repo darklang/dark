@@ -4,137 +4,49 @@ module ApiServer.Middleware
 
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
-open Microsoft.AspNetCore.Hosting
-open Microsoft.AspNetCore.StaticFiles
-open Microsoft.Extensions.FileProviders
-open Microsoft.Extensions.Logging
-open Microsoft.Extensions.Primitives
 open System.Runtime.CompilerServices
+open Microsoft.AspNetCore.Routing
+open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.AspNetCore.Http
-open Microsoft.Extensions.DependencyInjection
-open Giraffe
 
 type ServerTimingMetric = Lib.AspNetCore.ServerTiming.Http.Headers.ServerTimingMetric
 type ServerTiming = Lib.AspNetCore.ServerTiming.IServerTiming
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
-module Telemetry = LibService.Telemetry
 module Canvas = LibBackend.Canvas
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
+module Telemetry = LibService.Telemetry
 
-let (>=>) = Giraffe.Core.compose
+// ------------------
+// Http types
+// ------------------
 
-// --------------------
-// Server timing metrics
-// --------------------
-let getServerTiming (ctx : HttpContext) : Lib.AspNetCore.ServerTiming.IServerTiming =
-  ctx.RequestServices.GetService<Lib.AspNetCore.ServerTiming.IServerTiming>()
-
-// returns a function to be called which will record the elapsed time
-let startTimer (ctx : HttpContext) : (string -> unit) =
-  let st = getServerTiming ctx
-  let sw = System.Diagnostics.Stopwatch()
-  sw.Start()
-
-  (fun metricName ->
-    let result = (sw.Elapsed.TotalMilliseconds) |> decimal
-    sw.Restart()
-    let name = $"%03d{st.Metrics.Count}-{metricName}"
-    st.Metrics.Add(ServerTimingMetric(name, result)))
+type HttpMiddleware = HttpHandler -> HttpHandler
 
 
 // --------------------
-// Generic middlewares
+// APIServer Middlewares
 // --------------------
-
-// Copied from Giraffe HttpContextExtensions, and extended with timing info
-[<Extension>]
-type HttpContextExtensions() =
-  [<Extension>]
-  static member WriteJsonAsync<'T>(ctx : HttpContext, dataObj : 'T) =
-    let t = startTimer ctx
-    ctx.SetContentType "application/json; charset=utf-8"
-    // TODO: it's probably slower to have a separate serialization step, then
-    // written into the body, vs writing directly into the body.
-    let serialized = ctx.GetJsonSerializer().SerializeToBytes dataObj
-    t "serialized"
-    ctx.WriteBytesAsync serialized
-
-
-let queryString (queries : List<string * string>) : string =
-  queries
-  |> List.map (fun (k, v) ->
-    let k = System.Web.HttpUtility.UrlEncode k
-    let v = System.Web.HttpUtility.UrlEncode v
-    $"{k}={v}")
-  |> String.concat "&"
-
-let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
-  task {
-    ctx.SetStatusCode 401
-    return! ctx.WriteTextAsync "Not Authorized"
-  }
-
-let notFound (ctx : HttpContext) : Task<HttpContext option> =
-  task {
-    ctx.SetStatusCode 404
-    return! ctx.WriteJsonAsync "Not Found"
-  }
-
-let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
-  handleContext (fun ctx ->
-    task {
-      let! result = f ctx
-      let t = startTimer ctx
-      let! newCtx = ctx.WriteHtmlStringAsync result
-      t "writeResponse"
-      return newCtx
-    })
-
-let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
-  handleContext (fun ctx ->
-    task {
-      let! result = f ctx
-      let t = startTimer ctx
-      let! newCtx = ctx.WriteJsonAsync result
-      t "serialize-to-json"
-      return newCtx
-    })
-
-let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
-  handleContext (fun ctx ->
-    task {
-      match! f ctx with
-      | Some result ->
-        let t = startTimer ctx
-        let! newCtx = ctx.WriteJsonAsync result
-        t "serialize-to-json"
-        return newCtx
-      | None ->
-        ctx.SetStatusCode 404
-        return! ctx.WriteJsonAsync "Not found"
-    })
 
 // Either redirect to a login page, or apply the passed function if a
 // redirection is inappropriate (eg for the API)
-let redirectOr
-  (f : HttpContext -> Task<HttpContext option>)
-  (ctx : HttpContext)
-  : Task<HttpContext option> =
+let redirectOr (f : HttpContext -> Task) (ctx : HttpContext) : Task =
   task {
     if String.startsWith "/api/" ctx.Request.Path.Value then
       return! f ctx
     else
       let redirect =
         if Config.useLoginDarklangComForLogin then
-          ctx.GetRequestUrl()
+          ctx.Request.GetEncodedUrl()
         else
           string ctx.Request.Path + string ctx.Request.QueryString
 
@@ -147,67 +59,14 @@ let redirectOr
 
       let url = $"{destination}?redirect={System.Web.HttpUtility.UrlEncode redirect}"
       ctx.Response.Redirect(url, false)
-      return Some ctx
+      return ()
   }
-// --------------------
-// Accessing data from a HttpContext
-// --------------------
 
-// Don't use strings for this interface
-type dataID =
-  | UserInfo
-  | SessionData
-  | CanvasInfo
-  | Permission
-  | ExecutionID
 
-  override this.ToString() : string =
-    match this with
-    | UserInfo -> "user"
-    | SessionData -> "sessionData"
-    | CanvasInfo -> "canvasName"
-    | Permission -> "permission"
-    | ExecutionID -> "executionID"
-
-type ExecutionID = LibService.Telemetry.ExecutionID
-
-let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
-  ctx.Items[ string id ] <- value
-  ctx
-
-let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items[$"{id}"] :?> 'a
-
-let loadSessionData (ctx : HttpContext) : Session.T =
-  load'<Session.T> SessionData ctx
-
-let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
-  load'<Account.UserInfo> UserInfo ctx
-
-let loadCanvasInfo (ctx : HttpContext) : Canvas.Meta =
-  load'<Canvas.Meta> CanvasInfo ctx
-
-let loadExecutionID (ctx : HttpContext) : ExecutionID =
-  load'<ExecutionID> ExecutionID ctx
-
-let loadPermission (ctx : HttpContext) : Option<Auth.Permission> =
-  load'<Option<Auth.Permission>> Permission ctx
-
-let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
-let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
-let saveCanvasInfo (c : Canvas.Meta) (ctx : HttpContext) = save' CanvasInfo c ctx
-let saveExecutionID (id : ExecutionID) (ctx : HttpContext) = save' ExecutionID id ctx
-
-let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
-  save' Permission p ctx
-
-// --------------------
-// APIServer Middlewares
-// --------------------
-
-let sessionDataMiddleware : HttpHandler =
-  (fun (next : HttpFunc) (ctx : HttpContext) ->
+let sessionDataMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let t = startTimer ctx
+      let t = startTimer "session-data-middleware" ctx
       let sessionKey = ctx.Request.Cookies.Item Session.cookieKey
 
       let! session =
@@ -218,32 +77,36 @@ let sessionDataMiddleware : HttpHandler =
           Session.get sessionKey csrfToken
 
       match session with
-      | None ->
-        t "session-data-middleware"
-        return! redirectOr unauthorized ctx
       | Some sessionData ->
-        let newCtx = saveSessionData sessionData ctx
-        t "session-data-middleware"
-        return! next newCtx
+        saveSessionData sessionData ctx
+        t.stop ()
+        return! next ctx
+      | None ->
+        t.stop ()
+        return! redirectOr unauthorized ctx
     })
 
 
-let userInfoMiddleware : HttpHandler =
-  (fun (next : HttpFunc) (ctx : HttpContext) ->
+let userInfoMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let t = startTimer ctx
+      let t = startTimer "user-info-middleware" ctx
       let sessionData = loadSessionData ctx
 
-      match! Account.getUser (UserName.create sessionData.username) with
+      match! Account.getUser sessionData.username with
       | None ->
-        t "user-info-middleware"
+        t.stop ()
         return! redirectOr notFound ctx
       | Some user ->
-        // FSTODO: add canvas to tracing
-        ctx.SetHttpHeader("x-dark-username", user.username)
-        let newCtx = saveUserInfo user ctx
-        t "user-info-middleware"
-        return! next newCtx
+        // CLEANUP - change to x-darklang-username
+        ctx.SetHeader("x-dark-username", string user.username)
+        t.span ()
+        |> Telemetry.Span.addTags [ "username", sessionData.username
+                                    "userID", user.id
+                                    "is_admin", user.admin ]
+        saveUserInfo user ctx
+        t.stop ()
+        return! next ctx
     })
 
 // checks permission on the canvas and continues. As a safety check, we add the
@@ -253,10 +116,10 @@ let userInfoMiddleware : HttpHandler =
 let withPermissionMiddleware
   (permissionNeeded : Auth.Permission)
   (canvasName : CanvasName.T)
-  : HttpHandler =
-  (fun (next : HttpFunc) (ctx : HttpContext) ->
+  : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let t = startTimer ctx
+      let t = startTimer "with-permission-middleware" ctx
       let user = loadUserInfo ctx
       // CLEANUP: reduce to one query
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
@@ -271,29 +134,43 @@ let withPermissionMiddleware
 
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
-        let (_ : HttpContext) =
-          ctx |> saveCanvasInfo canvasInfo |> savePermission permission
-        t "with-permission-middleware"
-
+        saveCanvasInfo canvasInfo ctx
+        savePermission permission ctx
+        t.span ()
+        |> Telemetry.Span.addTags [ "canvas", canvasName; "canvasID", canvasID ]
+        t.stop ()
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
-        t "with-permission-middleware"
+        t.stop ()
         return! unauthorized ctx
     })
 
-let executionIDMiddleware : HttpHandler =
-  (fun (next : HttpFunc) (ctx : HttpContext) ->
+let canvasMiddleware (permissionNeeded : Auth.Permission) : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
+    // Last to run wraps ones which run earlier
+    let canvasName = ctx.GetRouteData().Values.["canvasName"] :?> string
+    let canvasName = CanvasName.create canvasName
+    let middleware =
+      next
+      |> withPermissionMiddleware permissionNeeded canvasName
+      |> userInfoMiddleware
+      |> sessionDataMiddleware
+    middleware ctx)
+
+
+let executionIDMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let executionID = LibService.Telemetry.executionID ()
-      let newCtx = saveExecutionID executionID ctx
-      let headerValue = StringValues([| string executionID |])
-      ctx.Response.Headers[ "x-darklang-execution-id" ] <- headerValue
-      return! next newCtx
+      let executionID = Telemetry.executionID ()
+      saveExecutionID executionID ctx
+      ctx.SetHeader("x-darklang-execution-id", string executionID)
+      let! newCtx = next ctx
+      return newCtx
     })
 
 
-let antiClickjackingMiddleware : HttpHandler =
+let antiClickjackingMiddleware : HttpMiddleware =
   // Clickjacking: Don't allow any other websites to put this in an iframe;
   // this prevents "clickjacking" attacks.
   // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
@@ -301,80 +178,60 @@ let antiClickjackingMiddleware : HttpHandler =
   // but right now we load from CDNs, <script> tags, etc. So the only thing
   // we could do is script-src: 'unsafe-inline', which doesn't offer us any
   // additional security.
-  setHttpHeader "Content-security-policy" "frame-ancestors 'none';"
-
-let serverVersionMiddleware : HttpHandler =
-  setHttpHeader "x-darklang-server-version" LibService.Config.buildHash
-
-let corsForLocalhostAssetsMiddleware : HttpHandler =
-  (fun (next : HttpFunc) (ctx : HttpContext) ->
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let result = next ctx
-
-      if Option.isSome (ctx.TryGetQueryStringValue "localhost-assets") then
-        ctx.SetHttpHeader("Access-Control-Allow_origin", "*")
-
-      return! result
+      ctx.SetHeader("Content-security-policy", "frame-ancestors 'none';")
+      return! next ctx
     })
 
-let userMiddleware : HttpHandler = sessionDataMiddleware >=> userInfoMiddleware
+let serverVersionMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
+    task {
+      ctx.SetHeader("x-darklang-server-version", LibService.Config.buildHash)
+      return! next ctx
+    })
 
-let canvasMiddleware
-  (neededPermission : Auth.Permission)
-  (canvasName : CanvasName.T)
-  : HttpHandler =
-  userMiddleware >=> withPermissionMiddleware neededPermission canvasName
+let clientVersionMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
+    task {
+      let clientVersion = ctx.Request.Headers.Item "x-darklang-client-version"
+      Telemetry.addTags [ "request.header.client_version", clientVersion
+                          // CLEANUP this was a bad name. Kept in until old data falls out of Honeycomb
+                          "request.header.x-darklang-client-version", clientVersion ]
+      return! next ctx
+    })
 
-// --------------------
-// Composed middlewarestacks for the API
-// --------------------
-let htmlMiddleware : HttpHandler =
-  executionIDMiddleware
-  >=> serverVersionMiddleware
-  >=> corsForLocalhostAssetsMiddleware
-  >=> antiClickjackingMiddleware
-  >=> setStatusCode 200
+let corsForLocalhostAssetsMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
+    task {
+      if Option.isSome (ctx.GetQueryStringValue "localhost-assets") then
+        ctx.SetHeader("Access-Control-Allow_origin", "*")
+      return! next ctx
+    })
 
-// --------------------
-// Middleware stacks for the API
-// --------------------
+let standardMiddleware : HttpMiddleware =
+  fun next ->
+    next
+    |> executionIDMiddleware
+    |> clientVersionMiddleware
+    |> serverVersionMiddleware
 
-// FSTODO trace the "x-darklang-client-version" header
+let htmlMiddleware : HttpMiddleware =
+  fun next ->
+    next
+    |> standardMiddleware
+    |> corsForLocalhostAssetsMiddleware
+    |> antiClickjackingMiddleware
 
-// Returns JSON API for calls on a particular canvas. Loads user and checks permission.
-let apiHandler
-  (f : HttpContext -> Task<'a>)
-  (neededPermission : Auth.Permission)
-  (canvasName : string)
-  : HttpHandler =
-  executionIDMiddleware
-  >=> serverVersionMiddleware
-  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
-  >=> jsonHandler f
-  >=> setStatusCode 200
 
-let apiOptionHandler
-  (f : HttpContext -> Task<Option<'a>>)
-  (neededPermission : Auth.Permission)
-  (canvasName : string)
-  : HttpHandler =
-  executionIDMiddleware
-  >=> serverVersionMiddleware
-  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
-  >=> jsonOptionHandler f
-  >=> setStatusCode 200
+[<Extension>]
+type ApplicationBuilderExtensions() =
 
-let canvasHtmlHandler
-  (f : HttpContext -> Task<string>)
-  (neededPermission : Auth.Permission)
-  (canvasName : string)
-  : HttpHandler =
-  executionIDMiddleware
-  >=> serverVersionMiddleware
-  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
-  >=> htmlHandler f
-  >=> htmlMiddleware
-
-// Returns HTML without doing much else
-let loggedOutHtmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
-  htmlHandler f >=> htmlMiddleware
+  // Wrap middleware into right shape
+  [<Extension>]
+  static member UseMiddleware(ab : IApplicationBuilder, mw : HttpMiddleware) : unit =
+    ab.Use(
+      System.Func<HttpContext, RequestDelegate, Task> (fun ctx rd ->
+        mw (fun ctx -> rd.Invoke ctx) ctx)
+    )
+    |> ignore<IApplicationBuilder>

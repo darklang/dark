@@ -1,20 +1,52 @@
-# TLS Configuration, 2018/08/03
+# TLS Configuration, last updated: Dec 17, 2021
 
-To make HTTPs work I (Lizzie, <_@lizzie.io>) needed to do four things:
+Dark has many SSL certs and an elaborate history of using different cert providers over the years. This file should contain the important information about our current SSL setup: see the git history for anything else.
 
-- Generate a certificate and store it as a "TLS secret" in Kubernetes.
-- Create a static IP in Google cloud.
-- Created a new Ingress in Kubernetes using the TLS secret and IP.
-- Switch over DNS.
+Today, we have the following certs, most of which are handled in cert-manager.
 
-I created the certificate in with Comodo CA
-(<https://www.comodoca.com/>). It's a two-year wildcard
-certificate. It cost $229/year. Paul and I have the credentials for
-our account on Comodo CA's website.
+- \*.builtwithdark.com, builtwithdark.com: Cert-manager, automatically renewed.
+- static.darklang.com uses Google managed domains (it sits in front of a Cloud
+  Storage bucket, so we can't use cert manager).
+- darklang.com and it's many subdomains (except static.darklang.com): Cert-manager,
+  automatically renewed.
+- customer certs: Cert-manager (using k8s, see darkcustomdomain, other docs
+  mentioning custom-domain). Some customer certs previously used Google-managed SSL,
+  but no longer do.
+- darksa.com, \*.darksa.com, darkstaticassets.com, \*.darkstaticassets.com:
+  Manually managed SSL cert bought from positive SSL. Needs to be renewed every year
+  in January. The majority of this file is about these.
 
-After putting in payment details it prompted us for a Certificate
-Signing Request. I created the Certificate Signing Request by
-creating the following configuration file:
+Our SSL provider is PositiveSSL, with the username ops@darklang.com. In the past, we
+also used cloudflare, store.sectigo.com and secure.sectigo.com (which are different!)
+
+# Cert-manager
+
+Most certificates use Cert-manager. This is a service we run ourselves in k8s, and it
+manages renewals via Lets Encrypt. We configure customer certs dynamically, adding
+them to the darkcustomdomain load balancer. We configure most of our certs
+statically, but cert-manager and Lets Encrypt automatically renew them and update the
+certs in the appropriate load balancers.
+
+# Dark static assets
+
+(Note this does not apply to static.darklang.com, only darksa.com/darkstaticassets.com).
+
+Dark's static assets product hosts assets at darksa.com. This is a Google Cloud
+Storage bucket, and it cannot be configured by cert-manager (despite some heroic
+attempts at using config connector). It also connect be configured via Google-managed
+SSL certs, because those do not allow wildcards.
+
+Instead, we buy certs the old fashioned way: once a year, from Comodo, applying them
+manually to the load balancer. The following sections need to be done in order.
+
+## Buy a cert:
+
+- Go to the darklang PositiveSSL.com
+- Buy 1 "PositiveSSL DV Multi-Domain", with 1 extra wildcard for \*.darksa.com
+
+## Create a CSR
+
+Create a file called `darksa.com.cnf`:
 
 ```
 [req]
@@ -27,7 +59,7 @@ C=US
 ST=California
 L=San Francisco
 O=Dark Inc
-CN=*.builtwithdark.com
+CN=*.darksa.com
 [ v3_req ]
 
 basicConstraints = CA:FALSE
@@ -35,149 +67,43 @@ keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = builtwithdark.com
+DNS.1 = darksa.com
+DNS.2 = *.darkstaticassets.com
+DNS.3 = darkstaticassets.com
 ```
 
-(The `subjectAltName` bit is important, since we want a wildcard cert
-for `*.builtwithdark.com` that also works with `builtwithdark.com`.)
+(The `subjectAltName` bit is important, since we want to support all these domains
+(on one cert, cause it's cheaper))
 
-Then I actually created the Certificate Signing Request with `openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout builtwithdark.com.key -out builtwithdark.com.csr -config builtwithdark.com.cnf`
+To create the Certificate Signing Request:
 
-This creates two files: `builtwithdark.com.key`, a new 2048-bit RSA
-key (please don't lose this, it's important), and
-`builtwithdark.com.csr`, the Certificate Signing Request. Then you can
-copy-paste the text of the CSR into the Certificate Authority's
-webpage.
+`openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout darksa.com.key -out darksa.com.csr -config darksa.com.cnf`
 
-Next you have to prove ownership over the domain. Paul and I tried to
-do it with Cloudflare DNS but it was tricky because Cloudflare has
-some weird restrictions about where you can CNAME to. We realized we
-could use the "text file" challenge instead. That was easy to do by
-logging into <http://builtwithdark.builtwithdark.com/admin/ui> and
-adding a route responding at the path they asked for. It looked like
-this:
+This creates two files: `darksa.com.key`, a new 2048-bit RSA key (please don't lose
+this, it's important), and `darksa.com.csr`, the Certificate Signing Request.
 
-```
-/.well-known/pki-validation/3DDCB20FE60956090A312AA36B1A9E0E.txt HTTP GET
-Http::responseWithHtml
-"82EF68C568D5B84C00FE816EFED8F86A371CB21C79ED340AFC0C6144F06E55A8
-comodoca.com"
-200
-```
+## Verify with PositiveSSL
 
-They emailed ops@darklang.com, the email address I signed up with,
-with a zip file containing a lot of `.crt` files. Unfortunately none
-of these are the actual certificate you can use to serve files on
-`builtwithdark.com`; you need to concatenate them all, for the full
-chain of trust.
+- Go to PositiveSSL dashboard, and click on the new cert.
+- Select "submit certificate request"
+- Paste the csr into the form
+- Fill in the domains on the form
+- Select DNS for all the options.
+- Add the DNS verification to our google cloud DNS
+- The cert will be send by email once the validation has completed
+
+# Create the cert
+
+- Download the files and unzip
+- Cat the files together (source: https://gist.github.com/gangsta/9d011dc0da614db27d5b22ed2044799f, section '2019 Comodo Certificates):
 
 ```
-cat STAR_builtwithdark_com.crt  COMODORSADomainValidationSecureServerCA.crt COMODORSAAddTrustCA.crt AddTrustExternalCARoot.crt > builtwithdark.com.crt
+cat 668840050.crt 668840050.ca-bundle > darksa.crt
 ```
 
-Now you can upload this `crt` file and the `key` file to a Kubernetes
-secret, so that it will be used by an HTTPs-enabled `Ingress`.
+Store the .crt and .key files in 1Password.
 
-```
-kubectl create secret tls bwd-tls --cert=builtwithdark.com.crt --key=builtwithdark.com.key
-```
-
-If it's already been created (which it has) you can use this snippet instead:
-
-```
-CERT="$(sudo base64 -w 0 builtwithdark.com.crt)"
-KEY="$(sudo base64 -w 0 builtwithdark.com.key)"
-kubectl get secret bwd-tls -o json \
-    | jq '.data["tls.crt"] = "'"$CERT"'" | .data["tls.key"] = "'"$KEY"'"' \
-    | kubectl replace -f -
-```
-
-Next I created a static IP in Google cloud with
-
-```
-gcloud compute addresses create bwd-tls-ip --global
-```
-
-You can see that IP (and the others) at
-https://console.cloud.google.com/networking/addresses/list?project=balmy-ground-195100. It's
-`35.227.208.117`.
-
-Then you need to actually create a Kubernetes Ingress pointing to the static IP
-we generated and the TLS secret we just created. For me, that looked like
-(NOTE: updated by pbiggar May 25, 2021, to account for v1 api).
-
-```
-kubectl create -f - <<EOF
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: bwd-tls-ingress
-  annotations:
-        kubernetes.io/ingress.global-static-ip-name: "bwd-tls-ip"
-spec:
-  defaultBackend:
-    service:
-      name: bwd-nodeport
-      port:
-        number: 80
-  tls:
-    - secretName: bwd-tls
-EOF
-```
-
-(This is now in `builtwithdark.yaml`, so you shouldn't have to do it again.)
-
-Changes to the ingress seem to take a while to propagate. After this
-is all done you can confirm that it works before switching the DNS
-over in three ways: one, by using `--resolve` in `curl`:
-
-```
-curl -l --resolve lizzie.builtwithdark.com:443:35.227.208.117 https://builtwithdark.com
-```
-
-or by using `openssl s_client` (make sure it says `Verification: OK`)
-
-```
-openssl s_client -connect 35.227.208.117:443 -servername builtwithdark.com <<<""
-```
-
-or by editing your `/etc/hosts` to resolve `builtwithdark.com` to
-`35.227.208.117` and using your browser:
-
-```
-35.227.208.117  builtwithdark.com
-35.227.208.117  lizzie.builtwithdark.com
-```
-
-Once you've confirmed that it works consistently you can switch over
-the DNS. In order to do this, you log into our DNS provider's (i.e., as of now,
-Cloudflare's) web UI and switch the `A` records for
-`builtwithdark.com` and `*.builtwithdark.com` to `35.227.208.117`.
-
-Update, 2019-02-08
-##################
-`darkstaticassets.com` and `darksa.com` wildcard certs. Also in Comodo. CSR
-process is as lizzie doc'd above, just replace the domain names appropriately.
-
-The domains are in the positivessl.com dashboard. Note there are other sectigo
-properties which makes this confusing.
-
-(Unlike the above, I did use the DNS verification - it's easy with Name.com.)
-
-Need to cat the files together, slightly diff than the filenames used
-previously (source:
-https://gist.github.com/gangsta/9d011dc0da614db27d5b22ed2044799f, section '2019
-Comodo Certificates):
-
-```
-cat STAR_darksa_com.crt \
-SectigoRSADomainValidationSecureServerCA.crt \
-USERTrustRSAAddTrustCA.crt \
-AddTrustExternalCARoot.crt \
-> darksa.crt
-```
-
-Add to google:
+# Add the cert to Google
 
 ```
 gcloud compute ssl-certificates create darksa-com-wildcard \
@@ -185,86 +111,20 @@ gcloud compute ssl-certificates create darksa-com-wildcard \
     --description="darksa.com and *.darksa.com, issued by Comodo CA"
 ```
 
-(Not sure if there's a better way to renew than just creating a new
-ssl-certificate record and updating the load balancer to use it ...)
+## Add the cert to the loadbalancer
 
-Resulting files (.crt, .key) are stored in 1password.
+- Go to https://console.cloud.google.com/net-services/loadbalancing/list/loadBalancers?authuser=1&project=balmy-ground-195100
+- select "dark-static-assets" load balancer, then click "Edit"
+- choose "Frontend configuration"
+- choose "https-ipv4"
+- choose "Additional certificates", and select the new certificate
+- choose "https-ipv6"
+- choose "Additional certificates", and select the new certificate
+- click "Update"
 
-Update, 2020-06-03
-##################
-When the AddTrust problem
-(https://trello.com/c/pSHmm177/3167-follow-up-after-ssl-incident) happened, we
-solved the problem by re-creating our cert chains using
-https://whatsmychaincert.com ; it takes a domain, checks the cert, and gives you
-a new one. You can also give it a crt file (not yet deployed)
+## Validate it works
 
-While I do not believe it will be necessary to do that in the future, I do want
-to document here the process for replacing a tls secret in kubernetes.
-
-Assuming `<name>` is the name of the secret holding the cert:
-
-1. Get the existing cert and keep it as a backup:
-   `kubectl get secret <name> -o yaml > old-<name>.yaml`
-
-2. Base64 encode the new cert:
-   `cat <new cert> | base64 | xsel -ib` (`xsel` is Linux-specific, you can just
-   copy to your clipboard by hand on OS X)
-
-3. Copy `old-<name>.yaml` to `new-<name>.yaml` and manually replace the value
-   `.data."tls.crt"` with the new data from step 2.
-
-4. Confirm that your editing resulted in `.data."tls.crt"` being valid - this is
-   a defense against copy-paste and whitespace errors:
-   `yq -r '.data."tls.crt"' new-<name>.yaml | base64 -d` (we expect the output to
-   be one or more certificates; you can pipe that to md5sum and compare it with the
-   cert file it came from)
-
-5. Deploy time! `kubectl apply -f new-<name>.yaml`. This will give you a
-   warning: `Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply`, but this is ignorable. There's
-   a PR to maybe improve the messaging
-   (https://github.com/kubernetes/kubernetes/issues/91425), so that messaging may vary some.
-
-6. The new cert isn't effective until the next deploy goes out, because the
-   ingress pod needs to be restarted or replaced.
-
-7. Once it's out, check that the new cert is being served -
-   https://ssllabs.com/ssltest/ is probably the easiest way to do this, or
-   `openssl s_client -connect <host>:443 | openssl x509 -noout -dates` will show
-   you the notBefore and notAfter (expiration) dates.
-
-Update, 2020-11-24
-##################
-
-Our certs are badly organized and are spread out, but here is the current status:
-
-- \*.builtwithdark.com: positivessl.com. Cert installed in a k8s ingress/secret. TODO: move to cert-manager
-- builtwithdark.com: cert exists, not installed for some reason. TODO: move to cert-manager
-- \*.darklang.com: positivessl.com. Cert installed in a k8s ingress/secret. Note DNS is at cloudflare. TODO: move to cert manager. Move DNS to google.
-- darksa.com: new one being bought at positivessl. DNS at name.com
-- darkstaticassets.com: new one being bought at positivessl. DNS at name.com
-- old certs have also been bought via cloudflare, store.sectigo.com and secure.sectigo.com (which are different!)
-- customer certs use cert-manager (using k8s, see darkcustomdomain, other docs mentioning custom-domain)
-- some customer certs use google managed certs, we've stopped adding new ones but the old ones are still there
-
-How to buy a cert:
-
-- Go to the darklang PositiveSSL.com
-- Buy 1 "PositiveSSL Wildcard DV certificate" (Note: do not buy multiple
-  positiveSSL certs in the same order. They get very confused when this
-  happens).
-- Create the CSR as detailed above. Upload it via the website
-- Choose CNAMECSRHASH
-- It tells you an MD5 and a SHA1, but doesn't tell you how to enter them in the
-  DNS. Write them down as you'll need them if the next step fails.
-- Go to support.sectigo.com and click "Order Status checker".
-- Enter details. Here it tells you what to actually put in the cname. (Note
-  there's a space you have to delete because of how they print it)
-- DNS is hosted in name.com or in GCP Cloud DNS or in Cloudflare
-- If this fails, presumably because you bought more than 1 cert and it won't
-  show you the certs, add a CNAME like so: `\_{MD5}.darkstaticassets.com CNAME {SHA1_20_digits}.{SHA2_next_20_digits}.comodoca.com`
-- Download the Cert from PositiveSSL. You need to make a certificate chain:
-  `cat AAACertificateServices.crt SectigoRSADomainValidationSecureServerCA.crt USERTrustRSAAAACA.crt > certchain.crt`
-- In "loadbalancing" on google cloud, add a new certificate to the appropriate
-  load balancer. Name the certificate with the date, and include the chain
-  created above, the private key created during the CSR creation process
-  (called `.key`), and the public key certificate sent by Comodo. Don't forget to click "Update"
+- go to ssllabs to check that it works
+  - https://www.ssllabs.com/ssltest/analyze.html?d=darksa.com
+  - https://www.ssllabs.com/ssltest/analyze.html?d=darkstaticassets.com
+- note that it may take 10 minutes for the load balancer to restart.

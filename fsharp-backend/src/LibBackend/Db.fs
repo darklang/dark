@@ -38,7 +38,7 @@ module Sql =
       | list -> return failwith $"Too many results, expected 0 or 1, got {list}"
     }
 
-  let executeRowOption
+  let executeRowOptionSync
     (reader : RowReader -> 't)
     (props : Sql.SqlProps)
     : Option<'t> =
@@ -56,7 +56,7 @@ module Sql =
       | result -> return failwith $"Too many results, expected 1, got {result}"
     }
 
-  let executeExists (props : Sql.SqlProps) : bool =
+  let executeExistsSync (props : Sql.SqlProps) : bool =
     match Sql.execute (fun read -> read.NpgsqlReader.GetBoolean 0) props with
     | [ true ] -> true
     | [] -> false
@@ -69,7 +69,7 @@ module Sql =
       return ()
     }
 
-  let executeStatement (props : Sql.SqlProps) : unit =
+  let executeStatementSync (props : Sql.SqlProps) : unit =
     let _count = Sql.executeNonQuery props
     ()
 
@@ -123,3 +123,73 @@ type RowReader with
 //   this.string name |> LibExecution.DvalRepr.ofInternalQueryableV1
 // member this.roundtrippableDval(name : string) =
 //   this.string name |> LibExecution.DvalRepr.ofInternalRoundtrippableV0
+
+
+type TableStatsRow =
+  { relation : string
+    diskBytes : int64
+    rows : int64
+    diskHuman : string
+    rowsHuman : string }
+
+let tableStats () : Task<List<TableStatsRow>> =
+  // Sizes from the pg_class table are fast (vs, say, running `SELECT count` on a
+  // large table) but also are approximate, not precise. That's fine for purposes
+  // of "how big are my tables growing to be?"
+  //
+  // Three steps in the query in table_stats:
+  // 1) subquery "sizes" gets the data we want (size in bytes, number of rows)
+  // 2) subquery "with_total_row" appends a row to the resultset that SUM()s the contents of each
+  //    field
+  // 3) the final query provides both raw- and humanized- formatted columns
+  Sql.query
+    "WITH sizes AS (
+         SELECT
+            relname as \"relation\",
+            pg_total_relation_size (C .oid) as disk,
+            reltuples::bigint AS \"rows\"
+         FROM pg_class C
+         LEFT JOIN pg_namespace N ON (N.oid = C .relnamespace)
+         WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+         AND C .relkind <> 'i'
+         AND nspname !~ '^pg_toast'
+         ORDER BY pg_total_relation_size (C .oid) DESC
+     ),
+
+     -- with_total_row is a subquery that appends a SUM() row to the bottom of our result set
+     with_total_row AS (
+         SELECT relation, disk, \"rows\" FROM sizes
+         UNION ALL
+         SELECT
+            'Total',
+            SUM(disk),
+            SUM(\"rows\")
+         FROM sizes
+     )
+
+     -- now we actually do our output, including both raw and humanized-number
+     -- columns for \"disk\" and \"rows\"
+     SELECT relation,
+         disk,
+         \"rows\",
+         pg_size_pretty(disk) as disk_human,
+         -- NOTE: below uses pg_size_pretty to get us something human readable
+         -- ('100M' is easier than '100000000', but it's _row count_, not bytes,
+         -- hence trimming those parts off.)
+         --
+         -- Examples for trim(from substring(...)):
+         -- 100 MB -> 100M
+         -- 100 kb -> 100k
+         -- 1 bytes -> 1
+         trim(from
+             substring(
+                 pg_size_pretty ( \"rows\"::bigint)
+                 from '[0-9]* [^b]?')
+         ) as rows_human
+     FROM with_total_row"
+  |> Sql.executeAsync (fun read ->
+    { relation = read.string "relation"
+      diskBytes = read.int64OrNone "disk" |> Tablecloth.Option.unwrap 0
+      rows = read.int64OrNone "rows" |> Tablecloth.Option.unwrap 0
+      diskHuman = read.string "disk_human"
+      rowsHuman = read.string "rows_human" })

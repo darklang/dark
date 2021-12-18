@@ -26,6 +26,7 @@ let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
     realOrPreview = realOrPreview }
 
 let createState
+  (executionID : ExecutionID)
   (libraries : RT.Libraries)
   (tracing : RT.Tracing)
   (tlid : tlid)
@@ -35,6 +36,7 @@ let createState
     tracing = tracing
     program = program
     test = { sideEffectCount = 0 }
+    executionID = executionID
     tlid = tlid
     callstack = Set.empty
     onExecutionPath = true

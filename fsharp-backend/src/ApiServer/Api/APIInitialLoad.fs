@@ -3,16 +3,17 @@ module ApiServer.InitialLoad
 // InitialLoad API endpoint
 
 open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
 open Npgsql.FSharp
 open LibBackend.Db
+open LibService.Telemetry
 
 module PT = LibExecution.ProgramTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
@@ -65,46 +66,45 @@ type T =
 
 let initialLoad (ctx : HttpContext) : Task<T> =
   task {
-    let t = Middleware.startTimer ctx
-    let user = Middleware.loadUserInfo ctx
-    let canvasInfo = Middleware.loadCanvasInfo ctx
-    let permission = Middleware.loadPermission ctx
-    t "read-api"
+    let t = startTimer "read-api" ctx
+    let user = loadUserInfo ctx
+    let canvasInfo = loadCanvasInfo ctx
+    let permission = loadPermission ctx
 
+    t.next "load-canvas"
     let! canvas = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
-    t "load-canvas"
 
+    t.next "load-canvas-creation-date"
     let! creationDate = Canvas.canvasCreationDate canvasInfo.id
-    t "load-canvas-creation-data"
 
+    t.next "load-op-ctrs"
     let! opCtrs =
       Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
       |> Sql.executeAsync (fun read -> (read.uuid "browser_id", read.int "ctr"))
 
-    t "load-op-ctrs"
-
+    t.next "get-unlocked-dbs"
     let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
-    t "get-unlocked-dbs"
 
+    t.next "get-static-assets"
     let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
-    t "get-static-assets"
 
+    t.next "get-canvas-list"
     let! canvasList = Account.ownedCanvases user.id
-    t "get-canvas-list"
 
     let! orgCanvasList = Account.accessibleCanvases user.id
-    t "get-org-canvas-list"
+    t.next "get-org-canvas-list"
 
+    t.next "get-org-list"
     let! orgList = Account.orgs user.id
-    t "get-org-list"
 
+    t.next "get-worker-schedules"
     let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.meta.id
-    t "get-worker-schedules"
 
+    t.next "get-secrets"
     let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id
-    t "get-secrets"
 
+    t.next "write-api"
     let ocamlToplevels = canvas |> Canvas.toplevels |> Convert.pt2ocamlToplevels
 
     let ocamlDeletedToplevels =
@@ -138,6 +138,6 @@ let initialLoad (ctx : HttpContext) : Task<T> =
               { secret_name = s.name; secret_value = s.value })
             secrets }
 
-    t "write-api"
+    t.stop ()
     return result
   }

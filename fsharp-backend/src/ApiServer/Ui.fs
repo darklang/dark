@@ -1,13 +1,14 @@
 module ApiServer.Ui
 
 open Microsoft.AspNetCore.Http
-open Giraffe
 open System.Text
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
+open Http
 
 module File = LibBackend.File
 module Config = LibBackend.Config
@@ -124,20 +125,25 @@ let uiHtml
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
-    let user = Middleware.loadUserInfo ctx
-    let sessionData = Middleware.loadSessionData ctx
-    let canvasInfo = Middleware.loadCanvasInfo ctx
+    let t = startTimer "read-request" ctx
+    let user = loadUserInfo ctx
+    let sessionData = loadSessionData ctx
+    let canvasInfo = loadCanvasInfo ctx
+    let localhostAssets = ctx.GetQueryStringValue "localhost-assets"
+
+    t.next "create-at"
     let! createdAt = Account.getUserCreatedAt user.username
-    let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
 
     // Create the data for integration tests
+    t.next "integration-tests"
     let integrationTests =
-      ctx.TryGetQueryStringValue "integration-test" |> Option.isSome
+      ctx.GetQueryStringValue "integration-test" |> Option.isSome
 
     if integrationTests && Config.allowTestRoutes then
       do! LibBackend.Canvas.loadAndResaveFromTestFile canvasInfo
 
-    return
+    t.next "html-response"
+    let result =
       uiHtml
         canvasInfo.id
         canvasInfo.name
@@ -145,4 +151,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
         localhostAssets
         createdAt
         user
+
+    t.stop ()
+    return result
   }

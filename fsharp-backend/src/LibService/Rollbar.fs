@@ -5,27 +5,36 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Microsoft.AspNetCore.Http
-
-type ExecutionID = Telemetry.ExecutionID
-
+open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
 open Tablecloth
+open Exception
 
 let mutable initialized = false
 
 let init (serviceName : string) : unit =
   print "Configuring rollbar"
-  // FSTODO: include host, ip address, serviceName
   let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
-  config.Environment <- Config.rollbarEnvironment
   config.Enabled <- Config.rollbarEnabled
+  config.CaptureUncaughtExceptions <- true // doesn't seem to work afaict
+  config.Environment <- Config.rollbarEnvironment
   config.LogLevel <- Rollbar.ErrorLevel.Error
-  // FSTODO add username
+  config.RethrowExceptionsAfterReporting <- false
+  config.ScrubFields <-
+    Array.append config.ScrubFields [| "Set-Cookie"; "Cookie"; "Authorization" |]
+  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
+  config.Transform <- fun payload -> payload.Data.Language <- "f#"
 
-  let (_ : Rollbar.IRollbar) =
-    Rollbar.RollbarLocator.RollbarInstance.Configure config
+  let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
+  state["service"] <- serviceName
+  config.Server <- Rollbar.DTOs.Server(state)
+  config.Server.Host <- Config.hostName
+  config.Server.Root <- Config.rootDir
+  config.Server.CodeVersion <- Config.buildHash
 
+  Rollbar.RollbarLocator.RollbarInstance.Configure config
+  |> ignore<Rollbar.IRollbar>
   initialized <- true
   ()
 
@@ -39,58 +48,107 @@ type HoneycombJson =
 
 let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
   let query =
-    { filters = [ { column = "execution_id"; op = "="; value = string executionID } ]
+    { filters =
+        [ { column = "trace.trace_id"; op = "="; value = string executionID } ]
       limit = 100
       // 604800 is 7 days
       time_range = 604800 }
 
   let queryStr = Json.Vanilla.serialize query
+  let dataset = Config.honeycombDataset
 
   let uri =
-    System.Uri(
-      $"https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={queryStr}"
-    )
+    System.Uri($"https://ui.honeycomb.io/dark/datasets/{dataset}?query={queryStr}")
 
   string uri
 
-let send
+let createState
+  (message : string)
   (executionID : ExecutionID)
-  (metadata : List<string * string>)
+  (metadata : List<string * obj>)
+  : Dictionary.T<string, obj> =
+
+  let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
+  custom["message"] <- message
+  // CLEANUP rollbar has a built-in way to do this called "Service links"
+  // CLEANUP we should search by traceID, we don't need to use executionID since they're the same now
+  custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
+  custom["execution_id"] <- string executionID
+  List.iter
+    (fun (k, v) ->
+      Dictionary.add k (v :> obj) custom |> ignore<Dictionary.T<string, obj>>)
+    metadata
+  custom
+
+type Person = { id : UserID; email : string; username : UserName.T }
+
+let sendException
+  (message : string)
+  (executionID : ExecutionID)
+  (metadata : List<string * obj>)
   (e : exn)
   : unit =
   assert initialized
-
   try
-    print "sending exception to rollbar"
-    let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
-    state["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
-    state["execution_id"] <- string executionID
-    List.iter
-      (fun (k, v) ->
-        Dictionary.add k (v :> obj) state |> ignore<Dictionary.T<string, obj>>)
-      metadata
-
-    let (_ : Rollbar.ILogger) =
-      Rollbar.RollbarLocator.RollbarInstance.Error(e, state)
-
-    ()
+    print $"rollbar: {message}"
+    print e.Message
+    print e.StackTrace
+    let custom = createState message executionID metadata
+    Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
+    |> ignore<Rollbar.ILogger>
   with
   | e ->
-    // FSTODO: log failure
+    Telemetry.addError
+      "Exception when calling rollbar"
+      [ "message", e.Message; "stackTrace", e.StackTrace ]
     print "Exception when calling rollbar"
+    print e.Message
+    print e.StackTrace
+
+// Will block for 5 seconds to make sure this exception gets sent. Use for startup
+// and other places where the process is intended to end after this call.
+let lastDitchBlocking
+  (message : string)
+  (executionID : ExecutionID)
+  (metadata : List<string * obj>)
+  (e : exn)
+  : unit =
+  assert initialized
+  try
+    print $"last ditch rollbar: {message}"
+    print e.Message
+    print e.StackTrace
+    let custom = createState message executionID metadata
+    Rollbar
+      .RollbarLocator
+      .RollbarInstance
+      .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
+      .Error(e, custom)
+    |> ignore<Rollbar.ILogger>
+  with
+  | e ->
+    Telemetry.addError
+      "Exception when calling rollbar"
+      [ "message", e.Message; "stackTrace", e.StackTrace ]
+    print "Exception when calling rollbar"
+    print e.Message
+    print e.StackTrace
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
   open Rollbar.NetCore.AspNet
   open Microsoft.AspNetCore.Builder
-  open Microsoft.AspNetCore.Http.Abstractions
 
   // Rollbar's ASP.NET core middleware requires an IHttpContextAccessor, which
   // supposedly costs significant performance (couldn't see a cost in practice
   // though). AFAICT, this allows HTTP vars to be shared across the Task using an
   // AsyncContext. This would make sense for a lot of ways to use Rollbar, but we use
   // telemetry for our context and only want to use rollbar for exception tracking.
-  type DarkRollbarMiddleware(nextRequestProcessor : RequestDelegate) =
+  type DarkRollbarMiddleware
+    (
+      nextRequestProcessor : RequestDelegate,
+      ctxMetadataFn : HttpContext -> Option<Person> * List<string * obj>
+    ) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
     member this.Invoke(ctx : HttpContext) : Task =
       task {
@@ -98,10 +156,50 @@ module AspNet =
           do! this._nextRequestProcessor.Invoke(ctx)
         with
         | e ->
-          send (Telemetry.executionID ()) [] e
-          print e.Message
-          print e.StackTrace
-          raise e
+          assert initialized
+          try
+            let uri = ctx.Request.GetEncodedUrl()
+
+            print $"rollbar in http: {uri}"
+            print e.Message
+            print e.StackTrace
+
+            let executionID =
+              try
+                ctx.Items["executionID"] :?> ExecutionID
+              with
+              | _ -> ExecutionID "unavailable"
+
+            let person, metadata = ctxMetadataFn ctx
+            let custom = createState "http" executionID metadata
+
+            let package : Rollbar.IRollbarPackage =
+              new Rollbar.ExceptionPackage(e, e.Message)
+            // decorate the http info
+            let package = HttpRequestPackageDecorator(package, ctx.Request, true)
+            let package =
+              new HttpResponsePackageDecorator(package, ctx.Response, true)
+            let package =
+              match person with
+              | None -> Rollbar.PersonPackageDecorator(package, null)
+              | Some person ->
+                Rollbar.PersonPackageDecorator(
+                  package,
+                  string person.id,
+                  string person.username,
+                  person.email
+                )
+            Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
+            |> ignore<Rollbar.ILogger>
+          with
+          | re ->
+            Telemetry.addError
+              "Exception when calling rollbar"
+              [ "message", re.Message; "stackTrace", re.StackTrace ]
+            print "Exception when calling rollbar"
+            print re.Message
+            print re.StackTrace
+          e.Reraise()
       }
 
 
@@ -110,8 +208,12 @@ module AspNet =
     // Nothing to do here, as rollbar is initialized above
     services
 
-  let addRollbarToApp (app : IApplicationBuilder) : IApplicationBuilder =
-    app.UseMiddleware<DarkRollbarMiddleware>()
+  let addRollbarToApp
+    (
+      app : IApplicationBuilder,
+      ctxMetadataFn : HttpContext -> Option<Person> * List<string * obj>
+    ) : IApplicationBuilder =
+    app.UseMiddleware<DarkRollbarMiddleware>(ctxMetadataFn)
 
 
 

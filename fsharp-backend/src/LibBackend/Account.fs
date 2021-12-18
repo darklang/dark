@@ -11,6 +11,9 @@ open Prelude
 open Tablecloth
 open Db
 
+module RT = LibExecution.RuntimeTypes
+module DvalRepr = LibExecution.DvalRepr
+
 // **********************
 // Types
 // **********************
@@ -35,6 +38,11 @@ type UserInfoAndCreatedAt =
     email : string
     id : UserID
     createdAt : System.DateTime }
+
+let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
+  { id = ui.id; email = ui.email; username = ui.username }
+
+
 
 // **********************
 // Special usernames
@@ -98,8 +106,8 @@ let bannedUsernames : List<UserName.T> =
 // **********************
 
 let validateUserName (username : string) : Result<unit, string> =
-  (* rules: no uppercase, ascii only, must start with letter, other letters can
-   * be numbers or underscores. 3-20 characters. *)
+  // rules: no uppercase, ascii only, must start with letter, other letters can
+  // be numbers or underscores. 3-20 characters.
   let reString = @"^[a-z][a-z0-9_]{2,19}$"
 
   if FsRegEx.isMatch reString username then
@@ -151,6 +159,76 @@ let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>
 
 let upsertAdmin = upsertAccount true
 let upsertNonAdmin = upsertAccount false
+
+// Any external calls to this should also call Analytics.identifyUser;
+// we can't do it here because that sets up a module dependency cycle
+let insertUser
+  (username : UserName.T)
+  (email : string)
+  (name : string)
+  (analyticsMetadata : Option<RT.DvalMap>)
+  : Task<Result<unit, string>> =
+  task {
+    let account =
+      // As of the move to auth0, we  no longer store passwords in postgres. We do
+      // still use postgres locally, which is why we're not removing the field
+      // entirely. Local account creation is done in
+      // upsert_account_exn/upsert_admin_exn, so using Password.invalid here does
+      // not affect that
+      { username = username
+        password = Password.invalid
+        email = email
+        name = name }
+
+    match validateAccount account with
+    | Ok () ->
+      let analyticsMetadata = analyticsMetadata |> Option.unwrap (Map.empty)
+
+      try
+        do!
+          Sql.query
+            "INSERT INTO accounts
+              (id, username, name, email, admin, password, segment_metadata)
+              VALUES
+              (@id, @username, @name, @email, false, @password, @metadata)
+              ON CONFLICT DO NOTHING"
+          |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
+                              "username", Sql.string (string username)
+                              "name", Sql.string name
+                              "email", Sql.string email
+                              ("password", Sql.string (string Password.invalid))
+                              ("analytics_metadata",
+                               Sql.jsonb (
+                                 DvalRepr.toInternalQueryableV1 analyticsMetadata
+                               )) ]
+          |> Sql.executeStatementAsync
+        let! exists =
+          Sql.query
+            "SELECT 1 from ACCOUNTS
+              WHERE username = @username
+                AND name = @name
+                AND email = @email
+                AND password = @password"
+          |> Sql.parameters [ "username", Sql.string (string username)
+                              "name", Sql.string name
+                              "email", Sql.string email
+                              ("password", Sql.string (string Password.invalid)) ]
+          |> Sql.executeExistsAsync
+        if exists then
+          return Ok()
+        else
+          return
+            Error "Insert failed, probably because the username is already taken."
+      with
+      | _ ->
+        return Error "Insert failed, probably because the username is already taken."
+    | Error e -> return Error e
+  }
+
+
+
+
+
 
 // **********************
 // Querying
@@ -226,7 +304,7 @@ let getUserByEmail (email : string) : Task<Option<UserInfo>> =
       admin = read.bool "admin"
       id = read.uuid "id" })
 
-let getUsers : Task<List<UserName.T>> =
+let getUsers () : Task<List<UserName.T>> =
   Sql.query
     "SELECT username
      FROM accounts"

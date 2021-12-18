@@ -28,7 +28,7 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // may be shown to users
 type DarkExceptionData =
   // Do not show to anyone, we need to rollbar this and address it
-  | InternalError of string
+  | InternalError of string * List<string * obj>
 
   // An error caused by the grand user making the request, show the error to the
   // requester no matter who they are
@@ -47,40 +47,106 @@ type DarkExceptionData =
   // number when it doesn't support it. We probably caused this by allowing it to
   // happen, so we definitely want to fix it, but it's OK to tell the developer what
   // happened (not grandusers though)
-  | LibraryError of string
+  | LibraryError of string * List<string * obj>
 
 exception DarkException of DarkExceptionData
 
+// This is for tracing
+let mutable exceptionCallback =
+  (fun (typ : string) (msg : string) (tags : List<string * obj>) -> ())
+
 module Exception =
-  let raiseGrandUser (msg : string) = raise (DarkException(GrandUserError(msg)))
-  let raiseDeveloper (msg : string) = raise (DarkException(DeveloperError(msg)))
-  let raiseEditor (msg : string) = raise (DarkException(EditorError(msg)))
-  let raiseInternal (msg : string) = raise (DarkException(InternalError(msg)))
-  let raiseLibrary (msg : string) = raise (DarkException(LibraryError(msg)))
+  let callExceptionCallback typ msg tags =
+    try
+      exceptionCallback typ msg tags
+    with
+    | _ ->
+      // We're completely screwed at this point
+      printf "Exception calling Exceptioncallback"
 
-  let toGrandUserMessage (e : DarkExceptionData) : string =
-    match e with
-    | InternalError _
-    | DeveloperError _
-    | LibraryError _
-    | EditorError _ -> ""
-    | GrandUserError msg -> msg
+  // A grand user exception was caused by the incorrect actions of a grand user. The
+  // msg is suitable to show to the grand user. We don't care about grandUser
+  // exceptions, they're normal.
+  let raiseGrandUser (msg : string) =
+    callExceptionCallback "grand" msg []
+    raise (DarkException(GrandUserError(msg)))
 
-  let toDeveloperMessage (e : DarkExceptionData) : string =
-    match e with
-    | InternalError _ -> ""
-    | LibraryError msg
-    | EditorError msg
-    | DeveloperError msg
-    | GrandUserError msg -> msg
+  // A developer exception is one caused by the incorrect actions of our
+  // user/developer. The msg is suitable to show to the user.
+  let raiseDeveloper (msg : string) =
+    callExceptionCallback "developer" msg []
+    raise (DarkException(DeveloperError(msg)))
 
-  let toInternalMessage (e : DarkExceptionData) : string =
+  // An editor exception is one which is caused by an invalid action on the part of
+  // the Dark editor. We are interested in these. The message may be shown to the
+  // logged-in user, and should be suitable for this.
+  let raiseEditor (msg : string) =
+    callExceptionCallback "editor" msg []
+    raise (DarkException(EditorError(msg)))
+
+  // An internal error. Should be rollbarred, and should not be shown to users.
+  let raiseInternal (msg : string) (tags : List<string * obj>) =
+    callExceptionCallback "internal" msg tags
+    raise (DarkException(InternalError(msg, tags)))
+
+  // An error in library code - should not be shown to grand users. May be shown to
+  // logged-in developers (most typically in a DError or a Result).
+  let raiseLibrary (msg : string) (tags : List<string * obj>) =
+    callExceptionCallback "library" msg tags
+    raise (DarkException(LibraryError(msg, tags)))
+
+  let toGrandUserMessage (e : exn) : Option<string> =
     match e with
-    | InternalError msg
-    | LibraryError msg
-    | EditorError msg
-    | DeveloperError msg
-    | GrandUserError msg -> msg
+    | DarkException (InternalError _)
+    | DarkException (DeveloperError _)
+    | DarkException (LibraryError _)
+    | DarkException (EditorError _) -> None
+    | DarkException (GrandUserError msg) -> Some msg
+    | _ -> None
+
+  let toDeveloperMessage (e : exn) : Option<string> =
+    match e with
+    | DarkException (InternalError _) -> None
+    | DarkException (DeveloperError msg)
+    | DarkException (LibraryError (msg, _))
+    | DarkException (EditorError msg)
+    | DarkException (GrandUserError msg) -> Some msg
+    | _ -> None
+
+  let toInternalMessage (e : exn) : Option<string * List<string * obj>> =
+    match e with
+    | DarkException (InternalError (msg, tags))
+    | DarkException (LibraryError (msg, tags)) -> Some(msg, tags)
+    | DarkException (DeveloperError msg)
+    | DarkException (EditorError msg)
+    | DarkException (GrandUserError msg) -> Some(msg, [])
+    | e -> Some(e.Message, [])
+
+  // FSTODO
+  let shouldPage (e : exn) : bool =
+    match e with
+    | DarkException (GrandUserError _)
+    | DarkException (InternalError _)
+    | DarkException (DeveloperError _)
+    | DarkException (EditorError _)
+    | DarkException (LibraryError _) -> false
+    | _ -> true
+
+  let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
+    task {
+      try
+        let! result = f ()
+        return Some result
+      with
+      | _ -> return None
+    }
+
+  let catch (f : unit -> 'r) : Option<'r> =
+    try
+      Some(f ())
+    with
+    | _ -> None
+
 
 
 
@@ -183,12 +249,21 @@ let print (string : string) : unit = NonBlockingConsole.WriteLine string
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
 // of operations.
-let debugTask (msg : string) (a : Ply.Ply<'a>) : Ply.Ply<'a> =
+let debugPly (msg : string) (a : Ply.Ply<'a>) : Ply.Ply<'a> =
   uply {
     let! a = a
     NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
     return a
   }
+
+let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
+  task {
+    let! a = a
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
+    return a
+  }
+
+
 
 let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
 
@@ -564,6 +639,17 @@ module Lazy =
 type tlid = uint64
 
 type id = uint64
+
+// In real code, only create these from LibService.Telemetry
+type ExecutionID =
+  | ExecutionID of string
+
+  override this.ToString() : string =
+    let (ExecutionID str) = this
+    str
+
+
+
 
 // This is important to prevent auto-serialization accidentally leaking this,
 // though it never should anyway

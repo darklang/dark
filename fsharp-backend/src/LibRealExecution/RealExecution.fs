@@ -47,6 +47,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
 
 
 let createState
+  (executionID : ExecutionID)
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
@@ -66,7 +67,7 @@ let createState
 
     let! libraries = Lazy.force libraries
 
-    return (Exe.createState libraries tracing tlid program, touchedTLIDs)
+    return (Exe.createState executionID libraries tracing tlid program, touchedTLIDs)
   }
 
 let init (service : string) : unit =

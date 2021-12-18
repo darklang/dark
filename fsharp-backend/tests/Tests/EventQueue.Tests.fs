@@ -42,7 +42,7 @@ let testEventQueueRoundtrip =
     do! EQ.enqueue meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
 
     do! EQ.testingScheduleAll ()
-    let! result = QueueWorker.run (LibService.Telemetry.ExecutionID "traceID")
+    let! result = QueueWorker.run (ExecutionID "traceID")
 
     match result with
     | Ok (Some resultDval) ->

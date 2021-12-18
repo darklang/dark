@@ -190,6 +190,16 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
+let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
+  Sql.query
+    "SELECT tlid FROM toplevel_oplists
+     WHERE canvas_id = @canvasID
+       AND deleted IS FALSE"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
+
+
 
 // let transactionally_migrate_oplist
 //     ~(canvas_id : Uuidm.t)
@@ -269,16 +279,18 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //   with e -> Error (Exception.to_string e)
 //
 
-// (* ------------------------- *)
-// (* hosts *)
-// (* ------------------------- *)
-// let current_hosts () : string list =
-//   Db.fetch ~name:"oplists" "SELECT DISTINCT name FROM canvases" ~params:[]
-//   |> List.map ~f:List.hd_exn
-//   |> List.filter ~f:(fun h -> not (String.is_prefix ~prefix:"test-" h))
-//   |> List.dedup_and_sort ~compare
-//
-//
+// -------------------------
+// hosts
+// -------------------------
+let currentHosts () : Task<string list> =
+  task {
+    let! hosts =
+      Sql.query "SELECT DISTINCT name FROM canvases"
+      |> Sql.executeAsync (fun read -> read.string "name")
+    return
+      hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort
+  }
+
 
 // let tier_one_hosts () : string list =
 //   [ "ian-httpbin"
@@ -286,23 +298,7 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //   ; "listo"
 //   ; "ellen-battery2"
 //   ; "julius-tokimeki-unfollow" ]
-//
-//
-// (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
-// let fetch_canvas_id (owner : Uuidm.t) (host : string) : Uuidm.t =
-//   let host_length = String.length host in
-//   if host_length > 64
-//   then
-//     Exception.internal
-//       (Printf.sprintf "Canvas name was %i chars, must be <= 64." host_length)
-//   else
-//     Db.fetch_one
-//       ~name:"fetch_canvas_id"
-//       "SELECT canvas_id($1, $2, $3)"
-//       ~params:[Uuid (Util.create_uuid ()); Uuid owner; String host]
-//     |> List.hd_exn
-//     |> Uuidm.of_string
-//     |> Option.value_exn
+
 
 
 type CronScheduleData =

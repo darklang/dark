@@ -35,6 +35,7 @@ module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 module Middleware = HttpMiddleware.MiddlewareV0
 module Resp = HttpMiddleware.ResponseV0
+module FireAndForget = LibService.FireAndForget
 
 // ---------------
 // Read from HttpContext
@@ -265,22 +266,16 @@ let canonicalizeURL (toHttps : bool) (url : string) =
 // ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    setHeader ctx "Server" "darklang"
     let executionID = LibService.Telemetry.executionID ()
+    ctx.Items[ "executionID" ] <- executionID
     setHeader ctx "x-darklang-execution-id" (string executionID)
+    setHeader ctx "Server" "darklang"
 
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
-      let ownerName = Account.ownerNameFromCanvasName canvasName
-      let ownerUsername = UserName.create (string ownerName)
-
-      let! ownerID =
-        catch "user not found" 404 Account.userIDForUserName ownerUsername
-
-      // No error checking as this will create a canvas if none exists
-      let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
-
-      let meta : Canvas.Meta = { id = canvasID; owner = ownerID; name = canvasName }
+      ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
+      let! meta = catch "user not found" 404 Canvas.getMeta canvasName
+      ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
@@ -322,17 +317,18 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
-            TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request
-            |> ignore<Task<DateTime>>
+            FireAndForget.fireAndForgetTask "store-event" executionID (fun () ->
+              TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request)
 
           // Send to pusher - Do not resolve task, send this into the ether
           let notifyHook (touchedTLIDs : List<tlid>) : unit =
-            Pusher.pushNewTraceID executionID canvasID traceID touchedTLIDs
+            Pusher.pushNewTraceID executionID meta.id traceID touchedTLIDs
 
           // Do request
           let! result =
             Middleware.executeHandler
               tlid
+              executionID
               traceID
               traceHook
               notifyHook
@@ -368,12 +364,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let event = Middleware.createRequest true url reqHeaders reqQuery reqBody
 
         let! timestamp =
-          TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
+          TI.storeEvent meta.id traceID ("HTTP", requestPath, method) event
 
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.pushNew404
           executionID
-          canvasID
+          meta.id
           ("HTTP", requestPath, method, timestamp, traceID)
 
         return! noHandlerResponse ctx
@@ -416,8 +412,24 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         return raise e
     })
 
-  app
-  |> LibService.Rollbar.AspNet.addRollbarToApp
+  LibService.Rollbar.AspNet.addRollbarToApp (
+    app,
+    (fun (ctx : HttpContext) ->
+      try
+        let name = ctx.Items["canvasName"] :?> string
+        let username =
+          (CanvasName.create name)
+          |> Account.ownerNameFromCanvasName
+          |> string
+          |> UserName.create
+        try
+          let id = ctx.Items["canvasOwnerID"] :?> UserID
+          Some { username = username; email = null; id = id }, [ "canvas", name ]
+        with
+        | _ -> None, []
+      with
+      | _ -> None, [])
+  )
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort
@@ -425,7 +437,6 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
        // Last chance exception handler
        let exceptionHandler (ctx : HttpContext) : Task = internalErrorResponse ctx
        let exceptionHandlerOptions = ExceptionHandlerOptions()
-       // FSTODO log/honeycomb
        exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
        app.UseExceptionHandler(exceptionHandlerOptions)
   |> fun app -> app.Run(RequestDelegate handler)
@@ -470,7 +481,9 @@ let main _ =
     0
   with
   | e ->
-    print "Error starting BwdServer"
-    print (string e)
-    LibService.Rollbar.send (LibService.Telemetry.ExecutionID "0") [] e
+    LibService.Rollbar.lastDitchBlocking
+      "Error starting BwdServer"
+      (ExecutionID "BwdServer")
+      []
+      e
     (-1)

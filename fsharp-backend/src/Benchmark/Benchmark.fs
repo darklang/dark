@@ -35,7 +35,8 @@ let runFSharp
   (expr : RT.Expr)
   : Task<RT.Dval> =
   task {
-    let! state, _ = RealExe.createState traceID 7UL program
+    let executionID = ExecutionID "benchmark"
+    let! state, _ = RealExe.createState executionID traceID 7UL program
     let symtable = Interpreter.withGlobals state Map.empty
     return! (Interpreter.eval state symtable expr) |> Ply.TplPrimitives.runPlyAsTask
   }

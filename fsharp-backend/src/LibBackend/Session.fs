@@ -12,7 +12,7 @@ open Db
 type JsonData = { username : string; csrf_token : string }
 
 type T =
-  { username : string
+  { username : UserName.T
     csrfToken : string
     expiry : System.DateTime
     key : string }
@@ -34,7 +34,7 @@ let getNoCSRF (key : string) : Task<Option<T>> =
     let date = read.dateTime "expire_date"
     let data = Json.Vanilla.deserialize<JsonData> serializedData
 
-    { username = data.username
+    { username = UserName.create data.username
       expiry = date
       csrfToken = data.csrf_token
       key = key })
@@ -49,14 +49,13 @@ let get (key : string) (csrfToken : string) : Task<Option<T>> =
 
 // Creates a session in the DB, returning a new session key and new CSRF token
 // to be returned to the user
-let insert (username : string) : Task<AuthData> =
+let insert (username : UserName.T) : Task<AuthData> =
   task {
     let key = randomString 40
     let csrfToken = randomString 40
-    let expiryDate = System.DateTime.Now
 
     let sessionData =
-      Json.Vanilla.serialize { username = username; csrf_token = csrfToken }
+      Json.Vanilla.serialize { username = string username; csrf_token = csrfToken }
 
     do!
       Sql.query
@@ -77,38 +76,3 @@ let clear (key : string) : Task<unit> =
      WHERE session_key = @key"
   |> Sql.parameters [ "key", Sql.string key ]
   |> Sql.executeStatementAsync
-
-
-//   let username_of_key (key : string) : string option =
-//     Db.fetch_one_option
-//       ~name:"username_of_key"
-//       "SELECT session_data
-//        FROM session
-//        WHERE expire_date > NOW() AND session_key = $1"
-//       ~params:[Db.String key]
-//     |> Option.bind ~f:(fun row -> row |> List.hd)
-//     |> Option.map ~f:(fun session_data ->
-//            session_data
-//            |> Yojson.Basic.from_string
-//            |> Yojson.Basic.Util.member "username"
-//            |> Yojson.Basic.Util.to_string)
-//
-// let of_request req = ""
-// of_header backend cookie_key (req |> Cohttp_lwt_unix.Request.headers)
-//
-//
-// let getUserName (x : int) : string = "todo"
-
-//   let username_for session =
-//     session.value
-//     |> Yojson.Basic.from_string
-//     |> Yojson.Basic.Util.member "username"
-//     |> Yojson.Basic.Util.to_string
-//
-//
-//   let csrf_token_for session =
-//     session.value
-//     |> Yojson.Basic.from_string
-//     |> Yojson.Basic.Util.member "csrf_token"
-//     |> Yojson.Basic.Util.to_string
-//

@@ -168,6 +168,7 @@ let executionStateFor
   task {
     let! owner = testOwner.Force()
     let ownerID : UserID = (owner : Account.UserInfo).id
+    let executionID = ExecutionID $"test-{name}"
 
     // Performance optimization: don't touch the DB if you don't use the DB
     let! canvasID =
@@ -200,7 +201,12 @@ let executionStateFor
         secrets = [] }
 
     return
-      Exe.createState (Lazy.force libraries) (Exe.noTracing RT.Real) tlid program
+      Exe.createState
+        executionID
+        (Lazy.force libraries)
+        (Exe.noTracing RT.Real)
+        tlid
+        program
 
   }
 

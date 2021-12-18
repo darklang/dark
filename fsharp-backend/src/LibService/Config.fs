@@ -15,6 +15,11 @@ let buildHash : string =
   | Some s -> s
   | None -> envDisplayName
 
+let rootDir = absoluteDir "DARK_CONFIG_ROOT_DIR"
+
+// Provided by k8s, used in rollbar
+let hostName = getEnv "HOSTNAME" |> Option.defaultValue "none"
+
 // --------------------
 // rollbar
 // --------------------
