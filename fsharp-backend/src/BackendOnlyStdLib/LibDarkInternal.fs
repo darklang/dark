@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
       fn =
         internalFn (function
           | state, [ DStr host ] -> Ply DNull
-          // FSTODO
+          // CLEANUP
           // (match Canvas.validate_host host with
           //  | Ok _ -> Ply(DBool true)
           //  | Error _ -> Ply(DBool false))
@@ -167,7 +167,7 @@ let fns : List<BuiltInFn> =
       fn =
         internalFn (function
           | state, [ DStr host ] -> Ply DNull
-          // FSTODO
+          // CLEANUP
           // (match Canvas.migrate_host (Unicode_string.to_string host) with
           //  | Ok () -> DResult(Ok DNull)
           //  | Error msg -> DResult(Error(DStr msg)))
@@ -361,7 +361,7 @@ that's already taken, returns an error."
               let username = UserName.create username
               do! Account.setAdmin admin username
               // FSTODO: report to rollbar
-              LibBackend.Analytics.identifyUser state.executionID username
+              Analytics.identifyUser state.executionID username
               return DNull
             }
           | _ -> incorrectArgs ())
