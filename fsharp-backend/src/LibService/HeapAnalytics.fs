@@ -81,7 +81,7 @@ let heapioEvent
           ("canvas_id", canvasID)
           ("event", event)
           ("userid", owner) ]
-      use client = httpClient ()
+      let client = httpClient ()
 
       // path
       let endpoint =
@@ -106,7 +106,7 @@ let heapioEvent
         AuthenticationHeaderValue("Basic", authenticationString)
 
       let! result = client.SendAsync(requestMessage)
-      assertEq "heapid status" System.Net.HttpStatusCode.Accepted result.StatusCode
+      assertEq "heapid status" System.Net.HttpStatusCode.OK result.StatusCode
       return ()
     })
 
