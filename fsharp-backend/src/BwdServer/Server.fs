@@ -481,7 +481,7 @@ let main _ =
     0
   with
   | e ->
-    LibService.Rollbar.sendException
+    LibService.Rollbar.lastDitchBlocking
       "Error starting BwdServer"
       (ExecutionID "BwdServer")
       []
