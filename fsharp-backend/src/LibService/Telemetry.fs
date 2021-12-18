@@ -1,5 +1,11 @@
 module LibService.Telemetry
 
+// Setup and utilities for using Telemetry. This is where we do
+// tracing/OpenTelemetry/Honeycomb
+//
+// Note names are confusing in .Net. Here is a good rundown.
+// https://github.com/open-telemetry/opentelemetry-dotnet/issues/947
+
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
@@ -13,31 +19,45 @@ open Npgsql
 open Microsoft.AspNetCore.Http.Extensions
 
 module Internal =
-  // CLEANUP: can a DiagnosticSource be used here instead?
+  // initialized via `init`, below
   let mutable _source : System.Diagnostics.ActivitySource = null
 
 module Span =
   // .NET calls them Activity, OpenTelemetry and everyone else calls them Spans
   type T = System.Diagnostics.Activity
 
-  // Spans created here should use `use`, or explicitly call `.stop` Forgetting to do
-  // this will cause the end time to be incorrectly delayed
-
-  // Create a root if there is not one already (typically prefer calling [current] instead).
+  // Spans (Activities) need to stop or they'll have the wrong end-time. You can
+  // either use `use` when allocating them, which will mean they are stopped as soon
+  // as they go out of scope, or you can explicitly call stop.
   let root (name : string) : T =
-    let result = Internal._source.StartActivity(name)
-    assert_ "Telemetry must be initialized before creating root" (result <> null)
-    result
+    assert_
+      "Telemetry must be initialized before creating root"
+      (Internal._source <> null)
+    Internal._source.StartActivity(name)
+
+  // Get the Span/Activity for this execution. It is thread and also async-local.
+  // See https://twitter.com/ChetHusk/status/1466589986786971649 For the sake of
+  // explicitness, and probably a little bit for performance, only use this when
+  // necessary, and prefer to pass created spans around otherwise.
 
   // It is technically possible for Span/Activities to be null if things are not
   // configured right. The solution there is to fix the configuration, not to allow
   // null checks.
   let current () : T = System.Diagnostics.Activity.Current
 
+  // Spans (Activities) need to stop or they'll have the wrong end-time. You can
+  // either use `use` when allocating them, which will mean they are stopped as soon
+  // as they go out of scope, or you can explicitly call stop.
   let child (name : string) (parent : T) : T =
-    let result = Internal._source.StartActivity(name).SetParentId(parent.Id)
-    result.DisplayName <- name
-    assert_ "Telemetry must be initialized before creating child" (result <> null)
+    assert_
+      "Telemetry must be initialized before creating root"
+      (Internal._source <> null)
+    let result = Internal._source.StartActivity(name)
+    let result =
+      if result <> null && parent <> null then
+        result.SetParentId parent.Id
+      else
+        result
     result
 
   let addTag (name : string) (value : obj) (span : T) : unit =
@@ -75,8 +95,7 @@ let addError (name : string) (tags : List<string * obj>) : unit =
 
 
 // Call, passing with serviceName for this service, such as "ApiServer"
-let init (serviceName : string) =
-  let version = Config.buildHash
+let init (serviceName : string) : unit =
   // Not enabled by default - https://jimmybogard.com/building-end-to-end-diagnostics-and-tracing-a-primer-trace-context/
   System.Diagnostics.Activity.DefaultIdFormat <-
     System.Diagnostics.ActivityIdFormat.W3C
