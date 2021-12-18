@@ -357,7 +357,7 @@ RUN dotnet tool install -g dotnet-sos
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
-RUN dotnet tool install fantomas-tool --version 4.6.0-alpha-008 -g
+RUN dotnet tool install fantomas-tool --version 4.6.0-alpha-010 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
