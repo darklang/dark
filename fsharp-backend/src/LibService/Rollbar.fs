@@ -48,7 +48,8 @@ type HoneycombJson =
 
 let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
   let query =
-    { filters = [ { column = "execution_id"; op = "="; value = string executionID } ]
+    { filters =
+        [ { column = "trace.trace_id"; op = "="; value = string executionID } ]
       limit = 100
       // 604800 is 7 days
       time_range = 604800 }
