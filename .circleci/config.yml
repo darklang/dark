@@ -13,14 +13,14 @@ orbs:
 executors:
   simple-executor:
     docker:
-      - image: cimg/base:2021.04
+      - image: cimg/base:2021.12
   in-container:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:0450fd4
+      - image: darklang/dark-base:3c117ff
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -29,7 +29,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:0450fd4
+      - image: darklang/dark-rust:3c117ff
 
 commands:
   show-large-files-and-directories:
