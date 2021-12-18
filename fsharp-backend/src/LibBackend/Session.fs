@@ -53,7 +53,6 @@ let insert (username : UserName.T) : Task<AuthData> =
   task {
     let key = randomString 40
     let csrfToken = randomString 40
-    let expiryDate = System.DateTime.Now
 
     let sessionData =
       Json.Vanilla.serialize { username = string username; csrf_token = csrfToken }
