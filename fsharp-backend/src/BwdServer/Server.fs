@@ -273,7 +273,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
+      ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
       let! meta = catch "user not found" 404 Canvas.getMeta canvasName
+      ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
@@ -410,7 +412,24 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         return raise e
     })
 
-  LibService.Rollbar.AspNet.addRollbarToApp (app, (fun ctx -> []))
+  LibService.Rollbar.AspNet.addRollbarToApp (
+    app,
+    (fun (ctx : HttpContext) ->
+      try
+        let name = ctx.Items["canvasName"] :?> string
+        let username =
+          (CanvasName.create name)
+          |> Account.ownerNameFromCanvasName
+          |> string
+          |> UserName.create
+        try
+          let id = ctx.Items["canvasOwnerID"] :?> UserID
+          Some { username = username; email = null; id = id }, [ "canvas", name ]
+        with
+        | _ -> None, []
+      with
+      | _ -> None, [])
+  )
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort
@@ -418,7 +437,6 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
        // Last chance exception handler
        let exceptionHandler (ctx : HttpContext) : Task = internalErrorResponse ctx
        let exceptionHandlerOptions = ExceptionHandlerOptions()
-       // FSTODO log/honeycomb
        exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
        app.UseExceptionHandler(exceptionHandlerOptions)
   |> fun app -> app.Run(RequestDelegate handler)

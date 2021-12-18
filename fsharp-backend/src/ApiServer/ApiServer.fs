@@ -115,7 +115,22 @@ let configureApp (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
-  |> fun app -> LibService.Rollbar.AspNet.addRollbarToApp (app, (fun ctx -> []))
+  |> fun app ->
+       LibService.Rollbar.AspNet.addRollbarToApp (
+         app,
+         (fun (ctx : HttpContext) ->
+           let person =
+             try
+               loadUserInfo ctx |> LibBackend.Account.userInfoToPerson |> Some
+             with
+             | _ -> None
+           let canvas =
+             try
+               string (loadCanvasInfo ctx).name
+             with
+             | _ -> null
+           (person, [ "canvas", canvas ]))
+       )
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   // must go after UseRouting

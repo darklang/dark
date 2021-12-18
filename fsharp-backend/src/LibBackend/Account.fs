@@ -39,6 +39,11 @@ type UserInfoAndCreatedAt =
     id : UserID
     createdAt : System.DateTime }
 
+let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
+  { id = ui.id; email = ui.email; username = ui.username }
+
+
+
 // **********************
 // Special usernames
 // **********************
