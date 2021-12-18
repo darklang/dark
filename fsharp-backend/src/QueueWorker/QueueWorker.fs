@@ -50,13 +50,10 @@ let dequeueAndProcess
             // Canvas.loadForEvent, but then so would the
             // error handling ... this may want a refactor
             use span = Span.child "Canvas.load_for_event_from_cache" root
-
             try
               let! c = Canvas.loadForEvent event
-
               let c =
                 c |> Result.mapError (String.concat ", ") |> Result.unwrapUnsafe
-
               Span.addTag "load_event_succeeded" true span
               return Ok c
             with
@@ -174,4 +171,6 @@ let run (executionID : ExecutionID) : Task<Result<Option<RT.Dval>, exn>> =
 [<EntryPoint>]
 let main args : int =
   // FSTODO: implement
+  // call init fns
+  // healthcheck
   0
