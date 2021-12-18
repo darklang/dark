@@ -657,7 +657,14 @@ that's already taken, returns an error."
       description = "Gives canvasId for a canvasName/host"
       fn =
         internalFn (function
-          | _, [ DStr host ] -> Ply DNull
+          | _, [ DStr host ] ->
+            uply {
+              try
+                let! meta = Canvas.getMeta (CanvasName.create host)
+                return DResult(Ok(DStr(string meta.id)))
+              with
+              | e -> return DResult(Error(DStr e.Message))
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -952,13 +959,11 @@ that's already taken, returns an error."
             uply {
               try
                 let username = UserName.create username
-                let userID = Account.userIDForUserName username
                 let! session = Session.insert username
                 return DResult(Ok(DStr session.sessionKey))
               with
               | e ->
-                let err = string e
-                let attrs = [ "username", username :> obj; "exception", err ]
+                let attrs = [ "username", username :> obj ]
                 Telemetry.addError "DarkInternal::newSessionForUserName" attrs
                 LibService.Rollbar.sendException
                   "Failed to create session"
@@ -983,7 +988,6 @@ that's already taken, returns an error."
             uply {
               try
                 let username = UserName.create username
-                let userID = Account.userIDForUserName username
                 let! session = Session.insert username
                 return
                   DResult(
@@ -996,8 +1000,7 @@ that's already taken, returns an error."
                   )
               with
               | e ->
-                let err = string e
-                let attrs = [ "username", username :> obj; "exception", err ]
+                let attrs = [ "username", username :> obj]
                 Telemetry.addError "DarkInternal::newSessionForUserName_v1" attrs
                 LibService.Rollbar.sendException
                   "Failed to create session"
