@@ -13,6 +13,7 @@ open System.Runtime.ExceptionServices
 
 // https://github.com/fsharp/fslang-suggestions/issues/660#issuecomment-382070639
 type Exception with
-    member this.Reraise () =
-        (ExceptionDispatchInfo.Capture this).Throw ()
-        Unchecked.defaultof<_>
+
+  member this.Reraise() =
+    (ExceptionDispatchInfo.Capture this).Throw()
+    Unchecked.defaultof<_>
