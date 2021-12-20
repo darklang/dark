@@ -162,7 +162,10 @@ let run () : Task<unit> =
   task {
     Telemetry.createRoot "QueueWorker.run"
     while not shutdown.Value do
-      match! dequeueAndProcess () with
+      // Comment out just in case for now
+      // let! result = dequeueAndProcess ()
+      let result = Ok None
+      match result with
       | Ok None -> do! Task.Delay 1000
       | Ok (Some _) -> return ()
       | Error (e) ->
@@ -188,7 +191,8 @@ let main _ : int =
       "QueueWorker"
       LibService.Config.queueWorkerKubernetesPort
       (fun () -> shutdown := true)
-    if LibBackend.Config.triggerQueueWorkers then
+    if false then
+      // LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else
       // healthcheck - we need to stop taking things if we're told to stop by k8s

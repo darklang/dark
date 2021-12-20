@@ -40,7 +40,8 @@ let main _ : int =
       "CronChecker"
       LibService.Config.croncheckerKubernetesPort
       (fun () -> shutdown := true)
-    if LibBackend.Config.triggerQueueWorkers then
+    if false then
+      // LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else
       Telemetry.createRoot "Pointing at prodclone; will not trigger crons"
