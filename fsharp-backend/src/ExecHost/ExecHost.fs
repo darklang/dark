@@ -37,42 +37,46 @@ let emergencyLogin (username : string) : Task<unit> =
     return ()
   }
 
+let run (args : string []) : Task<int> =
+  task {
+    try
+      // FSTODO reportToRollbar commands
+      match args with
+      | [| "emergency-login"; username |] ->
+        do! emergencyLogin username
+        return 0
+      | [| "run-migrations" |] ->
+        runMigrations ()
+        return 0
+      | _ ->
+        print (
+          "Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n"
+          + "USAGE: ExecHost run-migrations"
+        )
+        return 1
+    with
+    | :? System.TypeInitializationException as e ->
+      print e.Message
+      print e.StackTrace
+      print e.InnerException.Message
+      print e.InnerException.StackTrace
+      return 1
+    | e ->
+      print e.Message
+      print e.StackTrace
+      return 1
+  }
+
 [<EntryPoint>]
 let main args : int =
-  let mainTask =
-    task {
-      try
-        LibBackend.Init.init "execHost"
-      with
-      | e ->
-        // FSTODO rollbar
-        raise e
-
-      try
-        // FSTODO reportToRollbar commands
-        match args with
-        | [| "emergency-login"; username |] ->
-          do! emergencyLogin username
-          return 0
-        | [| "run-migrations" |] ->
-          runMigrations ()
-          return 0
-        | _ ->
-          print (
-            "Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n"
-            + "USAGE: ExecHost run-migrations"
-          )
-          return 1
-      with
-      | :? System.TypeInitializationException as e ->
-        print e.Message
-        print e.StackTrace
-        print e.InnerException.Message
-        print e.InnerException.StackTrace
-        return 1
-      | e ->
-        print e.Message
-        print e.StackTrace
-        return 1
-    }
-  mainTask.Result
+  try
+    LibBackend.Init.init "ExecHost"
+    (run args).Result
+  with
+  | e ->
+    LibService.Rollbar.lastDitchBlocking
+      "Error running ExecHost"
+      (ExecutionID "execHost")
+      []
+      e
+    -1
