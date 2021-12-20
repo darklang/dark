@@ -171,20 +171,21 @@ let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * in
 let checkAndScheduleWorkForAllCrons (pid : int) : Task<unit> =
   task {
     Telemetry.addTag "meta.process_id" id
-    let! allCrons = Serialize.fetchActiveCrons ()
+    let! allCrons =
+      if Config.triggerQueueWorkers then
+        Serialize.fetchActiveCrons ()
+      else
+        Task.FromResult []
 
     // Chunk the crons list so that we don't have to load thousands of
     // canvases into memory at once.
     //
     // 1000 was chosen arbitrarily. Please update if data shows this is the wrong number.
-
     let chunks = allCrons |> List.chunksOf 1000
     Telemetry.addTags [ ("crons.count", List.length allCrons)
                         ("chunks.count", List.length chunks) ]
-    // processChunk loads each canvas by name, then checks and schedules crons
-    let processChunk (chunk : CronScheduleData list) : Task<int * int> =
-      checkAndScheduleWorkForCrons chunk
-    let! processed = Task.mapSequentially processChunk chunks
+
+    let! processed = Task.mapSequentially checkAndScheduleWorkForCrons chunks
     let checkedCount, scheduled = sumPairs processed
     Telemetry.addTags [ ("crons.checked", checkedCount)
                         ("crons.scheduled", scheduled) ]
