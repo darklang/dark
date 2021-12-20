@@ -22,7 +22,7 @@
 
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
-    "ionide.ionide-fsharp@5.7.3",
+    "ionide.ionide-fsharp@5.10.1",
     "shuumatsu.vscode-ocamlformat",
     "esbenp.prettier-vscode",
     "ms-python.python",
