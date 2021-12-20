@@ -26,8 +26,3 @@ let fns : List<RT.BuiltInFn> =
                 LibTwilio.fns
                 LibX509.fns
                 LibDB2.fns ]
-
-let init (serviceName : string) : unit =
-  print $"Initing BackendOnlyStdLib in {serviceName}"
-  HttpClient.init serviceName
-  print $" Inited BackendOnlyStdLib in {serviceName}"

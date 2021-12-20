@@ -1,4 +1,4 @@
-module FSI
+module TestUtils.FSI
 
 // This isn't really for tests, it's for utilities to tests things in FSI. I
 // didn't have a better place for this.

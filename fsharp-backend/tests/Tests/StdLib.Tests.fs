@@ -16,7 +16,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module Exe = LibExecution.Execution
 
-open TestUtils
+open TestUtils.TestUtils
 
 let equalsOCaml =
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
@@ -70,7 +70,8 @@ let oldFunctionsAreDeprecated =
     let counts = ref Map.empty
 
     let fns =
-      LibTest.fns @ LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
+      TestUtils.LibTest.fns
+      @ LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
 
     fns
     |> List.iter (fun fn ->
@@ -81,7 +82,7 @@ let oldFunctionsAreDeprecated =
         := Map.update
              key
              (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
-             !counts
+             counts.Value
 
       ())
 

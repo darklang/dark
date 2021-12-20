@@ -19,7 +19,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module Exe = LibExecution.Execution
 
-open TestUtils
+open TestUtils.TestUtils
 
 type TestCase = { expected : Http.T; result : Http.T }
 

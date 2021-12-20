@@ -10,7 +10,7 @@ open Prelude.Tablecloth
 open Tablecloth
 open LibBackend.Db
 
-open TestUtils
+open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes

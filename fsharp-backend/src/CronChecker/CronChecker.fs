@@ -30,7 +30,12 @@ let run () : Task<unit> =
 let main _ : int =
   try
     print "Starting CronChecker"
+    LibService.Init.init "CronChecker"
+    LibExecution.Init.init "CronChecker"
+    LibExecutionStdLib.Init.init "CronChecker"
     LibBackend.Init.init "CronChecker"
+    BackendOnlyStdLib.Init.init "CronChecker"
+    LibRealExecution.Init.init "CronChecker"
     if LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else

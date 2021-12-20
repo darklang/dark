@@ -20,6 +20,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="RealExecution.fs" />
+    <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

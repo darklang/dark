@@ -2,7 +2,7 @@ module Tests.Authorization
 
 open Expecto
 open Prelude
-open TestUtils
+open TestUtils.TestUtils
 
 module A = LibBackend.Authorization
 

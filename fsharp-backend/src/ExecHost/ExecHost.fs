@@ -70,6 +70,7 @@ let run (args : string []) : Task<int> =
 [<EntryPoint>]
 let main args : int =
   try
+    LibService.Init.init "ExecHost"
     LibBackend.Init.init "ExecHost"
     (run args).Result
   with

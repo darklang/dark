@@ -171,7 +171,12 @@ let run () : unit =
 let main _ =
   try
     print "Starting ApiServer"
+    LibService.Init.init "ApiServer"
+    LibExecution.Init.init "ApiServer"
+    LibExecutionStdLib.Init.init "ApiServer"
     LibBackend.Init.init "ApiServer"
+    BackendOnlyStdLib.Init.init "ApiServer"
+    LibRealExecution.Init.init "ApiServer"
     run ()
     0
   with

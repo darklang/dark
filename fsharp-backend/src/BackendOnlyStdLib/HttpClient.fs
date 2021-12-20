@@ -328,9 +328,8 @@ let rec httpCall
 
 
 let init (serviceName : string) =
-  print $"Initing HttpClient in {serviceName}"
+  print $"Configuring HttpClient"
   // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
   // idea, but it's a change (one that breaks all the tests), and so something we
   // should do consciously.
   System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
-  print $" Inited HttpClient in {serviceName}"

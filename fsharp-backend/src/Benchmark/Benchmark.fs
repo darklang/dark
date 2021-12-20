@@ -19,7 +19,7 @@ module Canvas = LibBackend.Canvas
 
 let programContext () : Task<RT.ProgramContext> =
   task {
-    let! c = TestUtils.testCanvasInfo "benchmark"
+    let! c = TestUtils.TestUtils.testCanvasInfo "benchmark"
     return
       { canvasID = c.id
         accountID = c.owner

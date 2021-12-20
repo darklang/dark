@@ -480,7 +480,13 @@ let run () : unit =
 let main _ =
   try
     print "Starting BwdServer"
-    LibBackend.Init.init "Bwdserver"
+    LibService.Init.init "BwdServer"
+    LibExecution.Init.init "BwdServer"
+    LibExecutionStdLib.Init.init "BwdServer"
+    LibBackend.Init.init "BwdServer"
+    BackendOnlyStdLib.Init.init "BwdServer"
+    LibRealExecution.Init.init "BwdServer"
+    HttpMiddleware.Init.init "BwdServer"
     run ()
     0
   with

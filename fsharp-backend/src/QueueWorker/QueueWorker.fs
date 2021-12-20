@@ -178,7 +178,12 @@ let run () : Task<unit> =
 let main _ : int =
   try
     print "Starting QueueWorker"
+    LibService.Init.init "QueueWorker"
+    LibExecution.Init.init "QueueWorker"
+    LibExecutionStdLib.Init.init "QueueWorker"
     LibBackend.Init.init "QueueWorker"
+    BackendOnlyStdLib.Init.init "QueueWorker"
+    LibRealExecution.Init.init "QueueWorker"
     if LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else

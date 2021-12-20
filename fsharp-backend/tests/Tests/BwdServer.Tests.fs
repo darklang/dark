@@ -17,7 +17,7 @@ module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
 
-open TestUtils
+open TestUtils.TestUtils
 
 type Server =
   | OCaml
@@ -177,7 +177,7 @@ let t filename =
     let name = if skip then String.dropLeft 1 filename else filename
     let name = $"bwdserver-{name}"
     let testName = $"test-{name}"
-    do! TestUtils.clearCanvasData (CanvasName.create testName)
+    do! clearCanvasData (CanvasName.create testName)
 
     let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
