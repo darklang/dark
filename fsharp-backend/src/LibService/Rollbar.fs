@@ -36,6 +36,7 @@ let init (serviceName : string) : unit =
   Rollbar.RollbarLocator.RollbarInstance.Configure config
   |> ignore<Rollbar.IRollbar>
   initialized <- true
+  print " Configured rollbar"
   ()
 
 // "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
@@ -113,8 +114,9 @@ let lastDitchBlocking
   (metadata : List<string * obj>)
   (e : exn)
   : unit =
-  assert initialized
   try
+    // It might not even be initialized yet, just try our best
+    // assert initialized
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
@@ -127,6 +129,7 @@ let lastDitchBlocking
     |> ignore<Rollbar.ILogger>
   with
   | e ->
+    if Telemetry.Span.current () = null then Telemetry.createRoot "LastDitch"
     Telemetry.addError
       "Exception when calling rollbar"
       [ "message", e.Message; "stackTrace", e.StackTrace ]

@@ -184,6 +184,10 @@ let main _ : int =
     LibBackend.Init.init "QueueWorker"
     BackendOnlyStdLib.Init.init "QueueWorker"
     LibRealExecution.Init.init "QueueWorker"
+    LibService.Kubernetes.runKubernetesServer
+      "QueueWorker"
+      LibService.Config.queueWorkerKubernetesPort
+      (fun () -> shutdown := true)
     if LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else

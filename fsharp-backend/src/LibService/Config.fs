@@ -68,6 +68,9 @@ let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 let legacyFuzzingServerPort = int "DARK_CONFIG_LEGACY_FUZZING_SERVER_PORT"
 let legacySerializtionServerPort = int "DARK_CONFIG_LEGACY_SERIALIZATION_SERVER_PORT"
 
+let croncheckerKubernetesPort = int "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT"
+let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
+
 // --------------------
 // db
 // --------------------

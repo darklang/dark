@@ -36,6 +36,10 @@ let main _ : int =
     LibBackend.Init.init "CronChecker"
     BackendOnlyStdLib.Init.init "CronChecker"
     LibRealExecution.Init.init "CronChecker"
+    LibService.Kubernetes.runKubernetesServer
+      "CronChecker"
+      LibService.Config.croncheckerKubernetesPort
+      (fun () -> shutdown := true)
     if LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else

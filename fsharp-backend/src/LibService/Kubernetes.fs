@@ -87,6 +87,28 @@ let registerServerTimeout (b : IWebHostBuilder) : unit =
   b.UseShutdownTimeout(System.TimeSpan.FromSeconds(28.0))
   |> ignore<IWebHostBuilder>
 
+// Run an asp.net server that provides the healthcheck and shutdown endpoints. This
+// is for services which need to be managed but do not have http servers of their
+// own.
+let runKubernetesServer
+  (serviceName : string)
+  (port : int)
+  (shutdownCallback : unit -> unit)
+  : unit =
+  let builder = WebApplication.CreateBuilder()
+  configureServices builder.Services |> ignore<IServiceCollection>
+  registerServerTimeout builder.WebHost
+  builder.WebHost.UseUrls(url port) |> ignore<IWebHostBuilder>
+
+  let app = builder.Build()
+  LibService.Rollbar.AspNet.addRollbarToApp(app, fun _ -> None, [])
+  |> fun app -> app.UseRouting()
+  |> configureApp port
+  |> ignore<IApplicationBuilder>
+  app.Run()
+
+
+
 
 
 // CLEANUP add support for https://devblogs.microsoft.com/dotnet/introducing-dotnet-monitor/

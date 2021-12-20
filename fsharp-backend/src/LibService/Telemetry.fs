@@ -101,6 +101,7 @@ let addError (name : string) (tags : List<string * obj>) : unit =
 
 // Call, passing with serviceName for this service, such as "ApiServer"
 let init (serviceName : string) : unit =
+  print "Configuring Telemetry"
   // Not enabled by default - https://jimmybogard.com/building-end-to-end-diagnostics-and-tracing-a-primer-trace-context/
   System.Diagnostics.Activity.DefaultIdFormat <-
     System.Diagnostics.ActivityIdFormat.W3C
@@ -121,6 +122,7 @@ let init (serviceName : string) : unit =
   Prelude.exceptionCallback <-
     (fun typ msg tags ->
       addError msg (("exception", true) :: ("exceptionType", typ) :: tags))
+  print " Configured Telemetry"
 
 
 let honeycombOptions : HoneycombOptions =
