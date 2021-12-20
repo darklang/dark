@@ -71,12 +71,17 @@ module Span =
     List.iter (fun (name, value : obj) -> e.AddTag(name, value) |> ignore<T>) tags
 
 
-let span (name : string) (tags : List<string * obj>) : Span.T =
+// This creates a new root. The correct way to use this is to call `use span =
+// Telemetry.child` so that it falls out of scope properly and the parent takes over
+// again
+let child (name : string) (tags : List<string * obj>) : Span.T =
   let span = Span.child name (Span.current ())
   List.iter
     (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<Span.T>)
     tags
   span
+
+let createRoot (name : string) : unit = Span.root name |> ignore<Span.T>
 
 let addTag (name : string) (value : obj) : unit =
   Span.addTag name value (Span.current ())

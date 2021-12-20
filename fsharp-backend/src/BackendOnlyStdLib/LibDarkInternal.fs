@@ -44,11 +44,9 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
             state.executingFnName
             |> Option.map string
             |> Option.defaultValue "unknown"
-          let span =
-            Telemetry.span "internal_fn" [ "user", username; "fnName", fnName ]
-          let! result = f (state, args)
-          span.Stop()
-          return result
+          use _span =
+            Telemetry.child "internal_fn" [ "user", username; "fnName", fnName ]
+          return! f (state, args)
         else
           return
             Exception.raiseInternal
