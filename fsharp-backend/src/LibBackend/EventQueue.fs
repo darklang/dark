@@ -232,7 +232,7 @@ let enqueue
   }
 
 
-let dequeue (parent : Telemetry.Span.T) : Task<Option<T>> =
+let dequeue () : Task<Option<T>> =
   task {
     Telemetry.addEvent "dequeue" []
     let! result =
@@ -270,14 +270,12 @@ let dequeue (parent : Telemetry.Span.T) : Task<Option<T>> =
             delay) ->
       do! logQueueSize Dequeue (Some canvasName) canvasID space name modifier
       // TODO better names
-      Telemetry.Span.addTags
-        [ ("queue_delay", delay)
-          ("host", canvasName)
-          ("canvas_id", canvasID)
-          ("space", space)
-          ("handler_name", name)
-          ("modifier", modifier) ]
-        parent
+      Telemetry.addTags [ ("queue_delay", delay)
+                          ("host", canvasName)
+                          ("canvas_id", canvasID)
+                          ("space", space)
+                          ("handler_name", name)
+                          ("modifier", modifier) ]
 
       return
         Some
@@ -437,54 +435,58 @@ let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
 
 let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"
 
-let putBack (parent : Telemetry.Span.T) (item : T) (status : Status) : Task<unit> =
-  (Telemetry.Span.child "event_queue: put_back_transaction" parent)
-  |> Telemetry.Span.addTags [ ("status", string status); ("retries", item.retries) ]
+let putBack (item : T) (status : Status) : Task<unit> =
+  task {
+    use _span =
+      Telemetry.child
+        "event_queue: put_back_transaction"
+        [ ("status", string status); ("retries", item.retries) ]
 
-  match status with
-  | OK ->
-    Sql.query
-      "UPDATE \"events\"
-         SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
-         WHERE id = @id"
-    |> Sql.parameters [ "id", Sql.id item.id ]
-    |> Sql.executeStatementAsync
-  | Missing ->
-    Sql.query
-      "UPDATE events
-            SET status = 'missing', last_processed_at = CURRENT_TIMESTAMP
+    return!
+      match status with
+      | OK ->
+        Sql.query
+          "UPDATE \"events\"
+          SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
           WHERE id = @id"
-    |> Sql.parameters [ "id", Sql.id item.id ]
-    |> Sql.executeStatementAsync
-  | Err ->
-    if item.retries < 2 then
-      Sql.query
-        "UPDATE events
-           SET status = 'new'
-             , retries = @retries
-             , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
-             , last_processed_at = CURRENT_TIMESTAMP
-           WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.id item.id
-                          "retries", Sql.int (item.retries + 1) ]
-      |> Sql.executeStatementAsync
-    else
-      Sql.query
-        "UPDATE events
-           SET status = 'error'
-             , last_processed_at = CURRENT_TIMESTAMP
-           WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.id item.id ]
-      |> Sql.executeStatementAsync
-  | Incomplete ->
-    Sql.query
-      "UPDATE events
-         SET status = 'new'
-           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
-           , last_processed_at = CURRENT_TIMESTAMP
-         WHERE id = @id"
-    |> Sql.parameters [ "id", Sql.id item.id ]
-    |> Sql.executeStatementAsync
+        |> Sql.parameters [ "id", Sql.id item.id ]
+        |> Sql.executeStatementAsync
+      | Missing ->
+        Sql.query
+          "UPDATE events
+              SET status = 'missing', last_processed_at = CURRENT_TIMESTAMP
+            WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.id item.id ]
+        |> Sql.executeStatementAsync
+      | Err ->
+        if item.retries < 2 then
+          Sql.query
+            "UPDATE events
+            SET status = 'new'
+              , retries = @retries
+              , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+              , last_processed_at = CURRENT_TIMESTAMP
+            WHERE id = @id"
+          |> Sql.parameters [ "id", Sql.id item.id
+                              "retries", Sql.int (item.retries + 1) ]
+          |> Sql.executeStatementAsync
+        else
+          Sql.query
+            "UPDATE events
+            SET status = 'error'
+              , last_processed_at = CURRENT_TIMESTAMP
+            WHERE id = @id"
+          |> Sql.parameters [ "id", Sql.id item.id ]
+          |> Sql.executeStatementAsync
+      | Incomplete ->
+        Sql.query
+          "UPDATE events
+          SET status = 'new'
+            , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+            , last_processed_at = CURRENT_TIMESTAMP
+          WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.id item.id ]
+        |> Sql.executeStatementAsync
+  }
 
-
-let finish (span : Telemetry.Span.T) (item : T) : Task<unit> = putBack span item OK
+let finish (item : T) : Task<unit> = putBack item OK

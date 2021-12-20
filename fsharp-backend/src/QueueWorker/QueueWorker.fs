@@ -17,7 +17,6 @@ module TI = TraceInputs
 module Execution = LibExecution.Execution
 
 module Telemetry = LibService.Telemetry
-module Span = Telemetry.Span
 
 type Activity = System.Diagnostics.Activity
 
@@ -25,14 +24,14 @@ let dequeueAndProcess
   (executionID : ExecutionID)
   : Task<Result<Option<RT.Dval>, exn>> =
   // FSTODO: should have a root before here
-  use root = Span.root "dequeue_and_process"
-  Span.addTag "meta.process_id" (string executionID) root
+  Telemetry.createRoot "dequeue_and_process"
+  Telemetry.addTag "meta.process_id" (string executionID)
 
   Sql.withTransaction (fun () ->
     task {
       let! event =
         try
-          EQ.dequeue root |> Task.map Ok
+          EQ.dequeue () |> Task.map Ok
         with
         | e ->
           // exception occurred while dequeuing, no item to put back
@@ -41,7 +40,7 @@ let dequeueAndProcess
 
       match event with
       | Ok (None) ->
-        root.AddTag("event_queue.no_events", true) |> ignore<Activity>
+        Telemetry.addTag "event_queue.no_events" true
         return Ok None
       | Ok (Some event) ->
         let! canvas =
@@ -49,19 +48,19 @@ let dequeueAndProcess
             // Span creation might belong inside
             // Canvas.loadForEvent, but then so would the
             // error handling ... this may want a refactor
-            use span = Span.child "Canvas.load_for_event_from_cache" root
+            use span = Telemetry.child "Canvas.load_for_event_from_cache" []
             try
               let! c = Canvas.loadForEvent event
               let c =
                 c |> Result.mapError (String.concat ", ") |> Result.unwrapUnsafe
-              Span.addTag "load_event_succeeded" true span
+              Telemetry.addTag "load_event_succeeded" true
               return Ok c
             with
             | e ->
               // exception occurred when processing an item, so put it back as an error
-              do! EQ.putBack root event EQ.Err
+              do! EQ.putBack event EQ.Err
               // CLEANUP why have these attributes a different name
-              Span.addTag "event.load_success" false span
+              Telemetry.addTag "event.load_success" false
               return Error e
           }
 
@@ -72,14 +71,13 @@ let dequeueAndProcess
           let canvasID = c.meta.id
           let desc = EQ.toEventDesc event
 
-          root
-          |> Span.addTags [ "canvas", host
-                            "trace_id", traceID
-                            "canvas_id", canvasID
-                            "module", event.space
-                            "handler_name", event.name
-                            "method", event.modifier
-                            "retries", event.retries ]
+          Telemetry.addTags [ "canvas", host
+                              "trace_id", traceID
+                              "canvas_id", canvasID
+                              "module", event.space
+                              "handler_name", event.name
+                              "method", event.modifier
+                              "retries", event.retries ]
 
           try
             let! eventTimestamp = TI.storeEvent canvasID traceID desc event.value
@@ -90,8 +88,8 @@ let dequeueAndProcess
               |> List.filter (fun h -> Some desc = h.spec.toEventDesc ())
               |> List.head
 
-            root
-            |> Span.addTags [ "host", host; "event", desc; "event_id", event.id ]
+
+            Telemetry.addTags [ "host", host; "event", desc; "event_id", event.id ]
 
             match h with
             | None ->
@@ -103,11 +101,11 @@ let dequeueAndProcess
               // user is editing code, until something finally works. This is
               // annoying, but also unnecessary - so long as they have the
               // trace they can use it to build. So just drop it immediately.
-              Span.addTag "delay" event.delay root
+              Telemetry.addTag "delay" event.delay
               let space, name, modifier = desc
               let f404 = (space, name, modifier, eventTimestamp, traceID)
               Pusher.pushNew404 executionID canvasID f404
-              do! EQ.putBack root event EQ.Missing
+              do! EQ.putBack event EQ.Missing
               return Ok None
             | Some h ->
               let! (state, touchedTLIDs) =
@@ -117,9 +115,7 @@ let dequeueAndProcess
                   h.tlid
                   (Canvas.toProgram c)
 
-              // FSTODO: add parent span to state
-              // ~parent:(Some parent)
-              Span.addTag "handler_id" h.tlid root
+              Telemetry.addTag "handler_id" h.tlid
               let symtable = Map.ofList [ ("event", event.value) ]
 
               let! result =
@@ -139,21 +135,21 @@ let dequeueAndProcess
                 | RT.DOption None -> "OptNothing"
                 | _ -> (RT.Dval.toType result).toOldString ()
 
-              root
-              |> Span.addTags [ "result_tipe", resultType
-                                "event.execution_success", true ]
 
-              do! EQ.finish root event
+              Telemetry.addTags [ "result_tipe", resultType
+                                  "event.execution_success", true ]
+
+              do! EQ.finish event
               return Ok(Some result)
           with
           | e ->
             // exception occurred when processing an item, so put it back as an error
-            Span.addTag "event.execution_success" false root
+            Telemetry.addTag "event.execution_success" false
 
             try
-              do! EQ.putBack root event EQ.Err
+              do! EQ.putBack event EQ.Err
             with
-            | e -> Span.addTag "error.msg" e root
+            | e -> Telemetry.addTag "error.msg" e
 
             return Error e
         | Error e -> return Error e
@@ -161,12 +157,11 @@ let dequeueAndProcess
     })
 
 let run (executionID : ExecutionID) : Task<Result<Option<RT.Dval>, exn>> =
-  // CLEANUP put in its own config item
-  if String.toLowercase LibService.Config.postgresSettings.dbname = "prodclone" then
-    use (span : Span.T) = Span.root "Pointing at prodclone; will not dequeue"
-    Task.FromResult(Ok None)
-  else
+  if Config.triggerQueueWorkers then
     dequeueAndProcess executionID
+  else
+    Telemetry.createRoot "Pointing at prodclone; will not dequeue"
+    Task.FromResult(Ok None)
 
 [<EntryPoint>]
 let main args : int =
