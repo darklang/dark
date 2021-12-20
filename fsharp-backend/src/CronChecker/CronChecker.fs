@@ -14,29 +14,33 @@ module Execution = LibExecution.Execution
 module Telemetry = LibService.Telemetry
 module Span = Telemetry.Span
 
-type Activity = System.Diagnostics.Activity
+let shutdown = ref false
 
-let runCronChecker () : Task<int> =
+let run () : Task<unit> =
   task {
-    try
-      while true do
-        do! LibBackend.Cron.checkAndScheduleWorkForAllCrons 0
-      return 0
-    with
-    | e ->
-      LibService.Rollbar.lastDitchBlocking
-        "Error running CronChecker"
-        (Prelude.ExecutionID "cronchecker")
-        []
-        e
-      return (-1)
+    Telemetry.createRoot "CronChecker.run"
+    while not shutdown.Value do
+      do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
+      do! Task.Delay 1000
+      return ()
   }
 
 
 [<EntryPoint>]
-let main args : int =
-  print "Starting CronChecker"
-  LibBackend.Init.init "CronChecker"
-  // CLEANUP rename
-  Telemetry.createRoot "Cron.check_and_schedule_work_for_all_crons"
-  (runCronChecker ()).Result
+let main _ : int =
+  try
+    print "Starting CronChecker"
+    LibBackend.Init.init "CronChecker"
+    if LibBackend.Config.triggerQueueWorkers then
+      (run ()).Result
+    else
+      Telemetry.createRoot "Pointing at prodclone; will not trigger crons"
+    0
+  with
+  | e ->
+    LibService.Rollbar.lastDitchBlocking
+      "Error running CronChecker"
+      (ExecutionID "cronchecker")
+      []
+      e
+    -1

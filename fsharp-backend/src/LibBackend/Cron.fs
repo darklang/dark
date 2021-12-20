@@ -168,9 +168,8 @@ let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * in
 // checkAndScheduleWorkForAllCrons iterates through every (non-deleted)
 // cron toplevel_oplist and checks to see if it should be executed, enqueuing
 // work to execute it if necessary.
-let checkAndScheduleWorkForAllCrons (pid : int) : Task<unit> =
+let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
-    Telemetry.addTag "meta.process_id" id
     let! allCrons =
       if Config.triggerQueueWorkers then
         Serialize.fetchActiveCrons ()
