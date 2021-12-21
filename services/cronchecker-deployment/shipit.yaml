@@ -2,7 +2,6 @@ k8s:
   manually-deployed:
     configs:
       - cronchecker-network-policy.yaml
-  manual:
   release:
     config-template: cronchecker-deployment.template.yaml
     versioned-configmaps:
