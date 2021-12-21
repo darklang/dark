@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cronchecker-deployment
+  annotations:
+    kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: cronchecker
+  # there should only be one of these right now, as there's no locking on checking
+  # if we should enqueue or not
+  # FSTODO: as part of deployment, we only pull one for now
+  replicas: 0
+  template:
+    metadata:
+      labels:
+        app: cronchecker
+    spec:
+      containers:
+        - name: cronchecker-ctr
+          image: "gcr.io/balmy-ground-195100/gcp-cronchecker:{IMAGEID:gcp-fsharp-cronchecker}"
+          # Resource request intentionally less than resource limit, to ensure
+          # this pod is a 'Burstable' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "1000Mi"
+              cpu: "125m"
+            limits:
+              memory: "1000Mi"
+              cpu: "125m"
+          # lifecycle:
+          #   preStop:
+          #     We implement the SIGTERM handler instead (even if we used preStop we'd
+          #     still need to check how SIGTERM works so may as well simplify it to one
+          #     concept)
+          startupProbe: # has it started? Allows other probes
+            httpGet:
+              path: /k8s/startupProbe
+              port: 12002
+            failureThreshold: 24 # kill container after 2 minutes (24x5s checks)
+            timeoutSeconds: 10
+            periodSeconds: 5
+          readinessProbe: # can it serve http requests?
+            httpGet:
+              path: /k8s/readinessProbe
+              port: 12002
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            successThreshold: 3
+          livenessProbe: # is it still alive?
+            httpGet:
+              path: /k8s/livenessProbe
+              port: 12002
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
+          envFrom:
+            - configMapRef:
+                name: "{VERSIONED-CONFIGMAP:app-config}"
+          env:
+            - name: DARK_CONFIG_RUNNING_IN_GKE
+              value: "true"
+            # rollbar
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar
+                  key: post_token
+            # pusher
+            - name: DARK_CONFIG_PUSHER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: key
+            - name: DARK_CONFIG_PUSHER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: secret
+            # database (sql server in the same pod)
+            - name: DARK_CONFIG_DB_HOST
+              value: 127.0.0.1
+            - name: DARK_CONFIG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: username
+            - name: DARK_CONFIG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: password
+        #########################
+        # Postgres proxy config
+        # To connect to postgres from kubernetes, we need to add a proxy. See
+        # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
+        # Note in particular that we needed to create a service account and a
+        # set of GKE secrets, listed below, to manage this.
+        #########################
+        - name: cloudsql-proxy
+          image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "125m"
+            limits:
+              memory: "500Mi"
+              cpu: "125m"
+          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
+          volumeMounts:
+            - name: cloudsql-instance-credentials
+              mountPath: /secrets/cloudsql
+              readOnly: true
+
+      volumes:
+        - name: cloudsql-instance-credentials
+          secret:
+            secretName: cloudsql-instance-credentials
