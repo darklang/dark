@@ -1,0 +1,16 @@
+k8s:
+  manually-deployed:
+    configs:
+      - queueworker-network-policy.yaml
+  release:
+    config-template: queueworker-deployment.template.yaml
+    versioned-configmaps:
+      app-config:
+        env-file: ../../config/gke-builtwithdark
+    containers:
+      - gcp-fsharp-queueworker
+      - legacyserver
+    builtins:
+      - CLOUDSQL_INSTANCE_NAME
+    expected-args:
+      - CHANGE_CAUSE

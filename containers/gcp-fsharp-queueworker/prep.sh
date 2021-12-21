@@ -7,6 +7,7 @@ set -euo pipefail
 
 DIR=$(mktemp -d --suffix _gcp-queueworker-builddir)
 
+cp -R scripts "$DIR/"
 mkdir -p "$DIR/app"
 
 cp containers/gcp-fsharp-queueworker/Dockerfile "$DIR/Dockerfile"
