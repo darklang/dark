@@ -7,6 +7,7 @@ set -euo pipefail
 
 DIR=$(mktemp -d --suffix _gcp-cronchecker-builddir)
 
+cp -R scripts "$DIR/"
 mkdir -p "$DIR/app"
 
 cp containers/gcp-fsharp-cronchecker/Dockerfile "$DIR/Dockerfile"
