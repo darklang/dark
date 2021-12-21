@@ -5,6 +5,30 @@ module LibService.Telemetry
 //
 // Note names are confusing in .Net. Here is a good rundown.
 // https://github.com/open-telemetry/opentelemetry-dotnet/issues/947
+//
+// This is a functional-ish API over the built-in .NET tracing/OpenTelemetry
+// facilities. .NET uses *implicit* spans (which it calls activities) - creating a
+// span sets that span as the thread- and async- local span until it is cleaned up.
+// That means to use create a child span you need to do:
+//
+//   use span = Telemetry.child "name" ["some attrs", 0]
+//
+// That span will be cleaned up when it goes out of scope. It's also important that
+// if you're using Tasks that the `use` goes inside a `task` CE or else it won't be
+// appropriately taken care of.
+//
+// Root spans can be added with:
+//
+//   Telemetry.createRoot "Root span name"
+//
+// The appropriate span is then tracked, and so you can add tags and events to the
+// current span implicitly by using:
+//
+//   Telemetry.addTag "some tag" "some value"
+//   Telemetry.addtags ["tag1", "value" :> // obj; "tag2", 2 :> obj]
+//   Telemetry.addEvent "some event name" []
+//
+// The type of the value is `obj`, so anything is allowed.
 
 open Prelude
 open Prelude.Tablecloth
