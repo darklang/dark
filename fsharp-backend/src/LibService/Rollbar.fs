@@ -72,7 +72,6 @@ let createState
   let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
   custom["message"] <- message
   // CLEANUP rollbar has a built-in way to do this called "Service links"
-  // CLEANUP we should search by traceID, we don't need to use executionID since they're the same now
   custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
   custom["execution_id"] <- string executionID
   List.iter
