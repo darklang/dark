@@ -98,12 +98,12 @@ let sendException
     |> ignore<Rollbar.ILogger>
   with
   | e ->
-    Telemetry.addError
-      "Exception when calling rollbar"
-      [ "message", e.Message; "stackTrace", e.StackTrace ]
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
+    Telemetry.addError
+      "Exception when calling rollbar"
+      [ "message", e.Message; "stackTrace", e.StackTrace ]
 
 // Will block for 5 seconds to make sure this exception gets sent. Use for startup
 // and other places where the process is intended to end after this call.
@@ -128,13 +128,13 @@ let lastDitchBlocking
     |> ignore<Rollbar.ILogger>
   with
   | e ->
+    print "Exception when calling rollbar"
+    print e.Message
+    print e.StackTrace
     if Telemetry.Span.current () = null then Telemetry.createRoot "LastDitch"
     Telemetry.addError
       "Exception when calling rollbar"
       [ "message", e.Message; "stackTrace", e.StackTrace ]
-    print "Exception when calling rollbar"
-    print e.Message
-    print e.StackTrace
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
@@ -195,12 +195,12 @@ module AspNet =
             |> ignore<Rollbar.ILogger>
           with
           | re ->
-            Telemetry.addError
-              "Exception when calling rollbar"
-              [ "message", re.Message; "stackTrace", re.StackTrace ]
             print "Exception when calling rollbar"
             print re.Message
             print re.StackTrace
+            Telemetry.addError
+              "Exception when calling rollbar"
+              [ "message", re.Message; "stackTrace", re.StackTrace ]
           e.Reraise()
       }
 
