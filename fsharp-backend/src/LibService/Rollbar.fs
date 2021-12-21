@@ -36,6 +36,7 @@ let init (serviceName : string) : unit =
   Rollbar.RollbarLocator.RollbarInstance.Configure config
   |> ignore<Rollbar.IRollbar>
   initialized <- true
+  print " Configured rollbar"
   ()
 
 // "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
@@ -71,7 +72,6 @@ let createState
   let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
   custom["message"] <- message
   // CLEANUP rollbar has a built-in way to do this called "Service links"
-  // CLEANUP we should search by traceID, we don't need to use executionID since they're the same now
   custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
   custom["execution_id"] <- string executionID
   List.iter
@@ -98,12 +98,12 @@ let sendException
     |> ignore<Rollbar.ILogger>
   with
   | e ->
-    Telemetry.addError
-      "Exception when calling rollbar"
-      [ "message", e.Message; "stackTrace", e.StackTrace ]
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
+    Telemetry.addError
+      "Exception when calling rollbar"
+      [ "message", e.Message; "stackTrace", e.StackTrace ]
 
 // Will block for 5 seconds to make sure this exception gets sent. Use for startup
 // and other places where the process is intended to end after this call.
@@ -113,8 +113,9 @@ let lastDitchBlocking
   (metadata : List<string * obj>)
   (e : exn)
   : unit =
-  assert initialized
   try
+    // It might not even be initialized yet, just try our best
+    // assert initialized
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
@@ -127,12 +128,13 @@ let lastDitchBlocking
     |> ignore<Rollbar.ILogger>
   with
   | e ->
-    Telemetry.addError
-      "Exception when calling rollbar"
-      [ "message", e.Message; "stackTrace", e.StackTrace ]
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
+    if Telemetry.Span.current () = null then Telemetry.createRoot "LastDitch"
+    Telemetry.addError
+      "Exception when calling rollbar"
+      [ "message", e.Message; "stackTrace", e.StackTrace ]
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
@@ -193,12 +195,12 @@ module AspNet =
             |> ignore<Rollbar.ILogger>
           with
           | re ->
-            Telemetry.addError
-              "Exception when calling rollbar"
-              [ "message", re.Message; "stackTrace", re.StackTrace ]
             print "Exception when calling rollbar"
             print re.Message
             print re.StackTrace
+            Telemetry.addError
+              "Exception when calling rollbar"
+              [ "message", re.Message; "stackTrace", re.StackTrace ]
           e.Reraise()
       }
 
@@ -214,78 +216,3 @@ module AspNet =
       ctxMetadataFn : HttpContext -> Option<Person> * List<string * obj>
     ) : IApplicationBuilder =
     app.UseMiddleware<DarkRollbarMiddleware>(ctxMetadataFn)
-
-
-
-// FSTODO enrich this
-// let error_to_payload =
-//   let context =
-//     match ctx with
-//     | Remote _ ->
-//         `String "server"
-//     | EventQueue ->
-//         `String "event queue worker"
-//     | CronChecker ->
-//         `String "cron event emitter"
-//     | GarbageCollector ->
-//         `String "garbage collector worker"
-//     | Push _ ->
-//         `String "server push"
-//     | Other str ->
-//         `String str
-//     | Heapio event ->
-//         `String (sprintf "heapio: %s" event)
-//   in
-//   let env = `String Config.rollbar_environment in
-//   let language = `String "OCaml" in
-//   let framework = `String "Cohttp" in
-//   let level = if pageable then `String "critical" else `String "error" in
-//   let payload =
-//     match ctx with
-//     | Remote request_data ->
-//         let request =
-//           let headers =
-//             request_data.headers |> List.Assoc.map ~f:(fun v -> `String v)
-//           in
-//           [ ("url", `String ("https:" ^ request_data.url))
-//           ; ("method", `String request_data.http_method)
-//           ; ("headers", `Assoc headers)
-//           ; ("execution_id", `String execution_id)
-//           ; ("body", `String request_data.body) ]
-//           |> fun r -> `Assoc r
-//         in
-//         [ ("body", message)
-//         ; ("level", level)
-//         ; ("environment", env)
-//         ; ("language", language)
-//         ; ("framework", framework)
-//         ; ("context", context)
-//         ; ("execution_id", `String execution_id)
-//         ; ("request", request) ]
-//     | EventQueue | CronChecker | GarbageCollector ->
-//         [ ("body", message)
-//         ; ("level", level)
-//         ; ("environment", env)
-//         ; ("language", language)
-//         ; ("framework", framework)
-//         ; ("execution_id", `String execution_id)
-//         ; ("context", context) ]
-//     | Push event | Heapio event ->
-//         [ ("body", message)
-//         ; ("level", level)
-//         ; ("environment", env)
-//         ; ("language", language)
-//         ; ("framework", framework)
-//         ; ("execution_id", `String execution_id)
-//         ; ("context", context)
-//         ; ("push_event", `String event) ]
-//     | Other str ->
-//         [ ("body", message)
-//         ; ("level", level)
-//         ; ("environment", env)
-//         ; ("language", language)
-//         ; ("framework", framework)
-//         ; ("execution_id", `String execution_id)
-//         ; ("context", context) ]
-//   in
-//   payload |> fun p -> `Assoc p

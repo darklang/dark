@@ -2,7 +2,7 @@ module Tests.ProgramTypes
 
 open Expecto
 open Prelude
-open TestUtils
+open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes

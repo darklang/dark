@@ -102,10 +102,3 @@ let run () : unit =
         let sql = File.readfile Config.Migrations name
         runSystemMigration name sql)
     migrations
-
-
-(* ------------------------- *)
-(* Initialization *)
-(* ------------------------- *)
-
-let init () : unit = run ()

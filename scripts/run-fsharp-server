@@ -16,19 +16,22 @@ do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/"
-  BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/"
+  APISERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/"
+  BWDSERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/"
+  CRONCHECKER_BINPATH="fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/"
+  QUEUEWORKER_BINPATH="fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/"
 else
-  API_SERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
-  BWD_SERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
+  APISERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
+  BWDSERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
+  CRONCHECKER_BINPATH="fsharp-backend/Build/out/CronChecker/Debug/net6.0/linux-x64/"
+  QUEUEWORKER_BINPATH="fsharp-backend/Build/out/QueueWorker/Debug/net6.0/linux-x64/"
 fi
 
-API_SERVER_EXE="${API_SERVER_BINPATH}/ApiServer"
-BWD_SERVER_EXE="${BWD_SERVER_BINPATH}/BwdServer"
+APISERVER_EXE="${APISERVER_BINPATH}/ApiServer"
+BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
+CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
+QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
-#FSTODO
-# QW_EXE="$BINPATH/QueueWorker"
-# CRON_EXE="$BINPATH/CronChecker"
 
 # Stop the server processes
 echo "Stopping servers"
@@ -36,10 +39,8 @@ sudo pkill -f "ApiServer" || true
 sudo pkill -f "BwdServer" || true
 sudo pkill -f "ApiServer2" || true
 sudo pkill -f "BwdServer2" || true
-
-#FSTODO
-# pkill -f queue_worker.exe || true
-# pkill -f cron_checker.exe || true
+sudo pkill -f "CronChecker" || true
+sudo pkill -f "QueueWorker" || true
 
 # tunnel cleanup
 echo "pkill tunnel"
@@ -64,47 +65,28 @@ echo "Waiting for postgres"
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
-  # if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
-  if [[ ! -f "${BWD_SERVER_EXE}" || ! -f "${API_SERVER_EXE}" ]]; then
+  if [[ ! -f "${APISERVER_EXE}" || ! -f "${BWDSERVER_EXE}" || ! -f "${CRONCHECKER_EXE}" || ! -f "${QUEUEWORKER_EXE}" ]]; then
     sleep 0.01
   fi
 done
 echo "Done waiting for compiled servers"
 
-#FSTODO
-#if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
-
-if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
-  # msbuild won't compile onto files being run, so copy them first
+if [[ -f "${APISERVER_EXE}" && -f "${BWDSERVER_EXE}" && -f "${CRONCHECKER_EXE}" && -f "${QUEUEWORKER_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   ./scripts/run-ocaml-legacy-server
-  cp "${API_SERVER_EXE}" "${API_SERVER_EXE}2"
-  # cp "${API_SERVER_BINPATH}/ApiServer.deps.json" "${BINPATH}/ApiServer2.deps.json"
-  # # cp "${BINPATH}/ApiServer.runtimeconfig.dev.json" "${BINPATH}/ApiServer2.runtimeconfig.dev.json"
-  # cp "${BINPATH}/ApiServer.runtimeconfig.json" "${BINPATH}/ApiServer2.runtimeconfig.json"
-  # cp "${BINPATH}/ApiServer.xml" "${BINPATH}/ApiServer2.xml"
-  cp "${BWD_SERVER_EXE}" "${BWD_SERVER_EXE}2"
-  # cp "${BINPATH}/BwdServer.deps.json" "${BINPATH}/BwdServer2.deps.json"
-  # # cp "${BINPATH}/BwdServer.runtimeconfig.dev.json" "${BINPATH}/BwdServer2.runtimeconfig.dev.json"
-  # cp "${BINPATH}/BwdServer.runtimeconfig.json" "${BINPATH}/BwdServer2.runtimeconfig.json"
-  # cp "${BINPATH}/BwdServer.xml" "${BINPATH}/BwdServer2.xml"
   echo "Running server"
-  if [[ "$PUBLISHED" == "true" ]]; then
-    "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
-    "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
-  else
-    "${API_SERVER_EXE}2" > "$LOGS/fsharp-apiserver.log" 2>&1 &
-    "${BWD_SERVER_EXE}2" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
-  fi
-  #FSTODO
-  # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
-  # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
+  "${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+  "${BWDSERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  "${CRONCHECKER_EXE}" > "$LOGS/fsharp-cron-checker.log" 2>&1 &
+  "${QUEUEWORKER_EXE}" > "$LOGS/fsharp-queue-worker.log" 2>&1 &
 
   ./scripts/run-nginx-server
 else
-  echo "Missing F# binaries (${API_SERVER_BINPATH}, ${BWD_SERVER_BINPATH})"
-  ls -la "${API_SERVER_BINPATH}"
-  ls -la "${BWD_SERVER_BINPATH}"
+  echo "Missing F# binaries (${APISERVER_BINPATH}, ${BWDSERVER_BINPATH}, ${CRONCHECKER_BINPATH}, ${QUEUEWORKER_BINPATH})"
+  ls -la "${APISERVER_BINPATH}"
+  ls -la "${BWDSERVER_BINPATH}"
+  ls -la "${CRONCHECKER_BINPATH}"
+  ls -la "${QUEUEWORKER_BINPATH}"
   exit 1
 fi
 

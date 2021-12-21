@@ -1,4 +1,4 @@
-module LibTest
+module TestUtils.LibTest
 
 // Functions which are not part of the Dark standard library, but which are
 // useful for testing

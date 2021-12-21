@@ -469,15 +469,25 @@ let webserver
   configureApp healthCheckPort app
   app
 
+let run () : unit =
+  let port = LibService.Config.bwdServerPort
+  let k8sPort = LibService.Config.bwdServerKubernetesPort
+  (webserver true port k8sPort).Run()
+
+
 
 [<EntryPoint>]
 let main _ =
   try
     print "Starting BwdServer"
-    LibBackend.Init.init "Bwdserver"
-    let port = LibService.Config.bwdServerPort
-    let k8sPort = LibService.Config.bwdServerKubernetesPort
-    (webserver true port k8sPort).Run()
+    LibService.Init.init "BwdServer"
+    LibExecution.Init.init "BwdServer"
+    LibExecutionStdLib.Init.init "BwdServer"
+    LibBackend.Init.init "BwdServer"
+    BackendOnlyStdLib.Init.init "BwdServer"
+    LibRealExecution.Init.init "BwdServer"
+    HttpMiddleware.Init.init "BwdServer"
+    run ()
     0
   with
   | e ->

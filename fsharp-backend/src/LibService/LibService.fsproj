@@ -21,6 +21,7 @@
     <Compile Include="Kubernetes.fs" />
     <Compile Include="HeapAnalytics.fs" />
     <Compile Include="Kestrel.fs" />
+    <Compile Include="Init.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

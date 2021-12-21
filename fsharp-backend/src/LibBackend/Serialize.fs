@@ -314,13 +314,9 @@ type CronScheduleData =
 // - not deleted (When a CRON handler is deleted, we set (module, modifier,
 //   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
 //   ignores deleted CRONs.)
-let fetchActiveCrons (span : Span.T) : Task<List<CronScheduleData>> =
-  task {
-    use _span = Span.child "Serialize.fetch_crons" span
-
-    return!
-      Sql.query
-        "SELECT canvas_id,
+let fetchActiveCrons () : Task<List<CronScheduleData>> =
+  Sql.query
+    "SELECT canvas_id,
                   tlid,
                   modifier,
                   toplevel_oplists.name as handler_name,
@@ -332,16 +328,15 @@ let fetchActiveCrons (span : Span.T) : Task<List<CronScheduleData>> =
              AND modifier IS NOT NULL
              AND modifier <> ''
              AND toplevel_oplists.name IS NOT NULL"
-      |> Sql.executeAsync (fun read ->
-        { canvasID = read.uuid "canvas_id"
-          ownerID = read.uuid "account_id"
-          canvasName = read.string "canvas_name" |> CanvasName.create
-          tlid = read.id "tlid"
-          cronName = read.string "handler_name"
-          interval =
-            read.string "modifier"
-            // FSTODO: this is new behaviour, so add a test
-            // we can save empty strings here, but we shouldn't be fetching them
-            |> PT.Handler.CronInterval.parse
-            |> Option.unwrapUnsafe })
-  }
+  |> Sql.executeAsync (fun read ->
+    { canvasID = read.uuid "canvas_id"
+      ownerID = read.uuid "account_id"
+      canvasName = read.string "canvas_name" |> CanvasName.create
+      tlid = read.id "tlid"
+      cronName = read.string "handler_name"
+      interval =
+        read.string "modifier"
+        // FSTODO: this is new behaviour, so add a test
+        // we can save empty strings here, but we shouldn't be fetching them
+        |> PT.Handler.CronInterval.parse
+        |> Option.unwrapUnsafe })

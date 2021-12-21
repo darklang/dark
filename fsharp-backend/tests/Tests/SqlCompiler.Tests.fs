@@ -2,7 +2,7 @@ module Tests.SqlCompiler
 
 open Expecto
 open Prelude
-open TestUtils
+open TestUtils.TestUtils
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

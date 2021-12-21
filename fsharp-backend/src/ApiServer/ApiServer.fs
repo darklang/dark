@@ -149,30 +149,35 @@ let configureServices (services : IServiceCollection) : unit =
   |> fun s -> s.AddServerTiming()
   |> ignore<IServiceCollection>
 
+let run () : unit =
+  let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
+  let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
+
+  let builder = WebApplication.CreateBuilder()
+  configureServices builder.Services
+  LibService.Kubernetes.registerServerTimeout builder.WebHost
+
+  builder.WebHost
+  |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+  |> fun wh -> wh.UseUrls(k8sUrl, url)
+  |> ignore<IWebHostBuilder>
+
+  let app = builder.Build()
+  configureApp app
+  app.Run()
 
 
 [<EntryPoint>]
 let main _ =
   try
     print "Starting ApiServer"
+    LibService.Init.init "ApiServer"
+    LibExecution.Init.init "ApiServer"
+    LibExecutionStdLib.Init.init "ApiServer"
     LibBackend.Init.init "ApiServer"
-
-    let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
-    let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
-
-    let builder = WebApplication.CreateBuilder()
-    configureServices builder.Services
-    LibService.Kubernetes.registerServerTimeout builder.WebHost
-
-    builder.WebHost
-    |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-    |> fun wh -> wh.UseUrls(k8sUrl, url)
-    |> ignore<IWebHostBuilder>
-
-    let app = builder.Build()
-    configureApp app
-    app.Run()
-
+    BackendOnlyStdLib.Init.init "ApiServer"
+    LibRealExecution.Init.init "ApiServer"
+    run ()
     0
   with
   | e ->
@@ -181,4 +186,4 @@ let main _ =
       (Prelude.ExecutionID "apiserver")
       []
       e
-    (-1)
+    -1

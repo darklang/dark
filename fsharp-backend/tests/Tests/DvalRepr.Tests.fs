@@ -4,7 +4,7 @@ open Expecto
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
-open TestUtils
+open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -187,7 +187,7 @@ let allRoundtrips =
   let t = testListUsingProperty
 
   let all =
-    TestUtils.sampleDvals
+    sampleDvals
     |> List.filter (function
       // interoperable tests do not support passwords because it's very
       // hard/risky to get legacyserver to roundtrip them correctly without

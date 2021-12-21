@@ -69,9 +69,3 @@ let createState
 
     return (Exe.createState executionID libraries tracing tlid program, touchedTLIDs)
   }
-
-let init (service : string) : unit =
-  print $"Initing LibRealExecution in {service}"
-  BackendOnlyStdLib.StdLib.init service
-  LibBackend.Init.init service
-  print $" Inited LibRealExecution in {service}"

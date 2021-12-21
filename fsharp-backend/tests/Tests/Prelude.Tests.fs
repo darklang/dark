@@ -5,7 +5,7 @@ open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
-open TestUtils
+open TestUtils.TestUtils
 
 let canvasName =
   testMany

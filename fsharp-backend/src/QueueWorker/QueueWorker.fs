@@ -6,171 +6,204 @@ open FSharp.Control.Tasks
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
-open LibBackend
-open LibRealExecution
-open Db
+open LibBackend.Db
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module EQ = EventQueue
-module TI = TraceInputs
+module EQ = LibBackend.EventQueue
+module TI = LibBackend.TraceInputs
 module Execution = LibExecution.Execution
+module Pusher = LibBackend.Pusher
+module RealExecution = LibRealExecution.RealExecution
+module Canvas = LibBackend.Canvas
 
 module Telemetry = LibService.Telemetry
-module Span = Telemetry.Span
 
-type Activity = System.Diagnostics.Activity
-
-let dequeueAndProcess
-  (executionID : ExecutionID)
-  : Task<Result<Option<RT.Dval>, exn>> =
-  // FSTODO: should have a root before here
-  use root = Span.root "dequeue_and_process"
-  Span.addTag "meta.process_id" (string executionID) root
-
-  Sql.withTransaction (fun () ->
-    task {
-      let! event =
-        try
-          EQ.dequeue root |> Task.map Ok
-        with
-        | e ->
-          // exception occurred while dequeuing, no item to put back
-          Telemetry.addEvent "Exception while dequeuing" []
-          Task.FromResult(Error e)
-
-      match event with
-      | Ok (None) ->
-        root.AddTag("event_queue.no_events", true) |> ignore<Activity>
-        return Ok None
-      | Ok (Some event) ->
-        let! canvas =
-          task {
-            // Span creation might belong inside
-            // Canvas.loadForEvent, but then so would the
-            // error handling ... this may want a refactor
-            use span = Span.child "Canvas.load_for_event_from_cache" root
+let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
+  task {
+    use _span = Telemetry.child "dequeue_and_process" []
+    let executionID = Telemetry.executionID ()
+    return!
+      Sql.withTransaction (fun () ->
+        task {
+          let! event =
             try
-              let! c = Canvas.loadForEvent event
-              let c =
-                c |> Result.mapError (String.concat ", ") |> Result.unwrapUnsafe
-              Span.addTag "load_event_succeeded" true span
-              return Ok c
+              EQ.dequeue () |> Task.map Ok
             with
             | e ->
-              // exception occurred when processing an item, so put it back as an error
-              do! EQ.putBack root event EQ.Err
-              // CLEANUP why have these attributes a different name
-              Span.addTag "event.load_success" false span
-              return Error e
-          }
+              // exception occurred while dequeuing, no item to put back
+              Telemetry.addEvent "Exception while dequeuing" []
+              Task.FromResult(Error e)
 
-        match canvas with
-        | Ok c ->
-          let host = c.meta.name
-          let traceID = System.Guid.NewGuid()
-          let canvasID = c.meta.id
-          let desc = EQ.toEventDesc event
+          match event with
+          | Ok (None) ->
+            Telemetry.addTag "event_queue.no_events" true
+            return Ok None
+          | Ok (Some event) ->
+            let! canvas =
+              task {
+                // Span creation might belong inside
+                // Canvas.loadForEvent, but then so would the
+                // error handling ... this may want a refactor
+                use span = Telemetry.child "Canvas.load_for_event_from_cache" []
+                try
+                  let! c = Canvas.loadForEvent event
+                  let c =
+                    c |> Result.mapError (String.concat ", ") |> Result.unwrapUnsafe
+                  Telemetry.addTag "load_event_succeeded" true
+                  return Ok c
+                with
+                | e ->
+                  // exception occurred when processing an item, so put it back as an error
+                  do! EQ.putBack event EQ.Err
+                  // CLEANUP why have these attributes a different name
+                  Telemetry.addTag "event.load_success" false
+                  return Error e
+              }
 
-          root
-          |> Span.addTags [ "canvas", host
-                            "trace_id", traceID
-                            "canvas_id", canvasID
-                            "module", event.space
-                            "handler_name", event.name
-                            "method", event.modifier
-                            "retries", event.retries ]
+            match canvas with
+            | Ok c ->
+              let host = c.meta.name
+              let traceID = System.Guid.NewGuid()
+              let canvasID = c.meta.id
+              let desc = EQ.toEventDesc event
 
-          try
-            let! eventTimestamp = TI.storeEvent canvasID traceID desc event.value
+              Telemetry.addTags [ "canvas", host
+                                  "trace_id", traceID
+                                  "canvas_id", canvasID
+                                  "module", event.space
+                                  "handler_name", event.name
+                                  "method", event.modifier
+                                  "retries", event.retries ]
 
-            let h =
-              c.handlers
-              |> Map.values
-              |> List.filter (fun h -> Some desc = h.spec.toEventDesc ())
-              |> List.head
+              try
+                let! eventTimestamp = TI.storeEvent canvasID traceID desc event.value
 
-            root
-            |> Span.addTags [ "host", host; "event", desc; "event_id", event.id ]
+                let h =
+                  c.handlers
+                  |> Map.values
+                  |> List.filter (fun h -> Some desc = h.spec.toEventDesc ())
+                  |> List.head
 
-            match h with
-            | None ->
-              // If an event gets put in the queue and there's no handler for
-              // it, they're probably emiting to a handler they haven't created
-              // yet. This creates a number of problems. Firstly, the event
-              // will sit in the queue and rattle around forever, which is bad
-              // operationally. However, it will also constantly run while the
-              // user is editing code, until something finally works. This is
-              // annoying, but also unnecessary - so long as they have the
-              // trace they can use it to build. So just drop it immediately.
-              Span.addTag "delay" event.delay root
-              let space, name, modifier = desc
-              let f404 = (space, name, modifier, eventTimestamp, traceID)
-              Pusher.pushNew404 executionID canvasID f404
-              do! EQ.putBack root event EQ.Missing
-              return Ok None
-            | Some h ->
-              let! (state, touchedTLIDs) =
-                RealExecution.createState
-                  executionID
-                  traceID
-                  h.tlid
-                  (Canvas.toProgram c)
 
-              // FSTODO: add parent span to state
-              // ~parent:(Some parent)
-              Span.addTag "handler_id" h.tlid root
-              let symtable = Map.ofList [ ("event", event.value) ]
+                Telemetry.addTags [ "host", host
+                                    "event", desc
+                                    "event_id", event.id ]
 
-              let! result =
-                Execution.executeHandler state symtable (h.ast.toRuntimeType ())
+                match h with
+                | None ->
+                  // If an event gets put in the queue and there's no handler for
+                  // it, they're probably emiting to a handler they haven't created
+                  // yet. This creates a number of problems. Firstly, the event
+                  // will sit in the queue and rattle around forever, which is bad
+                  // operationally. However, it will also constantly run while the
+                  // user is editing code, until something finally works. This is
+                  // annoying, but also unnecessary - so long as they have the
+                  // trace they can use it to build. So just drop it immediately.
+                  Telemetry.addTag "delay" event.delay
+                  let space, name, modifier = desc
+                  let f404 = (space, name, modifier, eventTimestamp, traceID)
+                  Pusher.pushNew404 executionID canvasID f404
+                  do! EQ.putBack event EQ.Missing
+                  return Ok None
+                | Some h ->
+                  let! (state, touchedTLIDs) =
+                    RealExecution.createState
+                      executionID
+                      traceID
+                      h.tlid
+                      (Canvas.toProgram c)
 
-              Pusher.pushNewTraceID
-                executionID
-                canvasID
-                traceID
-                (h.tlid :: HashSet.toList touchedTLIDs)
+                  Telemetry.addTag "handler_id" h.tlid
+                  let symtable = Map.ofList [ ("event", event.value) ]
 
-              let resultType =
-                match result with
-                | RT.DResult (Ok _) -> "ResOk"
-                | RT.DResult (Error _) -> "ResError"
-                | RT.DOption (Some _) -> "OptJust"
-                | RT.DOption None -> "OptNothing"
-                | _ -> (RT.Dval.toType result).toOldString ()
+                  let! result =
+                    Execution.executeHandler state symtable (h.ast.toRuntimeType ())
 
-              root
-              |> Span.addTags [ "result_tipe", resultType
-                                "event.execution_success", true ]
+                  Pusher.pushNewTraceID
+                    executionID
+                    canvasID
+                    traceID
+                    (h.tlid :: HashSet.toList touchedTLIDs)
 
-              do! EQ.finish root event
-              return Ok(Some result)
-          with
-          | e ->
-            // exception occurred when processing an item, so put it back as an error
-            Span.addTag "event.execution_success" false root
+                  let resultType =
+                    match result with
+                    | RT.DResult (Ok _) -> "ResOk"
+                    | RT.DResult (Error _) -> "ResError"
+                    | RT.DOption (Some _) -> "OptJust"
+                    | RT.DOption None -> "OptNothing"
+                    | _ -> (RT.Dval.toType result).toOldString ()
 
-            try
-              do! EQ.putBack root event EQ.Err
-            with
-            | e -> Span.addTag "error.msg" e root
 
-            return Error e
-        | Error e -> return Error e
-      | Error e -> return Error e
-    })
+                  Telemetry.addTags [ "result_tipe", resultType
+                                      "event.execution_success", true ]
 
-let run (executionID : ExecutionID) : Task<Result<Option<RT.Dval>, exn>> =
-  // CLEANUP put in its own config item
-  if String.toLowercase LibService.Config.postgresSettings.dbname = "prodclone" then
-    use (span : Span.T) = Span.root "Pointing at prodclone; will not dequeue"
-    Task.FromResult(Ok None)
-  else
-    dequeueAndProcess executionID
+                  do! EQ.finish event
+                  return Ok(Some result)
+              with
+              | e ->
+                // exception occurred when processing an item, so put it back as an error
+                Telemetry.addTag "event.execution_success" false
+
+                try
+                  do! EQ.putBack event EQ.Err
+                with
+                | e -> Telemetry.addTag "error.msg" e
+
+                return Error e
+            | Error e -> return Error e
+          | Error e -> return Error e
+        })
+  }
+
+let shutdown = ref false
+
+let run () : Task<unit> =
+  task {
+    Telemetry.createRoot "QueueWorker.run"
+    while not shutdown.Value do
+      // Comment out just in case for now
+      // let! result = dequeueAndProcess ()
+      let result = Ok None
+      match result with
+      | Ok None -> do! Task.Delay 1000
+      | Ok (Some _) -> return ()
+      | Error (e) ->
+        LibService.Rollbar.sendException
+          "Unhandled exception bubbled to queue worker"
+          (Telemetry.executionID ())
+          []
+          e
+  }
+
 
 [<EntryPoint>]
-let main args : int =
-  // FSTODO: implement
-  // call init fns
-  // healthcheck
-  0
+let main _ : int =
+  try
+    print "Starting QueueWorker"
+    LibService.Init.init "QueueWorker"
+    LibExecution.Init.init "QueueWorker"
+    LibExecutionStdLib.Init.init "QueueWorker"
+    LibBackend.Init.init "QueueWorker"
+    BackendOnlyStdLib.Init.init "QueueWorker"
+    LibRealExecution.Init.init "QueueWorker"
+    LibService.Kubernetes.runKubernetesServer
+      "QueueWorker"
+      LibService.Config.queueWorkerKubernetesPort
+      (fun () -> shutdown := true)
+    if false then
+      // LibBackend.Config.triggerQueueWorkers then
+      (run ()).Result
+    else
+      // healthcheck - we need to stop taking things if we're told to stop by k8s
+      Telemetry.createRoot "Pointing at prodclone; will not dequeue"
+    0
+
+  with
+  | e ->
+    LibService.Rollbar.lastDitchBlocking
+      "Error running CronChecker"
+      (Prelude.ExecutionID "cronchecker")
+      []
+      e
+    (-1)

@@ -18,7 +18,7 @@ module Exe = LibExecution.Execution
 module TypeChecker = LibExecution.TypeChecker
 
 
-open TestUtils
+open TestUtils.TestUtils
 
 
 let testBasicTypecheckWorks : Test =

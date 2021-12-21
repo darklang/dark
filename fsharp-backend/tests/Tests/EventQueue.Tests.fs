@@ -10,7 +10,7 @@ open Prelude.Tablecloth
 open Tablecloth
 open LibBackend.Db
 
-open TestUtils
+open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -42,7 +42,7 @@ let testEventQueueRoundtrip =
     do! EQ.enqueue meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
 
     do! EQ.testingScheduleAll ()
-    let! result = QueueWorker.run (ExecutionID "traceID")
+    let! result = QueueWorker.dequeueAndProcess ()
 
     match result with
     | Ok (Some resultDval) ->
@@ -81,14 +81,14 @@ let testEventQueueIsFifo =
     do! enqueue "apple" 4L
     do! EQ.testingScheduleAll ()
 
-    let checkDequeue span (i : int64) exname : Task<unit> =
+    let checkDequeue (i : int64) exname : Task<unit> =
       task {
-        let! evt = EQ.dequeue span
+        let! evt = EQ.dequeue ()
         let evt = Option.unwrapUnsafe evt
 
         Expect.equal exname evt.name $"dequeue {i} is handler {exname}"
         Expect.equal evt.value (RT.DInt i) $"dequeue {i} has value {i}"
-        do! EQ.finish span evt
+        do! EQ.finish evt
         return ()
       }
 
@@ -97,10 +97,10 @@ let testEventQueueIsFifo =
     do!
       Sql.withTransaction (fun () ->
         task {
-          do! checkDequeue span 1L "apple"
-          do! checkDequeue span 2L "apple"
-          do! checkDequeue span 3L "banana"
-          do! checkDequeue span 4L "apple"
+          do! checkDequeue 1L "apple"
+          do! checkDequeue 2L "apple"
+          do! checkDequeue 3L "banana"
+          do! checkDequeue 4L "apple"
           return Ok(Some RT.DNull)
         })
   }

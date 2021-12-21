@@ -2,7 +2,7 @@ module Tests.Account
 
 open Expecto
 open Prelude
-open TestUtils
+open TestUtils.TestUtils
 
 module Account = LibBackend.Account
 

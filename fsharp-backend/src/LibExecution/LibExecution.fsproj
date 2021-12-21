@@ -24,6 +24,7 @@
     <Compile Include="Legacy.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="OCamlTypes.fs" />
+    <Compile Include="Init.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

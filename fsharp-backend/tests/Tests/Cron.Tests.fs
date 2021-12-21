@@ -8,7 +8,7 @@ open Expecto
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
-open TestUtils
+open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -27,10 +27,8 @@ let p (code : string) = FSharpToExpr.parsePTExpr code
 
 let testCronFetchActiveCrons =
   testTask "fetch active crons doesn't raise" {
-    use span = Span.root "test"
-
     let! (_cronSchedule : List<Serialize.CronScheduleData>) =
-      Serialize.fetchActiveCrons span
+      Serialize.fetchActiveCrons ()
 
     Expect.equal true true "just checking it didnt raise"
   }

@@ -88,8 +88,7 @@ let dir (root : Root) : string =
 // -------------------------
 let allowTestRoutes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
-// FSTODO
-let __unusedTriggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
+let triggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 
 let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 

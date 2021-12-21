@@ -1,4 +1,4 @@
-module TestUtils
+module TestUtils.TestUtils
 
 open Expecto
 

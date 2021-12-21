@@ -15,7 +15,7 @@ open System.Text.RegularExpressions
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
-open TestUtils
+open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -636,7 +636,7 @@ module ExecutePureFunctions =
       Arb.fromGenShrink (
         gen {
           let specials =
-            TestUtils.interestingFloats
+            interestingFloats
             |> List.map Tuple2.second
             |> List.filter filterFloat
             |> List.map Gen.constant
@@ -652,7 +652,7 @@ module ExecutePureFunctions =
       Arb.fromGenShrink (
         gen {
           let specials =
-            TestUtils.interestingInts
+            interestingInts
             |> List.map Tuple2.second
             |> List.filter isValidOCamlInt
             |> List.map Gen.constant

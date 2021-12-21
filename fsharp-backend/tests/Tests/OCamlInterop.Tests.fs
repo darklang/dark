@@ -2,7 +2,7 @@ module Tests.OCamlInterop
 
 open Expecto
 open Prelude
-open TestUtils
+open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes

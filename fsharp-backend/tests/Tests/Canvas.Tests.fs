@@ -7,7 +7,7 @@ open Expecto
 
 open Prelude
 open Tablecloth
-open TestUtils
+open TestUtils.TestUtils
 
 module Canvas = LibBackend.Canvas
 module PT = LibExecution.ProgramTypes
