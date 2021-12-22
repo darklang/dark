@@ -1128,6 +1128,7 @@ module ExecutePureFunctions =
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
+        let! owner = testOwner.Force()
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
 
@@ -1140,7 +1141,7 @@ module ExecutePureFunctions =
 
         let! expected = OCamlInterop.execute ownerID canvasID ast st [] []
 
-        let! state = executionStateFor "executePure" Map.empty Map.empty
+        let! state = executionStateFor owner "executePure" Map.empty Map.empty
 
         let! actual =
           LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())

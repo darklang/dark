@@ -47,7 +47,7 @@ let testUndo : Test =
       task {
         let! meta = testCanvasInfo owner "test-undo"
         let c = Canvas.fromOplist meta [] ops |> Result.unwrapUnsafe
-        let! state = executionStateFor "test-undo" Map.empty Map.empty
+        let! state = executionStateFor owner "test-undo" Map.empty Map.empty
         let h = Map.get tlid c.handlers |> Option.unwrapUnsafe
         return! Exe.executeExpr state Map.empty (h.ast.toRuntimeType ())
       }

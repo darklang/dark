@@ -305,8 +305,8 @@ let partiallyEvaluate
     let exec (expr : Expr) : Ply.Ply<Expr> =
       uply {
         let newName = "dark_generated_" + randomString 8
-        let! value = LibExecution.Interpreter.eval state !symtable expr
-        symtable := Map.add newName value !symtable
+        let! value = LibExecution.Interpreter.eval state symtable.Value expr
+        symtable.Value <- Map.add newName value symtable.Value
         return (EVariable(gid (), newName))
       }
 
@@ -416,7 +416,7 @@ let partiallyEvaluate
       }
 
     let! result = postTraversal body
-    return (!symtable, result)
+    return (symtable.Value, result)
   }
 
 

@@ -30,12 +30,13 @@ let t
   else
     testTask name {
       try
+        let! owner = testOwner.Force()
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
 
         let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
 
-        let! state = executionStateFor name rtDBs rtFunctions
+        let! state = executionStateFor owner name rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
 

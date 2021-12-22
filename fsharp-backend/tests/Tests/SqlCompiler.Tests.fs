@@ -36,7 +36,8 @@ let compile
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
-    let! state = executionStateFor "test" Map.empty Map.empty
+    let! owner = testOwner.Force()
+    let! state = executionStateFor owner "test" Map.empty Map.empty
 
     try
       let! sql, args =

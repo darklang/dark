@@ -52,8 +52,9 @@ let testBasicTypecheckWorks : Test =
 let testErrorNotWrappedByErrorRail =
   testTask "error not wrapped by errorRail" {
     let expr = FSharpToExpr.parseRTExpr "Dict.get_v1 (List.empty_v0 []) \"hello\""
+    let! owner = testOwner.Force()
 
-    let! state = executionStateFor "error" Map.empty Map.empty
+    let! state = executionStateFor owner "error" Map.empty Map.empty
 
     let! result = Exe.executeExpr state Map.empty expr
 
@@ -76,10 +77,11 @@ let testArguments : Test =
           description = ""
           infix = false
           body = body }
+      let! owner = testOwner.Force()
 
       let expr = S.eApply (S.eUserFnVal name) []
       let fns = Map.ofList [ name, userFn ]
-      let! state = executionStateFor "error" Map.empty fns
+      let! state = executionStateFor owner "error" Map.empty fns
       let! result = Exe.executeExpr state Map.empty expr
       return normalizeDvalResult result
     }

@@ -25,7 +25,7 @@ let nullsAddedToMissingColumn =
     let db1 : RT.DB.T =
       { tlid = gid (); name = "MyDB"; version = 0; cols = [ "x", RT.TStr ] }
 
-    let! state = executionStateFor name (Map [ "MyDB", db1 ]) Map.empty
+    let! state = executionStateFor owner name (Map [ "MyDB", db1 ]) Map.empty
     let expr = p @"DB.set_v1 { x = ""v"" } ""i"" MyDB"
     let! (result : RT.Dval) = Exe.executeExpr state Map.empty expr
     Expect.equal (RT.DObj(Map [ "x", RT.DStr "v" ])) result "no nulls"

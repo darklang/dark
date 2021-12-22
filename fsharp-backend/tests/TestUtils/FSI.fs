@@ -18,7 +18,8 @@ open Prelude
 let execute (code : string) : RT.Dval =
   let t =
     task {
-      let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
+      let! owner = TestUtils.testOwner.Force()
+      let! state = TestUtils.executionStateFor owner "fsi" Map.empty Map.empty
       let prog = FSharpToExpr.parseRTExpr code
       return! Exe.executeExpr state Map.empty prog
     }
@@ -29,8 +30,9 @@ let execute (code : string) : RT.Dval =
 let executeOCaml (code : string) : RT.Dval =
   let t =
     task {
+      let! owner = TestUtils.testOwner.Force()
       let prog = FSharpToExpr.parsePTExpr code
-      let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
+      let! state = TestUtils.executionStateFor owner "fsi" Map.empty Map.empty
       let accountID = state.program.accountID
       let canvasID = state.program.canvasID
       return! OCamlInterop.execute accountID canvasID prog Map.empty [] []

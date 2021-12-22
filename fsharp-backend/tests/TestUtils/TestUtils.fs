@@ -167,12 +167,12 @@ let libraries : Lazy<RT.Libraries> =
        packageFns = Map.empty })
 
 let executionStateFor
+  (owner : Account.UserInfo)
   (name : string)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let! owner = testOwner.Force()
     let ownerID : UserID = (owner : Account.UserInfo).id
     let executionID = ExecutionID $"test-{name}"
 
