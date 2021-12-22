@@ -299,8 +299,6 @@ let currentHosts () : Task<string list> =
 //   ; "ellen-battery2"
 //   ; "julius-tokimeki-unfollow" ]
 
-
-
 type CronScheduleData =
   { canvasID : CanvasID
     ownerID : UserID
@@ -322,12 +320,12 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
                   toplevel_oplists.name as handler_name,
                   toplevel_oplists.account_id,
                   canvases.name as canvas_name
-           FROM toplevel_oplists
-           JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
-           WHERE module = 'CRON'
-             AND modifier IS NOT NULL
-             AND modifier <> ''
-             AND toplevel_oplists.name IS NOT NULL"
+       FROM toplevel_oplists
+       JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
+      WHERE module = 'CRON'
+        AND modifier IS NOT NULL
+        AND modifier <> ''
+        AND toplevel_oplists.name IS NOT NULL"
   |> Sql.executeAsync (fun read ->
     { canvasID = read.uuid "canvas_id"
       ownerID = read.uuid "account_id"
