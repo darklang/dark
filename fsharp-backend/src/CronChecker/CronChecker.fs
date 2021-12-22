@@ -13,11 +13,11 @@ let shutdown = ref false
 
 let run () : Task<unit> =
   task {
-    Telemetry.createRoot "CronChecker.run"
+    use span = Telemetry.child "CronChecker.run" []
     while not shutdown.Value do
       do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
       do! Task.Delay 1000
-      return ()
+    return ()
   }
 
 
