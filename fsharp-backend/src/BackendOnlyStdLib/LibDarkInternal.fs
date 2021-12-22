@@ -289,8 +289,8 @@ that's already taken, returns an error."
               match result with
               | Ok () ->
                 do Analytics.identifyUser state.executionID username
-                return DStr ""
-              | Error msg -> return Exception.raiseGrandUser msg
+                return DResult(Ok(DStr ""))
+              | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
