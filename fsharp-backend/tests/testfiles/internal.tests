@@ -1,3 +1,3 @@
 DarkInternal.upsertUser_v1 "Name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'Name with space', must match /^[a-z][a-z0-9_]{2,20}$/"
-(Dict::length DarkInternal::getAndLogTableSizes) > 0 = true
-DarkInternal.orgsFor "test" = ["test"]
+(Dict.size_v0 DarkInternal.getAndLogTableSizes_v0) > 0 = true
+DarkInternal.orgsFor "test" = {}
