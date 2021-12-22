@@ -59,6 +59,9 @@ let createState
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
     HashSet.add tlid touchedTLIDs
 
+    let reportException executionID msg exn tags =
+      LibService.Rollbar.sendException msg executionID tags exn
+
     let tracing =
       { Exe.noTracing RT.Real with
           storeFnResult = TraceFunctionResults.store canvasID traceID
@@ -67,5 +70,7 @@ let createState
 
     let! libraries = Lazy.force libraries
 
-    return (Exe.createState executionID libraries tracing tlid program, touchedTLIDs)
+    return
+      (Exe.createState executionID libraries tracing reportException tlid program,
+       touchedTLIDs)
   }

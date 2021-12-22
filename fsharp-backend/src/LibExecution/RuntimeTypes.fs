@@ -855,6 +855,7 @@ and ExecutionState =
     tracing : Tracing
     program : ProgramContext
     test : TestContext
+    reportException : ExecutionID -> string -> exn -> List<string * obj> -> unit
     // TLID of the currently executing handler/fn
     tlid : tlid
     executionID : ExecutionID

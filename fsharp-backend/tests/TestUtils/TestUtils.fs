@@ -205,11 +205,14 @@ let executionStateFor
         userTypes = Map.empty
         secrets = [] }
 
+    let reportError executionID msg exn tags = raise exn
+
     return
       Exe.createState
         executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
+        reportError
         tlid
         program
 
