@@ -35,10 +35,11 @@ let testTraceIDsOfTlidsMatch : Test =
 
 let testFilterSlash : Test =
   testTask "test that a request which doesnt match doesnt end up in the traces" {
-    do! clearCanvasData (CanvasName.create "test-filter_slash")
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create "test-filter_slash")
     let route = "/:rest"
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! meta = testCanvasInfo "test-filter_slash"
+    let! meta = testCanvasInfo owner "test-filter_slash"
     let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     let t1 = System.Guid.NewGuid()
@@ -54,13 +55,14 @@ let testFilterSlash : Test =
 let testRouteVariablesWorkWithStoredEvents : Test =
   testTask "route variables work with stored events" {
 
+    let! owner = testOwner.Force()
     let canvasName = "test-route_variables_works"
-    do! clearCanvasData (CanvasName.create canvasName)
+    do! clearCanvasData owner (CanvasName.create canvasName)
 
     // set up test
     let httpRoute = "/some/:vars/:and/such"
     let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
-    let! meta = testCanvasInfo canvasName
+    let! meta = testCanvasInfo owner canvasName
     let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     // store an event and check it comes out
@@ -89,7 +91,8 @@ let testRouteVariablesWorkWithStoredEvents : Test =
 let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
   testTask "route variables work with trace inputs and wildcards" {
     let canvasName = "test-route_variables_works_with_withcards"
-    do! clearCanvasData (CanvasName.create canvasName)
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create canvasName)
 
     // note hyphen vs undeerscore
     let route = "/api/create_token"
@@ -97,7 +100,7 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
 
     // set up test
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! meta = testCanvasInfo canvasName
+    let! meta = testCanvasInfo owner canvasName
     let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     // store an event and check it comes out

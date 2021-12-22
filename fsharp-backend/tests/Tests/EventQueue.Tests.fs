@@ -29,9 +29,10 @@ let p (code : string) = FSharpToExpr.parsePTExpr code
 
 let testEventQueueRoundtrip =
   testTask "event queue roundtrip" {
+    let! owner = testOwner.Force()
     let name = "test-event_queue"
-    do! clearCanvasData (CanvasName.create name)
-    let! (meta : Canvas.Meta) = testCanvasInfo name
+    do! clearCanvasData owner (CanvasName.create name)
+    let! (meta : Canvas.Meta) = testCanvasInfo owner name
 
     let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
     let oplists = [ hop h ]
@@ -61,9 +62,10 @@ let testEventQueueRoundtrip =
 
 let testEventQueueIsFifo =
   testTask "event queue is fifo" {
+    let! owner = testOwner.Force()
     let name = "fifo"
-    do! clearCanvasData (CanvasName.create name)
-    let! meta = testCanvasInfo name
+    do! clearCanvasData owner (CanvasName.create name)
+    let! meta = testCanvasInfo owner name
     let apple = testWorker "apple" (p "event")
     let banana = testWorker "banana" (p "event")
 
@@ -108,8 +110,9 @@ let testEventQueueIsFifo =
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
     let name = "worker-schedules"
-    do! clearCanvasData (CanvasName.create name)
-    let! meta = testCanvasInfo name
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create name)
+    let! meta = testCanvasInfo owner name
 
     let apple = testWorker "apple" (p "1")
     let banana = testWorker "banana" (p "1")

@@ -22,21 +22,27 @@ module S = LibExecution.Shortcuts
 let testOwner : Lazy<Task<Account.UserInfo>> =
   lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
 
-let testCanvasInfo (name : string) : Task<Canvas.Meta> =
+let testAdmin : Lazy<Task<Account.UserInfo>> =
+  lazy (UserName.create "dark" |> Account.getUser |> Task.map Option.unwrapUnsafe)
+
+let testCanvasInfo (owner : Account.UserInfo) (name : string) : Task<Canvas.Meta> =
   task {
     let name = CanvasName.create name
-    let! owner = testOwner.Force()
     let! id = Canvas.canvasIDForCanvasName owner.id name
     return { id = id; name = name; owner = owner.id }
   }
 
 let testCanvasID : Lazy<Task<CanvasID>> =
-  lazy (testCanvasInfo "test" |> Task.map (fun i -> i.id))
+  lazy
+    (task {
+      let! owner = (testOwner.Force())
+      let! canvasInfo = testCanvasInfo owner "test"
+      return canvasInfo.id
+    })
 
 // delete test data for one canvas
-let clearCanvasData (name : CanvasName.T) : Task<unit> =
+let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit> =
   task {
-    let! owner = testOwner.Force()
     let! canvasID = Canvas.canvasIDForCanvasName owner.id name
 
     let events =
@@ -182,7 +188,7 @@ let executionStateFor
     let! canvasID =
       if Map.count dbs > 0 then
         task {
-          do! clearCanvasData canvasName
+          do! clearCanvasData owner canvasName
           return! Canvas.canvasIDForCanvasName ownerID canvasName
         }
       else
@@ -649,8 +655,8 @@ module Expect =
 
 let dvalEquality (left : Dval) (right : Dval) : bool =
   let success = ref true
-  Expect.dvalEqualityBaseFn [] left right (fun _ _ _ -> success := false)
-  !success
+  Expect.dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
+  success.Value
 
 let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
 

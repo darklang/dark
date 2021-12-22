@@ -379,6 +379,7 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
      WHERE c.account_id = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Task.map List.sort
 
 
 // NB: this returns canvases an account has access to via an organization, not
@@ -392,15 +393,17 @@ let accessibleCanvases (userID : UserID) : Task<List<CanvasName.T>> =
       WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Task.map List.sort
 
 let orgs (userID : UserID) : Task<List<OrgName.T>> =
   Sql.query
     "SELECT org.username
      FROM access
      INNER JOIN accounts as org on access.organization_account = org.id
-     WHERE access.access_account = @userID"
+     WHERE user_.username = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "username" |> OrgName.create)
+  |> Task.map List.sort
 
 
 // **********************
