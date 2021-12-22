@@ -7,10 +7,6 @@ module Account = LibBackend.Account
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open LibBackend.Db
-
 open Prelude
 open Tablecloth
 
