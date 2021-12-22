@@ -105,15 +105,20 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     let! check = executionCheck cron
     if check.shouldExecute then
       Telemetry.addTags [ ("cron", true) ]
-      do!
-        EventQueue.enqueue
-          cron.canvasID
-          cron.ownerID
-          "CRON"
-          cron.cronName
-          (string cron.interval)
-          RT.DNull
-      do! recordExecution cron
+
+      // FSTODO
+      // This is intended to not do the job, so that the OCaml one can keep doing it.
+      // I just want to check that the events look right
+      if Config.triggerCrons then
+        do!
+          EventQueue.enqueue
+            cron.canvasID
+            cron.ownerID
+            "CRON"
+            cron.cronName
+            (string cron.interval)
+            RT.DNull
+        do! recordExecution cron
 
       // It's a little silly to recalculate now when we just did
       // it in executionCheck, but maybe EventQueue.enqueue was
@@ -170,11 +175,7 @@ let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * in
 // work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
-    let! allCrons =
-      if Config.triggerQueueWorkers then
-        Serialize.fetchActiveCrons ()
-      else
-        Task.FromResult []
+    let! allCrons = Serialize.fetchActiveCrons ()
 
     // Chunk the crons list so that we don't have to load thousands of
     // canvases into memory at once.

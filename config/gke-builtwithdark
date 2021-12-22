@@ -49,6 +49,7 @@ DARK_CONFIG_ALLOW_TEST_ROUTES=n
 ## We set this to no as this is only used by F# workers at the moment and we don't
 ## want to run those in production just yet.
 DARK_CONFIG_TRIGGER_QUEUE_WORKERS=n
+DARK_CONFIG_TRIGGER_CRONS=n
 DARK_CONFIG_CREATE_ACCOUNTS=n
 DARK_CONFIG_CHECK_TIER_ONE_HOSTS=y
 DARK_CONFIG_USE_HTTPS=y

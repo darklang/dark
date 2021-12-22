@@ -89,6 +89,7 @@ let dir (root : Root) : string =
 let allowTestRoutes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
 let triggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
+let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
 
 let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
