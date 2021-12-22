@@ -26,7 +26,7 @@ let main _ : int =
   try
     print "Starting CronChecker"
     LibService.Init.init "CronChecker"
-    LibService.Telemetry.Console.loadTelemetry "CronChecker"
+    Telemetry.Console.loadTelemetry "CronChecker"
     LibExecution.Init.init "CronChecker"
     LibExecutionStdLib.Init.init "CronChecker"
     LibBackend.Init.init "CronChecker"
@@ -37,8 +37,8 @@ let main _ : int =
       "CronChecker"
       LibService.Config.croncheckerKubernetesPort
       (fun () -> shutdown.Value <- true)
-    if false then
-      // LibBackend.Config.triggerQueueWorkers then
+    if true then // FSTODO for now enable everywhere and do the trigger check much deeper
+      // LibBackend.Config.triggerCrons then
       (run ()).Result
     else
       Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []
