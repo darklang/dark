@@ -99,12 +99,6 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
-            # static assets
-            - name: GOOGLE_APPLICATION_CREDENTIALS_JSON
-              valueFrom:
-                secretKeyRef:
-                  name: dark-static-assets
-                  key: balmy-ground-195100-d9b0f3de3013.json
             # honeycomb
             - name: DARK_CONFIG_HONEYCOMB_API_KEY
               valueFrom:

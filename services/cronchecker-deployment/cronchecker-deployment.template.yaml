@@ -94,6 +94,12 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
+            # honeycomb
+            - name: DARK_CONFIG_HONEYCOMB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: honeycomb
+                  key: api-key
         #########################
         # Postgres proxy config
         # To connect to postgres from kubernetes, we need to add a proxy. See
