@@ -182,21 +182,22 @@ let main _ : int =
   try
     print "Starting QueueWorker"
     LibService.Init.init "QueueWorker"
+    Telemetry.Console.loadTelemetry "QueueWorker"
     LibExecution.Init.init "QueueWorker"
     LibExecutionStdLib.Init.init "QueueWorker"
     LibBackend.Init.init "QueueWorker"
     BackendOnlyStdLib.Init.init "QueueWorker"
     LibRealExecution.Init.init "QueueWorker"
+    // we need to stop taking things if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "QueueWorker"
       LibService.Config.queueWorkerKubernetesPort
-      (fun () -> shutdown := true)
+      (fun () -> shutdown.Value <- true)
     if false then
       // LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else
-      // healthcheck - we need to stop taking things if we're told to stop by k8s
-      Telemetry.createRoot "Pointing at prodclone; will not dequeue"
+      Telemetry.addEvent "Pointing at prodclone; will not dequeue" []
     0
 
   with

@@ -71,6 +71,7 @@ let run (args : string []) : Task<int> =
 let main args : int =
   try
     LibService.Init.init "ExecHost"
+    LibService.Telemetry.Console.loadTelemetry "ExecHost"
     LibBackend.Init.init "ExecHost"
     (run args).Result
   with

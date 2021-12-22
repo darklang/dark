@@ -7,12 +7,7 @@ open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
-module RT = LibExecution.RuntimeTypes
-module Execution = LibExecution.Execution
-
 module Telemetry = LibService.Telemetry
-module Span = Telemetry.Span
 
 let shutdown = ref false
 
@@ -31,20 +26,22 @@ let main _ : int =
   try
     print "Starting CronChecker"
     LibService.Init.init "CronChecker"
+    LibService.Telemetry.Console.loadTelemetry "CronChecker"
     LibExecution.Init.init "CronChecker"
     LibExecutionStdLib.Init.init "CronChecker"
     LibBackend.Init.init "CronChecker"
     BackendOnlyStdLib.Init.init "CronChecker"
     LibRealExecution.Init.init "CronChecker"
+    // StopTaking things
     LibService.Kubernetes.runKubernetesServer
       "CronChecker"
       LibService.Config.croncheckerKubernetesPort
-      (fun () -> shutdown := true)
+      (fun () -> shutdown.Value <- true)
     if false then
       // LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else
-      Telemetry.createRoot "Pointing at prodclone; will not trigger crons"
+      Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []
     0
   with
   | e ->
