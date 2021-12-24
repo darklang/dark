@@ -37,8 +37,6 @@ TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 echo "Stopping servers"
 sudo pkill -f "ApiServer" || true
 sudo pkill -f "BwdServer" || true
-sudo pkill -f "ApiServer2" || true
-sudo pkill -f "BwdServer2" || true
 sudo pkill -f "CronChecker" || true
 sudo pkill -f "QueueWorker" || true
 
