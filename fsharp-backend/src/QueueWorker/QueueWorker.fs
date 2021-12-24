@@ -161,7 +161,7 @@ let shutdown = ref false
 let run () : Task<unit> =
   task {
     while not shutdown.Value do
-      Telemetry.createRoot "QueueWorker.run"
+      use span = Telemetry.createRoot "QueueWorker.run"
       // Comment out just in case for now
       // let! result = dequeueAndProcess ()
       let result = Ok None
