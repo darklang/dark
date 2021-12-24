@@ -11,6 +11,7 @@ open LibBackend.Db
 
 open Prelude
 open Tablecloth
+open LibService.Exception
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -205,14 +206,18 @@ let executionStateFor
         userTypes = Map.empty
         secrets = [] }
 
-    let reportError executionID msg exn tags = raise exn
+    let reportException (executionID : ExecutionID) (msg : string) (exn : exn) tags =
+      // Don't rethrow exceptions as sometimes we want to test errors
+      print "Exception Thrown"
+      print exn.Message
+      print exn.StackTrace
 
     return
       Exe.createState
         executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
-        reportError
+        reportException
         tlid
         program
 
