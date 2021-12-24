@@ -244,7 +244,10 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
        FROM accounts
        WHERE accounts.username = @username"
     |> Sql.parameters [ "username", Sql.string (string username) ]
-    |> Sql.executeRowAsync (fun read -> read.uuid "id")
+    |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+    |> Task.map (function
+      | Some v -> v
+      | None -> Exception.raiseDeveloper "User not found")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
