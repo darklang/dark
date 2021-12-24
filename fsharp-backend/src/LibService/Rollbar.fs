@@ -131,7 +131,8 @@ let lastDitchBlocking
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
-    if Telemetry.Span.current () = null then Telemetry.createRoot "LastDitch"
+    if Telemetry.Span.current () = null then
+      Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
     Telemetry.addError
       "Exception when calling rollbar"
       [ "message", e.Message; "stackTrace", e.StackTrace ]

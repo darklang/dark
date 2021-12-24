@@ -105,7 +105,7 @@ let child (name : string) (tags : List<string * obj>) : Span.T =
     tags
   span
 
-let createRoot (name : string) : unit = Span.root name |> ignore<Span.T>
+let createRoot (name : string) : Span.T = Span.root name
 
 let addTag (name : string) (value : obj) : unit =
   Span.addTag name value (Span.current ())
@@ -233,7 +233,10 @@ module Console =
     |> addTelemetry serviceName
     |> fun tp -> tp.Build()
     |> ignore<TracerProvider>
-    // Create a root span
+    // Create a default root span, to ensure that one exists. This span will not be
+    // cleaned up, and therefor it will not be printed in real-time (and you won't be
+    // able to find it in honeycomb). Instead, start a new root for each "action"
+    // (such as a http request, or a loop of the cronchecker)
     Span.root serviceName |> ignore<Span.T>
 
 module AspNet =
