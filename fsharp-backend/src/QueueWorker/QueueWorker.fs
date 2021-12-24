@@ -188,6 +188,7 @@ let main _ : int =
     LibBackend.Init.init "QueueWorker"
     BackendOnlyStdLib.Init.init "QueueWorker"
     LibRealExecution.Init.init "QueueWorker"
+
     // we need to stop taking things if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "QueueWorker"
@@ -195,6 +196,8 @@ let main _ : int =
       (fun () ->
         Telemetry.addEvent "shutting down" []
         shutdown.Value <- true)
+    |> ignore<Task>
+
     if false then
       // LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
