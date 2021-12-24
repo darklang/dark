@@ -192,7 +192,8 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
 let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
 
 // Backwards compatible version of `typeToDeveloperRepr`, should not be visible to
-// users but used by things like HttpClient (transitively)
+// users (except through LibDarkInternal) but used by things like HttpClient
+// (transitively)
 let rec typeToBCTypeName (t : DType) : string =
   match t with
   | TInt -> "int"

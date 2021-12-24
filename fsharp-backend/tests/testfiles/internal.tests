@@ -1,7 +1,43 @@
-DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/"
+Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
+(List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
 
-(Dict.size_v0 DarkInternal.getAndLogTableSizes_v0) > 0 = true
-
+[tests.grants]
 DarkInternal.orgsFor "test" = {}
 
+[test.grants and orgs]
+(let _ = DarkInternal.grant "test" "dark" "rw" in
+ DarkInternal.orgsFor "test") = { dark = "rw" }
+
+[test.grants and grants]
+(let _ = DarkInternal.grant "test" "dark" "rw" in
+ DarkInternal.grantsFor "dark") = { test = "rw" }
+
+[tests.sessions]
+
+// It allows these, just puts them in the DB
+// [test.newSessionForUsername_v0 invalid user]
+// (DarkInternal.newSessionForUsername_v0 "not a user") = Error "No user 'not a user'"
+
+// It allows these, just puts them in the DB
+// [test.newSessionForUsername_v1 invalid user]
+// (DarkInternal.newSessionForUsername_v1 "not a user") = Error "No user 'not a user'"
+
+[test.newSessionForUsername_v0 real user]
+(let session = DarkInternal.newSessionForUsername_v0_ster "test" in
+ DarkInternal.sessionKeyToUsername_v0 session) = Ok "test"
+
+[test.newSessionForUsername_v1 real user]
+(let session = DarkInternal.newSessionForUsername_v1_ster "test" in
+ DarkInternal.sessionKeyToUsername session.sessionKey) = Ok "test"
+
+[test.deleteSession]
+(let session1 = DarkInternal.newSessionForUsername_v1_ster "test" in
+ DarkInternal.deleteSession_v0 session1.sessionKey) = 1
+
+[tests.users]
 DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
+DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
+DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
+DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/"
+
+[tests.canvases]
