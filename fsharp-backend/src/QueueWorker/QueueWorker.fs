@@ -192,7 +192,9 @@ let main _ : int =
     LibService.Kubernetes.runKubernetesServer
       "QueueWorker"
       LibService.Config.queueWorkerKubernetesPort
-      (fun () -> shutdown.Value <- true)
+      (fun () ->
+        Telemetry.addEvent "shutting down" []
+        shutdown.Value <- true)
     if false then
       // LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
