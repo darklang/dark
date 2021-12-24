@@ -13,8 +13,8 @@ let shutdown = ref false
 
 let run () : Task<unit> =
   task {
-    use span = Telemetry.child "CronChecker.run" []
     while not shutdown.Value do
+      use span = Telemetry.createRoot "CronChecker.run"
       do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
       do! Task.Delay 1000
     return ()
@@ -26,13 +26,13 @@ let main _ : int =
   try
     print "Starting CronChecker"
     LibService.Init.init "CronChecker"
-    Telemetry.Console.loadTelemetry "CronChecker"
     LibExecution.Init.init "CronChecker"
     LibExecutionStdLib.Init.init "CronChecker"
     LibBackend.Init.init "CronChecker"
     BackendOnlyStdLib.Init.init "CronChecker"
     LibRealExecution.Init.init "CronChecker"
 
+    Telemetry.Console.loadTelemetry "CronChecker"
     // we need to stop running if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "CronChecker"

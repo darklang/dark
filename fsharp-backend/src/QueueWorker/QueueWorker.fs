@@ -160,8 +160,8 @@ let shutdown = ref false
 
 let run () : Task<unit> =
   task {
-    Telemetry.createRoot "QueueWorker.run"
     while not shutdown.Value do
+      Telemetry.createRoot "QueueWorker.run"
       // Comment out just in case for now
       // let! result = dequeueAndProcess ()
       let result = Ok None
@@ -202,14 +202,15 @@ let main _ : int =
       // LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else
-      Telemetry.addEvent "Pointing at prodclone; will not dequeue" []
+      Telemetry.createRoot "Pointing at prodclone; will not dequeue"
+      |> ignore<Telemetry.Span.T>
     0
 
   with
   | e ->
     LibService.Rollbar.lastDitchBlocking
       "Error running CronChecker"
-      (Prelude.ExecutionID "cronchecker")
+      (ExecutionID "cronchecker")
       []
       e
     (-1)
