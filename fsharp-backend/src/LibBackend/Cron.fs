@@ -175,6 +175,7 @@ let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * in
 // work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
+    use _span = Telemetry.child "checkAndScheduleWorkForAllCrons" []
     let! allCrons = Serialize.fetchActiveCrons ()
 
     // Chunk the crons list so that we don't have to load thousands of

@@ -94,7 +94,7 @@ let runKubernetesServer
   (serviceName : string)
   (port : int)
   (shutdownCallback : unit -> unit)
-  : unit =
+  : Task =
   let builder = WebApplication.CreateBuilder()
   configureServices builder.Services |> ignore<IServiceCollection>
   registerServerTimeout builder.WebHost
@@ -105,7 +105,7 @@ let runKubernetesServer
   |> fun app -> app.UseRouting()
   |> configureApp port
   |> ignore<IApplicationBuilder>
-  app.Run()
+  app.RunAsync()
 
 
 

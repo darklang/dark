@@ -12,16 +12,11 @@ module Telemetry = LibService.Telemetry
 let shutdown = ref false
 
 let run () : Task<unit> =
-  Telemetry.addEvent "called run" []
   task {
-    Telemetry.addEvent "start task" [ "shutdown", shutdown.Value ]
     use span = Telemetry.child "CronChecker.run" []
     while not shutdown.Value do
-      Telemetry.addEvent "running checkAndSchedule" [ "shutdown", shutdown.Value ]
       do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
-      Telemetry.addEvent "finished checkAndSchedule" [ "shutdown", shutdown.Value ]
       do! Task.Delay 1000
-      Telemetry.addEvent "delay finished" [ "shutdown", shutdown.Value ]
     return ()
   }
 
@@ -37,13 +32,16 @@ let main _ : int =
     LibBackend.Init.init "CronChecker"
     BackendOnlyStdLib.Init.init "CronChecker"
     LibRealExecution.Init.init "CronChecker"
-    // StopTaking things
+
+    // we need to stop running if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "CronChecker"
       LibService.Config.croncheckerKubernetesPort
       (fun () ->
         Telemetry.addEvent "Shutting down" []
         shutdown.Value <- true)
+    |> ignore<Task>
+
     if true then // FSTODO for now enable everywhere and do the trigger check much deeper
       // LibBackend.Config.triggerCrons then
       (run ()).Result
