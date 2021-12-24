@@ -75,8 +75,8 @@ if [[ -f "${APISERVER_EXE}" && -f "${BWDSERVER_EXE}" && -f "${CRONCHECKER_EXE}" 
   echo "Running server"
   "${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
   "${BWDSERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
-  "${CRONCHECKER_EXE}" > "$LOGS/fsharp-cron-checker.log" 2>&1 &
-  "${QUEUEWORKER_EXE}" > "$LOGS/fsharp-queue-worker.log" 2>&1 &
+  "${CRONCHECKER_EXE}" > "$LOGS/fsharp-cronchecker.log" 2>&1 &
+  "${QUEUEWORKER_EXE}" > "$LOGS/fsharp-queueworker.log" 2>&1 &
 
   ./scripts/run-nginx-server
 else
