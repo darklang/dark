@@ -78,18 +78,18 @@ let oldFunctionsAreDeprecated =
       let key = string { fn.name with version = 0 }
 
       if fn.deprecated = RT.NotDeprecated then
-        counts
-        := Map.update
-             key
-             (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
-             counts.Value
+        counts.Value <-
+          Map.update
+            key
+            (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
+            counts.Value
 
       ())
 
     Map.iter
       (fun name count ->
         Expect.equal count 1 $"{name} has more than one undeprecated function")
-      !counts
+      counts.Value
   }
 
 let intInfixMatch =
