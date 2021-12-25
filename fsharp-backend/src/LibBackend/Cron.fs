@@ -104,7 +104,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
   task {
     let! check = executionCheck cron
     if check.shouldExecute then
-      Telemetry.addTags [ ("cron", true) ]
+      use span = Telemetry.child "cron.enqueue" []
 
       // FSTODO
       // This is intended to not do the job, so that the OCaml one can keep doing it.
@@ -153,7 +153,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
           // consistency with http/worker logs
           ("method", string cron.interval) ]
         @ ([ delayLog; intervalLog; delayRatioLog ] |> List.filterMap (fun a -> a))
-      Telemetry.addEvent "cron.enqueue" attrs
+      Telemetry.addTags attrs
       return true
     else
       return false
