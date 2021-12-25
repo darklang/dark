@@ -400,7 +400,7 @@ let orgs (userID : UserID) : Task<List<OrgName.T>> =
      INNER JOIN accounts as org on access.organization_account = org.id
      WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> OrgName.create)
+  |> Sql.executeAsync (fun read -> read.string "username" |> OrgName.create)
 
 
 // **********************
