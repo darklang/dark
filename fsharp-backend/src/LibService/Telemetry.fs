@@ -122,8 +122,11 @@ let addTags (tags : List<string * obj>) : unit = Span.addTags tags (Span.current
 
 let addEvent (name : string) (tags : List<string * obj>) : unit =
   let span = Span.current ()
-  let e = span.AddEvent(System.Diagnostics.ActivityEvent name)
-  Span.addTags tags e
+  let tagCollection = System.Diagnostics.ActivityTagsCollection()
+  List.iter (fun (k, v) -> tagCollection[k] <- v) tags
+  let event =
+    System.Diagnostics.ActivityEvent(name, System.DateTime.Now, tagCollection)
+  span.AddEvent(event) |> ignore<Span.T>
 
 let addError (name : string) (tags : List<string * obj>) : unit =
   addEvent name (("level", "error") :: tags)
