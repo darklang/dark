@@ -214,10 +214,10 @@ let enqueue
   task {
     Telemetry.addEvent
       "enqueue"
-      [ "canvasName", canvasName
-        "canvasID", canvasID
+      [ "canvas_name", canvasName
+        "canvas_id", canvasID
         "space", space
-        "name", name
+        "handler_name", name
         "modifier", modifier ]
     do! logQueueSize Enqueue None canvasID space name modifier
     return!
