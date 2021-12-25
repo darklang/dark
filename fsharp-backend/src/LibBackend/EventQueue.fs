@@ -203,6 +203,7 @@ let logQueueSize
 
 
 let enqueue
+  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (accountID : UserID)
   (space : string)
@@ -211,6 +212,13 @@ let enqueue
   (data : RT.Dval)
   : Task<unit> =
   task {
+    Telemetry.addEvent
+      "enqueue"
+      [ "canvasName", canvasName
+        "canvasID", canvasID
+        "space", space
+        "name", name
+        "modifier", modifier ]
     do! logQueueSize Enqueue None canvasID space name modifier
     return!
       Sql.query

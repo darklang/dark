@@ -35,8 +35,9 @@ let fns : List<BuiltInFn> =
           uply {
             // See client/src/Entry.ml for the "_"
             let canvasID = state.program.canvasID
+            let canvasName = state.program.canvasName
             let accountID = state.program.accountID
-            do! EventQueue.enqueue canvasID accountID space name "_" data
+            do! EventQueue.enqueue canvasName canvasID accountID space name "_" data
             return data
           }
         | _ -> incorrectArgs ())
@@ -53,9 +54,11 @@ let fns : List<BuiltInFn> =
           uply {
             // See client/src/Entry.ml for the "_"
             let canvasID = state.program.canvasID
+            let canvasName = state.program.canvasName
             let accountID = state.program.accountID
 
-            do! EventQueue.enqueue canvasID accountID "WORKER" name "_" data
+            do!
+              EventQueue.enqueue canvasName canvasID accountID "WORKER" name "_" data
 
             return data
           }

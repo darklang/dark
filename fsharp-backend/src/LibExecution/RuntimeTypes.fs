@@ -821,9 +821,10 @@ and LoadFnArguments = tlid -> List<DvalMap * System.DateTime>
 
 and StoreFnArguments = tlid -> DvalMap -> Task<unit>
 
-// Every part of a user's program except the actual code to run (types, fns, secrets, etc)
+// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
+    canvasName : CanvasName.T
     accountID : UserID
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
