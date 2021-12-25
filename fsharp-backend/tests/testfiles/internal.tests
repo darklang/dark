@@ -43,3 +43,25 @@ DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentaluserna
 [tests.canvases]
 DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown Err: \"No owner found for host not-a-canvas\"" // OCAMLONLY
 DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "User not found" // FSHARPONLY
+
+DarkInternal.getCORSSetting_v0 "test" = Nothing
+
+[test.roundtrip cors just empty]
+(let _ = DarkInternal.setCORSSetting_v0 "test" (Just []) in
+ DarkInternal.getCORSSetting_v0 "test") = Just []
+
+[test.roundtrip cors just list]
+(let _ = DarkInternal.setCORSSetting_v0 "test" (Just ["localhost:8000"]) in
+ DarkInternal.getCORSSetting_v0 "test") = Just ["localhost:8000"]
+
+[test.roundtrip cors just number]
+(let _ = DarkInternal.setCORSSetting_v0 "test" (Just 5) in
+ DarkInternal.getCORSSetting_v0 "test") = Just []
+
+[test.roundtrip cors just number list]
+(let _ = DarkInternal.setCORSSetting_v0 "test" (Just [5]) in
+ DarkInternal.getCORSSetting_v0 "test") = Just []
+
+[test.roundtrip cors just star]
+(let _ = DarkInternal.setCORSSetting_v0 "test" (Just "*") in
+ DarkInternal.getCORSSetting_v0 "test") = Just "*"
