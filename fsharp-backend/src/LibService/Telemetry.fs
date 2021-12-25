@@ -57,7 +57,13 @@ module Span =
     assert_
       "Telemetry must be initialized before creating root"
       (Internal._source <> null)
-    Internal._source.StartActivity(name)
+    // Deliberately created with no parent to make this a root
+    // From https://github.com/open-telemetry/opentelemetry-dotnet/issues/984
+    System.Diagnostics.Activity.Current <- null
+    let span =
+      Internal._source.CreateActivity(name, System.Diagnostics.ActivityKind.Internal)
+    span.Start()
+
 
   // Get the Span/Activity for this execution. It is thread and also async-local.
   // See https://twitter.com/ChetHusk/status/1466589986786971649 For the sake of
@@ -76,13 +82,15 @@ module Span =
     assert_
       "Telemetry must be initialized before creating root"
       (Internal._source <> null)
-    let result = Internal._source.StartActivity(name)
+    // Don't start it until the parent is set, or it won't work
+    let result =
+      Internal._source.CreateActivity(name, System.Diagnostics.ActivityKind.Internal)
     let result =
       if result <> null && parent <> null then
         result.SetParentId parent.Id
       else
         result
-    result
+    result.Start()
 
   let addTag (name : string) (value : obj) (span : T) : unit =
     span.AddTag(name, value) |> ignore<T>
@@ -114,8 +122,11 @@ let addTags (tags : List<string * obj>) : unit = Span.addTags tags (Span.current
 
 let addEvent (name : string) (tags : List<string * obj>) : unit =
   let span = Span.current ()
-  let e = span.AddEvent(System.Diagnostics.ActivityEvent name)
-  Span.addTags tags e
+  let tagCollection = System.Diagnostics.ActivityTagsCollection()
+  List.iter (fun (k, v) -> tagCollection[k] <- v) tags
+  let event =
+    System.Diagnostics.ActivityEvent(name, System.DateTime.Now, tagCollection)
+  span.AddEvent(event) |> ignore<Span.T>
 
 let addError (name : string) (tags : List<string * obj>) : unit =
   addEvent name (("level", "error") :: tags)

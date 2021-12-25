@@ -804,6 +804,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr level; DStr name; DObj log as result ] ->
             let args =
+              // CLEANUP: possible these aren't being logged
               log
               |> Map.toList
               // We could just leave the dval vals as strings and use params, but

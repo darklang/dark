@@ -22,6 +22,7 @@ let programContext () : Task<RT.ProgramContext> =
     let! c = TestUtils.TestUtils.testCanvasInfo "benchmark"
     return
       { canvasID = c.id
+        canvasName = c.name
         accountID = c.owner
         dbs = Map.empty
         userFns = Map.empty

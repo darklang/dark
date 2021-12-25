@@ -853,8 +853,6 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 
 
 let toProgram (c : T) : RT.ProgramContext =
-  let ownerID = c.meta.owner
-  let canvasID = c.meta.id
 
   let dbs =
     c.dbs
@@ -877,6 +875,7 @@ let toProgram (c : T) : RT.ProgramContext =
   let secrets = (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
 
   { accountID = c.meta.owner
+    canvasName = c.meta.name
     canvasID = c.meta.id
     userFns = userFns
     userTypes = userTypes

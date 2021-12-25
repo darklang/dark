@@ -156,6 +156,7 @@ let logQueueSize
   : Task<unit> =
   task {
     // host is optional b/c we have it when we dequeue, but not enqueue.
+    use span = Telemetry.child "queue size" []
     let! host =
       match host with
       | Some host -> Task.FromResult(host)
@@ -186,23 +187,22 @@ let logQueueSize
                           "modifier", Sql.string modifier ]
       |> Sql.executeRowAsync (fun read -> read.int "count")
 
-    Telemetry.addEvent
-      "queue size"
-      [ ("canvas_queue_size", canvasQueueSize)
-        ("worker_queue_size", workerQueueSize)
-        // Prefixing all of these with queue so we don't overwrite - e.g., 'enqueue'
-        // from a handler that has a space, etc
-        ("queue_canvas_name", host)
-        ("queue_action", string queue_action)
-        ("queue_canvas_id", canvasID)
-        ("queue_event_space", space)
-        ("queue_event_name", name)
-        ("queue_event_modifier", modifier) ]
+    Telemetry.addTags [ ("canvas_queue_size", canvasQueueSize)
+                        ("worker_queue_size", workerQueueSize)
+                        // Prefixing all of these with queue so we don't overwrite - e.g., 'enqueue'
+                        // from a handler that has a space, etc
+                        ("queue_canvas_name", host)
+                        ("queue_action", string queue_action)
+                        ("queue_canvas_id", canvasID)
+                        ("queue_event_space", space)
+                        ("queue_event_name", name)
+                        ("queue_event_modifier", modifier) ]
   }
 
 
 
 let enqueue
+  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (accountID : UserID)
   (space : string)
@@ -211,6 +211,14 @@ let enqueue
   (data : RT.Dval)
   : Task<unit> =
   task {
+    use span =
+      Telemetry.child
+        "enqueue"
+        [ "canvas_name", canvasName
+          "canvas_id", canvasID
+          "space", space
+          "handler_name", name
+          "modifier", modifier ]
     do! logQueueSize Enqueue None canvasID space name modifier
     return!
       Sql.query

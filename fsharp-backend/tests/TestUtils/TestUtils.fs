@@ -171,21 +171,19 @@ let executionStateFor
     let executionID = ExecutionID $"test-{name}"
 
     // Performance optimization: don't touch the DB if you don't use the DB
+    let hash =
+      (sha1digest name |> System.Convert.ToBase64String |> String.toLowercase)
+        .Replace("/", "")
+        .Replace("=", "")
+        .Replace("+", "")
+
+    let canvasName = CanvasName.create $"test-{hash}"
+
     let! canvasID =
       if Map.count dbs > 0 then
         task {
-          let hash =
-            (sha1digest name |> System.Convert.ToBase64String |> String.toLowercase)
-              .Replace("/", "")
-              .Replace("=", "")
-              .Replace("+", "")
-
-          let canvasName = CanvasName.create $"test-{hash}"
           do! clearCanvasData canvasName
-
-          let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
-
-          return canvasID
+          return! Canvas.canvasIDForCanvasName ownerID canvasName
         }
       else
         task { return! testCanvasID.Force() }
@@ -194,6 +192,7 @@ let executionStateFor
 
     let program : RT.ProgramContext =
       { canvasID = canvasID
+        canvasName = canvasName
         accountID = ownerID
         userFns = userFunctions
         dbs = dbs

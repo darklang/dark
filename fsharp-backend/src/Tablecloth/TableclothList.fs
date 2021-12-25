@@ -215,7 +215,7 @@ let sliding (step : int) (size : int) (l : 'a t) =
 
    loop l : 'a t t)
 
-let chunksOf size l = sliding size size l
+let chunksOf size l = List.chunkBySize size l
 
 let chunks_of size l = chunksOf size l
 

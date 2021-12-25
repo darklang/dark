@@ -39,7 +39,7 @@ let testEventQueueRoundtrip =
     do!
       Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
 
-    do! EQ.enqueue meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
+    do! EQ.enqueue meta.name meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
 
     do! EQ.testingScheduleAll ()
     let! result = QueueWorker.dequeueAndProcess ()
@@ -73,7 +73,7 @@ let testEventQueueIsFifo =
        |> Canvas.saveTLIDs meta)
 
     let enqueue (name : string) (i : int64) =
-      EQ.enqueue meta.id meta.owner "WORKER" name "_" (RT.DInt i)
+      EQ.enqueue meta.name meta.id meta.owner "WORKER" name "_" (RT.DInt i)
 
     do! enqueue "apple" 1L
     do! enqueue "apple" 2L

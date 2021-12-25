@@ -80,6 +80,14 @@ let mapTests =
            Map.ofList [ (1, -1); (2, -2); (3, -3) ],
            Map.ofList [ (1, 1); (2, 2); (3, 3) ]) ] ]
 
+let listTests =
+  testList
+    "List"
+    [ testMany2
+        "List.chunksOf"
+        Tablecloth.List.chunksOf
+        [ (2, [ 1; 2; 3 ], [ [ 1; 2 ]; [ 3 ] ]) ] ]
 
 
-let tests = testList "prelude" [ canvasName; asyncTests; mapTests ]
+
+let tests = testList "prelude" [ canvasName; asyncTests; mapTests; listTests ]
