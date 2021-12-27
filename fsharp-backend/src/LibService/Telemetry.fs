@@ -247,43 +247,18 @@ type DarkSampler() =
     | _ -> None
 
   override this.ShouldSample(p : SamplingParameters inref) : SamplingResult =
-    let tags : Map<string, obj> =
-      if isNull p.Tags then
-        Map.empty
-      else
-        p.Tags |> Seq.map Tuple2.fromKeyValuePair |> Map
-    let libraryName = getString "library.name" tags |> Option.unwrap ""
-    debuG "checking" p.Name
-    debuG "libraryName" libraryName
-    debuG "tags" tags
-
-    if p.Name = "received-first-response" then
-      // these events are added by the Npgsql library, but I can't seem to see
-      // anything useful in this. They double our event count by their presence.
-      debuG "dropping" "first response"
-      drop
-    else if libraryName = "Npgsql" then
-      // In the old days, we got these events directly from the database, which
-      // included just query time, and we threw away events shorter than 1ms. But
-      // Npgsql events include a lot more, including async overhead, time to first
-      // byte, and time to dispose of the data, which is way more. Let's try to be a little conservative
-      if getFloat "duration_ms" tags
-         |> Option.map (fun v -> v > 5.0)
-         |> Option.unwrap true then
-        debuG "keeping" "long query"
-        keep
-      else
-        debuG "dropping" "short query"
-        drop
-    else
-      debuG "keeping" "unmatched"
-      keep
-
+    // This turned out to be useless for the initial need (trimming short DB queries)
+    keep
 
 let sampler = DarkSampler()
 
+type TraceDBQueries =
+  | TraceDBQueries
+  | DontTraceDBQueries
+
 let addTelemetry
   (serviceName : string)
+  (traceDBQueries : TraceDBQueries)
   (builder : TracerProviderBuilder)
   : TracerProviderBuilder =
   builder
@@ -296,7 +271,10 @@ let addTelemetry
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b -> b.AddHttpClientInstrumentation()
-  |> fun b -> b.AddNpgsql()
+  |> fun b ->
+       match traceDBQueries with
+       | TraceDBQueries -> b.AddNpgsql()
+       | DontTraceDBQueries -> b
   |> fun b -> b.AddSource("Dark")
   |> fun b -> b.SetSampler(sampler)
 
@@ -311,9 +289,9 @@ let executionID () = ExecutionID(string System.Diagnostics.Activity.Current.Trac
 module Console =
   // For webservers, tracing is added by ASP.NET middlewares. For non-webservers, we
   // also need to add tracing. This does that.
-  let loadTelemetry (serviceName : string) : unit =
+  let loadTelemetry (serviceName : string) (traceDBQueries : TraceDBQueries) : unit =
     Sdk.CreateTracerProviderBuilder()
-    |> addTelemetry serviceName
+    |> addTelemetry serviceName traceDBQueries
     |> fun tp -> tp.Build()
     |> ignore<TracerProvider>
     // Create a default root span, to ensure that one exists. This span will not be
@@ -327,7 +305,9 @@ module AspNet =
 
   let addTelemetryToServices
     (serviceName : string)
+    (traceDBQueries : TraceDBQueries)
     (services : IServiceCollection)
     : IServiceCollection =
     services.AddOpenTelemetryTracing (fun builder ->
-      addTelemetry serviceName builder |> ignore<TracerProviderBuilder>)
+      addTelemetry serviceName traceDBQueries builder
+      |> ignore<TracerProviderBuilder>)

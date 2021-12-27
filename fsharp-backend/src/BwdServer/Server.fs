@@ -445,7 +445,9 @@ let configureServices (services : IServiceCollection) : unit =
   services
   |> LibService.Kubernetes.configureServices
   |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
+  |> LibService.Telemetry.AspNet.addTelemetryToServices
+       "BwdServer"
+       LibService.Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
 

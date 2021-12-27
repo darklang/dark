@@ -182,7 +182,7 @@ let main _ : int =
   try
     print "Starting QueueWorker"
     LibService.Init.init "QueueWorker"
-    Telemetry.Console.loadTelemetry "QueueWorker"
+    Telemetry.Console.loadTelemetry "QueueWorker" Telemetry.DontTraceDBQueries
     LibExecution.Init.init "QueueWorker"
     LibExecutionStdLib.Init.init "QueueWorker"
     LibBackend.Init.init "QueueWorker"
