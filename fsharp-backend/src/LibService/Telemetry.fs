@@ -206,8 +206,77 @@ let configureAspNetCore
   options.Enrich <- enrich
   options.RecordException <- true
 
+type DarkSampler() =
+  // A sampler is used to reduce the number of events, to not overwhelm the results.
+  // In our case, we want to control costs too - we only have 1.5B honeycomb events
+  // per month, and it's easy to use them very quickly in a loop
+  inherit OpenTelemetry.Trace.Sampler()
+  let keep = SamplingResult(SamplingDecision.RecordAndSample)
+  let drop = SamplingResult(SamplingDecision.Drop)
+  let getInt (name : string) (map : Map<string, obj>) : Option<int> =
+    try
+      match Map.get name map with
+      | Some result ->
+        if typeof<int> = result.GetType() then Some(result :?> int) else None
+      | None -> None
+    with
+    | _ -> None
+  let getFloat (name : string) (map : Map<string, obj>) : Option<float> =
+    try
+      match Map.get name map with
+      | Some result ->
+        if typeof<float> = result.GetType() then Some(result :?> float) else None
+      | None -> None
+    with
+    | _ -> None
+
+  let getString (name : string) (map : Map<string, obj>) : Option<string> =
+    try
+      match Map.get name map with
+      | Some result ->
+        if typeof<string> = result.GetType() then Some(result :?> string) else None
+      | None -> None
+    with
+    | _ -> None
+
+  override this.ShouldSample(p : SamplingParameters inref) : SamplingResult =
+    let tags : Map<string, obj> =
+      if isNull p.Tags then
+        Map.empty
+      else
+        p.Tags |> Seq.map Tuple2.fromKeyValuePair |> Map
+    let libraryName = getString "library.name" tags |> Option.unwrap ""
+    debuG "checking" p.Name
+    debuG "libraryName" libraryName
+    debuG "tags" tags
+
+    if p.Name = "received-first-response" then
+      // these events are added by the Npgsql library, but I can't seem to see
+      // anything useful in this. They double our event count by their presence.
+      debuG "dropping" "first response"
+      drop
+    else if libraryName = "Npgsql" then
+      // In the old days, we got these events directly from the database, which
+      // included just query time, and we threw away events shorter than 1ms. But
+      // Npgsql events include a lot more, including async overhead, time to first
+      // byte, and time to dispose of the data, which is way more. Let's try to be a little conservative
+      if getFloat "duration_ms" tags
+         |> Option.map (fun v -> v > 5.0)
+         |> Option.unwrap true then
+        debuG "keeping" "long query"
+        keep
+      else
+        debuG "dropping" "short query"
+        drop
+    else
+      debuG "keeping" "unmatched"
+      keep
+
+
+let sampler = DarkSampler()
+
 let addTelemetry
-  (name : string)
+  (serviceName : string)
   (builder : TracerProviderBuilder)
   : TracerProviderBuilder =
   builder
@@ -216,11 +285,13 @@ let addTelemetry
        | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions).AddConsoleExporter()
        | Config.NoExporter -> b
        | Config.Console -> b.AddConsoleExporter()
-  |> fun b -> b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(name))
+  |> fun b ->
+       b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b -> b.AddHttpClientInstrumentation()
   |> fun b -> b.AddNpgsql()
   |> fun b -> b.AddSource("Dark")
+  |> fun b -> b.SetSampler(sampler)
 
 
 // An execution ID was an int64 ID in the OCaml version, but since we're using
@@ -234,7 +305,7 @@ module Console =
   // For webservers, tracing is added by ASP.NET middlewares. For non-webservers, we
   // also need to add tracing. This does that.
   let loadTelemetry (serviceName : string) : unit =
-    Sdk.CreateTracerProviderBuilder().SetSampler(new AlwaysOnSampler())
+    Sdk.CreateTracerProviderBuilder()
     |> addTelemetry serviceName
     |> fun tp -> tp.Build()
     |> ignore<TracerProvider>
