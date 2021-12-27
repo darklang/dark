@@ -506,6 +506,12 @@ module Tuple2 =
     : ('a * 'b) =
     kvp.Key, kvp.Value
 
+  let toKeyValuePair
+    ((k, v) : 'a * 'b)
+    : (System.Collections.Generic.KeyValuePair<'a, 'b>) =
+    System.Collections.Generic.KeyValuePair<'a, 'b>(k, v)
+
+
 type System.DateTime with
 
   member this.toIsoString() : string =
