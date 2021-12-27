@@ -122,8 +122,14 @@ let addEvent (name : string) (tags : List<string * obj>) : unit =
     System.Diagnostics.ActivityEvent(name, System.DateTime.Now, tagCollection)
   span.AddEvent(event) |> ignore<Span.T>
 
-let addError (name : string) (tags : List<string * obj>) : unit =
-  addEvent name (("level", "error") :: tags)
+let addException (name : string) (e : exn) (tags : List<string * obj>) : unit =
+  // https://github.com/open-telemetry/opentelemetry-dotnet/blob/1191a2a3da7be8deae7aa94083b5981cb7610080/src/OpenTelemetry.Api/Trace/ActivityExtensions.cs#L79
+  // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
+  let exceptionTags =
+    [ "exception.type", e.GetType().FullName :> obj
+      "exception.stacktrace", e.ToString()
+      "exception.message", e.Message ]
+  addEvent name (tags @ exceptionTags)
 
 
 
@@ -149,8 +155,9 @@ let init (serviceName : string) : unit =
 
   // Make sure exceptions make it into telemetry as soon as they're called
   Prelude.exceptionCallback <-
-    (fun typ msg tags ->
-      addError msg (("exception", true) :: ("exceptionType", typ) :: tags))
+    (fun e typ msg tags ->
+      let tags = ("exception", true :> obj) :: ("exception.darkType", typ) :: tags
+      addException msg e tags)
   print " Configured Telemetry"
 
 

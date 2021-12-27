@@ -963,7 +963,7 @@ that's already taken, returns an error."
               with
               | e ->
                 let attrs = [ "username", username :> obj ]
-                Telemetry.addError "DarkInternal::newSessionForUserName" attrs
+                Telemetry.addException "DarkInternal::newSessionForUserName" e attrs
                 LibService.Rollbar.sendException
                   "Failed to create session"
                   state.executionID
@@ -1000,7 +1000,6 @@ that's already taken, returns an error."
               with
               | e ->
                 let attrs = [ "username", username :> obj ]
-                Telemetry.addError "DarkInternal::newSessionForUserName_v1" attrs
                 LibService.Rollbar.sendException
                   "Failed to create session"
                   state.executionID

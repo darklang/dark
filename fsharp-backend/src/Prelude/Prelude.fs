@@ -53,12 +53,12 @@ exception DarkException of DarkExceptionData
 
 // This is for tracing
 let mutable exceptionCallback =
-  (fun (typ : string) (msg : string) (tags : List<string * obj>) -> ())
+  (fun (e : exn) (typ : string) (msg : string) (tags : List<string * obj>) -> ())
 
 module Exception =
-  let callExceptionCallback typ msg tags =
+  let callExceptionCallback e typ msg tags =
     try
-      exceptionCallback typ msg tags
+      exceptionCallback e typ msg tags
     with
     | _ ->
       // We're completely screwed at this point
@@ -68,32 +68,37 @@ module Exception =
   // msg is suitable to show to the grand user. We don't care about grandUser
   // exceptions, they're normal.
   let raiseGrandUser (msg : string) =
-    callExceptionCallback "grand" msg []
-    raise (DarkException(GrandUserError(msg)))
+    let e = DarkException(GrandUserError(msg))
+    callExceptionCallback e "grand" msg []
+    raise e
 
   // A developer exception is one caused by the incorrect actions of our
   // user/developer. The msg is suitable to show to the user.
   let raiseDeveloper (msg : string) =
-    callExceptionCallback "developer" msg []
-    raise (DarkException(DeveloperError(msg)))
+    let e = DarkException(DeveloperError(msg))
+    callExceptionCallback e "developer" msg []
+    raise e
 
   // An editor exception is one which is caused by an invalid action on the part of
   // the Dark editor. We are interested in these. The message may be shown to the
   // logged-in user, and should be suitable for this.
   let raiseEditor (msg : string) =
-    callExceptionCallback "editor" msg []
-    raise (DarkException(EditorError(msg)))
+    let e = DarkException(EditorError(msg))
+    callExceptionCallback e "editor" msg []
+    raise e
 
   // An internal error. Should be rollbarred, and should not be shown to users.
   let raiseInternal (msg : string) (tags : List<string * obj>) =
-    callExceptionCallback "internal" msg tags
-    raise (DarkException(InternalError(msg, tags)))
+    let e = DarkException(InternalError(msg, tags))
+    callExceptionCallback e "internal" msg tags
+    raise e
 
   // An error in library code - should not be shown to grand users. May be shown to
   // logged-in developers (most typically in a DError or a Result).
   let raiseLibrary (msg : string) (tags : List<string * obj>) =
-    callExceptionCallback "library" msg tags
-    raise (DarkException(LibraryError(msg, tags)))
+    let e = DarkException(LibraryError(msg, tags))
+    callExceptionCallback e "library" msg tags
+    raise e
 
   let toGrandUserMessage (e : exn) : Option<string> =
     match e with
