@@ -375,7 +375,6 @@ module UTF8 =
   let ofBytesWithReplacement (input : byte array) : string =
     System.Text.Encoding.UTF8.GetString input
 
-
 // Base64 comes in various flavors, typically URLsafe (has '-' and '_' with no
 // padding) or regular (has + and / and has '=' padding at the end)
 module Base64 =
@@ -500,6 +499,12 @@ module Uuid =
 
   let uuidV5 (data : string) (nameSpace : System.Guid) : System.Guid =
     Faithlife.Utility.GuidUtility.Create(nilNamespace, data, 5)
+
+module Tuple2 =
+  let fromKeyValuePair
+    (kvp : System.Collections.Generic.KeyValuePair<'a, 'b>)
+    : ('a * 'b) =
+    kvp.Key, kvp.Value
 
 type System.DateTime with
 
