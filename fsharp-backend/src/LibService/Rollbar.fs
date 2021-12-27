@@ -96,15 +96,13 @@ let sendException
     let custom = createState message executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
     |> ignore<Rollbar.ILogger>
+    Telemetry.addException message e metadata
   with
   | e ->
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
-    Telemetry.addError
-      "Exception when calling rollbar"
-      [ "message", e.Message; "stackTrace", e.StackTrace ]
-
+    Telemetry.addException "Exception when calling rollbar" e []
 // Will block for 5 seconds to make sure this exception gets sent. Use for startup
 // and other places where the process is intended to end after this call.
 let lastDitchBlocking
@@ -126,6 +124,7 @@ let lastDitchBlocking
       .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
       .Error(e, custom)
     |> ignore<Rollbar.ILogger>
+    Telemetry.addException message e metadata
   with
   | e ->
     print "Exception when calling rollbar"
@@ -133,9 +132,7 @@ let lastDitchBlocking
     print e.StackTrace
     if Telemetry.Span.current () = null then
       Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
-    Telemetry.addError
-      "Exception when calling rollbar"
-      [ "message", e.Message; "stackTrace", e.StackTrace ]
+    Telemetry.addException "Exception when calling rollbar" e []
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
@@ -194,14 +191,13 @@ module AspNet =
                 )
             Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
             |> ignore<Rollbar.ILogger>
+          // No telemetry call here as it should happen automatically
           with
           | re ->
             print "Exception when calling rollbar"
             print re.Message
             print re.StackTrace
-            Telemetry.addError
-              "Exception when calling rollbar"
-              [ "message", re.Message; "stackTrace", re.StackTrace ]
+            Telemetry.addException "Exception when calling rollbar" re []
           e.Reraise()
       }
 
