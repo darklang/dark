@@ -18,7 +18,6 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.DependencyInjection
 
-type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Prelude
@@ -42,19 +41,20 @@ module FireAndForget = LibService.FireAndForget
 // ---------------
 let getHeaders (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
-  |> Seq.map (fun (kvp : KeyValuePair<string, StringValues>) ->
-    (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
+  |> Seq.map Tuple2.fromKeyValuePair
+  |> Seq.map (fun (k, v) -> (k, v.ToArray() |> Array.toList |> String.concat ","))
   |> Seq.toList
 
 let getQuery (ctx : HttpContext) : List<string * List<string>> =
   ctx.Request.Query
-  |> Seq.map (fun (kvp : KeyValuePair<string, StringValues>) ->
-    (kvp.Key,
+  |> Seq.map Tuple2.fromKeyValuePair
+  |> Seq.map (fun (k, v) ->
+    (k,
      // If there are duplicates, .NET puts them in the same StringValues.
      // However, it doesn't parse commas. We want a list if there are commas,
      // but we want to overwrite if there are two of the same headers.
      // CLEANUP this isn't to say that this is good behaviour
-     kvp.Value.ToArray()
+     v.ToArray()
      |> Array.toList
      |> List.tryLast
      |> Option.defaultValue ""
@@ -445,7 +445,9 @@ let configureServices (services : IServiceCollection) : unit =
   services
   |> LibService.Kubernetes.configureServices
   |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
+  |> LibService.Telemetry.AspNet.addTelemetryToServices
+       "BwdServer"
+       LibService.Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
 

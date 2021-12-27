@@ -144,7 +144,9 @@ let configureApp (appBuilder : WebApplication) =
 let configureServices (services : IServiceCollection) : unit =
   services
   |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
+  |> LibService.Telemetry.AspNet.addTelemetryToServices
+       "ApiServer"
+       LibService.Telemetry.TraceDBQueries
   |> LibService.Kubernetes.configureServices
   |> fun s -> s.AddServerTiming()
   |> ignore<IServiceCollection>

@@ -5,6 +5,8 @@ module Tests.All
 open Expecto
 open System.Threading.Tasks
 
+module Telemetry = LibService.Telemetry
+
 [<EntryPoint>]
 let main (args : string array) : int =
   LibService.Init.init "Tests"
@@ -21,7 +23,7 @@ let main (args : string array) : int =
   // CLEANUP For now, migrations are run by the ocaml process in run-fsharp-tests
   // LibBackend.Migrations.init ()
   let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-  LibService.Telemetry.Console.loadTelemetry "tests"
+  Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
   (LibBackend.Account.initTestAccounts ()).Wait()
 
   let tests =

@@ -8,9 +8,6 @@ open Expecto
 open System.Net.Http
 open Microsoft.AspNetCore.Http
 
-type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
-type StringValues = Microsoft.Extensions.Primitives.StringValues
-
 open Tablecloth
 open Prelude
 open Prelude.Tablecloth
@@ -59,8 +56,8 @@ let login (username : string) (password : string) : Task<User> =
       )
 
     let body =
-      [ KeyValuePair<string, string>("username", username)
-        KeyValuePair<string, string>("password", password) ]
+      [ ("username", username); ("password", password) ]
+      |> List.map Tuple2.toKeyValuePair
 
     loginReq.Content <- new FormUrlEncodedContent(body)
 
@@ -698,8 +695,8 @@ let cookies =
         match creds with
         | Some (username, password) ->
           let body =
-            [ KeyValuePair<string, string>("username", username)
-              KeyValuePair<string, string>("password", password) ]
+            [ ("username", username); ("password", password) ]
+            |> List.map Tuple2.toKeyValuePair
 
           req.Content <- new FormUrlEncodedContent(body)
         | None -> ()

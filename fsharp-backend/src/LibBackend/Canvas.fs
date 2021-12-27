@@ -10,6 +10,7 @@ open LibBackend.Db
 
 open Prelude
 open Tablecloth
+open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -248,10 +249,11 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   with
   | e ->
     // Log here so we have context, but then re-raise
-    Telemetry.addError
+    Telemetry.addException
       "apply_op failure"
-      [ ("host", c.meta.name); ("op", string op); ("exn", string e) ]
-    reraise ()
+      e
+      [ ("host", c.meta.name); ("op", string op) ]
+    e.Reraise()
 
 
 // NOTE: If you add a new verification here, please ensure all places that

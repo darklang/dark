@@ -32,7 +32,7 @@ let main _ : int =
     BackendOnlyStdLib.Init.init "CronChecker"
     LibRealExecution.Init.init "CronChecker"
 
-    Telemetry.Console.loadTelemetry "CronChecker"
+    Telemetry.Console.loadTelemetry "CronChecker" Telemetry.DontTraceDBQueries
     // we need to stop running if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "CronChecker"

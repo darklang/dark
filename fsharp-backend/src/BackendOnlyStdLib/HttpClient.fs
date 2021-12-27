@@ -8,18 +8,15 @@ open FSharp.Control.Tasks
 open System.Net.Http
 open System.IO.Compression
 open System.IO
+type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 open Prelude
 open LibExecution
 open LibBackend
 open VendoredTablecloth
 
-type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 module RT = RuntimeTypes
-
-type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
-type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 type HttpHeaders = List<string * string>
 
@@ -92,8 +89,8 @@ let httpClient : HttpClient =
 // Convert .NET HttpHeaders into Dark-style headers
 let convertHeaders (headers : AspHeaders) : HttpHeaders =
   headers
-  |> Seq.map (fun (kvp : KeyValuePair<string, seq<string>>) ->
-    (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
+  |> Seq.map Tuple2.fromKeyValuePair
+  |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
   |> Seq.toList
 
 
