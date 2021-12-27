@@ -9,7 +9,6 @@ open System.Net.Http
 open Microsoft.AspNetCore.Http
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
-type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Tablecloth
 open Prelude
