@@ -78,40 +78,34 @@ module Span =
   // Spans (Activities) need to stop or they'll have the wrong end-time. You can
   // either use `use` when allocating them, which will mean they are stopped as soon
   // as they go out of scope, or you can explicitly call stop.
-  let child (name : string) (parent : T) : T =
+  let child (name : string) (parent : T) (tags : List<string * obj>) : T =
     assert_
       "Telemetry must be initialized before creating root"
       (Internal._source <> null)
-    // Don't start it until the parent is set, or it won't work
-    let result =
-      Internal._source.CreateActivity(name, System.Diagnostics.ActivityKind.Internal)
-    let result =
-      if result <> null && parent <> null then
-        result.SetParentId parent.Id
-      else
-        result
+    let tags = tags |> List.map Tuple2.toKeyValuePair
+    let parentId = if parent = null then null else parent.Id
+    let kind = System.Diagnostics.ActivityKind.Internal
+    // the Sampler is called within this, and only the tags available here will be
+    // passed to the sampler
+    let result = Internal._source.CreateActivity(name, kind, parentId, tags)
     result.Start()
 
   let addTag (name : string) (value : obj) (span : T) : unit =
-    span.AddTag(name, value) |> ignore<T>
+    span.SetTag(name, value) |> ignore<T>
 
   let addTags (tags : List<string * obj>) (span : T) : unit =
-    List.iter (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<T>) tags
+    List.iter (fun (name, value : obj) -> span.SetTag(name, value) |> ignore<T>) tags
 
   let addEvent (name : string) (tags : List<string * obj>) (span : T) : unit =
     let e = span.AddEvent(System.Diagnostics.ActivityEvent name)
-    List.iter (fun (name, value : obj) -> e.AddTag(name, value) |> ignore<T>) tags
+    List.iter (fun (name, value : obj) -> e.SetTag(name, value) |> ignore<T>) tags
 
 
 // This creates a new root. The correct way to use this is to call `use span =
 // Telemetry.child` so that it falls out of scope properly and the parent takes over
 // again
 let child (name : string) (tags : List<string * obj>) : Span.T =
-  let span = Span.child name (Span.current ())
-  List.iter
-    (fun (name, value : obj) -> span.AddTag(name, value) |> ignore<Span.T>)
-    tags
-  span
+  Span.child name (Span.current ()) tags
 
 let createRoot (name : string) : Span.T = Span.root name
 

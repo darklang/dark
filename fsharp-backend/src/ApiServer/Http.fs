@@ -43,7 +43,7 @@ type TraceTimer =
 // Call [t.stop()] at the end, or the final span duration will be incorrect.
 let startTimer (initialName : string) (ctx : HttpContext) : TraceTimer =
   let parent = Span.current ()
-  let mutable child = Span.child initialName parent
+  let mutable child = Span.child initialName parent []
   let st =
     ctx.RequestServices.GetService<Lib.AspNetCore.ServerTiming.IServerTiming>()
   let stop () : unit =
@@ -57,7 +57,7 @@ let startTimer (initialName : string) (ctx : HttpContext) : TraceTimer =
   { next =
       fun name ->
         stop ()
-        child <- Span.child name parent
+        child <- Span.child name parent []
     span = fun () -> child
     stop = fun () -> stop () }
 
