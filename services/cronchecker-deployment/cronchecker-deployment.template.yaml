@@ -11,8 +11,7 @@ spec:
       app: cronchecker
   # there should only be one of these right now, as there's no locking on checking
   # if we should enqueue or not
-  # FSTODO: as part of deployment, we only pull one for now
-  replicas: 0
+  replicas: 1
   template:
     metadata:
       labels:
