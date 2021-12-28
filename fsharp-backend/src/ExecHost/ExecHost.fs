@@ -16,6 +16,8 @@ open System.Threading.Tasks
 open Prelude
 open Tablecloth
 
+module Telemetry = LibService.Telemetry
+
 let runMigrations () =
   print $"Running migrations"
   LibBackend.Migrations.run ()
@@ -71,7 +73,7 @@ let run (args : string []) : Task<int> =
 let main args : int =
   try
     LibService.Init.init "ExecHost"
-    LibService.Telemetry.Console.loadTelemetry "ExecHost"
+    Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
     LibBackend.Init.init "ExecHost"
     (run args).Result
   with
