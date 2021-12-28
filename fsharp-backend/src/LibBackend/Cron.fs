@@ -52,11 +52,11 @@ let convertInterval (interval : PT.Handler.CronInterval) : System.TimeSpan =
   | PT.Handler.EveryMinute -> System.TimeSpan(0, 0, 1, 0, 0)
 
 
-type ExecutionCheck =
+type NextExecution =
   { scheduledRunAt : Option<System.DateTime>
     interval : Option<System.TimeSpan> }
 
-let executionCheck (cron : CronScheduleData) : Task<Option<ExecutionCheck>> =
+let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
   task {
     let now = System.DateTime.Now in
 
@@ -158,8 +158,9 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
 let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * int> =
   task {
     use _span = Telemetry.child "check_and_schedule_work_for_crons" []
-    let! enqueuedCrons = Task.mapSequentially checkAndScheduleWorkForCron crons
-    return (List.length crons, List.count Fun.identity enqueuedCrons)
+    let! enqueuedCrons = crons |> Task.mapInParallel checkAndScheduleWorkForCron
+    let enqueuedCronCount = List.count Fun.identity enqueuedCrons
+    return (List.length crons, enqueuedCronCount)
   }
 
 
@@ -172,10 +173,10 @@ let checkAndScheduleWorkForAllCrons () : Task<unit> =
     let! allCrons = Serialize.fetchActiveCrons ()
 
     // Chunk the crons list so that we don't have to load thousands of
-    // canvases into memory at once.
+    // canvases into memory/tasks at once
     //
-    // 1000 was chosen arbitrarily. Please update if data shows this is the wrong number.
-    let chunks = allCrons |> List.chunksOf 1000
+    // 100 was chosen arbitrarily. Please update if data shows this is the wrong number.
+    let chunks = allCrons |> List.chunksOf 100
     Telemetry.addTags [ ("crons.count", List.length allCrons)
                         ("chunks.count", List.length chunks) ]
 
