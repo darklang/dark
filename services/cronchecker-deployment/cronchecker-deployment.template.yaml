@@ -19,6 +19,7 @@ spec:
         app: cronchecker
     spec:
       containers:
+
         - name: cronchecker-ctr
           image: "gcr.io/balmy-ground-195100/gcp-fsharp-cronchecker:{IMAGEID:gcp-fsharp-cronchecker}"
           # Resource request intentionally less than resource limit, to ensure
@@ -26,11 +27,11 @@ spec:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
+              memory: "200Mi"
               cpu: "125m"
             limits:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "400Mi"
+              cpu: "250m"
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -100,6 +101,7 @@ spec:
                 secretKeyRef:
                   name: honeycomb
                   key: api-key
+
         #########################
         # Postgres proxy config
         # To connect to postgres from kubernetes, we need to add a proxy. See
@@ -111,7 +113,7 @@ spec:
           image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
           resources:
             requests:
-              memory: "500Mi"
+              memory: "250Mi"
               cpu: "125m"
             limits:
               memory: "500Mi"
