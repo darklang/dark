@@ -16,6 +16,7 @@ let run () : Task<unit> =
     while not shutdown.Value do
       use span = Telemetry.createRoot "CronChecker.run"
       do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
+      do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
     return ()
   }
 
