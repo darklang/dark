@@ -106,9 +106,6 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     if check.shouldExecute then
       use span = Telemetry.child "cron.enqueue" []
 
-      // FSTODO
-      // This is intended to not do the job, so that the OCaml one can keep doing it.
-      // I just want to check that the events look right
       if Config.triggerCrons then
         do!
           EventQueue.enqueue
