@@ -1255,6 +1255,14 @@ module Task =
          []
     |> map List.rev
 
+  let mapInParallel (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
+    task {
+      let tasks = List.map f list
+      let! doneTasks = Task.WhenAll tasks
+      return doneTasks |> Array.toList
+    }
+
+
   let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
     task {
       let! filtered =
