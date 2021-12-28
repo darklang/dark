@@ -4,6 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <!-- <PublishReadyToRun>true</PublishReadyToRun> -->
     <LangVersion>6.0</LangVersion>
+    <OtherFlags>--warnaserror</OtherFlags>
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
     <SelfContained>true</SelfContained>
