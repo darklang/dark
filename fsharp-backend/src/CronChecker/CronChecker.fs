@@ -16,7 +16,7 @@ let run () : Task<unit> =
     while not shutdown.Value do
       use span = Telemetry.createRoot "CronChecker.run"
       do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
-      do! Task.Delay 1000
+      do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
     return ()
   }
 
@@ -42,8 +42,7 @@ let main _ : int =
         shutdown.Value <- true)
     |> ignore<Task>
 
-    if true then // FSTODO for now enable everywhere and do the trigger check much deeper
-      // LibBackend.Config.triggerCrons then
+    if LibBackend.Config.triggerCrons then
       (run ()).Result
     else
       Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []

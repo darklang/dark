@@ -5,6 +5,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>6.0</LangVersion>
+    <OtherFlags>--warnaserror</OtherFlags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />

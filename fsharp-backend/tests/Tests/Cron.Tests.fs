@@ -54,11 +54,8 @@ let testCronSanity =
         cronName = "test"
         interval = PT.Handler.EveryDay }
 
-    let! (executionCheck : Cron.ExecutionCheck) =
-      Cron.executionCheck cronScheduleData
-
-    Expect.equal executionCheck.shouldExecute true "should_execute should be true"
-    ()
+    let! executionCheck = Cron.executionCheck cronScheduleData
+    Expect.equal (Option.isSome executionCheck) true "should_execute should be true"
   }
 
 
@@ -85,10 +82,8 @@ let testCronJustRan =
 
     do! Cron.recordExecution cronScheduleData
 
-    let! (executionCheck : Cron.ExecutionCheck) =
-      Cron.executionCheck cronScheduleData
-
-    Expect.equal executionCheck.shouldExecute false "should_execute should be false"
+    let! executionCheck = Cron.executionCheck cronScheduleData
+    Expect.equal executionCheck None "should_execute should be false"
   }
 
 

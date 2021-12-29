@@ -52,19 +52,18 @@ let convertInterval (interval : PT.Handler.CronInterval) : System.TimeSpan =
   | PT.Handler.EveryMinute -> System.TimeSpan(0, 0, 1, 0, 0)
 
 
-type ExecutionCheck =
-  { shouldExecute : bool
-    scheduledRunAt : Option<System.DateTime>
+type NextExecution =
+  { scheduledRunAt : Option<System.DateTime>
     interval : Option<System.TimeSpan> }
 
-let executionCheck (cron : CronScheduleData) : Task<ExecutionCheck> =
+let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
   task {
     let now = System.DateTime.Now in
 
     match! lastRanAt cron with
     | None ->
       // we should always run if we've never run before
-      return { shouldExecute = true; scheduledRunAt = Some now; interval = None }
+      return Some { scheduledRunAt = Some now; interval = None }
     | Some lrt ->
       // Example:
       //   last_ran_at = 16:00
@@ -78,12 +77,9 @@ let executionCheck (cron : CronScheduleData) : Task<ExecutionCheck> =
 
       if now >= shouldRunAfter then
         return
-          { shouldExecute = true
-            scheduledRunAt = Some shouldRunAfter
-            interval = Some interval }
+          Some { scheduledRunAt = Some shouldRunAfter; interval = Some interval }
       else
-        return
-          { shouldExecute = false; scheduledRunAt = None; interval = Some interval }
+        return None
   }
 
 
@@ -102,8 +98,8 @@ let recordExecution (cron : CronScheduleData) : Task<unit> =
 // Returns true/false whether the cron was enqueued, so we can count it later
 let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
   task {
-    let! check = executionCheck cron
-    if check.shouldExecute then
+    match! executionCheck cron with
+    | Some check ->
       use span = Telemetry.child "cron.enqueue" []
 
       if Config.triggerCrons then
@@ -152,8 +148,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
         @ ([ delayLog; intervalLog; delayRatioLog ] |> List.filterMap (fun a -> a))
       Telemetry.addTags attrs
       return true
-    else
-      return false
+    | None -> return false
   }
 
 // Given a list of [cron_schedule_data] records, check which ones are due to
@@ -163,8 +158,9 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
 let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * int> =
   task {
     use _span = Telemetry.child "check_and_schedule_work_for_crons" []
-    let! enqueuedCrons = Task.mapSequentially checkAndScheduleWorkForCron crons
-    return (List.length crons, List.length enqueuedCrons)
+    let! enqueuedCrons = crons |> Task.mapInParallel checkAndScheduleWorkForCron
+    let enqueuedCronCount = List.count Fun.identity enqueuedCrons
+    return (List.length crons, enqueuedCronCount)
   }
 
 
@@ -177,10 +173,10 @@ let checkAndScheduleWorkForAllCrons () : Task<unit> =
     let! allCrons = Serialize.fetchActiveCrons ()
 
     // Chunk the crons list so that we don't have to load thousands of
-    // canvases into memory at once.
+    // canvases into memory/tasks at once
     //
-    // 1000 was chosen arbitrarily. Please update if data shows this is the wrong number.
-    let chunks = allCrons |> List.chunksOf 1000
+    // 100 was chosen arbitrarily. Please update if data shows this is the wrong number.
+    let chunks = allCrons |> List.chunksOf 100
     Telemetry.addTags [ ("crons.count", List.length allCrons)
                         ("chunks.count", List.length chunks) ]
 

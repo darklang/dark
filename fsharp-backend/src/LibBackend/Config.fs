@@ -88,8 +88,14 @@ let dir (root : Root) : string =
 // -------------------------
 let allowTestRoutes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
+// If we have production data in a non-production environment, we don't want to trigger their workers
 let triggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
+
+// If we have production data in a non-production environment, we don't want to trigger their workers
 let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
+
+// Stop my fans from spinning
+let pauseBetweenCronsInMs = int "DARK_CONFIG_PAUSE_BETWEEN_CRONS"
 
 let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
