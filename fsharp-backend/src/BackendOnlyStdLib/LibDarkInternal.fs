@@ -791,7 +791,7 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "checkPermission" 0
       parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
-      returnType = TBool
+      returnType = TStr
       description = "Check a user's permissions for a particular canvas."
       fn =
         internalFn (function
