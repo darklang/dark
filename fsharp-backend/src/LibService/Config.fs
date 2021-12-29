@@ -41,15 +41,19 @@ let heapioId = string "DARK_CONFIG_HEAPIO_ID"
 // honeycomb
 // --------------------
 type TelemetryExporter =
-  | NoExporter
   | Honeycomb
   | Console
 
 // "Where do you send the logs?"
-let telemetryExporter : TelemetryExporter =
-  stringChoice
-    "DARK_CONFIG_TELEMETRY_EXPORTER"
-    [ ("none", NoExporter); ("honeycomb", Honeycomb); ("console", Console) ]
+let telemetryExporters : List<TelemetryExporter> =
+  "DARK_CONFIG_TELEMETRY_EXPORTER"
+  |> string
+  |> Tablecloth.String.split ","
+  |> Tablecloth.List.filterMap (function
+    | "honeycomb" -> Some Honeycomb
+    | "console" -> Some Console
+    | "none" -> None
+    | name -> failwith $"Unexpected Telemetry exporter {name}")
 
 let honeycombApiKey = string "DARK_CONFIG_HONEYCOMB_API_KEY"
 let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET_NAME"

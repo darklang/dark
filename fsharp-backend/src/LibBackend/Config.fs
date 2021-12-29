@@ -101,49 +101,7 @@ let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
 // Should we redirect insecure requests
 let useHttps = bool "DARK_CONFIG_USE_HTTPS"
-// -------------------------
-// Logs
-// -------------------------
-// let logFormat : [`Json | `DecoratedJson] =
-//   let asStr =
-//     stringChoice "DARK_CONFIG_LOGGING_FORMAT" ["json"; "decorated_json"]
-//   in
-//   match asStr with
-//   | "json" ->
-//       `Json
-//   | "decorated_json" ->
-//       `DecoratedJson
-//   | _ ->
-//       failwith $"Invalid logging format: {asStr}"
-//
 
-// let logLevel =
-//   let asStr =
-//     stringChoice
-//       "DARK_CONFIG_LOGLEVEL"
-//       [ "off"
-//         "inspect"
-//         "fatal"
-//         "error"
-//         "warn"
-//         "info"
-//         "success"
-//         "debug"
-//         "all" ]
-//
-//   match asStr with
-//   | "off" -> Off
-//   | "inspect" -> Inspect
-//   | "fatal" -> Fatal
-//   | "error" -> Error
-//   | "warn" -> Warn
-//   | "info" -> Info
-//   | "success" -> Success
-//   | "debug" -> Debug
-//   | "all" -> All
-//   | _ -> failwith $"Invalid level name: {asStr}"
-//
-// FSTODO
 let shouldWriteShapeData = bool "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST"
 
 let showStacktrace = bool "DARK_CONFIG_SHOW_STACKTRACE"
