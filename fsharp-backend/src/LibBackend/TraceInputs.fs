@@ -61,6 +61,8 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
 // Event data *)
 // -------------------------
 
+let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d60d"
+
 // We store a set of events for each host. The events may or may not
 // belong to a toplevel. We provide a list in advance so that they can
 // be partitioned effectively. Returns the DB-assigned event timestamp.
@@ -70,21 +72,24 @@ let storeEvent
   ((module_, path, modifier) : EventDesc)
   (event : RT.Dval)
   : Task<System.DateTime> =
-  Sql.query
-    "INSERT INTO stored_events_v2
-     (canvas_id, trace_id, module, path, modifier, timestamp, value)
-     VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
-     RETURNING timestamp"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.uuid traceID
-                      "module", Sql.string module_
-                      "path", Sql.string path
-                      "modifier", Sql.string modifier
-                      ("value",
-                       event
-                       |> LibExecution.DvalRepr.toInternalRoundtrippableV0
-                       |> Sql.string) ]
-  |> Sql.executeRowAsync (fun reader -> reader.dateTime "timestamp")
+  if canvasID = throttled then
+    Task.FromResult System.DateTime.Now
+  else
+    Sql.query
+      "INSERT INTO stored_events_v2
+      (canvas_id, trace_id, module, path, modifier, timestamp, value)
+      VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
+      RETURNING timestamp"
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                        "traceID", Sql.uuid traceID
+                        "module", Sql.string module_
+                        "path", Sql.string path
+                        "modifier", Sql.string modifier
+                        ("value",
+                         event
+                         |> LibExecution.DvalRepr.toInternalRoundtrippableV0
+                         |> Sql.string) ]
+    |> Sql.executeRowAsync (fun reader -> reader.dateTime "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   let timestampSql, timestamp =

@@ -12,20 +12,23 @@ module Db = Libbackend_basics.Db
 
 let store
     ~canvas_id ~trace_id (tlid, fnname, id) (arglist : RTT.dval list) result =
-  Db.run
-    ~name:"stored_function_result.store"
-    "INSERT INTO function_results_v2
-     (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)"
-    ~params:
-      [ Uuid canvas_id
-      ; Uuid trace_id
-      ; ID tlid
-      ; String fnname
-      ; ID id
-      ; String (Dval.hash Dval.current_hash_version arglist)
-      ; Int Dval.current_hash_version
-      ; RoundtrippableDval result ]
+  if canvas_id = Stored_event.throttled
+  then ()
+  else
+    Db.run
+      ~name:"stored_function_result.store"
+      "INSERT INTO function_results_v2
+      (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)"
+      ~params:
+        [ Uuid canvas_id
+        ; Uuid trace_id
+        ; ID tlid
+        ; String fnname
+        ; ID id
+        ; String (Dval.hash Dval.current_hash_version arglist)
+        ; Int Dval.current_hash_version
+        ; RoundtrippableDval result ]
 
 
 let load ~canvas_id ~trace_id tlid : function_result list =
