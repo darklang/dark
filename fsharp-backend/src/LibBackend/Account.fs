@@ -404,7 +404,7 @@ let orgs (userID : UserID) : Task<List<OrgName.T>> =
     "SELECT org.username
      FROM access
      INNER JOIN accounts as org on access.organization_account = org.id
-     WHERE user_.username = @userID"
+     WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "username" |> OrgName.create)
   |> Task.map List.sort
