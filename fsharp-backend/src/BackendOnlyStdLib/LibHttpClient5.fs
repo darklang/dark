@@ -102,7 +102,9 @@ let encodeRequestBody
       HttpClient.StringContent s
     // CLEANUP if there is a charset here, it uses json encoding
     | DObj _ when hasFormHeader headers ->
-      HttpClient.FormContent(DvalRepr.toFormEncoding dv)
+      match DvalRepr.toFormEncoding dv with
+      | Ok content -> HttpClient.FormContent(content)
+      | Error msg -> Exception.raiseDeveloper msg
     | dv when hasTextHeader headers ->
       HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
@@ -118,10 +120,14 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalRepr.toQuery query
+    let query =
+      DvalRepr.toQuery query
+      |> Tablecloth.Result.unwrapWith (fun msg -> Exception.raiseDeveloper msg [])
 
     // Headers
-    let encodedReqHeaders = DvalRepr.toStringPairsExn reqHeaders
+    let encodedReqHeaders =
+      DvalRepr.toStringPairs reqHeaders
+      |> Tablecloth.Result.unwrapWith (fun msg -> Exception.raiseDeveloper msg [])
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)

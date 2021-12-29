@@ -989,6 +989,12 @@ module Json =
 // Functions we'll later add to Tablecloth
 // ----------------------
 module Tablecloth =
+  module Result =
+    let unwrapWith (f : 'err -> 'ok) (t : Result<'ok, 'err>) : 'ok =
+      match t with
+      | Ok v -> v
+      | Error v -> f v
+
   module String =
     let take (count : int) (str : string) : string =
       if count >= str.Length then str else str.Substring(0, count)

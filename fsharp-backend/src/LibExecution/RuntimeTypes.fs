@@ -437,10 +437,10 @@ module Dval =
     | DErrorRail dv -> dv
     | other -> other
 
-  let toPairs (dv : Dval) : (string * Dval) list =
+  let toPairs (dv : Dval) : Result<List<string * Dval>, string> =
     match dv with
-    | DObj obj -> Map.toList obj
-    | _ -> failwith "expecting str"
+    | DObj obj -> Ok(Map.toList obj)
+    | _ -> Error "expecting str"
 
   let rec toType (dv : Dval) : DType =
     let any = TVariable "a"

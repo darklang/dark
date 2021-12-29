@@ -437,11 +437,12 @@ module HttpClient =
   let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
 
-    DvalRepr.toUrlStringExn dv .=. (OCamlInterop.toUrlString dv).Result
+    DvalRepr.toUrlString dv .=. (OCamlInterop.toUrlString dv).Result
 
   let dvalToQuery (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
-    DvalRepr.toQuery dv .=. (OCamlInterop.dvalToQuery dv).Result
+    DvalRepr.toQuery dv |> Result.unwrapUnsafe
+    .=. (OCamlInterop.dvalToQuery dv).Result
 
   let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
