@@ -46,7 +46,10 @@ let get_handlers_for_canvas (canvas_id : Uuidm.t) :
          | _ ->
              Exception.internal "Bad DB format for get_handlers_for_canvas")
 
-let throttled = Uuidm.of_string "730b77ce-f505-49a8-80c5-8cabb481d60d" |> Option.value_exn
+
+let throttled =
+  Uuidm.of_string "730b77ce-f505-49a8-80c5-8cabb481d60d" |> Option.value_exn
+
 
 (* ------------------------- *)
 (* Event data *)

@@ -13,8 +13,7 @@ module Db = Libbackend_basics.Db
 let store
     ~canvas_id ~trace_id (tlid, fnname, id) (arglist : RTT.dval list) result =
   if canvas_id = Stored_event.throttled
-  then
-    ()
+  then ()
   else
     Db.run
       ~name:"stored_function_result.store"
