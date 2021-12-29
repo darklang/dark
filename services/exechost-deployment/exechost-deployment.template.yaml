@@ -21,16 +21,15 @@ spec:
       containers:
         - name: exechost-ctr
           image: "gcr.io/balmy-ground-195100/gcp-exechost:{IMAGEID:gcp-exechost}"
-          # Resource limits + requests are intentionally the same, to ensure
-          # this pod is a 'Guaranteed' pod, ref:
-          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "125m"
+              # This is basically off all the time
+              memory: "10Mi"
+              cpu: "10m"
             limits:
-              memory: "1000Mi"
-              cpu: "125m"
+              # Allow generous limits in case it needs it when we're actually doing something
+              memory: "200Mi"
+              cpu: "250m"
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -79,23 +78,20 @@ spec:
                   name: honeycomb
                   key: api-key
 
-
         #########################
         # Postgres proxy config
-        # To connect to postgres from kubernetes, we need to add a proxy. See
         # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
-        # Note in particular that we needed to create a service account and a
-        # set of GKE secrets, listed below, to manage this.
         #########################
         - name: cloudsql-proxy
           image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
           resources:
             requests:
-              memory: "500Mi"
-              cpu: "125m"
+              # This is basically off all the time
+              memory: "10Mi"
+              cpu: "10m"
             limits:
-              memory: "500Mi"
-              cpu: "125m"
+              memory: "20Mi"
+              cpu: "20m"
           command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
