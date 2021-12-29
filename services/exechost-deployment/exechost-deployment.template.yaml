@@ -11,9 +11,8 @@ spec:
       app: exechost
   replicas: 1
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
+    # No need for more than one of these
+    type: Recreate
   template:
     metadata:
       labels:

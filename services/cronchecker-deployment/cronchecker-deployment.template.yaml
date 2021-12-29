@@ -12,6 +12,9 @@ spec:
   # there should only be one of these right now, as there's no locking on checking
   # if we should enqueue or not
   replicas: 1
+  strategy:
+    # Limit to max 1, removing the old one first, then adding the new one
+    type: Recreate
   template:
     metadata:
       labels:
