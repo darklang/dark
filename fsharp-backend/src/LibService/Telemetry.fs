@@ -263,10 +263,13 @@ let addTelemetry
   : TracerProviderBuilder =
   builder
   |> fun b ->
-       match Config.telemetryExporter with
-       | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions).AddConsoleExporter()
-       | Config.NoExporter -> b
-       | Config.Console -> b.AddConsoleExporter()
+       List.fold
+         b
+         (fun b exporter ->
+           match exporter with
+           | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions)
+           | Config.Console -> b.AddConsoleExporter())
+         Config.telemetryExporters
   |> fun b ->
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
