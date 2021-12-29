@@ -971,11 +971,11 @@ let toStringPairsExn (dv : Dval) : (string * string) list =
       | (k, v) ->
         // CLEANUP: this is just to keep the error messages the same with OCaml. It's safe to change the error message
         // failwith $"Expected a string, but got: {toDeveloperReprV0 v}"
-        failwith "expecting str")
+        Exception.raiseLibrary "expecting str" [ "actual", toDeveloperReprV0 v ])
   | _ ->
     // CLEANUP As above
     // $"Expected a string, but got: {toDeveloperReprV0 dv}"
-    failwith "expecting str"
+    Exception.raiseLibrary "expecting str" [ "actual", toDeveloperReprV0 dv ]
 
 // -------------------------
 // URLs and queryStrings
