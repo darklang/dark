@@ -48,6 +48,9 @@ DarkInternal.getCORSSetting_v0 "test-cors1" = Nothing
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 (DarkInternal.canvasIdOfCanvasName_v0 "test") |> Option.map_v1 (fun x -> String.length_v1 x) = Just 36
 
+DarkInternal.checkPermission_v0 "test" "dark" = ""
+DarkInternal.checkPermission_v0 "dark" "test" = "rw"
+
 [test.roundtrip cors just empty]
 (let _ = DarkInternal.setCORSSetting_v0 "test-cors2" (Just []) in
  DarkInternal.getCORSSetting_v0 "test-cors2") = Just []
