@@ -25,18 +25,21 @@ let store
   (tlid : tlid)
   (args : RT.DvalMap)
   : Task<unit> =
-  Sql.query
-    "INSERT INTO function_arguments
-     (canvas_id, trace_id, tlid, timestamp, arguments_json)
-     VALUES (@canvasID, @traceID, @tlid, CURRENT_TIMESTAMP, @args)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.uuid traceID
-                      "tlid", Sql.tlid tlid
-                      ("args",
-                       Sql.string (
-                         DvalRepr.toInternalRoundtrippableV0 (RT.DObj args)
-                       )) ]
-  |> Sql.executeStatementAsync
+  if canvasID = TraceInputs.throttled then
+    Task.FromResult()
+  else
+    Sql.query
+      "INSERT INTO function_arguments
+      (canvas_id, trace_id, tlid, timestamp, arguments_json)
+      VALUES (@canvasID, @traceID, @tlid, CURRENT_TIMESTAMP, @args)"
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                        "traceID", Sql.uuid traceID
+                        "tlid", Sql.tlid tlid
+                        ("args",
+                         Sql.string (
+                           DvalRepr.toInternalRoundtrippableV0 (RT.DObj args)
+                         )) ]
+    |> Sql.executeStatementAsync
 
 
 let loadForAnalysis

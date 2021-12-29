@@ -46,6 +46,7 @@ let get_handlers_for_canvas (canvas_id : Uuidm.t) :
          | _ ->
              Exception.internal "Bad DB format for get_handlers_for_canvas")
 
+let throttled = Uuidm.of_string "730b77ce-f505-49a8-80c5-8cabb481d60d" |> Option.value_exn
 
 (* ------------------------- *)
 (* Event data *)
@@ -56,23 +57,26 @@ let store_event
     ?(timestamp : Time.t = Time.now ())
     ((module_, path, modifier) : event_desc)
     (event : RTT.dval) : RTT.time =
-  Db.fetch_one
-    ~name:"stored_event.store_event"
-    ~subject:(event_subject module_ path modifier)
-    "INSERT INTO stored_events_v2
-     (canvas_id, trace_id, module, path, modifier, timestamp, value)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING timestamp"
-    ~params:
-      [ Uuid canvas_id
-      ; Uuid trace_id
-      ; String module_
-      ; String path
-      ; String modifier
-      ; Time timestamp
-      ; RoundtrippableDval event ]
-  |> List.hd_exn
-  |> Util.date_of_isostring
+  if canvas_id = throttled
+  then timestamp
+  else
+    Db.fetch_one
+      ~name:"stored_event.store_event"
+      ~subject:(event_subject module_ path modifier)
+      "INSERT INTO stored_events_v2
+      (canvas_id, trace_id, module, path, modifier, timestamp, value)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING timestamp"
+      ~params:
+        [ Uuid canvas_id
+        ; Uuid trace_id
+        ; String module_
+        ; String path
+        ; String modifier
+        ; Time timestamp
+        ; RoundtrippableDval event ]
+    |> List.hd_exn
+    |> Util.date_of_isostring
 
 
 let list_events

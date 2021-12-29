@@ -82,3 +82,6 @@ val trim_events_for_handler :
   -> canvas_name:string
   -> canvas_id:Uuidm.t
   -> int
+
+(** Canvas which is throttled *)
+val throttled : Uuidm.t

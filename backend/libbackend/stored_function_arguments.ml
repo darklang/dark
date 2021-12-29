@@ -11,12 +11,15 @@ module Db = Libbackend_basics.Db
 (* ------------------------- *)
 
 let store ~canvas_id ~trace_id tlid args =
-  Db.run
-    ~name:"stored_function_arguments.store"
-    "INSERT INTO function_arguments
-     (canvas_id, trace_id, tlid, timestamp, arguments_json)
-     VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)"
-    ~params:[Uuid canvas_id; Uuid trace_id; ID tlid; RoundtrippableDvalmap args]
+  if canvas_id = Stored_event.throttled
+  then ()
+  else
+    Db.run
+      ~name:"stored_function_arguments.store"
+      "INSERT INTO function_arguments
+      (canvas_id, trace_id, tlid, timestamp, arguments_json)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)"
+      ~params:[Uuid canvas_id; Uuid trace_id; ID tlid; RoundtrippableDvalmap args]
 
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :

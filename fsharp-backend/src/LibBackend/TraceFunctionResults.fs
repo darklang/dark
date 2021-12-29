@@ -26,24 +26,27 @@ let store
   (arglist : List<RT.Dval>)
   (result : RT.Dval)
   : Task<unit> =
-  Sql.query
-    "INSERT INTO function_results_v2
-     (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
-     VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.uuid traceID
-                      "tlid", Sql.tlid tlid
-                      "fnName", Sql.string (string fnDesc)
-                      "id", Sql.id id
-                      ("hash",
-                       arglist
-                       |> DvalRepr.hash DvalRepr.currentHashVersion
-                       |> Sql.string)
+  if canvasID = TraceInputs.throttled then
+    Task.FromResult()
+  else
+    Sql.query
+      "INSERT INTO function_results_v2
+      (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
+      VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                        "traceID", Sql.uuid traceID
+                        "tlid", Sql.tlid tlid
+                        "fnName", Sql.string (string fnDesc)
+                        "id", Sql.id id
+                        ("hash",
+                         arglist
+                         |> DvalRepr.hash DvalRepr.currentHashVersion
+                         |> Sql.string)
 
-                      "hashVersion", Sql.int DvalRepr.currentHashVersion
-                      ("value",
-                       result |> DvalRepr.toInternalRoundtrippableV0 |> Sql.string) ]
-  |> Sql.executeStatementAsync
+                        "hashVersion", Sql.int DvalRepr.currentHashVersion
+                        ("value",
+                         result |> DvalRepr.toInternalRoundtrippableV0 |> Sql.string) ]
+    |> Sql.executeStatementAsync
 
 let load
   (canvasID : CanvasID)
