@@ -758,8 +758,7 @@ and execFn
         | DarkException _ as e ->
           // The GrandUser doesn't get to see DErrors, so it's safe to include this
           // value and show it to the Dark Developer
-          return
-            (Dval.errSStr sourceID (Exception.toDeveloperMessage e |> Option.get))
+          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
         | e ->
           // We don't know what's happening here, so there could be sensitive
           // information in the message. Let's report the error and hide the message

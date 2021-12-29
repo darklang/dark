@@ -120,14 +120,11 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query =
-      DvalRepr.toQuery query
-      |> Tablecloth.Result.unwrapWith (fun msg -> Exception.raiseDeveloper msg [])
+    let query = DvalRepr.toQuery query |> Exception.unwrapResultDeveloper
 
     // Headers
     let encodedReqHeaders =
-      DvalRepr.toStringPairs reqHeaders
-      |> Tablecloth.Result.unwrapWith (fun msg -> Exception.raiseDeveloper msg [])
+      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)

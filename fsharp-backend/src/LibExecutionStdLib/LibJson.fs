@@ -44,7 +44,10 @@ let fns : List<BuiltInFn> =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
       fn =
         (function
-        | _, [ DStr json ] -> json |> DvalRepr.ofUnknownJsonV1 |> Ply
+        | _, [ DStr json ] ->
+          match DvalRepr.ofUnknownJsonV1 json with
+          | Ok dv -> Ply dv
+          | Error msg -> Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -57,10 +60,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-          try
-            json |> DvalRepr.ofUnknownJsonV1 |> Ply
-          with
-          | e -> Ply(DError(SourceNone, e.Message))
+          match DvalRepr.ofUnknownJsonV1 json with
+          | Ok dv -> Ply dv
+          | Error msg -> Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -73,11 +75,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-          (try
-            let dval = json |> DvalRepr.ofUnknownJsonV1
-            Ply(DResult(Ok dval))
-           with
-           | Failure e -> e |> string |> DStr |> Error |> DResult |> Ply)
+          json |> DvalRepr.ofUnknownJsonV1 |> Result.mapError DStr |> DResult |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

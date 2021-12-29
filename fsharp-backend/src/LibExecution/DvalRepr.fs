@@ -842,7 +842,7 @@ let ofUnknownJsonV0 str =
   | _ -> failwith "Invalid json"
 
 
-let ofUnknownJsonV1 str =
+let ofUnknownJsonV1 str : Result<Dval, string> =
   // FSTODO: there doesn't seem to be a good reason that we use JSON.NET here,
   // might be better to switch to STJ
   let rec convert json =
@@ -861,14 +861,14 @@ let ofUnknownJsonV1 str =
     // disable all those so we fail if we see them. However, we might need to
     // just convert some of these into strings.
     | JNonStandard
-    | _ -> Exception.raiseInternal $"Invalid type in json" [ "json", json ]
+    | _ -> failwith "Invalid type in json"
 
   try
-    str |> parseJson |> convert
+    str |> parseJson |> convert |> Ok
   with
   | :? JsonReaderException as e ->
     let msg = if str = "" then "JSON string was empty" else e.Message
-    Exception.raiseInternal msg [ "str", str ]
+    Error msg
 
 
 // let rec show dv =
