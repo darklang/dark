@@ -672,9 +672,9 @@ that's already taken, returns an error."
             uply {
               try
                 let! meta = Canvas.getMeta (CanvasName.create host)
-                return DResult(Ok(DStr(string meta.id)))
+                return DOption(Some(DStr(string meta.id)))
               with
-              | e -> return DResult(Error(DStr e.Message))
+              | e -> return DOption None
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
