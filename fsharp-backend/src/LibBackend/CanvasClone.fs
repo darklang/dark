@@ -148,7 +148,8 @@ let cloneCanvas
       |> List.map (fun (tlid, ops) ->
         let newOps = List.map (updateHostsInOp fromCanvasName toCanvasName) ops
         let (isDeleted, toplevel) =
-          Canvas.getToplevel tlid fromCanvas |> Option.unwrapUnsafe
+          Canvas.getToplevel tlid fromCanvas
+          |> Exception.unwrapOptionInternal "gettoplevel" [ "tlid", tlid ]
         (tlid, newOps, toplevel, isDeleted))
 
     do! Canvas.saveTLIDs toMeta toOps

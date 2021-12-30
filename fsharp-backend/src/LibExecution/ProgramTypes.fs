@@ -67,9 +67,12 @@ module FQFnName =
       | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
         RT.FQFnName.stdlibFqName "" name (int version)
       | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0
-      | _ -> failwith $"Bad format in one word function name: \"{fnName}\""
+      | _ ->
+        Exception.raiseInternal
+          "Bad format in one word function name"
+          [ "fnName", fnName ]
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
-    | _ -> failwith $"Bad format in function name: \"{fnName}\""
+    | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
 
 
 
@@ -268,7 +271,7 @@ type Expr =
            << (Tuple2.mapSecond r))
           pairs
       )
-    | EPipeTarget id -> failwith "No EPipeTargets should remain"
+    | EPipeTarget id -> Exception.raiseInternal "No EPipeTargets should remain" []
     | EFeatureFlag (id, name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
 
@@ -417,7 +420,7 @@ module Shortcuts =
   //          ((Tuple2.mapFirst (fun (p : Pattern) -> p.toRuntimeType ()))
   //           << (Tuple2.mapSecond r))
   //          pairs)
-  // | EPipeTarget _ -> failwith "No EPipeTargets should remain"
+  // | EPipeTarget _ -> Exception.raiseInternal "No EPipeTargets should remain"
   // | EFeatureFlag (_, name, cond, caseA, caseB) ->
   //     R.EFeatureFlag(id, r cond, r caseA, r caseB)
   //

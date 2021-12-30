@@ -309,26 +309,26 @@ let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 //     ~email:"clone@example.com"
 //     ~name:"clone"
 //     ()
-//   |> Result.ok_or_failwith ;
+//   |> Result.ok_or_Exception.raiseInternal ;
 //   Canvas_clone.clone_canvas
 //     ~from_canvas_name:"sample-gettingstarted"
 //     ~to_canvas_name:"clone-gettingstarted"
 //     ~preserve_history:false
-//   |> Result.ok_or_failwith ;
+//   |> Result.ok_or_Exception.raiseInternal ;
 //   let sample_canvas =
 //     Canvas.load_all "sample-gettingstarted" []
 //     |> Tc.Result.map_error (String.concat ~sep:", ")
-//     |> Result.ok_or_failwith
+//     |> Result.ok_or_Exception.raiseInternal
 //   in
 //   let cloned_canvas : Canvas.canvas ref =
 //     Canvas.load_all "clone-gettingstarted" []
 //     |> Tc.Result.map_error (String.concat ~sep:", ")
-//     |> Result.ok_or_failwith
+//     |> Result.ok_or_Exception.raiseInternal
 //   in
 //   let cloned_canvas_from_cache : Canvas.canvas ref =
 //     Canvas.load_all_from_cache "clone-gettingstarted"
 //     |> Tc.Result.map_error (String.concat ~sep:", ")
-//     |> Result.ok_or_failwith
+//     |> Result.ok_or_Exception.raiseInternal
 //   in
 //   (* canvas.ops is not [op list], it is [(tlid, op list) list] *)
 //   let canvas_ops_length (c : Canvas.canvas) =

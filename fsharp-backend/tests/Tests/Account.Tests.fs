@@ -32,7 +32,7 @@ let testEmailValidationWorks =
 let testUsernameValidationWorks =
   testMany
     "validateUsername"
-    Account.validateUserName
+    UserName.validate
     [ "Upper",
       (Error "Invalid username 'Upper', must match /^[a-z][a-z0-9_]{2,20}$/")
       "uPPer",
@@ -44,9 +44,9 @@ let testUsernameValidationWorks =
       (Error "Invalid username 'aaa-aaa', must match /^[a-z][a-z0-9_]{2,20}$/")
       "aaa aaa",
       (Error "Invalid username 'aaa aaa', must match /^[a-z][a-z0-9_]{2,20}$/")
-      "aaa_aaa", Ok()
-      "myusername09", Ok()
-      "paul", Ok() ]
+      "aaa_aaa", Ok "aaa_aaa"
+      "myusername09", Ok "muusername09"
+      "paul", Ok "paul" ]
 
 
 let tests =

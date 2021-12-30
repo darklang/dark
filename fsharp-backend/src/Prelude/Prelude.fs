@@ -7,11 +7,46 @@ open FSharp.Control.Tasks.Affine.Unsafe
 open System.Text.RegularExpressions
 
 // ----------------------
-// Always use types with ignore
+// Fix a few functions everywhere
 // ----------------------
 
+// Ensure a type is always used
 [<RequiresExplicitTypeArgumentsAttribute>]
 let ignore<'a> (a : 'a) : unit = ignore<'a> a
+
+[<CompilerMessageAttribute("failwith is banned, use Prelude.Exception.raise* instead",
+                           0,
+                           IsError = true,
+                           IsHidden = true)>]
+let failwith = failwith
+
+[<CompilerMessageAttribute("printf is banned, use Prelude.print instead",
+                           0,
+                           IsError = true,
+                           IsHidden = true)>]
+let printf = printf
+
+module Option =
+
+  [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+                             0,
+                             IsError = true,
+                             IsHidden = true)>]
+  let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
+
+  [<CompilerMessageAttribute("Option.get is banned, use Prelude.Exception.unwrapOption* instead",
+                             0,
+                             IsError = true,
+                             IsHidden = true)>]
+  let get = Option.get
+
+module Result =
+
+  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+                             0,
+                             IsError = true,
+                             IsHidden = true)>]
+  let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
 
 
 // ----------------------
@@ -60,9 +95,12 @@ module Exception =
     try
       exceptionCallback e typ msg tags
     with
-    | _ ->
+    | e ->
       // We're completely screwed at this point
-      printf "Exception calling Exceptioncallback"
+      System.Console.WriteLine "Exception calling Exceptioncallback"
+      System.Console.WriteLine e.Message
+      System.Console.WriteLine e.StackTrace
+
 
   // A grand user exception was caused by the incorrect actions of a grand user. The
   // msg is suitable to show to the grand user. We don't care about grandUser
@@ -107,7 +145,7 @@ module Exception =
     | Some v -> v
     | None -> raiseInternal msg tags
 
-  let unwrapResultInternal (tags : List<string * obj>) (r : Result<'a, 'b>) : 'a =
+  let unwrapResultInternal (tags : List<string * obj>) (r : Result<'a, 'msg>) : 'a =
     match r with
     | Ok v -> v
     | Error msg -> raiseInternal (string msg) tags
@@ -293,8 +331,6 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 
 
 
-let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
-
 // ----------------------
 // Assertions
 // ----------------------
@@ -302,11 +338,13 @@ let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
 // wouldn't be caught by the webserver
 
 let assert_ (msg : string) (cond : bool) : unit =
-  if cond then () else failwith $"Assertion failure, expected: {msg}"
+  if cond then () else Exception.raiseInternal $"Assertion failure: {msg}" []
 
 let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
   if expected <> actual then
-    failwith $"Assertion failure: {msg} (expected {expected}, got {actual})"
+    Exception.raiseInternal
+      $"Assertion equality failure: {msg}"
+      [ "expected", expected :> obj; "actual", actual :> obj ]
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
@@ -314,7 +352,9 @@ let assertRe (msg : string) (pattern : string) (input : string) : unit =
   if m.Success then
     ()
   else
-    failwith $"Assertion failure: {msg} (but \"{input}\" ~= /{pattern}/)"
+    Exception.raiseInternal
+      $"Assertion regex failure: {msg}"
+      [ "input", input; "pattern", pattern ]
 
 // ----------------------
 // Standard conversion functions
@@ -326,30 +366,32 @@ let parseInt64 (str : string) : int64 =
     assertRe "int64" @"-?\d+" str
     System.Convert.ToInt64 str
   with
-  | e -> failwith $"parseInt64 failed: {str} - {e}"
+  | e -> Exception.raiseInternal $"parseInt64 failed" [ "str", str; "inner", e ]
 
 let parseUInt64 (str : string) : uint64 =
   try
     assertRe "uint64" @"-?\d+" str
     System.Convert.ToUInt64 str
   with
-  | e -> failwith $"parseUInt64 failed: {str} - {e}"
+  | e -> Exception.raiseInternal $"parseUInt64 failed" [ "str", str; "inner", e ]
 
 let parseBigint (str : string) : bigint =
   try
     assertRe "bigint" @"-?\d+" str
     System.Numerics.BigInteger.Parse str
   with
-  | e -> failwith $"parseBigint failed: {str} - {e}"
+  | e -> Exception.raiseInternal $"parseBigint failed" [ "str", str; "inner", e ]
 
 let parseFloat (whole : string) (fraction : string) : float =
   try
-    // FSTODO: don't actually assert, report to rollbar
     assertRe "whole" @"-?\d+" whole
     assertRe "fraction" @"\d+" fraction
     System.Double.Parse($"{whole}.{fraction}")
   with
-  | e -> failwith $"parseFloat failed: {whole}.{fraction} - {e}"
+  | e ->
+    Exception.raiseInternal
+      $"parseFloat failed"
+      [ "whole", whole; "fraction", fraction; "inner", e ]
 
 // Given a float, read it correctly into two ints: whole number and fraction
 let readFloat (f : float) : (bigint * bigint) =
@@ -367,7 +409,10 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
     let sign = if positiveSign then "" else "-"
     $"{sign}{whole}.{fraction}" |> System.Double.Parse
   with
-  | e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
+  | e ->
+    Exception.raiseInternal
+      $"makeFloat failed"
+      [ "sign", sign; "whole", whole; "fraction", fraction; "inner", e ]
 
 // The default System.Text.Encoding.UTF8 replaces invalid bytes on error. We
 // sometimes want this, but often we want to assert that the bytes we can are valid
@@ -565,7 +610,7 @@ let gid () : uint64 =
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
   with
-  | e -> failwith $"gid failed: {e}"
+  | e -> Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
 
 let randomString (length : int) : string =
   let result =
@@ -717,10 +762,10 @@ module Json =
         match reader.TokenType with
         | JsonToken.StartArray -> ()
         | _ ->
-          failwith (
-            "Incorrect starting token for union, should be array, was "
-            + $"{reader.TokenType}, with type {destinationType}"
-          )
+          Exception.raiseInternal
+            "Incorrect starting token for union, should be array"
+            [ "tokenType", reader.TokenType; "destinationType", destinationType ]
+
 
         let caseName : string =
           reader.Read() |> ignore<bool>
@@ -815,7 +860,8 @@ module Json =
         | JsonToken.StartArray ->
           let values = readElements ()
           FSharpValue.MakeTuple(values |> List.toArray, t)
-        | _ -> failwith $"invalid token: {existingValue}"
+        | _ ->
+          Exception.raiseInternal "Invalid token" [ "existingValue", existingValue ]
 
 
     type TLIDConverter() =
@@ -832,17 +878,15 @@ module Json =
       inherit JsonConverter<Password>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        failwith "unsupported deserialization of password"
-        Password(UTF8.toBytes "password should never be read here")
+        Exception.raiseInternal "unsupported deserialization of password" []
 
       override _.WriteJson
         (
           writer : JsonWriter,
           value : Password,
           _ : JsonSerializer
-        ) =
-        failwith "unsupported serialization of password"
-        writer.WriteValue "<password should never be written here>"
+        ) : unit =
+        Exception.raiseInternal "unsupported serialization of password" []
 
 
     // We don't use this at the moment
@@ -1387,7 +1431,76 @@ module UserName =
 
     override this.ToString() = let (UserName username) = this in username
 
-  let create (str : string) : T = UserName(Tablecloth.String.toLowercase str)
+  let banned =
+    // originally from https://ldpreload.com/blog/names-to-reserve
+    // we allow www, because we have a canvas there
+    [ "abuse"
+      "admin"
+      "administrator"
+      "autoconfig"
+      "broadcasthost"
+      "ftp"
+      "hostmaster"
+      "imap"
+      "info"
+      "is"
+      "isatap"
+      "it"
+      "localdomain"
+      "localhost"
+      "mail"
+      "mailer-daemon"
+      "marketing"
+      "mis"
+      "news"
+      "nobody"
+      "noc"
+      "noreply"
+      "no-reply"
+      "pop"
+      "pop3"
+      "postmaster"
+      "root"
+      "sales"
+      "security"
+      "smtp"
+      "ssladmin"
+      "ssladministrator"
+      "sslwebmaster"
+      "support"
+      "sysadmin"
+      "usenet"
+      "uucp"
+      "webmaster"
+      "wpad"
+      // original to us from here
+      "billing"
+      "dev"
+
+      // alpha, but not beta, because user beta already exists (with ownership
+      // transferred to us)
+      "alpha" ]
+    |> Set
+
+
+  let validate (name : string) : Result<string, string> =
+    let regex = @"^[a-z][a-z0-9_]{2,20}$"
+    if Set.contains name banned then
+      Error "Username is not allowed"
+    else if String.length name > 20 then
+      Error "Username was too long, must be <= 20."
+    else if System.Text.RegularExpressions.Regex.IsMatch(name, regex) then
+      Ok name
+    else
+      Error
+        $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '-' or '_'"
+
+  // Create throws an InternalException. Validate before calling create to do user-visible errors
+  let create (str : string) : T =
+    str |> validate |> Exception.unwrapResultInternal [] |> UserName
+
+  // For testing and creating banned names
+  let createUnsafe (str : string) : T = UserName str
 
 module OrgName =
   type T =
@@ -1396,7 +1509,11 @@ module OrgName =
 
     override this.ToString() = let (OrgName orgName) = this in orgName
 
-  let create (str : string) : T = OrgName(Tablecloth.String.toLowercase str)
+  let validate = UserName.validate
+
+  // Create throws an InternalException. Validate before calling create to do user-visible errors
+  let create (str : string) : T =
+    str |> validate |> Exception.unwrapResultInternal [] |> OrgName
 
 module OwnerName =
   type T =
@@ -1406,7 +1523,11 @@ module OwnerName =
     override this.ToString() = let (OwnerName name) = this in name
     member this.toUserName() : UserName.T = UserName.create (string this)
 
-  let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
+  let validate = UserName.validate
+
+  // Create throws an InternalException. Validate before calling create to do user-visible errors
+  let create (str : string) : T =
+    str |> validate |> Exception.unwrapResultInternal [] |> OwnerName
 
 module CanvasName =
   type T =
@@ -1423,11 +1544,14 @@ module CanvasName =
     else if System.Text.RegularExpressions.Regex.IsMatch(name, regex) then
       Ok name
     else
-      Error $"Canvas name can only contain a-z, 0-9, and '-' or '_' but is {name}"
+      Error
+        $"Invalid canvas name '{name}', can only contain roman lettets, digits, and '-' or '_'"
 
 
+  // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (name : string) : T =
-    name |> validate |> Tablecloth.Result.unwrapUnsafe |> CanvasName
+    name |> validate |> Exception.unwrapResultInternal [] |> CanvasName
+
 
 module HttpHeaders =
   // We include these here as the _most_ basic http header types and functionality.

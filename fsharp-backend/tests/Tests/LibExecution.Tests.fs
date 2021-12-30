@@ -190,7 +190,7 @@ let fileTests () : Test =
 
         match Map.get dbName dbs with
         | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
-        | None -> failwith $"No DB named {dbName} found"
+        | None -> Exception.raiseInternal $"No DB named {dbName} found" []
 
         currentGroup <- { currentGroup with name = name }
       | Regex @"^\[tests\.(.*)\]$" [ name ] ->
@@ -246,7 +246,7 @@ let fileTests () : Test =
 
         match Map.get dbName dbs with
         | Some db -> currentTest <- { currentTest with dbs = [ db ] }
-        | None -> failwith $"No DB named {dbName} found"
+        | None -> Exception.raiseInternal $"No DB named {dbName} found" []
 
         currentTest <-
           { currentTest with name = $"{name} (line {i})"; recording = true }

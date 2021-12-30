@@ -182,7 +182,7 @@ let main _ =
     LibService.Init.init "ApiServer"
     LibExecution.Init.init "ApiServer"
     LibExecutionStdLib.Init.init "ApiServer"
-    LibBackend.Init.init "ApiServer"
+    (LibBackend.Init.init "ApiServer").Result
     BackendOnlyStdLib.Init.init "ApiServer"
     LibRealExecution.Init.init "ApiServer"
     run ()

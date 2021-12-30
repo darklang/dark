@@ -47,7 +47,7 @@ let compile
       return sql, args
     with
     | LibExecution.Errors.DBQueryException msg as e ->
-      failwith msg
+      Exception.raiseInternal msg [ "paramName", paramName; "expr", expr ]
       return ("", Map.empty)
   }
 
@@ -64,7 +64,7 @@ let matchSql
       match g.Count with // implicit full match counts for 1
       | 1 -> true
       | 2 -> Map.find g[1].Value args = expected[0]
-      | _ -> failwith "not supported yet")
+      | _ -> Exception.raiseInternal "not supported yet" [ "count", g.Count ])
     "compare sql"
 
 let compileTests =

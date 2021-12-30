@@ -183,7 +183,7 @@ let main _ : int =
     Telemetry.Console.loadTelemetry "QueueWorker" Telemetry.DontTraceDBQueries
     LibExecution.Init.init "QueueWorker"
     LibExecutionStdLib.Init.init "QueueWorker"
-    LibBackend.Init.init "QueueWorker"
+    (LibBackend.Init.init "QueueWorker").Result
     BackendOnlyStdLib.Init.init "QueueWorker"
     LibRealExecution.Init.init "QueueWorker"
 

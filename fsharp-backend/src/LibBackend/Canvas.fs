@@ -208,7 +208,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     match op with
     | PT.SetHandler (_, _, h) -> setHandler h c
     | PT.CreateDB (tlid, pos, name) ->
-      if isNew && name = "" then failwith "DB must have a name"
+      if isNew && name = "" then Exception.raiseEditor "DB must have a name"
       let db = UserDB.create tlid name pos
       setDB db c
     | PT.AddDBCol (tlid, colid, typeid) ->
@@ -235,7 +235,9 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.SetDBColTypeInDBMigration (tlid, id, tipe) -> c
     | PT.AbandonDBMigration tlid -> c
     | PT.DeleteColInDBMigration (tlid, id) -> c
-    | PT.SetExpr (tlid, id, e) -> fstodo "setexpr"
+    | PT.SetExpr (tlid, id, e) ->
+      // FSTODO
+      Exception.raiseInternal "setexpr" []
     // applyToAllToplevels (TL.set_expr id e) tlid c
     | PT.DeleteTL tlid -> deleteToplevel tlid c
     | PT.MoveTL (tlid, pos) -> moveToplevel tlid pos c
@@ -243,7 +245,10 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.DeleteFunction tlid -> deleteFunction tlid c
     | PT.TLSavepoint _ -> c
     | PT.UndoTL _
-    | PT.RedoTL _ -> failwith $"This should have been preprocessed out! {op}"
+    | PT.RedoTL _ ->
+      Exception.raiseInternal
+        $"Undo/Redo op should have been preprocessed out!"
+        [ "op", op ]
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
       setDB (UserDB.create2 tlid name pos id) c
@@ -306,7 +311,7 @@ let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
         |> Seq.toList
         |> Origins
         |> Some
-      | _ -> failwith "invalid json in CorsSettings")
+      | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ])
 
 let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
@@ -646,20 +651,13 @@ let saveTLIDs
 
 let jsonFilename (name : string) = $"{name}.json"
 
-let loadJsonFromDisk
-  (root : Config.Root)
-  (c : Meta)
-  : Result<List<tlid * PT.Oplist>, string> =
-  try
-    string c.name
-    |> jsonFilename
-    |> File.readfile root
-    |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
-    |> OT.Convert.ocamlOplist2PT
-    |> Op.oplist2TLIDOplists
-    |> Ok
-  with
-  | e -> Error(e.ToString())
+let loadJsonFromDisk (root : Config.Root) (c : Meta) : List<tlid * PT.Oplist> =
+  string c.name
+  |> jsonFilename
+  |> File.readfile root
+  |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
+  |> OT.Convert.ocamlOplist2PT
+  |> Op.oplist2TLIDOplists
 
 
 
@@ -683,7 +681,6 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
     let oplists =
       meta
       |> loadJsonFromDisk Config.Testdata
-      |> Result.unwrapUnsafe
       |> List.map (fun (tlid, oplist) ->
         let tl =
           fromOplist meta [] oplist
@@ -777,7 +774,7 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //   |> List.map ~f:validate_host
 //   |> Tc.Result.combine
 //   |> Tc.Result.map (fun _ -> ())
-//   |> Result.ok_or_failwith
+//   |> Result.ok_or_Exception.raiseInternal
 //
 //
 // (* just load, don't save -- also don't validate the ops don't
@@ -820,7 +817,7 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //
 // let migrate_all_hosts () =
 //   List.iter (all_hosts ()) ~f:(fun host ->
-//       migrate_host host |> Result.ok_or_failwith)
+//       migrate_host host |> Result.ok_or_Exception.raiseInternal)
 //
 //
 // let write_shape_data () =

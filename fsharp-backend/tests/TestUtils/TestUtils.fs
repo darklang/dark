@@ -234,7 +234,7 @@ let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel>) : Task<Canvas.T>
         let op =
           match tl with
           | PT.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
-          | _ -> failwith "not yet supported in canvasForTLs"
+          | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
 
         (tlid, [ op ], tl, Canvas.NotDeleted))
 
@@ -837,7 +837,7 @@ module Http =
       |> List.map (fun s ->
         match String.split ":" s with
         | k :: vs -> (k, vs |> String.concat ":" |> String.trimLeft)
-        | _ -> failwith $"not a valid header: {s}")
+        | _ -> Exception.raiseInternal $"not a valid header" [ "header", s ])
 
 
     { status = status |> List.toArray |> UTF8.ofBytesUnsafe

@@ -104,7 +104,9 @@ let addOp (ctx : HttpContext) : Task<T> =
             | None ->
               match Map.get tlid deletedToplevels with
               | Some tl -> tl, C.Deleted
-              | None -> failwith "couldn't find the TL we supposedly just looked up"
+              | None ->
+                Exception.raiseInternal
+                  "couldn't find the TL we supposedly just looked up" ["tlid", tlid]
 
           (tlid, oplists, tl, deleted))
         |> C.saveTLIDs canvasInfo

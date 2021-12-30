@@ -85,6 +85,10 @@ let sendAlert
   (metadata : List<string * obj>)
   : unit =
   print $"rollbar: {message}"
+  try
+    print (string metadata)
+  with
+  | _ -> ()
   print System.Environment.StackTrace
   Telemetry.addEvent message metadata
   let custom = createState message executionID metadata
@@ -103,6 +107,10 @@ let sendException
     print $"rollbar: {message}"
     print e.Message
     print e.StackTrace
+    try
+      print (string metadata)
+    with
+    | _ -> ()
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
@@ -126,6 +134,10 @@ let lastDitchBlocking
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
+    try
+      print (string metadata)
+    with
+    | _ -> ()
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar
@@ -136,10 +148,10 @@ let lastDitchBlocking
     |> ignore<Rollbar.ILogger>
     Telemetry.addException message e metadata
   with
-  | e ->
+  | extra ->
     print "Exception when calling rollbar"
-    print e.Message
-    print e.StackTrace
+    print extra.Message
+    print extra.StackTrace
     if Telemetry.Span.current () = null then
       Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
     Telemetry.addException "Exception when calling rollbar" e []

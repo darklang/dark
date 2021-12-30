@@ -173,9 +173,12 @@ let fns : List<BuiltInFn> =
           (try
             let int = s |> parseInt64
 
-            if int < -4611686018427387904L then failwith "goto exception case"
-            else if int >= 4611686018427387904L then failwith "goto exception case"
-            else int |> DInt |> Ply
+            if int < -4611686018427387904L then
+              Exception.raiseInternal "goto exception case" []
+            else if int >= 4611686018427387904L then
+              Exception.raiseInternal "goto exception case" []
+            else
+              int |> DInt |> Ply
            with
            | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
         | _ -> incorrectArgs ())
@@ -194,9 +197,12 @@ let fns : List<BuiltInFn> =
             // CLEANUP: These constants represent how high the OCaml parsers would go
             let int = s |> parseInt64
 
-            if int < -4611686018427387904L then failwith "goto exception case"
-            else if int >= 4611686018427387904L then failwith "goto exception case"
-            else int |> DInt |> Ok |> DResult |> Ply
+            if int < -4611686018427387904L then
+              Exception.raiseInternal "goto exception case" []
+            else if int >= 4611686018427387904L then
+              Exception.raiseInternal "goto exception case" []
+            else
+              int |> DInt |> Ok |> DResult |> Ply
           with
           | e ->
             $"Expected to parse string with only numbers, instead got \"{s}\""

@@ -307,7 +307,7 @@ module Password =
           dval
           |> (function
           | RT.DObj dvalMap -> dvalMap
-          | _ -> failwith "dobj only here")
+          | _ -> Exception.raiseInternal "dobj only here" [])
           |> serialize
 
         Expect.equalDval

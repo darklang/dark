@@ -28,7 +28,7 @@ let main _ : int =
     LibService.Init.init "CronChecker"
     LibExecution.Init.init "CronChecker"
     LibExecutionStdLib.Init.init "CronChecker"
-    LibBackend.Init.init "CronChecker"
+    (LibBackend.Init.init "CronChecker").Result
     BackendOnlyStdLib.Init.init "CronChecker"
     LibRealExecution.Init.init "CronChecker"
 

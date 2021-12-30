@@ -358,7 +358,7 @@ module Queryable =
       OCamlInterop.ofInternalQueryableV1
       (function
       | RT.DObj dvm -> DvalRepr.toInternalQueryableV1 dvm
-      | _ -> failwith "not an obj")
+      | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
       DvalRepr.ofInternalQueryableV1
       dvalEquality
       (RT.DObj dvm)
@@ -372,7 +372,7 @@ module Queryable =
       (OCamlInterop.ofInternalQueryableV0)
       (function
       | RT.DObj dvm -> DvalRepr.toInternalQueryableV1 dvm
-      | _ -> failwith "not an obj")
+      | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
       (DvalRepr.ofInternalQueryableV1)
       dvalEquality
       (RT.DObj dvm)
@@ -838,7 +838,9 @@ module ExecutePureFunctions =
               let! msg = genExpr' RT.TStr s
               return call "Test" "typeError" 0 [ msg ]
 
-            | _ -> return failwith $"Not supported yet: {typ}"
+            | _ ->
+              return
+                Exception.raiseInternal $"Unsupported type (yet!)" [ "typ", typ ]
           }
 
         Gen.sized (genExpr' typ')
@@ -952,7 +954,8 @@ module ExecutePureFunctions =
             | RT.TErrorRail ->
               let! typ = Arb.generate<RT.DType>
               return! Gen.map RT.DErrorRail (genDval' typ s)
-            | _ -> return failwith $"Not supported yet: {typ}"
+            | _ ->
+              return Exception.raiseInternal "Type not supported yet" [ "type", typ ]
           }
 
         Gen.sized (genDval' typ')
@@ -1119,8 +1122,9 @@ module ExecutePureFunctions =
                 let! arg3 = arg 3 [ arg0; arg1; arg2 ]
                 return (name, [ arg0; arg1; arg2; arg3 ])
               | _ ->
-                failwith
+                Exception.raiseInternal
                   "No support for generating functions with over 4 parameters yet"
+                  []
 
                 return (name, [])
             } }
@@ -1225,7 +1229,10 @@ module ExecutePureFunctions =
                 && actualMatch.Success
                 && expectedMatch.Success
                 && groupsMatch
-              | _ -> failwith "Invalid json in tests/allowedFuzzerErrors.json")
+              | _ ->
+                Exception.raiseInternal
+                  "Invalid json in tests/allowedFuzzerErrors.json"
+                  [])
               allowedErrors.knownErrors
 
 

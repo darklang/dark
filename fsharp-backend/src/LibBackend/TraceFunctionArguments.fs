@@ -67,7 +67,8 @@ let loadForAnalysis
     (read.string "arguments_json"
      |> DvalRepr.ofInternalRoundtrippableV0
      |> fun dv ->
-          RT.Dval.toPairs dv |> Result.unwrapUnsafe, read.dateTime "timestamp"))
+          RT.Dval.toPairs dv |> Exception.unwrapResultInternal [ "dval", dv ],
+          read.dateTime "timestamp"))
 
 
 let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =

@@ -48,7 +48,7 @@ let splitAtNewlines (bytes : byte array) : byte list list =
       [] :: state
     else
       match state with
-      | [] -> failwith "can't have no entries"
+      | [] -> Exception.raiseInternal "can't have no entries" []
       | head :: rest -> (b :: head) :: rest)
   |> List.map List.reverse
   |> List.reverse
@@ -101,7 +101,7 @@ let parseTest (bytes : byte array) : Test =
         | InHttpHandler ->
           let newHandlers =
             match List.reverse result.handlers with
-            | [] -> failwith "There should be handlers already"
+            | [] -> Exception.raiseInternal "There should be handlers already" []
             | (method, route, text) :: other ->
               List.reverse ((method, route, text + asString + "\n") :: other)
           InHttpHandler, { result with handlers = newHandlers }
@@ -119,7 +119,9 @@ let parseTest (bytes : byte array) : Test =
           if line.Length = 0 then
             (Limbo, result)
           else
-            failwith $"Line received while not in any state: {line}")
+            Exception.raiseInternal
+              $"Line received while not in any state"
+              [ "line", line ])
   |> Tuple2.second
   |> fun test ->
        // Remove the superfluously added newline on response (keep it on the request though)

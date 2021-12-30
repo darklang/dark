@@ -373,7 +373,8 @@ module Convert =
     | ORT.EPipe (id, expr1 :: expr2 :: rest) ->
       PT.EPipe(id, r expr1, r expr2, List.map r rest)
     | ORT.EPipe (id, [ expr ]) -> r expr
-    | ORT.EPipe (id, []) -> failwith "Invalid pipe {o}"
+    | ORT.EPipe (id, []) ->
+      Exception.raiseInternal "Invalid pipe" [ "expr", o; "id", id ]
     | ORT.EConstructor (id, name, exprs) ->
       PT.EConstructor(id, name, List.map r exprs)
     | ORT.EMatch (id, mexpr, pairs) ->
@@ -612,7 +613,8 @@ module Convert =
     | PT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
     | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
-    | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
+    | PT.PCharacter (id, c) ->
+      Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]
     | PT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | PT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | PT.PFloat (id, Positive, w, f) -> ORT.FPFloat(mid, id, string w, string f)
@@ -628,7 +630,8 @@ module Convert =
     | RT.PConstructor (id, name, pats) ->
       ORT.FPConstructor(mid, id, name, List.map r pats)
     | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, string i)
-    | RT.PCharacter (id, c) -> failwith "Character patterns not supported"
+    | RT.PCharacter (id, c) ->
+      Exception.raiseInternal "Character patterns not supported" [ "id", id; "c", c ]
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | RT.PFloat (id, d) ->
@@ -657,7 +660,8 @@ module Convert =
     match p with
     | PT.EBlank id -> ORT.EBlank id
     | PT.EInteger (id, num) -> ORT.EInteger(id, string num)
-    | PT.ECharacter (id, num) -> failwith "Characters not supported"
+    | PT.ECharacter (id, c) ->
+      Exception.raiseInternal "Characters not supported" [ "id", id; "c", c ]
     | PT.EString (id, str) -> ORT.EString(id, str)
     | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, string w, string f)
     | PT.EFloat (id, Negative, w, f) -> ORT.EFloat(id, $"-{w}", string f)
@@ -713,7 +717,8 @@ module Convert =
     match e with
     | RT.EBlank id -> ORT.EBlank id
     | RT.EInteger (id, num) -> ORT.EInteger(id, string num)
-    | RT.ECharacter (id, num) -> failwith "Characters not supported"
+    | RT.ECharacter (id, c) ->
+      Exception.raiseInternal "Characters not supported" [ "id", id; "c", c ]
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
       let (w, f) = readFloat d
@@ -751,7 +756,8 @@ module Convert =
 
 
       ORT.EFnCall(id, name, List.map r args, rt2ocamlSter rail)
-    | _ -> failwith "TODO: add more cases to rt2ocamlExpr"
+    | expr ->
+      Exception.raiseInternal "TODO: add more cases to rt2ocamlExpr" [ "expr", expr ]
 
 
 
