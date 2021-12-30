@@ -285,9 +285,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       // and leave it to middleware to say what it wants to do with that
       let searchMethod = if method = "HEAD" then "GET" else method
 
-      let! c =
-        Canvas.loadHttpHandlers meta requestPath searchMethod
-        |> Task.map Result.unwrapUnsafe
+      let! c = Canvas.loadHttpHandlers meta requestPath searchMethod
 
       let url : string =
         let isHttps =

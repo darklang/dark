@@ -53,7 +53,6 @@ module Function =
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
-      let c = Result.unwrapUnsafe c
 
       t.next "load-execution-state"
       let program = Canvas.toProgram c
@@ -104,7 +103,6 @@ module Handler =
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
-      let c = Result.unwrapUnsafe c
       let program = Canvas.toProgram c
       let expr = c.handlers[ p.tlid ].ast.toRuntimeType ()
 

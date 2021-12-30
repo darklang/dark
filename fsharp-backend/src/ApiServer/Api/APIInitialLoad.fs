@@ -72,7 +72,7 @@ let initialLoad (ctx : HttpContext) : Task<T> =
     let permission = loadPermission ctx
 
     t.next "load-canvas"
-    let! canvas = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
+    let! canvas = Canvas.loadAll canvasInfo
 
     t.next "load-canvas-creation-date"
     let! creationDate = Canvas.canvasCreationDate canvasInfo.id

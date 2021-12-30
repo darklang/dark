@@ -107,6 +107,11 @@ module Exception =
     | Some v -> v
     | None -> raiseInternal msg tags
 
+  let unwrapResultInternal (tags : List<string * obj>) (r : Result<'a, 'b>) : 'a =
+    match r with
+    | Ok v -> v
+    | Error msg -> raiseInternal (string msg) tags
+
 
 
   // An error in library code - should not be shown to grand users. May be shown to

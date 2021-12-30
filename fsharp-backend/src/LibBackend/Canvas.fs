@@ -267,20 +267,19 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
 //
 // See `Op.RequiredContext` for how we determine which ops need what other
 // context to be loaded to appropriately verify.
-let verify (c : T) : Result<T, string list> =
+let verify (c : T) : T =
   let dupedNames =
     c.dbs
     |> Map.values
     |> List.groupBy (fun db -> db.name)
     |> Map.filter (fun db -> List.length db > 1)
-    |> Map.values
-    |> List.map (fun names ->
-      let names = List.map (fun db -> db.name)
-      $"Duplicate DB names: {names}")
+    |> Map.keys
 
   match dupedNames with
-  | [] -> Ok c
-  | dupes -> Error dupes
+  | [] -> c
+  | dupes ->
+    let dupes = String.concat "," dupes
+    Exception.raiseInternal $"Duplicate DB names: {dupes}" []
 
 
 let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
@@ -354,11 +353,7 @@ let empty (meta : Meta) : T =
     secrets = Map.empty }
 
 // DOES NOT LOAD OPS FROM DB
-let fromOplist
-  (meta : Meta)
-  (oldOps : PT.Oplist)
-  (newOps : PT.Oplist)
-  : Result<T, List<string>> =
+let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
 
@@ -427,11 +422,7 @@ let loadOplists
     |> Task.flatten)
 
 
-let loadFrom
-  (loadAmount : LoadAmount)
-  (meta : Meta)
-  (tlids : List<tlid>)
-  : Task<Result<T, string list>> =
+let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     // CLEANUP: rename "rendered" and "cached" to be consistent
 
@@ -454,53 +445,43 @@ let loadFrom
     return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
   }
 
-let loadAll (meta : Meta) : Task<Result<T, List<string>>> =
+let loadAll (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchAllTLIDs meta.id
     return! loadFrom IncludeDeletedToplevels meta tlids
   }
 
-let loadHttpHandlers
-  (meta : Meta)
-  (path : string)
-  (method : string)
-  : Task<Result<T, List<string>>> =
+let loadHttpHandlers (meta : Meta) (path : string) (method : string) : Task<T> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP meta.id path method
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<Result<T, List<string>>> =
+let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<T> =
   loadFrom LiveToplevels meta tlids
 
 
-let loadTLIDsWithContext
-  (meta : Meta)
-  (tlids : List<tlid>)
-  : Task<Result<T, List<string>>> =
+let loadTLIDsWithContext (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     let! context = Serialize.fetchRelevantTLIDsForExecution meta.id
     let tlids = tlids @ context
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadForEvent (e : EventQueue.T) : Task<Result<T, List<string>>> =
+let loadForEvent (e : EventQueue.T) : Task<T> =
   task {
     let meta = { id = e.canvasID; name = e.canvasName; owner = e.ownerID }
     let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id e
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadAllDBs (meta : Meta) : Task<Result<T, List<string>>> =
+let loadAllDBs (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs meta.id
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadTLIDsWithDBs
-  (meta : Meta)
-  (tlids : List<tlid>)
-  : Task<Result<T, List<string>>> =
+let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id
     return! loadFrom LiveToplevels meta (tlids @ dbTLIDs)
@@ -706,7 +687,6 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
       |> List.map (fun (tlid, oplist) ->
         let tl =
           fromOplist meta [] oplist
-          |> Result.unwrapUnsafe
           |> toplevels
           |> Map.get tlid
           |> Option.unwrapUnsafe

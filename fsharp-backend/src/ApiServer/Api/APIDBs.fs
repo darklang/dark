@@ -50,7 +50,7 @@ module DBStats =
       Telemetry.addTags [ "tlids", p.tlids ]
 
       t.next "load-canvas"
-      let! c = Canvas.loadAllDBs canvasInfo |> Task.map Result.unwrapUnsafe
+      let! c = Canvas.loadAllDBs canvasInfo
 
       t.next "load-db-stats"
       let! result = Stats.dbStats c p.tlids

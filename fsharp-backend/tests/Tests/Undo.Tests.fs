@@ -46,7 +46,7 @@ let testUndo : Test =
     let exe (ops : PT.Oplist) =
       task {
         let! meta = testCanvasInfo owner "test-undo"
-        let c = Canvas.fromOplist meta [] ops |> Result.unwrapUnsafe
+        let c = Canvas.fromOplist meta [] ops
         let! state = executionStateFor owner "test-undo" Map.empty Map.empty
         let h = Map.get tlid c.handlers |> Option.unwrapUnsafe
         return! Exe.executeExpr state Map.empty (h.ast.toRuntimeType ())
@@ -90,11 +90,15 @@ let testCanvasVerificationUndoRenameDupedName : Test =
         PT.DeleteTL dbID
         PT.CreateDBWithBlankOr(dbID2, pos, nameID2, "Books") ]
 
-    let c = Canvas.fromOplist meta [] ops1
-    Expect.isOk c "should initially verify"
+    Canvas.fromOplist meta [] ops1 |> ignore<Canvas.T>
 
-    let c = Canvas.fromOplist meta ops1 [ PT.UndoTL dbID ]
-    Expect.isError c "should fail to verify"
+    try
+      Canvas.fromOplist meta ops1 [ PT.UndoTL dbID ] |> ignore<Canvas.T>
+      Expect.isFalse true "should fail to verify"
+    with
+    | _ ->
+      // Expected
+      ()
   }
 
 let tests =

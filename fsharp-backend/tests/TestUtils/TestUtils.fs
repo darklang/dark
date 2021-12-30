@@ -239,7 +239,7 @@ let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel>) : Task<Canvas.T>
         (tlid, [ op ], tl, Canvas.NotDeleted))
 
     do! Canvas.saveTLIDs meta descs
-    return! Canvas.loadAll meta |> Task.map Result.unwrapUnsafe
+    return! Canvas.loadAll meta
   }
 
 

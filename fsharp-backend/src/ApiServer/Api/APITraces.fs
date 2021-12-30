@@ -48,8 +48,7 @@ module TraceData =
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       t.next "load-canvas"
-      let! (c : Canvas.T) =
-        Canvas.loadTLIDs canvasInfo [ p.tlid ] |> Task.map Result.unwrapUnsafe
+      let! c = Canvas.loadTLIDs canvasInfo [ p.tlid ]
 
 
       // CLEANUP: we dont need the handlers or functions at all here, just for the sample
@@ -101,7 +100,7 @@ module AllTraces =
       // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
       // CLEANUP don't load traces for deleted handlers
       t.next "load-canvas"
-      let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
+      let! (c : Canvas.T) = Canvas.loadAll canvasInfo
 
       t.next "fetch-handler-traces"
       let! hTraces =
