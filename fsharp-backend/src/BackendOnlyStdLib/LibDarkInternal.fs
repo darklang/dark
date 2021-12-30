@@ -211,7 +211,20 @@ which was randomly generated. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name ] -> Ply DNull
+          | state, [ DStr username; DStr email; DStr name ] ->
+            uply {
+              let! result =
+                Account.upsertNonAdmin
+                  { username = UserName.create username
+                    email = email
+                    name = name
+                    password = Password.invalid }
+              match result with
+              | Ok () ->
+                Analytics.identifyUser state.executionID (UserName.create username)
+                return DStr ""
+              | Error msg -> return Exception.raiseGrandUser msg
+            }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -232,14 +245,14 @@ that's already taken, returns an error."
           | state, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
             uply {
               let username = UserName.create username
-              let! user =
+              let! _user =
                 Account.insertUser username email name (Some analyticsMetadata)
-              LibBackend.Analytics.identifyUser state.executionID username
+              Analytics.identifyUser state.executionID username
               let toCanvasName =
                 $"{username}-{LibService.Config.gettingStartedCanvasName}"
               let fromCanvasName = LibService.Config.gettingStartedCanvasSource
               do!
-                LibBackend.CanvasClone.cloneCanvas
+                CanvasClone.cloneCanvas
                   (CanvasName.create fromCanvasName)
                   (CanvasName.create toCanvasName)
                   // Don't preserve history here, it isn't useful and
@@ -276,8 +289,8 @@ that's already taken, returns an error."
               match result with
               | Ok () ->
                 do Analytics.identifyUser state.executionID username
-                return DStr ""
-              | Error msg -> return Exception.raiseGrandUser msg
+                return DResult(Ok(DStr ""))
+              | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -659,9 +672,9 @@ that's already taken, returns an error."
             uply {
               try
                 let! meta = Canvas.getMeta (CanvasName.create host)
-                return DResult(Ok(DStr(string meta.id)))
+                return DOption(Some(DStr(string meta.id)))
               with
-              | e -> return DResult(Error(DStr e.Message))
+              | e -> return DOption None
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -778,7 +791,7 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "checkPermission" 0
       parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
-      returnType = TBool
+      returnType = TStr
       description = "Check a user's permissions for a particular canvas."
       fn =
         internalFn (function

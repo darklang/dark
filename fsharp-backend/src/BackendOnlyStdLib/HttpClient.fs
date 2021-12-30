@@ -8,6 +8,7 @@ open FSharp.Control.Tasks
 open System.Net.Http
 open System.IO.Compression
 open System.IO
+
 type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 open Prelude
@@ -169,7 +170,12 @@ let makeHttpCall
             // CLEANUP: OCaml doesn't send empty headers, but no reason not to
             ()
           elif String.equalsCaseInsensitive k "content-type" then
-            req.Content.Headers.ContentType <- Headers.MediaTypeHeaderValue.Parse(v)
+            try
+              req.Content.Headers.ContentType <-
+                Headers.MediaTypeHeaderValue.Parse(v)
+            with
+            | :? System.FormatException ->
+              Exception.raiseDeveloper "Invalid content-type header" []
           else
             // Dark headers can only be added once, as they use a Dict. Remove them
             // so they don't get added twice (eg via Authorization headers above)

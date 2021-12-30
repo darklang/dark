@@ -17,14 +17,15 @@ let p = FSharpToExpr.parseRTExpr
 
 let nullsAddedToMissingColumn =
   testTask "test for the hack that columns get null in all rows to start" {
+    let! owner = testOwner.Force()
     let name = "null_added_to_column"
-    do! clearCanvasData (CanvasName.create name)
+    do! clearCanvasData owner (CanvasName.create name)
 
     // Add DB with 1 col, add value
     let db1 : RT.DB.T =
       { tlid = gid (); name = "MyDB"; version = 0; cols = [ "x", RT.TStr ] }
 
-    let! state = executionStateFor name (Map [ "MyDB", db1 ]) Map.empty
+    let! state = executionStateFor owner name (Map [ "MyDB", db1 ]) Map.empty
     let expr = p @"DB.set_v1 { x = ""v"" } ""i"" MyDB"
     let! (result : RT.Dval) = Exe.executeExpr state Map.empty expr
     Expect.equal (RT.DObj(Map [ "x", RT.DStr "v" ])) result "no nulls"

@@ -29,6 +29,7 @@ let createState
   (executionID : ExecutionID)
   (libraries : RT.Libraries)
   (tracing : RT.Tracing)
+  (reportException : ExecutionID -> string -> exn -> List<string * obj> -> unit)
   (tlid : tlid)
   (program : RT.ProgramContext)
   : RT.ExecutionState =
@@ -36,6 +37,7 @@ let createState
     tracing = tracing
     program = program
     test = { sideEffectCount = 0 }
+    reportException = reportException
     executionID = executionID
     tlid = tlid
     callstack = Set.empty

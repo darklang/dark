@@ -108,7 +108,8 @@ let bannedUsernames : List<UserName.T> =
 let validateUserName (username : string) : Result<unit, string> =
   // rules: no uppercase, ascii only, must start with letter, other letters can
   // be numbers or underscores. 3-20 characters.
-  let reString = @"^[a-z][a-z0-9_]{2,19}$"
+  // CLEANUP should be 19
+  let reString = @"^[a-z][a-z0-9_]{2,20}$"
 
   if FsRegEx.isMatch reString username then
     Ok()
@@ -243,7 +244,10 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
        FROM accounts
        WHERE accounts.username = @username"
     |> Sql.parameters [ "username", Sql.string (string username) ]
-    |> Sql.executeRowAsync (fun read -> read.uuid "id")
+    |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+    |> Task.map (function
+      | Some v -> v
+      | None -> Exception.raiseDeveloper "User not found")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
@@ -379,6 +383,7 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
      WHERE c.account_id = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Task.map List.sort
 
 
 // NB: this returns canvases an account has access to via an organization, not
@@ -392,6 +397,7 @@ let accessibleCanvases (userID : UserID) : Task<List<CanvasName.T>> =
       WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Task.map List.sort
 
 let orgs (userID : UserID) : Task<List<OrgName.T>> =
   Sql.query
@@ -401,6 +407,7 @@ let orgs (userID : UserID) : Task<List<OrgName.T>> =
      WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "username" |> OrgName.create)
+  |> Task.map List.sort
 
 
 // **********************

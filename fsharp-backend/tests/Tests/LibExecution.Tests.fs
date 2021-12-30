@@ -18,6 +18,7 @@ module Exe = LibExecution.Execution
 open TestUtils.TestUtils
 
 let t
+  (owner : Task<LibBackend.Account.UserInfo>)
   (comment : string)
   (code : string)
   (dbs : List<PT.DB.T>)
@@ -30,12 +31,13 @@ let t
   else
     testTask name {
       try
+        let! owner = owner
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
 
         let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
 
-        let! state = executionStateFor name rtDBs rtFunctions
+        let! state = executionStateFor owner name rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
 
@@ -141,11 +143,13 @@ let fileTests () : Test =
     let mutable allTests = []
     let mutable functions : Map<string, PT.UserFunction.T> = Map.empty
     let mutable dbs : Map<string, PT.DB.T> = Map.empty
+    let owner =
+      if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
 
     let finish () =
       if currentTest.recording then
         let newTestCase =
-          t currentTest.name currentTest.code currentTest.dbs functions
+          t owner currentTest.name currentTest.code currentTest.dbs functions
 
         allTests <- allTests @ [ newTestCase ]
 
@@ -260,11 +264,11 @@ let fileTests () : Test =
         currentFn <- { currentFn with code = currentFn.code + "\n" + line }
       // 1-line test
       | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
-        let test = t $"{comment} (line {i})" code currentGroup.dbs functions
+        let test = t owner $"{comment} (line {i})" code currentGroup.dbs functions
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
-        let test = t $"line {i}" code currentGroup.dbs functions
+        let test = t owner $"line {i}" code currentGroup.dbs functions
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 

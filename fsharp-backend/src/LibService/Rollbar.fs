@@ -88,21 +88,23 @@ let sendException
   (metadata : List<string * obj>)
   (e : exn)
   : unit =
-  assert initialized
   try
+    assert initialized
     print $"rollbar: {message}"
     print e.Message
     print e.StackTrace
+    Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
     |> ignore<Rollbar.ILogger>
     Telemetry.addException message e metadata
   with
-  | e ->
+  | extra ->
     print "Exception when calling rollbar"
     print e.Message
     print e.StackTrace
     Telemetry.addException "Exception when calling rollbar" e []
+
 // Will block for 5 seconds to make sure this exception gets sent. Use for startup
 // and other places where the process is intended to end after this call.
 let lastDitchBlocking
@@ -117,6 +119,7 @@ let lastDitchBlocking
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
+    Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar
       .RollbarLocator
@@ -163,6 +166,8 @@ module AspNet =
             print $"rollbar in http: {uri}"
             print e.Message
             print e.StackTrace
+            // FSTODO: I think this should produced somewhere else
+            Telemetry.addException "http exception" e [ "uri", uri ]
 
             let executionID =
               try

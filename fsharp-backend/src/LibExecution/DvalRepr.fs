@@ -10,6 +10,9 @@ module LibExecution.DvalRepr
 // allows us reason more easily about what changes are going to be safe. In
 // general, we should avoid general purpose or reusable functions in this file.
 
+// Since it's hard to know where this file is used from, do not throw exceptions in
+// here.
+
 open Prelude
 open VendoredTablecloth
 
@@ -192,7 +195,8 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
 let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
 
 // Backwards compatible version of `typeToDeveloperRepr`, should not be visible to
-// users but used by things like HttpClient (transitively)
+// users (except through LibDarkInternal) but used by things like HttpClient
+// (transitively)
 let rec typeToBCTypeName (t : DType) : string =
   match t with
   | TInt -> "int"
@@ -838,7 +842,7 @@ let ofUnknownJsonV0 str =
   | _ -> failwith "Invalid json"
 
 
-let ofUnknownJsonV1 str =
+let ofUnknownJsonV1 str : Result<Dval, string> =
   // FSTODO: there doesn't seem to be a good reason that we use JSON.NET here,
   // might be better to switch to STJ
   let rec convert json =
@@ -857,14 +861,14 @@ let ofUnknownJsonV1 str =
     // disable all those so we fail if we see them. However, we might need to
     // just convert some of these into strings.
     | JNonStandard
-    | _ -> failwith $"Invalid type in json: {json}"
+    | _ -> failwith "Invalid type in json"
 
   try
-    str |> parseJson |> convert
+    str |> parseJson |> convert |> Ok
   with
   | :? JsonReaderException as e ->
     let msg = if str = "" then "JSON string was empty" else e.Message
-    failwith msg
+    Error msg
 
 
 // let rec show dv =
@@ -960,29 +964,30 @@ let ofUnknownJsonV1 str =
 
 
 
-let toStringPairsExn (dv : Dval) : (string * string) list =
+let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
   match dv with
   | DObj obj ->
     obj
     |> Map.toList
     |> List.map (function
-      | (k, DStr v) -> (k, v)
+      | (k, DStr v) -> Ok(k, v)
       | (k, v) ->
         // CLEANUP: this is just to keep the error messages the same with OCaml. It's safe to change the error message
-        // failwith $"Expected a string, but got: {toDeveloperReprV0 v}"
-        failwith "expecting str")
+        // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
+        Error "expecting str")
+    |> Tablecloth.Result.values
   | _ ->
     // CLEANUP As above
     // $"Expected a string, but got: {toDeveloperReprV0 dv}"
-    failwith "expecting str"
+    Error "expecting str"
 
 // -------------------------
 // URLs and queryStrings
 // -------------------------
 
 // For putting into URLs as query params
-let rec toUrlStringExn (dv : Dval) : string =
-  let r = toUrlStringExn
+let rec toUrlString (dv : Dval) : string =
+  let r = toUrlString
   match dv with
   | DFnVal _ ->
     (* See docs/dblock-serialization.ml *)
@@ -1031,17 +1036,18 @@ let queryToEncodedString (queryParams : (List<string * List<string>>)) : string 
              $"{k}={vs}")
     |> String.concat "&"
 
-let toQuery (dv : Dval) : List<string * List<string>> =
+let toQuery (dv : Dval) : Result<List<string * List<string>>, string> =
   match dv with
   | DObj kvs ->
     kvs
     |> Map.toList
     |> List.map (fun (k, value) ->
       match value with
-      | DNull -> (k, [])
-      | DList l -> (k, List.map toUrlStringExn l)
-      | _ -> (k, [ toUrlStringExn value ]))
-  | _ -> failwith "attempting to use non-object as query param" // CODE exception
+      | DNull -> Ok(k, [])
+      | DList l -> Ok(k, List.map toUrlString l)
+      | _ -> Ok(k, [ toUrlString value ]))
+    |> Tablecloth.Result.values
+  | _ -> Error "attempting to use non-object as query param" // CODE exception
 
 
 // The queryString passed in should not include the leading '?' from the URL
@@ -1080,7 +1086,8 @@ let ofQueryString (queryString : string) : Dval =
 // Forms
 // -------------------------
 
-let toFormEncoding (dv : Dval) : string = toQuery dv |> queryToEncodedString
+let toFormEncoding (dv : Dval) : Result<string, string> =
+  toQuery dv |> Result.map queryToEncodedString
 
 let ofFormEncoding (f : string) : Dval = f |> parseQueryString |> ofQuery
 

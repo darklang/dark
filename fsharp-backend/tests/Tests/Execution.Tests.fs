@@ -26,7 +26,8 @@ let executionStateForPreview
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
-    let! state = executionStateFor name dbs fns
+    let! owner = testOwner.Force()
+    let! state = executionStateFor owner name dbs fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
@@ -57,9 +58,10 @@ let execSaveDvals
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
     let name = "testFunction"
+    let! owner = testOwner.Force()
     let fn = testUserFn name [] (eInt 5)
     let fns = Map.ofList [ (name, fn) ]
-    let! state = executionStateFor "test" Map.empty fns
+    let! state = executionStateFor owner "test" Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
@@ -79,7 +81,8 @@ let testErrorRailUsedInAnalysis : Test =
   testTask
     "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
 
-    let! state = executionStateFor "test" Map.empty Map.empty
+    let! owner = testOwner.Force()
+    let! state = executionStateFor owner "test" Map.empty Map.empty
 
     let loadTraceResults _ _ = Some(DOption(Some(DInt 12345L)), System.DateTime.Now)
 
@@ -375,11 +378,12 @@ let testMatchPreview : Test =
 
         arg
         |> Ast.postTraversal (fun e ->
-          argIDs := (Expr.toID e) :: !argIDs
+          argIDs.Value <- (Expr.toID e) :: argIDs.Value
           e)
         |> ignore<Expr>
 
-        let expectedIDs = (mid :: !argIDs) @ List.map Tuple3.first expected |> Set
+        let expectedIDs =
+          (mid :: argIDs.Value) @ List.map Tuple3.first expected |> Set
         Expect.isGreaterThan results.Count (Set.count expectedIDs) "sanity check"
 
         results

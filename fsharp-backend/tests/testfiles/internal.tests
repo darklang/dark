@@ -1,2 +1,74 @@
-// DarkInternal.upsertUser_v1 "Name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'Name with space', must match /^[a-z][a-z0-9_]{2,20}$/"
-//(Dict::length DarkInternal::getAndLogTableSizes) > 0 = true
+Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
+(List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
+
+[tests.grants]
+DarkInternal.orgsFor "test" = {}
+
+[test.grants and orgs]
+(let _ = DarkInternal.grant "test" "dark" "rw" in
+ DarkInternal.orgsFor "test") = { dark = "rw" }
+
+[test.grants and grants]
+(let _ = DarkInternal.grant "test" "dark" "rw" in
+ let result = DarkInternal.grantsFor "dark"
+ let _ = DarkInternal.grant "test" "dark" "" in
+ result) = { test = "rw" }
+
+[tests.sessions]
+
+// It allows these, just puts them in the DB
+// [test.newSessionForUsername_v0 invalid user]
+// (DarkInternal.newSessionForUsername_v0 "not a user") = Error "No user 'not a user'"
+
+// It allows these, just puts them in the DB
+// [test.newSessionForUsername_v1 invalid user]
+// (DarkInternal.newSessionForUsername_v1 "not a user") = Error "No user 'not a user'"
+
+[test.newSessionForUsername_v0 real user]
+(let session = DarkInternal.newSessionForUsername_v0_ster "test" in
+ DarkInternal.sessionKeyToUsername_v0 session) = Ok "test"
+
+[test.newSessionForUsername_v1 real user]
+(let session = DarkInternal.newSessionForUsername_v1_ster "test" in
+ DarkInternal.sessionKeyToUsername session.sessionKey) = Ok "test"
+
+[test.deleteSession]
+(let session1 = DarkInternal.newSessionForUsername_v1_ster "test" in
+ DarkInternal.deleteSession_v0 session1.sessionKey) = 1
+
+[tests.users]
+DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
+DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
+DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
+DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/"
+
+[tests.canvases]
+DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown Err: \"No owner found for host not-a-canvas\"" // OCAMLONLY
+DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "User not found" // FSHARPONLY
+DarkInternal.getCORSSetting_v0 "test-cors1" = Nothing
+
+DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
+(DarkInternal.canvasIdOfCanvasName_v0 "test") |> Option.map_v1 (fun x -> String.length_v1 x) = Just 36
+
+DarkInternal.checkPermission_v0 "test" "dark" = ""
+DarkInternal.checkPermission_v0 "dark" "test" = "rw"
+
+[test.roundtrip cors just empty]
+(let _ = DarkInternal.setCORSSetting_v0 "test-cors2" (Just []) in
+ DarkInternal.getCORSSetting_v0 "test-cors2") = Just []
+
+[test.roundtrip cors just list]
+(let _ = DarkInternal.setCORSSetting_v0 "test-cors3" (Just ["localhost:8000"]) in
+ DarkInternal.getCORSSetting_v0 "test-cors3") = Just ["localhost:8000"]
+
+[test.roundtrip cors just number]
+(let _ = DarkInternal.setCORSSetting_v0 "test-cors4" (Just 5) in
+ DarkInternal.getCORSSetting_v0 "test-cors4") = Nothing
+
+[test.roundtrip cors just number list]
+(let _ = DarkInternal.setCORSSetting_v0 "test-cors5" (Just [5]) in
+ DarkInternal.getCORSSetting_v0 "test-cors5") = Nothing
+
+[test.roundtrip cors just star]
+(let _ = DarkInternal.setCORSSetting_v0 "test-cors6" (Just "*") in
+ DarkInternal.getCORSSetting_v0 "test-cors6") = Just "*"

@@ -383,24 +383,26 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
-          try
-            let rsa = RSA.Create()
-            rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
-
-            match verifyAndExtractV0 rsa token with
-            | Some (headers, payload) ->
-              [ ("header", DvalRepr.ofUnknownJsonV1 headers)
-                ("payload", DvalRepr.ofUnknownJsonV1 payload) ]
-              |> Map.ofList
-              |> DObj
-              |> Some
-              |> DOption
-              |> Ply
-            | None -> Ply(DOption None)
-          with
-          | _ ->
-            Errors.throw
-              "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
+          let result =
+            try
+              let rsa = RSA.Create()
+              rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
+              verifyAndExtractV0 rsa token
+            with
+            | _ ->
+              Errors.throw
+                "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
+          match result with
+          | Some (headers, payload) ->
+            let unwrap = Exception.unwrapResultDeveloper
+            [ ("header", DvalRepr.ofUnknownJsonV1 headers |> unwrap)
+              ("payload", DvalRepr.ofUnknownJsonV1 payload |> unwrap) ]
+            |> Map.ofList
+            |> DObj
+            |> Some
+            |> DOption
+            |> Ply
+          | None -> Ply(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -414,22 +416,24 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr key; DStr token ] ->
-          try
-            let rsa = RSA.Create()
-            rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
-
-            match verifyAndExtractV1 rsa token with
-            | Ok (headers, payload) ->
-              [ ("header", DvalRepr.ofUnknownJsonV1 headers)
-                ("payload", DvalRepr.ofUnknownJsonV1 payload) ]
-              |> Map.ofList
-              |> DObj
-              |> Ok
-              |> DResult
-              |> Ply
-            | Error msg -> Ply(DResult(Error(DStr msg)))
-          with
-          | _ -> Ply(DResult(Error(DStr "Invalid public key")))
+          let result =
+            try
+              let rsa = RSA.Create()
+              rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
+              verifyAndExtractV1 rsa token
+            with
+            | _ -> Error "Invalid public key"
+          match result with
+          | Ok (headers, payload) ->
+            let unwrap = Exception.unwrapResultDeveloper
+            [ ("header", DvalRepr.ofUnknownJsonV1 headers |> unwrap)
+              ("payload", DvalRepr.ofUnknownJsonV1 payload |> unwrap) ]
+            |> Map.ofList
+            |> DObj
+            |> Ok
+            |> DResult
+            |> Ply
+          | Error msg -> Ply(DResult(Error(DStr msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

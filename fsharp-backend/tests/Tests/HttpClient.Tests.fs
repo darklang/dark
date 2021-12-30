@@ -104,6 +104,7 @@ let t filename =
 
   // Load the testcases first so that redirection works
   testTask $"HttpClient files: {filename}" {
+    let! owner = testOwner.Force()
     let testOCaml, testFSharp =
       if String.includes "FSHARPONLY" code then (false, true)
       else if String.includes "OCAMLONLY" code then (true, false)
@@ -126,7 +127,8 @@ let t filename =
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
 
-      let! state = executionStateFor "test-httpclient-${name}" Map.empty Map.empty
+      let! state =
+        executionStateFor owner "test-httpclient-${name}" Map.empty Map.empty
 
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())

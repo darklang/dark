@@ -437,11 +437,12 @@ module HttpClient =
   let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
 
-    DvalRepr.toUrlStringExn dv .=. (OCamlInterop.toUrlString dv).Result
+    DvalRepr.toUrlString dv .=. (OCamlInterop.toUrlString dv).Result
 
   let dvalToQuery (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
-    DvalRepr.toQuery dv .=. (OCamlInterop.dvalToQuery dv).Result
+    DvalRepr.toQuery dv |> Result.unwrapUnsafe
+    .=. (OCamlInterop.dvalToQuery dv).Result
 
   let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
@@ -1128,6 +1129,7 @@ module ExecutePureFunctions =
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
+        let! owner = testOwner.Force()
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
 
@@ -1140,7 +1142,7 @@ module ExecutePureFunctions =
 
         let! expected = OCamlInterop.execute ownerID canvasID ast st [] []
 
-        let! state = executionStateFor "executePure" Map.empty Map.empty
+        let! state = executionStateFor owner "executePure" Map.empty Map.empty
 
         let! actual =
           LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())

@@ -79,6 +79,11 @@ module Exception =
     callExceptionCallback e "developer" msg []
     raise e
 
+  let unwrapResultDeveloper (r : Result<'ok, string>) : 'ok =
+    match r with
+    | Ok v -> v
+    | Error msg -> raiseDeveloper msg
+
   // An editor exception is one which is caused by an invalid action on the part of
   // the Dark editor. We are interested in these. The message may be shown to the
   // logged-in user, and should be suitable for this.
@@ -100,32 +105,34 @@ module Exception =
     callExceptionCallback e "library" msg tags
     raise e
 
-  let toGrandUserMessage (e : exn) : Option<string> =
+  let unknownErrorMessage = "Unknown error"
+
+  let toGrandUserMessage (e : exn) : string =
     match e with
     | DarkException (InternalError _)
     | DarkException (DeveloperError _)
     | DarkException (LibraryError _)
-    | DarkException (EditorError _) -> None
-    | DarkException (GrandUserError msg) -> Some msg
-    | _ -> None
+    | DarkException (EditorError _) -> unknownErrorMessage
+    | DarkException (GrandUserError msg) -> msg
+    | _ -> unknownErrorMessage
 
-  let toDeveloperMessage (e : exn) : Option<string> =
+  let toDeveloperMessage (e : exn) : string =
     match e with
-    | DarkException (InternalError _) -> None
+    | DarkException (InternalError _) -> unknownErrorMessage
     | DarkException (DeveloperError msg)
     | DarkException (LibraryError (msg, _))
     | DarkException (EditorError msg)
-    | DarkException (GrandUserError msg) -> Some msg
-    | _ -> None
+    | DarkException (GrandUserError msg) -> msg
+    | _ -> unknownErrorMessage
 
-  let toInternalMessage (e : exn) : Option<string * List<string * obj>> =
+  let toInternalMessage (e : exn) : string * List<string * obj> =
     match e with
     | DarkException (InternalError (msg, tags))
-    | DarkException (LibraryError (msg, tags)) -> Some(msg, tags)
+    | DarkException (LibraryError (msg, tags)) -> (msg, tags)
     | DarkException (DeveloperError msg)
     | DarkException (EditorError msg)
-    | DarkException (GrandUserError msg) -> Some(msg, [])
-    | e -> Some(e.Message, [])
+    | DarkException (GrandUserError msg) -> (msg, [])
+    | e -> (e.Message, [])
 
   // FSTODO
   let shouldPage (e : exn) : bool =
@@ -989,6 +996,12 @@ module Json =
 // Functions we'll later add to Tablecloth
 // ----------------------
 module Tablecloth =
+  module Result =
+    let unwrapWith (f : 'err -> 'ok) (t : Result<'ok, 'err>) : 'ok =
+      match t with
+      | Ok v -> v
+      | Error v -> f v
+
   module String =
     let take (count : int) (str : string) : string =
       if count >= str.Length then str else str.Substring(0, count)

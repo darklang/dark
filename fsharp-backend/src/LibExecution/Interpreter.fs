@@ -755,12 +755,20 @@ and execFn
         | Errors.StdlibException Errors.FunctionRemoved ->
           return (Dval.errSStr sourceID $"{fn.name} was removed from Dark")
         | Errors.StdlibException (Errors.FakeDvalFound dv) -> return dv
-        // After the rethrow, this gets eventually caught then shown to the
-        // user as a Dark Internal Exception. It's an internal exception
-        // because we didn't anticipate the problem, give it a nice error
-        // message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
-        // this, give it a nice exception via RT.error. *)
-        // FSTODO: the message above needs to be handled
-        | e -> return (Dval.errSStr sourceID e.Message)
+        | DarkException _ as e ->
+          // The GrandUser doesn't get to see DErrors, so it's safe to include this
+          // value and show it to the Dark Developer
+          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
+        | e ->
+          // We don't know what's happening here, so there could be sensitive
+          // information in the message. Let's report the error and hide the message
+          // from the user
+          // CLEANUP could we show the user the execution id here?
+          state.reportException
+            state.executionID
+            "An unknown exception was caught in the interpreter"
+            e
+            []
+          return (Dval.errSStr sourceID "An unknown error occured")
 
   }

@@ -173,11 +173,12 @@ let replaceByteStrings
 
 let t filename =
   testTask $"Httpfiles: {filename}" {
+    let! owner = testOwner.Force()
     let skip = String.startsWith "_" filename
     let name = if skip then String.dropLeft 1 filename else filename
     let name = $"bwdserver-{name}"
     let testName = $"test-{name}"
-    do! clearCanvasData (CanvasName.create testName)
+    do! clearCanvasData owner (CanvasName.create testName)
 
     let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
@@ -206,7 +207,7 @@ let t filename =
          PT.TLHandler h,
          Canvas.NotDeleted))
 
-    let! (meta : Canvas.Meta) = testCanvasInfo testName
+    let! (meta : Canvas.Meta) = testCanvasInfo owner testName
     do! Canvas.saveTLIDs meta oplists
 
     // CORS

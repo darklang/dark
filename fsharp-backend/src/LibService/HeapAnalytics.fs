@@ -28,24 +28,29 @@ type Type =
   | Track
   | Identify
 
+let standardProperties
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (owner : UserID)
+  : Map<string, string> =
+  Map.empty
+  |> Map.add "canvas" (string canvasName)
+  |> Map.add "organization" (string owner)
+  |> Map.add "canvas_id" (string canvasID)
+
 
 let _payloadForEvent
   (executionID : ExecutionID)
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
   (event : string)
   (owner : UserID)
   (properties : Map<string, string>)
   : TrackPayload =
   let timestamp = System.DateTime.Now
-
   let properties =
     properties
-    |> Map.add "canvas" (string canvasName)
-    |> Map.add "organization" (string owner)
-    |> Map.add "canvas_id" (string canvasID)
-    |> Map.add "execution_id" (string executionID)
     |> Map.add "timestamp" (string timestamp)
+    |> Map.add "organization" (string owner)
+    |> Map.add "execution_id" (string executionID)
 
   { identity = string owner
     timestamp = timestamp
@@ -65,9 +70,7 @@ let httpClient () : HttpClient = new HttpClient(_socketsHandler)
 
 let heapioEvent
   (executionID : ExecutionID)
-  (canvasID : CanvasID)
-  (canvasName : CanvasName.T)
-  (owner : System.Guid)
+  (owner : UserID)
   (event : string)
   (msgType : Type)
   (payload : Map<string, string>)
@@ -77,10 +80,9 @@ let heapioEvent
       Telemetry.addEvent
         // CLEANUP rate limit this, it will double our events otherwise
         "pushing heapio event via stroller" // CLEANUP it's not via stroller
-        [ ("canvas", canvasName :> obj)
-          ("canvas_id", canvasID)
-          ("event", event)
-          ("userid", owner) ]
+        ((Map.toList payload |> List.map (fun (k, v) -> (k, v)))
+         @ [ ("event", event); ("userid", string owner) ])
+
       let client = httpClient ()
 
       // path
@@ -93,8 +95,7 @@ let heapioEvent
       let requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
 
       // body
-      let payload =
-        _payloadForEvent executionID canvasName canvasID event owner payload
+      let payload = _payloadForEvent executionID event owner payload
 
       requestMessage.Content <- JsonContent.Create payload
 
@@ -119,4 +120,5 @@ let track
   (event : string)
   (payload : Map<string, string>)
   : unit =
-  heapioEvent executionID canvasID canvasName owner event Track payload
+  let props = standardProperties canvasName canvasID owner
+  heapioEvent executionID owner event Track (Map.mergeFavoringRight props payload)
