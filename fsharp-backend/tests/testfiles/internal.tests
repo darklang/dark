@@ -10,7 +10,9 @@ DarkInternal.orgsFor "test" = {}
 
 [test.grants and grants]
 (let _ = DarkInternal.grant "test" "dark" "rw" in
- DarkInternal.grantsFor "dark") = { test = "rw" }
+ let result = DarkInternal.grantsFor "dark"
+ let _ = DarkInternal.grant "test" "dark" "" in
+ result) = { test = "rw" }
 
 [tests.sessions]
 
