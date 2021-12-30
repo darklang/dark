@@ -127,7 +127,7 @@ let addException (name : string) (e : exn) (tags : List<string * obj>) : unit =
   // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
   let exceptionTags =
     [ "exception.type", e.GetType().FullName :> obj
-      "exception.stacktrace", e.ToString()
+      "exception.stacktrace", e.StackTrace
       "exception.message", e.Message ]
   addEvent name (tags @ exceptionTags)
 
