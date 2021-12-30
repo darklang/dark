@@ -60,6 +60,14 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 
   string uri
 
+let addPageableMetadata
+  (e : exn)
+  (metadata : List<string * obj>)
+  : List<string * obj> =
+  if e :? PageableException then metadata else ("is_pageable", true) :: metadata
+
+
+
 let createState
   (message : string)
   (executionID : ExecutionID)
@@ -111,6 +119,7 @@ let sendException
       print (string metadata)
     with
     | _ -> ()
+    let metadata = addPageableMetadata e metadata
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
@@ -138,6 +147,7 @@ let lastDitchBlocking
       print (string metadata)
     with
     | _ -> ()
+    let metadata = addPageableMetadata e metadata
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar
@@ -192,6 +202,7 @@ module AspNet =
               | _ -> ExecutionID "unavailable"
 
             let person, metadata = ctxMetadataFn ctx
+            let metadata = addPageableMetadata e metadata
             let custom = createState "http" executionID metadata
 
             let package : Rollbar.IRollbarPackage =

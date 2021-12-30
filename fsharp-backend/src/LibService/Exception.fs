@@ -2,7 +2,7 @@ module LibService.Exception
 
 // It's not possible to reraise exceptions within F# CEs. This hack adds a `Reraise`
 // method to exceptions. It's in LibService because it uses reflection and would
-// possible break in Wasm.
+// possibly break in Wasm.
 
 // Sources:
 // - https://github.com/fsharp/fslang-suggestions/issues/660

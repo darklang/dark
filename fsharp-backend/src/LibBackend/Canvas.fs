@@ -429,25 +429,28 @@ let loadOplists
 
 let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
-    // CLEANUP: rename "rendered" and "cached" to be consistent
+    try
+      // CLEANUP: rename "rendered" and "cached" to be consistent
 
-    // load
-    let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
+      // load
+      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
 
-    let fastLoadedTLIDs =
-      List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
+      let fastLoadedTLIDs =
+        List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
 
-    let notLoadedTLIDs =
-      List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
+      let notLoadedTLIDs =
+        List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
 
-    // canvas initialized via the normal loading path with the non-fast loaded tlids
-    // loaded traditionally via the oplist
-    let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
-    let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
-    let c = empty meta
-    // FSTODO: where are secrets loaded
+      // canvas initialized via the normal loading path with the non-fast loaded tlids
+      // loaded traditionally via the oplist
+      let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
+      let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
+      let c = empty meta
+      // FSTODO: where are secrets loaded
 
-    return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
+      return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
+    with
+    | e -> return Exception.reraiseAsPageable e
   }
 
 let loadAll (meta : Meta) : Task<T> =
@@ -637,16 +640,11 @@ let saveTLIDs
     |> List.map (fun t -> t : Task)
     |> Task.WhenAll
   with
-  | e -> reraise () // pageable
+  | e -> Exception.reraiseAsPageable e
 
-
-// let saveAll (c : T) : Task =
-//   let tlids = List.map Tuple2.first c.ops in
-//   saveTLIDs tlids c
-//
 
 // -------------------------
-// Testing/validation *)
+// Testing/validation
 // -------------------------
 
 let jsonFilename (name : string) = $"{name}.json"

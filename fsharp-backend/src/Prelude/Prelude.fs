@@ -85,6 +85,7 @@ type DarkExceptionData =
   | LibraryError of string * List<string * obj>
 
 exception DarkException of DarkExceptionData
+exception PageableException of System.Exception
 
 // This is for tracing
 let mutable exceptionCallback =
@@ -149,6 +150,8 @@ module Exception =
     match r with
     | Ok v -> v
     | Error msg -> raiseInternal (string msg) tags
+
+  let reraiseAsPageable (e : exn) = raise (PageableException e)
 
 
 
