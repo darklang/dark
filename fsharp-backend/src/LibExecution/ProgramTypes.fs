@@ -650,58 +650,58 @@ type DType =
       RT.TRecord(List.map (fun (f, v : DType) -> f, v.toRuntimeType ()) rows)
     | TDbList typ -> RT.TList(typ.toRuntimeType ())
 
-  static member parse(str : string) : DType =
+  static member parse(str : string) : Option<DType> =
     let any = TVariable "a"
 
     match String.toLowercase str with
-    | "any" -> any
-    | "int" -> TInt
-    | "integer" -> TInt
-    | "float" -> TFloat
-    | "bool" -> TBool
-    | "boolean" -> TBool
-    | "nothing" -> TNull
+    | "any" -> Some any
+    | "int" -> Some TInt
+    | "integer" -> Some TInt
+    | "float" -> Some TFloat
+    | "bool" -> Some TBool
+    | "boolean" -> Some TBool
+    | "nothing" -> Some TNull
     | "character"
-    | "char" -> TChar
-    | "str" -> TStr
-    | "string" -> TStr
-    | "list" -> TList any
-    | "obj" -> TDict any
-    | "block" -> TFn([ any ], any)
-    | "incomplete" -> TIncomplete
-    | "error" -> TError
-    | "response" -> THttpResponse any
-    | "datastore" -> TDB any
-    | "date" -> TDate
-    | "password" -> TPassword
-    | "uuid" -> TUuid
-    | "option" -> TOption any
-    | "errorrail" -> TErrorRail
-    | "result" -> TResult(any, any)
-    | "dict" -> TDict any
+    | "char" -> Some TChar
+    | "str" -> Some TStr
+    | "string" -> Some TStr
+    | "list" -> Some(TList any)
+    | "obj" -> Some(TDict any)
+    | "block" -> Some(TFn([ TVariable "a" ], TVariable "b"))
+    | "incomplete" -> Some TIncomplete
+    | "error" -> Some TError
+    | "response" -> Some(THttpResponse any)
+    | "datastore" -> Some(TDB any)
+    | "date" -> Some TDate
+    | "password" -> Some TPassword
+    | "uuid" -> Some TUuid
+    | "option" -> Some(TOption any)
+    | "errorrail" -> Some TErrorRail
+    | "result" -> Some(TResult(TVariable "a", TVariable "b"))
+    | "dict" -> Some(TDict any)
     | _ ->
-      let parseListTyp (listTyp : string) : DType =
+      let parseListTyp (listTyp : string) : Option<DType> =
         match String.toLowercase listTyp with
-        | "str" -> TDbList TStr
-        | "string" -> TDbList TStr
-        | "int" -> TDbList TInt
-        | "integer" -> TDbList TInt
-        | "float" -> TDbList TFloat
-        | "bool" -> TDbList TBool
-        | "boolean" -> TDbList TBool
-        | "password" -> TDbList TPassword
-        | "uuid" -> TDbList TUuid
-        | "dict" -> TDbList(TDict any)
-        | "date" -> TDbList TDate
-        | "title" -> TDbList TStr
-        | "url" -> TDbList TStr
-        | _ -> failwith $"Unhandled parseListTyp: {listTyp}"
+        | "str" -> Some(TDbList TStr)
+        | "string" -> Some(TDbList TStr)
+        | "int" -> Some(TDbList TInt)
+        | "integer" -> Some(TDbList TInt)
+        | "float" -> Some(TDbList TFloat)
+        | "bool" -> Some(TDbList TBool)
+        | "boolean" -> Some(TDbList TBool)
+        | "password" -> Some(TDbList TPassword)
+        | "uuid" -> Some(TDbList TUuid)
+        | "dict" -> Some(TDbList(TDict any))
+        | "date" -> Some(TDbList TDate)
+        | "title" -> Some(TDbList TStr)
+        | "url" -> Some(TDbList TStr)
+        | _ -> None
 
       // FSTODO add a test with a list type in a DB schema
       if String.startsWith "[" str && String.endsWith "]" str then
         str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
       else
-        failwith $"Unhandled DType.parse: {str}"
+        None
 
 
 module Handler =

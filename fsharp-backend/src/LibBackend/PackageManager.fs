@@ -334,7 +334,11 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
                    function_ = fnname
                    version = version }
                body = expr
-               returnType = PT.DType.parse returnType
+               returnType =
+                 PT.DType.parse returnType
+                 |> Exception.unwrapOptionInternal
+                      "Cannot parse returnType"
+                      [ "type", returnType ]
                parameters =
                  parameters
                  |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>

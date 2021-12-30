@@ -98,6 +98,17 @@ module Exception =
     callExceptionCallback e "internal" msg tags
     raise e
 
+  let unwrapOptionInternal
+    (msg : string)
+    (tags : List<string * obj>)
+    (o : Option<'a>)
+    : 'a =
+    match o with
+    | Some v -> v
+    | None -> raiseInternal msg tags
+
+
+
   // An error in library code - should not be shown to grand users. May be shown to
   // logged-in developers (most typically in a DError or a Result).
   let raiseLibrary (msg : string) (tags : List<string * obj>) =

@@ -218,9 +218,15 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.ChangeDBColName (tlid, id, name) ->
       applyToDB (UserDB.setColName id name) tlid c
     | PT.SetDBColType (tlid, id, tipe) ->
-      applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+      let typ =
+        PT.DType.parse tipe
+        |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
+      applyToDB (UserDB.setColType id typ) tlid c
     | PT.ChangeDBColType (tlid, id, tipe) ->
-      applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+      let typ =
+        PT.DType.parse tipe
+        |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
+      applyToDB (UserDB.setColType id typ) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
     | PT.DeprecatedInitDBm (tlid, id, rbid, rfid, kind) -> c
     | PT.CreateDBMigration (tlid, rbid, rfid, cols) -> c

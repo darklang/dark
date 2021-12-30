@@ -210,9 +210,12 @@ let fileTests () : Test =
               definition
               |> Json.Vanilla.deserialize<Map<string, string>>
               |> Map.mapWithIndex (fun k v ->
+                let typ =
+                  PT.DType.parse v
+                  |> Exception.unwrapOptionInternal "Cannot parse type" []
                 ({ name = k
                    nameID = gid ()
-                   typ = if v = "" then None else Some(PT.DType.parse v)
+                   typ = if v = "" then None else Some typ
                    typeID = gid () } : PT.DB.Col))
               |> Map.values }
 
