@@ -153,7 +153,7 @@ let init (serviceName : string) : unit =
     fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
   System.Diagnostics.ActivitySource.AddActivityListener(activityListener)
 
-  // Make sure exceptions make it into telemetry as soon as they're called
+  // Allow exceptions to be associated with the right span (the one in which they're called)
   Prelude.exceptionCallback <-
     (fun e typ msg tags ->
       let tags = ("exception", true :> obj) :: ("exception.darkType", typ) :: tags
