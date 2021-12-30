@@ -60,7 +60,7 @@ let isLatestOpRequest
 
 
 // --------------------------------------------------------
-// Load serialized data from the DB *)
+// Load serialized data from the DB
 // --------------------------------------------------------
 
 // let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Types.tlid_oplists =
@@ -155,22 +155,6 @@ let fetchRelevantTLIDsForEvent
                       "name", Sql.string event.name
                       "modifier", Sql.string event.modifier ]
   |> Sql.executeAsync (fun read -> read.id "tlid")
-
-//
-// let fetch_relevant_tlids_for_cron_checker ~canvas_id () : Types.tlid list =
-//   Db.fetch
-//     ~name:"fetch_relevant_tlids_for_cron_checker"
-//     "SELECT tlid FROM toplevel_oplists
-//       WHERE canvas_id = $1
-//       AND module = 'CRON'"
-//     ~params:[Db.Uuid canvas_id]
-//   |> List.map ~f:(fun l ->
-//          match l with
-//          | [data] ->
-//              Types.id_of_string data
-//          | _ ->
-//              Exception.internal "Shape of per_tlid oplists")
-
 
 
 let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
