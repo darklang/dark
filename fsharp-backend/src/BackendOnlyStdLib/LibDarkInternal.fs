@@ -15,7 +15,6 @@ open LibExecution.RuntimeTypes
 module DvalRepr = LibExecution.DvalRepr
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
-module Span = Telemetry.Span
 
 open LibBackend
 

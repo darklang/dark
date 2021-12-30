@@ -10,8 +10,6 @@ open Npgsql.FSharp
 open Npgsql
 open LibBackend.Db
 
-module Span = LibService.Telemetry.Span
-
 open Prelude
 open Tablecloth
 open Prelude.Tablecloth

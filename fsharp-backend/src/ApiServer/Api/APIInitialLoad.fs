@@ -66,7 +66,7 @@ type T =
 
 let initialLoad (ctx : HttpContext) : Task<T> =
   task {
-    let t = startTimer "read-api" ctx
+    use t = startTimer "read-api" ctx
     let user = loadUserInfo ctx
     let canvasInfo = loadCanvasInfo ctx
     let permission = loadPermission ctx
@@ -138,6 +138,5 @@ let initialLoad (ctx : HttpContext) : Task<T> =
               { secret_name = s.name; secret_value = s.value })
             secrets }
 
-    t.stop ()
     return result
   }

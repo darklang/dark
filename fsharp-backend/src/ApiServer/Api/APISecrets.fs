@@ -16,6 +16,9 @@ module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 module Convert = LibExecution.OCamlTypes.Convert
+module Telemetry = LibService.Telemetry
+
+open LibService.Exception
 
 module Insert =
   type Secret = { secret_name : string; secret_value : string }
@@ -24,11 +27,12 @@ module Insert =
 
   let insert (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       try
         t.next "read-api"
         let canvasInfo = loadCanvasInfo ctx
         let! p = ctx.ReadJsonAsync<Params>()
+        Telemetry.addTags [ "secret_name", p.secret_name ]
 
         t.next "insert-secret"
         do! LibBackend.Secret.insert canvasInfo.id p.secret_name p.secret_value
@@ -37,27 +41,22 @@ module Insert =
         let! secrets = LibBackend.Secret.getCanvasSecrets canvasInfo.id
 
         t.next "write-api"
-        let result =
+        return
           { secrets =
               List.map
                 (fun (s : LibBackend.Secret.Secret) ->
                   { secret_name = s.name; secret_value = s.value })
                 secrets }
-
-        t.stop ()
-
-        return result
-
       with
       | e ->
         let msg = e.ToString()
 
         if String.includes "duplicate key value violates unique constraint" msg then
-          failwith "The secret's name is already defined for this canvas"
+          Exception.raiseEditor
+            "The secret's name is already defined for this canvas"
         else
-          raise e
+          e.Reraise()
 
-        t.stop ()
         return { secrets = [] }
     }
 
@@ -68,9 +67,10 @@ module Delete =
 
   let delete (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTags [ "secret_name", p.secret_name ]
 
       // CLEANUP: only do this if the secret is not used on the canvas
       t.next "delete-secret"
@@ -80,13 +80,10 @@ module Delete =
       let! secrets = LibBackend.Secret.getCanvasSecrets canvasInfo.id
 
       t.next "write-api"
-      let result =
+      return
         { secrets =
             List.map
               (fun (s : LibBackend.Secret.Secret) ->
                 { secret_name = s.name; secret_value = s.value })
               secrets }
-
-      t.stop ()
-      return result
     }

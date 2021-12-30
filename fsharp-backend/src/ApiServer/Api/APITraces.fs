@@ -18,6 +18,7 @@ module AT = LibExecution.AnalysisTypes
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module Convert = LibExecution.OCamlTypes.Convert
+module Telemetry = LibService.Telemetry
 
 module TraceData =
   type Params = { tlid : tlid; trace_id : AT.TraceID }
@@ -41,9 +42,10 @@ module TraceData =
 
   let getTraceData (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       t.next "load-canvas"
       let! (c : Canvas.T) =
@@ -84,7 +86,6 @@ module TraceData =
           )
         | None -> None
 
-      t.stop ()
       return Option.map (fun t -> { trace = t }) trace
     }
 
@@ -94,7 +95,7 @@ module AllTraces =
 
   let fetchAll (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
 
       // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
@@ -124,7 +125,5 @@ module AllTraces =
         |> Task.map List.concat
 
       // FSTODO pageable
-      t.stop ()
-
       return { traces = hTraces @ ufTraces }
     }

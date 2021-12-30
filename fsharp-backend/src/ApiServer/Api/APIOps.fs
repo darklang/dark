@@ -45,7 +45,7 @@ let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
 let addOp (ctx : HttpContext) : Task<T> =
   task {
-    let t = startTimer "read-api" ctx
+    use t = startTimer "read-api" ctx
     let canvasInfo = loadCanvasInfo ctx
     let executionID = loadExecutionID ctx
 
@@ -53,7 +53,7 @@ let addOp (ctx : HttpContext) : Task<T> =
     let canvasID = canvasInfo.id
 
     let! isLatest = Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
-    t.span () |> Span.addTag "op_ctr" p.opCtr
+    Telemetry.addTags [ "op_ctr", p.opCtr; "clientOpCtrId", p.clientOpCtrId ]
 
     let newOps = Convert.ocamlOplist2PT p.ops
     let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
@@ -138,6 +138,5 @@ let addOp (ctx : HttpContext) : Task<T> =
         (Op.eventNameOfOp op)
         Map.empty)
 
-    t.stop ()
     return event
   }

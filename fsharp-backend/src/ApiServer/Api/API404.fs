@@ -12,6 +12,7 @@ open Tablecloth
 open Http
 
 module TI = LibBackend.TraceInputs
+module Telemetry = LibService.Telemetry
 
 module List =
 
@@ -19,12 +20,11 @@ module List =
 
   let get (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
 
       t.next "get-recent-404s"
       let! f404s = TI.getRecent404s canvasInfo.id
-      t.stop ()
       return { f404s = f404s }
     }
 
@@ -34,13 +34,14 @@ module Delete =
 
   let delete (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTags [ "space", p.space; "path", p.path; "modifier", p.modifier ]
+
 
       t.next "delete-404"
       do! TI.delete404s canvasInfo.id p.space p.path p.modifier
 
-      t.stop ()
       return { result = "deleted" }
     }

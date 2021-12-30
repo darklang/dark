@@ -17,7 +17,6 @@ module RT = LibExecution.RuntimeTypes
 module EQ = LibBackend.EventQueue
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
-module Span = LibService.Telemetry.Span
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
@@ -93,8 +92,6 @@ let testEventQueueIsFifo =
         do! EQ.finish evt
         return ()
       }
-
-    use span = Span.root "test"
 
     do!
       Sql.withTransaction (fun () ->
