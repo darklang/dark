@@ -11,8 +11,6 @@ open Prelude
 open Tablecloth
 open Exception
 
-let mutable initialized = false
-
 let init (serviceName : string) : unit =
   print "Configuring rollbar"
   let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
@@ -35,7 +33,6 @@ let init (serviceName : string) : unit =
 
   Rollbar.RollbarLocator.RollbarInstance.Configure config
   |> ignore<Rollbar.IRollbar>
-  initialized <- true
   print " Configured rollbar"
   ()
 
@@ -82,6 +79,20 @@ let createState
 
 type Person = { id : UserID; email : string; username : UserName.T }
 
+let sendAlert
+  (message : string)
+  (executionID : ExecutionID)
+  (metadata : List<string * obj>)
+  : unit =
+  print $"rollbar: {message}"
+  print System.Environment.StackTrace
+  Telemetry.addEvent message metadata
+  let custom = createState message executionID metadata
+  let level = Rollbar.ErrorLevel.Error
+  Rollbar.RollbarLocator.RollbarInstance.Log(level, message, custom)
+  |> ignore<Rollbar.ILogger>
+
+
 let sendException
   (message : string)
   (executionID : ExecutionID)
@@ -89,7 +100,6 @@ let sendException
   (e : exn)
   : unit =
   try
-    assert initialized
     print $"rollbar: {message}"
     print e.Message
     print e.StackTrace
@@ -97,13 +107,12 @@ let sendException
     let custom = createState message executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
     |> ignore<Rollbar.ILogger>
-    Telemetry.addException message e metadata
   with
   | extra ->
     print "Exception when calling rollbar"
-    print e.Message
-    print e.StackTrace
-    Telemetry.addException "Exception when calling rollbar" e []
+    print extra.Message
+    print extra.StackTrace
+    Telemetry.addException "Exception when calling rollbar" extra []
 
 // Will block for 5 seconds to make sure this exception gets sent. Use for startup
 // and other places where the process is intended to end after this call.
@@ -114,8 +123,6 @@ let lastDitchBlocking
   (e : exn)
   : unit =
   try
-    // It might not even be initialized yet, just try our best
-    // assert initialized
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
@@ -159,7 +166,6 @@ module AspNet =
           do! this._nextRequestProcessor.Invoke(ctx)
         with
         | e ->
-          assert initialized
           try
             let uri = ctx.Request.GetEncodedUrl()
 
