@@ -57,9 +57,9 @@ let asyncTests =
       }
       testTask "iterSequentially" {
         let state = ref []
-        let fn (i : int) = delay (fun () -> state := i + 1 :: !state) i
+        let fn (i : int) = delay (fun () -> state.Value <- i + 1 :: state.Value) i
         do! Ply.List.iterSequentially fn [ 1; 2; 3; 4 ] |> Ply.toTask
-        Expect.equal !state [ 5; 4; 3; 2 ] ""
+        Expect.equal state.Value [ 5; 4; 3; 2 ] ""
       } ]
 
 let mapTests =
