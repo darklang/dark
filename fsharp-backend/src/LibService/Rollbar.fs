@@ -172,8 +172,6 @@ module AspNet =
             print $"rollbar in http: {uri}"
             print e.Message
             print e.StackTrace
-            // FSTODO: I think this should produced somewhere else
-            Telemetry.addException "http exception" e [ "uri", uri ]
 
             let executionID =
               try
