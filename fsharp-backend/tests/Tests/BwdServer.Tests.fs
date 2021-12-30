@@ -233,7 +233,7 @@ let t filename =
         | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
         | "x-darklang-execution-id", _ -> k, "0123456789"
         | other -> (k, v))
-      |> List.sortBy Tuple2.first // FSTODO ocaml headers are sorted, inexplicably
+      |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders
       (hs : (string * string) list)

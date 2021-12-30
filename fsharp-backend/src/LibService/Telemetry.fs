@@ -177,12 +177,12 @@ let configureAspNetCore
     (fun (activity : Span.T) (eventName : string) (rawObject : obj) ->
       match (eventName, rawObject) with
       | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
+        // CLEANUP
         // The .NET instrumentation uses http.{path,url}, etc, but we used
         // request.whatever in the OCaml version. To make sure that I can compare
         // the old and new requests, I'm also adding request.whatever for now, but
         // they can be removed once it's been switched over. Events are infinitely
         // wide so this shouldn't cause any issues.
-        // ; ("execution_id", `String (Types.string_of_id execution_id)) // FSTODO
         let ipAddress =
           try
             httpRequest.Headers.["x-forward-for"].[0]
