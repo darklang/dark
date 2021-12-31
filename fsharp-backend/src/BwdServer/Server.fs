@@ -274,6 +274,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
+      LibService.Telemetry.addTags [ "canvas.name", canvasName
+                                     "canvas.id", meta.id
+                                     "canvas.ownerID", meta.owner
+                                     "trace_id", traceID ]
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
       // and leave it to middleware to say what it wants to do with that
@@ -290,6 +294,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
+        LibService.Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
         let routeVars = Routing.routeInputVars route requestPath
