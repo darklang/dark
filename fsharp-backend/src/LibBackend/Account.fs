@@ -429,7 +429,7 @@ let initUsefulCanvases () : Task<unit> =
 
 let init (serviceName : string) : Task<unit> =
   task {
-    print $"Initing LibBackend in {serviceName}"
+    print $"Initing LibBackend.Account in {serviceName}"
     if Config.createAccounts then
       do! initTestAccounts ()
       do! initBannedAccounts ()
