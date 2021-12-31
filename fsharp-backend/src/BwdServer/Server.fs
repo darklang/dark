@@ -210,20 +210,6 @@ let unmatchedRouteResponse
   standardResponse ctx message textPlain 500
 
 
-exception LoadException of string * int
-
-
-// runs a function and upon error, catches and rethrows the passed exception
-let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<'b> =
-  task {
-    try
-      return! fn value
-    with
-    | _ -> return! raise (LoadException(msg, code))
-  }
-
-
-
 // ---------------
 // HttpsRedirect
 // ---------------
@@ -260,6 +246,9 @@ let canonicalizeURL (toHttps : bool) (url : string) =
   else
     url
 
+exception NotFoundException of msg : string with
+  override this.Message = this.msg
+
 
 // ---------------
 // Handle builtwithdark request
@@ -274,7 +263,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
-      let! meta = catch "user not found" 404 Canvas.getMeta canvasName
+      let! meta =
+        try
+          Canvas.getMeta canvasName
+        with
+        | _ -> raise (NotFoundException "User not found")
+
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = System.Guid.NewGuid()
@@ -388,7 +382,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         else
           return! runDarkHandler ctx
       with
-      | LoadException (msg, code) -> return! errorResponse ctx msg code
+      | NotFoundException msg -> return! errorResponse ctx msg 404
       | DarkException (GrandUserError msg) ->
         // Messages caused by user input should be displayed to the user
         return! errorResponse ctx msg 400
