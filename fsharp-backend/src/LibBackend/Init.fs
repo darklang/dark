@@ -18,7 +18,10 @@ let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
 
     if runSideEffects then do! Account.init serviceName
 
-    do! Canvas.checkTierOneHosts ()
+    // FSTODO: disabled for now as prevents startup. I _think_ this doesn't work
+    // because the legacyserver isn't ready, but I'm not sure. It's unclear why we're
+    // not seeing logs or exceptions associated with this - it seems to just hang.
+    // do! Canvas.checkTierOneHosts ()
 
     print $" Inited LibBackend in {serviceName}"
   }
