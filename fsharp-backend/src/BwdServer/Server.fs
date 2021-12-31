@@ -266,10 +266,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
       let! meta =
-        try
-          Canvas.getMeta canvasName
-        with
-        | _ -> raise (NotFoundException "User not found")
+        // Extra task CE is to make sure the exception is caught
+        task {
+          try
+            return! Canvas.getMeta canvasName
+          with
+          | _ -> return raise (NotFoundException "user not found")
+        }
 
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
