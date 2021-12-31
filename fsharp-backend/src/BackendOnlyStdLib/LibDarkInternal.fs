@@ -184,14 +184,17 @@ let fns : List<BuiltInFn> =
         internalFn (function
           | _, [ DStr username; DStr email; DStr name ] ->
             uply {
-              let! result =
-                Account.upsertNonAdmin
-                  { username = UserName.create username
-                    email = email
-                    name = name
-                    password = Password.invalid }
-              match result with
-              | Ok () -> return DStr ""
+              match UserName.validate username with
+              | Ok str ->
+                let! result =
+                  Account.upsertNonAdmin
+                    { username = UserName.create username
+                      email = email
+                      name = name
+                      password = Password.invalid }
+                match result with
+                | Ok () -> return DStr ""
+                | Error msg -> return Exception.raiseGrandUser msg
               | Error msg -> return Exception.raiseGrandUser msg
             }
           | _ -> incorrectArgs ())
@@ -278,17 +281,20 @@ that's already taken, returns an error."
         internalFn (function
           | state, [ DStr username; DStr email; DStr name ] ->
             uply {
-              let username = UserName.create username
-              let! result =
-                Account.upsertNonAdmin
-                  { username = username
-                    email = email
-                    name = name
-                    password = Password.invalid }
-              match result with
-              | Ok () ->
-                do Analytics.identifyUser state.executionID username
-                return DResult(Ok(DStr ""))
+              match UserName.validate username with
+              | Ok str ->
+                let username = UserName.create username
+                let! result =
+                  Account.upsertNonAdmin
+                    { username = username
+                      email = email
+                      name = name
+                      password = Password.invalid }
+                match result with
+                | Ok () ->
+                  do Analytics.identifyUser state.executionID username
+                  return DResult(Ok(DStr ""))
+                | Error msg -> return DResult(Error(DStr msg))
               | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())
