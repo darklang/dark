@@ -775,13 +775,16 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 // a deploy from succeeding. We don't want to prevent deploys because someone forgot
 // a deprecatedop in a tier 1 canvas somewhere
 let checkTierOneHosts () : Task<unit> =
-  Serialize.tierOneHosts ()
-  |> Task.iterInParallel (fun host ->
-    task {
-      let! meta = getMeta host
-      let! (_ : T) = loadAll meta
-      return ()
-    })
+  if Config.checkTierOneHosts then
+    Serialize.tierOneHosts ()
+    |> Task.iterInParallel (fun host ->
+      task {
+        let! meta = getMeta host
+        let! (_ : T) = loadAll meta
+        return ()
+      })
+  else
+    Task.FromResult()
 
 
 //
