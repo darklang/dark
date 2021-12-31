@@ -33,7 +33,10 @@ let digest () = "0e91e490041f06fae012f850231eb6ab"
 let client =
   // In .NET 6, this is fine without having to do anything about socket exhaustion or
   // DNS.
-  new System.Net.Http.HttpClient()
+  let client = new System.Net.Http.HttpClient()
+  // We prefer that this raise than hang
+  client.Timeout <- System.TimeSpan.FromSeconds 5
+  client
 
 let legacyReq
   (endpoint : string)
