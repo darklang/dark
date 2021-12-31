@@ -28,14 +28,13 @@ spec:
           # this pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
-            # Observed in practice using 100m and 80Mi
-            # FSTODO: this was not when they were running in parallel, so I doubled it
+            # Observed in practice using 300m and 80Mi when going full-tilt
             requests:
-              memory: "240Mi"
-              cpu: "300m"
+              memory: "120Mi"
+              cpu: "500m"
             limits:
-              memory: "600Mi"
-              cpu: "600m"
+              memory: "400Mi"
+              cpu: "800m"
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -117,12 +116,12 @@ spec:
           image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
           resources:
             requests:
-              # Observed in practice using 60m and 10Mi when going full-tilt
+              # Observed in practice using 200m and 10Mi when going full-tilt
               memory: "20Mi"
-              cpu: "100m"
+              cpu: "300m"
             limits:
-              memory: "100Mi"
-              cpu: "200m"
+              memory: "50Mi"
+              cpu: "500m"
           command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
