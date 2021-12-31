@@ -34,18 +34,25 @@ let testUsernameValidationWorks =
     "validateUsername"
     UserName.validate
     [ "Upper",
-      (Error "Invalid username 'Upper', must match /^[a-z][a-z0-9_]{2,20}$/")
+      (Error
+        "Invalid username 'Upper', can only contain lowercase roman letters and digits, or '-' or '_'")
       "uPPer",
-      (Error "Invalid username 'uPPer', must match /^[a-z][a-z0-9_]{2,20}$/")
-      "a", (Error "Invalid username 'a', must match /^[a-z][a-z0-9_]{2,20}$/")
+      (Error
+        "Invalid username 'uPPer', can only contain lowercase roman letters and digits, or '-' or '_'")
+      "a",
+      (Error
+        "Invalid username 'a', can only contain lowercase roman letters and digits, or '-' or '_'")
       "aaa❤️",
-      (Error "Invalid username 'aaa❤️', must match /^[a-z][a-z0-9_]{2,20}$/")
+      (Error
+        "Invalid username 'aaa❤️', can only contain lowercase roman letters and digits, or '-' or '_'")
       "aaa-aaa",
-      (Error "Invalid username 'aaa-aaa', must match /^[a-z][a-z0-9_]{2,20}$/")
+      (Error
+        "Invalid username 'aaa-aaa', can only contain lowercase roman letters and digits, or '-' or '_'")
       "aaa aaa",
-      (Error "Invalid username 'aaa aaa', must match /^[a-z][a-z0-9_]{2,20}$/")
+      (Error
+        "Invalid username 'aaa aaa', can only contain lowercase roman letters and digits, or '-' or '_'")
       "aaa_aaa", Ok "aaa_aaa"
-      "myusername09", Ok "muusername09"
+      "myusername09", Ok "myusername09"
       "paul", Ok "paul" ]
 
 
