@@ -152,7 +152,7 @@ let main args : int =
   try
     let cliArgs = parser.ParseCommandLine args
     print "Starting Benchmark"
-    (LibBackend.Init.init "Benchmark").Result
+    (LibBackend.Init.init "Benchmark" false).Result
     let filename = cliArgs.GetResult Filename
     let warmUpCount = cliArgs.GetResult(Warmups, 3u)
     let iterations = cliArgs.GetResult(Iterations, 3u)

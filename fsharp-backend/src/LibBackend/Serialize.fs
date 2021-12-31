@@ -63,15 +63,6 @@ let isLatestOpRequest
 // Load serialized data from the DB
 // --------------------------------------------------------
 
-// let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Types.tlid_oplists =
-//   Db.fetch
-//     ~name:"load_all_from_db"
-//     "SELECT data FROM toplevel_oplists
-//      WHERE canvas_id = $1"
-//     ~params:[Uuid canvas_id]
-//     ~result:BinaryResult
-//   |> Binary_serialization.strs2tlid_oplists
-
 // This is a special `load_*` function that specifically loads toplevels
 // via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
 // stores a binary-serialized representation of the toplevel after the oplist
@@ -79,7 +70,6 @@ let isLatestOpRequest
 // the full oplist across the network from Postgres to the OCaml boxes,
 // and similarly they don't have to apply the full history of the canvas
 // in memory before they can execute the code.
-
 let loadOnlyRenderedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
@@ -273,13 +263,13 @@ let currentHosts () : Task<string list> =
       hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort
   }
 
-
-// let tier_one_hosts () : string list =
-//   [ "ian-httpbin"
-//   ; "paul-slackermuse"
-//   ; "listo"
-//   ; "ellen-battery2"
-//   ; "julius-tokimeki-unfollow" ]
+let tierOneHosts () : List<CanvasName.T> =
+  [ "ian-httpbin"
+    "paul-slackermuse"
+    "listo"
+    "ellen-battery2"
+    "julius-tokimeki-unfollow" ]
+  |> List.map CanvasName.create
 
 type CronScheduleData =
   { canvasID : CanvasID

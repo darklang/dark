@@ -1297,18 +1297,7 @@ module Task =
 
 
   let flatten (list : List<Task<'a>>) : Task<List<'a>> =
-    let rec loop (acc : Task<List<'a>>) (xs : List<Task<'a>>) =
-      task {
-        let! acc = acc
-
-        match xs with
-        | [] -> return List.rev acc
-        | x :: xs ->
-          let! x = x
-          return! loop (task { return (x :: acc) }) xs
-      }
-
-    loop (task { return [] }) list
+    Task.WhenAll list |> map Array.toList
 
   let foldSequentially
     (f : 'state -> 'a -> Task<'state>)
@@ -1337,12 +1326,7 @@ module Task =
     |> map List.rev
 
   let mapInParallel (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
-    task {
-      let tasks = List.map f list
-      let! doneTasks = Task.WhenAll tasks
-      return doneTasks |> Array.toList
-    }
-
+    List.map f list |> flatten
 
   let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
     task {
@@ -1369,6 +1353,12 @@ module Task =
         })
       (Task.FromResult())
       list
+
+  let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
+    task {
+      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      return ()
+    }
 
   let findSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<Option<'a>> =
     List.fold

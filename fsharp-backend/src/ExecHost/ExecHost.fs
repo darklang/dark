@@ -78,7 +78,7 @@ let main (args : string []) : int =
   try
     LibService.Init.init "ExecHost"
     Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
-    (LibBackend.Init.init "ExecHost").Result
+    (LibBackend.Init.init "ExecHost" false).Result
     (run args).Result
   with
   | e ->

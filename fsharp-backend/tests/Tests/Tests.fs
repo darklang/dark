@@ -12,7 +12,7 @@ let main (args : string array) : int =
   LibService.Init.init "Tests"
   LibExecution.Init.init "Tests"
   LibExecutionStdLib.Init.init "Tests"
-  (LibBackend.Init.init "Tests").Result
+  (LibBackend.Init.init "Tests" true).Result
   BackendOnlyStdLib.Init.init "Tests"
   LibRealExecution.Init.init "Tests"
   HttpMiddleware.Init.init "Tests"

@@ -367,11 +367,6 @@ let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
 //   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 //
 //
-// let load_all host (newops : Types.oplist) : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from ~f:Serialize.load_all_from_db host owner newops
-//
-//
 // let load_only_tlids ~tlids host (newops : Types.oplist) :
 //     (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
@@ -773,24 +768,22 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //   |> Tc.Result.combine
 //   |> Tc.Result.map (fun _ -> ())
 //   |> Result.ok_or_Exception.raiseInternal
-//
-//
-// (* just load, don't save -- also don't validate the ops don't
-//  * have deprecate ops (via validate_op or validate_host). this
-//  * function is used by the readiness check to gate deploys, so
-//  * we don't want to prevent deploys because someone forgot a deprecatedop
-//  * in a tier 1 canvas somewhere *)
-// let check_tier_one_hosts () : unit =
-//   let hosts = Serialize.tier_one_hosts () in
-//   List.iter hosts ~f:(fun host ->
-//       match load_all host [] with
-//       | Ok _ ->
-//           ()
-//       | Error errs ->
-//           Exception.internal
-//             ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
-//             "Bad canvas state")
-//
+
+
+// just load, don't save -- also don't validate the ops don't have deprecate ops (via
+// validate_op or validate_host). This function is used on startup so it will prevent
+// a deploy from succeeding. We don't want to prevent deploys because someone forgot
+// a deprecatedop in a tier 1 canvas somewhere
+let checkTierOneHosts () : Task<unit> =
+  Serialize.tierOneHosts ()
+  |> Task.iterInParallel (fun host ->
+    task {
+      let! meta = getMeta host
+      let! (_ : T) = loadAll meta
+      return ()
+    })
+
+
 //
 // let migrate_host (_host : string) : (string, unit) Tc.Result.t =
 //   try

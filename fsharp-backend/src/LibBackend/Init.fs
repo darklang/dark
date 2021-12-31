@@ -7,7 +7,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-let init (serviceName : string) : Task<unit> =
+let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
   task {
 
     print $"Initing LibBackend in {serviceName}"
@@ -16,7 +16,9 @@ let init (serviceName : string) : Task<unit> =
       EventQueue.WorkerStates.JsonConverter.WorkerStateConverter()
     )
 
-    do! Account.init serviceName
+    if runSideEffects then do! Account.init serviceName
+
+    do! Canvas.checkTierOneHosts ()
 
     print $" Inited LibBackend in {serviceName}"
   }
