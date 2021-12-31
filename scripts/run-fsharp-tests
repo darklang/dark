@@ -51,20 +51,9 @@ DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVE
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests
-  EXEC_HOST=Build/out/ExecHost/Release/net6.0/linux-x64/ExecHost
 else
   EXE=Build/out/Tests/Debug/net6.0/linux-x64/Tests
-  EXEC_HOST=Build/out/ExecHost/Debug/net6.0/linux-x64/ExecHost
 fi
-
-cd fsharp-backend
-DARK_CONFIG_TELEMETRY_EXPORTER=none \
-DARK_CONFIG_ROLLBAR_ENABLED=n \
-DARK_CONFIG_DB_HOST=localhost \
-DARK_CONFIG_DB_DBNAME=testdb \
-DARK_CONFIG_DB_USER=dark \
-DARK_CONFIG_DB_PASSWORD=eapnsdc \
-"${EXEC_HOST}" run-migrations
 
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the
