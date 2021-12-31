@@ -675,7 +675,9 @@ module HashSet =
 
 module Dictionary =
   type T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
-  let get = FSharpPlus.Dictionary.tryGetValue
+
+  let get (k : 'k) (t : T<'k, 'v>) : Option<'v> =
+    FSharpPlus.Dictionary.tryGetValue k t
 
   let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : T<'k, 'v> =
     d[k] <- v
