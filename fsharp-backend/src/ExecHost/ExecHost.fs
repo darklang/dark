@@ -53,7 +53,7 @@ let run (args : string []) : Task<int> =
         runMigrations ()
         return 0
       | _ ->
-        Rollbar.sendAlert "execHost called" id [ "args", args ]
+        Rollbar.sendAlert "execHost called" id [ "args", String.concat "," args ]
         print (
           "Invalid usage!!\n\n"
           + "USAGE: ExecHost emergency-login <user>\n"
