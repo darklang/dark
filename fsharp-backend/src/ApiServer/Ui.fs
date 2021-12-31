@@ -39,7 +39,7 @@ let adminUiTemplate : Lazy<string> =
 let hashedFilename (filename : string) (hash : string) : string =
   match filename.Split '.' with
   | [| name; extension |] -> $"/{name}-{hash}{extension}"
-  | _ -> failwith "incorrect hash name"
+  | _ -> Exception.raiseInternal "incorrect hash name" [ "filename", filename ]
 
 
 
@@ -125,7 +125,7 @@ let uiHtml
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
-    let t = startTimer "read-request" ctx
+    use t = startTimer "read-request" ctx
     let user = loadUserInfo ctx
     let sessionData = loadSessionData ctx
     let canvasInfo = loadCanvasInfo ctx
@@ -152,6 +152,5 @@ let uiHandler (ctx : HttpContext) : Task<string> =
         createdAt
         user
 
-    t.stop ()
     return result
   }

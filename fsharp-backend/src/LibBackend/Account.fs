@@ -39,83 +39,13 @@ type UserInfoAndCreatedAt =
     id : UserID
     createdAt : System.DateTime }
 
-let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
-  { id = ui.id; email = ui.email; username = ui.username }
-
-
-
-// **********************
-// Special usernames
-// **********************
-
-let bannedUsernames : List<UserName.T> =
-  // originally from https://ldpreload.com/blog/names-to-reserve
-  // we allow www, because we have a canvas there
-  [ "abuse"
-    "admin"
-    "administrator"
-    "autoconfig"
-    "broadcasthost"
-    "ftp"
-    "hostmaster"
-    "imap"
-    "info"
-    "is"
-    "isatap"
-    "it"
-    "localdomain"
-    "localhost"
-    "mail"
-    "mailer-daemon"
-    "marketing"
-    "mis"
-    "news"
-    "nobody"
-    "noc"
-    "noreply"
-    "no-reply"
-    "pop"
-    "pop3"
-    "postmaster"
-    "root"
-    "sales"
-    "security"
-    "smtp"
-    "ssladmin"
-    "ssladministrator"
-    "sslwebmaster"
-    "support"
-    "sysadmin"
-    "usenet"
-    "uucp"
-    "webmaster"
-    "wpad"
-    // original to us from here
-    "billing"
-    "dev"
-
-    // alpha, but not beta, because user beta already exists (with ownership
-    // transferred to us)
-    "alpha" ]
-  |> List.map UserName.create
-
+let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.AspNet.Person =
+  { id = Some ui.id; email = Some ui.email; username = Some ui.username }
 
 
 // **********************
 // Adding
 // **********************
-
-let validateUserName (username : string) : Result<unit, string> =
-  // rules: no uppercase, ascii only, must start with letter, other letters can
-  // be numbers or underscores. 3-20 characters.
-  // CLEANUP should be 19
-  let reString = @"^[a-z][a-z0-9_]{2,20}$"
-
-  if FsRegEx.isMatch reString username then
-    Ok()
-  else
-    Error($"Invalid username '{username}', must match /{reString}/")
-
 
 let validateEmail (email : string) : Result<unit, string> =
   (* just checking it's roughly the shape of an email *)
@@ -128,8 +58,7 @@ let validateEmail (email : string) : Result<unit, string> =
 
 
 let validateAccount (account : Account) : Result<unit, string> =
-  validateUserName (string account.username)
-  |> Result.and_ (validateEmail account.email)
+  validateEmail account.email
 
 // Passwords set here are only valid locally, production uses auth0 to check
 // access
@@ -236,18 +165,15 @@ let insertUser
 // **********************
 
 let userIDForUserName (username : UserName.T) : Task<UserID> =
-  if List.contains username bannedUsernames then
-    failwith "Banned username"
-  else
-    Sql.query
-      "SELECT id
+  Sql.query
+    "SELECT id
        FROM accounts
        WHERE accounts.username = @username"
-    |> Sql.parameters [ "username", Sql.string (string username) ]
-    |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
-    |> Task.map (function
-      | Some v -> v
-      | None -> Exception.raiseDeveloper "User not found")
+  |> Sql.parameters [ "username", Sql.string (string username) ]
+  |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+  |> Task.map (function
+    | Some v -> v
+    | None -> Exception.raiseDeveloper "User not found")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
@@ -416,32 +342,29 @@ let orgs (userID : UserID) : Task<List<OrgName.T>> =
 
 let initTestAccounts () : Task<unit> =
   task {
-    let! test_unhashed =
+    do!
       upsertNonAdmin
         { username = UserName.create "test_unhashed"
           password = Password.fromHash "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+unhashed@darklang.com"
           name = "Dark OCaml Tests with Unhashed Password" }
+      |> Task.map (Exception.unwrapResultInternal [])
 
-    Result.unwrapUnsafe test_unhashed
-
-    let! test =
+    do!
       upsertNonAdmin
         { username = UserName.create "test"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test@darklang.com"
           name = "Dark OCaml Tests" }
+      |> Task.map (Exception.unwrapResultInternal [])
 
-    Result.unwrapUnsafe test
-
-    let! test_admin =
+    do!
       upsertAdmin
         { username = UserName.create "test_admin"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+admin@darklang.com"
           name = "Dark OCaml Test Admin" }
-
-    Result.unwrapUnsafe test_admin
+      |> Task.map (Exception.unwrapResultInternal [])
 
     return ()
   }
@@ -449,18 +372,15 @@ let initTestAccounts () : Task<unit> =
 let initBannedAccounts () : Task<unit> =
   task {
     do!
-      bannedUsernames
+      UserName.banned
+      |> Set.toList
       |> Task.iterSequentially (fun username ->
-        task {
-          let! result =
-            upsertNonAdmin
-              { username = username
-                password = Password.invalid
-                email = $"ops+{username}@darklang.com"
-                name = $"Disallowed account {username}" }
-
-          return Result.unwrapUnsafe result
-        })
+        upsertNonAdmin
+          { username = UserName.createUnsafe username
+            password = Password.invalid
+            email = $"ops+{username}@darklang.com"
+            name = $"Disallowed account {username}" }
+        |> Task.map (Exception.unwrapResultInternal []))
 
     return ()
   }
@@ -468,26 +388,26 @@ let initBannedAccounts () : Task<unit> =
 let initAdmins () : Task<unit> =
   task {
     let password =
+      // "what"
       Password.fromHash
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
-    let! darkUser =
+    do!
       upsertAdmin
         { username = UserName.create "dark"
           password = password
           email = "ops+darkuser@darklang.com"
           name = "Dark Local Admin user" }
+      |> Task.map (Exception.unwrapResultInternal [])
 
-    Result.unwrapUnsafe darkUser
-
-    let! paulUser =
+    do!
       upsertAdmin
         { username = UserName.create "paul"
           password = password
           email = "paul@darklang.com"
           name = "Paul Biggar" }
+      |> Task.map (Exception.unwrapResultInternal [])
 
-    Result.unwrapUnsafe paulUser
     return ()
   }
 
@@ -495,21 +415,21 @@ let initAdmins () : Task<unit> =
 let initUsefulCanvases () : Task<unit> =
   // Needed for tests
   task {
-    let! darkUser =
+    do!
       upsertNonAdmin
         { username = UserName.create "sample"
           password = Password.invalid
           email = "opsample@darklang.com"
           name = "Sample owner" }
-
-    Result.unwrapUnsafe darkUser
+      |> Task.map (Exception.unwrapResultInternal [])
 
     return ()
   }
 
 
-let init () : Task<unit> =
+let init (serviceName : string) : Task<unit> =
   task {
+    print $"Initing LibBackend.Account in {serviceName}"
     if Config.createAccounts then
       do! initTestAccounts ()
       do! initBannedAccounts ()

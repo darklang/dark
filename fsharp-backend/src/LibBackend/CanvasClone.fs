@@ -129,7 +129,6 @@ let cloneCanvas
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
     let! fromOps = Canvas.loadOplists Canvas.LiveToplevels fromMeta.id fromTLIDs
     let! fromCanvas = Canvas.loadAll fromMeta
-    let fromCanvas = fromCanvas |> Result.unwrapUnsafe
 
     let! toMeta = Canvas.getMeta toCanvasName
     let! toTLIDs = Serialize.fetchAllTLIDs toMeta.id
@@ -149,7 +148,8 @@ let cloneCanvas
       |> List.map (fun (tlid, ops) ->
         let newOps = List.map (updateHostsInOp fromCanvasName toCanvasName) ops
         let (isDeleted, toplevel) =
-          Canvas.getToplevel tlid fromCanvas |> Option.unwrapUnsafe
+          Canvas.getToplevel tlid fromCanvas
+          |> Exception.unwrapOptionInternal "gettoplevel" [ "tlid", tlid ]
         (tlid, newOps, toplevel, isDeleted))
 
     do! Canvas.saveTLIDs toMeta toOps

@@ -59,8 +59,8 @@ fi
 # to the test framework though it's hard to tell. It's solved by disabling the
 # spinner and not running the tests in parallel.
 
+cd fsharp-backend
 if [[ "$DEBUG" == "true" ]]; then
-  cd fsharp-backend
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_DB_HOST=localhost \
@@ -69,7 +69,6 @@ if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_DB_PASSWORD=eapnsdc \
   lldb -- "${EXE}" --no-spinner --sequenced "${@}"
 else
-  cd fsharp-backend
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_DB_HOST=localhost \

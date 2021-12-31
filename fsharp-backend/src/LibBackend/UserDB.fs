@@ -66,7 +66,7 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
       else
         o
     // </HACK 1>
-    | x -> failwith $"failed format, expected DObj got: {obj}"
+    | x -> Exception.raiseInternal "failed format, expected DObj" [ "actual", obj ]
   // <HACK 2>: because it's hard to migrate at the moment, we need to have
   // default values when someone adds a col. We can remove this when the
   // migrations work properly. Structured like this so that hopefully we
@@ -269,7 +269,7 @@ let doQuery
     let paramName =
       match b.parameters with
       | [ (_, name) ] -> name
-      | _ -> failwith "wrong number of args"
+      | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
 
     let! sql, vars =
       SqlCompiler.compileLambda state b.symtable paramName dbFields b.body

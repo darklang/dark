@@ -127,7 +127,7 @@ let addException (name : string) (e : exn) (tags : List<string * obj>) : unit =
   // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
   let exceptionTags =
     [ "exception.type", e.GetType().FullName :> obj
-      "exception.stacktrace", e.ToString()
+      "exception.stacktrace", string e.StackTrace
       "exception.message", e.Message ]
   addEvent name (tags @ exceptionTags)
 
@@ -153,10 +153,13 @@ let init (serviceName : string) : unit =
     fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
   System.Diagnostics.ActivitySource.AddActivityListener(activityListener)
 
-  // Make sure exceptions make it into telemetry as soon as they're called
+  // Allow exceptions to be associated with the right span (the one in which they're created)
   Prelude.exceptionCallback <-
     (fun e typ msg tags ->
       let tags = ("exception", true :> obj) :: ("exception.darkType", typ) :: tags
+      // These won't have stacktraces. We could add them but they're expensive, and
+      // if they make it to the top they'll get a stacktrace. So let's not do
+      // stacktraces until we learn we need them
       addException msg e tags)
   print " Configured Telemetry"
 
@@ -177,12 +180,12 @@ let configureAspNetCore
     (fun (activity : Span.T) (eventName : string) (rawObject : obj) ->
       match (eventName, rawObject) with
       | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
+        // CLEANUP
         // The .NET instrumentation uses http.{path,url}, etc, but we used
         // request.whatever in the OCaml version. To make sure that I can compare
         // the old and new requests, I'm also adding request.whatever for now, but
         // they can be removed once it's been switched over. Events are infinitely
         // wide so this shouldn't cause any issues.
-        // ; ("execution_id", `String (Types.string_of_id execution_id)) // FSTODO
         let ipAddress =
           try
             httpRequest.Headers.["x-forward-for"].[0]

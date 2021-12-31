@@ -49,7 +49,7 @@ let legacyReq
       then
         LibService.Config.legacyFuzzingServerPort
       else
-        failwith "unexpected endpoint"
+        Exception.raiseInternal "unexpected endpoint" [ "endpoint", endpoint ]
     let url = $"http://localhost:{port}/{endpoint}"
 
     use message =
@@ -64,10 +64,14 @@ let legacyReq
     else if response.StatusCode = System.Net.HttpStatusCode.BadRequest then
       // This is how errors are reported
       let! content = response.Content.ReadAsStringAsync()
-      failwith content
+      Exception.raiseInternal content []
     else
       let! content = response.Content.ReadAsStringAsync()
-      failwith $"not a 200 response to {endpoint}: {response.StatusCode}, {content}"
+      Exception.raiseInternal
+        "not a 200 response"
+        [ "statusCode", response.StatusCode
+          "content", content
+          "endpoint", endpoint ]
 
     return response.Content
   }

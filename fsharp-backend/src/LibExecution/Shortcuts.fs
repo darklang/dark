@@ -23,7 +23,10 @@ let rec toStringRepr (e : Expr) : string =
     match String.split "." stringified with
     | [ whole; fraction ] -> $"eFloat {sign} {whole}I {fraction}I"
     | [ whole ] -> $"eFloat {sign} {whole}I 0I"
-    | _ -> failwith $"can't print float: {number}, {stringified}"
+    | _ ->
+      Exception.raiseInternal
+        $"can't print float"
+        [ "number", number; "stringified", stringified ]
   | EBool (_, b) -> $"eBool {b |> string |> String.toLowercase}"
   | ENull _ -> $"eNull ()"
   | EVariable (_, var) -> $"eVar {q var}"
@@ -107,7 +110,7 @@ let rec toStringRepr (e : Expr) : string =
 //          ((Tuple2.mapFirst (fun (p : Pattern) -> p.toRuntimeType ()))
 //           << (Tuple2.mapSecond r))
 //          pairs)
-// | EPipeTarget _ -> failwith "No EPipeTargets should remain"
+// | EPipeTarget _ -> Exception.raiseInternal "No EPipeTargets should remain"
 // | EFeatureFlag (_, name, cond, caseA, caseB) ->
 //     R.EFeatureFlag(id, r cond, r caseA, r caseB)
 //

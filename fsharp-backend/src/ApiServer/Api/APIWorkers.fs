@@ -19,6 +19,7 @@ module Convert = LibExecution.OCamlTypes.Convert
 
 module Stats = LibBackend.Stats
 module EQ = LibBackend.EventQueue
+module Telemetry = LibService.Telemetry
 
 module WorkerStats =
   type Params = { tlid : tlid }
@@ -27,14 +28,13 @@ module WorkerStats =
 
   let getStats (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTag "tlid" p.tlid
 
       t.next "analyse-worker-stats"
       let! result = Stats.workerStats canvasInfo.id p.tlid
-
-      t.stop ()
       return { count = result }
     }
 
@@ -44,15 +44,16 @@ module Scheduler =
 
   let updateSchedule (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTags [ "name", p.name; "schedule", p.schedule ]
 
       t.next "schedule-worker"
       match p.schedule with
       | "pause" -> do! EQ.pauseWorker canvasInfo.id p.name
       | "run" -> do! EQ.unpauseWorker canvasInfo.id p.name
-      | _ -> failwith "Invalid schedule"
+      | _ -> Exception.raiseEditor "Invalid schedule"
 
 
       t.next "get-worker-schedule"
@@ -64,6 +65,5 @@ module Scheduler =
       let executionID = loadExecutionID ctx
       LibBackend.Pusher.pushWorkerStates executionID canvasInfo.id ws
 
-      t.stop ()
       return ws
     }

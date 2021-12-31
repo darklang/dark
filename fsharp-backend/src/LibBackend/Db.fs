@@ -35,7 +35,11 @@ module Sql =
       match! Sql.executeAsync reader props with
       | [ a ] -> return Some a
       | [] -> return None
-      | list -> return failwith $"Too many results, expected 0 or 1, got {list}"
+      | list ->
+        return
+          Exception.raiseInternal
+            $"Too many results, expected 0 or 1"
+            [ "actual", list ]
     }
 
   let executeRowOptionSync
@@ -45,7 +49,8 @@ module Sql =
     match Sql.execute reader props with
     | [ a ] -> Some a
     | [] -> None
-    | list -> failwith $"Too many results, expected 0 or 1, got {list}"
+    | list ->
+      Exception.raiseInternal $"Too many results, expected 0 or 1" [ "actual", list ]
 
   // FSTODO do a better job of naming these
   let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
@@ -53,14 +58,17 @@ module Sql =
       match! Sql.executeAsync (fun read -> read.NpgsqlReader.GetBoolean 0) props with
       | [ true ] -> return true
       | [] -> return false
-      | result -> return failwith $"Too many results, expected 1, got {result}"
+      | result ->
+        return
+          Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
     }
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match Sql.execute (fun read -> read.NpgsqlReader.GetBoolean 0) props with
     | [ true ] -> true
     | [] -> false
-    | result -> failwith $"Too many results, expected 1, got {result}"
+    | result ->
+      Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
 
 
   let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =

@@ -21,19 +21,19 @@ module Stats = LibBackend.Stats
 module Canvas = LibBackend.Canvas
 module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
+module Telemetry = LibService.Telemetry
 
 module Unlocked =
   type T = { unlocked_dbs : tlid list }
 
   let get (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
 
       t.next "getUnlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
 
-      t.stop ()
       return { unlocked_dbs = unlocked }
     }
 
@@ -44,12 +44,13 @@ module DBStats =
 
   let getStats (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTags [ "tlids", p.tlids ]
 
       t.next "load-canvas"
-      let! c = Canvas.loadAllDBs canvasInfo |> Task.map Result.unwrapUnsafe
+      let! c = Canvas.loadAllDBs canvasInfo
 
       t.next "load-db-stats"
       let! result = Stats.dbStats c p.tlids
@@ -64,6 +65,5 @@ module DBStats =
                 Option.map (fun (dv, s) -> (Convert.rt2ocamlDval dv, s)) s.example })
           result
 
-      t.stop ()
       return result
     }

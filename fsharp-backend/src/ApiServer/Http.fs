@@ -35,14 +35,17 @@ type TraceTimer =
     stop : unit -> unit
     span : unit -> Span.T }
 
+  interface System.IDisposable with
+    member this.Dispose() = this.stop ()
+
 // Returns a value to help tracing and setting ServerTiming headers. It immediately
 // starts a Span named [initialName]. It returns a value [t], and when you call
-// [t.next name], it automatically ends the current span and starts a new one with the new
-// name. It also records a server-timing header for each span when it ends, using the
-// duration from the Span.
-// Call [t.stop()] at the end, or the final span duration will be incorrect.
+// [t.next name], it automatically ends the current span and starts a new one with
+// the new name. It also records a server-timing header for each span when it ends,
+// using the duration from the Span. Make sure to use `use` instead of `let`, to
+// ensure that `stop` gets called.
 let startTimer (initialName : string) (ctx : HttpContext) : TraceTimer =
-  let parent = Span.current ()
+  let parent = Span.current () // Don't use `use`, we want this to live
   let mutable child = Span.child initialName parent []
   let st =
     ctx.RequestServices.GetService<Lib.AspNetCore.ServerTiming.IServerTiming>()
@@ -78,7 +81,7 @@ type HttpContextExtensions() =
       value : 'T
     ) : Task<option<HttpContext>> =
     task {
-      let t = startTimer "serialize-json" ctx
+      use t = startTimer "serialize-json" ctx
       ctx.Response.ContentType <- "application/json; charset=utf-8"
       let serialized = Json.OCamlCompatible.serialize value
       let bytes = System.ReadOnlyMemory(UTF8.toBytes serialized)
@@ -86,7 +89,6 @@ type HttpContextExtensions() =
       t.next "write-json-async"
       let! (_ : System.IO.Pipelines.FlushResult) =
         ctx.Response.BodyWriter.WriteAsync(bytes)
-      t.stop ()
       return Some ctx
     }
 
@@ -97,14 +99,13 @@ type HttpContextExtensions() =
       value : string
     ) : Task<option<HttpContext>> =
     task {
-      let t = startTimer "text-to-bytes" ctx
+      use t = startTimer "text-to-bytes" ctx
       ctx.Response.ContentType <- "text/plain; charset=utf-8"
       let bytes = System.ReadOnlyMemory(UTF8.toBytes value)
       ctx.Response.ContentLength <- int64 bytes.Length
       t.next "write-text-async"
       let! (_ : System.IO.Pipelines.FlushResult) =
         ctx.Response.BodyWriter.WriteAsync(bytes)
-      t.stop ()
       return Some ctx
     }
 
@@ -115,27 +116,25 @@ type HttpContextExtensions() =
       value : string
     ) : Task<option<HttpContext>> =
     task {
-      let t = startTimer "html-to-bytes" ctx
+      use t = startTimer "html-to-bytes" ctx
       ctx.Response.ContentType <- "text/html; charset=utf-8"
       let bytes = System.ReadOnlyMemory(UTF8.toBytes value)
       ctx.Response.ContentLength <- int64 bytes.Length
       t.next "write-bytes-async"
       let! (_ : System.IO.Pipelines.FlushResult) =
         ctx.Response.BodyWriter.WriteAsync(bytes)
-      t.stop ()
       return Some ctx
     }
 
   [<Extension>]
   static member ReadJsonAsync<'T>(ctx : HttpContext) : Task<'T> =
     task {
-      let t = startTimer "read-json-async" ctx
+      use t = startTimer "read-json-async" ctx
       use ms = new System.IO.MemoryStream()
       do! ctx.Request.Body.CopyToAsync(ms)
       let body = ms.ToArray() |> UTF8.ofBytesUnsafe
       t.next "deserialize-json"
       let response = Json.OCamlCompatible.deserialize<'T> body
-      t.stop ()
       return response
     }
 

@@ -668,12 +668,12 @@ let fns : List<BuiltInFn> =
                 match result with
                 | DBool b -> return b
                 | DIncomplete _ ->
-                  incomplete := true
+                  incomplete.Value <- true
                   return false
                 | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
               }
 
-            if !incomplete then
+            if incomplete.Value then
               return DIncomplete SourceNone
             else
               let! result = Ply.List.filterSequentially f l
@@ -747,7 +747,7 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let run = !fakecf = None
+                let run = fakecf.Value = None
 
                 if run then
                   let! result =
@@ -757,7 +757,7 @@ let fns : List<BuiltInFn> =
                   | DBool b -> return b
                   | (DIncomplete _
                   | DErrorRail _) as dv ->
-                    fakecf := Some dv
+                    fakecf.Value <- Some dv
                     return false
                   | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
                 else
@@ -766,7 +766,7 @@ let fns : List<BuiltInFn> =
 
             let! result = Ply.List.filterSequentially f l
 
-            match !fakecf with
+            match fakecf.Value with
             | None -> return DList(result)
             | Some v -> return v
           }
@@ -791,7 +791,7 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let run = !abortReason = None
+                let run = abortReason.Value = None
 
                 if run then
                   let! result =
@@ -802,7 +802,7 @@ let fns : List<BuiltInFn> =
                   | (DIncomplete _
                   | DErrorRail _
                   | DError _) as dv ->
-                    abortReason := Some dv
+                    abortReason.Value <- Some dv
                     return false
                   | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
                 else
@@ -811,7 +811,7 @@ let fns : List<BuiltInFn> =
 
             let! result = Ply.List.filterSequentially f l
 
-            match !abortReason with
+            match abortReason.Value with
             | None -> return DList(result)
             | Some v -> return v
           }
@@ -838,7 +838,7 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<Dval option> =
               uply {
-                let run = !abortReason = None
+                let run = abortReason.Value = None
 
                 if run then
                   let! result =
@@ -850,7 +850,7 @@ let fns : List<BuiltInFn> =
                   | (DIncomplete _
                   | DErrorRail _
                   | DError _) as dv ->
-                    abortReason := Some dv
+                    abortReason.Value <- Some dv
                     return None
                   | v ->
                     return
@@ -861,7 +861,7 @@ let fns : List<BuiltInFn> =
 
             let! result = Ply.List.filterMapSequentially f l
 
-            match !abortReason with
+            match abortReason.Value with
             | None -> return DList result
             | Some v -> return v
           }
@@ -901,7 +901,7 @@ let fns : List<BuiltInFn> =
               | [] -> Ply []
               | dv :: dvs ->
                 uply {
-                  let run = !abortReason = None
+                  let run = abortReason.Value = None
 
                   if run then
                     let! result =
@@ -913,7 +913,7 @@ let fns : List<BuiltInFn> =
                     | (DIncomplete _
                     | DErrorRail _
                     | DError _) as dv ->
-                      abortReason := Some dv
+                      abortReason.Value <- Some dv
                       return []
                     | v ->
                       return Errors.throw (Errors.expectedLambdaType "f" TBool v)
@@ -923,7 +923,7 @@ let fns : List<BuiltInFn> =
 
             let! result = f l
 
-            match !abortReason with
+            match abortReason.Value with
             | None -> return DList result
             | Some v -> return v
           }
@@ -963,7 +963,7 @@ let fns : List<BuiltInFn> =
               | [] -> Ply []
               | dv :: dvs ->
                 uply {
-                  let run = !abortReason = None
+                  let run = abortReason.Value = None
 
                   if run then
                     let! result =
@@ -977,7 +977,7 @@ let fns : List<BuiltInFn> =
                     | (DIncomplete _
                     | DErrorRail _
                     | DError _) as dv ->
-                      abortReason := Some dv
+                      abortReason.Value <- Some dv
                       return []
                     | v ->
                       return Errors.throw (Errors.expectedLambdaType "f" TBool v)
@@ -987,7 +987,7 @@ let fns : List<BuiltInFn> =
 
             let! result = f l
 
-            match !abortReason with
+            match abortReason.Value with
             | None -> return DList result
             | Some v -> return v
           }

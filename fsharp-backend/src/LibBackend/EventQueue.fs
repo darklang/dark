@@ -116,7 +116,7 @@ module WorkerStates =
     | "run" -> Running
     | "block" -> Blocked
     | "pause" -> Paused
-    | _ -> failwith "invalid WorkerState: {str}"
+    | _ -> Exception.raiseInternal "invalid WorkerState" [ "workerState", str ]
 
   // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>

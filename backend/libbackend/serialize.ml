@@ -189,21 +189,6 @@ let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
              Exception.internal "Shape of per_tlid oplists")
 
 
-let fetch_relevant_tlids_for_cron_checker ~canvas_id () : Types.tlid list =
-  Db.fetch
-    ~name:"fetch_relevant_tlids_for_cron_checker"
-    "SELECT tlid FROM toplevel_oplists
-      WHERE canvas_id = $1
-      AND module = 'CRON'"
-    ~params:[Db.Uuid canvas_id]
-  |> List.map ~f:(fun l ->
-         match l with
-         | [data] ->
-             Types.id_of_string data
-         | _ ->
-             Exception.internal "Shape of per_tlid oplists")
-
-
 let fetch_tlids_for_all_dbs ~(canvas_id : Uuidm.t) () : Types.tlid list =
   Db.fetch
     ~name:"fetch_tlids_for_all_dbs"

@@ -80,7 +80,8 @@ let t filename =
         RegexOptions.Singleline
       )
 
-    if not m.Success then failwith $"incorrect format in {name}"
+    if not m.Success then
+      Exception.raiseInternal $"incorrect format" [ "name", name ]
     let g = m.Groups
 
     (g[2].Value, g[3].Value, g[4].Value)
@@ -148,7 +149,11 @@ let t filename =
               []
 
           with
-          | e -> failwith $"When calling OCaml code, OCaml server failed: {msg}, {e}"
+          | e ->
+            Exception.raiseInternal
+              $"When calling OCaml code, OCaml server failed"
+              [ "msg", msg ]
+              [ "exception", e ]
 
         if shouldEqual then
           Expect.equalDval
@@ -309,7 +314,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
     with
     | e ->
       print $"Exception raised in test handler: {e}"
-      failwith $"Exception raised in test handler: {e}"
+      Exception.raiseInternal $"Exception raised in test handler" [ "e", e ]
       return ctx
   }
 

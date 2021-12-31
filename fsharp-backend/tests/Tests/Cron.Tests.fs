@@ -15,7 +15,6 @@ module RT = LibExecution.RuntimeTypes
 module Cron = LibBackend.Cron
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
-module Span = LibService.Telemetry.Span
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults

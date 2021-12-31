@@ -48,8 +48,6 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                 use span = Telemetry.child "Canvas.load_for_event_from_cache" []
                 try
                   let! c = Canvas.loadForEvent event
-                  let c =
-                    c |> Result.mapError (String.concat ", ") |> Result.unwrapUnsafe
                   Telemetry.addTag "load_event_succeeded" true
                   return Ok c
                 with
@@ -185,7 +183,7 @@ let main _ : int =
     Telemetry.Console.loadTelemetry "QueueWorker" Telemetry.DontTraceDBQueries
     LibExecution.Init.init "QueueWorker"
     LibExecutionStdLib.Init.init "QueueWorker"
-    LibBackend.Init.init "QueueWorker"
+    (LibBackend.Init.init "QueueWorker" false).Result
     BackendOnlyStdLib.Init.init "QueueWorker"
     LibRealExecution.Init.init "QueueWorker"
 

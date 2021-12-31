@@ -45,7 +45,8 @@ let parse (input) : SynExpr =
                                                 _))) ->
     // Extract declarations and walk over them
     expr
-  | _ -> failwith $" - wrong shape tree: {results.ParseTree}"
+  | _ ->
+    Exception.raiseInternal $"wrong shape tree" [ "parseTree", results.ParseTree ]
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")
@@ -68,7 +69,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       (Positive, whole |> parseBigint, parseBigint fraction)
     | Regex "-([0-9]+)" [ whole ] -> (Negative, whole |> parseBigint, 0I)
     | Regex "([0-9]+)" [ whole ] -> (Positive, whole |> parseBigint, 0I)
-    | str -> failwith $"Could not splitFloat {d}"
+    | str -> Exception.raiseInternal $"Could not splitFloat" [ "float", d ]
 
   let rec convertPattern (pat : SynPat) : PT.Pattern =
     match pat with
@@ -96,12 +97,12 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       let args = List.map convertPattern args
       pConstructor constructorName.idText args
 
-    | _ -> failwith $" - unhandled pattern: {pat} "
+    | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
 
   let convertLambdaVar (var : SynSimplePat) : string =
     match var with
     | SynSimplePat.Id (name, _, _, _, _, _) -> nameOrBlank name.idText
-    | _ -> failwith $"unsupported lambdaVar {var}"
+    | _ -> Exception.raiseInternal "unsupported lambdaVar" [ "var", var ]
 
   // Add a pipetarget after creating it
   let cPlusPipeTarget (e : SynExpr) : PT.Expr =
@@ -185,7 +186,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
         ($"{module_}::{name}", PT.NoRail)
       | Regex "(.+)_ster" [ name ] -> ($"{module_}::{name}", PT.Rail)
       | Regex "(.+)" [ name ] -> ($"{module_}::{name}", PT.NoRail)
-      | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
+      | _ ->
+        Exception.raiseInternal
+          $"Bad format in function name"
+          [ "name", fnName.idText ]
 
     PT.EFnCall(gid (), PT.FQFnName.parse name, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
@@ -209,7 +213,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       // The 2nd param indicates this was not nested
       | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), _, body, _, _) ->
         vars, body
-      | SynExpr.Lambda _ -> failwith $"TODO: other types of lambda: {expr}"
+      | SynExpr.Lambda _ ->
+        Exception.raiseInternal "TODO: other types of lambda" [ "expr", expr ]
       | _ -> [], expr
 
     let nestedVars, body = extractVarsAndBody body
@@ -263,7 +268,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     |> List.map (function
       | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
         (nameOrBlank name.idText, c expr)
-      | f -> failwith $"Not an expected field {f}")
+      | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
     |> eRecord
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
   | SynExpr.Do (expr, _) -> c expr // just unwrap
@@ -279,9 +284,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
     | PT.EPipe (id, arg1, arg2, rest) as pipe ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
-    // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
+    // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
     | other ->
-      // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
+      // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       // the very bottom on the pipe chain, this is the first and second expressions
       ePipe (other) (cPlusPipeTarget arg) []
   | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText = "op_PipeRight" ->
@@ -323,14 +328,15 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | PT.EVariable (id, name) ->
       PT.EFnCall(id, PT.FQFnName.parse name, [ c arg ], PT.NoRail)
     | e ->
-      failwith (
-        $"Unsupported expression in app: full ast:\n{ast}\n\n"
-        + $"specific fncall expr:\n({funcExpr}),"
-        + $"\nconverted specific fncall expr:\n{e},\nargument: {arg})"
-      )
+      Exception.raiseInternal
+        "Unsupported expression in app"
+        [ "fnCall expr", funcExpr
+          "converted specific fncall exp", e
+          "argument", arg ]
+
   | SynExpr.FromParseError _ as expr ->
-    failwith $"There was a parser error parsing: {expr}"
-  | expr -> failwith $"Unsupported expression: {ast}"
+    Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
+  | expr -> Exception.raiseInternal "Unsupported expression" [ "ast", ast ]
 
 let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
   // Split equality into actual vs expected in tests.
@@ -342,14 +348,14 @@ let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
                  SynExpr.App (_, _, SynExpr.Ident ident, actual, _),
                  expected,
                  _) when ident.idText = "op_Equality" ->
-    // failwith $"whole thing: {actual}"
+    // Exception.raiseInternal $"whole thing: {actual}"
     (true, convert actual, convert expected)
   | SynExpr.App (_,
                  _,
                  SynExpr.App (_, _, SynExpr.Ident ident, actual, _),
                  expected,
                  _) when ident.idText = "op_Inequality" ->
-    // failwith $"whole thing: {actual}"
+    // Exception.raiseInternal $"whole thing: {actual}"
     (false, convert actual, convert expected)
   | _ -> true, convert ast, eBool true
 

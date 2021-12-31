@@ -17,6 +17,7 @@ open Prelude
 open Tablecloth
 
 module Telemetry = LibService.Telemetry
+module Rollbar = LibService.Rollbar
 
 let runMigrations () =
   print $"Running migrations"
@@ -41,18 +42,21 @@ let emergencyLogin (username : string) : Task<unit> =
 
 let run (args : string []) : Task<int> =
   task {
+    let id = (ExecutionID "exechost")
     try
-      // FSTODO reportToRollbar commands
       match args with
       | [| "emergency-login"; username |] ->
+        Rollbar.sendAlert "emergencyLogin called" id [ "username", username ]
         do! emergencyLogin username
         return 0
       | [| "run-migrations" |] ->
         runMigrations ()
         return 0
       | _ ->
+        Rollbar.sendAlert "execHost called" id [ "args", String.concat "," args ]
         print (
-          "Invalid usage!!\n\nUSAGE: ExecHost emergency-login <user>\n"
+          "Invalid usage!!\n\n"
+          + "USAGE: ExecHost emergency-login <user>\n"
           + "USAGE: ExecHost run-migrations"
         )
         return 1
@@ -70,17 +74,17 @@ let run (args : string []) : Task<int> =
   }
 
 [<EntryPoint>]
-let main args : int =
+let main (args : string []) : int =
   try
     LibService.Init.init "ExecHost"
     Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
-    LibBackend.Init.init "ExecHost"
+    (LibBackend.Init.init "ExecHost" false).Result
     (run args).Result
   with
   | e ->
-    LibService.Rollbar.lastDitchBlocking
+    Rollbar.lastDitchBlocking
       "Error running ExecHost"
       (ExecutionID "execHost")
-      []
+      [ "args", args ]
       e
     -1

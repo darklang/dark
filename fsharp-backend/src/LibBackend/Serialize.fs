@@ -10,8 +10,6 @@ open Npgsql.FSharp
 open Npgsql
 open LibBackend.Db
 
-module Span = LibService.Telemetry.Span
-
 open Prelude
 open Tablecloth
 open Prelude.Tablecloth
@@ -62,17 +60,8 @@ let isLatestOpRequest
 
 
 // --------------------------------------------------------
-// Load serialized data from the DB *)
+// Load serialized data from the DB
 // --------------------------------------------------------
-
-// let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Types.tlid_oplists =
-//   Db.fetch
-//     ~name:"load_all_from_db"
-//     "SELECT data FROM toplevel_oplists
-//      WHERE canvas_id = $1"
-//     ~params:[Uuid canvas_id]
-//     ~result:BinaryResult
-//   |> Binary_serialization.strs2tlid_oplists
 
 // This is a special `load_*` function that specifically loads toplevels
 // via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
@@ -81,7 +70,6 @@ let isLatestOpRequest
 // the full oplist across the network from Postgres to the OCaml boxes,
 // and similarly they don't have to apply the full history of the canvas
 // in memory before they can execute the code.
-
 let loadOnlyRenderedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
@@ -157,22 +145,6 @@ let fetchRelevantTLIDsForEvent
                       "name", Sql.string event.name
                       "modifier", Sql.string event.modifier ]
   |> Sql.executeAsync (fun read -> read.id "tlid")
-
-//
-// let fetch_relevant_tlids_for_cron_checker ~canvas_id () : Types.tlid list =
-//   Db.fetch
-//     ~name:"fetch_relevant_tlids_for_cron_checker"
-//     "SELECT tlid FROM toplevel_oplists
-//       WHERE canvas_id = $1
-//       AND module = 'CRON'"
-//     ~params:[Db.Uuid canvas_id]
-//   |> List.map ~f:(fun l ->
-//          match l with
-//          | [data] ->
-//              Types.id_of_string data
-//          | _ ->
-//              Exception.internal "Shape of per_tlid oplists")
-
 
 
 let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
@@ -291,13 +263,13 @@ let currentHosts () : Task<string list> =
       hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort
   }
 
-
-// let tier_one_hosts () : string list =
-//   [ "ian-httpbin"
-//   ; "paul-slackermuse"
-//   ; "listo"
-//   ; "ellen-battery2"
-//   ; "julius-tokimeki-unfollow" ]
+let tierOneHosts () : List<CanvasName.T> =
+  [ "ian-httpbin"
+    "paul-slackermuse"
+    "listo"
+    "ellen-battery2"
+    "julius-tokimeki-unfollow" ]
+  |> List.map CanvasName.create
 
 type CronScheduleData =
   { canvasID : CanvasID

@@ -44,7 +44,11 @@ module ClientInterop =
     | OT.Blank id -> (name, OT.Blank id)
     | OT.Partial (id, str) -> (name, OT.Partial(id, str))
     | OT.Filled (id, tipe) ->
-      (name, (OT.Filled(id, PT.DType.parse tipe |> OT.Convert.pt2ocamlTipe)))
+      let typ =
+        PT.DType.parse tipe
+        |> Exception.unwrapOptionInternal "cannot parse col" [ "type", tipe ]
+        |> OT.Convert.pt2ocamlTipe
+      (name, (OT.Filled(id, typ)))
 
   let convert_migration
     (m : client_db_migration)

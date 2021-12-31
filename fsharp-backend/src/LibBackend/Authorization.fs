@@ -36,7 +36,7 @@ type Permission =
     match str with
     | "r" -> Read
     | "rw" -> ReadWrite
-    | _ -> failwith "couldn't decode permission"
+    | _ -> Exception.raiseInternal "couldn't decode permission" [ "permission", str ]
 
   override this.ToString() : string =
     match this with

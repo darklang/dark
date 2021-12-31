@@ -73,7 +73,13 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   addRoute "POST" "/logout" html None Login.logout
 
   addRoute "GET" "/a/{canvasName}" html R (htmlHandler Ui.uiHandler)
+
+  // For internal testing - please don't test this out, it might page me
+  addRoute "GET" "/a/{canvasName}/trigger-exception" std R (fun ctx ->
+    let userInfo = loadUserInfo ctx
+    Exception.raiseInternal "triggered test exception" [ "user", userInfo.username ])
   api "add_op" RW AddOps.addOp
+
   api "all_traces" R Traces.AllTraces.fetchAll
   api "delete_404" RW F404s.Delete.delete
   api "delete_secret" RW Secrets.Delete.delete
@@ -121,9 +127,9 @@ let configureApp (appBuilder : WebApplication) =
          (fun (ctx : HttpContext) ->
            let person =
              try
-               loadUserInfo ctx |> LibBackend.Account.userInfoToPerson |> Some
+               loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
              with
-             | _ -> None
+             | _ -> LibService.Rollbar.AspNet.emptyPerson
            let canvas =
              try
                string (loadCanvasInfo ctx).name
@@ -176,7 +182,7 @@ let main _ =
     LibService.Init.init "ApiServer"
     LibExecution.Init.init "ApiServer"
     LibExecutionStdLib.Init.init "ApiServer"
-    LibBackend.Init.init "ApiServer"
+    (LibBackend.Init.init "ApiServer" true).Result
     BackendOnlyStdLib.Init.init "ApiServer"
     LibRealExecution.Init.init "ApiServer"
     run ()

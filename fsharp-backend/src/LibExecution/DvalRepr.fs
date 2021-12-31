@@ -372,10 +372,11 @@ let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
       headers
       |> List.map (function
         | JList [ JString k; JString v ] -> (k, v)
-        | _ -> failwith "Invalid DHttpResponse headers")
+        | h ->
+          Exception.raiseInternal "Invalid DHttpResponse headers" [ "header", h ])
 
     Response(code, headers, dv)
-  | _ -> failwith "invalid response json"
+  | _ -> Exception.raiseInternal "Invalid response json" [ "json", j ]
 
 #nowarn "104" // ignore warnings about enums out of range
 
@@ -403,7 +404,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
     // representation. We may allow more in the future, but the real thing to
     // do is to use the DB's type and version to encode/decode them correctly
     match fields with
-    // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
+    // DResp (Result.ok_or_Exception.raiseInternal (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
     | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
       DHttpResponse(responseOfJson (convert b) a)
     | [ ("type", JString "date"); ("value", JString v) ] ->
@@ -439,20 +440,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
   // disable all those so we fail if we see them. However, we might need to
   // just convert some of these into strings.
   | JNonStandard
-  | _ -> failwith $"Invalid type in json: {json}"
-
-
-
-// and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : dval_map =
-//   match json with
-//   | `Assoc alist ->
-//       List.fold_left
-//         alist
-//         ~f:(fun m (k, v) ->
-//           DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson_v0 v))
-//         ~init:DvalMap.empty
-//   | _ ->
-//       Exception.internal "Not a json object"
+  | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
 // Convert a dval (already converted from json) into
 let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
@@ -473,7 +461,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
     // representation. We may allow more in the future, but the real thing to
     // do is to use the DB's type and version to encode/decode them correctly
     match fields with
-    // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
+    // DResp (Result.ok_or_Exception.raiseInternal (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
     | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
       DHttpResponse(responseOfJson (convert b) a)
     | [ ("type", JString "date"); ("value", JString v) ] ->
@@ -511,17 +499,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   // disable all those so we fail if we see them. However, we might need to
   // just convert some of these into strings.
   | JNonStandard
-  | _ -> failwith $"Invalid type in json: {json}"
-
-
-// and unsafeDvalmapOfJsonV1 (j : J.JsonValue) : DvalMap =
-//   match j with
-//   | J.JsonValue.Record records ->
-//       Array.fold
-//         Map.empty
-//         (fun m (k, v) -> Map.add k (unsafeDvalOfJsonV1 v) m)
-//         records
-//   | _ -> failwith "Not a json object"
+  | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
 let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
   let writeDval = unsafeDvalToJsonValueV0 w redact
@@ -734,7 +712,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
   let rec convertTopLevel (json : JToken) : Dval =
     match json with
     | JObject _ -> convert json
-    | _ -> failwith "Value that isn't an object"
+    | _ -> Exception.raiseInternal "Value that isn't an object" [ "json", json ]
 
   and convert (json : JToken) : Dval =
     match json with
@@ -763,7 +741,10 @@ let ofInternalQueryableV1 (str : string) : Dval =
     // disable all those so we fail if we see them. However, we might need to
     // just convert some of these into strings.
     | JNonStandard _
-    | _ -> failwith $"Invalid type in json: {json}"
+    | _ ->
+      Exception.raiseInternal
+        "Invalud type in internalQueryableV1 json"
+        [ "json", json ]
 
   str |> parseJson |> convertTopLevel
 
@@ -839,7 +820,7 @@ let ofUnknownJsonV0 str =
   try
     str |> parseJson |> unsafeDvalOfJsonV0
   with
-  | _ -> failwith "Invalid json"
+  | _ -> Exception.raiseInternal "Invalid json" [ "json", str ]
 
 
 let ofUnknownJsonV1 str : Result<Dval, string> =
@@ -861,7 +842,7 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
     // disable all those so we fail if we see them. However, we might need to
     // just convert some of these into strings.
     | JNonStandard
-    | _ -> failwith "Invalid type in json"
+    | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
   try
     str |> parseJson |> convert |> Ok
@@ -1206,4 +1187,4 @@ let hash (version : int) (arglist : List<Dval>) : string =
   match version with
   | 0 -> arglist |> List.map (toHashableRepr 0 true) |> Array.concat |> hashStr
   | 1 -> DList arglist |> toHashableRepr 0 false |> hashStr
-  | _ -> failwith $"Invalid Dval.hash version: {version}"
+  | _ -> Exception.raiseInternal $"Invalid Dval.hash version" [ "version", version ]

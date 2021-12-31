@@ -18,6 +18,7 @@ module AT = LibExecution.AnalysisTypes
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module Convert = LibExecution.OCamlTypes.Convert
+module Telemetry = LibService.Telemetry
 
 module TraceData =
   type Params = { tlid : tlid; trace_id : AT.TraceID }
@@ -41,13 +42,13 @@ module TraceData =
 
   let getTraceData (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       t.next "load-canvas"
-      let! (c : Canvas.T) =
-        Canvas.loadTLIDs canvasInfo [ p.tlid ] |> Task.map Result.unwrapUnsafe
+      let! c = Canvas.loadTLIDs canvasInfo [ p.tlid ]
 
 
       // CLEANUP: we dont need the handlers or functions at all here, just for the sample
@@ -84,7 +85,6 @@ module TraceData =
           )
         | None -> None
 
-      t.stop ()
       return Option.map (fun t -> { trace = t }) trace
     }
 
@@ -94,13 +94,13 @@ module AllTraces =
 
   let fetchAll (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
 
       // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
       // CLEANUP don't load traces for deleted handlers
       t.next "load-canvas"
-      let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
+      let! (c : Canvas.T) = Canvas.loadAll canvasInfo
 
       t.next "fetch-handler-traces"
       let! hTraces =
@@ -124,7 +124,5 @@ module AllTraces =
         |> Task.map List.concat
 
       // FSTODO pageable
-      t.stop ()
-
       return { traces = hTraces @ ufTraces }
     }

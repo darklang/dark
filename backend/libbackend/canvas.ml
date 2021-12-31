@@ -642,15 +642,6 @@ let load_all_dbs_from_cache host : (canvas ref, string list) Result.t =
     owner
 
 
-let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
-  let owner = Account.for_host_exn host in
-  let canvas_id = Serialize.fetch_canvas_id owner host in
-  load_from_cache
-    ~tlids:(Serialize.fetch_relevant_tlids_for_cron_checker ~canvas_id ())
-    host
-    owner
-
-
 let serialize_only (tlids : tlid list) (c : canvas) : unit =
   try
     let munge_name module_ n =

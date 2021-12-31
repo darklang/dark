@@ -19,7 +19,11 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
   FireAndForget.fireAndForgetTask "identify user" executionID (fun () ->
     task {
       let! data = Account.getUserAndCreatedAtAndAnalyticsMetadata username
-      let (userInfoAndCreatedAt, heapioMetadataJson) = Option.unwrapUnsafe data
+      let (userInfoAndCreatedAt, heapioMetadataJson) =
+        Exception.unwrapOptionInternal
+          "unwrapping metadata"
+          [ "metadata", data ]
+          data
       let! orgs = Authorization.orgsFor username
       let organization =
         // A user's orgs for this purpose do not include orgs it has

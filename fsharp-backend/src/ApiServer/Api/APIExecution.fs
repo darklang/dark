@@ -22,6 +22,7 @@ module Canvas = LibBackend.Canvas
 module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
 module DvalRepr = LibExecution.DvalRepr
+module Telemetry = LibService.Telemetry
 
 module Function =
   type Params =
@@ -40,15 +41,18 @@ module Function =
 
   let execute (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
       let executionID = loadExecutionID ctx
       let! p = ctx.ReadJsonAsync<Params>()
       let args = List.map Convert.ocamlDval2rt p.args
+      Telemetry.addTags [ "tlid", p.tlid
+                          "trace_id", p.trace_id
+                          "caller_id", p.caller_id
+                          "fnname", p.fnname ]
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
-      let c = Result.unwrapUnsafe c
 
       t.next "load-execution-state"
       let program = Canvas.toProgram c
@@ -73,7 +77,6 @@ module Function =
           touched_tlids = HashSet.toList touchedTLIDs
           unlocked_dbs = unlocked }
 
-      t.stop ()
       return result
     }
 
@@ -87,10 +90,11 @@ module Handler =
 
   let trigger (ctx : HttpContext) : Task<T> =
     task {
-      let t = startTimer "read-api" ctx
+      use t = startTimer "read-api" ctx
       let executionID = loadExecutionID ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
+      Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       let inputVars =
         p.input
@@ -99,7 +103,6 @@ module Handler =
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
-      let c = Result.unwrapUnsafe c
       let program = Canvas.toProgram c
       let expr = c.handlers[ p.tlid ].ast.toRuntimeType ()
 
@@ -114,8 +117,5 @@ module Handler =
       let! (_result : RT.Dval) = Exe.executeHandler state inputVars expr
 
       t.next "write-api"
-      let result = { touched_tlids = touchedTLIDs |> HashSet.toList }
-
-      t.stop ()
-      return result
+      return { touched_tlids = touchedTLIDs |> HashSet.toList }
     }

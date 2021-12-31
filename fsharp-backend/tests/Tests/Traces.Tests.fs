@@ -225,7 +225,7 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
 //   trace_data
 //   |> Analysis_types.trace_data_to_yojson
 //   |> Analysis_types.trace_data_of_yojson
-//   |> Result.ok_or_failwith
+//   |> Result.ok_or_Exception.raiseInternal
 //   |> AT.check
 //        (AT.testable
 //           Analysis_types.pp_trace_data

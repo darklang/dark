@@ -67,7 +67,10 @@ let login (username : string) (password : string) : Task<User> =
     let csrfToken =
       match loginContent with
       | Regex "const csrfToken = \"(.*?)\";" [ token ] -> token
-      | _ -> failwith $"could not find csrfToken in {loginContent}"
+      | _ ->
+        Exception.raiseInternal
+          $"could not find csrfToken"
+          [ "loginContent", loginContent ]
 
     return { client = client; csrf = csrfToken }
   }
@@ -160,7 +163,7 @@ let testUiReturnsTheSame =
           |> Json.Vanilla.deserialize<List<Functions.FunctionMetadata>>
 
         (text, fns)
-      | _ -> failwith "doesn't match"
+      | _ -> Exception.raiseInternal "doesn't match" [ "string", s ]
 
     let oc, ocfns = parse oc
     let fc, fcfns = parse fc
@@ -399,7 +402,7 @@ let testTriggerHandler =
         | PT.Handler.HTTP ("/a-test-handler/:user", "POST", _) -> Some h.tlid
         | _ -> None)
       |> List.head
-      |> Option.unwrapUnsafe
+      |> Exception.unwrapOptionInternal "" []
 
     let (body : Execution.Handler.Params) =
       { tlid = handlerTLID
@@ -559,7 +562,7 @@ let testDelete404s =
           Expect.equal space "HTTP" "inserted space correctly"
           Expect.equal thisPath path "inserted path correctly"
           Expect.equal modifier "GET" "inserted modifier correctly"
-        | v -> failwith $"Unexpected value: {v}"
+        | v -> Exception.raiseInternal "Unexpected value" [ "value", v ]
       }
 
     // assert secret initially missing

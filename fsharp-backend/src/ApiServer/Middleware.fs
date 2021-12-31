@@ -66,7 +66,7 @@ let redirectOr (f : HttpContext -> Task) (ctx : HttpContext) : Task =
 let sessionDataMiddleware : HttpMiddleware =
   (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let t = startTimer "session-data-middleware" ctx
+      use t = startTimer "session-data-middleware" ctx
       let sessionKey = ctx.Request.Cookies.Item Session.cookieKey
 
       let! session =
@@ -79,24 +79,19 @@ let sessionDataMiddleware : HttpMiddleware =
       match session with
       | Some sessionData ->
         saveSessionData sessionData ctx
-        t.stop ()
         return! next ctx
-      | None ->
-        t.stop ()
-        return! redirectOr unauthorized ctx
+      | None -> return! redirectOr unauthorized ctx
     })
 
 
 let userInfoMiddleware : HttpMiddleware =
   (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let t = startTimer "user-info-middleware" ctx
+      use t = startTimer "user-info-middleware" ctx
       let sessionData = loadSessionData ctx
 
       match! Account.getUser sessionData.username with
-      | None ->
-        t.stop ()
-        return! redirectOr notFound ctx
+      | None -> return! redirectOr notFound ctx
       | Some user ->
         // CLEANUP - change to x-darklang-username
         ctx.SetHeader("x-dark-username", string user.username)
@@ -105,7 +100,6 @@ let userInfoMiddleware : HttpMiddleware =
                                     "userID", user.id
                                     "is_admin", user.admin ]
         saveUserInfo user ctx
-        t.stop ()
         return! next ctx
     })
 
@@ -119,7 +113,7 @@ let withPermissionMiddleware
   : HttpMiddleware =
   (fun (next : HttpHandler) (ctx : HttpContext) ->
     task {
-      let t = startTimer "with-permission-middleware" ctx
+      use t = startTimer "with-permission-middleware" ctx
       let user = loadUserInfo ctx
       // CLEANUP: reduce to one query
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
@@ -136,13 +130,10 @@ let withPermissionMiddleware
       if Auth.permitted permissionNeeded permission then
         saveCanvasInfo canvasInfo ctx
         savePermission permission ctx
-        t.span ()
-        |> Telemetry.Span.addTags [ "canvas", canvasName; "canvasID", canvasID ]
-        t.stop ()
+        Telemetry.addTags [ "canvas", canvasName; "canvasID", canvasID ]
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
-        t.stop ()
         return! unauthorized ctx
     })
 

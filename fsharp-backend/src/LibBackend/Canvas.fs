@@ -208,7 +208,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     match op with
     | PT.SetHandler (_, _, h) -> setHandler h c
     | PT.CreateDB (tlid, pos, name) ->
-      if isNew && name = "" then failwith "DB must have a name"
+      if isNew && name = "" then Exception.raiseEditor "DB must have a name"
       let db = UserDB.create tlid name pos
       setDB db c
     | PT.AddDBCol (tlid, colid, typeid) ->
@@ -218,9 +218,15 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.ChangeDBColName (tlid, id, name) ->
       applyToDB (UserDB.setColName id name) tlid c
     | PT.SetDBColType (tlid, id, tipe) ->
-      applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+      let typ =
+        PT.DType.parse tipe
+        |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
+      applyToDB (UserDB.setColType id typ) tlid c
     | PT.ChangeDBColType (tlid, id, tipe) ->
-      applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+      let typ =
+        PT.DType.parse tipe
+        |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
+      applyToDB (UserDB.setColType id typ) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
     | PT.DeprecatedInitDBm (tlid, id, rbid, rfid, kind) -> c
     | PT.CreateDBMigration (tlid, rbid, rfid, cols) -> c
@@ -229,7 +235,9 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.SetDBColTypeInDBMigration (tlid, id, tipe) -> c
     | PT.AbandonDBMigration tlid -> c
     | PT.DeleteColInDBMigration (tlid, id) -> c
-    | PT.SetExpr (tlid, id, e) -> fstodo "setexpr"
+    | PT.SetExpr (tlid, id, e) ->
+      // FSTODO
+      Exception.raiseInternal "setexpr" []
     // applyToAllToplevels (TL.set_expr id e) tlid c
     | PT.DeleteTL tlid -> deleteToplevel tlid c
     | PT.MoveTL (tlid, pos) -> moveToplevel tlid pos c
@@ -237,7 +245,10 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.DeleteFunction tlid -> deleteFunction tlid c
     | PT.TLSavepoint _ -> c
     | PT.UndoTL _
-    | PT.RedoTL _ -> failwith $"This should have been preprocessed out! {op}"
+    | PT.RedoTL _ ->
+      Exception.raiseInternal
+        $"Undo/Redo op should have been preprocessed out!"
+        [ "op", op ]
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
       setDB (UserDB.create2 tlid name pos id) c
@@ -261,20 +272,19 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
 //
 // See `Op.RequiredContext` for how we determine which ops need what other
 // context to be loaded to appropriately verify.
-let verify (c : T) : Result<T, string list> =
+let verify (c : T) : T =
   let dupedNames =
     c.dbs
     |> Map.values
     |> List.groupBy (fun db -> db.name)
     |> Map.filter (fun db -> List.length db > 1)
-    |> Map.values
-    |> List.map (fun names ->
-      let names = List.map (fun db -> db.name)
-      $"Duplicate DB names: {names}")
+    |> Map.keys
 
   match dupedNames with
-  | [] -> Ok c
-  | dupes -> Error dupes
+  | [] -> c
+  | dupes ->
+    let dupes = String.concat "," dupes
+    Exception.raiseInternal $"Duplicate DB names: {dupes}" []
 
 
 let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
@@ -301,7 +311,7 @@ let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
         |> Seq.toList
         |> Origins
         |> Some
-      | _ -> failwith "invalid json in CorsSettings")
+      | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ])
 
 let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
@@ -348,22 +358,13 @@ let empty (meta : Meta) : T =
     secrets = Map.empty }
 
 // DOES NOT LOAD OPS FROM DB
-let fromOplist
-  (meta : Meta)
-  (oldOps : PT.Oplist)
-  (newOps : PT.Oplist)
-  : Result<T, List<string>> =
+let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
 
 // let load_without_tls host : (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
 //   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
-//
-//
-// let load_all host (newops : Types.oplist) : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from ~f:Serialize.load_all_from_db host owner newops
 //
 //
 // let load_only_tlids ~tlids host (newops : Types.oplist) :
@@ -421,80 +422,69 @@ let loadOplists
     |> Task.flatten)
 
 
-let loadFrom
-  (loadAmount : LoadAmount)
-  (meta : Meta)
-  (tlids : List<tlid>)
-  : Task<Result<T, string list>> =
+let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
-    // CLEANUP: rename "rendered" and "cached" to be consistent
+    try
+      // CLEANUP: rename "rendered" and "cached" to be consistent
 
-    // load
-    let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
+      // load
+      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
 
-    let fastLoadedTLIDs =
-      List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
+      let fastLoadedTLIDs =
+        List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
 
-    let notLoadedTLIDs =
-      List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
+      let notLoadedTLIDs =
+        List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
 
-    // canvas initialized via the normal loading path with the non-fast loaded tlids
-    // loaded traditionally via the oplist
-    let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
-    let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
-    let c = empty meta
-    // FSTODO: where are secrets loaded
+      // canvas initialized via the normal loading path with the non-fast loaded tlids
+      // loaded traditionally via the oplist
+      let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
+      let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
+      let c = empty meta
+      // FSTODO: where are secrets loaded
 
-    return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
+      return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
+    with
+    | e -> return Exception.reraiseAsPageable e
   }
 
-let loadAll (meta : Meta) : Task<Result<T, List<string>>> =
+let loadAll (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchAllTLIDs meta.id
     return! loadFrom IncludeDeletedToplevels meta tlids
   }
 
-let loadHttpHandlers
-  (meta : Meta)
-  (path : string)
-  (method : string)
-  : Task<Result<T, List<string>>> =
+let loadHttpHandlers (meta : Meta) (path : string) (method : string) : Task<T> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP meta.id path method
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<Result<T, List<string>>> =
+let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<T> =
   loadFrom LiveToplevels meta tlids
 
 
-let loadTLIDsWithContext
-  (meta : Meta)
-  (tlids : List<tlid>)
-  : Task<Result<T, List<string>>> =
+let loadTLIDsWithContext (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     let! context = Serialize.fetchRelevantTLIDsForExecution meta.id
     let tlids = tlids @ context
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadForEvent (e : EventQueue.T) : Task<Result<T, List<string>>> =
+let loadForEvent (e : EventQueue.T) : Task<T> =
   task {
     let meta = { id = e.canvasID; name = e.canvasName; owner = e.ownerID }
     let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id e
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadAllDBs (meta : Meta) : Task<Result<T, List<string>>> =
+let loadAllDBs (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs meta.id
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadTLIDsWithDBs
-  (meta : Meta)
-  (tlids : List<tlid>)
-  : Task<Result<T, List<string>>> =
+let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id
     return! loadFrom LiveToplevels meta (tlids @ dbTLIDs)
@@ -645,34 +635,22 @@ let saveTLIDs
     |> List.map (fun t -> t : Task)
     |> Task.WhenAll
   with
-  | e -> reraise () // pageable
+  | e -> Exception.reraiseAsPageable e
 
-
-// let saveAll (c : T) : Task =
-//   let tlids = List.map Tuple2.first c.ops in
-//   saveTLIDs tlids c
-//
 
 // -------------------------
-// Testing/validation *)
+// Testing/validation
 // -------------------------
 
 let jsonFilename (name : string) = $"{name}.json"
 
-let loadJsonFromDisk
-  (root : Config.Root)
-  (c : Meta)
-  : Result<List<tlid * PT.Oplist>, string> =
-  try
-    string c.name
-    |> jsonFilename
-    |> File.readfile root
-    |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
-    |> OT.Convert.ocamlOplist2PT
-    |> Op.oplist2TLIDOplists
-    |> Ok
-  with
-  | e -> Error(e.ToString())
+let loadJsonFromDisk (root : Config.Root) (c : Meta) : List<tlid * PT.Oplist> =
+  string c.name
+  |> jsonFilename
+  |> File.readfile root
+  |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
+  |> OT.Convert.ocamlOplist2PT
+  |> Op.oplist2TLIDOplists
 
 
 
@@ -696,11 +674,9 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
     let oplists =
       meta
       |> loadJsonFromDisk Config.Testdata
-      |> Result.unwrapUnsafe
       |> List.map (fun (tlid, oplist) ->
         let tl =
           fromOplist meta [] oplist
-          |> Result.unwrapUnsafe
           |> toplevels
           |> Map.get tlid
           |> Option.unwrapUnsafe
@@ -791,25 +767,26 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //   |> List.map ~f:validate_host
 //   |> Tc.Result.combine
 //   |> Tc.Result.map (fun _ -> ())
-//   |> Result.ok_or_failwith
-//
-//
-// (* just load, don't save -- also don't validate the ops don't
-//  * have deprecate ops (via validate_op or validate_host). this
-//  * function is used by the readiness check to gate deploys, so
-//  * we don't want to prevent deploys because someone forgot a deprecatedop
-//  * in a tier 1 canvas somewhere *)
-// let check_tier_one_hosts () : unit =
-//   let hosts = Serialize.tier_one_hosts () in
-//   List.iter hosts ~f:(fun host ->
-//       match load_all host [] with
-//       | Ok _ ->
-//           ()
-//       | Error errs ->
-//           Exception.internal
-//             ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
-//             "Bad canvas state")
-//
+//   |> Result.ok_or_Exception.raiseInternal
+
+
+// just load, don't save -- also don't validate the ops don't have deprecate ops (via
+// validate_op or validate_host). This function is used on startup so it will prevent
+// a deploy from succeeding. We don't want to prevent deploys because someone forgot
+// a deprecatedop in a tier 1 canvas somewhere
+let checkTierOneHosts () : Task<unit> =
+  if Config.checkTierOneHosts then
+    Serialize.tierOneHosts ()
+    |> Task.iterInParallel (fun host ->
+      task {
+        let! meta = getMeta host
+        let! (_ : T) = loadAll meta
+        return ()
+      })
+  else
+    Task.FromResult()
+
+
 //
 // let migrate_host (_host : string) : (string, unit) Tc.Result.t =
 //   try
@@ -834,7 +811,7 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //
 // let migrate_all_hosts () =
 //   List.iter (all_hosts ()) ~f:(fun host ->
-//       migrate_host host |> Result.ok_or_failwith)
+//       migrate_host host |> Result.ok_or_Exception.raiseInternal)
 //
 //
 // let write_shape_data () =

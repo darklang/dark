@@ -281,12 +281,12 @@ let fns : List<BuiltInFn> =
                 match result with
                 | DBool b -> return b
                 | DIncomplete _ ->
-                  incomplete := true
+                  incomplete.Value <- true
                   return false
                 | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
               }
 
-            if !incomplete then
+            if incomplete.Value then
               return DIncomplete SourceNone (*TODO(ds) source info *)
             else
               let! result = Ply.Map.filterSequentially f o
@@ -367,7 +367,7 @@ let fns : List<BuiltInFn> =
 
             let f (key : string) (data : Dval) : Ply<Dval option> =
               uply {
-                let run = !abortReason = None
+                let run = abortReason.Value = None
 
                 if run then
                   let! result =
@@ -385,7 +385,7 @@ let fns : List<BuiltInFn> =
                   | (DIncomplete _
                   | DErrorRail _
                   | DError _) as dv ->
-                    abortReason := Some dv
+                    abortReason.Value <- Some dv
                     return None
                   | v ->
                     Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
@@ -398,7 +398,7 @@ let fns : List<BuiltInFn> =
 
             let! result = Ply.Map.filterMapSequentially f o
 
-            match !abortReason with
+            match abortReason.Value with
             | None -> return DObj result
             | Some v -> return v
           }

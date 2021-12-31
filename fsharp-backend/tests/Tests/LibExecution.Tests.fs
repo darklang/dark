@@ -97,6 +97,10 @@ let t
 
         return ()
       with
+      | :? DarkException as e ->
+        let metadata = Exception.toMetadata e
+        print $"Exception thrown in test: {string e}\n{metadata}"
+        return (Expect.equal "Exception thrown in test" (string e) "")
       | e ->
         print $"Exception thrown in test: {e}"
         return (Expect.equal "Exception thrown in test" (string e) "")
@@ -190,7 +194,7 @@ let fileTests () : Test =
 
         match Map.get dbName dbs with
         | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
-        | None -> failwith $"No DB named {dbName} found"
+        | None -> Exception.raiseInternal $"No DB named {dbName} found" []
 
         currentGroup <- { currentGroup with name = name }
       | Regex @"^\[tests\.(.*)\]$" [ name ] ->
@@ -210,9 +214,12 @@ let fileTests () : Test =
               definition
               |> Json.Vanilla.deserialize<Map<string, string>>
               |> Map.mapWithIndex (fun k v ->
+                let typ =
+                  PT.DType.parse v
+                  |> Exception.unwrapOptionInternal "Cannot parse type" []
                 ({ name = k
                    nameID = gid ()
-                   typ = if v = "" then None else Some(PT.DType.parse v)
+                   typ = if v = "" then None else Some typ
                    typeID = gid () } : PT.DB.Col))
               |> Map.values }
 
@@ -243,7 +250,7 @@ let fileTests () : Test =
 
         match Map.get dbName dbs with
         | Some db -> currentTest <- { currentTest with dbs = [ db ] }
-        | None -> failwith $"No DB named {dbName} found"
+        | None -> Exception.raiseInternal $"No DB named {dbName} found" []
 
         currentTest <-
           { currentTest with name = $"{name} (line {i})"; recording = true }

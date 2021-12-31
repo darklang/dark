@@ -225,7 +225,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
           let newSt = Map.mergeFavoringRight st newVars
 
-          if !hasMatched then
+          if hasMatched.Value then
             // We matched, but we've already matched a pattern previously
             List.iter
               (fun (id, dval) -> state.tracing.traceDval false id dval)
@@ -239,10 +239,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 state.tracing.traceDval state.onExecutionPath id dval)
               traces
 
-            hasMatched := true
+            hasMatched.Value <- true
 
             let! result = eval state newSt expr
-            matchResult := result
+            matchResult.Value <- result
             return ()
         }
 
@@ -362,7 +362,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
           cases
 
-      return !matchResult
+      return matchResult.Value
 
     | EIf (_id, cond, thenbody, elsebody) ->
       match! eval state st cond with

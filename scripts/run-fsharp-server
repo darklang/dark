@@ -20,17 +20,20 @@ if [[ "$PUBLISHED" == "true" ]]; then
   BWDSERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/"
   CRONCHECKER_BINPATH="fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/"
   QUEUEWORKER_BINPATH="fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/"
+  EXECHOST_BINPATH="fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/"
 else
   APISERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
   BWDSERVER_BINPATH="fsharp-backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
   CRONCHECKER_BINPATH="fsharp-backend/Build/out/CronChecker/Debug/net6.0/linux-x64/"
   QUEUEWORKER_BINPATH="fsharp-backend/Build/out/QueueWorker/Debug/net6.0/linux-x64/"
+  EXECHOST_BINPATH="fsharp-backend/Build/out/ExecHost/Debug/net6.0/linux-x64/"
 fi
 
 APISERVER_EXE="${APISERVER_BINPATH}/ApiServer"
 BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
 CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
 QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
+EXECHOST_EXE="${EXECHOST_BINPATH}/ExecHost"
 TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
 
 # Stop the server processes
@@ -63,29 +66,25 @@ echo "Waiting for postgres"
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
-  if [[ ! -f "${APISERVER_EXE}" || ! -f "${BWDSERVER_EXE}" || ! -f "${CRONCHECKER_EXE}" || ! -f "${QUEUEWORKER_EXE}" ]]; then
+  if [[ ! -f "${APISERVER_EXE}" || ! -f "${BWDSERVER_EXE}" || ! -f "${CRONCHECKER_EXE}" || ! -f "${QUEUEWORKER_EXE}" || ! -f "${EXECHOST_EXE}" ]]; then
     sleep 0.01
   fi
 done
 echo "Done waiting for compiled servers"
 
-if [[ -f "${APISERVER_EXE}" && -f "${BWDSERVER_EXE}" && -f "${CRONCHECKER_EXE}" && -f "${QUEUEWORKER_EXE}" ]]; then
-  LOGS="${DARK_CONFIG_RUNDIR}/logs"
-  ./scripts/run-ocaml-legacy-server
-  echo "Running server"
-  "${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
-  "${BWDSERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
-  "${CRONCHECKER_EXE}" > "$LOGS/fsharp-cronchecker.log" 2>&1 &
-  "${QUEUEWORKER_EXE}" > "$LOGS/fsharp-queueworker.log" 2>&1 &
 
-  ./scripts/run-nginx-server
-else
-  echo "Missing F# binaries (${APISERVER_BINPATH}, ${BWDSERVER_BINPATH}, ${CRONCHECKER_BINPATH}, ${QUEUEWORKER_BINPATH})"
-  ls -la "${APISERVER_BINPATH}"
-  ls -la "${BWDSERVER_BINPATH}"
-  ls -la "${CRONCHECKER_BINPATH}"
-  ls -la "${QUEUEWORKER_BINPATH}"
-  exit 1
-fi
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+./scripts/run-ocaml-legacy-server
+echo "Running migrations"
+"${EXECHOST_EXE}" run-migrations > "$LOGS/fsharp-exechost.log"
+echo "Running apiserver"
+"${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+echo "Running bwdserver"
+"${BWDSERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+echo "Running cronchecker"
+"${CRONCHECKER_EXE}" > "$LOGS/fsharp-cronchecker.log" 2>&1 &
+echo "Running queueworker"
+"${QUEUEWORKER_EXE}" > "$LOGS/fsharp-queueworker.log" 2>&1 &
 
+./scripts/run-nginx-server
 echo "Finished loading server"

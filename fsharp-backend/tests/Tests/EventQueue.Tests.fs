@@ -17,7 +17,6 @@ module RT = LibExecution.RuntimeTypes
 module EQ = LibBackend.EventQueue
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
-module Span = LibService.Telemetry.Span
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
@@ -43,7 +42,7 @@ let testEventQueueRoundtrip =
     do! EQ.enqueue meta.name meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
 
     do! EQ.testingScheduleAll ()
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! (result : Result<Option<RT.Dval>, exn>) = QueueWorker.dequeueAndProcess ()
 
     match result with
     | Ok (Some resultDval) ->
@@ -55,8 +54,8 @@ let testEventQueueRoundtrip =
 
       Expect.equal (List.length functionResults) 1 "should have stored fn result"
       Expect.equal (RT.DInt 123L) resultDval "Round tripped value"
-    | Ok None -> failwith "Failed: expected Some, got None"
-    | Error e -> failwith $"Failed: got error: {e}"
+    | Ok None -> Exception.raiseInternal "Failed: expected Some, got None" []
+    | Error e -> Exception.raiseInternal $"Failed: got error" [ "error", e ]
   }
 
 
@@ -93,8 +92,6 @@ let testEventQueueIsFifo =
         do! EQ.finish evt
         return ()
       }
-
-    use span = Span.root "test"
 
     do!
       Sql.withTransaction (fun () ->
