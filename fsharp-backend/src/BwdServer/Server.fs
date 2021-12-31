@@ -23,6 +23,8 @@ type StringValues = Microsoft.Extensions.Primitives.StringValues
 open Prelude
 open Tablecloth
 
+open LibService.Exception
+
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
@@ -387,55 +389,51 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         else
           return! runDarkHandler ctx
       with
+      // These errors are the only ones we want to handle here. We don't want to give
+      // GrandUsers any info not intended for them. We want the rest to be caught by
+      // the 500 handler, be reported, and then have a small error message printed
       | NotFoundException msg -> return! errorResponse ctx msg 404
       | DarkException (GrandUserError msg) ->
         // Messages caused by user input should be displayed to the user
         return! errorResponse ctx msg 400
-      | DarkException (DeveloperError _) ->
-        // Don't tell the end user.
-        // TODO: these should be saved for the user to see
-        return! internalErrorResponse ctx
-      | DarkException (InternalError _) ->
-        // FSTODO: rollbar here
-        return! internalErrorResponse ctx
-      | DarkException (EditorError _) ->
-        // FSTODO: rollbar here - these shouldn't reach here
-        return! internalErrorResponse ctx
-      | DarkException (LibraryError _) ->
-        // FSTODO: rollbar here - these shouldn't reach here
-        return! internalErrorResponse ctx
       | e ->
-        print (string e)
-        return raise e
+        // respond and then reraise to get it to the rollbar middleware
+        let! (_ : HttpContext) = internalErrorResponse ctx
+        return e.Reraise()
     })
 
-  LibService.Rollbar.AspNet.addRollbarToApp (
-    app,
-    (fun (ctx : HttpContext) ->
+  let rollbarCtxToMetadata
+    (ctx : HttpContext)
+    : LibService.Rollbar.AspNet.Person * List<string * obj> =
+    let canvasName =
       try
-        let name = ctx.Items["canvasName"] :?> string
-        let username =
-          (CanvasName.create name)
-          |> Account.ownerNameFromCanvasName
-          |> string
-          |> UserName.create
-        try
-          let id = ctx.Items["canvasOwnerID"] :?> UserID
-          Some { username = username; email = null; id = id }, [ "canvas", name ]
-        with
-        | _ -> None, []
+        Some(ctx.Items["canvasName"] :?> CanvasName.T)
       with
-      | _ -> None, [])
-  )
+      | _ -> None
+    let username =
+      try
+        canvasName
+        |> Option.map (fun canvasName ->
+          canvasName |> Account.ownerNameFromCanvasName |> fun on -> on.toUserName ())
+      with
+      | _ -> None
+    let id =
+      try
+        Some(ctx.Items["canvasOwnerID"] :?> UserID)
+      with
+      | _ -> None
+    let metadata =
+      canvasName
+      |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
+      |> Option.defaultValue []
+    let person : (LibService.Rollbar.AspNet.Person) =
+      { id = id; username = username; email = None }
+    (person, metadata)
+
+  LibService.Rollbar.AspNet.addRollbarToApp (app, rollbarCtxToMetadata)
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort
-  |> fun app ->
-       // Last chance exception handler
-       let exceptionHandler (ctx : HttpContext) : Task = internalErrorResponse ctx
-       let exceptionHandlerOptions = ExceptionHandlerOptions()
-       exceptionHandlerOptions.ExceptionHandler <- RequestDelegate exceptionHandler
-       app.UseExceptionHandler(exceptionHandlerOptions)
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =

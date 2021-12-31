@@ -127,9 +127,9 @@ let configureApp (appBuilder : WebApplication) =
          (fun (ctx : HttpContext) ->
            let person =
              try
-               loadUserInfo ctx |> LibBackend.Account.userInfoToPerson |> Some
+               loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
              with
-             | _ -> None
+             | _ -> LibService.Rollbar.AspNet.emptyPerson
            let canvas =
              try
                string (loadCanvasInfo ctx).name

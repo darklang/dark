@@ -39,21 +39,13 @@ type UserInfoAndCreatedAt =
     id : UserID
     createdAt : System.DateTime }
 
-let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
-  { id = ui.id; email = ui.email; username = ui.username }
-
-
-
-// **********************
-// Special usernames
-// **********************
-
+let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.AspNet.Person =
+  { id = Some ui.id; email = Some ui.email; username = Some ui.username }
 
 
 // **********************
 // Adding
 // **********************
-
 
 let validateEmail (email : string) : Result<unit, string> =
   (* just checking it's roughly the shape of an email *)

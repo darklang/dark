@@ -101,7 +101,7 @@ let runKubernetesServer
   builder.WebHost.UseUrls(url port) |> ignore<IWebHostBuilder>
 
   let app = builder.Build()
-  LibService.Rollbar.AspNet.addRollbarToApp (app, (fun _ -> None, []))
+  Rollbar.AspNet.addRollbarToApp (app, (fun _ -> Rollbar.AspNet.emptyPerson, []))
   |> fun app -> app.UseRouting()
   |> configureApp port
   |> ignore<IApplicationBuilder>

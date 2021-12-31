@@ -85,8 +85,6 @@ let createState
     metadata
   custom
 
-type Person = { id : UserID; email : string; username : UserName.T }
-
 let sendAlert
   (message : string)
   (executionID : ExecutionID)
@@ -171,6 +169,15 @@ module AspNet =
   open Rollbar.NetCore.AspNet
   open Microsoft.AspNetCore.Builder
 
+
+  type Person =
+    { id : Option<UserID>
+      email : Option<string>
+      username : Option<UserName.T> }
+
+  let emptyPerson = { id = None; email = None; username = None }
+
+
   // Rollbar's ASP.NET core middleware requires an IHttpContextAccessor, which
   // supposedly costs significant performance (couldn't see a cost in practice
   // though). AFAICT, this allows HTTP vars to be shared across the Task using an
@@ -179,7 +186,7 @@ module AspNet =
   type DarkRollbarMiddleware
     (
       nextRequestProcessor : RequestDelegate,
-      ctxMetadataFn : HttpContext -> Option<Person> * List<string * obj>
+      ctxMetadataFn : HttpContext -> Person * List<string * obj>
     ) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
     member this.Invoke(ctx : HttpContext) : Task =
@@ -189,11 +196,10 @@ module AspNet =
         with
         | e ->
           try
-            let uri = ctx.Request.GetEncodedUrl()
-
-            print $"rollbar in http: {uri}"
+            print $"rollbar in http middleware"
             print e.Message
             print e.StackTrace
+            print (ctx.Request.GetEncodedUrl())
 
             let executionID =
               try
@@ -201,7 +207,11 @@ module AspNet =
               with
               | _ -> ExecutionID "unavailable"
 
-            let person, metadata = ctxMetadataFn ctx
+            let person, metadata =
+              try
+                ctxMetadataFn ctx
+              with
+              | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
             let metadata = addPageableMetadata e metadata
             let custom = createState "http" executionID metadata
 
@@ -212,15 +222,12 @@ module AspNet =
             let package =
               new HttpResponsePackageDecorator(package, ctx.Response, true)
             let package =
-              match person with
-              | None -> Rollbar.PersonPackageDecorator(package, null)
-              | Some person ->
-                Rollbar.PersonPackageDecorator(
-                  package,
-                  string person.id,
-                  string person.username,
-                  person.email
-                )
+              Rollbar.PersonPackageDecorator(
+                package,
+                person.id |> Option.map string |> Option.defaultValue null,
+                person.username |> Option.map string |> Option.defaultValue null,
+                person.email |> Option.defaultValue null
+              )
             Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
             |> ignore<Rollbar.ILogger>
           // No telemetry call here as it should happen automatically
@@ -242,6 +249,6 @@ module AspNet =
   let addRollbarToApp
     (
       app : IApplicationBuilder,
-      ctxMetadataFn : HttpContext -> Option<Person> * List<string * obj>
+      ctxMetadataFn : HttpContext -> Person * List<string * obj>
     ) : IApplicationBuilder =
     app.UseMiddleware<DarkRollbarMiddleware>(ctxMetadataFn)
