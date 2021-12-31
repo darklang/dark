@@ -64,7 +64,7 @@ let addPageableMetadata
   (e : exn)
   (metadata : List<string * obj>)
   : List<string * obj> =
-  if e :? PageableException then metadata else ("is_pageable", true) :: metadata
+  if e :? PageableException then ("is_pageable", true) :: metadata else metadata
 
 
 
