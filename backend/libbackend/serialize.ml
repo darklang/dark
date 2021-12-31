@@ -189,7 +189,6 @@ let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
              Exception.internal "Shape of per_tlid oplists")
 
 
-
 let fetch_tlids_for_all_dbs ~(canvas_id : Uuidm.t) () : Types.tlid list =
   Db.fetch
     ~name:"fetch_tlids_for_all_dbs"
