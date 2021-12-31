@@ -84,8 +84,17 @@ type DarkExceptionData =
   // happened (not grandusers though)
   | LibraryError of string * List<string * obj>
 
-exception DarkException of DarkExceptionData
-exception PageableException of System.Exception
+exception DarkException of data : DarkExceptionData with
+  override this.Message : string =
+    match this.data with
+    | InternalError (msg, _) -> msg
+    | DeveloperError msg -> msg
+    | EditorError msg -> msg
+    | LibraryError (msg, _) -> msg
+    | GrandUserError msg -> msg
+
+exception PageableException of inner : System.Exception with
+  override this.Message = this.inner.Message
 
 // This is for tracing
 let mutable exceptionCallback =
@@ -182,24 +191,6 @@ module Exception =
     | DarkException (GrandUserError msg) -> msg
     | _ -> unknownErrorMessage
 
-  let toInternalMessage (e : exn) : string * List<string * obj> =
-    match e with
-    | DarkException (InternalError (msg, tags))
-    | DarkException (LibraryError (msg, tags)) -> (msg, tags)
-    | DarkException (DeveloperError msg)
-    | DarkException (EditorError msg)
-    | DarkException (GrandUserError msg) -> (msg, [])
-    | e -> (e.Message, [])
-
-  // FSTODO
-  let shouldPage (e : exn) : bool =
-    match e with
-    | DarkException (GrandUserError _)
-    | DarkException (InternalError _)
-    | DarkException (DeveloperError _)
-    | DarkException (EditorError _)
-    | DarkException (LibraryError _) -> false
-    | _ -> true
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
     task {
