@@ -93,6 +93,7 @@ exception DarkException of data : DarkExceptionData with
     | LibraryError (msg, _) -> msg
     | GrandUserError msg -> msg
 
+
 exception PageableException of inner : System.Exception with
   override this.Message = this.inner.Message
 
@@ -101,6 +102,17 @@ let mutable exceptionCallback =
   (fun (e : exn) (typ : string) (msg : string) (tags : List<string * obj>) -> ())
 
 module Exception =
+
+  let toMetadata (e : DarkException) : List<string * obj> =
+    match e.data with
+    | InternalError (_, md)
+    | LibraryError (_, md) -> md
+    | DeveloperError _
+    | EditorError _
+    | GrandUserError _ -> []
+
+
+
   let callExceptionCallback e typ msg tags =
     try
       exceptionCallback e typ msg tags
