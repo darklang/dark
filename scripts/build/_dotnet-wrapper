@@ -17,6 +17,7 @@ cd fsharp-backend && unbuffer dotnet "$@" 2>&1 | while read -r line; do
     killall BwdServer || true
     killall CronChecker || true
     killall QueueWorker || true
+    killall Tests || true
   fi
   echo "$line"
 done
