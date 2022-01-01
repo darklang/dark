@@ -87,7 +87,7 @@ val to_enduser_readable_html_v0 : bool -> Types.RuntimeT.dval -> string
 (* For printing something for the developer to read, as a live-value, error
  * message, etc. This will faithfully represent the code, textually. Redacts
  * passwords. Customers should not come to rely on this format. *)
-val to_developer_repr_v0 : Types.RuntimeT.dval -> string
+val to_developer_repr_v0 : ?log_derrors : bool -> Types.RuntimeT.dval -> string
 
 (* For printing types for the developer to read, in live-values, error
  * messages, etc. Customers should not come to rely on this format. *)

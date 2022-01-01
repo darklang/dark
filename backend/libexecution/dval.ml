@@ -869,7 +869,7 @@ let rec to_enduser_readable_text_v0 (log_derrors : bool) dval =
 
 let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
 
-let rec to_developer_repr_v0 (dv : dval) : string =
+let rec to_developer_repr_v0 ?(log_derrors=false) (dv : dval) : string =
   let rec to_repr_ (indent : int) (dv : dval) : string =
     let nl = "\n" ^ String.make indent ' ' in
     let inl = "\n" ^ String.make (indent + 2) ' ' in
@@ -898,7 +898,11 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         justtipe
     | DIncomplete _ ->
         justtipe
-    | DError (_, msg) ->
+    | DError (dval_source, msg) ->
+        if log_derrors
+        then
+          ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
+          Libcommon.Log.erroR "to_enduser_readable_text_v0 has derror" ~data:tlid) ;
         wrap msg
     | DDate d ->
         wrap (Util.isostring_of_date d)
