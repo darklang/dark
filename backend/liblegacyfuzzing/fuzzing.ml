@@ -38,7 +38,7 @@ let to_enduser_readable_text_v0 (json : string) : string =
     |> Types.RuntimeT.dval_of_yojson
     |> Result.ok_or_failwith
   in
-  Dval.to_enduser_readable_text_v0 dval
+  Dval.to_enduser_readable_text_v0 false dval
 
 
 let to_hashable_repr (json : string) : string =

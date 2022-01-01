@@ -68,7 +68,7 @@ let encode_request_body (headers : headers) (body : dval option) :
             , with_default_content_type ~ct:"text/plain; charset=utf-8" headers
             )
         | dv when has_plaintext_header headers ->
-            (Dval.to_enduser_readable_text_v0 dv, headers)
+            (Dval.to_enduser_readable_text_v0 true dv, headers)
         | dv ->
             (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed. This makes a little more
             * sense than you might think on first glance, due to the interaction with the above `DStr` case. Note that this handles

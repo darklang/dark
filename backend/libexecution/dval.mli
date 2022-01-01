@@ -77,12 +77,12 @@ val of_internal_queryable_v1 : string -> Types.RuntimeT.dval
 (* When printing to grand-users (our users' users) using text/plain, print a
  * human-readable format. TODO: this should probably be part of the functions
  * generating the responses. Redacts passwords. *)
-val to_enduser_readable_text_v0 : Types.RuntimeT.dval -> string
+val to_enduser_readable_text_v0 : bool -> Types.RuntimeT.dval -> string
 
 (* When printing to grand-users (our users' users) using text/html, attempt to
  * extract a html-like string. Redacts passwords. TODO: this should probably be
  * part of the functions generating the responses. *)
-val to_enduser_readable_html_v0 : Types.RuntimeT.dval -> string
+val to_enduser_readable_html_v0 : bool -> Types.RuntimeT.dval -> string
 
 (* For printing something for the developer to read, as a live-value, error
  * message, etc. This will faithfully represent the code, textually. Redacts

@@ -799,7 +799,7 @@ let of_internal_queryable_v1 (str : string) : dval =
 (* ------------------------- *)
 (* Other formats *)
 (* ------------------------- *)
-let rec to_enduser_readable_text_v0 dval =
+let rec to_enduser_readable_text_v0 (log_derrors : bool) dval =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
     match dv with
@@ -829,7 +829,11 @@ let rec to_enduser_readable_text_v0 dval =
         Uuidm.to_string uuid
     | DDB dbname ->
         "<DB: " ^ dbname ^ ">"
-    | DError (_, msg) ->
+    | DError (dval_source, msg) ->
+        if log_derrors
+        then
+          ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
+          Libcommon.Log.erroR "to_enduser_readable_text_v0 has derror" ~data:tlid) ;
         "Error: " ^ msg
     | DIncomplete _ ->
         "<Incomplete>"

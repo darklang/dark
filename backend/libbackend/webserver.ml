@@ -421,9 +421,9 @@ let result_to_response
             ( match content_type_prefix with
             (* TODO: only pretty print for a webbrowser *)
             | Some "text/plain" | Some "application/xml" ->
-                Dval.to_enduser_readable_text_v0 value
+                Dval.to_enduser_readable_text_v0 true value
             | Some "text/html" ->
-                Dval.to_enduser_readable_html_v0 value
+                Dval.to_enduser_readable_html_v0 true value
             | Some "application/json" | _ ->
                 Dval.to_pretty_machine_json_v1 value )
       in
