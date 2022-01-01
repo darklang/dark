@@ -1178,7 +1178,7 @@ let to_string_pairs_exn dv : (string * string) list =
 
 
 (* For putting into URLs as query params *)
-let rec to_url_string_exn (dv : dval) : string =
+let rec to_url_string_exn (log_derrors : bool) (dv : dval) : string =
   match dv with
   | DBlock _ ->
       (* See docs/dblock-serialization.ml *)
@@ -1204,29 +1204,33 @@ let rec to_url_string_exn (dv : dval) : string =
   | DDB dbname ->
       dbname
   | DErrorRail d ->
-      to_url_string_exn d
-  | DError (_, msg) ->
+      to_url_string_exn log_derrors d
+  | DError (dval_source, msg) ->
+      if log_derrors
+      then
+        ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
+        Libcommon.Log.erroR "to_url_string_exn has derror" ~data:tlid) ;
       "error=" ^ msg
   | DUuid uuid ->
       Uuidm.to_string uuid
   | DResp (_, hdv) ->
-      to_url_string_exn hdv
+      to_url_string_exn log_derrors hdv
   | DList l ->
-      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
+      "[ " ^ String.concat ~sep:", " (List.map ~f:(to_url_string_exn log_derrors) l) ^ " ]"
   | DObj o ->
       let strs =
         DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-            (key ^ ": " ^ to_url_string_exn value) :: l)
+            (key ^ ": " ^ (to_url_string_exn log_derrors) value) :: l)
       in
       "{ " ^ String.concat ~sep:", " strs ^ " }"
   | DOption OptNothing ->
       "none"
   | DOption (OptJust v) ->
-      to_url_string_exn v
+      to_url_string_exn log_derrors v
   | DResult (ResError v) ->
-      "error=" ^ to_url_string_exn v
+      "error=" ^ (to_url_string_exn log_derrors) v
   | DResult (ResOk v) ->
-      to_url_string_exn v
+      to_url_string_exn log_derrors v
   | DBytes bytes ->
       bytes |> RawBytes.to_string |> B64.encode
 
@@ -1252,7 +1256,7 @@ let query_to_dval (query : (string * string list) list) : dval =
   |> DObj
 
 
-let dval_to_query (dv : dval) : (string * string list) list =
+let dval_to_query (log_derrors : bool) (dv : dval) : (string * string list) list =
   match dv with
   | DObj kvs ->
       kvs
@@ -1262,15 +1266,15 @@ let dval_to_query (dv : dval) : (string * string list) list =
              | DNull ->
                  (k, [])
              | DList l ->
-                 (k, List.map ~f:to_url_string_exn l)
+                 (k, List.map ~f:(to_url_string_exn log_derrors) l)
              | _ ->
-                 (k, [to_url_string_exn value]))
+                 (k, [to_url_string_exn log_derrors value]))
   | _ ->
       Exception.code "attempting to use non-object as query param"
 
 
-let to_form_encoding (dv : dval) : string =
-  dv |> dval_to_query |> Uri.encoded_of_query
+let to_form_encoding (log_derrors : bool) (dv : dval) : string =
+  dv |> dval_to_query log_derrors |> Uri.encoded_of_query
 
 
 let of_form_encoding (f : string) : dval =

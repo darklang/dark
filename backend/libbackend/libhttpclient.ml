@@ -54,7 +54,7 @@ let encode_request_body (headers : headers) (body : dval option) :
       let encoded_body, munged_headers =
         match dv with
         | DObj _ as dv when has_form_header headers ->
-            (Dval.to_form_encoding dv, headers)
+            (Dval.to_form_encoding true dv, headers)
         (* TODO: DBytes? *)
         | DStr s ->
             (* Do nothing to strings, ever. The reasoning here is that users do not expect any
@@ -100,7 +100,7 @@ let send_request
     (request_body : dval option)
     (query : dval)
     (request_headers : dval) : dval =
-  let encoded_query = Dval.dval_to_query query in
+  let encoded_query = Dval.dval_to_query true query in
   let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
   let encoded_request_body, munged_encoded_request_headers =
     (* We use the user-provided Content-Type headers to make ~magic~ decisions

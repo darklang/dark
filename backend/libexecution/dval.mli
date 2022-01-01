@@ -132,10 +132,10 @@ val parse_literal : string -> Types.RuntimeT.dval option
 (* queries *)
 val query_to_dval : (string * string list) list -> Types.RuntimeT.dval
 
-val dval_to_query : Types.RuntimeT.dval -> (string * string list) list
+val dval_to_query : bool -> Types.RuntimeT.dval -> (string * string list) list
 
 (* forms *)
-val to_form_encoding : Types.RuntimeT.dval -> string
+val to_form_encoding : bool -> Types.RuntimeT.dval -> string
 
 val of_form_encoding : string -> Types.RuntimeT.dval
 
@@ -166,7 +166,7 @@ val to_dval_pairs_exn :
   Types.RuntimeT.dval -> (string * Types.RuntimeT.dval) list
 
 (* For putting into URLs as query params  *)
-val to_url_string_exn : Types.RuntimeT.dval -> string
+val to_url_string_exn : bool -> Types.RuntimeT.dval -> string
 
 (* Errors if the values in the list are not strings, or if any key is
  * duplicated. *)
