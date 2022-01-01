@@ -153,7 +153,7 @@ let configureServices (services : IServiceCollection) : unit =
   |> LibService.Telemetry.AspNet.addTelemetryToServices
        "ApiServer"
        LibService.Telemetry.TraceDBQueries
-  |> LibService.Kubernetes.configureServices
+  |> LibService.Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> fun s -> s.AddServerTiming()
   |> ignore<IServiceCollection>
 

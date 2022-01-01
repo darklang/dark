@@ -36,6 +36,7 @@ let main _ : int =
     // we need to stop running if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "CronChecker"
+      []
       LibService.Config.croncheckerKubernetesPort
       (fun () ->
         Telemetry.addEvent "Shutting down" []

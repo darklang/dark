@@ -12,6 +12,8 @@ open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Diagnostics.HealthChecks
 open Microsoft.AspNetCore.Hosting
 
+open Microsoft.Extensions.Diagnostics.HealthChecks
+
 
 let url (port : int) : string = $"http://*:{port}"
 
@@ -19,14 +21,38 @@ let livenessTag = "liveness"
 let readinessTag = "readiness"
 let startupTag = "startup"
 
-let configureServices (services : IServiceCollection) : IServiceCollection =
+type ProbeType =
+  | Liveness
+  | Readiness
+  | Startup
+
+  override this.ToString() =
+    match this with
+    | Liveness -> livenessTag
+    | Readiness -> readinessTag
+    | Startup -> startupTag
+
+type HealthCheck =
+  { name : string
+    checkFn : System.Threading.CancellationToken -> Task<HealthCheckResult>
+    probeTypes : List<ProbeType> }
+
+
+let configureServices
+  (healthChecks : List<HealthCheck>)
+  (services : IServiceCollection)
+  : IServiceCollection =
   // each healthcheck is tagged according to the probes it is used in
   let allProbes = [| livenessTag; readinessTag; startupTag |]
-  services
-    .AddHealthChecks()
-    .AddNpgSql(DBConnection.connectionString, tags = allProbes)
-  |> ignore<IHealthChecksBuilder>
-
+  let healthChecksBuilder =
+    services
+      .AddHealthChecks()
+      .AddNpgSql(DBConnection.connectionString, tags = allProbes)
+  healthChecks
+  |> List.iter (fun hc ->
+    let tags = hc.probeTypes |> List.map string |> List.toArray
+    healthChecksBuilder.AddAsyncCheck(hc.name, hc.checkFn, tags = tags)
+    |> ignore<IHealthChecksBuilder>)
   services
 
 let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder =
@@ -92,11 +118,12 @@ let registerServerTimeout (b : IWebHostBuilder) : unit =
 // own.
 let runKubernetesServer
   (serviceName : string)
+  (healthChecks : List<HealthCheck>)
   (port : int)
   (shutdownCallback : unit -> unit)
   : Task =
   let builder = WebApplication.CreateBuilder()
-  configureServices builder.Services |> ignore<IServiceCollection>
+  configureServices healthChecks builder.Services |> ignore<IServiceCollection>
   registerServerTimeout builder.WebHost
   builder.WebHost.UseUrls(url port) |> ignore<IWebHostBuilder>
 
