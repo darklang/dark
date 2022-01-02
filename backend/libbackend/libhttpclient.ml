@@ -238,7 +238,8 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.POST
-          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+             true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::put"]
@@ -250,7 +251,8 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PUT
-          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+             true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::get"]
@@ -262,7 +264,8 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.GET
-          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+             true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::delete"]
@@ -274,7 +277,8 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.DELETE
-          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+             true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::options"]
@@ -286,7 +290,8 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.OPTIONS
-          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+             true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::head"]
@@ -298,7 +303,8 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.HEAD
-          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+             true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::patch"]
@@ -310,7 +316,8 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PATCH
-          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+             true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::post_v1"]

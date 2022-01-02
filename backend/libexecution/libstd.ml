@@ -42,7 +42,8 @@ let fns : fn list =
         InProcess
           (function
           | _, [a] ->
-              Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 ~log_derrors:true a)
+              Dval.dstr_of_string_exn
+                (Dval.to_developer_repr_v0 ~log_derrors:true a)
           | args ->
               fail args)
     ; preview_safety = Safe

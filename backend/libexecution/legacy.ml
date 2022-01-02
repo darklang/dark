@@ -4,7 +4,8 @@ open Types.RuntimeT
 
 module PrettyResponseJsonV0 = struct
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
-  let rec unsafe_dval_to_yojson ?(redact = true) (log_derrors : bool) (dv : dval) : Yojson.Safe.t =
+  let rec unsafe_dval_to_yojson
+      ?(redact = true) (log_derrors : bool) (dv : dval) : Yojson.Safe.t =
     let tipe = dv |> Dval.tipe_of |> Dval.unsafe_tipe_to_yojson in
     let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
     let wrap_constructed_type cons values =
@@ -28,21 +29,31 @@ module PrettyResponseJsonV0 = struct
     | DObj o ->
         o
         |> DvalMap.to_list
-        |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson log_derrors ~redact v))
+        |> List.map ~f:(fun (k, v) ->
+               (k, unsafe_dval_to_yojson log_derrors ~redact v))
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete _ ->
         wrap_user_type `Null
     | DCharacter c ->
         wrap_user_str (Unicode_string.Character.to_string c)
     | DError (dval_source, msg) ->
-        if log_derrors
+        ( if log_derrors
         then
-          ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
-          Libcommon.Log.erroR "LegacyPrettyResponseJson.unsafe_dval_to_json has derror" ~data:tlid) ;
+          let tlid =
+            match dval_source with
+            | SourceNone ->
+                ""
+            | SourceId (tlid, _) ->
+                string_of_id tlid
+          in
+          Libcommon.Log.erroR
+            "LegacyPrettyResponseJson.unsafe_dval_to_json has derror"
+            ~data:tlid ) ;
         wrap_user_str msg
     | DResp (h, hdv) ->
         wrap_user_type
-          (`List [dhttp_to_yojson h; unsafe_dval_to_yojson log_derrors ~redact hdv])
+          (`List
+            [dhttp_to_yojson h; unsafe_dval_to_yojson log_derrors ~redact hdv])
     | DDB dbname ->
         wrap_user_str dbname
     | DDate date ->
@@ -64,7 +75,9 @@ module PrettyResponseJsonV0 = struct
     | DResult res ->
       ( match res with
       | ResOk dv ->
-          wrap_constructed_type (`String "Ok") [unsafe_dval_to_yojson log_derrors ~redact dv]
+          wrap_constructed_type
+            (`String "Ok")
+            [unsafe_dval_to_yojson log_derrors ~redact dv]
       | ResError dv ->
           wrap_constructed_type
             (`String "Error")
@@ -100,10 +113,18 @@ module PrettyRequestJsonV0 = struct
     | DDB dbname ->
         dbname
     | DError (dval_source, msg) ->
-        if log_derrors
+        ( if log_derrors
         then
-          (let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
-          Libcommon.Log.erroR "LegacyPrettyResponseJson.as_string has derror" ~data:tlid) ;
+          let tlid =
+            match dval_source with
+            | SourceNone ->
+                ""
+            | SourceId (tlid, _) ->
+                string_of_id tlid
+          in
+          Libcommon.Log.erroR
+            "LegacyPrettyResponseJson.as_string has derror"
+            ~data:tlid ) ;
         msg
     | DUuid uuid ->
         Uuidm.to_string uuid
@@ -146,7 +167,8 @@ module PrettyRequestJsonV0 = struct
   (* A simple representation, showing primitives as their expected literal
    * syntax, and odd types get type info in a readable format. Compund
    * types are listed as their type only *)
-  let to_simple_repr (log_derrors : bool) ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
+  let to_simple_repr
+      (log_derrors : bool) ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
     let wrap value = open_ ^ (dv |> Dval.tipename) ^ ": " ^ value ^ close_ in
     match dv with
     | dv when is_primitive dv ->
@@ -212,7 +234,8 @@ module PrettyRequestJsonV0 = struct
       | DErrorRail dv ->
           "ErrorRail: " ^ to_repr_ indent pp dv
       | _ ->
-          failwith ("printing an unprintable value:" ^ to_simple_repr log_derrors dv)
+          failwith
+            ("printing an unprintable value:" ^ to_simple_repr log_derrors dv)
     in
     to_repr_ 0 pp dv
 end
