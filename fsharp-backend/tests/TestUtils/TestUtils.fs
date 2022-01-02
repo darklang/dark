@@ -780,7 +780,7 @@ let sampleDvals : List<string * Dval> =
              "sample_image_bytes.png"
          )) ]
 
-// FSTODO: deeply nested data
+// TODO: deeply nested data
 
 // Utilties shared among tests
 module Http =
