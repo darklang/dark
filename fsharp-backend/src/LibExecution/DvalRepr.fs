@@ -248,6 +248,9 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
 
   inner 0 dv
 
+// When printing to grand-users (our users' users) using text/plain, print a
+// human-readable format. TODO: this should probably be part of the functions
+// generating the responses. Redacts passwords.
 let toEnduserReadableTextV0 (dval : Dval) : string =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
@@ -302,6 +305,10 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBytes bytes -> ocamlBytesToString bytes
 
   reprfn dval
+
+// For passing to Dark functions that operate on JSON, such as the JWT fns.
+// This turns Option and Result into plain values, or null/error. String-like
+// values are rendered as string. Redacts passwords.
 
 let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
@@ -359,6 +366,10 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
     w.WriteValue(System.Convert.ToBase64String bytes)
 
 
+// When sending json back to the user, or via a HTTP API, attempt to convert
+// everything into reasonable json, in the absence of a schema. This turns
+// Option and Result into plain values, or null/error. String-like values are
+// rendered as string. Redacts passwords.
 let toPrettyMachineJsonStringV1 (dval : Dval) : string =
   writePrettyJson (fun w -> toPrettyMachineJsonV1 w dval)
 
@@ -616,6 +627,10 @@ let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit 
 (* ------------------------- *)
 (* Roundtrippable - for events and traces *)
 (* ------------------------- *)
+
+// This is a format used for roundtripping dvals internally. v0 has bugs due to
+// a legacy of trying to make one function useful for everything. Does not
+// redact.
 let toInternalRoundtrippableV0 (dval : Dval) : string =
   writeJson (fun w -> unsafeDvalToJsonValueV1 w false dval)
 
@@ -655,6 +670,9 @@ let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
   | DErrorRail _ -> true
   | DFnVal _ -> false // not supported
 
+// This is a format used for roundtripping dvals internally. There are some
+// rare cases where it will parse incorrectly without error. Throws on Json
+// bugs.
 let ofInternalRoundtrippableJsonV0 (j : JToken) : Result<Dval, string> =
   (* Switched to v1 cause it was a bug fix *)
   try
@@ -667,9 +685,13 @@ let ofInternalRoundtrippableV0 (str : string) : Dval =
   str |> parseJson |> unsafeDvalOfJsonV1
 
 // -------------------------
-// Queryable - for the DB *)
+// Queryable - for the DB
 // -------------------------
 
+// This is a format used for roundtripping dvals internally, while still being
+// queryable using jsonb in our DB. This reduces some of the v0 bugs, but at
+// the cost of not supporting many typed that we'll want to put in it.  Also
+// roundtrippable. Does not redact.
 let toInternalQueryableV1 (dvalMap : DvalMap) : string =
   writeJson (fun w ->
     w.WriteStartObject()
@@ -707,6 +729,9 @@ let isQueryableDval (dval : Dval) : bool =
   | DIncomplete _ -> false
   | DErrorRail _ -> false
 
+// This is a format used for roundtripping dvals internally, while still being
+// queryable using jsonb in our DB. There are some rare cases where it will
+// parse incorrectly without error. Throws on Json bugs.
 let ofInternalQueryableV1 (str : string) : Dval =
   // The first level _must_ be an object at the moment
   let rec convertTopLevel (json : JToken) : Dval =
@@ -751,6 +776,10 @@ let ofInternalQueryableV1 (str : string) : Dval =
 // -------------------------
 // Other formats
 // -------------------------
+
+// For printing something for the developer to read, as a live-value, error
+// message, etc. This will faithfully represent the code, textually. Redacts
+// passwords. Customers should not come to rely on this format. *)
 let rec toDeveloperReprV0 (dv : Dval) : string =
   let rec toRepr_ (indent : int) (dv : Dval) : string =
     let makeSpaces len = "".PadRight(len, ' ')
@@ -816,6 +845,9 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
   toRepr_ 0 dv
 
 
+// When receiving unknown json from the user, or via a HTTP API, attempt to
+// convert everything into reasonable types, in the absense of a schema.
+// This does type conversion, which it shouldn't and should be avoided for new code.
 let ofUnknownJsonV0 str =
   try
     str |> parseJson |> unsafeDvalOfJsonV0
@@ -823,6 +855,8 @@ let ofUnknownJsonV0 str =
   | _ -> Exception.raiseInternal "Invalid json" [ "json", str ]
 
 
+// When receiving unknown json from the user, or via a HTTP API, attempt to
+// convert everything into reasonable types, in the absense of a schema.
 let ofUnknownJsonV1 str : Result<Dval, string> =
   // FSTODO: there doesn't seem to be a good reason that we use JSON.NET here,
   // might be better to switch to STJ
@@ -852,99 +886,7 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
     Error msg
 
 
-// let rec show dv =
-//   match dv with
-//   | DInt i ->
-//       Dint.to_string i
-//   | DBool true ->
-//       "true"
-//   | DBool false ->
-//       "false"
-//   | DStr s ->
-//       Unicode_string.to_string s
-//   | DFloat f ->
-//       string_of_float f
-//   | DCharacter c ->
-//       Unicode_string.Character.to_string c
-//   | DNull ->
-//       "null"
-//   | DDate d ->
-//       Util.isostring_of_date d
-//   | DUuid uuid ->
-//       Uuidm.to_string uuid
-//   | DDB dbname ->
-//       "<DB: " ^ dbname ^ ">"
-//   | DError (_, msg) ->
-//       "<Error: " ^ msg ^ ">"
-//   | DIncomplete SourceNone ->
-//       "<Incomplete>"
-//   | DIncomplete (SourceId (tlid, id)) ->
-//       Printf.sprintf "<Incomplete[%s,%s]>" (string_of_id tlid) (string_of_id id)
-//   | DBlock _ ->
-//       (* See docs/dblock-serialization.ml *)
-//       "<Block>"
-//   | DPassword _ ->
-//       (* redacting, do not unredact *)
-//       "<Password>"
-//   | DObj o ->
-//       to_nested_string ~reprfn:show dv
-//   | DList l ->
-//       to_nested_string ~reprfn:show dv
-//   | DErrorRail d ->
-//       (* We don't print error here, because the errorrail value will know
-//           * whether it's an error or not. *)
-//       "<ErrorRail: " ^ show d ^ ">"
-//   | DResp (dh, dv) ->
-//       dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
-//   | DResult (Ok d) ->
-//       "Ok " ^ show d
-//   | DResult (Error d) ->
-//       "Error " ^ show d
-//   | DOption (OptJust d) ->
-//       "Just " ^ show d
-//   | DOption OptNothing ->
-//       "Nothing"
-//   | DBytes bytes ->
-//       "<Bytes: length=" ^ string_of_int (RawBytes.length bytes) ^ ">"
-//
-//
-// let parse_literal (str : string) : dval option =
-//   let len = String.length str in
-//   (* Character *)
-//   if len > 2 && str.[0] = '\'' && str.[len - 1] = '\''
-//   then
-//     Some
-//       (DCharacter
-//          (Unicode_string.Character.unsafe_of_string
-//             (String.sub ~pos:1 ~len:(len - 2) str)))
-//     (* String *)
-//   else if len > 1 && str.[0] = '"' && str.[len - 1] = '"'
-//   then
-//     (* It might have \n characters in it (as well as probably other codes like
-//      * \r or some shit that we haven't taken into account), which need to be
-//      * converted manually to appropriate string chars. *)
-//     str
-//     |> String.sub ~pos:1 ~len:(len - 2)
-//     |> Util.string_replace "\\\"" "\""
-//     |> fun s -> Some (dstr_of_string_exn s)
-//   else if str = "null"
-//   then Some DNull
-//   else if str = "true"
-//   then Some (DBool true)
-//   else if str = "false"
-//   then Some (DBool false)
-//   else
-//     try Some (DInt (Dint.of_string_exn str))
-//     with _ ->
-//       ( match float_of_string_opt str with
-//       | Some v ->
-//           Some (DFloat v)
-//       | None ->
-//           None )
-//
-
-
-
+// Converts an object to (string,string) pairs. Raises an exception if not an object
 let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
   match dv with
   | DObj obj ->
