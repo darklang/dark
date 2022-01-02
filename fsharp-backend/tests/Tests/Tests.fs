@@ -37,14 +37,14 @@ let main (args : string array) : int =
       Tests.EventQueue.tests
       Tests.Execution.tests
       Tests.FSharpToExpr.tests
-      Tests.LibExecution.tests.Force()
       Tests.HttpClient.tests
+      Tests.LibExecution.tests.Force()
       Tests.OCamlInterop.tests
       Tests.Prelude.tests
       Tests.ProgramTypes.tests
       Tests.Routing.tests
-      Tests.StdLib.tests
       Tests.SqlCompiler.tests
+      Tests.StdLib.tests
       Tests.Traces.tests
       Tests.TypeChecker.tests
       Tests.Undo.tests
