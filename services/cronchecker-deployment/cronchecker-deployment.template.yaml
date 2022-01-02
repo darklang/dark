@@ -28,9 +28,9 @@ spec:
           # this pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
-            # Observed in practice using 300m and 80Mi when going full-tilt
+            # Observed in practice using 670m and 74Mi when going full-tilt
             requests:
-              memory: "120Mi"
+              memory: "180Mi"
               cpu: "500m"
             limits:
               memory: "400Mi"
