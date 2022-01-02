@@ -11,11 +11,16 @@ open TestUtils.TestUtils
 
 open LibExecution.RuntimeTypes
 
+module Shortcuts = LibExecution.Shortcuts
+
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
+module TFR = LibBackend.TraceFunctionResults
+module RealExecution = LibRealExecution.RealExecution
 
 let testTraceIDsOfTlidsMatch : Test =
   test "traceIDs from tlids are as expected" {
@@ -201,32 +206,53 @@ let testTraceDataJsonFormatRedactsPasswords =
   }
 
 
-// let t_function_traces_are_stored () =
-//   clear_test_data () ;
-//   let fntlid : tlid = id_of_int 12312345234 in
-//   let f = user_fn "test_fn" [] (fn "DB::generateKey" []) in
-//   let f = {f with tlid = fntlid} in
-//   let h = handler (fn "test_fn" []) in
-//   let host = "test" in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let trace_id = Util.create_uuid () in
-//   let _ = execute_ops ~trace_id [fop f; hop h] in
-//   (* get the trace for the execution *)
-//   AT.check
-//     AT.int
-//     "handler should only have fn result for test_fn"
-//     1
-//     (Stored_function_result.load ~canvas_id ~trace_id h.tlid |> List.length) ;
-//   AT.check
-//     AT.int
-//     "functions should only have fn result for DB::generateKey"
-//     1
-//     (Stored_function_result.load ~canvas_id ~trace_id fntlid |> List.length) ;
-//   ()
-//
+let testFunctionTracesAreStored =
+  testTask "function traces are stored" {
+    let! owner = testOwner.Force()
+    let cn = "test-function-traces-are-stored"
+    do! clearCanvasData owner (CanvasName.create cn)
+    let! (meta : Canvas.Meta) = testCanvasInfo owner cn
+    let fnid = 12312345234UL
 
+    let (userFn : RT.UserFunction.T) =
+      { tlid = fnid
+        name = "test_fn"
+        parameters = []
+        returnType = RT.TInt
+        description = ""
+        infix = false
+        body = FSharpToExpr.parseRTExpr "DB.generateKey" }
 
+    let program =
+      { canvasID = meta.id
+        canvasName = meta.name
+        accountID = owner.id
+        dbs = Map.empty
+        userFns = Map.singleton userFn.name userFn
+        userTypes = Map.empty
+        secrets = [] }
+
+    let executionID = LibService.Telemetry.executionID ()
+    let traceID = System.Guid.NewGuid()
+
+    let! (state, _) = RealExecution.createState executionID traceID (gid ()) program
+
+    let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
+
+    let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
+
+    let! testFnResult = TFR.load meta.id traceID state.tlid
+    Expect.equal
+      (List.length testFnResult)
+      1
+      "handler should only have fn result for test_fn"
+
+    let! dbGenerateResult = TFR.load meta.id traceID fnid
+    Expect.equal
+      (List.length dbGenerateResult)
+      1
+      "functions should only have fn result for DB::generateKey"
+  }
 
 
 let tests =
@@ -237,4 +263,5 @@ let tests =
       testRouteVariablesWorkWithStoredEvents
       testRouteVariablesWorkWithTraceInputsAndWildcards
       testStoredEventRoundtrip
-      testTraceDataJsonFormatRedactsPasswords ]
+      testTraceDataJsonFormatRedactsPasswords
+      testFunctionTracesAreStored ]
