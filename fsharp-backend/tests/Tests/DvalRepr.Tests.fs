@@ -339,25 +339,29 @@ module Password =
     testList
       "no auto serialization of passwords"
       [ test "vanilla" {
-          let mutable success = false
+          let password =
+            RT.DPassword(Password(UTF8.toBytes "some password"))
+            |> Json.Vanilla.serialize
+            |> Json.Vanilla.deserialize
 
-          try
-            Json.Vanilla.serialize (RT.DPassword(Password [||])) |> ignore<string>
-          with
-          | e -> success <- true
+          Expect.equal
+            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
+            password
+            "should be redacted"
 
-          Expect.equal success true "success should be true"
         }
         test "ocamlcompatible" {
-          let mutable success = false
+          let password =
+            RT.DPassword(Password(UTF8.toBytes "some password"))
+            |> Json.OCamlCompatible.serialize
+            |> Json.OCamlCompatible.deserialize
 
-          try
-            Json.OCamlCompatible.serialize (RT.DPassword(Password [||]))
-            |> ignore<string>
-          with
-          | e -> success <- true
+          Expect.equal
+            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
+            password
+            "should be redacted"
 
-          Expect.equal success true "success should be true"
+
         } ]
 
 
