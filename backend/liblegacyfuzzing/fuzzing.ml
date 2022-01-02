@@ -92,7 +92,7 @@ let to_pretty_machine_json_v1 (json : string) : string =
     |> Types.RuntimeT.dval_of_yojson
     |> Result.ok_or_failwith
   in
-  Dval.to_pretty_machine_json_v1 dval
+  Dval.to_pretty_machine_json_v1 false dval
 
 
 (* to_pretty_machine_yojson, then Yojson.Safe.to_string *)
@@ -103,7 +103,7 @@ let to_safe_pretty_machine_yojson_v1 (json : string) : string =
     |> Types.RuntimeT.dval_of_yojson
     |> Result.ok_or_failwith
   in
-  Dval.to_pretty_machine_yojson_v1 dval |> Yojson.Safe.to_string
+  Dval.to_pretty_machine_yojson_v1 false dval |> Yojson.Safe.to_string
 
 
 let to_url_string (json : string) : string =

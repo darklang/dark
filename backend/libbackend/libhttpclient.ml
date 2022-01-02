@@ -79,7 +79,7 @@ let encode_request_body (headers : headers) (body : dval option) :
             *
             * TODO: Better feedback for user who explicitly provides a Content-Type expecting magic from us
             * but we don't support it. *)
-            ( Dval.to_pretty_machine_json_v1 dv
+            ( Dval.to_pretty_machine_json_v1 true dv
             , with_default_content_type
                 ~ct:"application/json; charset=utf-8"
                 headers )
@@ -238,7 +238,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.POST
-          Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::put"]
@@ -250,7 +250,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PUT
-          Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::get"]
@@ -262,7 +262,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.GET
-          Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::delete"]
@@ -274,7 +274,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.DELETE
-          Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::options"]
@@ -286,7 +286,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.OPTIONS
-          Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::head"]
@@ -298,7 +298,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.HEAD
-          Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::patch"]
@@ -310,7 +310,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PATCH
-          Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+          (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::post_v1"]
@@ -321,7 +321,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.POST
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::put_v1"]
@@ -332,7 +332,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PUT
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::get_v1"]
@@ -343,7 +343,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.GET
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::delete_v1"]
@@ -357,7 +357,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.DELETE
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::options_v1"]
@@ -368,7 +368,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.OPTIONS
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::head_v1"]
@@ -379,7 +379,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.HEAD
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::patch_v1"]
@@ -390,7 +390,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PATCH
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::post_v2"]
@@ -402,7 +402,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.wrapped_call
           Httpclient.POST
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::put_v2"]
@@ -414,7 +414,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.wrapped_call
           Httpclient.PUT
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::get_v2"]
@@ -426,7 +426,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.GET
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::delete_v2"]
@@ -441,7 +441,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.DELETE
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::options_v2"]
@@ -453,7 +453,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.OPTIONS
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::head_v2"]
@@ -465,7 +465,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.HEAD
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::patch_v2"]
@@ -477,7 +477,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV0.wrapped_call
           Httpclient.PATCH
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::post_v3"]
@@ -489,7 +489,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV1.call
           Httpclient.POST
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::put_v3"]
@@ -501,7 +501,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV1.call
           Httpclient.PUT
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::get_v3"]
@@ -513,7 +513,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.GET
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::delete_v3"]
@@ -528,7 +528,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.DELETE
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::options_v3"]
@@ -540,7 +540,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.OPTIONS
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::head_v3"]
@@ -552,7 +552,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.HEAD
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::patch_v3"]
@@ -564,7 +564,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV1.call
           Httpclient.PATCH
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::post_v4"]
@@ -576,7 +576,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV2.call
           Httpclient.POST
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::put_v4"]
@@ -588,7 +588,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV2.call
           Httpclient.PUT
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::get_v4"]
@@ -600,7 +600,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV2.call_no_body
           Httpclient.GET
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::delete_v4"]
@@ -615,7 +615,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV2.call_no_body
           Httpclient.DELETE
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::options_v4"]
@@ -627,7 +627,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV2.call_no_body
           Httpclient.OPTIONS
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::head_v4"]
@@ -639,7 +639,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV2.call_no_body
           Httpclient.HEAD
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::patch_v4"]
@@ -651,7 +651,7 @@ let fns : fn list =
     ; func =
         Legacy.LibhttpclientV2.call
           Httpclient.PATCH
-          Dval.to_pretty_machine_json_v1
+          (Dval.to_pretty_machine_json_v1 true)
     ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["HttpClient::post_v5"]

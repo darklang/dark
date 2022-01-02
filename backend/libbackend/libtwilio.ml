@@ -71,7 +71,7 @@ let fns : fn list =
               Legacy.LibhttpclientV2.send_request
                 twilio_uri
                 Httpclient.POST
-                Libexecution.Dval.to_pretty_machine_json_v1
+                (Libexecution.Dval.to_pretty_machine_json_v1 true)
                 body
                 (DObj DvalMap.empty)
                 headers
@@ -132,7 +132,7 @@ let fns : fn list =
               Legacy.LibhttpclientV2.send_request
                 twilio_uri
                 Httpclient.POST
-                Libexecution.Dval.to_pretty_machine_json_v1
+                (Libexecution.Dval.to_pretty_machine_json_v1 true)
                 body
                 (DObj DvalMap.empty)
                 headers

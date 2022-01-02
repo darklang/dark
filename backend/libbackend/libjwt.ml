@@ -146,7 +146,7 @@ let fns : fn list =
                 |> Cstruct.of_string
                 |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
               in
-              let payload = Dval.to_pretty_machine_yojson_v1 payload in
+              let payload = Dval.to_pretty_machine_yojson_v1 true payload in
               sign_and_encode ~key ~extra_headers:[] ~payload
               |> Dval.dstr_of_string_exn
           | args ->
@@ -172,10 +172,10 @@ let fns : fn list =
               in
               let json_hdrs =
                 DObj headers
-                |> Dval.to_pretty_machine_yojson_v1
+                |> Dval.to_pretty_machine_yojson_v1 true
                 |> Yojson.Safe.Util.to_assoc
               in
-              let payload = Dval.to_pretty_machine_yojson_v1 payload in
+              let payload = Dval.to_pretty_machine_yojson_v1 true payload in
               sign_and_encode ~key ~extra_headers:json_hdrs ~payload
               |> Dval.dstr_of_string_exn
           | args ->
@@ -199,7 +199,7 @@ let fns : fn list =
                     |> Cstruct.of_string
                     |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
                   in
-                  let payload = Dval.to_pretty_machine_yojson_v1 payload in
+                  let payload = Dval.to_pretty_machine_yojson_v1 true payload in
                   sign_and_encode ~key ~extra_headers:[] ~payload
                   |> Dval.dstr_of_string_exn)
           | args ->
@@ -226,10 +226,10 @@ let fns : fn list =
                   in
                   let json_hdrs =
                     DObj headers
-                    |> Dval.to_pretty_machine_yojson_v1
+                    |> Dval.to_pretty_machine_yojson_v1 true
                     |> Yojson.Safe.Util.to_assoc
                   in
-                  let payload = Dval.to_pretty_machine_yojson_v1 payload in
+                  let payload = Dval.to_pretty_machine_yojson_v1 true payload in
                   sign_and_encode ~key ~extra_headers:json_hdrs ~payload
                   |> Dval.dstr_of_string_exn)
           | args ->

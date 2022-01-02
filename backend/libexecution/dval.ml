@@ -902,7 +902,7 @@ let rec to_developer_repr_v0 ?(log_derrors=false) (dv : dval) : string =
         if log_derrors
         then
           ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
-          Libcommon.Log.erroR "to_enduser_readable_text_v0 has derror" ~data:tlid) ;
+          Libcommon.Log.erroR "to_developer_repor_v0 has derror" ~data:tlid) ;
         wrap msg
     | DDate d ->
         wrap (Util.isostring_of_date d)
@@ -946,7 +946,7 @@ let rec to_developer_repr_v0 ?(log_derrors=false) (dv : dval) : string =
   to_repr_ 0 dv
 
 
-let to_pretty_machine_yojson_v1 dval =
+let to_pretty_machine_yojson_v1 (log_derrors : bool) dval =
   let rec recurse dv =
     match dv with
     (* basic types *)
@@ -974,7 +974,11 @@ let to_pretty_machine_yojson_v1 dval =
         `Null
     | DCharacter c ->
         `String (Unicode_string.Character.to_string c)
-    | DError (_, msg) ->
+    | DError (dval_source, msg) ->
+        if log_derrors
+        then
+          ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
+          Libcommon.Log.erroR "to_pretty_machine_json_v1 has derror" ~data:tlid) ;
         `Assoc [("Error", `String msg)]
     | DResp (h, hdv) ->
         recurse hdv
@@ -1002,8 +1006,8 @@ let to_pretty_machine_yojson_v1 dval =
   recurse dval
 
 
-let to_pretty_machine_json_v1 dval : string =
-  to_pretty_machine_yojson_v1 dval |> Yojson.Safe.pretty_to_string
+let to_pretty_machine_json_v1 (log_derrors : bool) dval : string =
+  to_pretty_machine_yojson_v1 log_derrors dval |> Yojson.Safe.pretty_to_string
 
 
 let of_unknown_json_v0 str =
@@ -1043,7 +1047,7 @@ let of_unknown_json_v1 str =
   str |> Yojson.Safe.from_string |> convert
 
 
-let rec show dv =
+let rec show (log_derrors : bool) dv =
   match dv with
   | DInt i ->
       Dint.to_string i
@@ -1065,7 +1069,11 @@ let rec show dv =
       Uuidm.to_string uuid
   | DDB dbname ->
       "<DB: " ^ dbname ^ ">"
-  | DError (_, msg) ->
+  | DError (dval_source, msg) ->
+        if log_derrors
+        then
+          ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
+          Libcommon.Log.erroR "Dval.show has derror" ~data:tlid) ;
       "<Error: " ^ msg ^ ">"
   | DIncomplete SourceNone ->
       "<Incomplete>"
@@ -1078,21 +1086,21 @@ let rec show dv =
       (* redacting, do not unredact *)
       "<Password>"
   | DObj o ->
-      to_nested_string ~reprfn:show dv
+      to_nested_string ~reprfn:(show log_derrors) dv
   | DList l ->
-      to_nested_string ~reprfn:show dv
+      to_nested_string ~reprfn:(show log_derrors) dv
   | DErrorRail d ->
       (* We don't print error here, because the errorrail value will know
           * whether it's an error or not. *)
-      "<ErrorRail: " ^ show d ^ ">"
+      "<ErrorRail: " ^ show log_derrors d ^ ">"
   | DResp (dh, dv) ->
-      dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
+      dhttp_to_formatted_string dh ^ "\n" ^ show log_derrors dv ^ ""
   | DResult (ResOk d) ->
-      "Ok " ^ show d
+      "Ok " ^ show log_derrors d
   | DResult (ResError d) ->
-      "Error " ^ show d
+      "Error " ^ show log_derrors d
   | DOption (OptJust d) ->
-      "Just " ^ show d
+      "Just " ^ show log_derrors d
   | DOption OptNothing ->
       "Nothing"
   | DBytes bytes ->
@@ -1297,7 +1305,7 @@ let of_form_encoding (f : string) : dval =
  * amenable to change without a migration. Don't change ANYTHING for existing
  * values, but continue to add representations for new values. Also, inline
  * everything! *)
-let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
+let rec to_hashable_repr (log_derrors : bool) ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
     =
   let nl = "\n" ^ String.make indent ' ' in
   let inl = "\n" ^ String.make (indent + 2) ' ' in
@@ -1324,7 +1332,11 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
   | DBlock _ ->
       (* See docs/dblock-serialization.ml *)
       "<block: <block>>"
-  | DError (_, msg) ->
+  | DError (dval_source, msg) ->
+      if log_derrors
+      then
+        ( let tlid = match dval_source with | SourceNone -> "" | SourceId (tlid, _) -> string_of_id tlid in
+        Libcommon.Log.erroR "to_hashable_repr has derror" ~data:tlid) ;
       "<error: " ^ msg ^ ">"
   | DDate d ->
       "<date: " ^ Util.isostring_of_date d ^ ">"
@@ -1347,14 +1359,14 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
             in
             string_of_int c ^ " " ^ string_of_headers hs
       in
-      dhttp_to_formatted_string h ^ nl ^ to_hashable_repr ~indent hdv
+      dhttp_to_formatted_string h ^ nl ^ to_hashable_repr log_derrors ~indent hdv
   | DList l ->
       if List.is_empty l
       then "[]"
       else
         "[ "
         ^ inl
-        ^ String.concat ~sep:", " (List.map ~f:(to_hashable_repr ~indent) l)
+        ^ String.concat ~sep:", " (List.map ~f:(to_hashable_repr log_derrors ~indent) l)
         ^ nl
         ^ "]"
   | DObj o ->
@@ -1363,19 +1375,19 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
       else
         let strs =
           DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-              (key ^ ": " ^ to_hashable_repr ~indent value) :: l)
+              (key ^ ": " ^ to_hashable_repr log_derrors ~indent value) :: l)
         in
         "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
   | DOption OptNothing ->
       "Nothing"
   | DOption (OptJust dv) ->
-      "Just " ^ to_hashable_repr ~indent dv
+      "Just " ^ to_hashable_repr log_derrors ~indent dv
   | DErrorRail dv ->
-      "ErrorRail: " ^ to_hashable_repr ~indent dv
+      "ErrorRail: " ^ to_hashable_repr log_derrors ~indent dv
   | DResult (ResOk dv) ->
-      "ResultOk " ^ to_hashable_repr ~indent dv
+      "ResultOk " ^ to_hashable_repr log_derrors ~indent dv
   | DResult (ResError dv) ->
-      "ResultError " ^ to_hashable_repr ~indent dv
+      "ResultError " ^ to_hashable_repr log_derrors ~indent dv
   | DBytes bytes ->
       if old_bytes
       then bytes |> RawBytes.to_string
@@ -1394,13 +1406,13 @@ let hash (version : int) (arglist : dval list) : string =
   match version with
   | 0 ->
       arglist
-      |> List.map ~f:(to_hashable_repr ~old_bytes:true)
+      |> List.map ~f:(to_hashable_repr true ~old_bytes:true)
       |> String.concat
       |> Util.hash
   | 1 ->
-      DList arglist |> to_hashable_repr |> Util.hash
+      DList arglist |> to_hashable_repr true |> Util.hash
   | _ ->
       Exception.internal ("Invalid Dval.hash version: " ^ string_of_int version)
 
 
-let fuzzing_to_hashable_repr (arg : dval) : string = to_hashable_repr arg
+let fuzzing_to_hashable_repr (arg : dval) : string = to_hashable_repr false arg

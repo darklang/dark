@@ -96,13 +96,13 @@ val tipe_to_developer_repr_v0 : Types.RuntimeT.tipe -> string
 (* For passing to Dark functions that operate on JSON, such as the JWT fns.
  * This turns Option and Result into plain values, or null/error. String-like
  * values are rendered as string. Redacts passwords. *)
-val to_pretty_machine_yojson_v1 : Types.RuntimeT.dval -> Yojson.Safe.t
+val to_pretty_machine_yojson_v1 : bool -> Types.RuntimeT.dval -> Yojson.Safe.t
 
 (* When sending json back to the user, or via a HTTP API, attempt to convert
  * everything into reasonable json, in the absence of a schema. This turns
  * Option and Result into plain values, or null/error. String-like values are
  * rendered as string. Redacts passwords. *)
-val to_pretty_machine_json_v1 : Types.RuntimeT.dval -> string
+val to_pretty_machine_json_v1 : bool -> Types.RuntimeT.dval -> string
 
 (* When receiving unknown json from the user, or via a HTTP API, attempt to
  * convert everything into reasonable types, in the absense of a schema.
@@ -114,7 +114,7 @@ val of_unknown_json_v0 : string -> Types.RuntimeT.dval
 val of_unknown_json_v1 : string -> Types.RuntimeT.dval
 
 (* For debugging internally, redacts passwords. Never throws. *)
-val show : Types.RuntimeT.dval -> string
+val show : bool -> Types.RuntimeT.dval -> string
 
 (* JSON coming in from the user as part of a known API should have a type which
  * can act as a schema to reconstruct the data perfectly. Redacts passwords. *)
