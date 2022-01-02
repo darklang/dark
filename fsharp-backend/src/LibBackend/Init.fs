@@ -6,6 +6,19 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open Microsoft.Extensions.Diagnostics.HealthChecks
+
+// Add a startup probe to check if we can check the tier one canvases
+let legacyServerCheck : LibService.Kubernetes.HealthCheck =
+  { probeTypes = [ LibService.Kubernetes.Startup ]
+    name = "legacyServerCheck"
+    checkFn =
+      fun (_ : System.Threading.CancellationToken) ->
+        task {
+          do! Canvas.checkTierOneHosts ()
+          return HealthCheckResult.Healthy("It's fine")
+        } }
+
 
 let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
   task {
@@ -17,11 +30,6 @@ let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
     )
 
     if runSideEffects then do! Account.init serviceName
-
-    // FSTODO: disabled for now as prevents startup. I _think_ this doesn't work
-    // because the legacyserver isn't ready, but I'm not sure. It's unclear why we're
-    // not seeing logs or exceptions associated with this - it seems to just hang.
-    // do! Canvas.checkTierOneHosts ()
 
     print $" Inited LibBackend in {serviceName}"
   }

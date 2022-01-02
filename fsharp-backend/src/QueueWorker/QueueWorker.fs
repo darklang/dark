@@ -190,6 +190,7 @@ let main _ : int =
     // we need to stop taking things if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "QueueWorker"
+      [ LibBackend.Init.legacyServerCheck ]
       LibService.Config.queueWorkerKubernetesPort
       (fun () ->
         Telemetry.addEvent "shutting down" []

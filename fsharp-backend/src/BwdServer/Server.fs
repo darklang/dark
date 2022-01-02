@@ -441,7 +441,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> LibService.Kubernetes.configureServices
+  |> LibService.Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> LibService.Rollbar.AspNet.addRollbarToServices
   |> LibService.Telemetry.AspNet.addTelemetryToServices
        "BwdServer"
