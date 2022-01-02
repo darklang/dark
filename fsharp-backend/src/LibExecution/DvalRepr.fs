@@ -704,15 +704,15 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
 
     w.WriteEnd())
 
-let isQueryableDval (dval : Dval) : bool =
+let rec isQueryableDval (dval : Dval) : bool =
   match dval with
   | DStr _ -> true
   | DInt _ -> true
   | DNull _ -> true
   | DBool _ -> true
   | DFloat _ -> true
-  | DList _ -> true
-  | DObj _ -> true
+  | DList dvals -> List.all isQueryableDval dvals
+  | DObj map -> map |> Map.values |> List.all isQueryableDval
   | DDate _ -> true
   | DPassword _ -> true
   | DUuid _ -> true

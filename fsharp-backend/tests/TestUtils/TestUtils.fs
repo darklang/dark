@@ -734,12 +734,16 @@ let sampleDvals : List<string * Dval> =
         ("int string3", DStr "0")
         ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
         ("list", DList [ Dval.int 4 ])
+        ("list with derror",
+         DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
         ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
         ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
         ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
         // More Json.NET tests
         ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
         ("obj5", DObj(Map.ofList [ "$type", Dval.int 5 ]))
+        ("obj with error",
+         DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
         ("incomplete", DIncomplete SourceNone)
         ("error", DError(SourceNone, "some error string"))
         ("block",
