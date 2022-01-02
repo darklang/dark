@@ -103,7 +103,7 @@ let insertUser
       // As of the move to auth0, we  no longer store passwords in postgres. We do
       // still use postgres locally, which is why we're not removing the field
       // entirely. Local account creation is done in
-      // upsert_account_exn/upsert_admin_exn, so using Password.invalid here does
+      // upsertAccount/upsertAdmin, so using Password.invalid here does
       // not affect that
       { username = username
         password = Password.invalid
