@@ -69,7 +69,7 @@ HttpClient.get_v5 "file:///etc/passwd" {} {} = Error "Unsupported protocol"
 HttpClient.get_v0 "file://localhost//etc/passwd" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // OCAMLONLY
 HttpClient.get_v5 "file://localhost//etc/passwd" {} {} = Error "Unsupported protocol"
 
-// FSTODO add test for empty content (the None value to http_call)
+// FSTODO add test for empty content (the None value to http_call) in get_v0
 
 [test.http2]
 (let response = HttpClient.get_v5_ster "https://httpbin.org/status/200" {} {} in
