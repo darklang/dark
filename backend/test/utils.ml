@@ -35,13 +35,27 @@ let clear_test_data () : unit =
   test_fn_results := [] ;
   test_fn_arguments := [] ;
   let owner = Account.for_host_exn "test" in
-  let canvas_ids =
+  let results =
     Db.fetch
       ~params:[Uuid owner]
       ~name:"clear_test_data"
-      "SELECT id\n       FROM canvases\n       WHERE account_id = $1"
-    |> List.filter_map ~f:(fun cid -> cid |> List.hd_exn |> Uuidm.of_string)
+      "SELECT id, name\n       FROM canvases\n       WHERE account_id = $1"
+    |> List.map ~f:(fun cols ->
+           match cols with
+           | [cid; name] ->
+               (Uuidm.of_string cid, name)
+           | _ ->
+               failwith "invalid column layout")
+  in
+  let canvas_ids =
+    results
+    |> List.filter_map ~f:Tablecloth.Tuple2.first
     |> List.map ~f:(fun (cid : Uuidm.t) -> Db.Uuid cid)
+  in
+  let names =
+    results
+    |> List.map ~f:Tablecloth.Tuple2.second
+    |> List.map ~f:(fun name -> Db.String name)
   in
   Db.run
     ~params:[List canvas_ids; String Db.array_separator]
@@ -71,6 +85,18 @@ let clear_test_data () : unit =
     ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_function_arguments"
     "DELETE FROM function_arguments WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
+  Db.run
+    ~params:[List canvas_ids; String Db.array_separator]
+    ~name:"clear_secret_test_data"
+    "DELETE FROM secrets where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
+  Db.run
+    ~params:[List canvas_ids; String Db.array_separator]
+    ~name:"clear_scheduling_rules_test_data"
+    "DELETE FROM scheduling_rules where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
+  Db.run
+    ~params:[List names; String Db.array_separator]
+    ~name:"clear_custom_domains_test_data"
+    "DELETE FROM custom_domains where canvas = ANY (string_to_array ($1, $2))" ;
   Db.run
     ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_canvases_test_data"
