@@ -35,13 +35,27 @@ let clear_test_data () : unit =
   test_fn_results := [] ;
   test_fn_arguments := [] ;
   let owner = Account.for_host_exn "test" in
-  let canvas_ids =
+  let results =
     Db.fetch
       ~params:[Uuid owner]
       ~name:"clear_test_data"
-      "SELECT id\n       FROM canvases\n       WHERE account_id = $1"
-    |> List.filter_map ~f:(fun cid -> cid |> List.hd_exn |> Uuidm.of_string)
+      "SELECT id, name\n       FROM canvases\n       WHERE account_id = $1"
+    |> List.map ~f:(fun cols ->
+           match cols with
+           | [cid; name] ->
+               (Uuidm.of_string cid, name)
+           | _ ->
+               failwith "invalid column layout")
+  in
+  let canvas_ids =
+    results
+    |> List.filter_map ~f:Tablecloth.Tuple2.first
     |> List.map ~f:(fun (cid : Uuidm.t) -> Db.Uuid cid)
+  in
+  let names =
+    results
+    |> List.map ~f:Tablecloth.Tuple2.second
+    |> List.map ~f:(fun name -> Db.String name)
   in
   Db.run
     ~params:[List canvas_ids; String Db.array_separator]
@@ -73,6 +87,18 @@ let clear_test_data () : unit =
     "DELETE FROM function_arguments WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
     ~params:[List canvas_ids; String Db.array_separator]
+    ~name:"clear_secret_test_data"
+    "DELETE FROM secrets where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
+  Db.run
+    ~params:[List canvas_ids; String Db.array_separator]
+    ~name:"clear_scheduling_rules_test_data"
+    "DELETE FROM scheduling_rules where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
+  Db.run
+    ~params:[List names; String Db.array_separator]
+    ~name:"clear_custom_domains_test_data"
+    "DELETE FROM custom_domains where canvas = ANY (string_to_array ($1, $2))" ;
+  Db.run
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_canvases_test_data"
     "DELETE FROM canvases where id = ANY (string_to_array ($1, $2)::uuid[])" ;
   ()
@@ -93,7 +119,7 @@ let check_fluid_expr = AT.check at_fluid_expr
 
 let at_dval =
   AT.testable
-    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
+    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show false dv))
     (fun a b ->
       match (a, b) with
       | DIncomplete _, DIncomplete _ ->
@@ -117,7 +143,7 @@ let check_condition msg (v : 'a) ~(f : 'a -> bool) =
 let check_error msg dval expected =
   let at_error =
     AT.testable
-      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
+      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show false dv))
       (fun a b ->
         match (a, b) with
         | DError (_, msg1), DError (_, msg2) ->
@@ -131,7 +157,7 @@ let check_error msg dval expected =
 let check_incomplete msg dval =
   let at_incomplete =
     AT.testable
-      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
+      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show false dv))
       (fun a b ->
         match (a, b) with DIncomplete _, DIncomplete _ -> true | _ -> false)
   in

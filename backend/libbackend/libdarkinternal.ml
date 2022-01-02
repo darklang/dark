@@ -1081,7 +1081,7 @@ that's already taken, returns an error."
                   log
                   |> DvalMap.to_yojson (fun v ->
                          v
-                         |> Dval.to_pretty_machine_json_v1
+                         |> Dval.to_pretty_machine_json_v1 false
                          |> Yojson.Safe.from_string)
                   |> function
                   | `Assoc jsonparams ->

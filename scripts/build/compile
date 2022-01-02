@@ -178,6 +178,7 @@ def backend_build():
 
   exes = [rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml")]
   exes.append("@analysis.js")
+  exes.append("backend/test/test.exe")
   exes = " ".join(exes)
   if optimize:
     compilation_profile = "release"
@@ -584,6 +585,7 @@ def mark(should, f):
   elif ("/backend/test/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
+    should.backend_build = True
     should.backend_test = True
 
   elif ("/backend/" in f) \

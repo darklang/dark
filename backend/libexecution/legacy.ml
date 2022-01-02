@@ -4,7 +4,8 @@ open Types.RuntimeT
 
 module PrettyResponseJsonV0 = struct
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
-  let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
+  let rec unsafe_dval_to_yojson
+      ?(redact = true) (log_derrors : bool) (dv : dval) : Yojson.Safe.t =
     let tipe = dv |> Dval.tipe_of |> Dval.unsafe_tipe_to_yojson in
     let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
     let wrap_constructed_type cons values =
@@ -24,21 +25,35 @@ module PrettyResponseJsonV0 = struct
     | DStr s ->
         Unicode_string.to_yojson s
     | DList l ->
-        `List (List.map l (unsafe_dval_to_yojson ~redact))
+        `List (List.map l (unsafe_dval_to_yojson log_derrors ~redact))
     | DObj o ->
         o
         |> DvalMap.to_list
-        |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
+        |> List.map ~f:(fun (k, v) ->
+               (k, unsafe_dval_to_yojson log_derrors ~redact v))
         |> fun x -> `Assoc x
     | DBlock _ | DIncomplete _ ->
         wrap_user_type `Null
     | DCharacter c ->
         wrap_user_str (Unicode_string.Character.to_string c)
-    | DError (_, msg) ->
+    | DError (dval_source, msg) ->
+        ( if log_derrors
+        then
+          let tlid =
+            match dval_source with
+            | SourceNone ->
+                ""
+            | SourceId (tlid, _) ->
+                string_of_id tlid
+          in
+          Libcommon.Log.erroR
+            "LegacyPrettyResponseJson.unsafe_dval_to_json has derror"
+            ~data:tlid ) ;
         wrap_user_str msg
     | DResp (h, hdv) ->
         wrap_user_type
-          (`List [dhttp_to_yojson h; unsafe_dval_to_yojson ~redact hdv])
+          (`List
+            [dhttp_to_yojson h; unsafe_dval_to_yojson log_derrors ~redact hdv])
     | DDB dbname ->
         wrap_user_str dbname
     | DDate date ->
@@ -54,28 +69,30 @@ module PrettyResponseJsonV0 = struct
       | OptNothing ->
           wrap_user_type `Null
       | OptJust dv ->
-          wrap_user_type (unsafe_dval_to_yojson ~redact dv) )
+          wrap_user_type (unsafe_dval_to_yojson log_derrors ~redact dv) )
     | DErrorRail dv ->
-        wrap_user_type (unsafe_dval_to_yojson ~redact dv)
+        wrap_user_type (unsafe_dval_to_yojson log_derrors ~redact dv)
     | DResult res ->
       ( match res with
       | ResOk dv ->
-          wrap_constructed_type (`String "Ok") [unsafe_dval_to_yojson ~redact dv]
+          wrap_constructed_type
+            (`String "Ok")
+            [unsafe_dval_to_yojson log_derrors ~redact dv]
       | ResError dv ->
           wrap_constructed_type
             (`String "Error")
-            [unsafe_dval_to_yojson ~redact dv] )
+            [unsafe_dval_to_yojson log_derrors ~redact dv] )
     | DBytes bytes ->
         wrap_user_str (RawBytes.to_string bytes)
 
 
-  let to_pretty_response_json_v0 dval =
-    unsafe_dval_to_yojson dval |> Yojson.Safe.pretty_to_string
+  let to_pretty_response_json_v0 (log_derrors : bool) dval =
+    unsafe_dval_to_yojson log_derrors dval |> Yojson.Safe.pretty_to_string
 end
 
 module PrettyRequestJsonV0 = struct
   (* Returns the string within string-ish values, without adornment. *)
-  let as_string (dv : dval) : string =
+  let as_string (log_derrors : bool) (dv : dval) : string =
     match dv with
     | DInt i ->
         Dint.to_string i
@@ -95,7 +112,19 @@ module PrettyRequestJsonV0 = struct
         Util.isostring_of_date d
     | DDB dbname ->
         dbname
-    | DError (_, msg) ->
+    | DError (dval_source, msg) ->
+        ( if log_derrors
+        then
+          let tlid =
+            match dval_source with
+            | SourceNone ->
+                ""
+            | SourceId (tlid, _) ->
+                string_of_id tlid
+          in
+          Libcommon.Log.erroR
+            "LegacyPrettyResponseJson.as_string has derror"
+            ~data:tlid ) ;
         msg
     | DUuid uuid ->
         Uuidm.to_string uuid
@@ -103,14 +132,14 @@ module PrettyRequestJsonV0 = struct
         "<" ^ (dv |> Dval.tipename) ^ ">"
 
 
-  let as_literal (dv : dval) : string =
+  let as_literal (log_derrors : bool) (dv : dval) : string =
     match dv with
     | DStr s ->
         "\"" ^ Unicode_string.to_string s ^ "\""
     | DCharacter c ->
         "'" ^ Unicode_string.Character.to_string c ^ "'"
     | _ ->
-        as_string dv
+        as_string log_derrors dv
 
 
   let is_primitive (dv : dval) : bool =
@@ -138,13 +167,14 @@ module PrettyRequestJsonV0 = struct
   (* A simple representation, showing primitives as their expected literal
    * syntax, and odd types get type info in a readable format. Compund
    * types are listed as their type only *)
-  let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
+  let to_simple_repr
+      (log_derrors : bool) ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
     let wrap value = open_ ^ (dv |> Dval.tipename) ^ ": " ^ value ^ close_ in
     match dv with
     | dv when is_primitive dv ->
-        as_literal dv
+        as_literal log_derrors dv
     | dv when is_stringable dv ->
-        wrap (as_string dv)
+        wrap (as_string log_derrors dv)
     | _ ->
         open_ ^ (dv |> Dval.tipename) ^ close_
 
@@ -165,11 +195,11 @@ module PrettyRequestJsonV0 = struct
 
   (* A full representation, building on to_simple_repr, but including
  * lists and objects. *)
-  let rec to_pretty_request_json_v0 (dv : dval) : string =
+  let rec to_pretty_request_json_v0 (log_derrors : bool) (dv : dval) : string =
     let pp = true in
     let open_ = "<" in
     let close_ = ">" in
-    let reprfn = to_simple_repr ~open_ ~close_ in
+    let reprfn = to_simple_repr log_derrors ~open_ ~close_ in
     let rec to_repr_ (indent : int) (pp : bool) (dv : dval) : string =
       let nl = if pp then "\n" ^ String.make indent ' ' else " " in
       let inl = if pp then "\n" ^ String.make (indent + 2) ' ' else "" in
@@ -204,7 +234,8 @@ module PrettyRequestJsonV0 = struct
       | DErrorRail dv ->
           "ErrorRail: " ^ to_repr_ indent pp dv
       | _ ->
-          failwith ("printing an unprintable value:" ^ to_simple_repr dv)
+          failwith
+            ("printing an unprintable value:" ^ to_simple_repr log_derrors dv)
     in
     to_repr_ 0 pp dv
 end

@@ -421,16 +421,16 @@ let result_to_response
             ( match content_type_prefix with
             (* TODO: only pretty print for a webbrowser *)
             | Some "text/plain" | Some "application/xml" ->
-                Dval.to_enduser_readable_text_v0 value
+                Dval.to_enduser_readable_text_v0 true value
             | Some "text/html" ->
-                Dval.to_enduser_readable_html_v0 value
+                Dval.to_enduser_readable_html_v0 true value
             | Some "application/json" | _ ->
-                Dval.to_pretty_machine_json_v1 value )
+                Dval.to_pretty_machine_json_v1 true value )
       in
       let status = Cohttp.Code.status_of_code code in
       Respond {resp_headers; execution_id; status; body}
   | _ ->
-      let body = Dval.to_pretty_machine_json_v1 result in
+      let body = Dval.to_pretty_machine_json_v1 true result in
       (* for demonstrations sake, let's return 200 Okay when
      * no HTTP response object is returned *)
       let resp_headers =
