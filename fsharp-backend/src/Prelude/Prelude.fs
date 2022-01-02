@@ -886,7 +886,8 @@ module Json =
       inherit JsonConverter<Password>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        Exception.raiseInternal "unsupported deserialization of password" []
+        let rawToken = string reader.Value |> UTF8.toBytes
+        Password rawToken
 
       override _.WriteJson
         (
@@ -894,7 +895,7 @@ module Json =
           value : Password,
           _ : JsonSerializer
         ) : unit =
-        Exception.raiseInternal "unsupported serialization of password" []
+        writer.WriteValue("Redacted")
 
 
     // We don't use this at the moment
