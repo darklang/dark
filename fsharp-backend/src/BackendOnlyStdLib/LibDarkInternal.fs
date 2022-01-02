@@ -156,7 +156,8 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = DeprecatedBecause "old internal" }
+      // CLEANUP should be marked deprecated
+      deprecated = NotDeprecated }
     { name = fn "DarkInternal" "migrateCanvas" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TResult(varA, TStr)
@@ -171,7 +172,8 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = DeprecatedBecause "old internal" }
+      deprecated = NotDeprecated }
+    // deprecated = DeprecatedBecause "old internal" } CLEANUP
     { name = fn "DarkInternal" "upsertUser" 0
       parameters =
         [ Param.make "username" TStr ""
@@ -274,7 +276,7 @@ that's already taken, returns an error."
         [ Param.make "username" TStr ""
           Param.make "email" TStr ""
           Param.make "name" TStr "" ]
-      returnType = varA
+      returnType = TResult(varA, TStr)
       description =
         "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
       fn =
@@ -402,7 +404,8 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "getAllCanvases" 0
       parameters = []
       returnType = TList TStr
-      description = "Get a list of all canvas names"
+      description = "TODO"
+      // CLEANUP description = "Get a list of all canvas names"
       fn =
         internalFn (fun _ ->
           uply {
@@ -432,7 +435,8 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "schema" 0
       parameters = [ Param.make "host" TStr ""; Param.make "dbid" TStr "" ]
-      returnType = varA
+      returnType = TDict TStr
+      // returnType = varA CLEANUP
       description = "Return a schema for the db"
       fn =
         internalFn (function
@@ -598,7 +602,8 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "oplistInfo" 0
       parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
-      returnType = varA
+      returnType = TDict TStr
+      // returnType = varA // CLEANUP
       description =
         "Returns the information from the toplevel_oplists table for the (host, tlid)"
       fn =
@@ -621,7 +626,8 @@ that's already taken, returns an error."
       parameters =
         [ Param.make "canvas_id" TStr ""
           Param.make "event" TStr ""
-          Param.make "payload" varA "" ]
+          Param.make "payload" (TDict TStr) "" ]
+      // Param.make "payload" varA "" ] // CLEANUP
       returnType = TResult(varA, TStr)
       description = "Pushes an event to Stroller"
       fn = internalFn (fun _ -> Ply DNull)
@@ -755,7 +761,8 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "grantsFor" 0
       parameters = [ Param.make "org" TStr "" ]
-      returnType = varA
+      returnType = TDict(varA)
+      // CLEANUP returnType = varA
       description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
       fn =
@@ -776,7 +783,8 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "orgsFor" 0
       parameters = [ Param.make "username" TStr "" ]
-      returnType = varA
+      returnType = TDict TStr
+      // returnType = varA // CLEANUP
       description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
       fn =
@@ -796,7 +804,8 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "checkPermission" 0
       parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
-      returnType = TStr
+      // CLEANUP: should be TStr
+      returnType = TBool
       description = "Check a user's permissions for a particular canvas."
       fn =
         internalFn (function
@@ -815,9 +824,12 @@ that's already taken, returns an error."
       parameters =
         [ Param.make "level" TStr ""
           Param.make "name" TStr ""
-          Param.make "log" varA "" ]
-      returnType = varA
-      description = "Write the log object to a honeycomb log."
+          Param.make "log" (TDict TStr) "" ]
+      returnType = TDict(TStr)
+      // returnType = varA
+      description =
+        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
+      // description = "Write the log object to a honeycomb log." CLEANUP
       fn =
         internalFn (function
           | _, [ DStr level; DStr name; DObj log as result ] ->
@@ -933,7 +945,8 @@ that's already taken, returns an error."
       parameters = [ Param.make "canvas_id" TUuid "" ]
       returnType = TList varA
       description =
-        "Returns a list of all queue scheduling rules for the specified canvasID"
+        "Returns a list of all queue scheduling rules for the specified canvas_id"
+      // CLEANUP "Returns a list of all queue scheduling rules for the specified canvasID"
       fn =
         internalFn (function
           | _, [ DUuid canvasID ] ->
@@ -1050,7 +1063,8 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
     { name = fn "DarkInternal" "getAndLogTableSizes" 0
       parameters = []
-      returnType = varA
+      returnType = TDict(varA)
+      // returnType = varA CLEANUP
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
