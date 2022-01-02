@@ -223,14 +223,24 @@ let allRoundtrips =
       t "developerRepr" F.DeveloperRepr.equalsOCaml all
       t "prettyMachineJson" F.PrettyMachineJson.equalsOCaml all ]
 
-// FSTODO
-// let testDateMigrationHasCorrectFormats () =
-//   let str = "2019-03-08T08:26:14Z" in
-//   let date = RT.DDate(System.DateTime.ofIsoString str) in
-//   let oldFormat = $"{{ \"type\": \"date\", \"value\": \"{str}\"}}"
-//   Expect.equal (Legacy.toPrettyMachineJsonStringV0 date) oldFormat "old version"
-//   Expect.equal (DvalRepr.toPrettyMachineJsonStringV1 date) $"\"{str}\"" "new version"
-//
+module Date =
+  let testDateMigrationHasCorrectFormats =
+    test "date migration has correct formats" {
+      let str = "2019-03-08T08:26:14Z" in
+      let date = RT.DDate(System.DateTime.ofIsoString str) in
+      let oldFormat = $"{{ \"type\": \"date\", \"value\": \"{str}\"}}"
+      // FSTODO
+      // Expect.equal (Legacy.toPrettyMachineJsonStringV0 date) oldFormat "old version"
+      Expect.equal
+        (DvalRepr.toPrettyMachineJsonStringV1 date)
+        $"\"{str}\""
+        "new version"
+    }
+
+  let tests = testList "date" [ testDateMigrationHasCorrectFormats ]
+
+
+
 
 module Password =
   let testJsonRoundtripForwards =
@@ -399,5 +409,6 @@ let tests =
       testToEnduserReadable
       ToHashableRepr.tests
       Password.tests
+      Date.tests
       LibJwt.testJsonSameOnBoth
       allRoundtrips ]
