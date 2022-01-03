@@ -134,6 +134,14 @@ let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit
     return ()
   }
 
+let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
+  task {
+    let name = $"test-{name}"
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create name)
+    return! testCanvasInfo owner name
+  }
+
 let testHttpRouteHandler
   (route : string)
   (method : string)
@@ -172,18 +180,24 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 let testUserFn
   (name : string)
   (parameters : string list)
-  (body : RT.Expr)
-  : RT.UserFunction.T =
+  (body : PT.Expr)
+  : PT.UserFunction.T =
   { tlid = gid ()
     body = body
     description = ""
     infix = false
     name = name
-    returnType = RT.TVariable "a"
+    nameID = gid ()
+    returnType = PT.TVariable "a"
+    returnTypeID = gid ()
     parameters =
       List.map
         (fun (p : string) ->
-          { name = p; typ = RT.TVariable "b"; description = "test" })
+          { name = p
+            nameID = gid ()
+            typ = Some(PT.TVariable "b")
+            typeID = gid ()
+            description = "test" })
         parameters }
 
 let testUserType
