@@ -10,91 +10,68 @@ open Tablecloth
 open TestUtils.TestUtils
 
 module Canvas = LibBackend.Canvas
+module Serialize = LibBackend.Serialize
 module PT = LibExecution.ProgramTypes
 module S = PT.Shortcuts
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
-// FSTODO
-// let testDBOplistRoundtrip : Test =
-//   testTask "db oplist roundtrip" {
-//     let host = "test-db_oplist_roundtrip"
-//     do! clearCanvasData (CanvasName.create host)
-//     let tlid = gid ()
-//     let! meta = testCanvasInfo host
-//     let oplist = [ PT.UndoTL tlid; PT.RedoTL tlid; PT.UndoTL tlid; PT.RedoTL tlid ]
-//
-//
-//     Serialize.save_toplevel_oplist oplist None tlid None None canvas_id account_id : owner TL.TLHandler None None None
-//     let ops = Serialize.load_all_from_db canvas_id host ()
-//     Expect.equal ops [ (tlid, oplist) ] "db oplist roundtrip"
-//   }
-//
-//
-// let t_http_oplist_roundtrip () =
-//   clear_test_data () ;
-//   let host = "test-http_oplist_roundtrip" in
-//   let handler = http_route_handler () in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let oplist = [SetHandler (tlid, pos, handler)] in
-//   let c1 = ops2c_exn host oplist in
-//   Canvas.serialize_only [tlid] !c1 ;
-//   let c2 =
-//     Canvas.load_http_from_cache
-//       ~canvas_id
-//       ~owner
-//       ~path:http_request_path
-//       ~verb:"GET"
-//       host
-//     |> Result.map_error ~f:(String.concat ~sep:", ")
-//     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-//   in
-//   (* Can tell it was loaded from the cache, as the canvas object has no
-//    * oplists *)
-//   AT.check AT.bool "handler is loaded from cache #1" true (!c2.ops = []) ;
-//   AT.check
-//     testable_handler
-//     "handler is loaded correctly from cache #1"
-//     handler
-//     ( !c2.handlers
-//     |> IDMap.data
-//     |> List.hd_exn
-//     |> Toplevel.as_handler
-//     |> Option.value_exn )
-//
-//
-// let t_http_oplist_loads_user_tipes () =
-//   clear_test_data () ;
-//   let host = "test-http_oplist_loads_user_tipes" in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let tipe = user_record "test-tipe" [] in
-//   let oplist = [SetHandler (tlid, pos, http_route_handler ()); SetType tipe] in
-//   let c1 = ops2c_exn host oplist in
-//   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
-//   let c2 =
-//     Canvas.load_http_from_cache
-//       ~canvas_id
-//       ~owner
-//       ~path:http_request_path
-//       ~verb:"GET"
-//       host
-//     |> Result.map_error ~f:(String.concat ~sep:", ")
-//     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-//   in
-//   AT.check
-//     AT.bool
-//     "handlers and types are loaded from cache #2"
-//     true
-//     (!c2.ops = []) ;
-//   AT.check
-//     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
-//     "user tipes"
-//     [tipe]
-//     (IDMap.data !c2.user_tipes)
-//
-//
+let testDBOplistRoundtrip : Test =
+  testTask "db oplist roundtrip" {
+    let name = "test-db_oplist_roundtrip"
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create name)
+    let! meta = testCanvasInfo owner name
+    let db = testDB "myDB" []
+    let oplist =
+      [ PT.UndoTL db.tlid; PT.RedoTL db.tlid; PT.UndoTL db.tlid; PT.RedoTL db.tlid ]
+
+    do! Canvas.saveTLIDs meta [ (db.tlid, oplist, PT.TLDB db, Canvas.NotDeleted) ]
+    let! ops = Canvas.loadOplists Canvas.LiveToplevels meta.id [ db.tlid ]
+    Expect.equal ops [ (db.tlid, oplist) ] "db oplist roundtrip"
+  }
+
+
+let testHttpOplistRoundtrip =
+  testTask "test http oplist roundtrip" {
+    let name = "test-http_oplist_roundtrip"
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create name)
+    let! meta = testCanvasInfo owner name
+
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let oplist = [ hop handler ]
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid, oplist, PT.TLHandler handler, Canvas.NotDeleted) ]
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+    Expect.equal (c2.handlers[handler.tlid]) handler "Handlers should be equal"
+  }
+
+
+let testHttpOplistLoadsUserTypes =
+  testTask "httpOplistLoadsUserTypes" {
+    let name = "test-http_oplist_loads_user_tipes"
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create name)
+    let! meta = testCanvasInfo owner name
+
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let typ = testUserType "test-tipe" [ ("age", PT.TInt) ]
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid, [ hop handler ], PT.TLHandler handler, Canvas.NotDeleted)
+          (typ.tlid, [ PT.SetType typ ], PT.TLType typ, Canvas.NotDeleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+    Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
+  }
+
+
 // let t_http_load_ignores_deleted_fns () =
 //   clear_test_data () ;
 //   let host = "test-http_load_ignores_deleted_fns_and_dbs" in
@@ -427,4 +404,7 @@ let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 //     , t_canvas_verification_duplicate_creation_off_disk )
 //   ; ("Check canvas_clone", `Quick, t_canvas_clone) ]
 
-let tests = testList "canvas" []
+let tests =
+  testList
+    "canvas"
+    [ testHttpOplistRoundtrip; testDBOplistRoundtrip; testHttpOplistLoadsUserTypes ]

@@ -73,7 +73,6 @@ let isLatestOpRequest
 let loadOnlyRenderedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
-  ()
   : Task<List<PT.Toplevel>> =
   // We specifically only load where `deleted` IS FALSE (even though the column
   // is nullable). This means we will not load undeleted handlers from the

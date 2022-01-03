@@ -428,7 +428,7 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
       // CLEANUP: rename "rendered" and "cached" to be consistent
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
+      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids
 
       let fastLoadedTLIDs =
         List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs

@@ -186,7 +186,36 @@ let testUserFn
           { name = p; typ = RT.TVariable "b"; description = "test" })
         parameters }
 
+let testUserType
+  (name : string)
+  (definition : List<string * PT.DType>)
+  : PT.UserType.T =
+  { tlid = gid ()
+    name = name
+    nameID = gid ()
+    version = 0
+    definition =
+      definition
+      |> List.map (fun (name, typ) ->
+        ({ name = name; typ = Some typ; typeID = gid (); nameID = gid () } : PT.UserType.RecordField))
+      |> PT.UserType.Record }
+
+
+
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+
+let testDBCol (name : string) (typ : Option<PT.DType>) : PT.DB.Col =
+  { name = name; typ = typ; nameID = gid (); typeID = gid () }
+
+let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
+  { tlid = gid ()
+    pos = { x = 0; y = 0 }
+    nameID = gid ()
+    name = name
+    cols = cols
+    version = 0 }
+
+
 
 let libraries : Lazy<RT.Libraries> =
   lazy
