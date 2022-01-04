@@ -153,7 +153,24 @@ let testRecursionInEditor : Test =
     let callerID = gid ()
     let skippedCallerID = gid ()
 
-    let fnExpr = FSharpToExpr.parsePTExpr "if i < 1 0 else recurse i 2"
+    let fnExpr =
+      (PT.EIf(
+        gid (),
+        (PT.EFnCall(
+          gid (),
+          FQFnName.stdlibFqName "" "<" 0,
+          [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
+          PT.NoRail
+        )),
+        (PT.EInteger(gid (), 0)),
+        // infinite recursion
+        (PT.EFnCall(
+          skippedCallerID,
+          FQFnName.userFqName "recurse",
+          [ PT.EInteger(gid (), 2) ],
+          PT.NoRail
+        ))
+      ))
     let recurse =
       testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
