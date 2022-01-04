@@ -142,6 +142,8 @@ let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
     return! testCanvasInfo owner name
   }
 
+let testPos = { x = 0; y = 0 }
+
 let testHttpRouteHandler
   (route : string)
   (method : string)

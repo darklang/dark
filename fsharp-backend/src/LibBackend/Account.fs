@@ -133,6 +133,7 @@ let insertUser
                                )) ]
           |> Sql.executeStatementAsync
         let! exists =
+          // CLEANUP: if this was added with a different email/name/etc this won't pick it up
           Sql.query
             "SELECT 1 from ACCOUNTS
               WHERE username = @username

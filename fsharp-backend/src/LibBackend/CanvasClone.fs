@@ -113,7 +113,6 @@ let updateHostsInOp
 //   - if there are string literals referring to the old canvas' url, rewrite them to
 //     refer to the new one (see updateHostsInOp)
 //   - runs in a DB transaction, so this should be all-or-nothing
-// FSTODO tests
 let cloneCanvas
   (fromCanvasName : CanvasName.T)
   (toCanvasName : CanvasName.T)
