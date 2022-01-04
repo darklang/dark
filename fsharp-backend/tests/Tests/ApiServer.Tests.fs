@@ -398,6 +398,9 @@ let testTriggerHandler =
       |> Convert.ocamlToplevel2PT
       |> Tuple2.first
       |> List.filterMap (fun h ->
+        // This test won't succeed unless you manually go to
+        // http://darklang.localhost:9000/a/test and add a POST http handler with the
+        // path below
         match h.spec with
         | PT.Handler.HTTP ("/a-test-handler/:user", "POST", _) -> Some h.tlid
         | _ -> None)
