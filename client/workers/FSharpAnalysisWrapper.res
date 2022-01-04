@@ -21,5 +21,12 @@ let stringifyInput = (event: event): response =>
     }
   }
 
-let decodeOutput = str =>
-  Decode.result(Decoders.analysisEnvelope, Decode.string, Json.parseOrRaise(str))
+let decodeOutput = str => {
+  let result = Decode.result(Decoders.analysisEnvelope, Decode.string, Json.parseOrRaise(str))
+  switch result {
+  | Belt.Result.Ok(msg) => Belt.Result.Ok(msg)
+  | Belt.Result.Error(msg) =>
+    Unshared.Rollbar.send(msg, None, Js.Json.null)
+    Belt.Result.Error(Types.AnalysisParseError(msg))
+  }
+}
