@@ -21,8 +21,6 @@ Content-Length: LENGTH
 
 {
   "x": {
-    "Error":
-      "{\n  \"short\": \"/ was called with the wrong type to parameter: a\",\n  \"long\": \"\",\n  \"tipe\": \"code\",\n  \"actual\": \"1\",\n  \"actual_tipe\": \"Int\",\n  \"expected\": \"Float\",\n  \"result\": \"<Incomplete>\",\n  \"result_tipe\": \"Incomplete\",\n  \"info\": {},\n  \"workarounds\": []\n}" // OCAMLONLY
-      "/ was called with a Int (1), but `a` expected a Float." // FSHARPONLY
+    "Error": null
   }
 }
