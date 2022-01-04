@@ -80,7 +80,7 @@ module Legacy =
     | DFnVal _ -> Null
     | DIncomplete _ -> Null
     | DChar c -> String c
-    | DError (_, msg) -> Assoc [ "Error", String msg ]
+    | DError _ -> Assoc [ "Error", Null ]
     | DHttpResponse (Redirect _) -> Null
     | DHttpResponse (Response (_, _, hdv)) -> toYojson hdv
     | DDB name -> String name

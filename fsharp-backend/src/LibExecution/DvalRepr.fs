@@ -273,9 +273,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DDate d -> d.toIsoString ()
     | DUuid uuid -> string uuid
     | DDB dbname -> $"<DB: {dbname}>"
-    | DError (_, msg) ->
-      // FSTODO make this a string again
-      $"Error: {msg}"
+    | DError _ -> "Error"
     | DIncomplete _ -> "<Incomplete>"
     | DFnVal _ ->
       // See docs/dblock-serialization.ml
@@ -336,10 +334,10 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
     w.WriteNull()
   | DIncomplete _ -> w.WriteNull()
   | DChar c -> w.WriteValue c
-  | DError (_, msg) ->
+  | DError _ ->
     w.writeObject (fun () ->
       w.WritePropertyName "Error"
-      w.WriteValue msg)
+      w.WriteNull())
   | DHttpResponse (Redirect _) -> writeDval DNull
   | DHttpResponse (Response (_, _, response)) -> writeDval response
   | DDB dbName -> w.WriteValue dbName
@@ -556,7 +554,9 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
     wrapNullValue "block"
   | DIncomplete _ -> wrapNullValue "incomplete"
   | DChar c -> wrapStringValue "character" c
-  | DError (_, msg) -> wrapStringValue "error" msg
+  | DError (_, msg) ->
+    // Only used internally, so this is safe to save here
+    wrapStringValue "error" msg
   | DHttpResponse (h) ->
     w.writeObject (fun () ->
       w.WritePropertyName "type"
@@ -803,7 +803,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
       (* See docs/dblock-serialization.ml *)
       justtipe
     | DIncomplete _ -> justtipe
-    | DError (_, msg) -> wrap msg
+    | DError _ -> "<error>"
     | DDate d -> wrap (d.toIsoString ())
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
@@ -927,7 +927,7 @@ let rec toUrlString (dv : Dval) : string =
   | DDate d -> d.toIsoString ()
   | DDB dbname -> dbname
   | DErrorRail d -> r d
-  | DError (_, msg : string) -> $"error={msg}"
+  | DError _ -> "error="
   | DUuid uuid -> string uuid
   | DHttpResponse (Redirect _) -> "null"
   | DHttpResponse (Response (_, _, hdv)) -> r hdv
@@ -1043,7 +1043,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
   | DFnVal _ ->
     (* See docs/dblock-serialization.ml *)
     "<block: <block>>" |> UTF8.toBytes
-  | DError (_, msg) -> "<error: " + msg + ">" |> UTF8.toBytes
+  | DError _ -> "<error>" |> UTF8.toBytes
   | DDate d -> "<date: " + d.toIsoString () + ">" |> UTF8.toBytes
   | DPassword _ -> "<password: <password>>" |> UTF8.toBytes
   | DUuid id -> "<uuid: " + string id + ">" |> UTF8.toBytes

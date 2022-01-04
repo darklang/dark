@@ -895,7 +895,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     | DIncomplete _ ->
         justtipe
     | DError _ ->
-        "error"
+        "<error>"
     | DDate d ->
         wrap (Util.isostring_of_date d)
     | DDB name ->

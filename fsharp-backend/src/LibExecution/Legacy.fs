@@ -75,7 +75,7 @@ module PrettyResponseJsonV0 =
       wrapNullValue "block"
     | DIncomplete _ -> wrapNullValue "incomplete"
     | DChar c -> wrapStringValue "character" c
-    | DError (_, msg) -> wrapStringValue "error" msg
+    | DError _ -> wrapStringValue "error" "error"
     | DHttpResponse (h) ->
       w.writeObject (fun () ->
         w.WritePropertyName "type"
