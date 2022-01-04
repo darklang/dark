@@ -199,7 +199,11 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
 let _ = check_exception
 
 let check_error_contains (name : string) (result : dval) (substring : string) =
-  let strresult = Dval.to_developer_repr_v0 result in
+  let strresult =
+    match result with
+    | DError (_, msg) -> "<error: " ^ msg ^ ">"
+    | _ -> Dval.to_developer_repr_v0 result
+  in
   (let open AT in
   check bool)
     (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")
