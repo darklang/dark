@@ -7,163 +7,72 @@
     {
       "tlid": 123,
       "ast": [
-        "Filled",
+        "EBinOp",
         957208143,
+        "+",
         [
-          "FnCall",
-          "+",
+          "EFnCall",
+          447276656,
+          "List::length",
           [
             [
-              "Filled",
-              447276656,
+              "EList",
+              1907530403,
               [
-                "FnCall",
-                "List::length",
-                [
-                  [
-                    "Filled",
-                    1907530403,
-                    [
-                      "ListLiteral",
-                      [
-                        [ "Filled", 1462360695, [ "Value", "12.456" ] ],
-                        [ "Filled", 2132459954, [ "Value", "23232.234" ] ]
-                      ]
-                    ]
-                  ]
-                ]
+                [ "EFloat", 1462360695, "12", "456" ],
+                [ "EFloat", 2132459954, "23232", "234" ]
               ]
-            ],
+            ]
+          ],
+          [ "NoRail" ]
+        ],
+        [
+          "EMatch",
+          567,
+          [ "EVariable", 921684603, "request" ],
+          [
             [
-              "Filled",
-              567,
+              [ "FPVariable", 567, 561158598, "r" ],
               [
-                "Match",
-                [ "Filled", 921684603, [ "Variable", "request" ] ],
+                "EPipe",
+                1039591764,
                 [
+                  [ "EVariable", 460534287, "r" ],
                   [
-                    [ "Filled", 561158598, [ "PVariable", "r" ] ],
+                    "ELambda",
+                    1991059242,
+                    [ [ 857347370, "v" ] ],
                     [
-                      "Filled",
-                      1039591764,
+                      "ERecord",
+                      1706915391,
                       [
-                        "Thread",
+                        [ "key1", [ "EVariable", 1020704968, "v" ] ],
                         [
-                          [ "Filled", 460534287, [ "Variable", "r" ] ],
+                          "key2",
+                          [ "EString", 1228171156, "this is a string" ]
+                        ],
+                        [ "key3", [ "EInteger", 1046265739, "12345" ] ],
+                        [ "key4", [ "EBool", 1675515498, true ] ],
+                        [ "key5", [ "ENull", 839061249 ] ],
+                        [
+                          "key6",
                           [
-                            "Filled",
-                            1991059242,
+                            "ELet",
+                            1614377598,
+                            "newV",
                             [
-                              "Lambda",
-                              [ [ "Filled", 857347370, "v" ] ],
+                              "EIf",
+                              1835902305,
+                              [ "EBool", 1159705127, true ],
                               [
-                                "Filled",
-                                1706915391,
-                                [
-                                  "ObjectLiteral",
-                                  [
-                                    [
-                                      [ "Filled", 1026874070, "key1" ],
-                                      [
-                                        "Filled",
-                                        1020704968,
-                                        [ "Variable", "v" ]
-                                      ]
-                                    ],
-                                    [
-                                      [ "Filled", 1063708540, "key2" ],
-                                      [
-                                        "Filled",
-                                        1228171156,
-                                        [ "Value", "\"this is a string\"" ]
-                                      ]
-                                    ],
-                                    [
-                                      [ "Filled", 827686797, "key3" ],
-                                      [
-                                        "Filled",
-                                        1046265739,
-                                        [ "Value", "12345" ]
-                                      ]
-                                    ],
-                                    [
-                                      [ "Filled", 1746275789, "key4" ],
-                                      [
-                                        "Filled",
-                                        1675515498,
-                                        [ "Value", "true" ]
-                                      ]
-                                    ],
-                                    [
-                                      [ "Filled", 1355155381, "key5" ],
-                                      [
-                                        "Filled",
-                                        839061249,
-                                        [ "Value", "null" ]
-                                      ]
-                                    ],
-                                    [
-                                      [ "Filled", 1834823710, "key6" ],
-                                      [
-                                        "Filled",
-                                        1614377598,
-                                        [
-                                          "Let",
-                                          [ "Filled", 1014272865, "newV" ],
-                                          [
-                                            "Filled",
-                                            1835902305,
-                                            [
-                                              "If",
-                                              [
-                                                "Filled",
-                                                1159705127,
-                                                [ "Value", "true" ]
-                                              ],
-                                              [
-                                                "Filled",
-                                                251374412,
-                                                [
-                                                  "Constructor",
-                                                  [
-                                                    "Filled", 1794058305,
-                                                    "Just"
-                                                  ],
-                                                  [
-                                                    [
-                                                      "Filled",
-                                                      1876512534,
-                                                      [ "Variable", "v" ]
-                                                    ]
-                                                  ]
-                                                ]
-                                              ],
-                                              [
-                                                "Filled",
-                                                1487688634,
-                                                [
-                                                  "Constructor",
-                                                  [
-                                                    "Filled", 1059398928,
-                                                    "Nothing"
-                                                  ],
-                                                  []
-                                                ]
-                                              ]
-                                            ]
-                                          ],
-                                          [
-                                            "Filled",
-                                            644590979,
-                                            [ "Variable", "newV" ]
-                                          ]
-                                        ]
-                                      ]
-                                    ]
-                                  ]
-                                ]
-                              ]
-                            ]
+                                "EConstructor",
+                                251374412,
+                                "Just",
+                                [ [ "EVariable", 1876512534, "v" ] ]
+                              ],
+                              [ "EConstructor", 1487688634, "Nothing", [] ]
+                            ],
+                            [ "EVariable", 644590979, "newV" ]
                           ]
                         ]
                       ]
@@ -173,7 +82,8 @@
               ]
             ]
           ]
-        ]
+        ],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Filled", 879313153, "HTTP" ],

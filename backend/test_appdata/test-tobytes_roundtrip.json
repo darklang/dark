@@ -7,14 +7,23 @@
     {
       "tlid": 1115444997,
       "ast": [
-        "Filled",
+        "EPipe",
         231178914,
         [
-          "Thread",
+          [ "EString", 578809795, "foo" ],
           [
-            [ "Filled", 578809795, [ "Value", "\"foo\"" ] ],
-            [ "Filled", 1295562043, [ "FnCall", "String::toBytes", [] ] ],
-            [ "Filled", 2118602247, [ "FnCall", "toString", [] ] ]
+            "EFnCall",
+            1295562043,
+            "String::toBytes",
+            [ [ "EPipeTarget", 414983895 ] ],
+            [ "NoRail" ]
+          ],
+          [
+            "EFnCall",
+            2118602247,
+            "toString",
+            [ [ "EPipeTarget", 563747582 ] ],
+            [ "NoRail" ]
           ]
         ]
       ],

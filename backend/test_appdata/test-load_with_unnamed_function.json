@@ -12,16 +12,12 @@
         "infix": false
       },
       "ast": [
-        "Filled",
+        "EBinOp",
         1894833988,
-        [
-          "FnCall",
-          "+",
-          [
-            [ "Filled", 1001241551, [ "Value", "5" ] ],
-            [ "Filled", 540981105, [ "Value", "5" ] ]
-          ]
-        ]
+        "+",
+        [ "EInteger", 1001241551, "5" ],
+        [ "EInteger", 540981105, "5" ],
+        [ "NoRail" ]
       ]
     }
   ]

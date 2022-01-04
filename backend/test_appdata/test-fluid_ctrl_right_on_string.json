@@ -6,14 +6,7 @@
     { "x": 376, "y": 118 },
     {
       "tlid": 428972234,
-      "ast": [
-        "Filled",
-        1804544761,
-        [
-          "Value",
-          "\"Hello Friend, how are you?.\""
-        ]
-      ],
+      "ast": [ "EString", 1804544761, "Hello Friend, how are you?." ],
       "spec": {
         "module": [ "Filled", 257206706, "REPL" ],
         "name": [ "Filled", 1134931040, "offensiveJaguar" ],

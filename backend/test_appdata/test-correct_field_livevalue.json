@@ -7,85 +7,52 @@
     {
       "tlid": 1343557616,
       "ast": [
-        "Filled",
+        "ELet",
         1883218232,
+        "a",
         [
-          "Let",
-          [ "Filled", 393061844, "a" ],
+          "ERecord",
+          1712631735,
           [
-            "Filled",
-            1712631735,
+            [ "x", [ "EInteger", 974264663, "5" ] ],
+            [ "abcde", [ "EString", 1444938771, "asdasd" ] ],
             [
-              "ObjectLiteral",
+              "state",
               [
+                "ERecord",
+                254262214,
                 [
-                  [ "Filled", 1230641586, "x" ],
-                  [ "Filled", 974264663, [ "Value", "5" ] ]
-                ],
-                [
-                  [ "Filled", 1796807785, "abcde" ],
-                  [ "Filled", 1444938771, [ "Value", "\"asdasd\"" ] ]
-                ],
-                [
-                  [ "Filled", 1963092909, "state" ],
                   [
-                    "Filled",
-                    254262214,
+                    "state2",
                     [
-                      "ObjectLiteral",
+                      "ERecord",
+                      1063836876,
                       [
-                        [
-                          [ "Filled", 1860137184, "state2" ],
-                          [
-                            "Filled",
-                            1063836876,
-                            [
-                              "ObjectLiteral",
-                              [
-                                [
-                                  [ "Filled", 843407698, "gth" ],
-                                  [ "Filled", 869348102, [ "Value", "5" ] ]
-                                ],
-                                [
-                                  [ "Filled", 950997191, "dfghjjk" ],
-                                  [ "Filled", 1356958392, [ "Value", "7" ] ]
-                                ]
-                              ]
-                            ]
-                          ]
-                        ]
+                        [ "gth", [ "EInteger", 869348102, "5" ] ],
+                        [ "dfghjjk", [ "EInteger", 1356958392, "7" ] ]
                       ]
                     ]
                   ]
                 ]
               ]
             ]
-          ],
-          [
-            "Filled",
-            741890717,
-            [
-              "FieldAccess",
-              [
-                "Filled",
-                432506058,
-                [
-                  "FieldAccess",
-                  [
-                    "Filled",
-                    186189693,
-                    [
-                      "FieldAccess",
-                      [ "Filled", 1811895793, [ "Variable", "a" ] ],
-                      [ "Filled", 369407545, "state" ]
-                    ]
-                  ],
-                  [ "Filled", 1365304062, "state2" ]
-                ]
-              ],
-              [ "Filled", 510337713, "gth" ]
-            ]
           ]
+        ],
+        [
+          "EFieldAccess",
+          741890717,
+          [
+            "EFieldAccess",
+            432506058,
+            [
+              "EFieldAccess",
+              186189693,
+              [ "EVariable", 1811895793, "a" ],
+              "state"
+            ],
+            "state2"
+          ],
+          "gth"
         ]
       ],
       "spec": {

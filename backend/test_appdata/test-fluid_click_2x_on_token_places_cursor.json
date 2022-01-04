@@ -7,14 +7,11 @@
     {
       "tlid": 1835485706,
       "ast": [
-        "Filled",
+        "ELet",
         549681748,
-        [
-          "Let",
-          [ "Filled", 759097728, "someText" ],
-          [ "Filled", 1289514518, [ "Value", "\"Some text\"" ] ],
-          [ "Blank", 1191311861 ]
-        ]
+        "someText",
+        [ "EString", 1289514518, "Some text" ],
+        [ "EBlank", 1191311861 ]
       ],
       "spec": {
         "module": [ "Filled", 1209063948, "REPL" ],

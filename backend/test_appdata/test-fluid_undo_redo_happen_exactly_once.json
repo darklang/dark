@@ -6,7 +6,7 @@
     { "x": 800, "y": 351 },
     {
       "tlid": 608699171,
-      "ast": [ "Blank", 1312435743 ],
+      "ast": [ "EBlank", 1312435743 ],
       "spec": {
         "module": [ "Filled", 1704783743, "REPL" ],
         "name": [ "Filled", 1007820334, "zippyMouse" ],
@@ -25,7 +25,7 @@
     { "x": 800, "y": 351 },
     {
       "tlid": 608699171,
-      "ast": [ "Filled", 68470584, [ "Value", "\"1234\"" ] ],
+      "ast": [ "EString", 68470584, "1234" ],
       "spec": {
         "module": [ "Filled", 1704783743, "REPL" ],
         "name": [ "Filled", 1007820334, "zippyMouse" ],
@@ -44,7 +44,7 @@
     { "x": 800, "y": 351 },
     {
       "tlid": 608699171,
-      "ast": [ "Filled", 68470584, [ "Value", "\"12345\"" ] ],
+      "ast": [ "EString", 68470584, "12345" ],
       "spec": {
         "module": [ "Filled", 1704783743, "REPL" ],
         "name": [ "Filled", 1007820334, "zippyMouse" ],
@@ -63,7 +63,7 @@
     { "x": 800, "y": 351 },
     {
       "tlid": 608699171,
-      "ast": [ "Filled", 496618803, [ "Value", "\"123456789\"" ] ],
+      "ast": [ "EString", 496618803, "123456789" ],
       "spec": {
         "module": [ "Filled", 1704783743, "REPL" ],
         "name": [ "Filled", 1007820334, "zippyMouse" ],
@@ -82,7 +82,7 @@
     { "x": 800, "y": 351 },
     {
       "tlid": 608699171,
-      "ast": [ "Filled", 1563094735, [ "Value", "\"123456789abcde\"" ] ],
+      "ast": [ "EString", 1563094735, "123456789abcde" ],
       "spec": {
         "module": [ "Filled", 1704783743, "REPL" ],
         "name": [ "Filled", 1007820334, "zippyMouse" ],

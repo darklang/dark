@@ -7,9 +7,11 @@
     {
       "tlid": 92595864,
       "ast": [
-        "Filled",
+        "EFnCall",
         503886666,
-        [ "FnCall", "test_admin/stdlib/Test::one_v0", [] ]
+        "test_admin/stdlib/Test::one_v0",
+        [],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Filled", 1797908554, "REPL" ],

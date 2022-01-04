@@ -7,14 +7,11 @@
     {
       "tlid": 832199198,
       "ast": [
-        "Filled",
+        "EIf",
         875302853,
-        [
-          "If",
-          [ "Filled", 1197001064, [ "Value", "true" ] ],
-          [ "Filled", 279805804, [ "Value", "\"ok\"" ] ],
-          [ "Filled", 374108345, [ "Value", "\"not executed\"" ] ]
-        ]
+        [ "EBool", 1197001064, true ],
+        [ "EString", 279805804, "ok" ],
+        [ "EString", 374108345, "not executed" ]
       ],
       "spec": {
         "module": [ "Filled", 1189857899, "REPL" ],

@@ -6,30 +6,22 @@
     {
       "tlid": 1219413247,
       "ast": [
-        "Filled",
+        "EFnCall",
         101806067,
+        "DB::set_v1",
         [
-          "FnCall",
-          "DB::set_v1",
           [
+            "ERecord",
+            982775579,
             [
-              "Filled",
-              982775579,
-              [
-                "ObjectLiteral",
-                [
-                  [
-                    [ "Filled", 387887281, "cantDelete" ],
-                    [ "Filled", 660648158, [ "Value", "4" ] ]
-                  ],
-                  [ [ "Blank", 1200779700 ], [ "Blank", 1969105700 ] ]
-                ]
-              ]
-            ],
-            [ "Filled", 1139714948, [ "Value", "\"lol\"" ] ],
-            [ "Filled", 264649554, [ "Variable", "Foo" ] ]
-          ]
-        ]
+              [ "cantDelete", [ "EInteger", 660648158, "4" ] ],
+              [ "", [ "EBlank", 1969105700 ] ]
+            ]
+          ],
+          [ "EString", 1139714948, "lol" ],
+          [ "EVariable", 264649554, "Foo" ]
+        ],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Blank", 1844208917 ],

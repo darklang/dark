@@ -7,36 +7,27 @@
     {
       "tlid": 123,
       "ast": [
-        "Filled",
+        "EBinOp",
         957208143,
+        "+",
         [
-          "FnCall",
-          "+",
+          "EFnCall",
+          447276656,
+          "List::length_v1",
           [
             [
-              "Filled",
-              447276656,
+              "EList",
+              1907530403,
               [
-                "FnCall",
-                "List::length_v1",
-                [
-                  [
-                    "Filled",
-                    1907530403,
-                    [
-                      "ListLiteral",
-                      [
-                        [ "Filled", 1462360695, [ "Value", "12.456" ] ],
-                        [ "Filled", 2132459954, [ "Value", "23232.234" ] ]
-                      ]
-                    ]
-                  ]
-                ]
+                [ "EFloat", 1462360695, "12", "456" ],
+                [ "EFloat", 2132459954, "23232", "234" ]
               ]
-            ],
-            [ "Blank", 567 ]
-          ]
-        ]
+            ]
+          ],
+          [ "NoRail" ]
+        ],
+        [ "EBlank", 567 ],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Filled", 879313153, "HTTP" ],

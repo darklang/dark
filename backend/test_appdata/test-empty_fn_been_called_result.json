@@ -7,13 +7,11 @@
     {
       "tlid": 450203352,
       "ast": [
-        "Filled",
+        "EFnCall",
         695848481,
-        [
-          "FnCall",
-          "fn_881219155",
-          [ [ "Filled", 1524522644, [ "Value", "5" ] ] ]
-        ]
+        "fn_881219155",
+        [ [ "EInteger", 1524522644, "5" ] ],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Filled", 130346918, "REPL" ],
@@ -46,7 +44,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Blank", 1276585567 ]
+      "ast": [ "EBlank", 1276585567 ]
     }
   ]
 ]

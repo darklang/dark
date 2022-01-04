@@ -5,7 +5,7 @@
     { "x": 533, "y": 212 },
     {
       "tlid": 123,
-      "ast": [ "Blank", 843662222 ],
+      "ast": [ "EBlank", 843662222 ],
       "spec": {
         "module": [ "Filled", 2902715028, "HTTP" ],
         "name": [ "Filled", 564603214, "/hello" ],

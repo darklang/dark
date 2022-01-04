@@ -7,59 +7,41 @@
     {
       "tlid": 68645951,
       "ast": [
-        "Filled",
+        "ELet",
         33969444,
+        "d",
         [
-          "Let",
-          [ "Filled", 107365328, "d" ],
+          "ERecord",
+          457609365,
+          [ [ "a", [ "EInteger", 1421469168, "1" ] ] ]
+        ],
+        [
+          "EMatch",
+          1227648616,
           [
-            "Filled",
-            457609365,
+            "EFnCall",
+            108391798,
+            "Dict::get_v2",
             [
-              "ObjectLiteral",
-              [
-                [
-                  [ "Filled", 371940451, "a" ],
-                  [ "Filled", 1421469168, [ "Value", "1" ] ]
-                ]
-              ]
-            ]
+              [ "EVariable", 1250937054, "d" ],
+              [ "EString", 521648194, "a" ]
+            ],
+            [ "Rail" ]
           ],
           [
-            "Filled",
-            1227648616,
             [
-              "Match",
               [
-                "Filled",
-                108391798,
-                [
-                  "FnCallSendToRail",
-                  "Dict::get_v2",
-                  [
-                    [ "Filled", 1250937054, [ "Variable", "d" ] ],
-                    [ "Filled", 521648194, [ "Value", "\"a\"" ] ]
-                  ]
-                ]
+                "FPConstructor",
+                1227648616,
+                1897472926,
+                "Just",
+                [ [ "FPVariable", 1227648616, 470226319, "n" ] ]
               ],
-              [
-                [
-                  [
-                    "Filled",
-                    1897472926,
-                    [
-                      "PConstructor",
-                      "Just",
-                      [ [ "Filled", 470226319, [ "PVariable", "n" ] ] ]
-                    ]
-                  ],
-                  [ "Filled", 21312903, [ "Variable", "n" ] ]
-                ],
-                [
-                  [ "Filled", 1462274190, [ "PConstructor", "Nothing", [] ] ],
-                  [ "Filled", 1409226084, [ "Value", "0" ] ]
-                ]
-              ]
+              [ "EVariable", 21312903, "n" ]
+            ],
+            [
+              [ "FPConstructor", 1227648616, 1462274190, "Nothing", [] ],
+              [ "EInteger", 1409226084, "0" ]
             ]
           ]
         ]

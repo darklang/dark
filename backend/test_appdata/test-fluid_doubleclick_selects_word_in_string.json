@@ -6,12 +6,7 @@
     { "x": 624, "y": 125 },
     {
       "tlid": 123,
-      "ast": [
-        "Filled",
-        957208143,
-        [
-          "Value", "\"a string of different words\"" ]
-      ],
+      "ast": [ "EString", 957208143, "a string of different words" ],
       "spec": {
         "module": [ "Filled", 879313153, "HTTP" ],
         "name": [ "Blank", 528254680 ],

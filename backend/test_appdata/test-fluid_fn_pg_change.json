@@ -11,7 +11,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Filled", 1030169545, [ "Value", "\"let's have some fun\"" ] ]
+      "ast": [ "EString", 1030169545, "let's have some fun" ]
     }
   ],
   [ "TLSavepoint", 2091743543 ],
@@ -27,11 +27,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [
-        "Filled",
-        1154335426,
-        [ "Value", "\"wow! that was too much fun\"" ]
-      ]
+      "ast": [ "EString", 1154335426, "wow! that was too much fun" ]
     }
   ],
   [ "TLSavepoint", 1464810122 ]

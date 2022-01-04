@@ -7,25 +7,22 @@
     {
       "tlid": 1213114766,
       "ast": [
-        "Filled",
+        "ELet",
         874550640,
+        "x",
+        [ "EInteger", 1050019774, "2" ],
         [
-          "Let",
-          [ "Filled", 1019144693, "x" ],
-          [ "Filled", 1050019774, [ "Value", "2" ] ],
-          [ "Filled", 1175111456, [
-              "Match",
-              [ "Filled", 1030338518, [ "Variable", "x" ] ],
-              [
-                [
-                  [ "Filled", 264394160, [ "PLiteral", "1" ] ],
-                  [ "Filled", 21580823,  [ "Variable", "x" ] ]
-                ],
-                [
-                  [ "Filled", 893788142, [ "PVariable", "x" ] ],
-                  [ "Filled", 122990017, [ "Variable", "x" ] ]
-                ]
-              ]
+          "EMatch",
+          1175111456,
+          [ "EVariable", 1030338518, "x" ],
+          [
+            [
+              [ "FPInteger", 1175111456, 264394160, "1" ],
+              [ "EVariable", 21580823, "x" ]
+            ],
+            [
+              [ "FPVariable", 1175111456, 893788142, "x" ],
+              [ "EVariable", 122990017, "x" ]
             ]
           ]
         ]

@@ -7,44 +7,30 @@
     {
       "tlid": 91390945,
       "ast": [
-        "Filled",
+        "EFnCall",
         753586717,
+        "HttpClient::post_v4",
         [
-          "FnCallSendToRail",
-          "HttpClient::post_v4",
+          [ "EString", 805471466, "https://foo.com" ],
+          [ "EString", 733590776, "some body" ],
           [
-            [ "Filled", 805471466, [ "Value", "\"https://foo.com\"" ] ],
-            [ "Filled", 733590776, [ "Value", "\"some body\"" ] ],
+            "ERecord",
+            839465771,
             [
-              "Filled",
-              839465771,
-              [
-                "ObjectLiteral",
-                [
-                  [
-                    [ "Filled", 1694497829, "q" ],
-                    [ "Filled", 1072893106, [ "Value", "1" ] ]
-                  ],
-                  [ [ "Filled", 1573495638, "" ], [ "Blank", 2054448601 ] ]
-                ]
-              ]
-            ],
+              [ "q", [ "EInteger", 1072893106, "1" ] ],
+              [ "", [ "EBlank", 2054448601 ] ]
+            ]
+          ],
+          [
+            "ERecord",
+            1696775995,
             [
-              "Filled",
-              1696775995,
-              [
-                "ObjectLiteral",
-                [
-                  [
-                    [ "Filled", 1825332651, "h" ],
-                    [ "Filled", 1701314740, [ "Value", "3" ] ]
-                  ],
-                  [ [ "Filled", 1687296170, "" ], [ "Blank", 1638648966 ] ]
-                ]
-              ]
+              [ "h", [ "EInteger", 1701314740, "3" ] ],
+              [ "", [ "EBlank", 1638648966 ] ]
             ]
           ]
-        ]
+        ],
+        [ "Rail" ]
       ],
       "spec": {
         "module": [ "Filled", 334377242, "HTTP" ],

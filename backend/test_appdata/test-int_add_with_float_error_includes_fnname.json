@@ -7,16 +7,12 @@
     {
       "tlid": 123,
       "ast": [
-        "Filled",
+        "EBinOp",
         732825278,
-        [
-          "FnCall",
-          "+",
-          [
-            [ "Filled", 2005624879, [ "Value", "1" ] ],
-            [ "Filled", 127042777, [ "Value", "2.0" ] ]
-          ]
-        ]
+        "+",
+        [ "EInteger", 2005624879, "1" ],
+        [ "EFloat", 127042777, "2", "0" ],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Filled", 129701470, "REPL" ],
