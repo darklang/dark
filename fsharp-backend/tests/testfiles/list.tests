@@ -236,8 +236,8 @@ List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "`f` must return one of 
 List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "Expected `f` to return -1, 0, 1, but it returned `0.1`" // FSHARPONLY
 List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "Expected `f` to return -1, 0, 1, but it returned `3`" // FSHARPONLY
 
-List.sortByComparator_v0 [Test.typeError "㧑༷釺";1;2;3] (fun a b -> 1) = Error "`f` must return one of -1, 0, 1, but returned non-int: <Error: 㧑༷釺>" // OCAMLONLY
-List.sortByComparator_v0 [Test.typeError "㧑༷釺";1;2;3] (fun a b -> 1) = Error "Expected `f` to return -1, 0, 1, but it returned `<Error: 㧑༷釺>`" // FSHARPONLY
+List.sortByComparator_v0 [Test.typeError "㧑༷釺";1;2;3] (fun a b -> 1) = Error "`f` must return one of -1, 0, 1, but returned non-int: <error>" // OCAMLONLY
+List.sortByComparator_v0 [Test.typeError "㧑༷釺";1;2;3] (fun a b -> 1) = Error "Expected `f` to return -1, 0, 1, but it returned `<error>`" // FSHARPONLY
 
 List.sortByComparator_v0 [3;1;2] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [ 1; 2; 3 ]
 List.sortByComparator_v0 [] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok []
