@@ -329,7 +329,6 @@ let testCanvasVerificationUndoRenameDupedName =
   }
 
 
-
 let testCanvasClone =
   testTask "canvas clone" {
     let username = UserName.create "clone"

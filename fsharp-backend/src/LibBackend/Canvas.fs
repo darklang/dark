@@ -676,10 +676,10 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
       |> loadJsonFromDisk Config.Testdata
       |> List.map (fun (tlid, oplist) ->
         let tl =
-          fromOplist meta [] oplist
-          |> toplevels
-          |> Map.get tlid
-          |> Option.unwrapUnsafe
+          let oplist = fromOplist meta [] oplist
+          let tls = toplevels oplist
+          let dtls = deletedToplevels oplist
+          (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
         (tlid, oplist, tl, NotDeleted))
 
     do! saveTLIDs meta oplists
