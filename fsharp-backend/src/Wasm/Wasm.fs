@@ -293,23 +293,35 @@ type EvalWorker =
     let (_ : obj) = EvalWorker.postMessageDelegate.Invoke("postMessage", message)
     ()
 
+
   // receive messages from the BlazorWorker.js
   member this.OnMessage(message : string) =
     task {
-      try
-        let args =
-          Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams>
-            message
+      let args =
+        try
+          Ok(
+            Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams>
+              message
+          )
+        with
+        | e ->
+          System.Console.WriteLine("Error parsing analysis in Blazor")
+          System.Console.WriteLine($"called with message: {message}")
+          System.Console.WriteLine($"caught exception: \"{e.Message}\"")
+          Error(e.Message)
 
-        let! result = Eval.performAnalysis args
-        return Ok result
-      with
-      | e ->
-        System.Console.WriteLine("Error running analysis in Blazor")
-        System.Console.WriteLine($"with message: {message}")
-        System.Console.WriteLine($"and error:\n")
-        System.Console.WriteLine(e)
-        return Error(string e)
+      match args with
+      | Error e -> return Error e
+      | Ok args ->
+        try
+          let! result = Eval.performAnalysis args
+          return Ok result
+        with
+        | e ->
+          System.Console.WriteLine("Error running analysis in Blazor")
+          System.Console.WriteLine($"called with message: {message}")
+          System.Console.WriteLine($"caught exception: \"{e.Message}\"")
+          return Error(e.Message)
     }
     |> Task.map Json.OCamlCompatible.serialize
     |> Task.map EvalWorker.postMessage
