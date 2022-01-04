@@ -797,13 +797,14 @@ let load_json_from_disk_fluid
   File.maybereadjsonfile
     ~root
     filename
-    ~conv:(oplist_of_yojson)
+    ~conv:oplist_of_yojson
     ~stringconv:preprocess
   |> Option.map ~f:Op.oplist2tlid_oplists
   |> Option.value ~default:[]
 
-let save_json_to_disk_fluid ~root (filename : string) (ops : Types.tlid_oplists) :
-    unit =
+
+let save_json_to_disk_fluid ~root (filename : string) (ops : Types.tlid_oplists)
+    : unit =
   Log.infO
     "serialization"
     ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
@@ -814,9 +815,6 @@ let save_json_to_disk_fluid ~root (filename : string) (ops : Types.tlid_oplists)
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> File.writefile ~root filename
-
-
-
 
 
 let load_and_resave (h : host) : (unit, string list) Result.t =
