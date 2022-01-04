@@ -151,29 +151,30 @@ let testStoredEventRoundtrip : Test =
     do! TI.storeEvent id1 t4 desc2 (DStr "3")
     do! TI.storeEvent id2 t5 desc2 (DStr "3")
     do! TI.storeEvent id2 t6 desc4 (DStr "3")
-    let toTraceID (t1, t2, t3, t4, t5) = t5
-    let t4_get1st (x, _, _, _) = x
     let t4_get4th (_, _, _, x) = x
+    let t5_get5th (_, _, _, _, x) = x
 
+    // This is a bit racy
     let! listed = TI.listEvents TI.All id1
-    Expect.equal
-      (List.sort [ t1; t3; t4 ])
-      (List.sort (List.map toTraceID listed))
-      "list host events"
+    let actual = (List.sort (List.map t5_get5th listed))
+    let result =
+      actual = (List.sort [ t1; t3; t4 ]) || actual = (List.sort [ t2; t3; t4 ])
+    Expect.equal result true "list host events"
 
     let! loaded = TI.loadEventIDs id2 desc4 |> Task.map (List.map Tuple2.first)
-    Expect.equal (List.sort [ t6 ]) (List.sort loaded) "list desc events"
+    Expect.equal (List.sort loaded) (List.sort [ t6 ]) "list desc events"
 
     let! loaded1 = TI.loadEvents id1 desc1 |> Task.map (List.map t4_get4th)
-    Expect.equal [ DStr "2"; DStr "1" ] loaded1 "load GET events"
+    Expect.equal loaded1 [ DStr "2"; DStr "1" ] "load GET events"
 
     let! loaded2 = TI.loadEvents id1 desc3 |> Task.map (List.map t4_get4th)
-    Expect.equal [ DStr "3" ] loaded2 "load POST events"
+    Expect.equal loaded2 [ DStr "3" ] "load POST events"
 
     let! loaded3 = TI.loadEvents id2 desc3 |> Task.map (List.map t4_get4th)
-    Expect.equal [] loaded3 "load no host2 events"
+    Expect.equal loaded3 [] "load no host2 events"
+
     let! loaded4 = TI.loadEvents id2 desc2 |> Task.map (List.map t4_get4th)
-    Expect.equal [ DStr "3" ] loaded4 "load host2 events"
+    Expect.equal loaded4 [ DStr "3" ] "load host2 events"
   }
 
 
