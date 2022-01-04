@@ -512,7 +512,7 @@ let fns =
           (function
           | _, [DObj o] ->
               DObj o
-              |> Dval.to_pretty_machine_json_v1 true
+              |> Dval.to_pretty_machine_json_v1
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
