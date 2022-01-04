@@ -7,23 +7,17 @@
     {
       "tlid": 158331119,
       "ast": [
-        "Filled",
+        "EIf",
         683889077,
+        [ "EBool", 261586784, false ],
         [
-          "If",
-          [ "Filled", 261586784, [ "Value", "false" ] ],
-          [
-            "Filled",
-            328170782,
-            [
-              "Let",
-              [ "Filled", 2127779865, "x" ],
-              [ "Filled", 558252579, [ "Value", "1" ] ],
-              [ "Blank", 696404263 ]
-            ]
-          ],
-          [ "Filled", 1152757463, [ "Value", "\"ok\"" ] ]
-        ]
+          "ELet",
+          328170782,
+          "x",
+          [ "EInteger", 558252579, "1" ],
+          [ "EBlank", 696404263 ]
+        ],
+        [ "EString", 1152757463, "ok" ]
       ],
       "spec": {
         "module": [ "Filled", 694108920, "REPL" ],

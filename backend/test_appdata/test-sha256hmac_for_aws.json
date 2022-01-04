@@ -6,404 +6,226 @@
     {
       "tlid": 1471262983,
       "ast": [
-        "Filled",
+        "ELet",
         1789387528,
+        "scope",
+        [ "EString", 1311168780, "20150830/us-east-1/iam/aws4_request" ],
         [
-          "Let",
-          [ "Filled", 677400035, "scope" ],
+          "ELet",
+          1666262482,
+          "content",
           [
-            "Filled",
-            1311168780,
-            [ "Value", "\"20150830/us-east-1/iam/aws4_request\"" ]
+            "EString", 225534780,
+            "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59"
           ],
           [
-            "Filled",
-            1666262482,
+            "ELet",
+            815341799,
+            "strToSign",
             [
-              "Let",
-              [ "Filled", 2021961426, "content" ],
+              "EPipe",
+              2080959983,
               [
-                "Filled",
-                225534780,
                 [
-                  "Value",
-                  "\"f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59\""
+                  "EList",
+                  657337206,
+                  [
+                    [ "EString", 1325247567, "AWS4-HMAC-SHA256" ],
+                    [ "EString", 846103323, "20150830T123600Z" ],
+                    [ "EVariable", 832493529, "scope" ],
+                    [ "EVariable", 617477438, "content" ],
+                    [ "EBlank", 1223520790 ]
+                  ]
+                ],
+                [
+                  "EFnCall",
+                  2022353876,
+                  "String::join",
+                  [
+                    [ "EPipeTarget", 242362132 ],
+                    [
+                      "EFnCall",
+                      856366536,
+                      "String::newline",
+                      [],
+                      [ "NoRail" ]
+                    ]
+                  ],
+                  [ "NoRail" ]
+                ],
+                [
+                  "EFnCall",
+                  1551380980,
+                  "String::trim",
+                  [ [ "EPipeTarget", 629819277 ] ],
+                  [ "NoRail" ]
+                ],
+                [
+                  "EFnCall",
+                  1364404297,
+                  "String::toBytes",
+                  [ [ "EPipeTarget", 662774494 ] ],
+                  [ "NoRail" ]
                 ]
+              ]
+            ],
+            [
+              "ELet",
+              956480515,
+              "secret",
+              [
+                "EString", 799676740,
+                "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
               ],
               [
-                "Filled",
-                815341799,
+                "ELet",
+                1544513406,
+                "key",
                 [
-                  "Let",
-                  [ "Filled", 2092031077, "strToSign" ],
+                  "EPipe",
+                  547800146,
                   [
-                    "Filled",
-                    2080959983,
                     [
-                      "Thread",
+                      "EBinOp",
+                      754357480,
+                      "++",
+                      [ "EString", 1539543236, "AWS4" ],
+                      [ "EVariable", 1720198519, "secret" ],
+                      [ "NoRail" ]
+                    ],
+                    [
+                      "EFnCall",
+                      1185689633,
+                      "String::toBytes",
+                      [ [ "EPipeTarget", 1610376561 ] ],
+                      [ "NoRail" ]
+                    ]
+                  ]
+                ],
+                [
+                  "ELet",
+                  1458517447,
+                  "data",
+                  [
+                    "EPipe",
+                    968085560,
+                    [
+                      [ "EString", 1009740330, "20150830" ],
                       [
-                        [
-                          "Filled",
-                          657337206,
-                          [
-                            "ListLiteral",
-                            [
-                              [
-                                "Filled",
-                                1325247567,
-                                [ "Value", "\"AWS4-HMAC-SHA256\"" ]
-                              ],
-                              [
-                                "Filled",
-                                846103323,
-                                [ "Value", "\"20150830T123600Z\"" ]
-                              ],
-                              [
-                                "Filled",
-                                832493529,
-                                [ "Variable", "scope" ]
-                              ],
-                              [
-                                "Filled",
-                                617477438,
-                                [ "Variable", "content" ]
-                              ],
-                              [ "Blank", 1223520790 ]
-                            ]
-                          ]
-                        ],
-                        [
-                          "Filled",
-                          2022353876,
-                          [
-                            "FnCall",
-                            "String::join",
-                            [
-                              [
-                                "Filled",
-                                856366536,
-                                [ "FnCall", "String::newline", [] ]
-                              ]
-                            ]
-                          ]
-                        ],
-                        [
-                          "Filled",
-                          1551380980,
-                          [ "FnCall", "String::trim", [] ]
-                        ],
-                        [
-                          "Filled",
-                          1364404297,
-                          [ "FnCall", "String::toBytes", [] ]
-                        ]
+                        "EFnCall",
+                        1025921402,
+                        "String::toBytes",
+                        [ [ "EPipeTarget", 2110179590 ] ],
+                        [ "NoRail" ]
                       ]
                     ]
                   ],
                   [
-                    "Filled",
-                    956480515,
+                    "ELet",
+                    332539682,
+                    "date",
                     [
-                      "Let",
-                      [ "Filled", 1544993341, "secret" ],
+                      "EFnCall",
+                      1905838449,
+                      "Crypto::sha256hmac",
                       [
-                        "Filled",
-                        799676740,
+                        [ "EVariable", 1296562657, "key" ],
+                        [ "EVariable", 1198280244, "data" ]
+                      ],
+                      [ "NoRail" ]
+                    ],
+                    [
+                      "ELet",
+                      1489024143,
+                      "region",
+                      [
+                        "EFnCall",
+                        914539119,
+                        "Crypto::sha256hmac",
                         [
-                          "Value",
-                          "\"wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY\""
-                        ]
+                          [ "EVariable", 1636230096, "date" ],
+                          [
+                            "EFnCall",
+                            2065966579,
+                            "String::toBytes",
+                            [ [ "EString", 1165428473, "us-east-1" ] ],
+                            [ "NoRail" ]
+                          ]
+                        ],
+                        [ "NoRail" ]
                       ],
                       [
-                        "Filled",
-                        1544513406,
+                        "ELet",
+                        815177462,
+                        "service",
                         [
-                          "Let",
-                          [ "Filled", 452937820, "key" ],
+                          "EFnCall",
+                          1021051966,
+                          "Crypto::sha256hmac",
                           [
-                            "Filled",
-                            547800146,
+                            [ "EVariable", 1675268243, "region" ],
                             [
-                              "Thread",
-                              [
-                                [
-                                  "Filled",
-                                  754357480,
-                                  [
-                                    "FnCall",
-                                    "++",
-                                    [
-                                      [
-                                        "Filled",
-                                        1539543236,
-                                        [ "Value", "\"AWS4\"" ]
-                                      ],
-                                      [
-                                        "Filled",
-                                        1720198519,
-                                        [ "Variable", "secret" ]
-                                      ]
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "Filled",
-                                  1185689633,
-                                  [ "FnCall", "String::toBytes", [] ]
-                                ]
-                              ]
+                              "EFnCall",
+                              618456202,
+                              "String::toBytes",
+                              [ [ "EString", 1684181767, "iam" ] ],
+                              [ "NoRail" ]
                             ]
                           ],
+                          [ "NoRail" ]
+                        ],
+                        [
+                          "ELet",
+                          1125559067,
+                          "signing",
                           [
-                            "Filled",
-                            1458517447,
+                            "EFnCall",
+                            1869273098,
+                            "Crypto::sha256hmac",
                             [
-                              "Let",
-                              [ "Filled", 467292171, "data" ],
+                              [ "EVariable", 1534218422, "service" ],
                               [
-                                "Filled",
-                                968085560,
-                                [
-                                  "Thread",
-                                  [
-                                    [
-                                      "Filled",
-                                      1009740330,
-                                      [ "Value", "\"20150830\"" ]
-                                    ],
-                                    [
-                                      "Filled",
-                                      1025921402,
-                                      [ "FnCall", "String::toBytes", [] ]
-                                    ]
-                                  ]
-                                ]
+                                "EFnCall",
+                                1202750794,
+                                "String::toBytes",
+                                [ [ "EString", 1869895842, "aws4_request" ] ],
+                                [ "NoRail" ]
+                              ]
+                            ],
+                            [ "NoRail" ]
+                          ],
+                          [
+                            "ELet",
+                            2031954605,
+                            "signed",
+                            [
+                              "EFnCall",
+                              458115946,
+                              "Crypto::sha256hmac",
+                              [
+                                [ "EVariable", 739269757, "signing" ],
+                                [ "EVariable", 1057365778, "strToSign" ]
                               ],
+                              [ "NoRail" ]
+                            ],
+                            [
+                              "EPipe",
+                              1789797567,
                               [
-                                "Filled",
-                                332539682,
+                                [ "EVariable", 1773619048, "signed" ],
                                 [
-                                  "Let",
-                                  [ "Filled", 843985847, "date" ],
-                                  [
-                                    "Filled",
-                                    1905838449,
-                                    [
-                                      "FnCall",
-                                      "Crypto::sha256hmac",
-                                      [
-                                        [
-                                          "Filled",
-                                          1296562657,
-                                          [ "Variable", "key" ]
-                                        ],
-                                        [
-                                          "Filled",
-                                          1198280244,
-                                          [ "Variable", "data" ]
-                                        ]
-                                      ]
-                                    ]
-                                  ],
-                                  [
-                                    "Filled",
-                                    1489024143,
-                                    [
-                                      "Let",
-                                      [ "Filled", 526504406, "region" ],
-                                      [
-                                        "Filled",
-                                        914539119,
-                                        [
-                                          "FnCall",
-                                          "Crypto::sha256hmac",
-                                          [
-                                            [
-                                              "Filled",
-                                              1636230096,
-                                              [ "Variable", "date" ]
-                                            ],
-                                            [
-                                              "Filled",
-                                              2065966579,
-                                              [
-                                                "FnCall",
-                                                "String::toBytes",
-                                                [
-                                                  [
-                                                    "Filled",
-                                                    1165428473,
-                                                    [
-                                                      "Value",
-                                                      "\"us-east-1\""
-                                                    ]
-                                                  ]
-                                                ]
-                                              ]
-                                            ]
-                                          ]
-                                        ]
-                                      ],
-                                      [
-                                        "Filled",
-                                        815177462,
-                                        [
-                                          "Let",
-                                          [ "Filled", 63557553, "service" ],
-                                          [
-                                            "Filled",
-                                            1021051966,
-                                            [
-                                              "FnCall",
-                                              "Crypto::sha256hmac",
-                                              [
-                                                [
-                                                  "Filled",
-                                                  1675268243,
-                                                  [ "Variable", "region" ]
-                                                ],
-                                                [
-                                                  "Filled",
-                                                  618456202,
-                                                  [
-                                                    "FnCall",
-                                                    "String::toBytes",
-                                                    [
-                                                      [
-                                                        "Filled",
-                                                        1684181767,
-                                                        [
-                                                          "Value", "\"iam\""
-                                                        ]
-                                                      ]
-                                                    ]
-                                                  ]
-                                                ]
-                                              ]
-                                            ]
-                                          ],
-                                          [
-                                            "Filled",
-                                            1125559067,
-                                            [
-                                              "Let",
-                                              [
-                                                "Filled", 518899680,
-                                                "signing"
-                                              ],
-                                              [
-                                                "Filled",
-                                                1869273098,
-                                                [
-                                                  "FnCall",
-                                                  "Crypto::sha256hmac",
-                                                  [
-                                                    [
-                                                      "Filled",
-                                                      1534218422,
-                                                      [
-                                                        "Variable", "service"
-                                                      ]
-                                                    ],
-                                                    [
-                                                      "Filled",
-                                                      1202750794,
-                                                      [
-                                                        "FnCall",
-                                                        "String::toBytes",
-                                                        [
-                                                          [
-                                                            "Filled",
-                                                            1869895842,
-                                                            [
-                                                              "Value",
-                                                              "\"aws4_request\""
-                                                            ]
-                                                          ]
-                                                        ]
-                                                      ]
-                                                    ]
-                                                  ]
-                                                ]
-                                              ],
-                                              [
-                                                "Filled",
-                                                2031954605,
-                                                [
-                                                  "Let",
-                                                  [
-                                                    "Filled", 1391779115,
-                                                    "signed"
-                                                  ],
-                                                  [
-                                                    "Filled",
-                                                    458115946,
-                                                    [
-                                                      "FnCall",
-                                                      "Crypto::sha256hmac",
-                                                      [
-                                                        [
-                                                          "Filled",
-                                                          739269757,
-                                                          [
-                                                            "Variable",
-                                                            "signing"
-                                                          ]
-                                                        ],
-                                                        [
-                                                          "Filled",
-                                                          1057365778,
-                                                          [
-                                                            "Variable",
-                                                            "strToSign"
-                                                          ]
-                                                        ]
-                                                      ]
-                                                    ]
-                                                  ],
-                                                  [
-                                                    "Filled",
-                                                    1789797567,
-                                                    [
-                                                      "Thread",
-                                                      [
-                                                        [
-                                                          "Filled",
-                                                          1773619048,
-                                                          [
-                                                            "Variable",
-                                                            "signed"
-                                                          ]
-                                                        ],
-                                                        [
-                                                          "Filled",
-                                                          1922767463,
-                                                          [
-                                                            "FnCall",
-                                                            "Bytes::hexEncode",
-                                                            []
-                                                          ]
-                                                        ],
-                                                        [
-                                                          "Filled",
-                                                          1825632293,
-                                                          [
-                                                            "FnCall",
-                                                            "String::toLowercase_v1",
-                                                            []
-                                                          ]
-                                                        ]
-                                                      ]
-                                                    ]
-                                                  ]
-                                                ]
-                                              ]
-                                            ]
-                                          ]
-                                        ]
-                                      ]
-                                    ]
-                                  ]
+                                  "EFnCall",
+                                  1922767463,
+                                  "Bytes::hexEncode",
+                                  [ [ "EPipeTarget", 594895149 ] ],
+                                  [ "NoRail" ]
+                                ],
+                                [
+                                  "EFnCall",
+                                  1825632293,
+                                  "String::toLowercase_v1",
+                                  [ [ "EPipeTarget", 1275195841 ] ],
+                                  [ "NoRail" ]
                                 ]
                               ]
                             ]

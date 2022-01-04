@@ -7,124 +7,62 @@
     {
       "tlid": 1072370335,
       "ast": [
-        "Filled",
+        "EIf",
         1957311718,
+        [ "EBool", 553303682, false ],
         [
-          "If",
-          [ "Filled", 553303682, [ "Value", "false" ] ],
+          "ELet",
+          2073307217,
+          "a",
           [
-            "Filled",
-            2073307217,
+            "EBinOp",
+            1459002816,
+            "+",
+            [ "EInteger", 628377623, "9" ],
+            [ "EInteger", 1269906539, "8" ],
+            [ "NoRail" ]
+          ],
+          [
+            "ELet",
+            1455507940,
+            "b",
             [
-              "Let",
-              [ "Filled", 1320256930, "a" ],
+              "EString", 1520755076,
+              "averylongstrijdkfkjdsklfjdsklfj dklsfj kdlsjf lkdsjf lkdsj fkldsj flkdsjfkldsjfkldsjf lkdsjf kldsj fklsdjflksdjfs"
+            ],
+            [
+              "ELet",
+              1350611620,
+              "c",
               [
-                "Filled",
-                1459002816,
+                "EList",
+                108205145,
                 [
-                  "FnCall",
-                  "+",
-                  [
-                    [ "Filled", 628377623, [ "Value", "9" ] ],
-                    [ "Filled", 1269906539, [ "Value", "8" ] ]
-                  ]
+                  [ "EInteger", 338694850, "123456789" ],
+                  [ "EInteger", 1879423592, "123456789" ],
+                  [ "EInteger", 1835608595, "123456789" ],
+                  [ "EInteger", 2091229618, "123456789" ],
+                  [ "EInteger", 1290448019, "123456789" ],
+                  [ "EInteger", 1834615375, "123456789" ],
+                  [ "EInteger", 1848636759, "123456789" ],
+                  [ "EInteger", 281080654, "123456789" ]
                 ]
               ],
               [
-                "Filled",
-                1455507940,
+                "ELet",
+                1271048722,
+                "d",
                 [
-                  "Let",
-                  [ "Filled", 1673702551, "b" ],
-                  [
-                    "Filled",
-                    1520755076,
-                    [
-                      "Value",
-                      "\"averylongstrijdkfkjdsklfjdsklfj dklsfj kdlsjf lkdsjf lkdsj fkldsj flkdsjfkldsjfkldsjf lkdsjf kldsj fklsdjflksdjfs\""
-                    ]
-                  ],
-                  [
-                    "Filled",
-                    1350611620,
-                    [
-                      "Let",
-                      [ "Filled", 932531306, "c" ],
-                      [
-                        "Filled",
-                        108205145,
-                        [
-                          "ListLiteral",
-                          [
-                            [ "Filled", 338694850, [ "Value", "123456789" ] ],
-                            [
-                              "Filled",
-                              1879423592,
-                              [ "Value", "123456789" ]
-                            ],
-                            [
-                              "Filled",
-                              1835608595,
-                              [ "Value", "123456789" ]
-                            ],
-                            [
-                              "Filled",
-                              2091229618,
-                              [ "Value", "123456789" ]
-                            ],
-                            [
-                              "Filled",
-                              1290448019,
-                              [ "Value", "123456789" ]
-                            ],
-                            [
-                              "Filled",
-                              1834615375,
-                              [ "Value", "123456789" ]
-                            ],
-                            [
-                              "Filled",
-                              1848636759,
-                              [ "Value", "123456789" ]
-                            ],
-                            [ "Filled", 281080654, [ "Value", "123456789" ] ]
-                          ]
-                        ]
-                      ],
-                      [
-                        "Filled",
-                        1271048722,
-                        [
-                          "Let",
-                          [ "Filled", 1660041932, "d" ],
-                          [
-                            "Filled",
-                            2097709403,
-                            [
-                              "ObjectLiteral",
-                              [
-                                [
-                                  [ "Filled", 1406262955, "str" ],
-                                  [
-                                    "Filled",
-                                    2108109721,
-                                    [ "Variable", "b" ]
-                                  ]
-                                ]
-                              ]
-                            ]
-                          ],
-                          [ "Blank", 174430628 ]
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
+                  "ERecord",
+                  2097709403,
+                  [ [ "str", [ "EVariable", 2108109721, "b" ] ] ]
+                ],
+                [ "EBlank", 174430628 ]
               ]
             ]
-          ],
-          [ "Filled", 796813509, [ "Value", "\"otherwise\"" ] ]
-        ]
+          ]
+        ],
+        [ "EString", 796813509, "otherwise" ]
       ],
       "spec": {
         "module": [ "Filled", 815709350, "REPL" ],

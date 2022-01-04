@@ -6,7 +6,7 @@
     { "x": -550, "y": -500 },
     {
       "tlid": 1445447347,
-      "ast": [ "Blank", 148960022 ],
+      "ast": [ "EBlank", 148960022 ],
       "spec": {
         "module": [ "Filled", 1436134559, "REPL" ],
         "name": [ "Filled", 1901414231, "outnumberedHamster" ],

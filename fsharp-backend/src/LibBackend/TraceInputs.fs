@@ -278,7 +278,7 @@ let delete404s
 
 
 
-let clearAllEvents (canvasID : CanvasID) () : Task<unit> =
+let clearAllEvents (canvasID : CanvasID) : Task<unit> =
   Sql.query
     "DELETE FROM stored_events_v2
      WHERE canvas_id = @canvasID"

@@ -7,13 +7,11 @@
     {
       "tlid": 925747839,
       "ast": [
-        "Filled",
+        "ELet",
         1001436367,
-        ["Let",
-          [ "Filled", 843662222, "v"],
-          [ "Filled", 567723, [ "Value", "5" ] ],
-          [ "Blank", 384549332 ]
-        ]
+        "v",
+        [ "EInteger", 567723, "5" ],
+        [ "EBlank", 384549332 ]
       ],
       "spec": {
         "module": [ "Filled", 23, "HTTP" ],

@@ -786,7 +786,7 @@ let save_all (c : canvas) : unit =
 
 let json_filename name = name ^ "." ^ "json"
 
-let load_json_from_disk
+let load_json_from_disk_fluid
     ~root ?(preprocess = ident) ~(host : string) ~(canvas_id : Uuidm.t) () :
     Types.tlid_oplists =
   Log.infO
@@ -797,23 +797,21 @@ let load_json_from_disk
   File.maybereadjsonfile
     ~root
     filename
-    ~conv:(SF.oplist_of_yojson SF.RuntimeT.expr_of_yojson)
+    ~conv:oplist_of_yojson
     ~stringconv:preprocess
-  |> Option.map ~f:Serialization_converters.oplist_to_fluid
   |> Option.map ~f:Op.oplist2tlid_oplists
   |> Option.value ~default:[]
 
 
-let save_json_to_disk ~root (filename : string) (ops : Types.tlid_oplists) :
-    unit =
+let save_json_to_disk_fluid ~root (filename : string) (ops : Types.tlid_oplists)
+    : unit =
   Log.infO
     "serialization"
     ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
   let module SF = Serialization_format in
   ops
   |> Op.tlid_oplists2oplist
-  |> Serialization_converters.oplist_of_fluid
-  |> SF.oplist_to_yojson SF.RuntimeT.expr_to_yojson
+  |> oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> File.writefile ~root filename
@@ -833,7 +831,7 @@ let load_and_resave_from_test_file (host : string) : unit =
       host
       owner
       []
-      ~f:(load_json_from_disk ~root:Testdata ~preprocess:ident)
+      ~f:(load_json_from_disk_fluid ~root:Testdata ~preprocess:ident)
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -860,7 +858,7 @@ let save_test (c : canvas) : string =
     else host
   in
   let file = json_filename host in
-  save_json_to_disk ~root:Testdata file c.ops ;
+  save_json_to_disk_fluid ~root:Testdata file c.ops ;
   file
 
 

@@ -20,14 +20,11 @@
         "infix": false
       },
       "ast": [
-        "Filled",
+        "ELet",
         677483670,
-        [
-          "Let",
-          [ "Filled", 633879086, "someText" ],
-          [ "Filled", 96908617, [ "Value", "\"Some Text\"" ] ],
-          [ "Blank", 1176395926 ]
-        ]
+        "someText",
+        [ "EString", 96908617, "Some Text" ],
+        [ "EBlank", 1176395926 ]
       ]
     }
   ]

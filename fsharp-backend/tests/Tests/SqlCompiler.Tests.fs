@@ -13,22 +13,6 @@ open LibExecution.RuntimeTypes
 module C = LibBackend.SqlCompiler
 module S = LibExecution.Shortcuts
 
-// FSTODO
-// let t_sql_compiler_works () =
-//   checkError
-//     "no field gives error"
-//     field
-//     "The datastore does not have a field named: myfield" ;
-//   let checkError
-//       (msg : string)
-//       ?(paramName = "value")
-//       ?(dbFields = [])
-//       ?(symtable = [])
-//       (body : fluid_expr)
-//       (expectedError : string) : unit =
-//     try check msg ~paramName ~dbFields ~symtable body "<error expected>"
-//     with Db.DBQueryException e -> AT.check AT.string msg e expectedError
-
 let compile
   (symtable : DvalMap)
   (paramName : string)

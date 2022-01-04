@@ -14,24 +14,19 @@
     {
       "tlid": 727203831,
       "ast": [
-        "Filled",
+        "EFnCall",
         3768863952,
+        "DB::add_v0",
         [
-          "FnCall",
-          "DB::add_v0",
           [
-            [
-              "Filled",
-              738433363,
-              [
-                "FieldAccess",
-                [ "Filled", 700578634, [ "Variable", "request" ] ],
-                [ "Filled", 1502393879, "body" ]
-              ]
-            ],
-            [ "Filled", 2243406530, [ "Variable", "Test" ] ]
-          ]
-        ]
+            "EFieldAccess",
+            738433363,
+            [ "EVariable", 700578634, "request" ],
+            "body"
+          ],
+          [ "EVariable", 2243406530, "Test" ]
+        ],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Filled", 3789741314, "HTTP" ],

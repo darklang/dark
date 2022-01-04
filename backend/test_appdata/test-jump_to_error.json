@@ -7,26 +7,20 @@
     {
       "tlid": 123,
       "ast": [
-        "Filled",
+        "EFnCall",
         675551618,
+        "List::head_v2",
         [
-          "FnCallSendToRail",
-          "List::head_v2",
           [
-            [
-              "Filled",
-              121598209,
-              [
-                "FnCall",
-                "/",
-                [
-                  [ "Filled", 892346834, [ "Value", "1" ] ],
-                  [ "Filled", 1778131266, [ "Value", "2" ] ]
-                ]
-              ]
-            ]
+            "EBinOp",
+            121598209,
+            "/",
+            [ "EInteger", 892346834, "1" ],
+            [ "EInteger", 1778131266, "2" ],
+            [ "NoRail" ]
           ]
-        ]
+        ],
+        [ "Rail" ]
       ],
       "spec": {
         "module": [ "Filled", 779232451, "REPL" ],

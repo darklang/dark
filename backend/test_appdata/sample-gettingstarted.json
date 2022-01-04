@@ -6,7 +6,7 @@
     { "x": 1435, "y": 127 },
     {
       "tlid": 1355461351,
-      "ast": [ "Blank", 1798690726 ],
+      "ast": [ "EBlank", 1798690726 ],
       "spec": {
         "module": [ "Filled", 1747663703, "HTTP" ],
         "name": [ "Blank", 2031164403 ],
@@ -25,7 +25,7 @@
     { "x": 1435, "y": 127 },
     {
       "tlid": 1355461351,
-      "ast": [ "Blank", 1798690726 ],
+      "ast": [ "EBlank", 1798690726 ],
       "spec": {
         "module": [ "Filled", 1747663703, "HTTP" ],
         "name": [ "Blank", 2031164403 ],
@@ -44,7 +44,7 @@
     { "x": 1435, "y": 127 },
     {
       "tlid": 1355461351,
-      "ast": [ "Blank", 1798690726 ],
+      "ast": [ "EBlank", 1798690726 ],
       "spec": {
         "module": [ "Filled", 1747663703, "HTTP" ],
         "name": [ "Filled", 2031164403, "/h" ],
@@ -63,7 +63,7 @@
     { "x": 1435, "y": 127 },
     {
       "tlid": 1355461351,
-      "ast": [ "Blank", 1798690726 ],
+      "ast": [ "EBlank", 1798690726 ],
       "spec": {
         "module": [ "Filled", 1747663703, "HTTP" ],
         "name": [ "Filled", 2031164403, "/hello" ],
@@ -82,7 +82,7 @@
     { "x": 1435, "y": 127 },
     {
       "tlid": 1355461351,
-      "ast": [ "Filled", 30739139, [ "Value", "\"\"" ] ],
+      "ast": [ "EString", 30739139, "" ],
       "spec": {
         "module": [ "Filled", 1747663703, "HTTP" ],
         "name": [ "Filled", 2031164403, "/hello" ],
@@ -101,7 +101,7 @@
     { "x": 1435, "y": 127 },
     {
       "tlid": 1355461351,
-      "ast": [ "Filled", 30739139, [ "Value", "\"h\"" ] ],
+      "ast": [ "EString", 30739139, "h" ],
       "spec": {
         "module": [ "Filled", 1747663703, "HTTP" ],
         "name": [ "Filled", 2031164403, "/hello" ],
@@ -120,7 +120,7 @@
     { "x": 1435, "y": 127 },
     {
       "tlid": 1355461351,
-      "ast": [ "Filled", 30739139, [ "Value", "\"hi\"" ] ],
+      "ast": [ "EString", 30739139, "hi" ],
       "spec": {
         "module": [ "Filled", 1747663703, "HTTP" ],
         "name": [ "Filled", 2031164403, "/hello" ],
@@ -139,7 +139,7 @@
     { "x": 535, "y": 420 },
     {
       "tlid": 666433085,
-      "ast": [ "Blank", 1683710940 ],
+      "ast": [ "EBlank", 1683710940 ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Blank", 203036555 ],
@@ -162,7 +162,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [ "Blank", 1683710940 ],
+      "ast": [ "EBlank", 1683710940 ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Blank", 203036555 ],
@@ -183,7 +183,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [ "Blank", 1683710940 ],
+      "ast": [ "EBlank", 1683710940 ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Blank", 203036555 ],
@@ -202,7 +202,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [ "Blank", 1683710940 ],
+      "ast": [ "EBlank", 1683710940 ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Blank", 203036555 ],
@@ -221,7 +221,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [ "Blank", 1683710940 ],
+      "ast": [ "EBlank", 1683710940 ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Filled", 203036555, "/greet" ],
@@ -240,11 +240,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [
-        "Filled",
-        1107818129,
-        [ "FluidPartial", "r", [ "Blank", 1425268926 ] ]
-      ],
+      "ast": [ "EPartial", 1107818129, "r", [ "EBlank", 1425268926 ] ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Filled", 203036555, "/greet" ],
@@ -263,11 +259,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [
-        "Filled",
-        1107818129,
-        [ "FluidPartial", "rq", [ "Blank", 1425268926 ] ]
-      ],
+      "ast": [ "EPartial", 1107818129, "rq", [ "EBlank", 1425268926 ] ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Filled", 203036555, "/greet" ],
@@ -286,11 +278,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [
-        "Filled",
-        1107818129,
-        [ "FluidPartial", "rqu", [ "Blank", 1425268926 ] ]
-      ],
+      "ast": [ "EPartial", 1107818129, "rqu", [ "EBlank", 1425268926 ] ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Filled", 203036555, "/greet" ],
@@ -309,11 +297,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [
-        "Filled",
-        1107818129,
-        [ "FluidPartial", "rque", [ "Blank", 1425268926 ] ]
-      ],
+      "ast": [ "EPartial", 1107818129, "rque", [ "EBlank", 1425268926 ] ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Filled", 203036555, "/greet" ],
@@ -332,11 +316,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [
-        "Filled",
-        1107818129,
-        [ "FluidPartial", "rques", [ "Blank", 1425268926 ] ]
-      ],
+      "ast": [ "EPartial", 1107818129, "rques", [ "EBlank", 1425268926 ] ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Filled", 203036555, "/greet" ],
@@ -355,11 +335,7 @@
     { "x": 1434, "y": 224 },
     {
       "tlid": 666433085,
-      "ast": [
-        "Filled",
-        1107818129,
-        [ "FluidPartial", "rquest", [ "Blank", 1425268926 ] ]
-      ],
+      "ast": [ "EPartial", 1107818129, "rquest", [ "EBlank", 1425268926 ] ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
         "name": [ "Filled", 203036555, "/greet" ],
@@ -379,20 +355,14 @@
     {
       "tlid": 666433085,
       "ast": [
-        "Filled",
+        "EPartial",
         714315755,
+        "",
         [
-          "FluidPartial",
-          "",
-          [
-            "Filled",
-            1130637733,
-            [
-              "FieldAccess",
-              [ "Filled", 988401816, [ "Variable", "request" ] ],
-              [ "Blank", 1665283776 ]
-            ]
-          ]
+          "EFieldAccess",
+          1130637733,
+          [ "EVariable", 988401816, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -414,20 +384,14 @@
     {
       "tlid": 666433085,
       "ast": [
-        "Filled",
+        "EPartial",
         714315755,
+        "b",
         [
-          "FluidPartial",
-          "b",
-          [
-            "Filled",
-            1130637733,
-            [
-              "FieldAccess",
-              [ "Filled", 988401816, [ "Variable", "request" ] ],
-              [ "Blank", 317465537 ]
-            ]
-          ]
+          "EFieldAccess",
+          1130637733,
+          [ "EVariable", 988401816, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -449,20 +413,14 @@
     {
       "tlid": 666433085,
       "ast": [
-        "Filled",
+        "EPartial",
         714315755,
+        "bo",
         [
-          "FluidPartial",
-          "bo",
-          [
-            "Filled",
-            1130637733,
-            [
-              "FieldAccess",
-              [ "Filled", 988401816, [ "Variable", "request" ] ],
-              [ "Blank", 1017552073 ]
-            ]
-          ]
+          "EFieldAccess",
+          1130637733,
+          [ "EVariable", 988401816, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -484,20 +442,14 @@
     {
       "tlid": 666433085,
       "ast": [
-        "Filled",
+        "EPartial",
         714315755,
+        "bod",
         [
-          "FluidPartial",
-          "bod",
-          [
-            "Filled",
-            1130637733,
-            [
-              "FieldAccess",
-              [ "Filled", 988401816, [ "Variable", "request" ] ],
-              [ "Blank", 1530109821 ]
-            ]
-          ]
+          "EFieldAccess",
+          1130637733,
+          [ "EVariable", 988401816, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -519,20 +471,14 @@
     {
       "tlid": 666433085,
       "ast": [
-        "Filled",
+        "EPartial",
         714315755,
+        "body",
         [
-          "FluidPartial",
-          "body",
-          [
-            "Filled",
-            1130637733,
-            [
-              "FieldAccess",
-              [ "Filled", 988401816, [ "Variable", "request" ] ],
-              [ "Blank", 654964142 ]
-            ]
-          ]
+          "EFieldAccess",
+          1130637733,
+          [ "EVariable", 988401816, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -554,13 +500,10 @@
     {
       "tlid": 666433085,
       "ast": [
-        "Filled",
+        "EFieldAccess",
         1130637733,
-        [
-          "FieldAccess",
-          [ "Filled", 988401816, [ "Variable", "request" ] ],
-          [ "Filled", 358853307, "body" ]
-        ]
+        [ "EVariable", 988401816, "request" ],
+        "body"
       ],
       "spec": {
         "module": [ "Filled", 763677026, "HTTP" ],
@@ -580,7 +523,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [ "Blank", 240054020 ],
+      "ast": [ "EBlank", 240054020 ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -599,7 +542,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [ "Blank", 240054020 ],
+      "ast": [ "EBlank", 240054020 ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -618,11 +561,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [
-        "Filled",
-        1249507059,
-        [ "FluidPartial", "r", [ "Blank", 1584317419 ] ]
-      ],
+      "ast": [ "EPartial", 1249507059, "r", [ "EBlank", 1584317419 ] ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -641,11 +580,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [
-        "Filled",
-        1249507059,
-        [ "FluidPartial", "re", [ "Blank", 1584317419 ] ]
-      ],
+      "ast": [ "EPartial", 1249507059, "re", [ "EBlank", 1584317419 ] ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -664,11 +599,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [
-        "Filled",
-        1249507059,
-        [ "FluidPartial", "req", [ "Blank", 1584317419 ] ]
-      ],
+      "ast": [ "EPartial", 1249507059, "req", [ "EBlank", 1584317419 ] ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -687,11 +618,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [
-        "Filled",
-        1249507059,
-        [ "FluidPartial", "requ", [ "Blank", 1584317419 ] ]
-      ],
+      "ast": [ "EPartial", 1249507059, "requ", [ "EBlank", 1584317419 ] ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -710,11 +637,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [
-        "Filled",
-        1249507059,
-        [ "FluidPartial", "reque", [ "Blank", 1584317419 ] ]
-      ],
+      "ast": [ "EPartial", 1249507059, "reque", [ "EBlank", 1584317419 ] ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -733,11 +656,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [
-        "Filled",
-        1249507059,
-        [ "FluidPartial", "reques", [ "Blank", 1584317419 ] ]
-      ],
+      "ast": [ "EPartial", 1249507059, "reques", [ "EBlank", 1584317419 ] ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -756,11 +675,7 @@
     { "x": 1432, "y": 292 },
     {
       "tlid": 262224779,
-      "ast": [
-        "Filled",
-        1249507059,
-        [ "FluidPartial", "request", [ "Blank", 1584317419 ] ]
-      ],
+      "ast": [ "EPartial", 1249507059, "request", [ "EBlank", 1584317419 ] ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
         "name": [ "Filled", 310288190, "/sleep" ],
@@ -780,20 +695,14 @@
     {
       "tlid": 262224779,
       "ast": [
-        "Filled",
+        "EPartial",
         564987523,
+        "",
         [
-          "FluidPartial",
-          "",
-          [
-            "Filled",
-            2115087762,
-            [
-              "FieldAccess",
-              [ "Filled", 18315041, [ "Variable", "request" ] ],
-              [ "Blank", 332734218 ]
-            ]
-          ]
+          "EFieldAccess",
+          2115087762,
+          [ "EVariable", 18315041, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -815,20 +724,14 @@
     {
       "tlid": 262224779,
       "ast": [
-        "Filled",
+        "EPartial",
         564987523,
+        "b",
         [
-          "FluidPartial",
-          "b",
-          [
-            "Filled",
-            2115087762,
-            [
-              "FieldAccess",
-              [ "Filled", 18315041, [ "Variable", "request" ] ],
-              [ "Blank", 627718167 ]
-            ]
-          ]
+          "EFieldAccess",
+          2115087762,
+          [ "EVariable", 18315041, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -850,20 +753,14 @@
     {
       "tlid": 262224779,
       "ast": [
-        "Filled",
+        "EPartial",
         564987523,
+        "bo",
         [
-          "FluidPartial",
-          "bo",
-          [
-            "Filled",
-            2115087762,
-            [
-              "FieldAccess",
-              [ "Filled", 18315041, [ "Variable", "request" ] ],
-              [ "Blank", 914614684 ]
-            ]
-          ]
+          "EFieldAccess",
+          2115087762,
+          [ "EVariable", 18315041, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -885,20 +782,14 @@
     {
       "tlid": 262224779,
       "ast": [
-        "Filled",
+        "EPartial",
         564987523,
+        "bod",
         [
-          "FluidPartial",
-          "bod",
-          [
-            "Filled",
-            2115087762,
-            [
-              "FieldAccess",
-              [ "Filled", 18315041, [ "Variable", "request" ] ],
-              [ "Blank", 938235273 ]
-            ]
-          ]
+          "EFieldAccess",
+          2115087762,
+          [ "EVariable", 18315041, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -920,20 +811,14 @@
     {
       "tlid": 262224779,
       "ast": [
-        "Filled",
+        "EPartial",
         564987523,
+        "body",
         [
-          "FluidPartial",
-          "body",
-          [
-            "Filled",
-            2115087762,
-            [
-              "FieldAccess",
-              [ "Filled", 18315041, [ "Variable", "request" ] ],
-              [ "Blank", 415483124 ]
-            ]
-          ]
+          "EFieldAccess",
+          2115087762,
+          [ "EVariable", 18315041, "request" ],
+          ""
         ]
       ],
       "spec": {
@@ -955,13 +840,10 @@
     {
       "tlid": 262224779,
       "ast": [
-        "Filled",
+        "EFieldAccess",
         2115087762,
-        [
-          "FieldAccess",
-          [ "Filled", 18315041, [ "Variable", "request" ] ],
-          [ "Filled", 1176333016, "body" ]
-        ]
+        [ "EVariable", 18315041, "request" ],
+        "body"
       ],
       "spec": {
         "module": [ "Filled", 57004324, "HTTP" ],
@@ -981,7 +863,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Blank", 130220307 ],
+      "ast": [ "EBlank", 130220307 ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1000,7 +882,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Blank", 130220307 ],
+      "ast": [ "EBlank", 130220307 ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1019,7 +901,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Filled", 327231969, [ "Value", "\"\"" ] ],
+      "ast": [ "EString", 327231969, "" ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1038,7 +920,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Filled", 327231969, [ "Value", "\"b\"" ] ],
+      "ast": [ "EString", 327231969, "b" ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1057,7 +939,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Filled", 327231969, [ "Value", "\"by\"" ] ],
+      "ast": [ "EString", 327231969, "by" ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1076,7 +958,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Filled", 327231969, [ "Value", "\"bye\"" ] ],
+      "ast": [ "EString", 327231969, "bye" ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1095,7 +977,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Filled", 327231969, [ "Value", "\"bye \"" ] ],
+      "ast": [ "EString", 327231969, "bye " ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1114,7 +996,7 @@
     { "x": 1409, "y": 322 },
     {
       "tlid": 827637950,
-      "ast": [ "Filled", 327231969, [ "Value", "\"bye\"" ] ],
+      "ast": [ "EString", 327231969, "bye" ],
       "spec": {
         "module": [ "Filled", 1060218826, "HTTP" ],
         "name": [ "Filled", 1957782423, "/kill" ],
@@ -1167,7 +1049,7 @@
     { "x": 967, "y": 187 },
     {
       "tlid": 445834184,
-      "ast": [ "Blank", 1348766731 ],
+      "ast": [ "EBlank", 1348766731 ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1188,11 +1070,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [
-        "Filled",
-        1059346376,
-        [ "FluidPartial", "c", [ "Blank", 2072008417 ] ]
-      ],
+      "ast": [ "EPartial", 1059346376, "c", [ "EBlank", 2072008417 ] ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1211,11 +1089,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [
-        "Filled",
-        1059346376,
-        [ "FluidPartial", "co", [ "Blank", 2072008417 ] ]
-      ],
+      "ast": [ "EPartial", 1059346376, "co", [ "EBlank", 2072008417 ] ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1234,11 +1108,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [
-        "Filled",
-        1059346376,
-        [ "FluidPartial", "coo", [ "Blank", 2072008417 ] ]
-      ],
+      "ast": [ "EPartial", 1059346376, "coo", [ "EBlank", 2072008417 ] ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1257,11 +1127,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [
-        "Filled",
-        1059346376,
-        [ "FluidPartial", "co", [ "Blank", 2072008417 ] ]
-      ],
+      "ast": [ "EPartial", 1059346376, "co", [ "EBlank", 2072008417 ] ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1280,11 +1146,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [
-        "Filled",
-        1059346376,
-        [ "FluidPartial", "c", [ "Blank", 2072008417 ] ]
-      ],
+      "ast": [ "EPartial", 1059346376, "c", [ "EBlank", 2072008417 ] ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1303,7 +1165,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [ "Blank", 639776258 ],
+      "ast": [ "EBlank", 639776258 ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1322,7 +1184,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [ "Filled", 1464654981, [ "Value", "\"\"" ] ],
+      "ast": [ "EString", 1464654981, "" ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1341,7 +1203,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [ "Filled", 1464654981, [ "Value", "\"c\"" ] ],
+      "ast": [ "EString", 1464654981, "c" ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1360,7 +1222,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [ "Filled", 1464654981, [ "Value", "\"co\"" ] ],
+      "ast": [ "EString", 1464654981, "co" ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1379,7 +1241,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [ "Filled", 1464654981, [ "Value", "\"coo\"" ] ],
+      "ast": [ "EString", 1464654981, "coo" ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1398,7 +1260,7 @@
     { "x": 983, "y": 217 },
     {
       "tlid": 445834184,
-      "ast": [ "Filled", 1464654981, [ "Value", "\"cool\"" ] ],
+      "ast": [ "EString", 1464654981, "cool" ],
       "spec": {
         "module": [ "Filled", 1328478379, "REPL" ],
         "name": [ "Filled", 1390293146, "angryZebra" ],
@@ -1422,7 +1284,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Blank", 1805781393 ]
+      "ast": [ "EBlank", 1805781393 ]
     }
   ],
   [ "TLSavepoint", 1100431814 ],
@@ -1437,7 +1299,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Filled", 145090856, [ "Value", "8" ] ]
+      "ast": [ "EInteger", 145090856, "8" ]
     }
   ]
 ]

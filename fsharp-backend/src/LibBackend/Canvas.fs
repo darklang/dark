@@ -428,7 +428,7 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
       // CLEANUP: rename "rendered" and "cached" to be consistent
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
+      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids
 
       let fastLoadedTLIDs =
         List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
@@ -676,10 +676,10 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
       |> loadJsonFromDisk Config.Testdata
       |> List.map (fun (tlid, oplist) ->
         let tl =
-          fromOplist meta [] oplist
-          |> toplevels
-          |> Map.get tlid
-          |> Option.unwrapUnsafe
+          let oplist = fromOplist meta [] oplist
+          let tls = toplevels oplist
+          let dtls = deletedToplevels oplist
+          (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
         (tlid, oplist, tl, NotDeleted))
 
     do! saveTLIDs meta oplists

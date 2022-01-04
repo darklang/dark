@@ -1,5 +1,5 @@
 [
-  [ "TLSavepoint", 123],
+  [ "TLSavepoint", 123 ],
   [
     "SetFunction",
     {
@@ -19,7 +19,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Filled", 786842620, [ "Value", "5" ] ]
+      "ast": [ "EInteger", 786842620, "5" ]
     }
   ]
 ]

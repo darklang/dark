@@ -10,7 +10,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Filled", 1547025999, [ "FnCall", "Uuid::generate", [] ] ]
+      "ast": [ "EFnCall", 1547025999, "Uuid::generate", [], [ "NoRail" ] ]
     }
   ],
   [
@@ -24,7 +24,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Filled", 1547026000, [ "FnCall", "Uuid::generate", [] ] ]
+      "ast": [ "EFnCall", 1547026000, "Uuid::generate", [], [ "NoRail" ] ]
     }
   ],
   [
@@ -38,7 +38,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Filled", 1547026001, [ "FnCall", "Uuid::generate", [] ] ]
+      "ast": [ "EFnCall", 1547026001, "Uuid::generate", [], [ "NoRail" ] ]
     }
   ],
   [
@@ -52,7 +52,7 @@
         "description": "",
         "infix": false
       },
-      "ast": [ "Filled", 1547026002, [ "FnCall", "Uuid::generate", [] ] ]
+      "ast": [ "EFnCall", 1547026002, "Uuid::generate", [], [ "NoRail" ] ]
     }
   ]
 ]

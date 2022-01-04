@@ -7,32 +7,25 @@
     {
       "tlid": 1723824638,
       "ast": [
-        "Filled",
+        "ELet",
         1095348949,
+        "val",
         [
-          "Let",
-          [ "Filled", 1559342922, "val" ],
+          "EFnCall",
+          379121043,
+          "String::toBytes",
+          [ [ "EString", 931258363, "foo" ] ],
+          [ "NoRail" ]
+        ],
+        [
+          "EFnCall",
+          1549926819,
+          "Http::respondWithJson",
           [
-            "Filled",
-            379121043,
-            [
-              "FnCall",
-              "String::toBytes",
-              [ [ "Filled", 931258363, [ "Value", "\"foo\"" ] ] ]
-            ]
+            [ "EVariable", 1052606096, "val" ],
+            [ "EInteger", 730858672, "200" ]
           ],
-          [
-            "Filled",
-            1549926819,
-            [
-              "FnCall",
-              "Http::respondWithJson",
-              [
-                [ "Filled", 1052606096, [ "Variable", "val" ] ],
-                [ "Filled", 730858672, [ "Value", "200" ] ]
-              ]
-            ]
-          ]
+          [ "NoRail" ]
         ]
       ],
       "spec": {

@@ -16,6 +16,8 @@ module Exe = LibExecution.Execution
 module Ast = LibExecution.Ast
 
 module AT = LibExecution.AnalysisTypes
+module PT = LibExecution.ProgramTypes
+
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
 let parse = FSharpToExpr.parseRTExpr
@@ -59,7 +61,8 @@ let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
     let name = "testFunction"
     let! owner = testOwner.Force()
-    let fn = testUserFn name [] (eInt 5)
+    let fn =
+      testUserFn name [] (PT.EInteger(gid (), 5)) |> PT.UserFunction.toRuntimeType
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor owner "test" Map.empty fns
 
@@ -151,13 +154,25 @@ let testRecursionInEditor : Test =
     let skippedCallerID = gid ()
 
     let fnExpr =
-      (eIf
-        (eApply (eStdFnVal "" "<" 0) [ eVar "i"; eInt 1 ])
-        (eInt 0)
+      (PT.EIf(
+        gid (),
+        (PT.EFnCall(
+          gid (),
+          FQFnName.stdlibFqName "" "<" 0,
+          [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
+          PT.NoRail
+        )),
+        (PT.EInteger(gid (), 0)),
         // infinite recursion
-        (EApply(skippedCallerID, eUserFnVal "recurse", [ eInt 2 ], NotInPipe, NoRail)))
-
-    let recurse = testUserFn "recurse" [ "i" ] fnExpr
+        (PT.EFnCall(
+          skippedCallerID,
+          FQFnName.userFqName "recurse",
+          [ PT.EInteger(gid (), 2) ],
+          PT.NoRail
+        ))
+      ))
+    let recurse =
+      testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
     let! results = execSaveDvals [] [ recurse ] ast
 

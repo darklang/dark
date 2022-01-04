@@ -7,34 +7,24 @@
     {
       "tlid": 1825910366,
       "ast": [
-        "Filled",
+        "ELet",
         818712402,
+        "name",
         [
-          "Let",
-          [ "Filled", 479144770, "name" ],
-          [
-            "Filled",
-            1648879869,
-            [
-              "FeatureFlag",
-              [ "Filled", 218225733, "flag-114573363" ],
-              [ "Filled", 1652980448, [ "Value", "false" ] ],
-              [ "Filled", 1624550924, [ "Value", "\"Vanessa Ives\"" ] ],
-              [ "Filled", 1916674282, [ "Value", "\"Dorian Gray\"" ] ]
-            ]
-          ],
-          [
-            "Filled",
-            64986033,
-            [
-              "FnCall",
-              "++",
-              [
-                [ "Filled", 1643956865, [ "Value", "\"farewell \"" ] ],
-                [ "Filled", 162918442, [ "Variable", "name" ] ]
-              ]
-            ]
-          ]
+          "EFeatureFlag",
+          1648879869,
+          "flag-114573363",
+          [ "EBool", 1652980448, false ],
+          [ "EString", 1624550924, "Vanessa Ives" ],
+          [ "EString", 1916674282, "Dorian Gray" ]
+        ],
+        [
+          "EBinOp",
+          64986033,
+          "++",
+          [ "EString", 1643956865, "farewell " ],
+          [ "EVariable", 162918442, "name" ],
+          [ "NoRail" ]
         ]
       ],
       "spec": {

@@ -6,40 +6,27 @@
     {
       "tlid": 1760300455,
       "ast": [
-        "Filled",
+        "ELet",
         2012725865,
+        "foo",
+        [ "EInteger", 1040370379, "1" ],
         [
-          "Let",
-          [ "Filled", 1202765487, "foo" ],
-          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          "ELet",
+          1327273004,
+          "bar",
+          [ "EInteger", 2797081385, "2" ],
           [
-            "Filled",
-            1327273004,
+            "ELet",
+            1582275098,
+            "baz",
+            [ "EInteger", 1513636298, "5" ],
             [
-              "Let",
-              [ "Filled", 2548241186, "bar" ],
-              [ "Filled", 2797081385, [ "Value", "2" ] ],
-              [
-                "Filled",
-                1582275098,
-                [
-                  "Let",
-                  [ "Filled", 1084620256, "baz" ],
-                  [ "Filled", 1513636298, [ "Value", "5" ] ],
-                  [
-                    "Filled",
-                    482833718,
-                    [
-                      "FnCall",
-                      "+",
-                      [
-                        [ "Filled", 3618664244, [ "Variable", "foo" ] ],
-                        [ "Filled", 1909850983, [ "Variable", "bar" ] ]
-                      ]
-                    ]
-                  ]
-                ]
-              ]
+              "EBinOp",
+              482833718,
+              "+",
+              [ "EVariable", 3618664244, "foo" ],
+              [ "EVariable", 1909850983, "bar" ],
+              [ "NoRail" ]
             ]
           ]
         ]

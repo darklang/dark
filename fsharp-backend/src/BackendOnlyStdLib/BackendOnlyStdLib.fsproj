@@ -32,6 +32,7 @@
     <Compile Include="LibHttpClient5.fs" />
     <Compile Include="LibHttpClientAuth.fs" />
     <Compile Include="LibJwt.fs" />
+    <Compile Include="LibPassword.fs" />
     <Compile Include="LibStaticAssets.fs" />
     <Compile Include="LibTwilio.fs" />
     <Compile Include="LibX509.fs" />

@@ -7,29 +7,26 @@
     {
       "tlid": 1013604333,
       "ast": [
-        "Filled",
+        "EFnCall",
         1334251057,
+        "Crypto::sha256",
         [
-          "FnCall",
-          "Crypto::sha256",
           [
+            "EPipe",
+            744235252,
             [
-              "Filled",
-              744235252,
+              [ "EString", 1045574047, "hello" ],
               [
-                "Thread",
-                [
-                  [ "Filled", 1045574047, [ "Value", "\"hello\"" ] ],
-                  [
-                    "Filled",
-                    1623144612,
-                    [ "FnCall", "String::toBytes", [] ]
-                  ]
-                ]
+                "EFnCall",
+                1623144612,
+                "String::toBytes",
+                [ [ "EPipeTarget", 307946852 ] ],
+                [ "NoRail" ]
               ]
             ]
           ]
-        ]
+        ],
+        [ "NoRail" ]
       ],
       "spec": {
         "module": [ "Filled", 1861672265, "REPL" ],

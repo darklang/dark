@@ -7,13 +7,11 @@
     {
       "tlid": 925747839,
       "ast": [
-        "Filled",
+        "ELet",
         1001436367,
-        ["Let",
-          [ "Blank", 843662222 ],
-          [ "Blank", 788027425 ],
-          [ "Blank", 384549332 ]
-        ]
+        "",
+        [ "EBlank", 788027425 ],
+        [ "EBlank", 384549332 ]
       ],
       "spec": {
         "module": [ "Filled", 23, "HTTP" ],
@@ -34,13 +32,11 @@
     {
       "tlid": 925747839,
       "ast": [
-        "Filled",
+        "ELet",
         1001436367,
-        ["Let",
-          [ "Filled", 26, "var" ],
-          [ "Blank", 788027425 ],
-          [ "Blank", 384549332 ]
-        ]
+        "var",
+        [ "EBlank", 788027425 ],
+        [ "EBlank", 384549332 ]
       ],
       "spec": {
         "module": [ "Filled", 23, "HTTP" ],

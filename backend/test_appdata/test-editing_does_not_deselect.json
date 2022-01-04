@@ -6,13 +6,11 @@
     {
       "tlid": 925747839,
       "ast": [
-        "Filled",
+        "ELet",
         1001436367,
-        ["Let",
-          [ "Filled", 26, "var" ],
-          [ "Filled", 788027425, ["Value",  "\"hello zane\""]],
-          [ "Filled", 28386, ["Variable", "var"] ]
-        ]
+        "var",
+        [ "EString", 788027425, "hello zane" ],
+        [ "EVariable", 28386, "var" ]
       ],
       "spec": {
         "module": [ "Filled", 23, "HTTP" ],

@@ -35,6 +35,7 @@ type TraceID = System.Guid
 type TraceData =
   { input : InputVars
     timestamp : System.DateTime
+    // CLEANUP remove underscore
     function_results : List<FunctionResult> }
 
 type Trace = TraceID * TraceData
@@ -45,10 +46,3 @@ type Trace = TraceID * TraceData
 // could do that too, but we just Option in DOption (which the OCaml version
 // does not). This could lead to problems but let's see how it goes for now.
 // type Trace = TraceID * Option<TraceData>
-
-// type tlid_traces = tlid * trace list [@@deriving to_yojson]
-//
-// type tlid_traceid = tlid * traceid [@@deriving to_yojson]
-//
-// type traceid_tlids = traceid * tlid list [@@deriving to_yojson]
-//

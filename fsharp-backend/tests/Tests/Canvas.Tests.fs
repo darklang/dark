@@ -10,420 +10,413 @@ open Tablecloth
 open TestUtils.TestUtils
 
 module Canvas = LibBackend.Canvas
+module Serialize = LibBackend.Serialize
 module PT = LibExecution.ProgramTypes
 module S = PT.Shortcuts
+module CanvasClone = LibBackend.CanvasClone
+module Account = LibBackend.Account
+
+let parse = FSharpToExpr.parsePTExpr
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
-// let testDBOplistRoundtrip : Test =
-//   testTask "db oplist roundtrip" {
-//     let host = "test-db_oplist_roundtrip"
-//     do! clearCanvasData (CanvasName.create host)
-//     let tlid = gid ()
-//     let! meta = testCanvasInfo host
-//     let oplist = [ PT.UndoTL tlid; PT.RedoTL tlid; PT.UndoTL tlid; PT.RedoTL tlid ]
-//
-//
-//     Serialize.save_toplevel_oplist oplist None tlid None None canvas_id account_id : owner TL.TLHandler None None None
-//     let ops = Serialize.load_all_from_db canvas_id host ()
-//     Expect.equal ops [ (tlid, oplist) ] "db oplist roundtrip"
-//   }
-//
-//
-// let t_http_oplist_roundtrip () =
-//   clear_test_data () ;
-//   let host = "test-http_oplist_roundtrip" in
-//   let handler = http_route_handler () in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let oplist = [SetHandler (tlid, pos, handler)] in
-//   let c1 = ops2c_exn host oplist in
-//   Canvas.serialize_only [tlid] !c1 ;
-//   let c2 =
-//     Canvas.load_http_from_cache
-//       ~canvas_id
-//       ~owner
-//       ~path:http_request_path
-//       ~verb:"GET"
-//       host
-//     |> Result.map_error ~f:(String.concat ~sep:", ")
-//     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-//   in
-//   (* Can tell it was loaded from the cache, as the canvas object has no
-//    * oplists *)
-//   AT.check AT.bool "handler is loaded from cache #1" true (!c2.ops = []) ;
-//   AT.check
-//     testable_handler
-//     "handler is loaded correctly from cache #1"
-//     handler
-//     ( !c2.handlers
-//     |> IDMap.data
-//     |> List.hd_exn
-//     |> Toplevel.as_handler
-//     |> Option.value_exn )
-//
-//
-// let t_http_oplist_loads_user_tipes () =
-//   clear_test_data () ;
-//   let host = "test-http_oplist_loads_user_tipes" in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let tipe = user_record "test-tipe" [] in
-//   let oplist = [SetHandler (tlid, pos, http_route_handler ()); SetType tipe] in
-//   let c1 = ops2c_exn host oplist in
-//   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
-//   let c2 =
-//     Canvas.load_http_from_cache
-//       ~canvas_id
-//       ~owner
-//       ~path:http_request_path
-//       ~verb:"GET"
-//       host
-//     |> Result.map_error ~f:(String.concat ~sep:", ")
-//     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-//   in
-//   AT.check
-//     AT.bool
-//     "handlers and types are loaded from cache #2"
-//     true
-//     (!c2.ops = []) ;
-//   AT.check
-//     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
-//     "user tipes"
-//     [tipe]
-//     (IDMap.data !c2.user_tipes)
-//
-//
-// let t_http_load_ignores_deleted_fns () =
-//   clear_test_data () ;
-//   let host = "test-http_load_ignores_deleted_fns_and_dbs" in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let handler = http_route_handler () in
-//   let f = user_fn ~tlid:tlid2 "testfn" [] (binop "+" (int 5) (int 3)) in
-//   let f2 = user_fn ~tlid:tlid3 "testfn" [] (binop "+" (int 6) (int 4)) in
-//   let oplist =
-//     [ SetHandler (tlid, pos, handler)
-//     ; SetFunction f
-//     ; DeleteFunction tlid2
-//     ; SetFunction f2 ]
-//   in
-//   let c1 = ops2c_exn host oplist in
-//   Canvas.serialize_only [tlid; tlid2; tlid3] !c1 ;
-//   let c2 =
-//     Canvas.load_http_from_cache
-//       ~canvas_id
-//       ~owner
-//       ~path:http_request_path
-//       ~verb:"GET"
-//       host
-//     |> Result.map_error ~f:(String.concat ~sep:", ")
-//     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-//   in
-//   AT.check AT.bool "handler is loaded from cache #3" true (!c2.ops = []) ;
-//   AT.check
-//     testable_handler
-//     "handler is loaded correctly from cache #3"
-//     handler
-//     ( !c2.handlers
-//     |> IDMap.data
-//     |> List.hd_exn
-//     |> Toplevel.as_handler
-//     |> Option.value_exn ) ;
-//   AT.check
-//     AT.int
-//     "only one function is loaded from cache"
-//     1
-//     (IDMap.length !c2.user_functions) ;
-//   AT.check
-//     AT.bool
-//     "the most recent function is loaded from the cache"
-//     true
-//     (f2 = (!c2.user_functions |> IDMap.data |> List.hd_exn))
-//
-//
-// let t_db_create_with_orblank_name () =
-//   clear_test_data () ;
-//   let ops =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-//     ; AddDBCol (dbid, colnameid, coltypeid) ]
-//   in
-//   let _, state, _ = test_execution_data ops in
-//   AT.check AT.bool "datastore is created" true (state.dbs <> [])
-//
-//
-// let t_db_rename () =
-//   clear_test_data () ;
-//   let ops =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "ElmCode")
-//     ; AddDBCol (dbid, colnameid, coltypeid)
-//     ; RenameDBname (dbid, "BsCode") ]
-//   in
-//   let _, state, _ = test_execution_data ops in
-//   match List.hd state.dbs with
-//   | Some db ->
-//       let newname =
-//         match db.name with
-//         | Filled (_, name) ->
-//             name
-//         | Partial _ | Blank _ ->
-//             ""
-//       in
-//       AT.check AT.string "datastore rename success" "BsCode" newname
-//   | None ->
-//       AT.check AT.bool "fail to rename datastore" true false
-//
-//
-// let t_set_after_delete () =
-//   let check_empty msg tls = AT.check AT.int msg (IDMap.length tls) 0 in
-//   let check_single msg tls = AT.check AT.int msg (IDMap.length tls) 1 in
-//   (* handlers *)
-//   clear_test_data () ;
-//   let h1 = handler (binop "+" (int 5) (int 3)) in
-//   let h2 = handler (binop "+" (int 5) (int 2)) in
-//   let op1 = SetHandler (tlid, pos, h1) in
-//   let op2 = DeleteTL tlid in
-//   let op3 = SetHandler (tlid, pos, h2) in
-//   check_dval "first handler is right" (execute_ops [op1]) (Dval.dint 8) ;
-//   check_empty "deleted not in handlers" !(ops2c_exn "test" [op1; op2]).handlers ;
-//   check_single
-//     "delete in deleted"
-//     !(ops2c_exn "test" [op1; op2]).deleted_handlers ;
-//   check_single
-//     "deleted in handlers"
-//     !(ops2c_exn "test" [op1; op2; op3]).handlers ;
-//   check_empty
-//     "deleted not in deleted "
-//     !(ops2c_exn "test" [op1; op2; op3]).deleted_handlers ;
-//   check_dval
-//     "second handler is right"
-//     (execute_ops [op1; op2; op3])
-//     (Dval.dint 7) ;
-//   (* same thing for functions *)
-//   clear_test_data () ;
-//   let h1 = user_fn "testfn" [] (binop "+" (int 5) (int 3)) in
-//   let h2 = user_fn "testfn" [] (binop "+" (int 5) (int 2)) in
-//   let op1 = SetFunction h1 in
-//   let op2 = DeleteFunction tlid in
-//   let op3 = SetFunction h2 in
-//   check_empty "deleted not in fns" !(ops2c_exn "test" [op1; op2]).user_functions ;
-//   check_single
-//     "delete in deleted"
-//     !(ops2c_exn "test" [op1; op2]).deleted_user_functions ;
-//   check_single
-//     "deleted in fns"
-//     !(ops2c_exn "test" [op1; op2; op3]).user_functions ;
-//   check_empty
-//     "deleted not in deleted "
-//     !(ops2c_exn "test" [op1; op2; op3]).deleted_user_functions ;
-//   ()
-//
-//
-// let t_load_all_dbs_from_cache () =
-//   clear_test_data () ;
-//   let host = "test-http_oplist_loads_user_tipes" in
-//   let oplist =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-//     ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
-//     ; CreateDBWithBlankOr (dbid3, pos, nameid3, "Books3")
-//     ; DeleteTL dbid ]
-//   in
-//   let c1 = ops2c_exn host oplist in
-//   Canvas.serialize_only [dbid; dbid2; dbid3] !c1 ;
-//   let c2 =
-//     Canvas.load_all_dbs_from_cache host
-//     |> Result.map_error ~f:(String.concat ~sep:", ")
-//     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-//   in
-//   AT.check AT.bool "dbs are loaded from cache" true (!c2.ops = []) ;
-//   AT.check
-//     (AT.list testable_id)
-//     "Loaded only undeleted dbs"
-//     (List.sort ~compare:compare_id [dbid2; dbid3])
-//     (!c2.dbs |> IDMap.keys |> List.sort ~compare:compare_id)
-//
-//
-// let t_canvas_verification_duplicate_creation () =
-//   let ops =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-//     ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
-//   in
-//   let c = ops2c "test-verify_create" ops in
-//   AT.check AT.bool "should not verify" false (Result.is_ok c)
-//
-//
-// let t_canvas_verification_duplicate_creation_off_disk () =
-//   clear_test_data () ;
-//   let host = "test-verify_rename" in
-//   let ops = [CreateDBWithBlankOr (dbid, pos, nameid, "Books")] in
-//   let c1 = ops2c_exn host ops in
-//   Canvas.serialize_only [dbid] !c1 ;
-//   let c2 =
-//     let ops = [CreateDBWithBlankOr (dbid2, pos, nameid, "Books")] in
-//     match Op.required_context_to_validate_oplist ops with
-//     | NoContext ->
-//         Canvas.load_only_tlids ~tlids:[dbid2] host ops
-//     | AllDatastores ->
-//         Canvas.load_with_dbs ~tlids:[dbid2] host ops
-//   in
-//   AT.check AT.bool "should not verify" false (Result.is_ok c2)
-//
-//
-// let t_canvas_verification_duplicate_renaming () =
-//   let ops =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-//     ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
-//     ; RenameDBname (dbid2, "Books") ]
-//   in
-//   let c = ops2c "test-verify_rename" ops in
-//   AT.check AT.bool "should not verify" false (Result.is_ok c)
-//
-//
-// let t_canvas_verification_no_error () =
-//   let ops =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-//     ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
-//   in
-//   let c = ops2c "test-verify_okay" ops in
-//   AT.check AT.bool "should verify" true (Result.is_ok c)
-//
-//
-// let t_canvas_verification_undo_rename_duped_name () =
-//   let ops1 =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-//     ; TLSavepoint dbid
-//     ; DeleteTL dbid
-//     ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
-//   in
-//   let c = ops2c "test-verify_undo_1" ops1 in
-//   AT.check AT.bool "should initially verify" true (Result.is_ok c) ;
-//   let ops2 = ops1 @ [UndoTL dbid] in
-//   let c2 = ops2c "test-verify_undo_2" ops2 in
-//   AT.check AT.bool "should then fail to verify" false (Result.is_ok c2)
-//
-//
-// let t_canvas_clone () =
-//   Canvas.load_and_resave_from_test_file "sample-gettingstarted" ;
-//   Account.insert_user
-//     ~username:"clone"
-//     ~email:"clone@example.com"
-//     ~name:"clone"
-//     ()
-//   |> Result.ok_or_Exception.raiseInternal ;
-//   Canvas_clone.clone_canvas
-//     ~from_canvas_name:"sample-gettingstarted"
-//     ~to_canvas_name:"clone-gettingstarted"
-//     ~preserve_history:false
-//   |> Result.ok_or_Exception.raiseInternal ;
-//   let sample_canvas =
-//     Canvas.load_all "sample-gettingstarted" []
-//     |> Tc.Result.map_error (String.concat ~sep:", ")
-//     |> Result.ok_or_Exception.raiseInternal
-//   in
-//   let cloned_canvas : Canvas.canvas ref =
-//     Canvas.load_all "clone-gettingstarted" []
-//     |> Tc.Result.map_error (String.concat ~sep:", ")
-//     |> Result.ok_or_Exception.raiseInternal
-//   in
-//   let cloned_canvas_from_cache : Canvas.canvas ref =
-//     Canvas.load_all_from_cache "clone-gettingstarted"
-//     |> Tc.Result.map_error (String.concat ~sep:", ")
-//     |> Result.ok_or_Exception.raiseInternal
-//   in
-//   (* canvas.ops is not [op list], it is [(tlid, op list) list] *)
-//   let canvas_ops_length (c : Canvas.canvas) =
-//     c.ops |> List.map ~f:snd |> List.join |> List.length
-//   in
-//   let has_creation_ops (c : Canvas.canvas) =
-//     List.map c.ops ~f:(fun (_, ops) ->
-//         Canvas_clone.only_ops_since_last_savepoint ops
-//         |> Tablecloth.List.any ~f:Canvas_clone.is_op_that_creates_toplevel)
-//     |> Tablecloth.List.all ~f:(fun res -> res)
-//   in
-//   AT.check
-//     AT.bool
-//     "only_ops_since_last_savepoint retrieve latest ops from the last complete op"
-//     true
-//     (has_creation_ops !sample_canvas) ;
-//   AT.check
-//     AT.bool
-//     "fewer ops means we removed old history"
-//     true
-//     (canvas_ops_length !cloned_canvas < canvas_ops_length !sample_canvas) ;
-//   AT.check
-//     AT.bool
-//     "Same DBs when loading from db"
-//     true
-//     (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas.dbs) ;
-//   AT.check
-//     AT.string
-//     "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
-//     ( !sample_canvas.handlers
-//     |> Toplevel.toplevels_to_yojson
-//     |> Yojson.Safe.to_string
-//     |> fun s ->
-//     Libexecution.Util.string_replace
-//       "http://sample-gettingstarted.builtwithdark.localhost"
-//       "http://clone-gettingstarted.builtwithdark.localhost"
-//       s )
-//     ( !cloned_canvas.handlers
-//     |> Toplevel.toplevels_to_yojson
-//     |> Yojson.Safe.to_string ) ;
-//   AT.check
-//     AT.bool
-//     "Same DBs when loading from cache"
-//     true
-//     (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas_from_cache.dbs) ;
-//   AT.check
-//     AT.string
-//     "Same handlers when loading from cache, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
-//     ( !sample_canvas.handlers
-//     |> Toplevel.toplevels_to_yojson
-//     |> Yojson.Safe.to_string
-//     |> fun s ->
-//     Libexecution.Util.string_replace
-//       "http://sample-gettingstarted.builtwithdark.localhost"
-//       "http://clone-gettingstarted.builtwithdark.localhost"
-//       s )
-//     ( !cloned_canvas_from_cache.handlers
-//     |> Toplevel.toplevels_to_yojson
-//     |> Yojson.Safe.to_string )
-//
-//
-// let suite =
-//   [ ("undo", `Quick, t_undo)
-//   ; ("undo_fns", `Quick, t_undo_fns)
-//   ; ("db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip)
-//   ; ("http oplist roundtrip", `Quick, t_http_oplist_roundtrip)
-//   ; ( "Can create new DB with Op CreateDBWithBlankOr"
-//     , `Quick
-//     , t_db_create_with_orblank_name )
-//   ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename)
-//   ; ("set after delete doesn't crash", `Quick, t_set_after_delete)
-//   ; ( "Canvas verification catches duplicate DB name via creation"
-//     , `Quick
-//     , t_canvas_verification_duplicate_creation )
-//   ; ( "Canvas verification catches duplicate DB name via renaming"
-//     , `Quick
-//     , t_canvas_verification_duplicate_renaming )
-//   ; ( "Canvas verification returns Ok if no error"
-//     , `Quick
-//     , t_canvas_verification_no_error )
-//   ; ( "Canvas verification catches inconsistency post undo"
-//     , `Quick
-//     , t_canvas_verification_undo_rename_duped_name )
-//   ; ( "Loading handler via HTTP router loads user tipes"
-//     , `Quick
-//     , t_http_oplist_loads_user_tipes )
-//   ; ( "Loading handler via HTTP router ignores deleted fns"
-//     , `Quick
-//     , t_http_load_ignores_deleted_fns )
-//   ; ( "Loading dbs from load_all_dbs_from_cache ignores deleted dbs"
-//     , `Quick
-//     , t_load_all_dbs_from_cache )
-//   ; ( "Adding a DB with a duplicate name fails to verify"
-//     , `Quick
-//     , t_canvas_verification_duplicate_creation_off_disk )
-//   ; ("Check canvas_clone", `Quick, t_canvas_clone) ]
+let testDBOplistRoundtrip : Test =
+  testTask "db oplist roundtrip" {
+    let! meta = initializeTestCanvas "db_oplist_roundtrip"
 
-let tests = testList "canvas" []
+    let db = testDB "myDB" []
+    let oplist =
+      [ PT.UndoTL db.tlid; PT.RedoTL db.tlid; PT.UndoTL db.tlid; PT.RedoTL db.tlid ]
+
+    do! Canvas.saveTLIDs meta [ (db.tlid, oplist, PT.TLDB db, Canvas.NotDeleted) ]
+    let! ops = Canvas.loadOplists Canvas.LiveToplevels meta.id [ db.tlid ]
+    Expect.equal ops [ (db.tlid, oplist) ] "db oplist roundtrip"
+  }
+
+
+let testHttpOplistRoundtrip =
+  testTask "test http oplist roundtrip" {
+    let! meta = initializeTestCanvas "http_oplist_roundtrip"
+
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let oplist = [ hop handler ]
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid, oplist, PT.TLHandler handler, Canvas.NotDeleted) ]
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+    Expect.equal (c2.handlers[handler.tlid]) handler "Handlers should be equal"
+  }
+
+
+let testHttpOplistLoadsUserTypes =
+  testTask "httpOplistLoadsUserTypes" {
+    let! meta = initializeTestCanvas "http_oplist_loads_user_tipes"
+
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let typ = testUserType "test-tipe" [ ("age", PT.TInt) ]
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid, [ hop handler ], PT.TLHandler handler, Canvas.NotDeleted)
+          (typ.tlid, [ PT.SetType typ ], PT.TLType typ, Canvas.NotDeleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+    Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
+  }
+
+
+let testHttpLoadIgnoresDeletedFns =
+  testTask "Http load ignores deleted fns" {
+    let! meta = initializeTestCanvas "http-load-ignores-deleted-fns"
+
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let f = testUserFn "testfn" [] (parse "5 + 3")
+    let f2 = testUserFn "testfn" [] (parse "6 + 4")
+
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid, [ hop handler ], PT.TLHandler handler, Canvas.NotDeleted)
+          (f.tlid, [ PT.SetFunction f ], PT.TLFunction f, Canvas.NotDeleted)
+          (f.tlid, [ PT.DeleteFunction f.tlid ], PT.TLFunction f, Canvas.Deleted)
+          (f2.tlid, [ PT.SetFunction f2 ], PT.TLFunction f2, Canvas.NotDeleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+
+    Expect.equal c2.handlers[handler.tlid] handler "handler is loaded "
+    Expect.equal c2.userFunctions.Count 1 "only one function is loaded from cache"
+    Expect.equal c2.userFunctions[f2.tlid] f2 "later func is loaded"
+  }
+
+
+let testDbCreateWithOrblankName =
+  testTask "DB create with orblank name" {
+    let! meta = initializeTestCanvas "db-create-with-orblank-name"
+
+    let dbid = gid ()
+    let nameID = gid ()
+    let colNameID = gid ()
+    let colTypeID = gid ()
+    let name = "Books"
+    let pos = { x = 0; y = 0 }
+    let db : PT.DB.T =
+      { tlid = dbid
+        pos = pos
+        name = name
+        nameID = nameID
+        version = 0
+        cols = [ { name = ""; nameID = colNameID; typ = None; typeID = colTypeID } ] }
+
+    let ops =
+      [ PT.CreateDBWithBlankOr(dbid, pos, nameID, name)
+        PT.AddDBCol(dbid, colNameID, colTypeID) ]
+    let canvas = Canvas.fromOplist meta [] ops
+    Expect.equal (canvas.dbs[dbid]) db "Datastore is created"
+  }
+
+let testDbRename =
+  testTask "DB rename" {
+    let! meta = initializeTestCanvas "db-rename"
+
+    let dbid = gid ()
+    let nameID = gid ()
+    let colNameID = gid ()
+    let colTypeID = gid ()
+    let name = "Books"
+    let pos = { x = 0; y = 0 }
+    let ops =
+      [ PT.CreateDBWithBlankOr(dbid, pos, nameID, name)
+        PT.AddDBCol(dbid, colNameID, colTypeID)
+        PT.RenameDBname(dbid, "BsCode") ]
+    let canvas = Canvas.fromOplist meta [] ops
+    Expect.equal canvas.dbs[dbid].name "BsCode" "Datastore is created"
+  }
+
+let testSetHandlerAfterDelete =
+  testTask "handler set after delete" {
+    let! meta = initializeTestCanvas "set-handlder-after-delete"
+    let e1 = (parse "5 + 3")
+    let e2 = (parse "5 + 2")
+    let h1 = testHttpRouteHandler "/path" "GET" e1
+    let h2 = testHttpRouteHandler "/path" "GET" e2
+    let op1 = hop h1
+    let op2 = PT.DeleteTL h1.tlid
+    let op3 = hop h2
+
+    // Just the deleted handler
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (h1.tlid, [ op1; op2 ], PT.TLHandler h1, Canvas.Deleted) ]
+
+    let! (c2 : Canvas.T) = Canvas.loadAll meta
+
+    Expect.equal c2.deletedHandlers[h1.tlid] h1 "deleted in deleted"
+    Expect.equal c2.deletedHandlers.Count 1 "only deleted in deleted"
+    Expect.equal c2.handlers.Count 0 "deleted not in handlers"
+
+    // And the new one (the deleted is still there)
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (h2.tlid, [ op3 ], PT.TLHandler h2, Canvas.NotDeleted) ]
+
+    let! (c3 : Canvas.T) = Canvas.loadAll meta
+
+    Expect.equal c3.deletedHandlers[h1.tlid] h1 "deleted still in deleted"
+    Expect.equal c3.deletedHandlers.Count 1 "only deleted still in deleted"
+    Expect.equal c3.handlers[h2.tlid] h2 "live is in handlers"
+    Expect.equal c3.handlers.Count 1 "only live is in handlers"
+  }
+
+let testSetFunctionAfterDelete =
+  testTask "function set after delete" {
+    let! meta = initializeTestCanvas "db-set-function-after-delete"
+    let f1 = testUserFn "testfn" [] (parse "5 + 3")
+    let f2 = testUserFn "testfn" [] (parse "6 + 4")
+    let op1 = PT.SetFunction f1
+    let op2 = PT.DeleteFunction f1.tlid
+    let op3 = PT.SetFunction f2
+
+    // Just the deleted handler
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (f1.tlid, [ op1; op2 ], PT.TLFunction f1, Canvas.Deleted) ]
+
+    let! (c2 : Canvas.T) = Canvas.loadAll meta
+
+    Expect.equal c2.deletedUserFunctions[f1.tlid] f1 "deleted in deleted"
+    Expect.equal c2.deletedUserFunctions.Count 1 "only deleted in deleted"
+    Expect.equal c2.userFunctions.Count 0 "deleted not in handlers"
+
+    // And the new one (the deleted is still there)
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (f2.tlid, [ op3 ], PT.TLFunction f2, Canvas.NotDeleted) ]
+
+    let! (c3 : Canvas.T) = Canvas.loadAll meta
+
+    Expect.equal c3.deletedUserFunctions[f1.tlid] f1 "deleted still in deleted"
+    Expect.equal c3.deletedUserFunctions.Count 1 "only deleted still in deleted"
+    Expect.equal c3.userFunctions[f2.tlid] f2 "live is in handlers"
+    Expect.equal c3.userFunctions.Count 1 "only live is in handlers"
+  }
+
+
+let testLoadAllDBs =
+  testTask "load all dbs" {
+    let! meta = initializeTestCanvas "load-all-dbs"
+    let dbid1, dbid2, dbid3 = gid (), gid (), gid ()
+    let nameid1, nameid2, nameid3 = gid (), gid (), gid ()
+    let ops1 =
+      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books"); PT.DeleteTL dbid1 ]
+    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books2") ]
+    let ops3 = [ PT.CreateDBWithBlankOr(dbid3, testPos, nameid3, "Books3") ]
+    let c1 = Canvas.empty meta |> Canvas.addOps (ops1 @ ops2 @ ops3) []
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (dbid1, ops1, PT.TLDB c1.deletedDBs[dbid1], Canvas.Deleted)
+          (dbid2, ops2, PT.TLDB c1.dbs[dbid2], Canvas.NotDeleted)
+          (dbid3, ops3, PT.TLDB c1.dbs[dbid3], Canvas.NotDeleted) ]
+
+    let! (c2 : Canvas.T) = Canvas.loadAll meta
+    let ids = Map.values c2.dbs |> List.map (fun db -> db.tlid) |> Set
+    Expect.equal ids (Set [ dbid2; dbid3 ]) "Loaded only undeleted dbs"
+  }
+
+
+let testCanvasVerificationDuplicationCreation =
+  testTask "canvas verification duplication creation" {
+    let! meta = initializeTestCanvas "canvas-verification-duplication-creation"
+    let dbid1, dbid2 = gid (), gid ()
+    let nameid1, nameid2 = gid (), gid ()
+    let ops =
+      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
+        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books") ]
+    try
+      Canvas.empty meta |> Canvas.addOps [] ops |> ignore<Canvas.T>
+      Expect.equal false true "should not verify"
+    with
+    | _ -> ()
+  }
+
+let testCanvasVerificationDuplicationCreationOffDisk =
+  testTask "canvas verification duplication creation off disk" {
+    let! meta =
+      initializeTestCanvas "canvas-verification-duplication-creation-off-disk"
+    let dbid1, dbid2 = gid (), gid ()
+    let nameid1, nameid2 = gid (), gid ()
+    // same name
+    let ops1 = [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books") ]
+    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books") ]
+    let c1 = Canvas.empty meta |> Canvas.addOps (ops1 @ ops2) []
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (dbid1, ops1, PT.TLDB c1.dbs[dbid1], Canvas.NotDeleted)
+          (dbid2, ops2, PT.TLDB c1.dbs[dbid2], Canvas.NotDeleted) ]
+
+    // CLEANUP: i'm not sure that it works or that it tests what it's supposed to test
+    try
+      let! (_ : Canvas.T) =
+        match LibBackend.Op.requiredContextToValidateOplist ops2 with
+        | LibBackend.Op.NoContext -> Canvas.loadTLIDs meta [ dbid2 ]
+        | LibBackend.Op.AllDatastores -> Canvas.loadAll meta
+
+      Expect.equal false true "should not verify"
+    with
+    | _ -> ()
+  }
+
+let testCanvasVerificationDuplicationRenaming =
+  testTask "canvas verification duplication renaming" {
+    let! meta = initializeTestCanvas "canvas-verification-duplication-renaming"
+    let dbid1, dbid2 = gid (), gid ()
+    let nameid1, nameid2 = gid (), gid ()
+    let ops =
+      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
+        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books2")
+        PT.RenameDBname(dbid2, "Books") ]
+    try
+      Canvas.empty meta |> Canvas.addOps [] ops |> ignore<Canvas.T>
+      Expect.equal false true "should not verify"
+    with
+    | _ -> ()
+  }
+
+let testCanvasVerificationNoError =
+  testTask "canvas verification no error" {
+    let! meta = initializeTestCanvas "canvas-verification-no-error"
+    let dbid1, dbid2 = gid (), gid ()
+    let nameid1, nameid2 = gid (), gid ()
+    let ops =
+      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
+        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books2") ]
+    try
+      Canvas.empty meta |> Canvas.addOps [] ops |> ignore<Canvas.T>
+    with
+    | _ -> Expect.equal false true "should verify"
+  }
+
+let testCanvasVerificationUndoRenameDupedName =
+  testTask "canvas verification undo rename duped name" {
+    let! meta = initializeTestCanvas "canvas-verification-undo-rename-duped-name"
+    let dbid1, dbid2 = gid (), gid ()
+    let nameid1, nameid2 = gid (), gid ()
+    let ops1 =
+      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
+        PT.TLSavepoint dbid1
+        PT.DeleteTL dbid1
+        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books") ]
+    let ops2 = ops1 @ [ PT.UndoTL dbid1 ]
+    try
+      Canvas.empty meta |> Canvas.addOps [] ops1 |> ignore<Canvas.T>
+    with
+    | _ -> Expect.equal false true "should initially verify"
+
+    try
+      Canvas.empty meta |> Canvas.addOps [] ops2 |> ignore<Canvas.T>
+      Expect.equal false true "should not verify anymore"
+    with
+    | _ -> ()
+  }
+
+
+let testCanvasClone =
+  testTask "canvas clone" {
+    let username = UserName.create "clone"
+    match! Account.getUser username with
+    | None ->
+      let user : Account.Account =
+        { username = username
+          password = LibBackend.Password.invalid
+          email = "clone@example.com"
+          name = "Cloney McCloneFace" }
+      let! (added : Result<unit, string>) = Account.upsertNonAdmin user
+      assert Result.isOk added
+    | Some _ -> ()
+
+    let sourceCanvasName = CanvasName.create "sample-gettingstarted"
+    let targetCanvasName = CanvasName.create "clone-gettingstarted"
+
+    let! sourceMeta = Canvas.getMeta sourceCanvasName
+    let! targetMeta = Canvas.getMeta targetCanvasName
+
+    do! Canvas.loadAndResaveFromTestFile sourceMeta
+    do! CanvasClone.cloneCanvas sourceCanvasName targetCanvasName false
+
+    let! (sourceCanvas : Canvas.T) = Canvas.loadAll sourceMeta
+    let! (targetCanvas : Canvas.T) = Canvas.loadAll targetMeta
+
+    let! tlids = Serialize.fetchAllTLIDs sourceMeta.id
+    let! sourceOplists =
+      Canvas.loadOplists Canvas.IncludeDeletedToplevels sourceMeta.id tlids
+    let! targetOplists =
+      Canvas.loadOplists Canvas.IncludeDeletedToplevels targetMeta.id tlids
+
+    let hasCreationOps oplists =
+      oplists
+      |> List.map (fun (_, ops) ->
+        CanvasClone.onlyOpsSinceLastSavepoint ops
+        |> List.any CanvasClone.isOpThatCreatesToplevel)
+      |> List.all Fun.identity
+
+    let canvasOpsLength oplists =
+      oplists |> List.map Tuple2.second |> List.concat |> List.length
+
+    Expect.equal
+      (hasCreationOps sourceOplists)
+      true
+      "only_ops_since_last_savepoint retrieve latest ops from the last complete op"
+
+    Expect.equal
+      (canvasOpsLength sourceOplists > canvasOpsLength targetOplists)
+      true
+      "fewer ops means we removed old history"
+    return ()
+
+    Expect.equal sourceCanvas.dbs targetCanvas.dbs "Same DBs when loading from db"
+
+    let tweakedSourceHandlers =
+      sourceCanvas.handlers
+      |> Map.values
+      |> List.map Json.OCamlCompatible.serialize
+      |> List.map (
+        String.replace
+          "http://sample-gettingstarted.builtwithdark.localhost"
+          "http://clone-gettingstarted.builtwithdark.localhost"
+      )
+      |> List.map Json.OCamlCompatible.deserialize<PT.Handler.T>
+
+    Expect.equal
+      tweakedSourceHandlers
+      (Map.values targetCanvas.handlers)
+      "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
+  }
+
+
+let tests =
+  testList
+    "canvas"
+    [ testHttpOplistRoundtrip
+      testDBOplistRoundtrip
+      testHttpOplistLoadsUserTypes
+      testHttpLoadIgnoresDeletedFns
+      testDbCreateWithOrblankName
+      testDbRename
+      testSetHandlerAfterDelete
+      testSetFunctionAfterDelete
+      testLoadAllDBs
+      testCanvasVerificationDuplicationCreation
+      testCanvasVerificationDuplicationCreationOffDisk
+      testCanvasVerificationDuplicationRenaming
+      testCanvasVerificationNoError
+      testCanvasVerificationUndoRenameDupedName
+      testCanvasClone ]

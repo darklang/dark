@@ -11,11 +11,16 @@ open TestUtils.TestUtils
 
 open LibExecution.RuntimeTypes
 
+module Shortcuts = LibExecution.Shortcuts
+
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
+module TFR = LibBackend.TraceFunctionResults
+module RealExecution = LibRealExecution.RealExecution
 
 let testTraceIDsOfTlidsMatch : Test =
   test "traceIDs from tlids are as expected" {
@@ -114,152 +119,141 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
     Expect.equal [] events ""
   }
 
-// FSTODO
-// let t_stored_event_roundtrip () =
-//   clear_test_data () ;
-//   let owner : Uuidm.t =
-//     Account.owner ~auth_domain:"test" |> fun x -> Option.value_exn x
-//   in
-//   let id1 = Serialize.fetch_canvas_id owner "host" in
-//   let id2 = Serialize.fetch_canvas_id owner "host2" in
-//   let t1 = Util.create_uuid () in
-//   let t2 = Util.create_uuid () in
-//   let t3 = Util.create_uuid () in
-//   let t4 = Util.create_uuid () in
-//   let t5 = Util.create_uuid () in
-//   let t6 = Util.create_uuid () in
-//   SE.clear_all_events ~canvas_id:id1 () ;
-//   SE.clear_all_events ~canvas_id:id2 () ;
-//   let desc1 = ("HTTP", "/path", "GET") in
-//   let desc2 = ("HTTP", "/path2", "GET") in
-//   let desc3 = ("HTTP", "/path", "POST") in
-//   let desc4 = ("BG", "lol", "_") in
-//   ignore
-//     (SE.store_event
-//        ~canvas_id:id1
-//        ~trace_id:t1
-//        desc1
-//        (Dval.dstr_of_string_exn "1")) ;
-//   ignore
-//     (SE.store_event
-//        ~canvas_id:id1
-//        ~trace_id:t2
-//        desc1
-//        (Dval.dstr_of_string_exn "2")) ;
-//   ignore
-//     (SE.store_event
-//        ~canvas_id:id1
-//        ~trace_id:t3
-//        desc3
-//        (Dval.dstr_of_string_exn "3")) ;
-//   ignore
-//     (SE.store_event
-//        ~canvas_id:id1
-//        ~trace_id:t4
-//        desc2
-//        (Dval.dstr_of_string_exn "3")) ;
-//   ignore
-//     (SE.store_event
-//        ~canvas_id:id2
-//        ~trace_id:t5
-//        desc2
-//        (Dval.dstr_of_string_exn "3")) ;
-//   ignore
-//     (SE.store_event
-//        ~canvas_id:id2
-//        ~trace_id:t6
-//        desc4
-//        (Dval.dstr_of_string_exn "3")) ;
-//   let at_trace_id = AT.of_pp Uuidm.pp_string in
-//   let to_trace_id (t1, t2, t3, t4, t5) = t5 in
-//   let listed = SE.list_events ~limit:`All ~canvas_id:id1 () in
-//   AT.check
-//     (AT.list at_trace_id)
-//     "list host events"
-//     (List.sort ~compare [t1; t3; t4])
-//     (List.sort ~compare (List.map ~f:to_trace_id listed)) ;
-//   let loaded =
-//     SE.load_event_ids ~canvas_id:id2 desc4 |> List.map ~f:Tuple.T2.get1
-//   in
-//   AT.check
-//     (AT.list at_trace_id)
-//     "list desc events"
-//     (List.sort ~compare [t6])
-//     (List.sort ~compare loaded) ;
-//   let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
-//   check_dval_list
-//     "load GET events"
-//     [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
-//     loaded1 ;
-//   let loaded2 = SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:t4_get4th in
-//   check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
-//   let loaded3 = SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:t4_get4th in
-//   check_dval_list "load no host2 events" [] loaded3 ;
-//   let loaded4 = SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:t4_get4th in
-//   check_dval_list "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
-//   ()
-//
-//
-// let t_trace_data_json_format_redacts_passwords () =
-//   let id = fid () in
-//   let trace_data : Analysis_types.trace_data =
-//     { input = [("event", DPassword (PasswordBytes.of_string "redactme1"))]
-//     ; timestamp = Time.epoch
-//     ; function_results =
-//         [ ( "Password::hash"
-//           , id
-//           , "foobar"
-//           , 0
-//           , DPassword (PasswordBytes.of_string "redactme2") ) ] }
-//   in
-//   let expected : Analysis_types.trace_data =
-//     { input = [("event", DPassword (PasswordBytes.of_string "Redacted"))]
-//     ; timestamp = Time.epoch
-//     ; function_results =
-//         [ ( "Password::hash"
-//           , id
-//           , "foobar"
-//           , 0
-//           , DPassword (PasswordBytes.of_string "Redacted") ) ] }
-//   in
-//   trace_data
-//   |> Analysis_types.trace_data_to_yojson
-//   |> Analysis_types.trace_data_of_yojson
-//   |> Result.ok_or_Exception.raiseInternal
-//   |> AT.check
-//        (AT.testable
-//           Analysis_types.pp_trace_data
-//           Analysis_types.equal_trace_data)
-//        "trace_data round trip"
-//        expected
-//
-//
-// let t_function_traces_are_stored () =
-//   clear_test_data () ;
-//   let fntlid : tlid = id_of_int 12312345234 in
-//   let f = user_fn "test_fn" [] (fn "DB::generateKey" []) in
-//   let f = {f with tlid = fntlid} in
-//   let h = handler (fn "test_fn" []) in
-//   let host = "test" in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let trace_id = Util.create_uuid () in
-//   let _ = execute_ops ~trace_id [fop f; hop h] in
-//   (* get the trace for the execution *)
-//   AT.check
-//     AT.int
-//     "handler should only have fn result for test_fn"
-//     1
-//     (Stored_function_result.load ~canvas_id ~trace_id h.tlid |> List.length) ;
-//   AT.check
-//     AT.int
-//     "functions should only have fn result for DB::generateKey"
-//     1
-//     (Stored_function_result.load ~canvas_id ~trace_id fntlid |> List.length) ;
-//   ()
-//
+let testStoredEventRoundtrip : Test =
+  testTask "test stored events can be roundtripped" {
+    let! owner = testOwner.Force()
+    let cn1 = "test-stored_events_can_be_roundtripped1"
+    let cn2 = "test-stored_events_can_be_roundtripped2"
+    do! clearCanvasData owner (CanvasName.create cn1)
+    do! clearCanvasData owner (CanvasName.create cn2)
+
+    let! (meta1 : Canvas.Meta) = testCanvasInfo owner cn1
+    let! (meta2 : Canvas.Meta) = testCanvasInfo owner cn2
+    let id1 = meta1.id
+    let id2 = meta2.id
+
+    let t1 = System.Guid.NewGuid()
+    let t2 = System.Guid.NewGuid()
+    let t3 = System.Guid.NewGuid()
+    let t4 = System.Guid.NewGuid()
+    let t5 = System.Guid.NewGuid()
+    let t6 = System.Guid.NewGuid()
+    do! TI.clearAllEvents id1
+    do! TI.clearAllEvents id2
+
+    let desc1 = ("HTTP", "/path", "GET")
+    let desc2 = ("HTTP", "/path2", "GET")
+    let desc3 = ("HTTP", "/path", "POST")
+    let desc4 = ("BG", "lol", "_")
+    do! TI.storeEvent id1 t1 desc1 (DStr "1")
+    do! TI.storeEvent id1 t2 desc1 (DStr "2")
+    do! TI.storeEvent id1 t3 desc3 (DStr "3")
+    do! TI.storeEvent id1 t4 desc2 (DStr "3")
+    do! TI.storeEvent id2 t5 desc2 (DStr "3")
+    do! TI.storeEvent id2 t6 desc4 (DStr "3")
+    let t4_get4th (_, _, _, x) = x
+    let t5_get5th (_, _, _, _, x) = x
+
+    // This is a bit racy
+    let! listed = TI.listEvents TI.All id1
+    let actual = (List.sort (List.map t5_get5th listed))
+    let result =
+      actual = (List.sort [ t1; t3; t4 ]) || actual = (List.sort [ t2; t3; t4 ])
+    Expect.equal result true "list host events"
+
+    let! loaded = TI.loadEventIDs id2 desc4 |> Task.map (List.map Tuple2.first)
+    Expect.equal (List.sort loaded) (List.sort [ t6 ]) "list desc events"
+
+    let! loaded1 = TI.loadEvents id1 desc1 |> Task.map (List.map t4_get4th)
+    Expect.equal loaded1 [ DStr "2"; DStr "1" ] "load GET events"
+
+    let! loaded2 = TI.loadEvents id1 desc3 |> Task.map (List.map t4_get4th)
+    Expect.equal loaded2 [ DStr "3" ] "load POST events"
+
+    let! loaded3 = TI.loadEvents id2 desc3 |> Task.map (List.map t4_get4th)
+    Expect.equal loaded3 [] "load no host2 events"
+
+    let! loaded4 = TI.loadEvents id2 desc2 |> Task.map (List.map t4_get4th)
+    Expect.equal loaded4 [ DStr "3" ] "load host2 events"
+  }
 
 
+let testTraceDataJsonFormatRedactsPasswords =
+  testTask "trace data json format redacts passwords" {
+    let id = gid () in
+    let traceData : AT.TraceData =
+      { input = [ ("event", DPassword(Password(UTF8.toBytes "redactme1"))) ]
+        timestamp = System.DateTime.UnixEpoch
+        function_results =
+          [ ("Password::hash",
+             id,
+             "foobar",
+             0,
+             DPassword(Password(UTF8.toBytes "redactme2"))) ] }
+    let expected : AT.TraceData =
+      { input = [ ("event", DPassword(Password(UTF8.toBytes "Redacted"))) ]
+        timestamp = System.DateTime.UnixEpoch
+        function_results =
+          [ ("Password::hash",
+             id,
+             "foobar",
+             0,
+             DPassword(Password(UTF8.toBytes "Redacted"))) ] }
+    let actual =
+      traceData
+      |> Prelude.Json.OCamlCompatible.serialize
+      |> Prelude.Json.OCamlCompatible.deserialize<AT.TraceData>
+    Expect.equal actual expected "traceData round trip"
+  }
+
+
+let testFunctionTracesAreStored =
+  testTask "function traces are stored" {
+    let! owner = testOwner.Force()
+    let cn = "test-function-traces-are-stored"
+    do! clearCanvasData owner (CanvasName.create cn)
+    let! (meta : Canvas.Meta) = testCanvasInfo owner cn
+    let fnid = 12312345234UL
+
+    let (userFn : RT.UserFunction.T) =
+      { tlid = fnid
+        name = "test_fn"
+        parameters = []
+        returnType = RT.TInt
+        description = ""
+        infix = false
+        body = FSharpToExpr.parseRTExpr "DB.generateKey" }
+
+    let program =
+      { canvasID = meta.id
+        canvasName = meta.name
+        accountID = owner.id
+        dbs = Map.empty
+        userFns = Map.singleton userFn.name userFn
+        userTypes = Map.empty
+        secrets = [] }
+
+    let executionID = LibService.Telemetry.executionID ()
+    let traceID = System.Guid.NewGuid()
+
+    let! (state, _) = RealExecution.createState executionID traceID (gid ()) program
+
+    let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
+
+    let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
+
+    let! testFnResult = TFR.load meta.id traceID state.tlid
+    Expect.equal
+      (List.length testFnResult)
+      1
+      "handler should only have fn result for test_fn"
+
+    let! dbGenerateResult = TFR.load meta.id traceID fnid
+    Expect.equal
+      (List.length dbGenerateResult)
+      1
+      "functions should only have fn result for DB::generateKey"
+  }
 
 
 let tests =
@@ -268,4 +262,7 @@ let tests =
     [ testTraceIDsOfTlidsMatch
       testFilterSlash
       testRouteVariablesWorkWithStoredEvents
-      testRouteVariablesWorkWithTraceInputsAndWildcards ]
+      testRouteVariablesWorkWithTraceInputsAndWildcards
+      testStoredEventRoundtrip
+      testTraceDataJsonFormatRedactsPasswords
+      testFunctionTracesAreStored ]

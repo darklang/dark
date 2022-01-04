@@ -271,6 +271,7 @@ List.head_v0 (Test.typeError_v0 "test") = Test.typeError_v0 "Fn called with an e
 (List.head_v0 (Test.typeError_v0 "test")).field = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
 [ 5; 6; List.head_v0 (Test.typeError_v0 "test") ] = [5;6; Test.typeError_v0 "Fn called with an error as an argument"]
 [ 5; 6; Test.typeError_v0 "test"] = [ 5; 6; Test.typeError_v0 "test"]
+// CLEANUP - don't support errors in literal lists or records
 { i = Test.typeError_v0 "test"; m = 5; j = List.head_v0 (Test.typeError_v0 "test"); n = 6 } = { n = 6; m = 5 ; j = Test.typeError_v0 "Fn called with an error as an argument"; i = Test.typeError_v0 "test" }
 5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "Fn called with an error as an argument"
 5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "Fn called with an error as an argument"
@@ -320,6 +321,13 @@ Error Test.errorRailNothing_v0 = Test.errorRailNothing_v0
 (List.map_v0 [1;2;3;4] (fun x -> (match Ok 6 with | Ok x -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
 (List.map_v0 [1;2;3;4] (fun x -> (match Ok (Ok 6) with | Ok (Ok x) -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
 
+
+// ---------------------------
+// DarkInternal tests are internal
+// ---------------------------
+[tests.darkinternal]
+DarkInternal.checkAccess_v0 = Test.typeError_v0 "User executed an internal function but isn't an admin: test" // OCAMLONLY
+DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY
 
 // ---------------------------
 // Equality

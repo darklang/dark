@@ -6,7 +6,7 @@
     { "x": 600, "y": 200 },
     {
       "tlid": 180770093,
-      "ast": [ "Filled", 3981133572, [ "FnCall", "fn1", [] ] ],
+      "ast": [ "EFnCall", 3981133572, "fn1", [], [ "NoRail" ] ],
       "spec": {
         "module": [ "Blank", 1013789043 ],
         "name": [ "Blank", 1686646085 ],
@@ -31,16 +31,12 @@
         "infix": false
       },
       "ast": [
-        "Filled",
+        "EBinOp",
         1894833988,
-        [
-          "FnCall",
-          "+",
-          [
-            [ "Filled", 1001241551, [ "Value", "5" ] ],
-            [ "Filled", 540981105, [ "Value", "5" ] ]
-          ]
-        ]
+        "+",
+        [ "EInteger", 1001241551, "5" ],
+        [ "EInteger", 540981105, "5" ],
+        [ "NoRail" ]
       ]
     }
   ]

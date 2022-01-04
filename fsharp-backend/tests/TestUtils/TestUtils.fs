@@ -46,20 +46,20 @@ let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit
   task {
     let! canvasID = Canvas.canvasIDForCanvasName owner.id name
 
+    let cronRecords =
+      Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
+      :> Task
+
+    let customDomains =
+      Sql.query "DELETE FROM custom_domains where canvas = @name"
+      |> Sql.parameters [ "name", Sql.string (string name) ]
+      |> Sql.executeStatementAsync
+      :> Task
+
     let events =
       Sql.query "DELETE FROM events where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-      :> Task
-
-    let storedEvents =
-      Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-      :> Task
-
-    let functionResults =
-      Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
       :> Task
@@ -70,14 +70,33 @@ let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit
       |> Sql.executeStatementAsync
       :> Task
 
-    let userData =
-      Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
+    let functionResultsV2 =
+      Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
       :> Task
 
-    let cronRecords =
-      Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
+    let schedulingRules =
+      Sql.query "DELETE FROM scheduling_rules where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
+      :> Task
+
+    let secrets =
+      Sql.query "DELETE FROM secrets where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
+      :> Task
+
+    let staticAssetDeploys =
+      Sql.query "DELETE FROM static_asset_deploys where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
+      :> Task
+
+
+    let storedEventsV2 =
+      Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
       :> Task
@@ -88,14 +107,24 @@ let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit
       |> Sql.executeStatementAsync
       :> Task
 
+    let userData =
+      Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
+      :> Task
+
     do!
       Task.WhenAll [| cronRecords
-                      toplevelOplists
-                      userData
+                      customDomains
+                      events
                       functionArguments
-                      functionResults
-                      storedEvents
-                      events |]
+                      functionResultsV2
+                      schedulingRules
+                      secrets
+                      staticAssetDeploys
+                      storedEventsV2
+                      toplevelOplists
+                      userData |]
 
     do!
       Sql.query "DELETE FROM canvases where id = @id::uuid"
@@ -104,6 +133,16 @@ let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit
 
     return ()
   }
+
+let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
+  task {
+    let name = $"test-{name}"
+    let! owner = testOwner.Force()
+    do! clearCanvasData owner (CanvasName.create name)
+    return! testCanvasInfo owner name
+  }
+
+let testPos = { x = 0; y = 0 }
 
 let testHttpRouteHandler
   (route : string)
@@ -143,21 +182,56 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 let testUserFn
   (name : string)
   (parameters : string list)
-  (body : RT.Expr)
-  : RT.UserFunction.T =
+  (body : PT.Expr)
+  : PT.UserFunction.T =
   { tlid = gid ()
     body = body
     description = ""
     infix = false
     name = name
-    returnType = RT.TVariable "a"
+    nameID = gid ()
+    returnType = PT.TVariable "a"
+    returnTypeID = gid ()
     parameters =
       List.map
         (fun (p : string) ->
-          { name = p; typ = RT.TVariable "b"; description = "test" })
+          { name = p
+            nameID = gid ()
+            typ = Some(PT.TVariable "b")
+            typeID = gid ()
+            description = "test" })
         parameters }
 
+let testUserType
+  (name : string)
+  (definition : List<string * PT.DType>)
+  : PT.UserType.T =
+  { tlid = gid ()
+    name = name
+    nameID = gid ()
+    version = 0
+    definition =
+      definition
+      |> List.map (fun (name, typ) ->
+        ({ name = name; typ = Some typ; typeID = gid (); nameID = gid () } : PT.UserType.RecordField))
+      |> PT.UserType.Record }
+
+
+
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+
+let testDBCol (name : string) (typ : Option<PT.DType>) : PT.DB.Col =
+  { name = name; typ = typ; nameID = gid (); typeID = gid () }
+
+let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
+  { tlid = gid ()
+    pos = { x = 0; y = 0 }
+    nameID = gid ()
+    name = name
+    cols = cols
+    version = 0 }
+
+
 
 let libraries : Lazy<RT.Libraries> =
   lazy
@@ -734,12 +808,16 @@ let sampleDvals : List<string * Dval> =
         ("int string3", DStr "0")
         ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
         ("list", DList [ Dval.int 4 ])
+        ("list with derror",
+         DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
         ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
         ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
         ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
         // More Json.NET tests
         ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
         ("obj5", DObj(Map.ofList [ "$type", Dval.int 5 ]))
+        ("obj with error",
+         DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
         ("incomplete", DIncomplete SourceNone)
         ("error", DError(SourceNone, "some error string"))
         ("block",
@@ -776,7 +854,7 @@ let sampleDvals : List<string * Dval> =
              "sample_image_bytes.png"
          )) ]
 
-// FSTODO: deeply nested data
+// TODO: deeply nested data
 
 // Utilties shared among tests
 module Http =
