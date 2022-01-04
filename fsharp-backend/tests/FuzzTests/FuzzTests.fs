@@ -594,6 +594,36 @@ module LibJwtJson =
           equalsOCaml ]
 
 
+module Passwords =
+
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+  let passwordChecks (rawPassword : string) : bool =
+    let t =
+      task {
+        let! owner = testOwner.Force()
+        let! state = executionStateFor owner "executePure" Map.empty Map.empty
+
+        let ast =
+          $"Password.check_v0 (Password.hash_v0 \"{rawPassword}\") \"{rawPassword}\""
+          |> FSharpToExpr.parseRTExpr
+
+        match! LibExecution.Execution.executeExpr state Map.empty ast with
+        | RT.DBool true -> return true
+        | _ -> return false
+      }
+    t.Result
+
+  let tests =
+    testList
+      "password"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "comparing passwords"
+          passwordChecks ]
+
+
 
 module ExecutePureFunctions =
   open LibExecution.ProgramTypes.Shortcuts
@@ -1305,6 +1335,7 @@ let knownGood =
        Hashing.tests
        PrettyMachineJson.tests
        LibJwtJson.tests
+       Passwords.tests
        ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
