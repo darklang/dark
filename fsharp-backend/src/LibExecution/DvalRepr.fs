@@ -38,24 +38,18 @@ open System.Text.Json
 // TODO CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
-let writeJson (f : JsonWriter -> unit) : string =
-  let stream = new System.IO.StringWriter()
-  let w = new JsonTextWriter(stream)
-  // Match yojson
-  w.FloatFormatHandling <- FloatFormatHandling.Symbol
+let writeJson (f : Utf8JsonWriter -> unit) : string =
+  let stream = new System.IO.MemoryStream()
+  let mutable options = new JsonWriterOptions()
+  options.SkipValidation <- true
+  let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+  options.Encoder <- encoder
+  let w = new Utf8JsonWriter(stream, options)
   f w
-  string stream
+  w.Flush()
+  UTF8.ofBytesUnsafe (stream.ToArray())
 
-let writePrettyJson (f : JsonWriter -> unit) : string =
-  let stream = new System.IO.StringWriter()
-  let w = new JsonTextWriter(stream)
-  // Match yojson
-  w.FloatFormatHandling <- FloatFormatHandling.Symbol
-  w.Formatting <- Formatting.Indented
-  f w
-  string stream
-
-let writePrettySTJJson (f : Utf8JsonWriter -> unit) : string =
+let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
   let stream = new System.IO.MemoryStream()
   let mutable options = new JsonWriterOptions()
   options.Indented <- true
@@ -68,8 +62,6 @@ let writePrettySTJJson (f : Utf8JsonWriter -> unit) : string =
   UTF8.ofBytesUnsafe (stream.ToArray())
 
 
-
-
 let parseJson (s : string) : JToken =
   let reader = new JsonTextReader(new System.IO.StringReader(s))
   let jls = JsonLoadSettings()
@@ -79,18 +71,6 @@ let parseJson (s : string) : JToken =
 
   reader.DateParseHandling <- DateParseHandling.None
   JToken.ReadFrom(reader)
-
-type JsonWriter with
-
-  member this.writeObject(f : unit -> unit) =
-    this.WriteStartObject()
-    f ()
-    this.WriteEnd()
-
-  member this.writeArray(f : unit -> unit) =
-    this.WriteStartArray()
-    f ()
-    this.WriteEnd()
 
 
 type Utf8JsonWriter with
@@ -104,6 +84,29 @@ type Utf8JsonWriter with
     this.WriteStartArray()
     f ()
     this.WriteEndArray()
+
+  member this.writeOCamlFloatValue(f : float) =
+    if System.Double.IsPositiveInfinity f then
+      this.WriteRawValue("Infinity", true)
+    else if System.Double.IsNegativeInfinity f then
+      this.WriteRawValue("-Infinity", true)
+    else if System.Double.IsNaN f then
+      this.WriteRawValue("NaN", true)
+    else if f = 0.0 && System.Double.IsNegative f then
+      // check for -0.0
+      this.WriteRawValue("-0.0", true)
+    else if System.Math.Abs(f % 1.0) <= System.Double.Epsilon then
+      // Check for int-valued floats. By default, STJ prints them with no decimal
+      let asString = string f
+      if asString.Contains('.') || asString.Contains('E') then // Don't add .0 at the end of 4.2E18
+        this.WriteRawValue(String.toLowercase asString, true)
+      else
+        this.WriteRawValue($"{asString}.0", true)
+    else
+      let v = f |> string |> String.toLowercase
+      this.WriteRawValue(v)
+  member this.writeFullInt64Value(i : int64) = this.WriteRawValue(string i)
+
 
 let (|JString|_|) (j : JToken) : Option<string> =
   match j.Type with
@@ -279,6 +282,7 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
 // When printing to grand-users (our users' users) using text/plain, print a
 // human-readable format. TODO: this should probably be part of the functions
 // generating the responses. Redacts passwords.
+
 let toEnduserReadableTextV0 (dval : Dval) : string =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
@@ -344,27 +348,8 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   // appropriate based on the content.
   match dv with
   // basic types
-  | DInt i -> w.WriteRawValue(string i, true)
-  | DFloat f ->
-    if System.Double.IsPositiveInfinity f then
-      w.WriteRawValue("Infinity", true)
-    else if System.Double.IsNegativeInfinity f then
-      w.WriteRawValue("-Infinity", true)
-    else if System.Double.IsNaN f then
-      w.WriteRawValue("NaN", true)
-    else if f = 0.0 && System.Double.IsNegative f then
-      // check for -0.0
-      w.WriteRawValue("-0.0", true)
-    else if System.Math.Abs(f % 1.0) <= System.Double.Epsilon then
-      // Check for int-valued floats. By default, STJ prints them with no decimal
-      let asString = string f
-      if asString.Contains('.') || asString.Contains('E') then // Don't add .0 at the end of 4.2E18
-        w.WriteRawValue(String.toLowercase asString, true)
-      else
-        w.WriteRawValue($"{asString}.0", true)
-    else
-      let v = f |> string |> String.toLowercase
-      w.WriteRawValue(v)
+  | DInt i -> w.writeFullInt64Value i
+  | DFloat f -> w.writeOCamlFloatValue f
   | DBool b -> w.WriteBooleanValue b
   | DNull -> w.WriteNullValue()
   | DStr s -> w.WriteStringValue s
@@ -377,7 +362,7 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
           writeDval v)
         o)
   | DFnVal _ ->
-    (* See docs/dblock-serialization.ml *)
+    // See docs/dblock-serialization.ml
     w.WriteNullValue()
   | DIncomplete _ -> w.WriteNullValue()
   | DChar c -> w.WriteStringValue c
@@ -405,14 +390,12 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
     // CLEANUP: rather than using a mutable byte array, should this be a readonly span?
     w.WriteStringValue(System.Convert.ToBase64String bytes)
 
-
-
 // When sending json back to the user, or via a HTTP API, attempt to convert
 // everything into reasonable json, in the absence of a schema. This turns
 // Option and Result into plain values, or null/error. String-like values are
 // rendered as string. Redacts passwords.
 let toPrettyMachineJsonStringV1 (dval : Dval) : string =
-  writePrettySTJJson (fun w -> toPrettyMachineJsonV1 w dval)
+  writePrettyJson (fun w -> toPrettyMachineJsonV1 w dval)
 
 
 // This special format was originally the default OCaml (yojson-derived) format
@@ -554,37 +537,36 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   | JNonStandard
   | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
-let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
+let rec unsafeDvalToJsonValueV0
+  (w : Utf8JsonWriter)
+  (redact : bool)
+  (dv : Dval)
+  : unit =
   let writeDval = unsafeDvalToJsonValueV0 w redact
 
   let wrapStringValue (typ : string) (str : string) =
     w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue(typ)
-      w.WritePropertyName "value"
-      w.WriteValue(str))
+      w.WriteString("type", typ)
+      w.WriteString("value", str))
 
   let wrapNullValue (typ : string) =
     w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue(typ)
-      w.WritePropertyName "value"
-      w.WriteNull())
+      w.WriteString("type", typ)
+      w.WriteNull("value"))
 
   let wrapNestedDvalValue (typ : string) (dv : Dval) =
     w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue(typ)
+      w.WriteString("type", typ)
       w.WritePropertyName "value"
       writeDval dv)
 
   match dv with
-  (* basic types *)
-  | DInt i -> w.WriteValue i
-  | DFloat f -> w.WriteValue f
-  | DBool b -> w.WriteValue b
-  | DNull -> w.WriteNull()
-  | DStr s -> w.WriteValue s
+  // basic types
+  | DInt i -> w.writeFullInt64Value i
+  | DFloat f -> w.writeOCamlFloatValue f
+  | DBool b -> w.WriteBooleanValue b
+  | DNull -> w.WriteNullValue()
+  | DStr s -> w.WriteStringValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DObj o ->
     w.writeObject (fun () ->
@@ -603,29 +585,28 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
     wrapStringValue "error" msg
   | DHttpResponse (h) ->
     w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue "response"
-      w.WritePropertyName "value"
+      w.WriteString("type", "response")
 
+      w.WritePropertyName "value"
       w.writeArray (fun () ->
         match h with
         | Redirect str ->
           w.writeArray (fun () ->
-            w.WriteValue "Redirect"
-            w.WriteValue str)
+            w.WriteStringValue "Redirect"
+            w.WriteStringValue str)
 
           writeDval DNull
         | Response (code, headers, hdv) ->
           w.writeArray (fun () ->
-            w.WriteValue "Response"
-            w.WriteValue code
+            w.WriteStringValue "Response"
+            w.writeFullInt64Value (code)
 
             w.writeArray (fun () ->
               List.iter
                 (fun (k : string, v : string) ->
                   w.writeArray (fun () ->
-                    w.WriteValue k
-                    w.WriteValue v))
+                    w.WriteStringValue k
+                    w.WriteStringValue v))
                 headers))
 
           writeDval hdv))
@@ -646,18 +627,14 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
     (match res with
      | Ok rdv ->
        w.writeObject (fun () ->
-         w.WritePropertyName "type"
-         w.WriteValue("result")
-         w.WritePropertyName "constructor"
-         w.WriteValue("Ok")
+         w.WriteString("type", "result")
+         w.WriteString("constructor", "Ok")
          w.WritePropertyName "values"
          w.writeArray (fun () -> writeDval rdv))
      | Error rdv ->
        w.writeObject (fun () ->
-         w.WritePropertyName "type"
-         w.WriteValue("result")
-         w.WritePropertyName "constructor"
-         w.WriteValue("Error")
+         w.WriteString("type", "result")
+         w.WriteString("constructor", "Error")
          w.WritePropertyName "values"
          w.writeArray (fun () -> writeDval rdv)))
   | DBytes bytes ->
@@ -665,7 +642,8 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
     bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
 
 
-let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
+
+let unsafeDvalToJsonValueV1 (w : Utf8JsonWriter) (redact : bool) (dv : Dval) : unit =
   unsafeDvalToJsonValueV0 w redact dv
 
 (* ------------------------- *)
@@ -738,15 +716,12 @@ let ofInternalRoundtrippableV0 (str : string) : Dval =
 // roundtrippable. Does not redact.
 let toInternalQueryableV1 (dvalMap : DvalMap) : string =
   writeJson (fun w ->
-    w.WriteStartObject()
-
-    dvalMap
-    |> Map.toList
-    |> List.iter (fun (k, dval) ->
-      (w.WritePropertyName k
-       unsafeDvalToJsonValueV0 w false dval))
-
-    w.WriteEnd())
+    w.writeObject (fun () ->
+      dvalMap
+      |> Map.toList
+      |> List.iter (fun (k, dval) ->
+        w.WritePropertyName k
+        unsafeDvalToJsonValueV0 w false dval)))
 
 let rec isQueryableDval (dval : Dval) : bool =
   match dval with
@@ -823,7 +798,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
 
 // For printing something for the developer to read, as a live-value, error
 // message, etc. This will faithfully represent the code, textually. Redacts
-// passwords. Customers should not come to rely on this format. *)
+// passwords. Customers should not come to rely on this format.
 let rec toDeveloperReprV0 (dv : Dval) : string =
   let rec toRepr_ (indent : int) (dv : Dval) : string =
     let makeSpaces len = "".PadRight(len, ' ')
