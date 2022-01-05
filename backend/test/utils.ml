@@ -119,7 +119,7 @@ let check_fluid_expr = AT.check at_fluid_expr
 
 let at_dval =
   AT.testable
-    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show false dv))
+    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
     (fun a b ->
       match (a, b) with
       | DIncomplete _, DIncomplete _ ->
@@ -143,7 +143,7 @@ let check_condition msg (v : 'a) ~(f : 'a -> bool) =
 let check_error msg dval expected =
   let at_error =
     AT.testable
-      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show false dv))
+      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
       (fun a b ->
         match (a, b) with
         | DError (_, msg1), DError (_, msg2) ->
@@ -157,7 +157,7 @@ let check_error msg dval expected =
 let check_incomplete msg dval =
   let at_incomplete =
     AT.testable
-      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show false dv))
+      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
       (fun a b ->
         match (a, b) with DIncomplete _, DIncomplete _ -> true | _ -> false)
   in
@@ -199,7 +199,13 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
 let _ = check_exception
 
 let check_error_contains (name : string) (result : dval) (substring : string) =
-  let strresult = Dval.to_developer_repr_v0 result in
+  let strresult =
+    match result with
+    | DError (_, msg) ->
+        "<error: " ^ msg ^ ">"
+    | _ ->
+        Dval.to_developer_repr_v0 result
+  in
   (let open AT in
   check bool)
     (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")

@@ -749,12 +749,12 @@ module LibhttpclientV0 = struct
       (body : dval)
       (query : dval)
       (headers : dval) : Types.RuntimeT.dval =
-    let query = Dval.dval_to_query true query in
+    let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
       match body with
       | DObj obj when has_form_header headers ->
-          Dval.to_form_encoding true body
+          Dval.to_form_encoding body
       | _ ->
           json_fn body
     in
@@ -893,12 +893,12 @@ module LibhttpclientV1 = struct
       (body : dval)
       (query : dval)
       (headers : dval) : dval =
-    let query = Dval.dval_to_query true query in
+    let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
       match body with
       | DObj obj when has_form_header headers ->
-          Dval.to_form_encoding true body
+          Dval.to_form_encoding body
       | _ ->
           json_fn body
     in
@@ -1023,12 +1023,12 @@ module LibhttpclientV2 = struct
       (body : dval)
       (query : dval)
       (headers : dval) : dval =
-    let query = Dval.dval_to_query true query in
+    let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
       match body with
       | DObj obj when has_form_header headers ->
-          Dval.to_form_encoding true body
+          Dval.to_form_encoding body
       | _ ->
           json_fn body
     in

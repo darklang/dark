@@ -38,7 +38,7 @@ let to_enduser_readable_text_v0 (json : string) : string =
     |> Types.RuntimeT.dval_of_yojson
     |> Result.ok_or_failwith
   in
-  Dval.to_enduser_readable_text_v0 false dval
+  Dval.to_enduser_readable_text_v0 dval
 
 
 let to_hashable_repr (json : string) : string =
@@ -92,7 +92,7 @@ let to_pretty_machine_json_v1 (json : string) : string =
     |> Types.RuntimeT.dval_of_yojson
     |> Result.ok_or_failwith
   in
-  Dval.to_pretty_machine_json_v1 false dval
+  Dval.to_pretty_machine_json_v1 dval
 
 
 (* to_pretty_machine_yojson, then Yojson.Safe.to_string *)
@@ -103,7 +103,7 @@ let to_safe_pretty_machine_yojson_v1 (json : string) : string =
     |> Types.RuntimeT.dval_of_yojson
     |> Result.ok_or_failwith
   in
-  Dval.to_pretty_machine_yojson_v1 false dval |> Yojson.Safe.to_string
+  Dval.to_pretty_machine_yojson_v1 dval |> Yojson.Safe.to_string
 
 
 let to_url_string (json : string) : string =
@@ -113,7 +113,7 @@ let to_url_string (json : string) : string =
     |> Types.RuntimeT.dval_of_yojson
     |> Result.ok_or_failwith
   in
-  Dval.to_url_string_exn false dval
+  Dval.to_url_string_exn dval
 
 
 type query_params = (string * string list) list [@@deriving yojson]
@@ -125,7 +125,7 @@ let dval_to_query (json : string) : string =
   |> Yojson.Safe.from_string
   |> Types.RuntimeT.dval_of_yojson
   |> Result.ok_or_failwith
-  |> Dval.dval_to_query false
+  |> Dval.dval_to_query
   |> query_params_to_yojson
   |> Yojson.Safe.to_string
 
@@ -145,7 +145,7 @@ let dval_to_form_encoding (json : string) : string =
   |> Yojson.Safe.from_string
   |> Types.RuntimeT.dval_of_yojson
   |> Result.ok_or_failwith
-  |> Dval.to_form_encoding false
+  |> Dval.to_form_encoding
 
 
 let query_string_to_params (json : string) : string =

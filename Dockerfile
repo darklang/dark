@@ -211,7 +211,7 @@ ENV ESY__PROJECT=/home/dark/app
 ############################
 USER postgres
 RUN /etc/init.d/postgresql start && \
-    psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
+    psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'darklang';" && \
     createdb -O dark devdb && \
     createdb -O dark testdb
 

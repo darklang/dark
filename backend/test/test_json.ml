@@ -259,14 +259,12 @@ let date_migration_has_correct_formats () =
     AT.string
     "old format"
     expected
-    (Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
-       true
-       date) ;
+    (Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 date) ;
   AT.check
     AT.string
     "new format"
     ("\"" ^ str ^ "\"")
-    (Dval.to_pretty_machine_json_v1 true date)
+    (Dval.to_pretty_machine_json_v1 date)
 
 
 let t_password_json_round_trip_forwards () =
@@ -316,24 +314,24 @@ let t_password_serialization () =
   does_serialize
     "to_enduser_readable_text_v0"
     false
-    (Dval.to_enduser_readable_text_v0 true) ;
+    Dval.to_enduser_readable_text_v0 ;
   does_serialize
     "to_enduser_readable_html_v0"
     false
-    (Dval.to_enduser_readable_html_v0 true) ;
+    Dval.to_enduser_readable_html_v0 ;
   does_serialize "to_developer_repr_v0" false Dval.to_developer_repr_v0 ;
   does_serialize
     "to_pretty_machine_json_v1"
     false
-    (Dval.to_pretty_machine_json_v1 true) ;
+    Dval.to_pretty_machine_json_v1 ;
   does_serialize
     "to_pretty_request_json_v0"
     false
-    (Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 true) ;
+    Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 ;
   does_serialize
     "to_pretty_response_json_v1"
     false
-    (Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 true) ;
+    Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 ;
   ()
 
 

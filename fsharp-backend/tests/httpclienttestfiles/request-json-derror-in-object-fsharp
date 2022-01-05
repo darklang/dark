@@ -7,7 +7,7 @@ Host: HOST
 
 {
   "x": {
-    "Error": "x"
+    "Error": null
   }
 }
 [response]
@@ -16,7 +16,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-type: application/json; charset=utf-8
 Content-Length: LENGTH
 
-{ "x": { "Error": "x" } }
+{ "x": { "Error": null } }
 
 [test]
 // FSHARPONLY
@@ -24,7 +24,7 @@ Content-Length: LENGTH
  let response = HttpClient.post_v5_ster "http://URL" value {} HttpClient.jsonContentType_v0 in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
-   { body = { x = { ``Error`` = "x" } }
+   { body = { x = { ``Error`` = null } }
      code = 200
      error = ""
      headers =
@@ -34,5 +34,5 @@ Content-Length: LENGTH
         ``HTTP/1.1 200 OK`` = ""
         Server = "Kestrel"
       }
-     raw = "{ \"x\": { \"Error\": \"x\" } }"
+     raw = "{ \"x\": { \"Error\": null } }"
    }

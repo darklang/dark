@@ -8,7 +8,7 @@ createdb testdb
 DARK_CONFIG_DB_HOST=localhost \
 DARK_CONFIG_DB_DBNAME=testdb \
 DARK_CONFIG_DB_USER=dark \
-DARK_CONFIG_DB_PASSWORD=eapnsdc \
+DARK_CONFIG_DB_PASSWORD=darklang \
 "_build/default/backend/test/test.exe" "${@}"
 
 

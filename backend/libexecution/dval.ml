@@ -799,7 +799,7 @@ let of_internal_queryable_v1 (str : string) : dval =
 (* ------------------------- *)
 (* Other formats *)
 (* ------------------------- *)
-let rec to_enduser_readable_text_v0 (log_derrors : bool) dval =
+let rec to_enduser_readable_text_v0 dval =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
     match dv with
@@ -829,20 +829,8 @@ let rec to_enduser_readable_text_v0 (log_derrors : bool) dval =
         Uuidm.to_string uuid
     | DDB dbname ->
         "<DB: " ^ dbname ^ ">"
-    | DError (dval_source, msg) ->
-        ( if log_derrors
-        then
-          let tlid =
-            match dval_source with
-            | SourceNone ->
-                ""
-            | SourceId (tlid, _) ->
-                string_of_id tlid
-          in
-          Libcommon.Log.erroR
-            "to_enduser_readable_text_v0 has derror"
-            ~data:tlid ) ;
-        "Error: " ^ msg
+    | DError _ ->
+        "Error"
     | DIncomplete _ ->
         "<Incomplete>"
     | DBlock _ ->
@@ -877,7 +865,7 @@ let rec to_enduser_readable_text_v0 (log_derrors : bool) dval =
 
 let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
 
-let rec to_developer_repr_v0 ?(log_derrors = false) (dv : dval) : string =
+let rec to_developer_repr_v0 (dv : dval) : string =
   let rec to_repr_ (indent : int) (dv : dval) : string =
     let nl = "\n" ^ String.make indent ' ' in
     let inl = "\n" ^ String.make (indent + 2) ' ' in
@@ -906,18 +894,8 @@ let rec to_developer_repr_v0 ?(log_derrors = false) (dv : dval) : string =
         justtipe
     | DIncomplete _ ->
         justtipe
-    | DError (dval_source, msg) ->
-        ( if log_derrors
-        then
-          let tlid =
-            match dval_source with
-            | SourceNone ->
-                ""
-            | SourceId (tlid, _) ->
-                string_of_id tlid
-          in
-          Libcommon.Log.erroR "to_developer_repor_v0 has derror" ~data:tlid ) ;
-        wrap msg
+    | DError _ ->
+        "<error>"
     | DDate d ->
         wrap (Util.isostring_of_date d)
     | DDB name ->
@@ -960,7 +938,7 @@ let rec to_developer_repr_v0 ?(log_derrors = false) (dv : dval) : string =
   to_repr_ 0 dv
 
 
-let to_pretty_machine_yojson_v1 (log_derrors : bool) dval =
+let to_pretty_machine_yojson_v1 dval =
   let rec recurse dv =
     match dv with
     (* basic types *)
@@ -988,19 +966,8 @@ let to_pretty_machine_yojson_v1 (log_derrors : bool) dval =
         `Null
     | DCharacter c ->
         `String (Unicode_string.Character.to_string c)
-    | DError (dval_source, msg) ->
-        ( if log_derrors
-        then
-          let tlid =
-            match dval_source with
-            | SourceNone ->
-                ""
-            | SourceId (tlid, _) ->
-                string_of_id tlid
-          in
-          Libcommon.Log.erroR "to_pretty_machine_json_v1 has derror" ~data:tlid
-        ) ;
-        `Assoc [("Error", `String msg)]
+    | DError _ ->
+        `Assoc [("Error", `Null)]
     | DResp (h, hdv) ->
         recurse hdv
     | DDB dbname ->
@@ -1027,8 +994,8 @@ let to_pretty_machine_yojson_v1 (log_derrors : bool) dval =
   recurse dval
 
 
-let to_pretty_machine_json_v1 (log_derrors : bool) dval : string =
-  to_pretty_machine_yojson_v1 log_derrors dval |> Yojson.Safe.pretty_to_string
+let to_pretty_machine_json_v1 dval : string =
+  to_pretty_machine_yojson_v1 dval |> Yojson.Safe.pretty_to_string
 
 
 let of_unknown_json_v0 str =
@@ -1068,7 +1035,7 @@ let of_unknown_json_v1 str =
   str |> Yojson.Safe.from_string |> convert
 
 
-let rec show (log_derrors : bool) dv =
+let rec show dv =
   match dv with
   | DInt i ->
       Dint.to_string i
@@ -1091,17 +1058,7 @@ let rec show (log_derrors : bool) dv =
   | DDB dbname ->
       "<DB: " ^ dbname ^ ">"
   | DError (dval_source, msg) ->
-      ( if log_derrors
-      then
-        let tlid =
-          match dval_source with
-          | SourceNone ->
-              ""
-          | SourceId (tlid, _) ->
-              string_of_id tlid
-        in
-        Libcommon.Log.erroR "Dval.show has derror" ~data:tlid ) ;
-      "<Error: " ^ msg ^ ">"
+      "<Error>"
   | DIncomplete SourceNone ->
       "<Incomplete>"
   | DIncomplete (SourceId (tlid, id)) ->
@@ -1113,21 +1070,21 @@ let rec show (log_derrors : bool) dv =
       (* redacting, do not unredact *)
       "<Password>"
   | DObj o ->
-      to_nested_string ~reprfn:(show log_derrors) dv
+      to_nested_string ~reprfn:show dv
   | DList l ->
-      to_nested_string ~reprfn:(show log_derrors) dv
+      to_nested_string ~reprfn:show dv
   | DErrorRail d ->
       (* We don't print error here, because the errorrail value will know
           * whether it's an error or not. *)
-      "<ErrorRail: " ^ show log_derrors d ^ ">"
+      "<ErrorRail: " ^ show d ^ ">"
   | DResp (dh, dv) ->
-      dhttp_to_formatted_string dh ^ "\n" ^ show log_derrors dv ^ ""
+      dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
   | DResult (ResOk d) ->
-      "Ok " ^ show log_derrors d
+      "Ok " ^ show d
   | DResult (ResError d) ->
-      "Error " ^ show log_derrors d
+      "Error " ^ show d
   | DOption (OptJust d) ->
-      "Just " ^ show log_derrors d
+      "Just " ^ show d
   | DOption OptNothing ->
       "Nothing"
   | DBytes bytes ->
@@ -1221,7 +1178,7 @@ let to_string_pairs_exn dv : (string * string) list =
 
 
 (* For putting into URLs as query params *)
-let rec to_url_string_exn (log_derrors : bool) (dv : dval) : string =
+let rec to_url_string_exn (dv : dval) : string =
   match dv with
   | DBlock _ ->
       (* See docs/dblock-serialization.ml *)
@@ -1247,41 +1204,29 @@ let rec to_url_string_exn (log_derrors : bool) (dv : dval) : string =
   | DDB dbname ->
       dbname
   | DErrorRail d ->
-      to_url_string_exn log_derrors d
-  | DError (dval_source, msg) ->
-      ( if log_derrors
-      then
-        let tlid =
-          match dval_source with
-          | SourceNone ->
-              ""
-          | SourceId (tlid, _) ->
-              string_of_id tlid
-        in
-        Libcommon.Log.erroR "to_url_string_exn has derror" ~data:tlid ) ;
-      "error=" ^ msg
+      to_url_string_exn d
+  | DError _ ->
+      "error="
   | DUuid uuid ->
       Uuidm.to_string uuid
   | DResp (_, hdv) ->
-      to_url_string_exn log_derrors hdv
+      to_url_string_exn hdv
   | DList l ->
-      "[ "
-      ^ String.concat ~sep:", " (List.map ~f:(to_url_string_exn log_derrors) l)
-      ^ " ]"
+      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
   | DObj o ->
       let strs =
         DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-            (key ^ ": " ^ (to_url_string_exn log_derrors) value) :: l)
+            (key ^ ": " ^ to_url_string_exn value) :: l)
       in
       "{ " ^ String.concat ~sep:", " strs ^ " }"
   | DOption OptNothing ->
       "none"
   | DOption (OptJust v) ->
-      to_url_string_exn log_derrors v
+      to_url_string_exn v
   | DResult (ResError v) ->
-      "error=" ^ (to_url_string_exn log_derrors) v
+      "error=" ^ to_url_string_exn v
   | DResult (ResOk v) ->
-      to_url_string_exn log_derrors v
+      to_url_string_exn v
   | DBytes bytes ->
       bytes |> RawBytes.to_string |> B64.encode
 
@@ -1307,8 +1252,7 @@ let query_to_dval (query : (string * string list) list) : dval =
   |> DObj
 
 
-let dval_to_query (log_derrors : bool) (dv : dval) : (string * string list) list
-    =
+let dval_to_query (dv : dval) : (string * string list) list =
   match dv with
   | DObj kvs ->
       kvs
@@ -1318,15 +1262,15 @@ let dval_to_query (log_derrors : bool) (dv : dval) : (string * string list) list
              | DNull ->
                  (k, [])
              | DList l ->
-                 (k, List.map ~f:(to_url_string_exn log_derrors) l)
+                 (k, List.map ~f:to_url_string_exn l)
              | _ ->
-                 (k, [to_url_string_exn log_derrors value]))
+                 (k, [to_url_string_exn value]))
   | _ ->
       Exception.code "attempting to use non-object as query param"
 
 
-let to_form_encoding (log_derrors : bool) (dv : dval) : string =
-  dv |> dval_to_query log_derrors |> Uri.encoded_of_query
+let to_form_encoding (dv : dval) : string =
+  dv |> dval_to_query |> Uri.encoded_of_query
 
 
 let of_form_encoding (f : string) : dval =
@@ -1341,8 +1285,7 @@ let of_form_encoding (f : string) : dval =
  * amenable to change without a migration. Don't change ANYTHING for existing
  * values, but continue to add representations for new values. Also, inline
  * everything! *)
-let rec to_hashable_repr
-    (log_derrors : bool) ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
+let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
     =
   let nl = "\n" ^ String.make indent ' ' in
   let inl = "\n" ^ String.make (indent + 2) ' ' in
@@ -1369,18 +1312,8 @@ let rec to_hashable_repr
   | DBlock _ ->
       (* See docs/dblock-serialization.ml *)
       "<block: <block>>"
-  | DError (dval_source, msg) ->
-      ( if log_derrors
-      then
-        let tlid =
-          match dval_source with
-          | SourceNone ->
-              ""
-          | SourceId (tlid, _) ->
-              string_of_id tlid
-        in
-        Libcommon.Log.erroR "to_hashable_repr has derror" ~data:tlid ) ;
-      "<error: " ^ msg ^ ">"
+  | DError _ ->
+      "<error>"
   | DDate d ->
       "<date: " ^ Util.isostring_of_date d ^ ">"
   | DPassword _ ->
@@ -1402,18 +1335,14 @@ let rec to_hashable_repr
             in
             string_of_int c ^ " " ^ string_of_headers hs
       in
-      dhttp_to_formatted_string h
-      ^ nl
-      ^ to_hashable_repr log_derrors ~indent hdv
+      dhttp_to_formatted_string h ^ nl ^ to_hashable_repr ~indent hdv
   | DList l ->
       if List.is_empty l
       then "[]"
       else
         "[ "
         ^ inl
-        ^ String.concat
-            ~sep:", "
-            (List.map ~f:(to_hashable_repr log_derrors ~indent) l)
+        ^ String.concat ~sep:", " (List.map ~f:(to_hashable_repr ~indent) l)
         ^ nl
         ^ "]"
   | DObj o ->
@@ -1422,19 +1351,19 @@ let rec to_hashable_repr
       else
         let strs =
           DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-              (key ^ ": " ^ to_hashable_repr log_derrors ~indent value) :: l)
+              (key ^ ": " ^ to_hashable_repr ~indent value) :: l)
         in
         "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
   | DOption OptNothing ->
       "Nothing"
   | DOption (OptJust dv) ->
-      "Just " ^ to_hashable_repr log_derrors ~indent dv
+      "Just " ^ to_hashable_repr ~indent dv
   | DErrorRail dv ->
-      "ErrorRail: " ^ to_hashable_repr log_derrors ~indent dv
+      "ErrorRail: " ^ to_hashable_repr ~indent dv
   | DResult (ResOk dv) ->
-      "ResultOk " ^ to_hashable_repr log_derrors ~indent dv
+      "ResultOk " ^ to_hashable_repr ~indent dv
   | DResult (ResError dv) ->
-      "ResultError " ^ to_hashable_repr log_derrors ~indent dv
+      "ResultError " ^ to_hashable_repr ~indent dv
   | DBytes bytes ->
       if old_bytes
       then bytes |> RawBytes.to_string
@@ -1453,13 +1382,13 @@ let hash (version : int) (arglist : dval list) : string =
   match version with
   | 0 ->
       arglist
-      |> List.map ~f:(to_hashable_repr true ~old_bytes:true)
+      |> List.map ~f:(to_hashable_repr ~old_bytes:true)
       |> String.concat
       |> Util.hash
   | 1 ->
-      DList arglist |> to_hashable_repr true |> Util.hash
+      DList arglist |> to_hashable_repr |> Util.hash
   | _ ->
       Exception.internal ("Invalid Dval.hash version: " ^ string_of_int version)
 
 
-let fuzzing_to_hashable_repr (arg : dval) : string = to_hashable_repr false arg
+let fuzzing_to_hashable_repr (arg : dval) : string = to_hashable_repr arg

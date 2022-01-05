@@ -24,8 +24,8 @@ module PrettyRequestJsonV0 = struct
         Util.isostring_of_date d
     | DDB dbname ->
         dbname
-    | DError (_, msg) ->
-        msg
+    | DError _ ->
+        "error"
     | DUuid uuid ->
         Uuidm.to_string uuid
     | _ ->
