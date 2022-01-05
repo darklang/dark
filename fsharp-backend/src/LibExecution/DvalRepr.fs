@@ -33,6 +33,8 @@ open RuntimeTypes
 open Newtonsoft.Json
 open Newtonsoft.Json.Linq
 
+open System.Text.Json
+
 // TODO CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
@@ -52,6 +54,19 @@ let writePrettyJson (f : JsonWriter -> unit) : string =
   w.Formatting <- Formatting.Indented
   f w
   string stream
+
+let writePrettySTJJson (f : Utf8JsonWriter -> unit) : string =
+  let stream = new System.IO.MemoryStream()
+  let mutable options = new JsonWriterOptions()
+  options.Indented <- true
+  options.SkipValidation <- true
+  let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+  options.Encoder <- encoder
+  let w = new Utf8JsonWriter(stream, options)
+  f w
+  w.Flush()
+  UTF8.ofBytesUnsafe (stream.ToArray())
+
 
 
 
@@ -76,6 +91,19 @@ type JsonWriter with
     this.WriteStartArray()
     f ()
     this.WriteEnd()
+
+
+type Utf8JsonWriter with
+
+  member this.writeObject(f : unit -> unit) =
+    this.WriteStartObject()
+    f ()
+    this.WriteEndObject()
+
+  member this.writeArray(f : unit -> unit) =
+    this.WriteStartArray()
+    f ()
+    this.WriteEndArray()
 
 let (|JString|_|) (j : JToken) : Option<string> =
   match j.Type with
@@ -308,19 +336,38 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 // This turns Option and Result into plain values, or null/error. String-like
 // values are rendered as string. Redacts passwords.
 
-let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
+let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
   // utf8jsonwriter has different methods for writing into objects vs arrays.
   // Dark doesn't assume the outermost value is an array or object, so try
   // writing the array version to start, then recurse between the two as
   // appropriate based on the content.
   match dv with
-  (* basic types *)
-  | DInt i -> w.WriteValue i
-  | DFloat f -> w.WriteValue f
-  | DBool b -> w.WriteValue b
-  | DNull -> w.WriteNull()
-  | DStr s -> w.WriteValue s
+  // basic types
+  | DInt i -> w.WriteRawValue(string i, true)
+  | DFloat f ->
+    if System.Double.IsPositiveInfinity f then
+      w.WriteRawValue("Infinity", true)
+    else if System.Double.IsNegativeInfinity f then
+      w.WriteRawValue("-Infinity", true)
+    else if System.Double.IsNaN f then
+      w.WriteRawValue("NaN", true)
+    else if f = 0.0 && System.Double.IsNegative f then
+      // check for -0.0
+      w.WriteRawValue("-0.0", true)
+    else if System.Math.Abs(f % 1.0) <= System.Double.Epsilon then
+      // Check for int-valued floats. By default, STJ prints them with no decimal
+      let asString = string f
+      if asString.Contains('.') || asString.Contains('E') then // Don't add .0 at the end of 4.2E18
+        w.WriteRawValue(String.toLowercase asString, true)
+      else
+        w.WriteRawValue($"{asString}.0", true)
+    else
+      let v = f |> string |> String.toLowercase
+      w.WriteRawValue(v)
+  | DBool b -> w.WriteBooleanValue b
+  | DNull -> w.WriteNullValue()
+  | DStr s -> w.WriteStringValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DObj o ->
     w.writeObject (fun () ->
@@ -331,25 +378,20 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
         o)
   | DFnVal _ ->
     (* See docs/dblock-serialization.ml *)
-    w.WriteNull()
-  | DIncomplete _ -> w.WriteNull()
-  | DChar c -> w.WriteValue c
-  | DError _ ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Error"
-      w.WriteNull())
+    w.WriteNullValue()
+  | DIncomplete _ -> w.WriteNullValue()
+  | DChar c -> w.WriteStringValue c
+  | DError _ -> w.writeObject (fun () -> w.WriteNull "Error")
   | DHttpResponse (Redirect _) -> writeDval DNull
   | DHttpResponse (Response (_, _, response)) -> writeDval response
-  | DDB dbName -> w.WriteValue dbName
-  | DDate date -> w.WriteValue(date.toIsoString ())
-  | DPassword hashed ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Error"
-      w.WriteValue "Password is redacted")
-  | DUuid uuid -> w.WriteValue uuid
+  | DDB dbName -> w.WriteStringValue dbName
+  | DDate date -> w.WriteStringValue(date.toIsoString ())
+  | DPassword _ ->
+    w.writeObject (fun () -> w.WriteString("Error", "Password is redacted"))
+  | DUuid uuid -> w.WriteStringValue uuid
   | DOption opt ->
     match opt with
-    | None -> w.WriteNull()
+    | None -> w.WriteNullValue()
     | Some v -> writeDval v
   | DErrorRail dv -> writeDval dv
   | DResult res ->
@@ -361,7 +403,8 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
          writeDval dv))
   | DBytes bytes ->
     // CLEANUP: rather than using a mutable byte array, should this be a readonly span?
-    w.WriteValue(System.Convert.ToBase64String bytes)
+    w.WriteStringValue(System.Convert.ToBase64String bytes)
+
 
 
 // When sending json back to the user, or via a HTTP API, attempt to convert
@@ -369,7 +412,8 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
 // Option and Result into plain values, or null/error. String-like values are
 // rendered as string. Redacts passwords.
 let toPrettyMachineJsonStringV1 (dval : Dval) : string =
-  writePrettyJson (fun w -> toPrettyMachineJsonV1 w dval)
+  writePrettySTJJson (fun w -> toPrettyMachineJsonV1 w dval)
+
 
 // This special format was originally the default OCaml (yojson-derived) format
 // for this.
