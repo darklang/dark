@@ -809,8 +809,10 @@ let interestingInts : List<string * int64> =
 let naughtyStrings : List<string * string> =
   LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
   |> String.splitOnNewline
-  |> List.mapWithIndex (fun i s -> ($"naughty string line {i + 1}", s))
-  |> List.filter (fun (doc, str) -> not (String.startsWith "#" str))
+  |> List.mapWithIndex (fun i s -> $"naughty string line {i + 1}", s)
+  // 139 is the Unicode BOM on line 140, which is tough to get .NET to put in a string
+  |> List.filterWithIndex (fun i (doc, str) ->
+    i <> 139 && not (String.startsWith "#" str))
 
 let interestingDvals =
   [ ("float", DFloat 7.2)
