@@ -742,6 +742,22 @@ let dvalEquality (left : Dval) (right : Dval) : bool =
 
 let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
 
+let interestingStrings : List<string * string> =
+  [ ("arabic", "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+    ("emoji0", "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰")
+    ("emoji1", "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
+    ("emoji2", "🧑🏽‍🦰‍🧑🏼‍💻‍‍")
+    ("unicode4", "Είναι προικισμένοι με λογική")
+    ("skin tone", "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿")
+    // ("zalgo", "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+    ("escaped", "\u0014\u0004")
+    ("zolw", "żółw")
+    ("hope in greek", "ελπίδα")
+    ("html", "<html><head></head><body><h1>title</h1></body></html>")
+    ("accents", "óñÜáâȺ") ]
+
+
+
 let interestingFloats : List<string * float> =
   let initial =
     // interesting cause OCaml uses 31 bit ints
@@ -772,7 +788,7 @@ let interestingFloats : List<string * float> =
 
   initial
   |> List.flatMap (fun (doc, v) ->
-    [ ($"{doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
+    [ ($"float {doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
 
 let interestingInts : List<string * int64> =
   [ ("int0", 0L)
@@ -786,75 +802,86 @@ let interestingInts : List<string * int64> =
     ("int_above_53_bits", 4503599627370497L)
     ("int_max_63_bits", 4611686018427387903L) ]
   |> List.flatMap (fun (doc, v) ->
-    [ ($"{doc} - 1", v - 1L); ($"{doc} + 0", v); ($"{doc} + 1", v + 1L) ])
+    [ ($"int {doc} - 1", v - 1L); ($"{doc} + 0", v); ($"{doc} + 1", v + 1L) ])
+
+
+// https://github.com/minimaxir/big-list-of-naughty-strings
+let naughtyStrings : List<string * string> =
+  LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
+  |> String.splitOnNewline
+  |> List.mapWithIndex (fun i s -> ($"naughty string line {i + 1}", s))
+  |> List.filter (fun (doc, str) -> not (String.startsWith "#" str))
+
+let interestingDvals =
+  [ ("float", DFloat 7.2)
+    ("float2", DFloat -7.2)
+    ("float3", DFloat 15.0)
+    ("float4", DFloat -15.0)
+    ("int5", RT.DInt 5L)
+    ("true", DBool true)
+    ("false", DBool false)
+    ("null", DNull)
+    ("datastore", DDB "Visitors")
+    ("string", DStr "incredibly this was broken")
+    // Json.NET has a habit of converting things automatically based on the type in the string
+    ("date string", DStr "2018-09-14T00:31:41Z")
+    ("int string", DStr "1039485")
+    ("int string2", DStr "-1039485")
+    ("int string3", DStr "0")
+    ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
+    ("list", DList [ Dval.int 4 ])
+    ("list with derror",
+     DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
+    ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
+    ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
+    ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+    // More Json.NET tests
+    ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
+    ("obj5", DObj(Map.ofList [ "$type", Dval.int 5 ]))
+    ("obj with error",
+     DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
+    ("incomplete", DIncomplete SourceNone)
+    ("error", DError(SourceNone, "some error string"))
+    ("block",
+     DFnVal(
+       Lambda
+         { body = RT.EBlank(id 1234)
+           symtable = Map.empty
+           parameters = [ (id 5678, "a") ] }
+     ))
+    ("errorrail", DErrorRail(Dval.int 5))
+    ("errorrail with float",
+     DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
+    ("redirect", DHttpResponse(Redirect "/home"))
+    ("httpresponse",
+     DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
+    ("db", DDB "Visitors")
+    ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
+    ("password", DPassword(Password(UTF8.toBytes "somebytes")))
+    ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+    ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
+    ("option", DOption None)
+    ("option2", DOption(Some(Dval.int 15)))
+    ("option3", DOption(Some(DStr "a string")))
+    ("character", DChar "s")
+    ("result", DResult(Ok(Dval.int 15)))
+    ("result2", DResult(Error(DList [ DStr "dunno if really supported" ])))
+    ("result3", DResult(Ok(DStr "a string")))
+    ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes)
+    // use image bytes here to test for any weird bytes forms
+    ("bytes2",
+     DBytes(
+       LibBackend.File.readfileBytes
+         LibBackend.Config.Testdata
+         "sample_image_bytes.png"
+     // TODO: deeply nested data
+     )) ]
 
 let sampleDvals : List<string * Dval> =
-  (List.map (fun (doc, i) -> ($"int {doc}", DInt i)) interestingInts)
-  @ (List.map (fun (doc, f) -> ($"float {doc}", DFloat f)) interestingFloats)
-    @ [ ("float", DFloat 7.2)
-        ("float2", DFloat -7.2)
-        ("float3", DFloat 15.0)
-        ("float4", DFloat -15.0)
-        ("int5", RT.DInt 5L)
-        ("true", DBool true)
-        ("false", DBool false)
-        ("null", DNull)
-        ("datastore", DDB "Visitors")
-        ("string", DStr "incredibly this was broken")
-        // Json.NET has a habit of converting things automatically based on the type in the string
-        ("date string", DStr "2018-09-14T00:31:41Z")
-        ("int string", DStr "1039485")
-        ("int string2", DStr "-1039485")
-        ("int string3", DStr "0")
-        ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
-        ("list", DList [ Dval.int 4 ])
-        ("list with derror",
-         DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
-        ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
-        ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
-        ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
-        // More Json.NET tests
-        ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
-        ("obj5", DObj(Map.ofList [ "$type", Dval.int 5 ]))
-        ("obj with error",
-         DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
-        ("incomplete", DIncomplete SourceNone)
-        ("error", DError(SourceNone, "some error string"))
-        ("block",
-         DFnVal(
-           Lambda
-             { body = RT.EBlank(id 1234)
-               symtable = Map.empty
-               parameters = [ (id 5678, "a") ] }
-         ))
-        ("errorrail", DErrorRail(Dval.int 5))
-        ("errorrail with float",
-         DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
-        ("redirect", DHttpResponse(Redirect "/home"))
-        ("httpresponse",
-         DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
-        ("db", DDB "Visitors")
-        ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
-        ("password", DPassword(Password(UTF8.toBytes "somebytes")))
-        ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
-        ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
-        ("option", DOption None)
-        ("option2", DOption(Some(Dval.int 15)))
-        ("option3", DOption(Some(DStr "a string")))
-        ("character", DChar "s")
-        ("result", DResult(Ok(Dval.int 15)))
-        ("result2", DResult(Error(DList [ DStr "dunno if really supported" ])))
-        ("result3", DResult(Ok(DStr "a string")))
-        ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes)
-        // use image bytes here to test for any weird bytes forms
-        ("bytes2",
-         DBytes(
-           LibBackend.File.readfileBytes
-             LibBackend.Config.Testdata
-             "sample_image_bytes.png"
-         )) ]
-
-// TODO: deeply nested data
+  List.map (Tuple2.mapSecond DInt) interestingInts
+  @ List.map (Tuple2.mapSecond DFloat) interestingFloats
+    @ List.map (Tuple2.mapSecond DStr) interestingStrings
+      @ List.map (Tuple2.mapSecond DStr) naughtyStrings @ interestingDvals
 
 // Utilties shared among tests
 module Http =

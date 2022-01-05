@@ -85,13 +85,6 @@ module Generators =
       return i
     }
 
-  // https://github.com/minimaxir/big-list-of-naughty-strings
-  let naughtyStrings : Lazy<List<string>> =
-    lazy
-      (LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
-       |> String.splitOnNewline
-       |> List.filter (String.startsWith "#" >> not))
-
   let char () : Gen<string> =
     string ()
     |> Gen.map String.toEgcSeq
