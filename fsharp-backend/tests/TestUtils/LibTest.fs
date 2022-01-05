@@ -103,13 +103,13 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Test" "resetSideEffectCounter" 0
-      parameters = []
+      parameters = [ Param.make "counterName" TStr "Name of the counter (unused)" ]
       returnType = TNull
       description =
         "Reset the side effect counter to zero, to test real-world side-effects."
       fn =
         (function
-        | state, [ arg ] ->
+        | state, [ _; arg ] ->
           // CLEANUP this function is no longer needed once we remove ocaml
           state.test.sideEffectCount <- 0
           Ply(arg)
@@ -119,13 +119,16 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
-        [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
+        // CLEANUP This parameter is only needed for OCaml, which doesn't have test
+        // state and uses a global instead
+        [ Param.make "counterName" TStr "Name of the counter (unused)"
+          Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
       returnType = TVariable "a"
       description =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
       fn =
         (function
-        | state, [ arg ] ->
+        | state, [ _; arg ] ->
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Ply(arg)
         | _ -> incorrectArgs ())
@@ -133,12 +136,12 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Test" "sideEffectCount" 0
-      parameters = []
+      parameters = [ Param.make "counterName" (TStr) "Name of the counter (unused)" ]
       returnType = TInt
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, [] -> Ply(Dval.int state.test.sideEffectCount)
+        | state, [ _ ] -> Ply(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
