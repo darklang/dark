@@ -58,6 +58,7 @@ fi
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the
 # spinner and not running the tests in parallel.
+JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
 
 cd fsharp-backend
 if [[ "$DEBUG" == "true" ]]; then
@@ -67,7 +68,7 @@ if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
-  lldb -- "${EXE}" --no-spinner --sequenced "${@}"
+  lldb -- "${EXE}" --no-spinner --sequenced --junit-summary "${JUNIT_FILE}" "${@}"
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
@@ -75,6 +76,6 @@ else
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
-  "${EXE}" --no-spinner --sequenced "${@}"
+  "${EXE}" --no-spinner --sequenced --junit-summary "${JUNIT_FILE}" "${@}"
 fi
 
