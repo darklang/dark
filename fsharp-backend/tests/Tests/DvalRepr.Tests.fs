@@ -74,7 +74,7 @@ let testToEnduserReadable =
       RT.DFloat(5.1), "5.1"
       RT.DFloat(-5.0), "-5."
       RT.DFloat(-5.1), "-5.1"
-      RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
+      RT.DError(RT.SourceNone, "Some message"), "Error"
       RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull"
       RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
       "0 { a header: something }\nnull" ]
