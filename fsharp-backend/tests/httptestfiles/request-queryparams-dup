@@ -19,6 +19,4 @@ Server: darklang // FSHARPONLY
 Connection: keep-alive
 Content-Length: LENGTH
 
-{
-  "x": "second",
-}
+{ "x": "second" }

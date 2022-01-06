@@ -20,5 +20,5 @@ Connection: keep-alive
 Content-Length: LENGTH
 
 {
-  x : "x"
+  "x" : "x"
 }

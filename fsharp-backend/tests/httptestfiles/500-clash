@@ -22,4 +22,4 @@ Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 
-500 Internal Server Error: More than 1 handler found for this route: /
+500 Internal Server Error: More than one handler for route: /

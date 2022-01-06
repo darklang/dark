@@ -12,10 +12,10 @@ Content-type: application/json; charset=utf-8
 Content-Length: LENGTH
 
 {
-  anInt: 5,
-  aString: "a string",
-  aList: [1,2,3],
-  aBool: false
+  "anInt": 5,
+  "aString": "a string",
+  "aList": [1,2,3],
+  "aBool": false
 }
 
 [test]
@@ -37,6 +37,6 @@ Content-Length: LENGTH
         ``HTTP/1.1 200 OK`` = ""
         Server = "Kestrel"
       }
-     raw = "{\n  anInt: 5,\n  aString: \"a string\",\n  aList: [1,2,3],\n  aBool: false\n}"}
+     raw = "{\n  \"anInt\": 5,\n  \"aString\": \"a string\",\n  \"aList\": [1,2,3],\n  \"aBool\": false\n}"}
 
 
