@@ -398,136 +398,6 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
   writePrettyJson (fun w -> toPrettyMachineJsonV1 w dval)
 
 
-// This special format was originally the default OCaml (yojson-derived) format
-// for this.
-let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
-  match j with
-  | JList [ JString "Redirect"; JString url ] -> Redirect url
-  | JList [ JString "Response"; JInteger code; JList headers ] ->
-    let headers =
-      headers
-      |> List.map (function
-        | JList [ JString k; JString v ] -> (k, v)
-        | h ->
-          Exception.raiseInternal "Invalid DHttpResponse headers" [ "header", h ])
-
-    Response(code, headers, dv)
-  | _ -> Exception.raiseInternal "Invalid response json" [ "json", j ]
-
-#nowarn "104" // ignore warnings about enums out of range
-
-// The "unsafe" variations here are bad. They encode data ambiguously, and
-// though we mostly have the decoding right, it's brittle and unsafe.  This
-// should be considered append only. There's a ton of dangerous things in this,
-// and we really need to move off it, but for now we're here. Do not change
-// existing encodings - this will break everything.
-
-let rec unsafeDvalToJsonValueV0
-  (w : Utf8JsonWriter)
-  (redact : bool)
-  (dv : Dval)
-  : unit =
-  let writeDval = unsafeDvalToJsonValueV0 w redact
-
-  let wrapStringValue (typ : string) (str : string) =
-    w.writeObject (fun () ->
-      w.WriteString("type", typ)
-      w.WriteString("value", str))
-
-  let wrapNullValue (typ : string) =
-    w.writeObject (fun () ->
-      w.WriteString("type", typ)
-      w.WriteNull("value"))
-
-  let wrapNestedDvalValue (typ : string) (dv : Dval) =
-    w.writeObject (fun () ->
-      w.WriteString("type", typ)
-      w.WritePropertyName "value"
-      writeDval dv)
-
-  match dv with
-  // basic types
-  | DInt i -> w.writeFullInt64Value i
-  | DFloat f -> w.writeOCamlFloatValue f
-  | DBool b -> w.WriteBooleanValue b
-  | DNull -> w.WriteNullValue()
-  | DStr s -> w.WriteStringValue s
-  | DList l -> w.writeArray (fun () -> List.iter writeDval l)
-  | DObj o ->
-    w.writeObject (fun () ->
-      Map.iter
-        (fun k v ->
-          w.WritePropertyName k
-          writeDval v)
-        o)
-  | DFnVal _ ->
-    // See docs/dblock-serialization.md
-    wrapNullValue "block"
-  | DIncomplete _ -> wrapNullValue "incomplete"
-  | DChar c -> wrapStringValue "character" c
-  | DError (_, msg) ->
-    // Only used internally, so this is safe to save here
-    wrapStringValue "error" msg
-  | DHttpResponse (h) ->
-    w.writeObject (fun () ->
-      w.WriteString("type", "response")
-
-      w.WritePropertyName "value"
-      w.writeArray (fun () ->
-        match h with
-        | Redirect str ->
-          w.writeArray (fun () ->
-            w.WriteStringValue "Redirect"
-            w.WriteStringValue str)
-
-          writeDval DNull
-        | Response (code, headers, hdv) ->
-          w.writeArray (fun () ->
-            w.WriteStringValue "Response"
-            w.writeFullInt64Value (code)
-
-            w.writeArray (fun () ->
-              List.iter
-                (fun (k : string, v : string) ->
-                  w.writeArray (fun () ->
-                    w.WriteStringValue k
-                    w.WriteStringValue v))
-                headers))
-
-          writeDval hdv))
-  | DDB dbname -> wrapStringValue "datastore" dbname
-  | DDate date -> wrapStringValue "date" (date.toIsoString ())
-  | DPassword (Password hashed) ->
-    if redact then
-      wrapNullValue "password"
-    else
-      hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
-  | DUuid uuid -> wrapStringValue "uuid" (string uuid)
-  | DOption opt ->
-    (match opt with
-     | None -> wrapNullValue "option"
-     | Some ndv -> wrapNestedDvalValue "option" ndv)
-  | DErrorRail erdv -> wrapNestedDvalValue "errorrail" erdv
-  | DResult res ->
-    (match res with
-     | Ok rdv ->
-       w.writeObject (fun () ->
-         w.WriteString("type", "result")
-         w.WriteString("constructor", "Ok")
-         w.WritePropertyName "values"
-         w.writeArray (fun () -> writeDval rdv))
-     | Error rdv ->
-       w.writeObject (fun () ->
-         w.WriteString("type", "result")
-         w.WriteString("constructor", "Error")
-         w.WritePropertyName "values"
-         w.writeArray (fun () -> writeDval rdv)))
-  | DBytes bytes ->
-    // Note that the OCaml version uses the non-url-safe b64 encoding here
-    bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
-
-
-
 // -------------------------
 // Other formats
 // -------------------------
@@ -604,6 +474,23 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
 let unsafeOfUnknownJsonV0 str =
+  // This special format was originally the default OCaml (yojson-derived) format
+  // for this.
+  let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
+    match j with
+    | JList [ JString "Redirect"; JString url ] -> Redirect url
+    | JList [ JString "Response"; JInteger code; JList headers ] ->
+      let headers =
+        headers
+        |> List.map (function
+          | JList [ JString k; JString v ] -> (k, v)
+          | h ->
+            Exception.raiseInternal "Invalid DHttpResponse headers" [ "header", h ])
+
+      Response(code, headers, dv)
+    | _ -> Exception.raiseInternal "Invalid response json" [ "json", j ]
+
+
   let rec convert json =
 
     match json with
