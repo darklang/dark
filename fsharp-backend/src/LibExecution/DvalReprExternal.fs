@@ -25,17 +25,6 @@ open System.Text.Json
 // TODO CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
-let writeJson (f : Utf8JsonWriter -> unit) : string =
-  let stream = new System.IO.MemoryStream()
-  let mutable options = new JsonWriterOptions()
-  options.SkipValidation <- true
-  let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-  options.Encoder <- encoder
-  let w = new Utf8JsonWriter(stream, options)
-  f w
-  w.Flush()
-  UTF8.ofBytesUnsafe (stream.ToArray())
-
 let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
   let stream = new System.IO.MemoryStream()
   let mutable options = new JsonWriterOptions()
@@ -66,11 +55,11 @@ type Utf8JsonWriter with
 
   member this.writeOCamlFloatValue(f : float) =
     if System.Double.IsPositiveInfinity f then
-      this.WriteRawValue("Infinity", true)
+      this.WriteStringValue("Infinity")
     else if System.Double.IsNegativeInfinity f then
-      this.WriteRawValue("-Infinity", true)
+      this.WriteStringValue("-Infinity")
     else if System.Double.IsNaN f then
-      this.WriteRawValue("NaN", true)
+      this.WriteStringValue("NaN")
     else if f = 0.0 && System.Double.IsNegative f then
       // check for -0.0
       this.WriteRawValue("-0.0", true)
