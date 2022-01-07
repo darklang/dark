@@ -528,9 +528,6 @@ let rec unsafeDvalToJsonValueV0
 
 
 
-let unsafeDvalToJsonValueV1 (w : Utf8JsonWriter) (redact : bool) (dv : Dval) : unit =
-  unsafeDvalToJsonValueV0 w redact dv
-
 // -------------------------
 // Other formats
 // -------------------------
