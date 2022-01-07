@@ -121,8 +121,6 @@ module WorkerStates =
   // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>
 
-  let empty = Map.empty
-
   module JsonConverter =
     open Newtonsoft.Json
     open Newtonsoft.Json.Converters
