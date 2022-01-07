@@ -143,7 +143,7 @@ let sendRequest
           | _ -> DStr "form decoding error"
         elif hasJsonHeader response.headers then
           try
-            DvalReprExternal.ofUnknownJsonV0 response.body
+            DvalReprExternal.unsafeOfUnknownJsonV0 response.body
           with
           | _ -> DStr "json decoding error"
         else

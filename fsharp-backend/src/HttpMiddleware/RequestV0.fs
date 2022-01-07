@@ -23,7 +23,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   match p with
   | Some (MediaType.Json _) ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.unsafeOfUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser $"Invalid json: {UTF8.ofBytesWithReplacement body}")
@@ -36,7 +36,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   | Some (MediaType.Other _)
   | None ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.unsafeOfUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser

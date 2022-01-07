@@ -421,121 +421,6 @@ let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
 // should be considered append only. There's a ton of dangerous things in this,
 // and we really need to move off it, but for now we're here. Do not change
 // existing encodings - this will break everything.
-let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
-  let convert = unsafeDvalOfJsonV0
-
-  match json with
-  | JInteger i -> DInt i
-  | JFloat f -> DFloat f
-  | JBoolean b -> DBool b
-  | JNull -> DNull
-  | JString s -> DStr s
-  | JList l ->
-    // We shouldnt have saved dlist that have incompletes or error rails but we might have
-    l |> List.map convert |> Dval.list
-
-  | JObject fields ->
-    let fields = fields |> List.sortBy (fun (k, _) -> k)
-    // These are the only types that are allowed in the queryable
-    // representation. We may allow more in the future, but the real thing to
-    // do is to use the DB's type and version to encode/decode them correctly
-    match fields with
-    // DResp (Result.ok_or_Exception.raiseInternal (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
-    | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
-      DHttpResponse(responseOfJson (convert b) a)
-    | [ ("type", JString "date"); ("value", JString v) ] ->
-      DDate(System.DateTime.ofIsoString v)
-    | [ ("type", JString "password"); ("value", JString v) ] ->
-      v |> Base64.fromDefaultEncoded |> Base64.decode |> Password |> DPassword
-    | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
-    | [ ("type", JString "bytes"); ("value", JString v) ] ->
-      // Note that the OCaml version uses the non-url-safe b64 encoding here
-      v |> System.Convert.FromBase64String |> DBytes
-    | [ ("type", JString "char"); ("value", JString v) ] -> DChar v
-    | [ ("type", JString "character"); ("value", JString v) ] -> DChar v
-    | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
-    | [ ("type", JString "incomplete"); ("value", JNull) ] -> DIncomplete SourceNone
-    | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
-    | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
-    | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
-    | [ ("type", JString "block"); ("value", JNull) ] ->
-      // See docs/dblock-serialization.ml
-      DFnVal(
-        Lambda { body = EBlank(id 56789); symtable = Map.empty; parameters = [] }
-      )
-    | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
-    | [ ("constructor", JString "Ok")
-        ("type", JString "result")
-        ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
-    | [ ("constructor", JString "Error")
-        ("type", JString "result")
-        ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
-    | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
-  // Json.NET does a bunch of magic based on the contents of various types.
-  // For example, it has tokens for Dates, constructors, etc. We've tried to
-  // disable all those so we fail if we see them. However, we might need to
-  // just convert some of these into strings.
-  | JNonStandard
-  | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
-
-// Convert a dval (already converted from json) into
-let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
-  let convert = unsafeDvalOfJsonV1
-
-  match json with
-  | JInteger i -> DInt i
-  | JFloat f -> DFloat f
-  | JBoolean b -> DBool b
-  | JNull -> DNull
-  | JString s -> DStr s
-  | JList l ->
-    // We shouldnt have saved dlist that have incompletes or error rails but we might have
-    l |> List.map convert |> Dval.list
-  | JObject fields ->
-    let fields = fields |> List.sortBy (fun (k, _) -> k)
-    // These are the only types that are allowed in the queryable
-    // representation. We may allow more in the future, but the real thing to
-    // do is to use the DB's type and version to encode/decode them correctly
-    match fields with
-    // DResp (Result.ok_or_Exception.raiseInternal (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
-    | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
-      DHttpResponse(responseOfJson (convert b) a)
-    | [ ("type", JString "date"); ("value", JString v) ] ->
-      DDate(System.DateTime.ofIsoString v)
-    | [ ("type", JString "password"); ("value", JString v) ] ->
-      v |> Base64.fromEncoded |> Base64.decode |> Password |> DPassword
-    | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
-    | [ ("type", JString "bytes"); ("value", JString v) ] ->
-      // Note that the OCaml version uses the non-url-safe b64 encoding here
-      v |> System.Convert.FromBase64String |> DBytes
-    | [ ("type", JString "char"); ("value", JString v) ] ->
-      v |> String.toEgcSeq |> Seq.head |> DChar
-    | [ ("type", JString "character"); ("value", JString v) ] ->
-      v |> String.toEgcSeq |> Seq.head |> DChar
-    | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
-    | [ ("type", JString "incomplete"); ("value", JNull) ] -> DIncomplete SourceNone
-    | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
-    | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
-    | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
-    | [ ("type", JString "block"); ("value", JNull) ] ->
-      // See docs/dblock-serialization.ml
-      DFnVal(
-        Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
-      )
-    | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
-    | [ ("constructor", JString "Ok")
-        ("type", JString "result")
-        ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
-    | [ ("constructor", JString "Error")
-        ("type", JString "result")
-        ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
-    | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
-  // Json.NET does a bunch of magic based on the contents of various types.
-  // For example, it has tokens for Dates, constructors, etc. We've tried to
-  // disable all those so we fail if we see them. However, we might need to
-  // just convert some of these into strings.
-  | JNonStandard
-  | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
 let rec unsafeDvalToJsonValueV0
   (w : Utf8JsonWriter)
@@ -721,9 +606,67 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
-let ofUnknownJsonV0 str =
+let unsafeOfUnknownJsonV0 str =
+  let rec convert json =
+
+    match json with
+    | JInteger i -> DInt i
+    | JFloat f -> DFloat f
+    | JBoolean b -> DBool b
+    | JNull -> DNull
+    | JString s -> DStr s
+    | JList l ->
+      // We shouldnt have saved dlist that have incompletes or error rails but we might have
+      l |> List.map convert |> Dval.list
+
+    | JObject fields ->
+      let fields = fields |> List.sortBy (fun (k, _) -> k)
+      // These are the only types that are allowed in the queryable
+      // representation. We may allow more in the future, but the real thing to
+      // do is to use the DB's type and version to encode/decode them correctly
+      match fields with
+      // DResp (Result.ok_or_Exception.raiseInternal (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
+      | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
+        DHttpResponse(responseOfJson (convert b) a)
+      | [ ("type", JString "date"); ("value", JString v) ] ->
+        DDate(System.DateTime.ofIsoString v)
+      | [ ("type", JString "password"); ("value", JString v) ] ->
+        v |> Base64.fromDefaultEncoded |> Base64.decode |> Password |> DPassword
+      | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
+      | [ ("type", JString "bytes"); ("value", JString v) ] ->
+        // Note that the OCaml version uses the non-url-safe b64 encoding here
+        v |> System.Convert.FromBase64String |> DBytes
+      | [ ("type", JString "char"); ("value", JString v) ] -> DChar v
+      | [ ("type", JString "character"); ("value", JString v) ] -> DChar v
+      | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
+      | [ ("type", JString "incomplete"); ("value", JNull) ] ->
+        DIncomplete SourceNone
+      | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
+      | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
+      | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
+      | [ ("type", JString "block"); ("value", JNull) ] ->
+        // See docs/dblock-serialization.ml
+        DFnVal(
+          Lambda { body = EBlank(id 56789); symtable = Map.empty; parameters = [] }
+        )
+      | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+      | [ ("constructor", JString "Ok")
+          ("type", JString "result")
+          ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
+      | [ ("constructor", JString "Error")
+          ("type", JString "result")
+          ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
+      | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
+    // Json.NET does a bunch of magic based on the contents of various types.
+    // For example, it has tokens for Dates, constructors, etc. We've tried to
+    // disable all those so we fail if we see them. However, we might need to
+    // just convert some of these into strings.
+    | JNonStandard
+    | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
+
+
   try
-    str |> parseJson |> unsafeDvalOfJsonV0
+    str |> parseJson |> convert
   with
   | _ -> Exception.raiseInternal "Invalid json" [ "json", str ]
 

@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr json ] ->
           (try
-            json |> DvalReprExternal.ofUnknownJsonV0 |> Ply
+            json |> DvalReprExternal.unsafeOfUnknownJsonV0 |> Ply
            with
            | _ -> Ply DNull)
         | _ -> incorrectArgs ())
