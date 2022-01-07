@@ -230,7 +230,7 @@ module RuntimeT =
     | DResp of (dhttp * dval)
     | DDB of string
     | DDate of System.DateTime
-    | DPassword of byte array // We dont use this path for testing, see DvalRepr.Tests
+    | DPassword of byte array // We dont use this path for testing, see DvalReprExternal.Tests
     | DUuid of System.Guid
     | DOption of optionT
     | DCharacter of string

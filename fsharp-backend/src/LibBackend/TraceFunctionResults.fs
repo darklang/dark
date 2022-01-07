@@ -13,7 +13,7 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprInternal = LibExecution.DvalReprInternal
 
 // -------------------------
 // External
@@ -40,12 +40,14 @@ let store
                         "id", Sql.id id
                         ("hash",
                          arglist
-                         |> DvalRepr.hash DvalRepr.currentHashVersion
+                         |> DvalReprInternal.hash DvalReprInternal.currentHashVersion
                          |> Sql.string)
 
-                        "hashVersion", Sql.int DvalRepr.currentHashVersion
+                        "hashVersion", Sql.int DvalReprInternal.currentHashVersion
                         ("value",
-                         result |> DvalRepr.toInternalRoundtrippableV0 |> Sql.string) ]
+                         result
+                         |> DvalReprInternal.toInternalRoundtrippableV0
+                         |> Sql.string) ]
     |> Sql.executeStatementAsync
 
 let load
@@ -73,4 +75,4 @@ let load
      read.tlid "id",
      read.string "hash",
      read.intOrNone "hash_version" |> Option.unwrap 0,
-     read.string "value" |> DvalRepr.ofInternalRoundtrippableV0))
+     read.string "value" |> DvalReprInternal.ofInternalRoundtrippableV0))

@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 module Errors = LibExecution.Errors
 
@@ -102,13 +102,13 @@ let encodeRequestBody
       HttpClient.StringContent s
     // CLEANUP if there is a charset here, it uses json encoding
     | DObj _ when hasFormHeader headers ->
-      match DvalRepr.toFormEncoding dv with
+      match DvalReprExternal.toFormEncoding dv with
       | Ok content -> HttpClient.FormContent(content)
       | Error msg -> Exception.raiseDeveloper msg
     | dv when hasTextHeader headers ->
-      HttpClient.StringContent(DvalRepr.toEnduserReadableTextV0 dv)
+      HttpClient.StringContent(DvalReprExternal.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
-      HttpClient.StringContent(DvalRepr.toPrettyMachineJsonStringV1 dv)
+      HttpClient.StringContent(DvalReprExternal.toPrettyMachineJsonStringV1 dv)
   | None -> HttpClient.NoContent
 
 
@@ -120,11 +120,11 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalRepr.toQuery query |> Exception.unwrapResultDeveloper
+    let query = DvalReprExternal.toQuery query |> Exception.unwrapResultDeveloper
 
     // Headers
     let encodedReqHeaders =
-      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)
@@ -138,12 +138,12 @@ let sendRequest
         // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
         if false then // HttpHeaders.hasFormHeader response.headers
           try
-            DvalRepr.ofQueryString response.body
+            DvalReprExternal.ofQueryString response.body
           with
           | _ -> DStr "form decoding error"
         elif hasJsonHeader response.headers then
           try
-            DvalRepr.ofUnknownJsonV0 response.body
+            DvalReprExternal.ofUnknownJsonV0 response.body
           with
           | _ -> DStr "json decoding error"
         else

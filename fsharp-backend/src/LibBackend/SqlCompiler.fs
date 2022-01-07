@@ -13,7 +13,7 @@ open Tablecloth
 
 open LibExecution.RuntimeTypes
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 module Ast = LibExecution.Ast
 module Errors = LibExecution.Errors
@@ -54,7 +54,9 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DOption _
   | DResult _
   | DBytes _ ->
-    error2 "This value is not yet supported" (DvalRepr.toDeveloperReprV0 dval)
+    error2
+      "This value is not yet supported"
+      (DvalReprExternal.toDeveloperReprV0 dval)
   | DDate date -> Sql.timestamp date
   | DInt i ->
     // TODO: gonna have to do better than this for infinite precision
@@ -71,8 +73,8 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
   | TVariable _ -> ()
   | other when actualType = other -> ()
   | _ ->
-    let actual = DvalRepr.typeToDeveloperReprV0 actualType
-    let expected = DvalRepr.typeToDeveloperReprV0 expectedType
+    let actual = DvalReprExternal.typeToDeveloperReprV0 actualType
+    let expected = DvalReprExternal.typeToDeveloperReprV0 expectedType
     error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
 // (* TODO: support character. And maybe lists and

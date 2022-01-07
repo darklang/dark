@@ -12,7 +12,7 @@ open Tablecloth
 open Db
 
 module RT = LibExecution.RuntimeTypes
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprInternal = LibExecution.DvalReprInternal
 
 // **********************
 // Types
@@ -129,7 +129,8 @@ let insertUser
                               ("password", Sql.string (string Password.invalid))
                               ("analytics_metadata",
                                Sql.jsonb (
-                                 DvalRepr.toInternalQueryableV1 analyticsMetadata
+                                 DvalReprInternal.toInternalQueryableV1
+                                   analyticsMetadata
                                )) ]
           |> Sql.executeStatementAsync
         let! exists =

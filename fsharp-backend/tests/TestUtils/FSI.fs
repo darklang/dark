@@ -9,7 +9,7 @@ open FSharp.Control.Tasks
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 module OCamlInterop = LibBackend.OCamlInterop
 module Exe = LibExecution.Execution
 

@@ -9,7 +9,7 @@ open LibExecution.VendoredTablecloth
 module RT = LibExecution.RuntimeTypes
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 
 // Internal invariant, _must_ be a DObj
@@ -23,11 +23,12 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   match p with
   | Some (MediaType.Json _) ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser $"Invalid json: {UTF8.ofBytesWithReplacement body}")
-  | Some MediaType.Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
+  | Some MediaType.Form ->
+    body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofFormEncoding
   // CLEANUP: text should just be text
   | Some (MediaType.Text _)
   | Some (MediaType.Xml _)
@@ -35,7 +36,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   | Some (MediaType.Other _)
   | None ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser
@@ -51,7 +52,7 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
 
 
 let parseQueryString (queryvals : List<string * List<string>>) =
-  DvalRepr.ofQuery queryvals
+  DvalReprExternal.ofQuery queryvals
 
 
 let parseHeaders (headers : (string * string) list) =

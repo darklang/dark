@@ -14,7 +14,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName

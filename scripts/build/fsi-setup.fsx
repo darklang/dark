@@ -2,8 +2,7 @@
 
 // Load program code
 
-printfn
-  "Loading program; if something wrong run ./scripts/build/dotnet-regen-fsi"
+printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fsi"
 
 #I "../../fsharp-backend"
 #I "../../fsharp-backend/Build/out"
@@ -22,7 +21,7 @@ printfn
 // Convenience shortcuts
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 module OCamlInterop = LibBackend.OCamlInterop
 
 open Prelude

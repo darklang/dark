@@ -7,7 +7,7 @@ open LibExecution.RuntimeTypes
 open Prelude
 open LibExecution.VendoredTablecloth
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
@@ -395,8 +395,8 @@ let fns : List<BuiltInFn> =
           match result with
           | Some (headers, payload) ->
             let unwrap = Exception.unwrapResultDeveloper
-            [ ("header", DvalRepr.ofUnknownJsonV1 headers |> unwrap)
-              ("payload", DvalRepr.ofUnknownJsonV1 payload |> unwrap) ]
+            [ ("header", DvalReprExternal.ofUnknownJsonV1 headers |> unwrap)
+              ("payload", DvalReprExternal.ofUnknownJsonV1 payload |> unwrap) ]
             |> Map.ofList
             |> DObj
             |> Some
@@ -426,8 +426,8 @@ let fns : List<BuiltInFn> =
           match result with
           | Ok (headers, payload) ->
             let unwrap = Exception.unwrapResultDeveloper
-            [ ("header", DvalRepr.ofUnknownJsonV1 headers |> unwrap)
-              ("payload", DvalRepr.ofUnknownJsonV1 payload |> unwrap) ]
+            [ ("header", DvalReprExternal.ofUnknownJsonV1 headers |> unwrap)
+              ("payload", DvalReprExternal.ofUnknownJsonV1 payload |> unwrap) ]
             |> Map.ofList
             |> DObj
             |> Ok

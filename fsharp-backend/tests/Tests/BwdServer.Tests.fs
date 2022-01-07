@@ -335,8 +335,8 @@ let t filename =
         let asJson =
           try
             Some(
-              LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe actual.body),
-              LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe expected.body)
+              LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe actual.body),
+              LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe expected.body)
             )
           with
           | e -> None

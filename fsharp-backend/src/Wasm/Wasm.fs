@@ -12,7 +12,7 @@ module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprInternal = LibExecution.DvalReprInternal
 
 module ClientInterop =
   // -----------------------
@@ -135,8 +135,8 @@ module Eval =
     (args : List<RT.Dval>)
     : Option<RT.Dval * System.DateTime> =
     let hashes =
-      DvalRepr.supportedHashVersions
-      |> List.map (fun key -> (key, DvalRepr.hash key args))
+      DvalReprInternal.supportedHashVersions
+      |> List.map (fun key -> (key, DvalReprInternal.hash key args))
       |> Map
 
     results

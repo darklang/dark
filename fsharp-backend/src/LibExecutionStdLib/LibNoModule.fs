@@ -3,7 +3,7 @@ module LibExecutionStdLib.LibNoModule
 open Prelude
 open System
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 open LibExecution.RuntimeTypes
 
 let fn = FQFnName.stdlibFnName
@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       returnType = TStr
       fn =
         (function
-        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Ply
+        | _, [ a ] -> a |> DvalReprExternal.toEnduserReadableTextV0 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
         "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
       fn =
         (function
-        | _, [ a ] -> Ply(DStr(DvalRepr.toDeveloperReprV0 a))
+        | _, [ a ] -> Ply(DStr(DvalReprExternal.toDeveloperReprV0 a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
