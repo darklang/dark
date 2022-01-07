@@ -51,16 +51,6 @@ let to_hashable_repr (json : string) : string =
   Dval.fuzzing_to_hashable_repr dval
 
 
-let to_internal_queryable_v0 (json : string) : string =
-  let dval =
-    json
-    |> Yojson.Safe.from_string
-    |> Types.RuntimeT.dval_of_yojson
-    |> Result.ok_or_failwith
-  in
-  Dval.to_internal_queryable_v0 dval
-
-
 let to_internal_queryable_v1 (json : string) : string =
   let dval =
     json

@@ -216,10 +216,6 @@ let allRoundtrips =
         (dvs (DvalReprInternal.isRoundtrippableDval false))
       t "queryable v0" F.Queryable.v1Roundtrip (dvs DvalReprInternal.isQueryableDval)
       t
-        "queryable interop v0"
-        F.Queryable.isInteroperableV0
-        (dvs (DvalReprInternal.isQueryableDval))
-      t
         "queryable interop v1"
         F.Queryable.isInteroperableV1
         (dvs DvalReprInternal.isQueryableDval)

@@ -358,28 +358,12 @@ module Queryable =
       dvalEquality
       (RT.DObj dvm)
 
-  // OCaml v0 vs F# v1
-  let isInteroperableV0 (dv : RT.Dval) =
-    let dvm = (Map.ofList [ "field", dv ])
-
-    OCamlInterop.isInteroperable
-      (OCamlInterop.toInternalQueryableV0)
-      (OCamlInterop.ofInternalQueryableV0)
-      (function
-      | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
-      | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
-      (DvalReprInternal.ofInternalQueryableV1)
-      dvalEquality
-      (RT.DObj dvm)
-
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
     testList
       "InternalQueryable"
-      [ tp "roundtripping v1" v1Roundtrip
-        tp "interoperable v0" isInteroperableV0
-        tp "interoperable v1" isInteroperableV1 ]
+      [ tp "roundtripping v1" v1Roundtrip; tp "interoperable v1" isInteroperableV1 ]
 
 module DeveloperRepr =
   type Generator =

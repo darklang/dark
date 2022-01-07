@@ -223,9 +223,6 @@ let toplevelToCachedBinary (toplevel : PT.Toplevel) : Task<byte array> =
 // These are only here for fuzzing. We should not be fetching dvals via the
 // OCaml runtime, but always via HTTP or via the DB.
 // ---------------------------
-let ofInternalQueryableV0 (str : string) : Task<RT.Dval> =
-  stringToDvalReq "fuzzing/of_internal_queryable_v0" str
-
 let ofInternalQueryableV1 (str : string) : Task<RT.Dval> =
   stringToDvalReq "fuzzing/of_internal_queryable_v1" str
 
@@ -243,9 +240,6 @@ let toEnduserReadableTextV0 (dv : RT.Dval) : Task<string> =
 
 let toHashableRepr (dv : RT.Dval) : Task<string> =
   dvalToStringReq "fuzzing/to_hashable_repr" dv
-
-let toInternalQueryableV0 (dv : RT.Dval) : Task<string> =
-  dvalToStringReq "fuzzing/to_internal_queryable_v0" dv
 
 let toInternalQueryableV1 (dv : RT.Dval) : Task<string> =
   dvalToStringReq "fuzzing/to_internal_queryable_v1" dv
