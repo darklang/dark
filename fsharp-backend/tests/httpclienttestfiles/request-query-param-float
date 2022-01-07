@@ -1,5 +1,5 @@
 [expected-request]
-GET PATH?f=5.7&l=1.23132534535e%2B15&n=0. HTTP/1.1
+GET PATH?f=5.7&l=1.23132534535e%2B15&n=-0. HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
 Content-Type: text/plain; charset=utf-8

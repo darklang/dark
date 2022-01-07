@@ -200,7 +200,7 @@ let eBlank () : Expr = EBlank(gid ())
 let eBool (b : bool) : Expr = EBool(gid (), b)
 
 let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
-  EFloat(gid (), makeFloat (sign = Positive) whole fraction)
+  EFloat(gid (), makeFloat sign whole fraction)
 
 let eFloatStr (whole : string) (fraction : string) : Expr =
   EFloat(gid (), parseFloat whole fraction)

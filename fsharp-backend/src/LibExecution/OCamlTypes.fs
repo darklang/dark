@@ -635,8 +635,10 @@ module Convert =
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | RT.PFloat (id, d) ->
-      let w, f = readFloat d
-      ORT.FPFloat(mid, id, string w, string f)
+      // CLEANUP: doesn't support -0.5
+      let s, w, f = readFloat d
+      let w = if s = Positive then string w else "-{w}"
+      ORT.FPFloat(mid, id, w, string f)
     | RT.PNull (id) -> ORT.FPNull(mid, id)
     | RT.PBlank (id) -> ORT.FPBlank(mid, id)
 
@@ -721,8 +723,11 @@ module Convert =
       Exception.raiseInternal "Characters not supported" [ "id", id; "c", c ]
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
-      let (w, f) = readFloat d
-      ORT.EFloat(id, string w, string f)
+      let (s, w, f) = readFloat d
+      // CLEANUP: doesn't support -0.5
+      let w = if s = Positive then string w else "-{w}"
+      // FSTODO: don't drop the sign and test
+      ORT.EFloat(id, w, string f)
     | RT.EBool (id, b) -> ORT.EBool(id, b)
     | RT.ENull id -> ORT.ENull id
     | RT.EVariable (id, var) -> ORT.EVariable(id, var)

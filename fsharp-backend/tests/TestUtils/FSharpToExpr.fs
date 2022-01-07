@@ -61,16 +61,6 @@ let nameOrBlank (v : string) : string = if v = "___" then "" else v
 let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let c = convertToExpr
 
-  let splitFloat (d : float) : Sign * bigint * bigint =
-    match System.Decimal(d).ToString() with
-    | Regex "-([0-9]+)\.(\d+)" [ whole; fraction ] ->
-      (Negative, whole |> parseBigint, parseBigint fraction)
-    | Regex "([0-9]+)\.(\d+)" [ whole; fraction ] ->
-      (Positive, whole |> parseBigint, parseBigint fraction)
-    | Regex "-([0-9]+)" [ whole ] -> (Negative, whole |> parseBigint, 0I)
-    | Regex "([0-9]+)" [ whole ] -> (Positive, whole |> parseBigint, 0I)
-    | str -> Exception.raiseInternal $"Could not splitFloat" [ "float", d ]
-
   let rec convertPattern (pat : SynPat) : PT.Pattern =
     match pat with
     | SynPat.Named (name, _, _, _) when name.idText = "blank" -> pBlank ()
@@ -85,7 +75,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | SynPat.Null _ -> pNull ()
     | SynPat.Paren (pat, _) -> convertPattern pat
     | SynPat.Const (SynConst.Double d, _) ->
-      let sign, whole, fraction = splitFloat d
+      let sign, whole, fraction = readFloat d
       pFloat sign whole fraction
     | SynPat.Const (SynConst.String (s, _, _), _) -> pString s
     | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
@@ -142,7 +132,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Const (SynConst.Char c, _) -> eChar c
   | SynExpr.Const (SynConst.Bool b, _) -> eBool b
   | SynExpr.Const (SynConst.Double d, _) ->
-    let sign, whole, fraction = splitFloat d
+    let sign, whole, fraction = readFloat d
     eFloat sign whole fraction
   | SynExpr.Const (SynConst.String (s, _, _), _) -> eStr s
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->

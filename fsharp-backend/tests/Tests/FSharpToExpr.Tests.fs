@@ -40,6 +40,8 @@ let parserTests =
       t
         "lambdas with 4 args"
         "fun a b c d -> 8"
-        (eLambda [ "a"; "b"; "c"; "d" ] (eInt 8)) ]
+        (eLambda [ "a"; "b"; "c"; "d" ] (eInt 8))
+      t "negative zero" "(-0.0)" (eFloat Negative 0I 0I)
+      t "zero" "0.0" (eFloat Positive 0I 0I) ]
 
 let tests = testList "FSharpToExpr" [ parserTests ]

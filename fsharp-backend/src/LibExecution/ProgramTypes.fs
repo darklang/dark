@@ -195,7 +195,7 @@ type Expr =
     | EInteger (id, num) -> RT.EInteger(id, num)
     | EString (id, str) -> RT.EString(id, str)
     | EFloat (id, sign, whole, fraction) ->
-      RT.EFloat(id, makeFloat (sign = Positive) whole fraction)
+      RT.EFloat(id, makeFloat sign whole fraction)
     | EBool (id, b) -> RT.EBool(id, b)
     | ENull id -> RT.ENull id
     | EVariable (id, var) -> RT.EVariable(id, var)
@@ -306,7 +306,7 @@ and Pattern =
     | PBool (id, b) -> RT.PBool(id, b)
     | PCharacter (id, c) -> RT.PCharacter(id, c)
     | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat (s = Positive) w f)
+    | PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat s w f)
     | PNull id -> RT.PNull id
     | PBlank id -> RT.PBlank id
 

@@ -399,20 +399,35 @@ let parseFloat (whole : string) (fraction : string) : float =
       $"parseFloat failed"
       [ "whole", whole; "fraction", fraction; "inner", e ]
 
+// We use an explicit sign for Floats, instead of making it implicit in the
+// first digit, because otherwise we lose the sign on 0, and can't represent
+// things like -0.5
+type Sign =
+  | Positive
+  | Negative
+
 // Given a float, read it correctly into two ints: whole number and fraction
-let readFloat (f : float) : (bigint * bigint) =
+let readFloat (f : float) : (Sign * bigint * bigint) =
+  let sign =
+    // (0.0 = -0.0) is true in .Net, so it can be quite tough to figure out the sign
+    if string f = "-0" then Negative
+    else if f >= 0.0 then Positive
+    else Negative
   let asStr = f.ToString("G53").Split "."
 
   if asStr.Length = 1 then
-    parseBigint asStr[0], 0I
+    sign, abs (parseBigint asStr[0]), 0I
   else
-    parseBigint asStr[0], parseBigint asStr[1]
+    sign, abs (parseBigint asStr[0]), parseBigint asStr[1]
 
 
-let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float =
+let makeFloat (sign : Sign) (whole : bigint) (fraction : bigint) : float =
   try
     assert_ "makefloat" (whole >= 0I)
-    let sign = if positiveSign then "" else "-"
+    let sign =
+      match sign with
+      | Positive -> ""
+      | Negative -> "-"
     $"{sign}{whole}.{fraction}" |> System.Double.Parse
   with
   | e ->
@@ -1411,13 +1426,6 @@ module Task =
 // them there.
 
 type pos = { x : int; y : int }
-
-// We use an explicit sign for Floats, instead of making it implicit in the
-// first digit, because otherwise we lose the sign on 0, and can't represent
-// things like -0.5
-type Sign =
-  | Positive
-  | Negative
 
 type CanvasID = System.Guid
 type UserID = System.Guid

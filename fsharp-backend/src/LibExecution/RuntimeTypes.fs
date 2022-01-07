@@ -546,7 +546,7 @@ module Dval =
   let floatParts (sign : Sign, whole : bigint, fraction : bigint) : Dval =
     // TODO - add sourceID to errors
     try
-      DFloat(makeFloat (sign = Positive) whole fraction)
+      DFloat(makeFloat sign whole fraction)
     with
     | _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
