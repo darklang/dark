@@ -20,19 +20,6 @@ open RuntimeTypes
 
 // FSTODO: move everything in this file into where it's used
 
-// I tried System.Text.Json but ran into a number of problems:
-//
-// - Infinity/Nan: The original OCaml Yojson converter represented these
-// special floats as invalid JSON, which System.Text.Json threw an exception
-// over.
-//
-// - 82.0: It was possible to workaround this using incredibly ugly hacks, but
-// by default 82.0 would be printed as `82` and there was no way to change
-// that.
-
-open Newtonsoft.Json
-open Newtonsoft.Json.Linq
-
 open System.Text.Json
 
 // TODO CLEANUP - remove all the unsafeDval by inlining them into the named
@@ -62,15 +49,7 @@ let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
   UTF8.ofBytesUnsafe (stream.ToArray())
 
 
-let parseJson (s : string) : JToken =
-  let reader = new JsonTextReader(new System.IO.StringReader(s))
-  let jls = JsonLoadSettings()
-  jls.CommentHandling <- CommentHandling.Load // Load them so we can error later
-  jls.DuplicatePropertyNameHandling <- DuplicatePropertyNameHandling.Error
-  jls.CommentHandling <- CommentHandling.Ignore
-
-  reader.DateParseHandling <- DateParseHandling.None
-  JToken.ReadFrom(reader)
+let parseJson (s : string) : JsonDocument = JsonDocument.Parse(s)
 
 
 type Utf8JsonWriter with
@@ -108,62 +87,56 @@ type Utf8JsonWriter with
   member this.writeFullInt64Value(i : int64) = this.WriteRawValue(string i)
 
 
-let (|JString|_|) (j : JToken) : Option<string> =
-  match j.Type with
-  | JTokenType.String -> Some(JString(j.Value<string>()))
+let (|JString|_|) (j : JsonElement) : Option<string> =
+  match j.ValueKind with
+  | JsonValueKind.String -> Some(JString(j.GetString()))
   | _ -> None
 
-let (|JNull|_|) (j : JToken) : Option<unit> =
-  match j.Type with
-  | JTokenType.Null -> Some(JNull)
+let (|JNull|_|) (j : JsonElement) : Option<unit> =
+  match j.ValueKind with
+  | JsonValueKind.Null -> Some(JNull)
   | _ -> None
 
-let (|JInteger|_|) (j : JToken) : Option<int64> =
-  match j.Type with
-  | JTokenType.Integer -> Some(JInteger(j.Value<int64>()))
+let (|JInteger|_|) (j : JsonElement) : Option<int64> =
+  match j.ValueKind with
+  | JsonValueKind.Number ->
+    try
+      Some(JInteger(j.GetInt64()))
+    with
+    | :? System.FormatException -> None
   | _ -> None
 
-let (|JFloat|_|) (j : JToken) : Option<float> =
-  match j.Type with
-  | JTokenType.Float -> Some(JFloat(j.Value<float>()))
+let (|JFloat|_|) (j : JsonElement) : Option<float> =
+  match j.ValueKind with
+  | JsonValueKind.Number -> Some(JFloat(j.GetDouble()))
   | _ -> None
 
-let (|JBoolean|_|) (j : JToken) : Option<bool> =
-  match j.Type with
-  | JTokenType.Boolean -> Some(JBoolean(j.Value<bool>()))
+let (|JBoolean|_|) (j : JsonElement) : Option<bool> =
+  match j.ValueKind with
+  | JsonValueKind.False -> Some(JBoolean(false))
+  | JsonValueKind.True -> Some(JBoolean(true))
   | _ -> None
 
-let (|JList|_|) (j : JToken) : Option<List<JToken>> =
-  match j.Type with
-  | JTokenType.Array -> Some(JList(j.Values<JToken>() |> Seq.toList))
+let (|JList|_|) (j : JsonElement) : Option<List<JsonElement>> =
+  match j.ValueKind with
+  | JsonValueKind.Array -> Some(JList(j.EnumerateArray() |> Seq.toList))
   | _ -> None
 
-let (|JObject|_|) (j : JToken) : Option<List<string * JToken>> =
-  match j.Type with
-  | JTokenType.Object ->
+let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
+  match j.ValueKind with
+  | JsonValueKind.Object ->
     let list =
-      j.Values()
-      |> seq
+      j.EnumerateObject()
       |> Seq.toList
-      |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
+      |> List.map (fun (jp : JsonProperty) -> (jp.Name, jp.Value))
+    Some(JObject(list))
 
-    Some(JObject list)
   | _ -> None
 
 
-let (|JNonStandard|_|) (j : JToken) : Option<unit> =
-  match j.Type with
-  | JTokenType.None
-  | JTokenType.Undefined
-  | JTokenType.Constructor
-  | JTokenType.Property
-  | JTokenType.Guid
-  | JTokenType.Raw
-  | JTokenType.Bytes
-  | JTokenType.TimeSpan
-  | JTokenType.Uri
-  | JTokenType.Comment
-  | JTokenType.Date -> Some()
+let (|JNonStandard|_|) (j : JsonElement) : Option<unit> =
+  match j.ValueKind with
+  | JsonValueKind.Undefined -> Some()
   | _ -> None
 
 let ocamlStringOfFloat (f : float) : string =
@@ -274,6 +247,7 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
         let strs =
           Map.fold [] (fun l key value -> (key + ": " + recurse value) :: l) o
 
+        // CLEANUP no good reason to have the space before the newline
         "{ " + inl + String.concat ("," + inl) strs + nl + "}"
     | _ -> reprfn dv
 
@@ -339,7 +313,6 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 // For passing to Dark functions that operate on JSON, such as the JWT fns.
 // This turns Option and Result into plain values, or null/error. String-like
 // values are rendered as string. Redacts passwords.
-
 let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
   // utf8jsonwriter has different methods for writing into objects vs arrays.
@@ -476,7 +449,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 let unsafeOfUnknownJsonV0 str =
   // This special format was originally the default OCaml (yojson-derived) format
   // for this.
-  let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
+  let responseOfJson (dv : Dval) (j : JsonElement) : DHTTP =
     match j with
     | JList [ JString "Redirect"; JString url ] -> Redirect url
     | JList [ JString "Response"; JInteger code; JList headers ] ->
@@ -548,9 +521,9 @@ let unsafeOfUnknownJsonV0 str =
     | JNonStandard
     | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
-
   try
-    str |> parseJson |> convert
+    use document = parseJson str
+    convert document.RootElement
   with
   | _ -> Exception.raiseInternal "Invalid json" [ "json", str ]
 
@@ -579,10 +552,21 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
     | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
   try
-    str |> parseJson |> convert |> Ok
+    use document = str |> parseJson
+    document.RootElement |> convert |> Ok
   with
-  | :? JsonReaderException as e ->
-    let msg = if str = "" then "JSON string was empty" else e.Message
+  | :? JsonException as e ->
+    let msg =
+      if str = "" then
+        "JSON string was empty"
+      else
+        let msg = e.Message
+        // The full message has .NET specific advice, so just stick to the good stuff
+        let trailingCommaMsg = "The JSON array contains a trailing comma at the end"
+        if msg.Contains trailingCommaMsg then
+          $"{trailingCommaMsg}, at on line {e.LineNumber}, position {e.BytePositionInLine}"
+        else
+          msg
     Error msg
 
 
