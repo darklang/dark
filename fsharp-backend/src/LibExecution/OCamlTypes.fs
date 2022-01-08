@@ -637,7 +637,7 @@ module Convert =
     | RT.PFloat (id, d) ->
       // CLEANUP: doesn't support -0.5
       let s, w, f = readFloat d
-      let w = if s = Positive then string w else "-{w}"
+      let w = if s = Positive then string w else $"-{w}"
       ORT.FPFloat(mid, id, w, string f)
     | RT.PNull (id) -> ORT.FPNull(mid, id)
     | RT.PBlank (id) -> ORT.FPBlank(mid, id)
@@ -725,7 +725,7 @@ module Convert =
     | RT.EFloat (id, d) ->
       let (s, w, f) = readFloat d
       // CLEANUP: doesn't support -0.5
-      let w = if s = Positive then string w else "-{w}"
+      let w = if s = Positive then string w else $"-{w}"
       // FSTODO: don't drop the sign and test
       ORT.EFloat(id, w, string f)
     | RT.EBool (id, b) -> ORT.EBool(id, b)
