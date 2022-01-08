@@ -93,6 +93,14 @@ exception DarkException of data : DarkExceptionData with
     | LibraryError (msg, _) -> msg
     | GrandUserError msg -> msg
 
+  member this.tags() : List<string * obj> =
+    match this.data with
+    | InternalError (_, tags)
+    | LibraryError (_, tags) -> tags
+    | DeveloperError _
+    | EditorError _
+    | GrandUserError _ -> []
+
 
 exception PageableException of inner : System.Exception with
   override this.Message = this.inner.Message
@@ -119,8 +127,8 @@ module Exception =
     with
     | e ->
       // We're completely screwed at this point
-      System.Console.WriteLine "Exception calling Exceptioncallback"
-      System.Console.WriteLine e.Message
+      System.Console.WriteLine "Exception calling callExceptionCallback"
+      System.Console.WriteLine(e.Message, typ, tags)
       System.Console.WriteLine e.StackTrace
 
 
