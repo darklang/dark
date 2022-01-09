@@ -14,8 +14,17 @@ let shutdown = ref false
 let run () : Task<unit> =
   task {
     while not shutdown.Value do
-      use span = Telemetry.createRoot "CronChecker.run"
-      do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
+      try
+        use span = Telemetry.createRoot "CronChecker.run"
+        do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
+      with
+      | e ->
+        // If there's an exception, alert and continue
+        LibService.Rollbar.sendException
+          "Cronchecker.run iteration"
+          (ExecutionID "cronchecker")
+          []
+          e
       do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
     return ()
   }
