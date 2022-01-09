@@ -18,7 +18,7 @@ let parserTests =
 
       return
         (Expect.isTrue
-          (actualProg.testEqualIgnoringIDs (expectedExpr))
+          (actualProg.testEqualIgnoringIDs expectedExpr)
           $"{actualProg}\n\n=\n\n{expectedExpr}")
     }
 
