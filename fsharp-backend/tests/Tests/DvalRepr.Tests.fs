@@ -301,16 +301,14 @@ module Password =
       doesntSerialize
         "toPrettyMachineJsonV1"
         DvalReprExternal.toPrettyMachineJsonStringV1
-    // FSTODO
-    //   doesSerialize
-    //     "toPrettyRequestJsonV0"
-    //     false
-    //     Libexecution.Legacy.PrettyRequestJsonV0.toPrettyRequestJsonV0 ;
-    //   doesSerialize
-    //     "toPrettyResponseJsonV1"
-    //     false
-    //     Libexecution.Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0 ;
-    //   ()
+      // FSTODO
+      // doesntSerialize
+      //   "toPrettyRequestJsonV0"
+      //   LibExecutionStdLib.LibObject.PrettyRequestJsonV0.toPrettyRequestJsonV0
+      doesntSerialize
+        "toPrettyResponseJsonV1"
+        LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+      ()
     }
 
   let testSerialization2 =
