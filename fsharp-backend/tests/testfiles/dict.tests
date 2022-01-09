@@ -91,11 +91,11 @@ Dict.size_v0 {} = 0
 Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }" // OCAMLONLY
 Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{\n  \"key1\": \"val1\",\n  \"key2\": \"val2\"\n}" // FSHARPONLY
 Dict.toJSON_v0 { key1 = Test.infinity_v0 } = "{ \"key1\": Infinity }" // OCAMLONLY
-Dict.toJSON_v0 { key1 = Test.infinity_v0 } = "{\n  \"key1\": Infinity\n}" // FSHARPONLY
+Dict.toJSON_v0 { key1 = Test.infinity_v0 } = "{\n  \"key1\": \"Infinity"\n}" // FSHARPONLY
 Dict.toJSON_v0 { key1 = Test.negativeInfinity_v0 } = "{ \"key1\": -Infinity }" // OCAMLONLY
-Dict.toJSON_v0 { key1 = Test.negativeInfinity_v0 } = "{\n  \"key1\": -Infinity\n}" // FSHARPONLY
+Dict.toJSON_v0 { key1 = Test.negativeInfinity_v0 } = "{\n  \"key1\": \"-Infinity\"\n}" // FSHARPONLY
 Dict.toJSON_v0 { key1 = Test.nan_v0 } = "{ \"key1\": NaN }" // OCAMLONLY
-Dict.toJSON_v0 { key1 = Test.nan_v0 } = "{\n  \"key1\": NaN\n}" // FSHARPONLY
+Dict.toJSON_v0 { key1 = Test.nan_v0 } = "{\n  \"key1\": \"NaN\"\n}" // FSHARPONLY
 
 Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
 Dict.toList_v0 {} = []
