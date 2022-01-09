@@ -23,7 +23,6 @@
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
-    <Compile Include="Legacy.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="OCamlTypes.fs" />
     <Compile Include="Init.fs" />
