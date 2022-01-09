@@ -88,6 +88,18 @@ let listTests =
         Tablecloth.List.chunksOf
         [ (2, [ 1; 2; 3 ], [ [ 1; 2 ]; [ 3 ] ]) ] ]
 
+let floatTests =
+  testList
+    "Float"
+    [ testMany
+        "readFloat"
+        readFloat
+        [ -0.0, (Negative, "0", "0")
+          0.0, (Positive, "0", "0")
+          82.10, (Positive, "82", "099999999999994315658113919198513031005859375")
+          -180.0, (Negative, "180", "0") ] ]
 
 
-let tests = testList "prelude" [ canvasName; asyncTests; mapTests; listTests ]
+
+let tests =
+  testList "prelude" [ canvasName; asyncTests; mapTests; listTests; floatTests ]

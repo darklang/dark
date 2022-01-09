@@ -199,11 +199,8 @@ let eBlank () : Expr = EBlank(gid ())
 
 let eBool (b : bool) : Expr = EBool(gid (), b)
 
-let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
+let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
   EFloat(gid (), makeFloat sign whole fraction)
-
-let eFloatStr (whole : string) (fraction : string) : Expr =
-  EFloat(gid (), parseFloat whole fraction)
 
 let eNull () : Expr = ENull(gid ())
 
@@ -267,10 +264,7 @@ let pCharStr (c : string) : Pattern = PCharacter(gid (), c)
 
 let pString (str : string) : Pattern = PString(gid (), str)
 
-let pFloatStr (whole : string) (fraction : string) : Pattern =
-  PFloat(gid (), float $"{whole}{fraction}")
-
-let pFloat (whole : int) (fraction : int) : Pattern =
+let pFloat (whole : string) (fraction : string) : Pattern =
   PFloat(gid (), float $"{whole}{fraction}")
 
 let pNull () : Pattern = PNull(gid ())

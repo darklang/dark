@@ -543,20 +543,6 @@ module Dval =
   let int (i : int) = DInt(int64 i)
   let parseInt (i : string) = DInt(parseInt64 i)
 
-  let floatParts (sign : Sign, whole : bigint, fraction : bigint) : Dval =
-    // TODO - add sourceID to errors
-    try
-      DFloat(makeFloat sign whole fraction)
-    with
-    | _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
-
-  let floatStringParts (sign : Sign, whole : string, fraction : string) : Dval =
-    // TODO - add sourceID to errors
-    try
-      DFloat(parseFloat whole fraction)
-    with
-    | _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
-
 
   // Dvals should never be constructed that contain fakevals - the fakeval
   // should always propagate (though, there are specific cases in the
