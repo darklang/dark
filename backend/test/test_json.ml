@@ -80,7 +80,6 @@ let t_dval_user_db_json_roundtrips () =
   List.iter dvals ~f:(fun (name, dv) -> check name dv)
 
 
-
 let t_result_to_response_works () =
   let req =
     Req.make
