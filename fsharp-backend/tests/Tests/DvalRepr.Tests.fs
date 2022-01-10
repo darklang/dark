@@ -259,19 +259,25 @@ module Password =
 
   let testSerialization =
     test "password serialization" {
-      let testSerialize expected name f =
+      let testSerialize shouldRedact name f =
         let bytes = UTF8.toBytes "encryptedbytes"
         let password = RT.DPassword(Password bytes)
+        let allowed =
+          if shouldRedact then
+            "should redact password but doesn't"
+          else
+            "shouldn't redact password but does"
 
         Expect.equal
-          expected
+          shouldRedact
           (String.includes
             ("encryptedbytes" |> UTF8.toBytes |> Base64.defaultEncodeToString)
-            (f password))
-          ($"Passwords serialize in non-redaction function: {name}")
+            (f password)
+           |> not)
+          $"{name} {allowed}"
 
-      let doesSerialize = testSerialize true
-      let doesntSerialize = testSerialize false
+      let doesntRedact = testSerialize false
+      let doesRedact = testSerialize true
 
       let roundtrips name serialize deserialize =
         let bytes = UTF8.toBytes "encryptedbytes"
@@ -283,7 +289,7 @@ module Password =
           $"Passwords serialize in non-redaction function: {name}"
 
       // doesn't redact
-      doesSerialize
+      doesntRedact
         "toInternalRoundtrippableV0"
         DvalReprInternal.toInternalRoundtrippableV0
 
@@ -294,18 +300,14 @@ module Password =
         DvalReprInternal.ofInternalRoundtrippableV0
 
       // redacting
-      doesntSerialize
-        "toEnduserReadableTextV0"
-        DvalReprExternal.toEnduserReadableTextV0
-      doesntSerialize "toDeveloperReprV0" DvalReprExternal.toDeveloperReprV0
-      doesntSerialize
-        "toPrettyMachineJsonV1"
-        DvalReprExternal.toPrettyMachineJsonStringV1
+      doesRedact "toEnduserReadableTextV0" DvalReprExternal.toEnduserReadableTextV0
+      doesRedact "toDeveloperReprV0" DvalReprExternal.toDeveloperReprV0
+      doesRedact "toPrettyMachineJsonV1" DvalReprExternal.toPrettyMachineJsonStringV1
       // FSTODO
       // doesntSerialize
       //   "toPrettyRequestJsonV0"
       //   LibExecution.Legacy.PrettyRequestJsonV0.toPrettyRequestJsonV0
-      doesntSerialize
+      doesRedact
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
       ()
