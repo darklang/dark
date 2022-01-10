@@ -170,7 +170,7 @@ let fileTests () : Test =
             returnTypeID = gid ()
             description = "test function"
             infix = false
-            body = (FSharpToExpr.parsePTExpr currentFn.code)
+            body = FSharpToExpr.parsePTExpr currentFn.code
             parameters = currentFn.parameters }
 
         functions <- Map.add currentFn.name fn functions
