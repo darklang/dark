@@ -448,7 +448,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-          // CLEANUP: this prints invalid JSON for infinity and NaN
           DObj o |> DvalReprExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

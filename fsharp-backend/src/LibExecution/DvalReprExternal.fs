@@ -18,11 +18,11 @@ open VendoredTablecloth
 
 open RuntimeTypes
 
-// FSTODO: move everything in this file into where it's used
+// CLEANUP: move everything in this file into where it's used
 
 open System.Text.Json
 
-// TODO CLEANUP - remove all the unsafeDval by inlining them into the named
+// CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
 let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
@@ -123,7 +123,7 @@ let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
   | _ -> None
 
 
-let (|JNonStandard|_|) (j : JsonElement) : Option<unit> =
+let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
   match j.ValueKind with
   | JsonValueKind.Undefined -> Some()
   | _ -> None
@@ -454,7 +454,6 @@ let unsafeOfUnknownJsonV0 str =
 
 
   let rec convert json =
-
     match json with
     | JInteger i -> DInt i
     | JFloat f -> DFloat f
@@ -503,11 +502,7 @@ let unsafeOfUnknownJsonV0 str =
           ("type", JString "result")
           ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
-    // Json.NET does a bunch of magic based on the contents of various types.
-    // For example, it has tokens for Dates, constructors, etc. We've tried to
-    // disable all those so we fail if we see them. However, we might need to
-    // just convert some of these into strings.
-    | JNonStandard
+    | JUndefined
     | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
   try
@@ -520,8 +515,6 @@ let unsafeOfUnknownJsonV0 str =
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 let ofUnknownJsonV1 str : Result<Dval, string> =
-  // FSTODO: there doesn't seem to be a good reason that we use JSON.NET here,
-  // might be better to switch to STJ
   let rec convert json =
     match json with
     | JInteger i -> DInt i
@@ -532,12 +525,7 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
     | JList l -> l |> List.map convert |> Dval.list
     | JObject fields ->
       fields |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m) |> DObj
-
-    // Json.NET does a bunch of magic based on the contents of various types.
-    // For example, it has tokens for Dates, constructors, etc. We've tried to
-    // disable all those so we fail if we see them. However, we might need to
-    // just convert some of these into strings.
-    | JNonStandard
+    | JUndefined
     | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
   try
