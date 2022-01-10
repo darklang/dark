@@ -97,6 +97,16 @@ Dict.toJSON_v0 { key1 = Test.negativeInfinity_v0 } = "{\n  \"key1\": \"-Infinity
 Dict.toJSON_v0 { key1 = Test.nan_v0 } = "{ \"key1\": NaN }" // OCAMLONLY
 Dict.toJSON_v0 { key1 = Test.nan_v0 } = "{\n  \"key1\": \"NaN\"\n}" // FSHARPONLY
 
+Dict.toJSON_v0 { v = 1 } = "{ \"v\": 1 }" // OCAMLONLY
+Dict.toJSON_v0 { v = 1 } = "{\n  \"v\": 1\n}" // FSHARPONLY
+Dict.toJSON_v0 { v = 4503599627370497L } = "{ \"v\": 4503599627370497 }" // OCAMLONLY
+Dict.toJSON_v0 { v = 4503599627370497L } = "{\n  \"v\": 4503599627370497\n}" // FSHARPONLY
+Dict.toJSON_v0 { v = 4611686018427387903L } = "{ \"v\": 4611686018427387903 }" // OCAMLONLY
+Dict.toJSON_v0 { v = 4611686018427387903L } = "{\n  \"v\": 4611686018427387903\n}" // FSHARPONLY
+Dict.toJSON_v0 { v = 4611686018427387904L } = Test.typeError_v0 "Unknown Err: (Failure \"Int.of_string: \\\"4611686018427387904\\\"\")" // OCAMLONLY
+Dict.toJSON_v0 { v = 4611686018427387904L } = "{\n  \"v\": 4611686018427387904\n}" // FSHARPONLY
+
+
 Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
 Dict.toList_v0 {} = []
 

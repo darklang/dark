@@ -70,9 +70,15 @@ JSON.parse_v0 "" = Test.typeError_v0 "JSON string was empty" // FSHARPONLY
 
 
 [tests.parse_v1]
-// FSTODO all of these weird things that JSON.net allows are ridiculous, we shouldn't expose them.
 JSON.parse_v1 "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
+JSON.parse_v1 "[97.8, -2, false, true, -0.0]" = Ok [97.8, -2, false, true, -0.0]
 
+JSON.parse_v1 "{ \"v\": 4611686018427387903 }" = Ok { v = 4611686018427387903L } // OCAMLONLY
+JSON.parse_v1 "{ \"v\": 4611686018427387903 }" = Ok { v = 4611686018427387903L } // FSHARPONLY
+JSON.parse_v1 "{ \"v\": 4611686018427387904 }" = Error "Unknown Err: (Failure \"Int.of_string: \\\"4611686018427387904\\\"\")" // OCAMLONLY
+JSON.parse_v1 "{ \"v\": 4611686018427387904 }" = Ok { v = 4611686018427387904L } // FSHARPONLY
+
+// FSTODO all of these weird things that JSON.net allows are ridiculous, we shouldn't expose them.
 JSON.parse_v1 "[97, 2, 30, 4,]" = Error "Json Err: Line 1, bytes 14-15:\nInvalid token ']'" // OCAMLONLY
 JSON.parse_v1 "[97, 2, 30, 4,]" = Error "The JSON array contains a trailing comma at the end, at on line 0, position 14" // FSHARPONLY
 
