@@ -161,10 +161,7 @@ module PrettyResponseJsonV0 =
 
 
   let toPrettyResponseJsonV0 (dval : Dval) : string =
-    debuG "calling the dval" dval
-    writePrettyJson (fun w ->
-      debuG "the dval" dval
-      unsafeDvalToJsonValueV0 w false dval)
+    writePrettyJson (fun w -> unsafeDvalToJsonValueV0 w false dval)
 
 
 let fns : List<BuiltInFn> =
