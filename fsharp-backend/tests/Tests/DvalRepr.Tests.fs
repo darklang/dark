@@ -304,7 +304,7 @@ module Password =
       // FSTODO
       // doesntSerialize
       //   "toPrettyRequestJsonV0"
-      //   LibExecutionStdLib.LibObject.PrettyRequestJsonV0.toPrettyRequestJsonV0
+      //   LibExecution.Legacy.PrettyRequestJsonV0.toPrettyRequestJsonV0
       doesntSerialize
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
