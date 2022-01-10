@@ -304,10 +304,6 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 // values are rendered as string. Redacts passwords.
 let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
-  // utf8jsonwriter has different methods for writing into objects vs arrays.
-  // Dark doesn't assume the outermost value is an array or object, so try
-  // writing the array version to start, then recurse between the two as
-  // appropriate based on the content.
   match dv with
   // basic types
   | DInt i -> w.writeFullInt64Value i
