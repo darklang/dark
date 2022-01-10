@@ -7,21 +7,37 @@
   let noHeaders0   = JWT.verifyAndExtract_v0_ster publicKey (JWT.signAndEncode_v0 privateKey payload) in
   let withHeaders1 = JWT.verifyAndExtract_v1_ster publicKey (JWT.signAndEncodeWithHeaders_v1_ster privateKey headers payload) in
   let noHeaders1   = JWT.verifyAndExtract_v1_ster publicKey (JWT.signAndEncode_v1_ster privateKey payload) in
-  (withHeaders0.header = expectedHeaders)
-      && (withHeaders1.header = expectedHeaders)
-      && (withHeaders0.payload = payload)
-      && (withHeaders1.payload = payload)
-      && (noHeaders0.payload = payload)
-      && (noHeaders1.payload = payload))
+  (if (withHeaders0.header <> expectedHeaders)
+   then Error { err = "headers0 not equal"; actual = withHeaders0.header; expected = expectedHeaders }
+   else if (withHeaders1.header <> expectedHeaders)
+   then Error { err = "headers1 not equal"; actual = withHeaders1.header; expected = expectedHeaders }
+   else if (withHeaders0.payload <> payload)
+   then Error { err = "payload0 not equal"; actual = withHeaders0.payload; expected = payload }
+   else if (withHeaders1.payload <> payload)
+   then Error { err = "payload1 not equal"; actual = withHeaders1.payload; expected = payload }
+   else if (noHeaders0.payload <> payload)
+   then Error { err = "noheaders0 payload not equal"; actual = noHeaders0.payload; expected = payload }
+   else if (noHeaders1.payload <> payload)
+   then Error { err = "noheaders1 payload not equal"; actual = noHeaders1.payload; expected = payload }
+   else Ok null))
 
 [tests.roundtrip]
-roundtripAll "str" = true
-roundtripAll [] = true
-roundtripAll {} = true
-roundtripAll ({ x = "y" }) = true
-roundtripAll ({ x = "X"; y = "Y" }) = true
-roundtripAll ({ x = 15 }) = true
-roundtripAll ({ x = { a = "b" ; c = [] } ; y = 6 }) = true
+roundtripAll "str" = Ok null
+roundtripAll [] =  Ok null
+roundtripAll {} = Ok null
+roundtripAll 0.0 = Ok null
+roundtripAll 15 = Ok null
+roundtripAll true = Ok null
+roundtripAll ({ x = "y" }) = Ok null
+roundtripAll ({ x = "X"; y = "Y" }) = Ok null
+roundtripAll ({ x = 15 }) = Ok null
+roundtripAll ({ x = Test.infinity_v0 }) = Ok null
+// NaNs do not compare equal
+roundtripAll ({ x = Test.nan_v0 }) = Error { err = "payload0 not equal"; actual = { x = Test.nan_v0 }; expected = { x = Test.nan_v0 }}
+roundtripAll ({ x = [ 4 , 6.7, true, "test", {}] }) = Ok null
+roundtripAll ({ x = { a = "b" ; c = [] } ; y = 6 }) = Ok null
+// CLEANUP: dates should roundtrip via jwt
+roundtripAll (Date.parse_v0 "2022-01-10T21:46:42Z") = Error { actual = "2022-01-10T21:46:42Z"; err = "payload0 not equal"; expected = Date.parse_v0 "2022-01-10T21:46:42Z" }
 
 
 [fn.sign0 payload]
