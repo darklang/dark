@@ -47,12 +47,8 @@ module PrettyResponseJsonV0 =
       f ()
       this.WriteEnd()
 
-  let rec unsafeDvalToJsonValueV0
-    (w : JsonWriter)
-    (redact : bool)
-    (dv : Dval)
-    : unit =
-    let writeDval = unsafeDvalToJsonValueV0 w redact
+  let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
+    let writeDval = unsafeDvalToJsonValueV0 w
 
     let wrapStringValue (typ : string) (str : string) =
       w.writeObject (fun () ->
@@ -125,11 +121,7 @@ module PrettyResponseJsonV0 =
             writeDval hdv))
     | DDB dbname -> wrapStringValue "datastore" dbname
     | DDate date -> wrapStringValue "date" (date.toIsoString ())
-    | DPassword (Password hashed) ->
-      if redact then
-        wrapNullValue "password"
-      else
-        hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
+    | DPassword _ -> wrapNullValue "password"
     | DUuid uuid -> wrapStringValue "uuid" (string uuid)
     | DOption opt ->
       (match opt with
@@ -159,9 +151,8 @@ module PrettyResponseJsonV0 =
       bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
 
 
-
   let toPrettyResponseJsonV0 (dval : Dval) : string =
-    writePrettyJson (fun w -> unsafeDvalToJsonValueV0 w false dval)
+    writePrettyJson (fun w -> unsafeDvalToJsonValueV0 w dval)
 
 
 let fns : List<BuiltInFn> =
