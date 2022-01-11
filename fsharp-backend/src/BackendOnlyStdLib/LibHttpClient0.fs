@@ -18,6 +18,64 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
+module PrettyRequestJson =
+  // This was a terrible format, I'm not even sure why this is called json
+  let rec toPrettyRequestJson (dv : Dval) : string =
+    let rec to_repr_ (indent : int) (dv : Dval) : string =
+      let nl = "\n" + String.replicate indent " "
+      let inl = "\n" + String.replicate (indent + 2) " "
+      let indent = indent + 2
+      match dv with
+      | DFnVal _ -> "block"
+      | DIncomplete _ -> "<incomplete: <incomplete>>"
+      | DError _ -> "<error: error>"
+      | DDate d -> $"<date: {d.toIsoString ()}>"
+      | DDB dbname -> $"<datastore: {dbname}>"
+      | DUuid uuid -> $"<uuid: {uuid}>"
+      | DPassword _ -> "<password: <password>>"
+      | DInt i -> string i
+      | DFloat f -> LibExecution.DvalReprExternal.ocamlStringOfFloat f
+      | DBool true -> "true"
+      | DBool false -> "false"
+      | DNull -> "null"
+      | DChar c -> $"'{c}'"
+      | DStr str -> $"\"{str}\""
+      | DHttpResponse (Redirect url) -> $"302 {url}{nl}null"
+      | DHttpResponse (Response (code, headers, body)) ->
+        let headerString =
+          headers
+          |> List.map (fun (k, v) -> k + ": " + v)
+          |> String.concat ","
+          |> fun s -> "{ " + s + " }"
+        $"{code} {headerString}{nl}{to_repr_ indent body}"
+      | DList l ->
+        if l = [] then
+          "[]"
+        else
+          "[ " + inl + String.concat ", " (List.map (to_repr_ indent) l) + nl + "]"
+      | DObj o ->
+        if Map.empty = o then
+          "{}"
+        else
+          let strs =
+            Map.fold
+              (fun l key value -> (key + ": " + to_repr_ indent value) :: l)
+              []
+              o
+          "{ " + inl + String.concat ("," + inl) strs + nl + "}"
+      | DOption None -> "Nothing"
+      | DOption (Some dv) -> "Just " + to_repr_ indent dv
+      | DErrorRail dv -> "ErrorRail: " + to_repr_ indent dv
+      | DResult _ ->
+        Exception.raiseDeveloper
+          "Unknown Err: (Failure \"printing an unprintable value:<result>\")"
+      | DBytes _ ->
+        Exception.raiseDeveloper
+          "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
+    to_repr_ 0 dv
+
+
+
 let fns : List<BuiltInFn> =
   [
   // [ { name = fn "HttpClient" "post" 0

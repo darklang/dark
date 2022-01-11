@@ -62,6 +62,10 @@ let server () =
             Some F.to_pretty_machine_json_v1
         | "to_safe_pretty_machine_yojson_v1" ->
             Some F.to_safe_pretty_machine_yojson_v1
+        | "to_pretty_request_json" ->
+            Some F.to_pretty_request_json
+        | "to_pretty_response_json" ->
+            Some F.to_pretty_response_json
         | "to_url_string" ->
             Some F.to_url_string
         | "dval_to_query" ->

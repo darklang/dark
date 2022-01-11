@@ -82,6 +82,30 @@ let testToEnduserReadable =
       RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
       "0 { a header: something }\nnull" ]
 
+let testToPrettyResponseJson =
+  testMany
+    "toPrettyResponseJson"
+    LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+    []
+
+let testToPrettyRequestJson =
+  testMany
+    "toPrettyRequestJson"
+    BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson
+    []
+// [ RT.DErrorRail(RT.DResult(Ok RT.DNull)), ""
+//   RT.DError ("some message") -> "<error: error>"
+//   RT.DIncomplete () -> "<incomplete: incomplete>"
+//   RT.DBName "my dbstore" -> "<datastore: my dbstore>"
+// DUuid 1271ebde-7d15-327d-9a36-f9bee0ac22e7, "<uuid: 1271ebde-7d15-327d-9a36-f9bee0ac22e7>"
+// RT.DHttpResponse(RT.Redirect("some url")), "302 some url\n  null"
+// RT.DHttpResponse(RT.not a redirectRedirect("some url")), "302 some url\n  null"
+// RT.DerrorRail (RT.DHttpResponse(RT.Redirect("some url")), "302 some url\n  null")
+// RT.DPassword _, "<password: <password>>"
+// RT.DBytes [||], "<password: <password>>"
+// RT.DDate [||], "<password: <password>>"
+// ]
+
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
 
@@ -303,10 +327,9 @@ module Password =
       doesRedact "toEnduserReadableTextV0" DvalReprExternal.toEnduserReadableTextV0
       doesRedact "toDeveloperReprV0" DvalReprExternal.toDeveloperReprV0
       doesRedact "toPrettyMachineJsonV1" DvalReprExternal.toPrettyMachineJsonStringV1
-      // FSTODO
-      // doesntSerialize
-      //   "toPrettyRequestJsonV0"
-      //   LibExecution.Legacy.PrettyRequestJsonV0.toPrettyRequestJsonV0
+      doesRedact
+        "toPrettyRequestJsonV0"
+        BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson
       doesRedact
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
@@ -413,6 +436,8 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
+      testToPrettyRequestJson
+      testToPrettyResponseJson
       ToHashableRepr.tests
       Password.tests
       Date.tests

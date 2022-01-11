@@ -253,6 +253,12 @@ let toPrettyMachineJsonV1 (dv : RT.Dval) : Task<string> =
 let toSafePrettyMachineYojsonV1 (dv : RT.Dval) : Task<string> =
   dvalToStringReq "fuzzing/to_safe_pretty_machine_yojson_v1" dv
 
+let toPrettyRequestJson (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_pretty_request_json" dv
+
+let toPrettyResponseJson (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_pretty_response_json" dv
+
 let toUrlString (dv : RT.Dval) : Task<string> =
   dvalToStringReq "fuzzing/to_url_string" dv
 

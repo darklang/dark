@@ -546,6 +546,75 @@ module PrettyMachineJson =
           "roundtripping prettyMachineJson"
           equalsOCaml ]
 
+
+module PrettyResponseJson =
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+    // This should produce identical JSON to the OCaml function or customers will have an unexpected change
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | _ -> true)
+
+  let equalsOCaml (dv : RT.Dval) : bool =
+    let actual =
+      try
+        dv
+        |> LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+      with
+      | e -> e.Message
+
+    let expected =
+      try
+        (OCamlInterop.toPrettyResponseJson dv).Result
+      with
+      // Task error
+      | :? System.AggregateException as e -> e.InnerException.Message
+      | e -> e.Message
+
+    actual .=. expected
+
+  let tests =
+    testList
+      "prettyResponseJson"
+      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
+
+
+module PrettyRequestJson =
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+    // This should produce identical JSON to the OCaml function or customers will have an unexpected change
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | _ -> true)
+
+  let equalsOCaml (dv : RT.Dval) : bool =
+    let actual =
+      try
+        dv |> BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson
+      with
+      | e -> e.Message
+
+    let expected =
+      try
+        (OCamlInterop.toPrettyRequestJson dv).Result
+      with
+      // Task error
+      | :? System.AggregateException as e -> e.InnerException.Message
+      | e -> e.Message
+
+    actual .=. expected
+
+  let tests =
+    testList
+      "prettyRequestJson"
+      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
+
 module LibJwtJson =
   type Generator =
     static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
@@ -1313,6 +1382,8 @@ let knownGood =
     ([ Roundtrippable.tests
        Queryable.tests
        DeveloperRepr.tests
+       PrettyRequestJson.tests
+       PrettyResponseJson.tests
        HttpClient.tests
        EndUserReadable.tests
        Hashing.tests
