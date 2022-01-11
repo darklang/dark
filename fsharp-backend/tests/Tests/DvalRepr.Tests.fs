@@ -91,20 +91,30 @@ let testToPrettyResponseJson =
 let testToPrettyRequestJson =
   testMany
     "toPrettyRequestJson"
-    BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson
-    []
-// [ RT.DErrorRail(RT.DResult(Ok RT.DNull)), ""
-//   RT.DError ("some message") -> "<error: error>"
-//   RT.DIncomplete () -> "<incomplete: incomplete>"
-//   RT.DBName "my dbstore" -> "<datastore: my dbstore>"
-// DUuid 1271ebde-7d15-327d-9a36-f9bee0ac22e7, "<uuid: 1271ebde-7d15-327d-9a36-f9bee0ac22e7>"
-// RT.DHttpResponse(RT.Redirect("some url")), "302 some url\n  null"
-// RT.DHttpResponse(RT.not a redirectRedirect("some url")), "302 some url\n  null"
-// RT.DerrorRail (RT.DHttpResponse(RT.Redirect("some url")), "302 some url\n  null")
-// RT.DPassword _, "<password: <password>>"
-// RT.DBytes [||], "<password: <password>>"
-// RT.DDate [||], "<password: <password>>"
-// ]
+    (fun v ->
+      try
+        BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson v
+      with
+      | e -> e.Message)
+    [ RT.DErrorRail(RT.DResult(Ok RT.DNull)),
+      "Unknown Err: (Failure \"printing an unprintable value:<result>\")"
+      RT.DError(RT.SourceNone, "some message"), "<error: error>"
+      RT.DIncomplete RT.SourceNone, "<incomplete: <incomplete>>"
+      RT.DDB "my dbstore", "<datastore: my dbstore>"
+      RT.DUuid(System.Guid.Parse "1271ebde-7d15-327d-9a36-f9bee0ac22e7"),
+      "<uuid: 1271ebde-7d15-327d-9a36-f9bee0ac22e7>"
+      RT.DPassword(Password [| 76uy; 13uy |]), "<password: <password>>"
+      RT.DBytes [||],
+      "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
+      RT.DDate(System.DateTime.Parse "2019-07-28T22:42:36Z"),
+      "<date: 2019-07-28T22:42:36Z>"
+      (RT.DErrorRail(RT.DHttpResponse(RT.Redirect("some url"))),
+       "ErrorRail: 302 some url\n  null")
+      (RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull")
+      (RT.DHttpResponse(RT.Response(200L, [], RT.DStr "some url"))),
+      "200 {  }\n\"some url\""
+      (RT.DHttpResponse(RT.Response(200L, [ "header", "value" ], RT.DStr "some url"))),
+      "200 { header: value }\n\"some url\"" ]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
