@@ -687,6 +687,38 @@ module Passwords =
           "comparing passwords"
           passwordChecks ]
 
+module BytesToString =
+
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+  let toStringTest (bytes : byte []) : bool =
+    let t =
+      task {
+        let! owner = testOwner.Force()
+        let! canvasID = testCanvasID.Force()
+
+        let ast = $"toString_v0 myValue" |> FSharpToExpr.parsePTExpr
+        let symtable = Map [ "myvalue", RT.DBytes bytes ]
+
+        let! expected = OCamlInterop.execute owner.id canvasID ast symtable [] []
+
+        let! state = executionStateFor owner "toStringTest" Map.empty Map.empty
+        let! actual =
+          LibExecution.Execution.executeExpr state symtable (ast.toRuntimeType ())
+
+        if dvalEquality actual expected then return true else return false
+      }
+    t.Result
+
+  let tests =
+    testList
+      "bytesToString"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "comparing bytesToString"
+          toStringTest ]
+
 
 
 module ExecutePureFunctions =
@@ -1402,6 +1434,7 @@ let knownGood =
        PrettyMachineJson.tests
        LibJwtJson.tests
        Passwords.tests
+       BytesToString.tests
        ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
