@@ -31,7 +31,8 @@ Content-Length: LENGTH
     "content-length": "0",
     "content-type": "text/plain",
     "date": "Sun, 08 Nov 2020 15:38:01 GMT",
-    "host": "test-bwdserver-request-empty.builtwithdark.localhost",
+    "host": "test-bwdserver-request-empty.builtwithdark.localhost" // FSHARPONLY
+    "host": "test-bwdserver-request-empty.builtwithdark.localhost", // OCAMLONLY
     "user-agent": "ocaml-cohttp/1.2.0" // OCAMLONLY
   },
   "jsonBody": null,

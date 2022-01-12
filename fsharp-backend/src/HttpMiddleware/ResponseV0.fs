@@ -8,7 +8,7 @@ type HttpResponse = { statusCode : int; body : byte array; headers : HttpHeaders
 
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 
 let inferContentTypeHeader (dv : RT.Dval) : ContentType.T =
@@ -51,13 +51,14 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
           | None -> inferContentTypeHeader body |> ContentType.toMediaType
         match mediaType with
         | Some MediaType.Text
-        | Some MediaType.Xml -> DvalRepr.toEnduserReadableTextV0 body |> UTF8.toBytes
+        | Some MediaType.Xml ->
+          DvalReprExternal.toEnduserReadableTextV0 body |> UTF8.toBytes
         | Some MediaType.Html ->
-          DvalRepr.toEnduserReadableTextV0 body |> UTF8.toBytes
+          DvalReprExternal.toEnduserReadableTextV0 body |> UTF8.toBytes
         | Some MediaType.Json
         | Some MediaType.Form
         | Some (MediaType.Other _)
-        | None -> DvalRepr.toPrettyMachineJsonStringV1 body |> UTF8.toBytes
+        | None -> DvalReprExternal.toPrettyMachineJsonStringV1 body |> UTF8.toBytes
     { statusCode = int code
       headers = headers @ inferredContentTypeHeader
       body = body }
@@ -78,4 +79,4 @@ let toHttpResponse (result : RT.Dval) : HttpResponse =
     // no HTTP response object is returned
     { statusCode = 200
       headers = [ ContentType.toHttpHeader (inferContentTypeHeader dv) ]
-      body = dv |> DvalRepr.toPrettyMachineJsonStringV1 |> UTF8.toBytes }
+      body = dv |> DvalReprExternal.toPrettyMachineJsonStringV1 |> UTF8.toBytes }

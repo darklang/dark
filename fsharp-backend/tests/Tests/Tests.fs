@@ -33,7 +33,7 @@ let main (args : string array) : int =
       Tests.BwdServer.tests
       Tests.Canvas.tests
       Tests.Cron.tests
-      Tests.DvalRepr.tests
+      Tests.DvalReprExternal.tests
       Tests.EventQueue.tests
       Tests.Execution.tests
       Tests.FSharpToExpr.tests

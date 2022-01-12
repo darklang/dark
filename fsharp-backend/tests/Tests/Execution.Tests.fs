@@ -457,7 +457,7 @@ let testMatchPreview : Test =
     do!
       check
         "float"
-        (eFloat Positive 5I 6I)
+        (eFloat Positive "5" "6")
         [ (pFloatId, "pat", er (DFloat 5.6))
           (floatRhsId, "rhs", er (DStr "float")) ]
 

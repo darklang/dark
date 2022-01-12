@@ -26,7 +26,7 @@
 { col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
 { col1 = 2 ; col2 = Test.errorRailNothing_v0 } = Test.errorRailNothing_v0
 { col1 = 2 ; ___ = 3 } = { col1 = 2 }
-(let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 2 } in Test.sideEffectCount_v0) = 1
+(let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 "record" 2 } in Test.sideEffectCount_v0 "record") = 1
 
 
 [tests.fieldAccess]

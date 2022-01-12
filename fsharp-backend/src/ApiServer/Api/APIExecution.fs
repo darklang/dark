@@ -21,7 +21,7 @@ module Convert = LibExecution.OCamlTypes.Convert
 module Canvas = LibBackend.Canvas
 module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprInternal = LibExecution.DvalReprInternal
 module Telemetry = LibService.Telemetry
 
 module Function =
@@ -67,8 +67,8 @@ module Function =
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
 
       t.next "write-api"
-      let hashVersion = DvalRepr.currentHashVersion
-      let hash = DvalRepr.hash hashVersion args
+      let hashVersion = DvalReprInternal.currentHashVersion
+      let hash = DvalReprInternal.hash hashVersion args
 
       let result =
         { result = Convert.rt2ocamlDval result

@@ -123,8 +123,8 @@ let makeHttpCall
           // Remove leading '?'
           if uri.Query = "" then "" else uri.Query.Substring 1
         reqUri.Query <-
-          DvalRepr.queryToEncodedString (
-            queryParams @ DvalRepr.parseQueryString queryString
+          DvalReprExternal.queryToEncodedString (
+            queryParams @ DvalReprExternal.parseQueryString queryString
           )
         use req = new HttpRequestMessage(method, string reqUri)
 

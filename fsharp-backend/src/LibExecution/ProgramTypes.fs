@@ -83,8 +83,10 @@ type Expr =
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
-  // allow the user to have arbitrarily big numbers, even if they don't make sense as floats
-  | EFloat of id * Sign * bigint * bigint
+  // Allow the user to have arbitrarily big numbers, even if they don't make sense as
+  // floats. The float is split as we want to preserve what the user entered.
+  // Strings are used as numbers lose the leading zeros (eg 7.00007)
+  | EFloat of id * Sign * string * string
   | ENull of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
@@ -195,7 +197,7 @@ type Expr =
     | EInteger (id, num) -> RT.EInteger(id, num)
     | EString (id, str) -> RT.EString(id, str)
     | EFloat (id, sign, whole, fraction) ->
-      RT.EFloat(id, makeFloat (sign = Positive) whole fraction)
+      RT.EFloat(id, makeFloat sign whole fraction)
     | EBool (id, b) -> RT.EBool(id, b)
     | ENull id -> RT.ENull id
     | EVariable (id, var) -> RT.EVariable(id, var)
@@ -292,7 +294,7 @@ and Pattern =
   | PBool of id * bool
   | PCharacter of id * string
   | PString of id * string
-  | PFloat of id * Sign * bigint * bigint
+  | PFloat of id * Sign * string * string
   | PNull of id
   | PBlank of id
 
@@ -306,7 +308,7 @@ and Pattern =
     | PBool (id, b) -> RT.PBool(id, b)
     | PCharacter (id, c) -> RT.PCharacter(id, c)
     | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat (s = Positive) w f)
+    | PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat s w f)
     | PNull id -> RT.PNull id
     | PBlank id -> RT.PBlank id
 
@@ -495,11 +497,8 @@ module Shortcuts =
   let eBlank () : Expr = EBlank(gid ())
   let eBool (b : bool) : Expr = EBool(gid (), b)
 
-  let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
+  let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
     EFloat(gid (), sign, whole, fraction)
-
-  let eFloatStr (sign : Sign) (whole : string) (fraction : string) : Expr =
-    EFloat(gid (), sign, parseBigint whole, parseBigint fraction)
 
   let eNull () : Expr = ENull(gid ())
 
@@ -575,10 +574,7 @@ module Shortcuts =
 
   let pString (str : string) : Pattern = PString(gid (), str)
 
-  let pFloatStr (sign : Sign) (whole : string) (fraction : string) : Pattern =
-    PFloat(gid (), sign, parseBigint whole, parseBigint fraction)
-
-  let pFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Pattern =
+  let pFloat (sign : Sign) (whole : string) (fraction : string) : Pattern =
     PFloat(gid (), sign, whole, fraction)
 
   let pNull () : Pattern = PNull(gid ())

@@ -19,4 +19,4 @@ Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 x-darklang-execution-id: 0123456789
 
-404 not found: no route matches
+404 Not Found: No route matches

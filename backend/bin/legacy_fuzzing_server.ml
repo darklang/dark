@@ -42,8 +42,6 @@ let server () =
           Some F.benchmark
       | ["fuzzing"; fnname] ->
         ( match fnname with
-        | "of_internal_queryable_v0" ->
-            Some F.of_internal_queryable_v0
         | "of_internal_queryable_v1" ->
             Some F.of_internal_queryable_v1
         | "of_internal_roundtrippable_v0" ->
@@ -56,8 +54,6 @@ let server () =
             Some F.to_enduser_readable_text_v0
         | "to_hashable_repr" ->
             Some F.to_hashable_repr
-        | "to_internal_queryable_v0" ->
-            Some F.to_internal_queryable_v0
         | "to_internal_queryable_v1" ->
             Some F.to_internal_queryable_v1
         | "to_internal_roundtrippable_v0" ->
@@ -66,6 +62,10 @@ let server () =
             Some F.to_pretty_machine_json_v1
         | "to_safe_pretty_machine_yojson_v1" ->
             Some F.to_safe_pretty_machine_yojson_v1
+        | "to_pretty_request_json" ->
+            Some F.to_pretty_request_json
+        | "to_pretty_response_json" ->
+            Some F.to_pretty_response_json
         | "to_url_string" ->
             Some F.to_url_string
         | "dval_to_query" ->

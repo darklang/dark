@@ -13,12 +13,16 @@ Object.toJSON_v0 { key1 = Test.negativeInfinity_v0 } = "{ \"key1\": -Infinity }"
 Object.toJSON_v0 { key1 = Test.negativeInfinity_v0 } = "{\n  \"key1\": -Infinity\n}" // FSHARPONLY
 Object.toJSON_v0 { key1 = Test.nan_v0 } = "{ \"key1\": NaN }" // OCAMLONLY
 Object.toJSON_v0 { key1 = Test.nan_v0 } = "{\n  \"key1\": NaN\n}" // FSHARPONLY
+Object.toJSON_v0 { key1 = Test.typeError_v0 "test" } = "{ \"key1\": { \"type\": \"error\", \"value\": \"error\" } }" // OCAMLONLY
+Object.toJSON_v0 { key1 = Test.typeError_v0 "test" } = "{\n  \"key1\": {\n    \"type\": \"error\",\n    \"value\": \"error\"\n  }\n}" // FSHARPONLY
 
 Object.toJSON_v1 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }" // OCAMLONLY
 Object.toJSON_v1 { key1 = "val1"; key2 = "val2"; } = "{\n  \"key1\": \"val1\",\n  \"key2\": \"val2\"\n}" // FSHARPONLY
 Object.toJSON_v1 { key1 = Test.infinity_v0 } = "{ \"key1\": Infinity }" // OCAMLONLY
-Object.toJSON_v1 { key1 = Test.infinity_v0 } = "{\n  \"key1\": Infinity\n}" // FSHARPONLY
+Object.toJSON_v1 { key1 = Test.infinity_v0 } = "{\n  \"key1\": \"Infinity\"\n}" // FSHARPONLY
 Object.toJSON_v1 { key1 = Test.negativeInfinity_v0 } = "{ \"key1\": -Infinity }" // OCAMLONLY
-Object.toJSON_v1 { key1 = Test.negativeInfinity_v0 } = "{\n  \"key1\": -Infinity\n}" // FSHARPONLY
+Object.toJSON_v1 { key1 = Test.negativeInfinity_v0 } = "{\n  \"key1\": \"-Infinity\"\n}" // FSHARPONLY
 Object.toJSON_v1 { key1 = Test.nan_v0 } = "{ \"key1\": NaN }" // OCAMLONLY
-Object.toJSON_v1 { key1 = Test.nan_v0 } = "{\n  \"key1\": NaN\n}" // FSHARPONLY
+Object.toJSON_v1 { key1 = Test.nan_v0 } = "{\n  \"key1\": \"NaN\"\n}" // FSHARPONLY
+Object.toJSON_v1 { key1 = Test.typeError_v0 "test" } = "{ \"key1\": { \"Error\": null } }" // OCAMLONLY
+Object.toJSON_v1 { key1 = Test.typeError_v0 "test" } = "{\n  \"key1\": {\n    \"Error\": null\n  }\n}" // FSHARPONLY

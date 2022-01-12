@@ -47,12 +47,6 @@ val to_internal_roundtrippable_v0 : Types.RuntimeT.dval -> string
 val of_internal_roundtrippable_v0 : string -> Types.RuntimeT.dval
 
 (* This is a format used for roundtripping dvals internally, while still being
- * queryable using jsonb in our DB. v0 has bugs due to a legacy of trying to
- * make one function useful for everything. Also roundtrippable. Does not
- * redact. *)
-val to_internal_queryable_v0 : Types.RuntimeT.dval -> string
-
-(* This is a format used for roundtripping dvals internally, while still being
  * queryable using jsonb in our DB. There are some rare cases where it will
  * parse incorrectly without error. Throws on Json bugs. *)
 val of_internal_queryable_v0 : string -> Types.RuntimeT.dval

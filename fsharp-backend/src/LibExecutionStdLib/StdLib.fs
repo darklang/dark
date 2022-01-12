@@ -3,7 +3,7 @@ module LibExecutionStdLib.StdLib
 open Prelude
 open LibExecution.RuntimeTypes
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 

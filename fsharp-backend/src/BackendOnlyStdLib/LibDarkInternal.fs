@@ -12,7 +12,8 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprExternal = LibExecution.DvalReprExternal
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
 
@@ -563,7 +564,7 @@ that's already taken, returns an error."
                   | Some dv ->
                     Error(
                       "Received something other than an Nothing, Just [...], or Just \"*\": "
-                      + DvalRepr.toDeveloperReprV0 dv
+                      + DvalReprExternal.toDeveloperReprV0 dv
                     )
                 with
                 | e -> Error(string e)
@@ -649,7 +650,7 @@ that's already taken, returns an error."
                 state.executionID
                 (canvasID |> System.Guid.Parse)
                 event
-                (payload |> DvalRepr.toInternalRoundtrippableV0)
+                (payload |> DvalReprInternal.toInternalRoundtrippableV0)
               Ply(DResult(Ok payload))
              with
              | e -> Ply(DResult(Error(e |> string |> DStr))))
@@ -840,7 +841,8 @@ that's already taken, returns an error."
               // We could just leave the dval vals as strings and use params, but
               // then we can't do numeric things (MAX, AVG, >, etc) with these
               // logs
-              |> List.map (fun (k, v) -> (k, DvalRepr.toDeveloperReprV0 v :> obj))
+              |> List.map (fun (k, v) ->
+                (k, DvalReprExternal.toDeveloperReprV0 v :> obj))
             Telemetry.addEvent name (("level", level) :: args)
             Ply result
           | _ -> incorrectArgs ())
@@ -897,12 +899,12 @@ that's already taken, returns an error."
               (not (key.isInternalFn ())) && data.deprecated = NotDeprecated)
             |> List.map (fun (key, data) ->
               let alist =
-                let returnType = DvalRepr.typeToBCTypeName data.returnType
+                let returnType = DvalReprExternal.typeToBCTypeName data.returnType
                 let parameters =
                   data.parameters
                   |> List.map (fun p ->
                     Dval.obj [ ("name", DStr p.name)
-                               ("type", DStr(DvalRepr.typeToBCTypeName p.typ)) ])
+                               ("type", DStr(DvalReprExternal.typeToBCTypeName p.typ)) ])
                 [ ("name", DStr(string key))
                   ("documentation", DStr data.description)
                   ("parameters", DList parameters)

@@ -13,7 +13,7 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprInternal = LibExecution.DvalReprInternal
 
 // -------------------------
 // External *)
@@ -37,7 +37,7 @@ let store
                         "tlid", Sql.tlid tlid
                         ("args",
                          Sql.string (
-                           DvalRepr.toInternalRoundtrippableV0 (RT.DObj args)
+                           DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj args)
                          )) ]
     |> Sql.executeStatementAsync
 
@@ -65,7 +65,7 @@ let loadForAnalysis
                       "traceID", Sql.uuid traceID ]
   |> Sql.executeRowOptionAsync (fun read ->
     (read.string "arguments_json"
-     |> DvalRepr.ofInternalRoundtrippableV0
+     |> DvalReprInternal.ofInternalRoundtrippableV0
      |> fun dv ->
           RT.Dval.toPairs dv |> Exception.unwrapResultInternal [ "dval", dv ],
           read.dateTime "timestamp"))

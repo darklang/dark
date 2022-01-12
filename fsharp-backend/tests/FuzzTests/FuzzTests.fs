@@ -20,7 +20,8 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprInternal = LibExecution.DvalReprInternal
 
 let result (t : Task<'a>) : 'a = t.Result
 
@@ -84,13 +85,6 @@ module Generators =
       let! (NonNegativeInt i) = Arb.generate<NonNegativeInt>
       return i
     }
-
-  // https://github.com/minimaxir/big-list-of-naughty-strings
-  let naughtyStrings : Lazy<List<string>> =
-    lazy
-      (LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
-       |> String.splitOnNewline
-       |> List.filter (String.startsWith "#" >> not))
 
   let char () : Gen<string> =
     string ()
@@ -293,7 +287,8 @@ module Roundtrippable =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval false)
+      Arb.Default.Derive()
+      |> Arb.filter (DvalReprInternal.isRoundtrippableDval false)
 
   type GeneratorWithBugs =
     static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
@@ -302,22 +297,25 @@ module Roundtrippable =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval true)
+      Arb.Default.Derive() |> Arb.filter (DvalReprInternal.isRoundtrippableDval true)
 
   let roundtrip (dv : RT.Dval) : bool =
     dv
-    |> DvalRepr.toInternalRoundtrippableV0
-    |> DvalRepr.ofInternalRoundtrippableV0
+    |> DvalReprInternal.toInternalRoundtrippableV0
+    |> DvalReprInternal.ofInternalRoundtrippableV0
     |> dvalEquality dv
 
   let isInteroperableV0 dv =
-    OCamlInterop.isInteroperable
-      OCamlInterop.toInternalRoundtrippableV0
-      OCamlInterop.ofInternalRoundtrippableV0
-      DvalRepr.toInternalRoundtrippableV0
-      DvalRepr.ofInternalRoundtrippableV0
-      dvalEquality
-      dv
+    if containsPassword dv then
+      true
+    else
+      OCamlInterop.isInteroperable
+        OCamlInterop.toInternalRoundtrippableV0
+        OCamlInterop.ofInternalRoundtrippableV0
+        DvalReprInternal.toInternalRoundtrippableV0
+        DvalReprInternal.ofInternalRoundtrippableV0
+        dvalEquality
+        dv
 
   let tests =
     testList
@@ -340,51 +338,39 @@ module Queryable =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter DvalRepr.isQueryableDval
+      Arb.Default.Derive() |> Arb.filter DvalReprInternal.isQueryableDval
 
   let v1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])
 
     dvm
-    |> DvalRepr.toInternalQueryableV1
-    |> DvalRepr.ofInternalQueryableV1
+    |> DvalReprInternal.toInternalQueryableV1
+    |> DvalReprInternal.ofInternalQueryableV1
     |> dvalEquality (RT.DObj dvm)
 
   let isInteroperableV1 (dv : RT.Dval) =
-    let dvm = (Map.ofList [ "field", dv ])
+    // redacted passwords are created on the OCaml side and hard to remove
+    if containsPassword dv then
+      true
+    else
+      let dvm = (Map.ofList [ "field", dv ])
 
-    OCamlInterop.isInteroperable
-      OCamlInterop.toInternalQueryableV1
-      OCamlInterop.ofInternalQueryableV1
-      (function
-      | RT.DObj dvm -> DvalRepr.toInternalQueryableV1 dvm
-      | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
-      DvalRepr.ofInternalQueryableV1
-      dvalEquality
-      (RT.DObj dvm)
-
-  // OCaml v0 vs F# v1
-  let isInteroperableV0 (dv : RT.Dval) =
-    let dvm = (Map.ofList [ "field", dv ])
-
-    OCamlInterop.isInteroperable
-      (OCamlInterop.toInternalQueryableV0)
-      (OCamlInterop.ofInternalQueryableV0)
-      (function
-      | RT.DObj dvm -> DvalRepr.toInternalQueryableV1 dvm
-      | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
-      (DvalRepr.ofInternalQueryableV1)
-      dvalEquality
-      (RT.DObj dvm)
+      OCamlInterop.isInteroperable
+        OCamlInterop.toInternalQueryableV1
+        OCamlInterop.ofInternalQueryableV1
+        (function
+        | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
+        | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
+        DvalReprInternal.ofInternalQueryableV1
+        dvalEquality
+        (RT.DObj dvm)
 
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
     testList
       "InternalQueryable"
-      [ tp "roundtripping v1" v1Roundtrip
-        tp "interoperable v0" isInteroperableV0
-        tp "interoperable v1" isInteroperableV1 ]
+      [ tp "roundtripping v1" v1Roundtrip; tp "interoperable v1" isInteroperableV1 ]
 
 module DeveloperRepr =
   type Generator =
@@ -404,7 +390,8 @@ module DeveloperRepr =
 
 
   let equalsOCaml (dv : RT.Dval) : bool =
-    DvalRepr.toDeveloperReprV0 dv .=. (OCamlInterop.toDeveloperRepr dv).Result
+    DvalReprExternal.toDeveloperReprV0 dv
+    .=. (OCamlInterop.toDeveloperRepr dv).Result
 
   let tests =
     testList
@@ -437,27 +424,29 @@ module HttpClient =
   let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
 
-    DvalRepr.toUrlString dv .=. (OCamlInterop.toUrlString dv).Result
+    DvalReprExternal.toUrlString dv .=. (OCamlInterop.toUrlString dv).Result
 
   let dvalToQuery (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
-    DvalRepr.toQuery dv |> Result.unwrapUnsafe
+    DvalReprExternal.toQuery dv |> Result.unwrapUnsafe
     .=. (OCamlInterop.dvalToQuery dv).Result
 
   let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
     let dv = RT.DObj(Map l)
-    (DvalRepr.toFormEncoding dv).ToString()
+    (DvalReprExternal.toFormEncoding dv).ToString()
     .=. (OCamlInterop.dvalToFormEncoding dv).Result
 
   let queryStringToParams (s : string) : bool =
-    DvalRepr.parseQueryString s .=. (OCamlInterop.queryStringToParams s).Result
+    DvalReprExternal.parseQueryString s
+    .=. (OCamlInterop.queryStringToParams s).Result
 
 
   let queryToDval (q : List<string * List<string>>) : bool =
-    DvalRepr.ofQuery q .=. (OCamlInterop.queryToDval q).Result
+    DvalReprExternal.ofQuery q .=. (OCamlInterop.queryToDval q).Result
 
   let queryToEncodedString (q : List<string * List<string>>) : bool =
-    DvalRepr.queryToEncodedString q .=. (OCamlInterop.paramsToQueryString q).Result
+    DvalReprExternal.queryToEncodedString q
+    .=. (OCamlInterop.paramsToQueryString q).Result
 
   let tests =
     let test name fn = testPropertyWithGenerator typeof<Generator> name fn
@@ -486,7 +475,7 @@ module EndUserReadable =
 
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
-    DvalRepr.toEnduserReadableTextV0 dv
+    DvalReprExternal.toEnduserReadableTextV0 dv
     .=. (OCamlInterop.toEnduserReadableTextV0 dv).Result
 
   let tests =
@@ -508,15 +497,16 @@ module Hashing =
   // The format here is used to get values from the DB, so this has to be 100% identical
   let equalsOCamlToHashable (dv : RT.Dval) : bool =
     let ocamlVersion = (OCamlInterop.toHashableRepr dv).Result
-    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
+    let fsharpVersion =
+      DvalReprInternal.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
     ocamlVersion .=. fsharpVersion
 
   let equalsOCamlV0 (l : List<RT.Dval>) : bool =
-    DvalRepr.hash 0 l .=. (OCamlInterop.hashV0 l).Result
+    DvalReprInternal.hash 0 l .=. (OCamlInterop.hashV0 l).Result
 
   let equalsOCamlV1 (l : List<RT.Dval>) : bool =
     let ocamlVersion = (OCamlInterop.hashV1 l).Result
-    let fsharpVersion = DvalRepr.hash 1 l
+    let fsharpVersion = DvalReprInternal.hash 1 l
     ocamlVersion .=. fsharpVersion
 
   let tests =
@@ -544,7 +534,7 @@ module PrettyMachineJson =
   let equalsOCaml (dv : RT.Dval) : bool =
     let actual =
       dv
-      |> DvalRepr.toPrettyMachineJsonStringV1
+      |> DvalReprExternal.toPrettyMachineJsonStringV1
       |> Newtonsoft.Json.Linq.JToken.Parse
       |> string
 
@@ -562,6 +552,80 @@ module PrettyMachineJson =
           typeof<Generator>
           "roundtripping prettyMachineJson"
           equalsOCaml ]
+
+
+module PrettyResponseJson =
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+    // This should produce identical JSON to the OCaml function or customers will have an unexpected change
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | _ -> true)
+
+  let equalsOCaml (dv : RT.Dval) : bool =
+    // The json generated is not identical, so check that it parses to the same thing
+    let actual =
+      try
+        dv
+        |> LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+        |> Newtonsoft.Json.Linq.JToken.Parse
+        |> string
+      with
+      | e -> e.Message
+
+    let expected =
+      try
+        (OCamlInterop.toPrettyResponseJson dv).Result
+        |> Newtonsoft.Json.Linq.JToken.Parse
+        |> string
+      with
+      // Task error
+      | :? System.AggregateException as e -> e.InnerException.Message
+      | e -> e.Message
+
+    actual .=. expected
+
+  let tests =
+    testList
+      "prettyResponseJson"
+      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
+
+
+module PrettyRequestJson =
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+    // This should produce identical JSON to the OCaml function or customers will have an unexpected change
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | _ -> true)
+
+  let equalsOCaml (dv : RT.Dval) : bool =
+    let actual =
+      try
+        dv |> BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson
+      with
+      | e -> e.Message
+
+    let expected =
+      try
+        (OCamlInterop.toPrettyRequestJson dv).Result
+      with
+      // Task error
+      | :? System.AggregateException as e -> e.InnerException.Message
+      | e -> e.Message
+
+    actual .=. expected
+
+  let tests =
+    testList
+      "prettyRequestJson"
+      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
 
 module LibJwtJson =
   type Generator =
@@ -1330,6 +1394,8 @@ let knownGood =
     ([ Roundtrippable.tests
        Queryable.tests
        DeveloperRepr.tests
+       PrettyRequestJson.tests
+       PrettyResponseJson.tests
        HttpClient.tests
        EndUserReadable.tests
        Hashing.tests

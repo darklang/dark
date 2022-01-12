@@ -230,7 +230,7 @@ module RuntimeT =
     | DResp of (dhttp * dval)
     | DDB of string
     | DDate of System.DateTime
-    | DPassword of byte array // We dont use this path for testing, see DvalRepr.Tests
+    | DPassword of byte array // We dont use this path for testing, see DvalReprExternal.Tests
     | DUuid of System.Guid
     | DOption of optionT
     | DCharacter of string
@@ -331,9 +331,9 @@ module Convert =
     | ORT.FPBool (_, id, b) -> PT.PBool(id, b)
     | ORT.FPString fp -> PT.PString(fp.patternID, fp.str)
     | ORT.FPFloat (_, id, w, f) ->
-      let whole = parseBigint w
-      let sign = if w[0] = '-' then Negative else Positive
-      PT.PFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
+      let sign, whole =
+        if w[0] = '-' then (Negative, String.dropLeft 1 w) else Positive, w
+      PT.PFloat(id, sign, whole, f)
     | ORT.FPNull (_, id) -> PT.PNull id
     | ORT.FPBlank (_, id) -> PT.PBlank id
 
@@ -350,9 +350,9 @@ module Convert =
     | ORT.EInteger (id, num) -> PT.EInteger(id, parseInt64 num)
     | ORT.EString (id, str) -> PT.EString(id, str)
     | ORT.EFloat (id, w, f) ->
-      let whole = parseBigint w
-      let sign = if w[0] = '-' then Negative else Positive
-      PT.EFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
+      let sign, whole =
+        if w[0] = '-' then (Negative, String.dropLeft 1 w) else Positive, w
+      PT.EFloat(id, sign, whole, f)
     | ORT.EBool (id, b) -> PT.EBool(id, b)
     | ORT.ENull id -> PT.ENull id
     | ORT.EVariable (id, var) -> PT.EVariable(id, var)
@@ -635,8 +635,10 @@ module Convert =
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | RT.PFloat (id, d) ->
-      let w, f = readFloat d
-      ORT.FPFloat(mid, id, string w, string f)
+      // CLEANUP: doesn't support -0.5
+      let s, w, f = readFloat d
+      let w = if s = Positive then string w else $"-{w}"
+      ORT.FPFloat(mid, id, w, string f)
     | RT.PNull (id) -> ORT.FPNull(mid, id)
     | RT.PBlank (id) -> ORT.FPBlank(mid, id)
 
@@ -721,8 +723,11 @@ module Convert =
       Exception.raiseInternal "Characters not supported" [ "id", id; "c", c ]
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
-      let (w, f) = readFloat d
-      ORT.EFloat(id, string w, string f)
+      let (s, w, f) = readFloat d
+      // CLEANUP: doesn't support -0.5
+      let w = if s = Positive then string w else $"-{w}"
+      // FSTODO: don't drop the sign and test
+      ORT.EFloat(id, w, string f)
     | RT.EBool (id, b) -> ORT.EBool(id, b)
     | RT.ENull id -> ORT.ENull id
     | RT.EVariable (id, var) -> ORT.EVariable(id, var)

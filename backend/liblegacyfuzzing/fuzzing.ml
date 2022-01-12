@@ -51,16 +51,6 @@ let to_hashable_repr (json : string) : string =
   Dval.fuzzing_to_hashable_repr dval
 
 
-let to_internal_queryable_v0 (json : string) : string =
-  let dval =
-    json
-    |> Yojson.Safe.from_string
-    |> Types.RuntimeT.dval_of_yojson
-    |> Result.ok_or_failwith
-  in
-  Dval.to_internal_queryable_v0 dval
-
-
 let to_internal_queryable_v1 (json : string) : string =
   let dval =
     json
@@ -93,6 +83,26 @@ let to_pretty_machine_json_v1 (json : string) : string =
     |> Result.ok_or_failwith
   in
   Dval.to_pretty_machine_json_v1 dval
+
+
+let to_pretty_request_json (json : string) : string =
+  let dval =
+    json
+    |> Yojson.Safe.from_string
+    |> Types.RuntimeT.dval_of_yojson
+    |> Result.ok_or_failwith
+  in
+  Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 dval
+
+
+let to_pretty_response_json (json : string) : string =
+  let dval =
+    json
+    |> Yojson.Safe.from_string
+    |> Types.RuntimeT.dval_of_yojson
+    |> Result.ok_or_failwith
+  in
+  Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 dval
 
 
 (* to_pretty_machine_yojson, then Yojson.Safe.to_string *)
@@ -195,7 +205,7 @@ let hash_v1 (json : string) : string =
 (* ---------------------- *)
 (* Below this is fuzzing execution *)
 (* ---------------------- *)
-let sideEffectCount : int ref = ref 0
+let sideEffectCount : int String.Map.t ref = ref String.Map.empty
 
 let fns : Types.RuntimeT.fn list =
   [ { prefix_names = ["Test::errorRailNothing"]
@@ -271,15 +281,21 @@ let fns : Types.RuntimeT.fn list =
     ; deprecated = false }
   ; { prefix_names = ["Test::incrementSideEffectCounter"]
     ; infix_names = []
-    ; parameters = [Lib.par "passThru" TAny]
+    ; parameters = [Lib.par "counterName" TStr; Lib.par "passThru" TAny]
     ; return_type = TAny
     ; description =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
     ; func =
         InProcess
           (function
-          | state, [arg] ->
-              sideEffectCount := !sideEffectCount + 1 ;
+          | state, [DStr name; arg] ->
+              let name = Unicode_string.to_string name in
+              sideEffectCount :=
+                String.Map.update !sideEffectCount name ~f:(function
+                    | Some x ->
+                        x + 1
+                    | None ->
+                        1) ;
               arg
           | args ->
               Lib.fail args)
@@ -287,15 +303,17 @@ let fns : Types.RuntimeT.fn list =
     ; deprecated = false }
   ; { prefix_names = ["Test::resetSideEffectCounter"]
     ; infix_names = []
-    ; parameters = []
+    ; parameters = [Lib.par "counterName" TStr]
     ; return_type = TNull
     ; description =
         "Resets the side effect counter to zero, to test real-world side-effects."
     ; func =
         InProcess
           (function
-          | state, [] ->
-              sideEffectCount := 0 ;
+          | state, [DStr name] ->
+              let name = Unicode_string.to_string name in
+              sideEffectCount :=
+                String.Map.set !sideEffectCount ~key:name ~data:0 ;
               DNull
           | args ->
               Lib.fail args)
@@ -303,13 +321,20 @@ let fns : Types.RuntimeT.fn list =
     ; deprecated = false }
   ; { prefix_names = ["Test::sideEffectCount"]
     ; infix_names = []
-    ; parameters = []
+    ; parameters = [Lib.par "counterName" TStr]
     ; return_type = TInt
     ; description = "Return the value of the side-effect counter"
     ; func =
         InProcess
           (function
-          | state, [] -> Dval.dint !sideEffectCount | args -> Lib.fail args)
+          | state, [DStr name] ->
+              let name = Unicode_string.to_string name in
+              let result =
+                Map.find !sideEffectCount name |> Option.value ~default:0
+              in
+              Dval.dint result
+          | args ->
+              Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Test::inspect"]

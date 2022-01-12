@@ -34,8 +34,8 @@ module Error =
         let lookupString = $"({lookupName}, v{lookupVersion})"
         $"Type {lookupString} could not be found on the canvas"
       | TypeUnificationFailure uf ->
-        let expected = DvalRepr.typeToDeveloperReprV0 uf.expectedType
-        let actual = DvalRepr.prettyTypename uf.actualValue
+        let expected = DvalReprExternal.typeToDeveloperReprV0 uf.expectedType
+        let actual = DvalReprExternal.prettyTypename uf.actualValue
         $"Expected to see a value of type {expected} but found a {actual}"
       | MismatchedRecordFields mrf ->
         let expected = mrf.expectedFields

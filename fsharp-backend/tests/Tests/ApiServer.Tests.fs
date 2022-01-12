@@ -47,6 +47,7 @@ let portFor (server : Server) : int =
 let login (username : string) (password : string) : Task<User> =
   task {
     let client = new HttpClient()
+    client.Timeout <- System.TimeSpan.FromSeconds 1
     let port = portFor OCaml
 
     use loginReq =
@@ -82,6 +83,7 @@ let loggedOutUser () =
   lazy
     (let handler = new HttpClientHandler(AllowAutoRedirect = false)
      let client = new HttpClient(handler)
+     client.Timeout <- System.TimeSpan.FromSeconds 1
      let user = { client = client; csrf = "" }
      Task.FromResult user)
 
@@ -689,6 +691,7 @@ let cookies =
       task {
         let handler = new HttpClientHandler(AllowAutoRedirect = false)
         let client = new HttpClient(handler)
+        client.Timeout <- System.TimeSpan.FromSeconds 1
 
         use req =
           new HttpRequestMessage(

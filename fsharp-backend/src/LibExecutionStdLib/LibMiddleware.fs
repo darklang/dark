@@ -10,7 +10,7 @@ open LibExecution.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 let fn = FQFnName.stdlibFnName
 
@@ -484,14 +484,14 @@ let varB = TVariable "b"
 //               | _, Some "text/plain"
 //               | _, Some "application/xml"
 //               | _, Some "text/html" ->
-//                 dv |> DvalRepr.toEnduserReadableTextV0 |> UTF8.toBytes
-//               | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> UTF8.toBytes
+//                 dv |> DvalReprExternal.toEnduserReadableTextV0 |> UTF8.toBytes
+//               | _ -> dv |> DvalReprExternal.toPrettyMachineJsonStringV1 |> UTF8.toBytes
 
 //             Ply(DHttpResponse(Response(code, headers, DBytes asBytes)))
 //           | DHttpResponse (Redirect _) as resp -> Ply resp
 //           | response ->
 //             let bytes =
-//               response |> DvalRepr.toPrettyMachineJsonStringV1 |> UTF8.toBytes
+//               response |> DvalReprExternal.toPrettyMachineJsonStringV1 |> UTF8.toBytes
 
 //             let headers = [ "content-type", inferContentType response ]
 //             Ply(DHttpResponse(Response(200L, headers, DBytes bytes)))

@@ -19,6 +19,6 @@ Server: darklang // FSHARPONLY
 Connection: keep-alive
 Content-Length: 13
 
-{
-  x : "x"
+{  // comment is here to stop the space after the brace from being removed
+  x: "x"
 }

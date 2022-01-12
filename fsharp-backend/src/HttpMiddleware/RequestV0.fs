@@ -9,7 +9,7 @@ open LibExecution.VendoredTablecloth
 module RT = LibExecution.RuntimeTypes
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 
 // Internal invariant, _must_ be a DObj
@@ -23,11 +23,12 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   match p with
   | Some (MediaType.Json _) ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.unsafeOfUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser $"Invalid json: {UTF8.ofBytesWithReplacement body}")
-  | Some MediaType.Form -> body |> UTF8.ofBytesUnsafe |> DvalRepr.ofFormEncoding
+  | Some MediaType.Form ->
+    body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofFormEncoding
   // CLEANUP: text should just be text
   | Some (MediaType.Text _)
   | Some (MediaType.Xml _)
@@ -35,7 +36,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
   | Some (MediaType.Other _)
   | None ->
     (try
-      body |> UTF8.ofBytesUnsafe |> DvalRepr.ofUnknownJsonV0
+      body |> UTF8.ofBytesUnsafe |> DvalReprExternal.unsafeOfUnknownJsonV0
      with
      | e ->
        Exception.raiseGrandUser
@@ -51,7 +52,7 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
 
 
 let parseQueryString (queryvals : List<string * List<string>>) =
-  DvalRepr.ofQuery queryvals
+  DvalReprExternal.ofQuery queryvals
 
 
 let parseHeaders (headers : (string * string) list) =
@@ -95,13 +96,14 @@ let cookies (headers : HttpHeaders.T) : RT.Dval =
 let url (headers : List<string * string>) (uri : string) =
   // .NET doesn't url-encode the query like we expect, so we're going to do it
   let parsed = System.UriBuilder(uri)
-  // FSTODO test this somehow
+  // FSTODO test this somehow (probably fuzz against old)
   parsed.Query <- urlEncodeExcept "*$@!:()~?/.,&-_=\\" parsed.Query
   // Set the scheme if it's passed by the load balancer
   let headerProtocol =
     headers
     |> List.find (fun (k, _) -> String.toLowercase k = "x-forwarded-proto")
     |> Option.map (fun (_, v) -> parsed.Scheme <- v)
+    |> ignore<Option<unit>>
   // Use .Uri or it will slip in a port number
   RT.DStr(string parsed.Uri)
 

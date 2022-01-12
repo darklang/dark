@@ -10,7 +10,7 @@ open LibExecution.RuntimeTypes
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 let fn = FQFnName.stdlibFnName
 
@@ -448,8 +448,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-          // CLEANUP: this prints invalid JSON for infinity and NaN
-          DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Ply
+          DObj o |> DvalReprExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

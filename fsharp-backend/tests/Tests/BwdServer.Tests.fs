@@ -71,6 +71,10 @@ let findIndex (pattern : 'a list) (list : 'a list) : int option =
       if matches then result <- Some i else i <- i + 1
     result
 
+let findLastIndex (pattern : 'a list) (list : 'a list) : int option =
+  findIndex (List.reverse pattern) (List.reverse list)
+  // The index we get back is the index of the LAST item
+  |> Option.map (fun i -> list.Length - i - pattern.Length)
 
 
 // Parse the test line-by-line. We don't use regex here because we want to test more than strings
@@ -305,10 +309,10 @@ let t filename =
               else if String.includes "KEEP" asString then
                 Some line
               else
-                // Remove comments, including OCAMLONLY and FSHARPONLY
+                // Remove final comment only
                 let index =
-                  findIndex [ byte ' '; byte '/'; byte '/' ] line
-                  |> Option.orElse (findIndex [ byte '/'; byte '/' ] line)
+                  findLastIndex [ byte ' '; byte '/'; byte '/' ] line
+                  |> Option.orElse (findLastIndex [ byte '/'; byte '/' ] line)
                   |> Option.unwrapUnsafe
                 line |> List.splitAt index |> Tuple2.first |> Some
             else
@@ -331,8 +335,12 @@ let t filename =
         let asJson =
           try
             Some(
-              LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe actual.body),
-              LibExecution.DvalRepr.parseJson (UTF8.ofBytesUnsafe expected.body)
+              LibExecution.DvalReprExternal.parseJson (
+                UTF8.ofBytesUnsafe actual.body
+              ),
+              LibExecution.DvalReprExternal.parseJson (
+                UTF8.ofBytesUnsafe expected.body
+              )
             )
           with
           | e -> None
@@ -344,11 +352,17 @@ let t filename =
             (expected.status, eHeaders, string eJson)
             $"({server} as json)"
         | None ->
-          Expect.equal
-            (actual.status, aHeaders, UTF8.ofBytesWithReplacement actual.body)
-            (expected.status, eHeaders, UTF8.ofBytesWithReplacement expected.body)
-            $"({server} as string)"
-
+          match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
+          | Some actualBody, Some expectedBody ->
+            Expect.equal
+              (actual.status, aHeaders, actualBody)
+              (expected.status, eHeaders, expectedBody)
+              $"({server} as string)"
+          | _ ->
+            Expect.equal
+              (actual.status, aHeaders, actual.body)
+              (expected.status, eHeaders, expected.body)
+              $"({server} as bytes)"
       }
 
     if skip then

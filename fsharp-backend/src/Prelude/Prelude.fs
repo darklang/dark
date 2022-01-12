@@ -93,6 +93,14 @@ exception DarkException of data : DarkExceptionData with
     | LibraryError (msg, _) -> msg
     | GrandUserError msg -> msg
 
+  member this.tags() : List<string * obj> =
+    match this.data with
+    | InternalError (_, tags)
+    | LibraryError (_, tags) -> tags
+    | DeveloperError _
+    | EditorError _
+    | GrandUserError _ -> []
+
 
 exception PageableException of inner : System.Exception with
   override this.Message = this.inner.Message
@@ -119,8 +127,8 @@ module Exception =
     with
     | e ->
       // We're completely screwed at this point
-      System.Console.WriteLine "Exception calling Exceptioncallback"
-      System.Console.WriteLine e.Message
+      System.Console.WriteLine "Exception calling callExceptionCallback"
+      System.Console.WriteLine(e.Message, typ, tags)
       System.Console.WriteLine e.StackTrace
 
 
@@ -388,31 +396,37 @@ let parseBigint (str : string) : bigint =
   with
   | e -> Exception.raiseInternal $"parseBigint failed" [ "str", str; "inner", e ]
 
-let parseFloat (whole : string) (fraction : string) : float =
-  try
-    assertRe "whole" @"-?\d+" whole
-    assertRe "fraction" @"\d+" fraction
-    System.Double.Parse($"{whole}.{fraction}")
-  with
-  | e ->
-    Exception.raiseInternal
-      $"parseFloat failed"
-      [ "whole", whole; "fraction", fraction; "inner", e ]
+// We use an explicit sign for Floats, instead of making it implicit in the
+// first digit, because otherwise we lose the sign on 0, and can't represent
+// things like -0.5
+type Sign =
+  | Positive
+  | Negative
 
 // Given a float, read it correctly into two ints: whole number and fraction
-let readFloat (f : float) : (bigint * bigint) =
+let readFloat (f : float) : (Sign * string * string) =
+  let sign =
+    // (0.0 = -0.0) is true in .Net, so it can be quite tough to figure out the sign
+    if string f = "-0" then Negative
+    else if f >= 0.0 then Positive
+    else Negative
   let asStr = f.ToString("G53").Split "."
+  let whole =
+    match sign with
+    | Negative -> Tablecloth.String.dropLeft 1 asStr[0]
+    | Positive -> asStr[0]
+  let fraction = if asStr.Length = 1 then "0" else asStr[1]
+  sign, whole, fraction
 
-  if asStr.Length = 1 then
-    parseBigint asStr[0], 0I
-  else
-    parseBigint asStr[0], parseBigint asStr[1]
 
-
-let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float =
+let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
   try
-    assert_ "makefloat" (whole >= 0I)
-    let sign = if positiveSign then "" else "-"
+    if whole <> "" then assert_ "non-zero string" (whole[0] <> '-')
+    if whole <> "0" then assertRe $"makefloat: {whole}" "[1-9][0-9]*" whole
+    let sign =
+      match sign with
+      | Positive -> ""
+      | Negative -> "-"
     $"{sign}{whole}.{fraction}" |> System.Double.Parse
   with
   | e ->
@@ -1411,13 +1425,6 @@ module Task =
 // them there.
 
 type pos = { x : int; y : int }
-
-// We use an explicit sign for Floats, instead of making it implicit in the
-// first digit, because otherwise we lose the sign on 0, and can't represent
-// things like -0.5
-type Sign =
-  | Positive
-  | Negative
 
 type CanvasID = System.Guid
 type UserID = System.Guid

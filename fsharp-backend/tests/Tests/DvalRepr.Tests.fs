@@ -1,4 +1,4 @@
-module Tests.DvalRepr
+module Tests.DvalReprExternal
 
 open Expecto
 open Prelude
@@ -9,18 +9,19 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprInternal = LibExecution.DvalReprInternal
 
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
   test "internal_roundtrippable doesn't care about key order" {
     Expect.equal
-      (DvalRepr.ofInternalRoundtrippableV0
+      (DvalReprInternal.ofInternalRoundtrippableV0
         "{
            \"type\": \"option\",
            \"value\": 5
           }")
-      (DvalRepr.ofInternalRoundtrippableV0
+      (DvalReprInternal.ofInternalRoundtrippableV0
         "{
            \"value\": 5,
            \"type\": \"option\"
@@ -46,7 +47,9 @@ let testDvalOptionQueryableSpecialCase =
 
     Expect.equal
       (RT.DObj dvm)
-      (dvm |> DvalRepr.toInternalQueryableV1 |> DvalRepr.ofInternalQueryableV1)
+      (dvm
+       |> DvalReprInternal.toInternalQueryableV1
+       |> DvalReprInternal.ofInternalQueryableV1)
       "extra"
   }
 
@@ -55,7 +58,7 @@ let testToDeveloperRepr =
     "toDeveloperRepr"
     [ testMany
         "toDeveloperRepr string"
-        DvalRepr.toDeveloperReprV0
+        DvalReprExternal.toDeveloperReprV0
         // Most of this is just the OCaml output and not really what the output should be
         [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
@@ -66,7 +69,7 @@ let testToDeveloperRepr =
 let testToEnduserReadable =
   testMany
     "toEnduserReadable string"
-    DvalRepr.toEnduserReadableTextV0
+    DvalReprExternal.toEnduserReadableTextV0
     // Most of this is just the OCaml output and not really what the output should be
     [ RT.DFloat(0.0), "0." // this type of thing in particular is ridic
       RT.DFloat(-0.0), "-0."
@@ -79,6 +82,40 @@ let testToEnduserReadable =
       RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
       "0 { a header: something }\nnull" ]
 
+let testToPrettyResponseJson =
+  testMany
+    "toPrettyResponseJson"
+    LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+    [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}" ]
+
+let testToPrettyRequestJson =
+  testMany
+    "toPrettyRequestJson"
+    (fun v ->
+      try
+        BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson v
+      with
+      | e -> e.Message)
+    [ RT.DErrorRail(RT.DResult(Ok RT.DNull)),
+      "Unknown Err: (Failure \"printing an unprintable value:<result>\")"
+      RT.DError(RT.SourceNone, "some message"), "<error: error>"
+      RT.DIncomplete RT.SourceNone, "<incomplete: <incomplete>>"
+      RT.DDB "my dbstore", "<datastore: my dbstore>"
+      RT.DUuid(System.Guid.Parse "1271ebde-7d15-327d-9a36-f9bee0ac22e7"),
+      "<uuid: 1271ebde-7d15-327d-9a36-f9bee0ac22e7>"
+      RT.DPassword(Password [| 76uy; 13uy |]), "<password: <password>>"
+      RT.DBytes [||],
+      "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
+      RT.DDate(System.DateTime.Parse "2019-07-28T22:42:36Z"),
+      "<date: 2019-07-28T22:42:36Z>"
+      (RT.DErrorRail(RT.DHttpResponse(RT.Redirect("some url"))),
+       "ErrorRail: 302 some url\n  null")
+      (RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull")
+      (RT.DHttpResponse(RT.Response(200L, [], RT.DStr "some url"))),
+      "200 {  }\n\"some url\""
+      (RT.DHttpResponse(RT.Response(200L, [ "header", "value" ], RT.DStr "some url"))),
+      "200 { header: value }\n\"some url\"" ]
+
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
 
@@ -86,7 +123,8 @@ module ToHashableRepr =
     let t (dv : Dval) (expected : string) : Test =
       testTask $"toHashableRepr: {dv}" {
         let! ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
-        let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
+        let fsharpVersion =
+          DvalReprInternal.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -129,7 +167,7 @@ module ToHashableRepr =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV0: {l}" {
         let! ocamlVersion = LibBackend.OCamlInterop.hashV0 l
-        let fsharpVersion = DvalRepr.hash 0 l
+        let fsharpVersion = DvalReprInternal.hash 0 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -154,7 +192,7 @@ module ToHashableRepr =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV1: {l}" {
         let! ocamlVersion = LibBackend.OCamlInterop.hashV1 l
-        let fsharpVersion = DvalRepr.hash 1 l
+        let fsharpVersion = DvalReprInternal.hash 1 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -205,39 +243,19 @@ let allRoundtrips =
     [ t
         "roundtrippable"
         F.Roundtrippable.roundtrip
-        (dvs (DvalRepr.isRoundtrippableDval false))
+        (dvs (DvalReprInternal.isRoundtrippableDval false))
       t
         "roundtrippable interop"
         F.Roundtrippable.isInteroperableV0
-        (dvs (DvalRepr.isRoundtrippableDval false))
-      t "queryable v0" F.Queryable.v1Roundtrip (dvs DvalRepr.isQueryableDval)
-      t
-        "queryable interop v0"
-        F.Queryable.isInteroperableV0
-        (dvs (DvalRepr.isQueryableDval))
+        (dvs (DvalReprInternal.isRoundtrippableDval false))
+      t "queryable v0" F.Queryable.v1Roundtrip (dvs DvalReprInternal.isQueryableDval)
       t
         "queryable interop v1"
         F.Queryable.isInteroperableV1
-        (dvs DvalRepr.isQueryableDval)
+        (dvs DvalReprInternal.isQueryableDval)
       t "enduserReadable" F.EndUserReadable.equalsOCaml all
       t "developerRepr" F.DeveloperRepr.equalsOCaml all
       t "prettyMachineJson" F.PrettyMachineJson.equalsOCaml all ]
-
-module Date =
-  let testDateMigrationHasCorrectFormats =
-    test "date migration has correct formats" {
-      let str = "2019-03-08T08:26:14Z" in
-      let date = RT.DDate(System.DateTime.ofIsoString str) in
-      let oldFormat = $"{{ \"type\": \"date\", \"value\": \"{str}\"}}"
-      // FSTODO
-      // Expect.equal (Legacy.toPrettyMachineJsonStringV0 date) oldFormat "old version"
-      Expect.equal
-        (DvalRepr.toPrettyMachineJsonStringV1 date)
-        $"\"{str}\""
-        "new version"
-    }
-
-  let tests = testList "date" [ testDateMigrationHasCorrectFormats ]
 
 
 
@@ -250,28 +268,34 @@ module Password =
       Expect.equalDval
         password
         (password
-         |> DvalRepr.toInternalRoundtrippableV0
-         |> DvalRepr.ofInternalRoundtrippableV0
-         |> DvalRepr.toInternalRoundtrippableV0
-         |> DvalRepr.ofInternalRoundtrippableV0)
+         |> DvalReprInternal.toInternalRoundtrippableV0
+         |> DvalReprInternal.ofInternalRoundtrippableV0
+         |> DvalReprInternal.toInternalRoundtrippableV0
+         |> DvalReprInternal.ofInternalRoundtrippableV0)
         "Passwords serialize and deserialize if there's no redaction."
     }
 
   let testSerialization =
     test "password serialization" {
-      let testSerialize expected name f =
+      let testSerialize shouldRedact name f =
         let bytes = UTF8.toBytes "encryptedbytes"
         let password = RT.DPassword(Password bytes)
+        let allowed =
+          if shouldRedact then
+            "should redact password but doesn't"
+          else
+            "shouldn't redact password but does"
 
         Expect.equal
-          expected
+          shouldRedact
           (String.includes
             ("encryptedbytes" |> UTF8.toBytes |> Base64.defaultEncodeToString)
-            (f password))
-          ($"Passwords serialize in non-redaction function: {name}")
+            (f password)
+           |> not)
+          $"{name} {allowed}"
 
-      let doesSerialize = testSerialize true
-      let doesntSerialize = testSerialize false
+      let doesntRedact = testSerialize false
+      let doesRedact = testSerialize true
 
       let roundtrips name serialize deserialize =
         let bytes = UTF8.toBytes "encryptedbytes"
@@ -283,28 +307,27 @@ module Password =
           $"Passwords serialize in non-redaction function: {name}"
 
       // doesn't redact
-      doesSerialize "toInternalRoundtrippableV0" DvalRepr.toInternalRoundtrippableV0
+      doesntRedact
+        "toInternalRoundtrippableV0"
+        DvalReprInternal.toInternalRoundtrippableV0
 
       // roundtrips
       roundtrips
         "toInternalRoundtrippableV0 roundtrips"
-        DvalRepr.toInternalRoundtrippableV0
-        DvalRepr.ofInternalRoundtrippableV0
+        DvalReprInternal.toInternalRoundtrippableV0
+        DvalReprInternal.ofInternalRoundtrippableV0
 
       // redacting
-      doesntSerialize "toEnduserReadableTextV0" DvalRepr.toEnduserReadableTextV0
-      doesntSerialize "toDeveloperReprV0" DvalRepr.toDeveloperReprV0
-      doesntSerialize "toPrettyMachineJsonV1" DvalRepr.toPrettyMachineJsonStringV1
-    // FSTODO
-    //   doesSerialize
-    //     "toPrettyRequestJsonV0"
-    //     false
-    //     Libexecution.Legacy.PrettyRequestJsonV0.toPrettyRequestJsonV0 ;
-    //   doesSerialize
-    //     "toPrettyResponseJsonV1"
-    //     false
-    //     Libexecution.Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0 ;
-    //   ()
+      doesRedact "toEnduserReadableTextV0" DvalReprExternal.toEnduserReadableTextV0
+      doesRedact "toDeveloperReprV0" DvalReprExternal.toDeveloperReprV0
+      doesRedact "toPrettyMachineJsonV1" DvalReprExternal.toPrettyMachineJsonStringV1
+      doesRedact
+        "toPrettyRequestJsonV0"
+        BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson
+      doesRedact
+        "toPrettyResponseJsonV1"
+        LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+      ()
     }
 
   let testSerialization2 =
@@ -331,8 +354,8 @@ module Password =
       // roundtrips
       roundtrips
         "toInternalQueryableV1"
-        DvalRepr.toInternalQueryableV1
-        DvalRepr.ofInternalQueryableV1
+        DvalReprInternal.toInternalQueryableV1
+        DvalReprInternal.ofInternalQueryableV1
     }
 
   let testNoAutoSerialization =
@@ -360,8 +383,6 @@ module Password =
             (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             password
             "should be redacted"
-
-
         } ]
 
 
@@ -401,8 +422,6 @@ module LibJwt =
        |> List.map (fun x -> x, true))
 
 
-
-
 let tests =
   testList
     "dvalRepr"
@@ -411,8 +430,9 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
+      testToPrettyRequestJson
+      testToPrettyResponseJson
       ToHashableRepr.tests
       Password.tests
-      Date.tests
       LibJwt.testJsonSameOnBoth
       allRoundtrips ]

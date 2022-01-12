@@ -8,7 +8,7 @@ open LibExecution.RuntimeTypes
 open Prelude
 
 module Errors = LibExecution.Errors
-module DvalRepr = LibExecution.DvalRepr
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 let fn = FQFnName.stdlibFnName
 
@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr json ] ->
           (try
-            json |> DvalRepr.ofUnknownJsonV0 |> Ply
+            json |> DvalReprExternal.unsafeOfUnknownJsonV0 |> Ply
            with
            | _ -> Ply DNull)
         | _ -> incorrectArgs ())
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-          match DvalRepr.ofUnknownJsonV1 json with
+          match DvalReprExternal.ofUnknownJsonV1 json with
           | Ok dv -> Ply dv
           | Error msg -> Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-          match DvalRepr.ofUnknownJsonV1 json with
+          match DvalReprExternal.ofUnknownJsonV1 json with
           | Ok dv -> Ply dv
           | Error msg -> Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
@@ -75,7 +75,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-          json |> DvalRepr.ofUnknownJsonV1 |> Result.mapError DStr |> DResult |> Ply
+          json
+          |> DvalReprExternal.ofUnknownJsonV1
+          |> Result.mapError DStr
+          |> DResult
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

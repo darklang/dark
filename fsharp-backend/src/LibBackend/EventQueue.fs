@@ -121,8 +121,6 @@ module WorkerStates =
   // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>
 
-  let empty = Map.empty
-
   module JsonConverter =
     open Newtonsoft.Json
     open Newtonsoft.Json.Converters
@@ -234,7 +232,8 @@ let enqueue
                           "modifier", Sql.string modifier
                           "data",
                           Sql.string (
-                            LibExecution.DvalRepr.toInternalRoundtrippableV0 data
+                            LibExecution.DvalReprInternal.toInternalRoundtrippableV0
+                              data
                           ) ]
       |> Sql.executeStatementAsync
   }
@@ -288,7 +287,7 @@ let dequeue () : Task<Option<T>> =
       return
         Some
           { id = id
-            value = LibExecution.DvalRepr.ofInternalRoundtrippableV0 value
+            value = LibExecution.DvalReprInternal.ofInternalRoundtrippableV0 value
             retries = retries
             canvasID = canvasID
             ownerID = ownerID
