@@ -86,7 +86,7 @@ let testToPrettyResponseJson =
   testMany
     "toPrettyResponseJson"
     LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
-    []
+    [ RT.DBytes [| 00uy |], "{ \"type\": \"bytes\", \"value\": \"\u000\"" ]
 
 let testToPrettyRequestJson =
   testMany
