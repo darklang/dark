@@ -742,6 +742,49 @@ let dvalEquality (left : Dval) (right : Dval) : bool =
 
 let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
 
+let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
+  let mutable state = []
+  let f dv = state <- f dv :: state
+  let rec visit dv : unit =
+    match dv with
+    // Keep for exhaustiveness checking
+    | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DList dvs -> List.map visit dvs |> ignore<List<unit>>
+    | DHttpResponse (Response (_, _, v))
+    | DResult (Error v)
+    | DResult (Ok v)
+    | DErrorRail v
+    | DOption (Some v) -> visit v
+    | DHttpResponse (Redirect _)
+    | DOption None
+    | DStr _
+    | DInt _
+    | DDate _
+    | DBool _
+    | DFloat _
+    | DNull
+    | DChar _
+    | DPassword _
+    | DFnVal _
+    | DIncomplete _
+    | DError _
+    | DDB _
+    | DUuid _
+    | DBytes _
+    | DStr _ -> f dv
+    f dv
+  visit dv
+  state
+
+let containsPassword (dv : Dval) : bool =
+  let isPassword =
+    function
+    | RT.DPassword _ -> true
+    | _ -> false
+  dv |> visitDval isPassword |> List.any Fun.identity
+
+
+
 let interestingStrings : List<string * string> =
   [ ("arabic", "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
     ("emoji0", "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰")

@@ -306,13 +306,16 @@ module Roundtrippable =
     |> dvalEquality dv
 
   let isInteroperableV0 dv =
-    OCamlInterop.isInteroperable
-      OCamlInterop.toInternalRoundtrippableV0
-      OCamlInterop.ofInternalRoundtrippableV0
-      DvalReprInternal.toInternalRoundtrippableV0
-      DvalReprInternal.ofInternalRoundtrippableV0
-      dvalEquality
-      dv
+    if containsPassword dv then
+      true
+    else
+      OCamlInterop.isInteroperable
+        OCamlInterop.toInternalRoundtrippableV0
+        OCamlInterop.ofInternalRoundtrippableV0
+        DvalReprInternal.toInternalRoundtrippableV0
+        DvalReprInternal.ofInternalRoundtrippableV0
+        dvalEquality
+        dv
 
   let tests =
     testList
@@ -346,17 +349,21 @@ module Queryable =
     |> dvalEquality (RT.DObj dvm)
 
   let isInteroperableV1 (dv : RT.Dval) =
-    let dvm = (Map.ofList [ "field", dv ])
+    // redacted passwords are created on the OCaml side and hard to remove
+    if containsPassword dv then
+      true
+    else
+      let dvm = (Map.ofList [ "field", dv ])
 
-    OCamlInterop.isInteroperable
-      OCamlInterop.toInternalQueryableV1
-      OCamlInterop.ofInternalQueryableV1
-      (function
-      | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
-      | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
-      DvalReprInternal.ofInternalQueryableV1
-      dvalEquality
-      (RT.DObj dvm)
+      OCamlInterop.isInteroperable
+        OCamlInterop.toInternalQueryableV1
+        OCamlInterop.ofInternalQueryableV1
+        (function
+        | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
+        | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
+        DvalReprInternal.ofInternalQueryableV1
+        dvalEquality
+        (RT.DObj dvm)
 
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f

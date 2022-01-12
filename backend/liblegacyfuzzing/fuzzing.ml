@@ -84,7 +84,8 @@ let to_pretty_machine_json_v1 (json : string) : string =
   in
   Dval.to_pretty_machine_json_v1 dval
 
-  let to_pretty_request_json (json : string) : string =
+
+let to_pretty_request_json (json : string) : string =
   let dval =
     json
     |> Yojson.Safe.from_string
@@ -92,6 +93,7 @@ let to_pretty_machine_json_v1 (json : string) : string =
     |> Result.ok_or_failwith
   in
   Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 dval
+
 
 let to_pretty_response_json (json : string) : string =
   let dval =
@@ -101,7 +103,6 @@ let to_pretty_response_json (json : string) : string =
     |> Result.ok_or_failwith
   in
   Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 dval
-
 
 
 (* to_pretty_machine_yojson, then Yojson.Safe.to_string *)
