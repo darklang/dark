@@ -559,16 +559,21 @@ module PrettyResponseJson =
         | _ -> true)
 
   let equalsOCaml (dv : RT.Dval) : bool =
+    // The json generated is not identical, so check that it parses to the same thing
     let actual =
       try
         dv
         |> LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+        |> Newtonsoft.Json.Linq.JToken.Parse
+        |> string
       with
       | e -> e.Message
 
     let expected =
       try
         (OCamlInterop.toPrettyResponseJson dv).Result
+        |> Newtonsoft.Json.Linq.JToken.Parse
+        |> string
       with
       // Task error
       | :? System.AggregateException as e -> e.InnerException.Message
