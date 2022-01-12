@@ -25,20 +25,28 @@ open System.Text.Json
 // CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
-let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
-  let stream = new System.IO.MemoryStream()
+let jsonWriterOptions : JsonWriterOptions =
   let mutable options = new JsonWriterOptions()
   options.Indented <- true
   options.SkipValidation <- true
   let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
   options.Encoder <- encoder
-  let w = new Utf8JsonWriter(stream, options)
+  options
+
+let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
+  let stream = new System.IO.MemoryStream()
+  let w = new Utf8JsonWriter(stream, jsonWriterOptions)
   f w
   w.Flush()
   UTF8.ofBytesUnsafe (stream.ToArray())
 
+let jsonDocumentOptions : JsonDocumentOptions =
+  let mutable options = new JsonDocumentOptions()
+  options.CommentHandling <- JsonCommentHandling.Skip
+  options
 
-let parseJson (s : string) : JsonDocument = JsonDocument.Parse(s)
+let parseJson (s : string) : JsonDocument =
+  JsonDocument.Parse(s, jsonDocumentOptions)
 
 
 type Utf8JsonWriter with
