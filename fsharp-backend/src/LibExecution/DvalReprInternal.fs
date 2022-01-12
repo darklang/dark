@@ -217,8 +217,8 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   | JNonStandard
   | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
-let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
-  let writeDval = unsafeDvalToJsonValueV0 w redact
+let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
+  let writeDval = unsafeDvalToJsonValueV0 w
 
   let wrapStringValue (typ : string) (str : string) =
     w.writeObject (fun () ->
@@ -294,10 +294,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   | DDB dbname -> wrapStringValue "datastore" dbname
   | DDate date -> wrapStringValue "date" (date.toIsoString ())
   | DPassword (Password hashed) ->
-    if redact then
-      wrapNullValue "password"
-    else
-      hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
+    hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (string uuid)
   | DOption opt ->
     (match opt with
@@ -328,18 +325,18 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
 
 
 
-let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
-  unsafeDvalToJsonValueV0 w redact dv
+let unsafeDvalToJsonValueV1 (w : JsonWriter) (dv : Dval) : unit =
+  unsafeDvalToJsonValueV0 w dv
 
-(* ------------------------- *)
-(* Roundtrippable - for events and traces *)
-(* ------------------------- *)
+// -------------------------
+// Roundtrippable - for events and traces
+// -------------------------
 
 // This is a format used for roundtripping dvals internally. v0 has bugs due to
 // a legacy of trying to make one function useful for everything. Does not
 // redact.
 let toInternalRoundtrippableV0 (dval : Dval) : string =
-  writeJson (fun w -> unsafeDvalToJsonValueV1 w false dval)
+  writeJson (fun w -> unsafeDvalToJsonValueV1 w dval)
 
 // Used for fuzzing and to document what's supported. There are a number of
 // known bugs in our roundtripping in OCaml - we actually want to reproduce
@@ -406,7 +403,7 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
       |> Map.toList
       |> List.iter (fun (k, dval) ->
         w.WritePropertyName k
-        unsafeDvalToJsonValueV0 w false dval)))
+        unsafeDvalToJsonValueV0 w dval)))
 
 let rec isQueryableDval (dval : Dval) : bool =
   match dval with
