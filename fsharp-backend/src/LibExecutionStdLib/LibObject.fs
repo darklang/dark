@@ -146,9 +146,7 @@ module PrettyResponseJsonV0 =
            w.WriteValue("Error")
            w.WritePropertyName "values"
            w.writeArray (fun () -> writeDval rdv)))
-    | DBytes bytes ->
-      // Note that the OCaml version uses the non-url-safe b64 encoding here
-      bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
+    | DBytes bytes -> bytes |> UTF8.ofBytesWithReplacement |> wrapStringValue "bytes"
 
 
   let toPrettyResponseJsonV0 (dval : Dval) : string =
