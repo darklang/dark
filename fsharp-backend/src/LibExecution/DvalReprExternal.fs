@@ -546,6 +546,7 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
         else
           msg
     Error msg
+  | e -> Error e.Message
 
 
 // Converts an object to (string,string) pairs. Raises an exception if not an object
