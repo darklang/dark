@@ -783,6 +783,8 @@ let containsPassword (dv : Dval) : bool =
     | _ -> false
   dv |> visitDval isPassword |> List.any Fun.identity
 
+let containsFakeDval (dv : Dval) : bool =
+  dv |> visitDval RT.Dval.isFake |> List.any Fun.identity
 
 
 let interestingStrings : List<string * string> =
