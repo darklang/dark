@@ -48,6 +48,8 @@ let server () =
             Some F.of_internal_roundtrippable_v0
         | "of_unknown_json_v1" ->
             Some F.of_unknown_json_v1
+        | "of_unknown_json_v0" ->
+            Some F.of_unknown_json_v0
         | "to_developer_repr_v0" ->
             Some F.to_developer_repr_v0
         | "to_enduser_readable_text_v0" ->

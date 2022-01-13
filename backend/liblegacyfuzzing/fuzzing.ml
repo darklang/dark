@@ -16,6 +16,11 @@ let of_internal_roundtrippable_v0 (str : string) : string =
   dval |> Types.RuntimeT.dval_to_yojson |> Yojson.Safe.to_string
 
 
+let of_unknown_json_v0 (str : string) : string =
+  let dval = Dval.of_unknown_json_v0 str in
+  dval |> Types.RuntimeT.dval_to_yojson |> Yojson.Safe.to_string
+
+
 let of_unknown_json_v1 (str : string) : string =
   let dval = Dval.of_unknown_json_v1 str in
   dval |> Types.RuntimeT.dval_to_yojson |> Yojson.Safe.to_string
