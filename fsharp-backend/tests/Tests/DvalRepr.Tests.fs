@@ -1,5 +1,8 @@
 module Tests.DvalReprExternal
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Expecto
 open Prelude
 open Prelude.Tablecloth
@@ -421,6 +424,53 @@ module LibJwt =
           |> List.filter ((<>) (RT.DInt 4611686018427387904L)))
        |> List.map (fun x -> x, true))
 
+module ParsingMinefield =
+
+  let unknownV1Equal ((index, filename) : int * string) : Result<unit, string> =
+    let str = System.IO.File.ReadAllText(filename, System.Text.Encoding.UTF8)
+    let actual = DvalReprExternal.ofUnknownJsonV1 str
+    let expected =
+      try
+        Ok (LibBackend.OCamlInterop.ofUnknownJsonV1 str).Result
+      with
+      | :? System.AggregateException as e -> Error e.InnerException.Message
+      | e -> Error e.Message
+
+    let str = if String.length str > 1000 then String.take 1000 str else str
+
+    match actual, expected with
+    | Ok a, Ok e ->
+      Expect.equalDval a e $"{filename} equals dval"
+      Ok()
+    | Error _, Error _ -> Ok()
+    | Ok dv, Error msg ->
+      Error $"F# parsed '{filename}' ({str}, {index}) while ocaml errored: {msg}"
+    | Error msg, Ok dv ->
+      Error $"OCaml parsed '{filename}' ({str}, {index}) while F# errored: {msg}"
+
+
+  let testOfUnknownJsonV0SameInOCaml =
+    let testFiles =
+      let dir = "tests/json-test-suite/"
+      System.IO.Directory.GetFiles(dir, "*.json")
+      |> Array.filter ((<>) "README.md")
+      |> Array.filter ((<>) "LICENSE")
+      |> Array.filter ((<>) ".gitattributes")
+      |> Array.toList
+    // We ran all the tests then manually checked out the differences, documenting
+    // them in the changelog, then adding them here.
+    let knownDifferences =
+      Set [ 8; 51; 62; 68; 85; 118; 119; 143; 248; 261; 296; 316 ]
+
+    testMany
+      "minefield json test suite"
+      unknownV1Equal
+      (testFiles
+       |> List.mapWithIndex (fun i filename -> (i, filename), Ok())
+       |> List.filterWithIndex (fun i _ -> not (Set.contains i knownDifferences)))
+
+  let tests = testList "minefield" [ testOfUnknownJsonV0SameInOCaml ]
+
 
 let tests =
   testList
@@ -435,4 +485,5 @@ let tests =
       ToHashableRepr.tests
       Password.tests
       LibJwt.testJsonSameOnBoth
+      ParsingMinefield.tests
       allRoundtrips ]
