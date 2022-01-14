@@ -12,6 +12,8 @@ open System.Text.RegularExpressions
 type ConcurrentDictionary<'a, 'b> =
   System.Collections.Concurrent.ConcurrentDictionary<'a, 'b>
 
+open NReco.Logging.File
+
 open Prelude
 open Tablecloth
 
@@ -313,38 +315,11 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       return ctx
     with
     | e ->
-      print $"Exception raised in test handler: {e}"
       Exception.raiseInternal $"Exception raised in test handler" [ "e", e ]
       return ctx
   }
 
 
-// Replace the console logger with one which writes to Prelude.NonBlockingConsole.
-// Has the benefit that it speeds up tests by a factor of 3.
-// https://docs.microsoft.com/en-us/dotnet/core/extensions/custom-logging-provider
-
-type Logger() =
-  interface ILogger with
-    member this.Log<'TState>
-      (
-        level : LogLevel,
-        eventID : EventId,
-        state : 'TState,
-        exc : exn,
-        formatter : System.Func<'TState, exn, string>
-      ) : unit =
-      print ($"{eventID, 3} " + formatter.Invoke(state, exc))
-
-    member _.IsEnabled(level : LogLevel) : bool = true
-
-    member _.BeginScope<'TState>(state : 'TState) : System.IDisposable =
-      Unchecked.defaultof<System.IDisposable>
-
-type LoggerProvider() =
-  interface ILoggerProvider with
-    member this.CreateLogger(_categoryName : string) : ILogger = new Logger()
-
-    member this.Dispose() : unit = ()
 
 let configureLogging (builder : ILoggingBuilder) : unit =
   // This removes the default ConsoleLogger. Having two console loggers (this one and
@@ -353,9 +328,13 @@ let configureLogging (builder : ILoggingBuilder) : unit =
   builder
     .ClearProviders()
     .Services
-    .TryAddEnumerable(
-      ServiceDescriptor.Singleton<ILoggerProvider, LoggerProvider>()
-    )
+    .AddLogging(fun loggingBuilder ->
+      loggingBuilder.AddFile(
+        $"{LibBackend.Config.logDir}httpclient-test-server.log",
+        append = false
+      )
+      |> ignore<ILoggingBuilder>)
+  |> ignore<IServiceCollection>
 
 
 

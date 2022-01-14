@@ -3,3 +3,4 @@ FsRegEx
 Expecto
 FsCheck
 Expecto.FsCheck
+NReco.Logging.File
