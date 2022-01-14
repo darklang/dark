@@ -1,4 +1,2 @@
 FSharp.Core
-Newtonsoft.Json
-Microsoft.AspNetCore.Mvc.NewtonsoftJson
 Lib.AspNetCore.ServerTiming
