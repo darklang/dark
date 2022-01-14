@@ -221,7 +221,7 @@ NUGET
     Newtonsoft.Json (13.0.1)
     Newtonsoft.Json.Bson (1.0.2)
       Newtonsoft.Json (>= 12.0.1)
-    Npgsql (6.0)
+    Npgsql (6.0.2)
       System.Runtime.CompilerServices.Unsafe (>= 6.0)
     Npgsql.FSharp (4.1)
       FSharp.Core (>= 4.7.2)
