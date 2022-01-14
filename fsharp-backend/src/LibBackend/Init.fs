@@ -29,6 +29,10 @@ let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
       EventQueue.WorkerStates.JsonConverter.WorkerStateConverter()
     )
 
+    Json.Vanilla.registerConverter (
+      EventQueue.WorkerStates.STJJsonConverter.WorkerStateConverter()
+    )
+
     if runSideEffects then do! Account.init serviceName
 
     print $" Inited LibBackend in {serviceName}"

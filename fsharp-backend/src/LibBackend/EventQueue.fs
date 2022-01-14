@@ -121,7 +121,8 @@ module WorkerStates =
   // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>
 
-  module JsonConverter =
+  module STJJsonConverter =
+    // CLEANUP switch to this
     open System.Text.Json
     open System.Text.Json.Serialization
 
@@ -129,11 +130,29 @@ module WorkerStates =
       inherit JsonConverter<State>()
 
       override _.Read(reader : byref<Utf8JsonReader>, _type, _options) : State =
-
         reader.GetString() |> parse
 
       override _.Write(writer : Utf8JsonWriter, value : State, _options) =
         writer.WriteStringValue(string value)
+
+  module JsonConverter =
+    open Newtonsoft.Json
+    open Newtonsoft.Json.Converters
+
+    type WorkerStateConverter() =
+      inherit JsonConverter<State>()
+
+      override this.ReadJson(reader : JsonReader, _typ, _, _, serializer) : State =
+        reader.Value :?> string |> parse
+
+      override this.WriteJson
+        (
+          writer : JsonWriter,
+          value : State,
+          _ : JsonSerializer
+        ) =
+        writer.WriteValue(string value)
+
 
 
 // None in case we want to log on a timer or something, not
