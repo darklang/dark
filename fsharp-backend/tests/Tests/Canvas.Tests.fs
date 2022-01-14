@@ -80,8 +80,12 @@ let testHttpLoadIgnoresDeletedFns =
       Canvas.saveTLIDs
         meta
         [ (handler.tlid, [ hop handler ], PT.TLHandler handler, Canvas.NotDeleted)
-          (f.tlid, [ PT.SetFunction f ], PT.TLFunction f, Canvas.NotDeleted)
-          (f.tlid, [ PT.DeleteFunction f.tlid ], PT.TLFunction f, Canvas.Deleted)
+          (f.tlid, [ PT.SetFunction f ], PT.TLFunction f, Canvas.NotDeleted) ]
+    // TLIDs are saved in parallel, so do them in separate calls
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (f.tlid, [ PT.DeleteFunction f.tlid ], PT.TLFunction f, Canvas.Deleted)
           (f2.tlid, [ PT.SetFunction f2 ], PT.TLFunction f2, Canvas.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
