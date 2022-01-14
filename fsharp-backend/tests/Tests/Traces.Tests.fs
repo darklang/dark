@@ -201,8 +201,8 @@ let testTraceDataJsonFormatRedactsPasswords =
              DPassword(Password(UTF8.toBytes "Redacted"))) ] }
     let actual =
       traceData
-      |> Prelude.Json.OCamlCompatible.serialize
-      |> Prelude.Json.OCamlCompatible.deserialize<AT.TraceData>
+      |> Json.OCamlCompatible.serialize
+      |> Json.OCamlCompatible.deserialize<AT.TraceData>
     Expect.equal actual expected "traceData round trip"
   }
 

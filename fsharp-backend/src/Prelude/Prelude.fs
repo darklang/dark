@@ -787,9 +787,9 @@ module Json =
       inherit JsonConverter<Password>()
 
       override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
-        reader.GetBytesFromBase64() |> Password
+        reader.GetString() |> UTF8.toBytes |> Password
 
-      override _.Write(writer : Utf8JsonWriter, _ : Password, _options) : unit =
+      override _.Write(writer : Utf8JsonWriter, _ : Password, _options) =
         writer.WriteStringValue("Redacted")
 
 
