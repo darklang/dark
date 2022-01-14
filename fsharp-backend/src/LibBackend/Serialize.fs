@@ -104,6 +104,7 @@ let fetchReleventTLIDsForHTTP
   (path : string)
   (method : string)
   : Task<List<tlid>> =
+  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
 
   // The pattern `$2 like name` is deliberate, to leverage the DB's
   // pattern matching to solve our routing.
@@ -121,6 +122,7 @@ let fetchReleventTLIDsForHTTP
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
+  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
   Sql.query
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = @canvasID
@@ -132,6 +134,7 @@ let fetchRelevantTLIDsForEvent
   (canvasID : CanvasID)
   (event : EventQueue.T)
   : Task<List<tlid>> =
+  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
   Sql.query
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = @canvasID
