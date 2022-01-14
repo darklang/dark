@@ -12,6 +12,7 @@ nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 3.0.0
 nuget FSharp.Core = 6.0.1
 nuget Faithlife.Utility = 0.12.1
+nuget FSharp.SystemTextJson = 0.15.14
 
 // Tests
 nuget Expecto = 9.0.4

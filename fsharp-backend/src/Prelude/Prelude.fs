@@ -765,224 +765,54 @@ type Password = Password of byte array
 // Json auto-serialization
 // ----------------------
 module Json =
+  open System.Text.Json
+  open System.Text.Json.Serialization
+
   module AutoSerialize =
-    open Newtonsoft.Json
-    open Microsoft.FSharp.Reflection
-
-    type FSharpDuConverter() =
-      inherit JsonConverter()
-
-      override _.WriteJson(writer, value, serializer) =
-        let unionType = value.GetType()
-        let case, fields = FSharpValue.GetUnionFields(value, unionType)
-        writer.WriteStartArray()
-        writer.WriteValue case.Name
-        Array.iter (fun field -> serializer.Serialize(writer, field)) fields
-        writer.WriteEndArray()
-
-      override _.ReadJson(reader, destinationType, _, serializer : JsonSerializer) =
-        match reader.TokenType with
-        | JsonToken.StartArray -> ()
-        | _ ->
-          Exception.raiseInternal
-            "Incorrect starting token for union, should be array"
-            [ "tokenType", reader.TokenType; "destinationType", destinationType ]
-
-
-        let caseName : string =
-          reader.Read() |> ignore<bool>
-          reader.Value :?> string
-
-        let caseInfo =
-          FSharpType.GetUnionCases(destinationType)
-          |> Array.find (fun f -> f.Name = caseName)
-
-        let fields : System.Reflection.PropertyInfo [] = caseInfo.GetFields()
-
-        let readElements () =
-          let rec read index acc =
-            match reader.TokenType with
-            | JsonToken.EndArray -> acc
-            | _ ->
-              let value = serializer.Deserialize(reader, fields[index].PropertyType)
-
-              reader.Read() |> ignore<bool>
-              read (index + 1) (acc @ [ value ])
-
-          reader.Read() |> ignore<bool>
-          read 0 List.empty
-
-        let args = readElements () |> Array.ofList
-
-        FSharpValue.MakeUnion(caseInfo, args)
-
-      override _.CanConvert(objectType) = FSharpType.IsUnion objectType
-
-    // http://gorodinski.com/blog/2013/01/05/json-dot-net-type-converters-for-f-option-list-tuple/
-    type FSharpListConverter() =
-      inherit JsonConverter()
-
-      override _.CanConvert(t : System.Type) =
-        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<list<_>>
-
-      override _.WriteJson(writer, value, serializer) =
-        let list = value :?> System.Collections.IEnumerable |> Seq.cast
-        serializer.Serialize(writer, list)
-
-      override _.ReadJson(reader, t, _, serializer) =
-        let itemType = t.GetGenericArguments()[0]
-
-        let collectionType =
-          typedefof<System.Collections.Generic.IEnumerable<_>>.MakeGenericType
-            (itemType)
-
-        let collection =
-          serializer.Deserialize(reader, collectionType)
-          :?> System.Collections.IEnumerable
-          |> Seq.cast
-
-        let listType = typedefof<list<_>>.MakeGenericType (itemType)
-        let cases = FSharpType.GetUnionCases(listType)
-
-        let rec make =
-          function
-          | [] -> FSharpValue.MakeUnion(cases[0], [||])
-          | head :: tail -> FSharpValue.MakeUnion(cases[1], [| head; (make tail) |])
-
-        make (collection |> Seq.toList)
-
-    // http://gorodinski.com/blog/2013/01/05/json-dot-net-type-converters-for-f-option-list-tuple/
-    type FSharpTupleConverter() =
-      inherit JsonConverter()
-
-      override _.CanConvert(t : System.Type) = FSharpType.IsTuple(t)
-
-      override _.WriteJson(writer, value, serializer) =
-        let values = FSharpValue.GetTupleFields(value)
-        serializer.Serialize(writer, values)
-
-      override _.ReadJson(reader, t, existingValue, serializer) =
-        let advance = reader.Read >> ignore<bool>
-        let deserialize t = serializer.Deserialize(reader, t)
-        let itemTypes = FSharpType.GetTupleElements(t)
-
-        let readElements () =
-          let rec read index acc =
-            match reader.TokenType with
-            | JsonToken.EndArray -> acc
-            | _ ->
-              let value = deserialize (itemTypes[index])
-              advance ()
-              read (index + 1) (acc @ [ value ])
-
-          advance ()
-          read 0 List.empty
-
-        match reader.TokenType with
-        | JsonToken.StartArray ->
-          let values = readElements ()
-          FSharpValue.MakeTuple(values |> List.toArray, t)
-        | _ ->
-          Exception.raiseInternal "Invalid token" [ "existingValue", existingValue ]
-
 
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
 
-      override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        let rawToken = string reader.Value
-        parseUInt64 rawToken
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+        if reader.TokenType = JsonTokenType.String then
+          let str = reader.GetString()
+          parseUInt64 str
+        else
+          reader.GetUInt64()
 
-      override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
-        writer.WriteValue(value)
+      override _.Write(writer : Utf8JsonWriter, value : tlid, _options) =
+        writer.WriteNumberValue(value)
 
     type PasswordConverter() =
       inherit JsonConverter<Password>()
 
-      override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        let rawToken = string reader.Value |> UTF8.toBytes
-        Password rawToken
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+        reader.GetBytesFromBase64() |> Password
 
-      override _.WriteJson
-        (
-          writer : JsonWriter,
-          value : Password,
-          _ : JsonSerializer
-        ) : unit =
-        writer.WriteValue("Redacted")
+      override _.Write(writer : Utf8JsonWriter, _ : Password, _options) : unit =
+        writer.WriteStringValue("Redacted")
 
-
-    // We don't use this at the moment
-    type OCamlOptionConverter() =
-      inherit JsonConverter()
-
-      override _.CanConvert(t : System.Type) =
-        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
-
-      override _.WriteJson(writer : JsonWriter, value, serializer : JsonSerializer) =
-        let value =
-          if value = null then
-            null
-          else
-            let _, fields = FSharpValue.GetUnionFields(value, value.GetType())
-            fields[0]
-
-        serializer.Serialize(writer, value)
-
-      override x.ReadJson
-        (
-          reader : JsonReader,
-          t : System.Type,
-          _,
-          serializer : JsonSerializer
-        ) =
-        let cases = FSharpType.GetUnionCases(t)
-
-        if reader.TokenType = JsonToken.Null then
-          FSharpValue.MakeUnion(cases[0], [||])
-        else
-          let innerType = t.GetGenericArguments()[0]
-
-          let innerType =
-            if innerType.IsValueType then
-              (typedefof<System.Nullable<_>>).MakeGenericType([| innerType |])
-            else
-              innerType
-
-          let value = serializer.Deserialize(reader, innerType)
-
-          if value = null then
-            FSharpValue.MakeUnion(cases[0], [||])
-          else
-            FSharpValue.MakeUnion(cases[1], [| value |])
 
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
-      override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        let rawToken = string reader.Value
+      // We need this because OCaml gives us Infinity and NaN in our JSON. Note
+      // that unlike other places, this is type-directed so we know we're
+      // expecting a float and can check specific things
+      override _.Read(reader : byref<Utf8JsonReader>, _typ, _options) =
+        if reader.ValueTextEquals("Infinity") then System.Double.PositiveInfinity
+        else if reader.ValueTextEquals("infinity") then System.Double.PositiveInfinity
+        else if reader.ValueTextEquals("-infinity") then System.Double.NegativeInfinity
+        else if reader.ValueTextEquals("-Infinity") then System.Double.NegativeInfinity
+        else if reader.ValueTextEquals("NaN") then System.Double.NaN
+        else reader.GetDouble()
 
-        match rawToken with
-        | "Infinity" -> System.Double.PositiveInfinity
-        | "infinity" -> System.Double.PositiveInfinity
-        | "-Infinity" -> System.Double.NegativeInfinity
-        | "-infinity" -> System.Double.NegativeInfinity
-        | "NaN" -> System.Double.NaN
-        | _ ->
-          let style = System.Globalization.NumberStyles.Float
-          System.Double.Parse(rawToken, style)
-
-      override _.WriteJson
-        (
-          writer : JsonWriter,
-          value : double,
-          serializer : JsonSerializer
-        ) =
+      override _.Write(writer : Utf8JsonWriter, value : double, _options) =
         match value with
         | System.Double.PositiveInfinity -> writer.WriteRawValue "Infinity"
         | System.Double.NegativeInfinity -> writer.WriteRawValue "-Infinity"
         | _ when System.Double.IsNaN value -> writer.WriteRawValue "NaN"
-        | _ -> writer.WriteValue(value)
+        | _ -> writer.WriteNumberValue(value)
 
     type OCamlRawBytesConverter() =
       inherit JsonConverter<byte array>()
@@ -990,16 +820,12 @@ module Json =
       // the url-safe version of base64. It's not appropriate for all byte
       // arrays, but I think this is the only user. If not, we'll need to add a
       // RawBytes type.
-      override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+        reader.GetString() |> Base64.fromUrlEncoded |> Base64.decode
 
-      override _.WriteJson
-        (
-          writer : JsonWriter,
-          value : byte [],
-          _ : JsonSerializer
-        ) =
-        value |> Base64.urlEncodeToString |> writer.WriteValue
+      override _.Write(writer : Utf8JsonWriter, value : byte [], _) =
+        value |> Base64.urlEncodeToString |> writer.WriteStringValue
+
 
   // This is used for "normal" JSON conversion, such as converting Pos into
   // json. It does not feature anything for conversion to OCaml-compatible
@@ -1007,73 +833,66 @@ module Json =
   // frontend. It does handle F#-specific constructs, and prevents exposing
   // passwords (just in case).
   module Vanilla =
-    open Newtonsoft.Json
 
-    let getSettings () =
-      let settings = JsonSerializerSettings()
-      // This might be a potential vulnerability, turn it off anyway
-      settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
-      // This is a potential vulnerability
-      settings.TypeNameHandling <- TypeNameHandling.None
-      // dont deserialize date-looking string as dates
-      settings.DateParseHandling <- DateParseHandling.None
-      settings.Converters.Add(AutoSerialize.TLIDConverter())
-      settings.Converters.Add(AutoSerialize.PasswordConverter())
-      settings.Converters.Add(AutoSerialize.FSharpListConverter())
-      settings.Converters.Add(AutoSerialize.FSharpDuConverter())
-      settings.Converters.Add(AutoSerialize.FSharpTupleConverter()) // gets tripped up on null, so put this last
-      settings
+    let getOptions () =
+      let fsharpConverter =
+        JsonFSharpConverter(
+          unionEncoding =
+            (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
+        )
+      let options = JsonSerializerOptions()
+      options.Converters.Add(AutoSerialize.TLIDConverter())
+      options.Converters.Add(fsharpConverter) // fsharptupleconvert, fsharpduconverter, fsharplistconverter,ocamloptionconverter
+      options
 
-    let _settings = getSettings ()
+    let _options = getOptions ()
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
       // supports the type, not the best one
-      _settings.Converters.Insert(0, c)
+      _options.Converters.Insert(0, c)
 
-    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
-
-    let prettySerialize (data : 'a) : string =
-      let settings = getSettings ()
-      settings.Formatting <- Formatting.Indented
-      JsonConvert.SerializeObject(data, settings)
+    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
 
     let deserialize<'a> (json : string) : 'a =
-      JsonConvert.DeserializeObject<'a>(json, _settings)
+      JsonSerializer.Deserialize<'a>(json, _options)
+
+    let prettySerialize (data : 'a) : string =
+      let options = getOptions ()
+      options.WriteIndented <- true
+      JsonSerializer.Serialize(data, options)
 
 
 
   module OCamlCompatible =
-    open Newtonsoft.Json
-    open Newtonsoft.Json.Converters
 
-    let _settings =
-      (let settings = JsonSerializerSettings()
-       // This might be a potential vulnerability, turn it off anyway
-       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
-       // This is a potential vulnerability
-       settings.TypeNameHandling <- TypeNameHandling.None
-       // dont deserialize date-looking string as dates
-       settings.DateParseHandling <- DateParseHandling.None
-       settings.Converters.Add(AutoSerialize.TLIDConverter())
-       settings.Converters.Add(AutoSerialize.PasswordConverter())
-       settings.Converters.Add(AutoSerialize.FSharpListConverter())
-       settings.Converters.Add(AutoSerialize.OCamlOptionConverter())
-       settings.Converters.Add(AutoSerialize.FSharpDuConverter())
-       settings.Converters.Add(AutoSerialize.OCamlRawBytesConverter())
-       settings.Converters.Add(AutoSerialize.OCamlFloatConverter())
-       settings.Converters.Add(AutoSerialize.FSharpTupleConverter()) // gets tripped up so put last
-       settings)
+    let getOptions () =
+      let fsharpConverter =
+        JsonFSharpConverter(
+          unionEncoding =
+            (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
+        )
+      let options = JsonSerializerOptions()
+      options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
+      options.Converters.Add(AutoSerialize.TLIDConverter())
+      options.Converters.Add(AutoSerialize.PasswordConverter())
+      options.Converters.Add(AutoSerialize.OCamlRawBytesConverter())
+      options.Converters.Add(AutoSerialize.OCamlFloatConverter())
+      options.Converters.Add(fsharpConverter) // fsharptupleconvert, fsharpduconverter, fsharplistconverter,ocamloptionconverter
+      options
+
+    let _options = getOptions ()
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
       // supports the type, not the best one
-      _settings.Converters.Insert(0, c)
+      _options.Converters.Insert(0, c)
 
-    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
+    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
 
     let deserialize<'a> (json : string) : 'a =
-      JsonConvert.DeserializeObject<'a>(json, _settings)
+      JsonSerializer.Deserialize<'a>(json, _options)
+
 
 // ----------------------
 // Functions we'll later add to Tablecloth

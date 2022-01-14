@@ -122,24 +122,18 @@ module WorkerStates =
   type T = Map<string, State>
 
   module JsonConverter =
-    open Newtonsoft.Json
-    open Newtonsoft.Json.Converters
+    open System.Text.Json
+    open System.Text.Json.Serialization
 
     type WorkerStateConverter() =
       inherit JsonConverter<State>()
 
-      override this.ReadJson(reader : JsonReader, _typ, _, _, serializer) : State =
-        reader.Value :?> string |> parse
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) : State =
 
-      override this.WriteJson
-        (
-          writer : JsonWriter,
-          value : State,
-          _ : JsonSerializer
-        ) =
-        writer.WriteValue(string value)
+        reader.GetString() |> parse
 
-  let find (k : string) (m : T) = Map.get k m
+      override _.Write(writer : Utf8JsonWriter, value : State, _options) =
+        writer.WriteStringValue(string value)
 
 
 // None in case we want to log on a timer or something, not
