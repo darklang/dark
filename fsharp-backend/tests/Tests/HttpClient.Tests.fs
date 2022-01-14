@@ -321,22 +321,6 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
 
 
-let configureLogging (builder : ILoggingBuilder) : unit =
-  // This removes the default ConsoleLogger. Having two console loggers (this one and
-  // also the one in Main), caused a deadlock (possibly from having two different
-  // console logging threads).
-  builder
-    .ClearProviders()
-    .Services
-    .AddLogging(fun loggingBuilder ->
-      loggingBuilder.AddFile(
-        $"{LibBackend.Config.logDir}httpclient-test-server.log",
-        append = false
-      )
-      |> ignore<ILoggingBuilder>)
-  |> ignore<IServiceCollection>
-
-
 
 let configureApp (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task = runTestHandler ctx
@@ -347,7 +331,7 @@ let configureServices (services : IServiceCollection) : unit = ()
 
 let webserver () =
   Host.CreateDefaultBuilder()
-  |> fun h -> h.ConfigureLogging(configureLogging)
+  |> fun h -> h.ConfigureLogging(configureLogging "test-httpclient-server")
   |> fun h ->
        h.ConfigureWebHost (fun wh ->
          wh

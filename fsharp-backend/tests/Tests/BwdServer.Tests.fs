@@ -370,8 +370,8 @@ let t filename =
     else
       do! callServer OCaml // check OCaml to see if we got the right answer
       do! callServer FSharp // test F# impl
-
   }
+
 
 let testsFromFiles =
   // get all files
@@ -395,4 +395,5 @@ open Microsoft.Extensions.Hosting
 let init (token : System.Threading.CancellationToken) : Task =
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
-  (BwdServer.Server.webserver false port k8sPort).RunAsync(token)
+  let logger = configureLogging "test-bwdserver"
+  (BwdServer.Server.webserver logger port k8sPort).RunAsync(token)

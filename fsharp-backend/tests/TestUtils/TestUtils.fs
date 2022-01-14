@@ -995,3 +995,24 @@ module Http =
     { status = status |> List.toArray |> UTF8.ofBytesUnsafe
       headers = headers
       body = List.toArray body }
+
+// For an ASP.NET http server, remove the default loggers and add a file logger that
+// saves the output in rundir/logs
+open Microsoft.Extensions.Logging
+open Microsoft.Extensions.DependencyInjection
+open NReco.Logging.File
+
+let configureLogging
+  (name : string)
+  (builder : Microsoft.Extensions.Logging.ILoggingBuilder)
+  : unit =
+  // This removes the default ConsoleLogger. Having two console loggers (this one and
+  // also the one in Main), caused a deadlock (possibly from having two different
+  // console logging threads).
+  builder
+    .ClearProviders()
+    .Services
+    .AddLogging(fun loggingBuilder ->
+      loggingBuilder.AddFile($"{LibBackend.Config.logDir}{name}.log", append = false)
+      |> ignore<ILoggingBuilder>)
+  |> ignore<IServiceCollection>

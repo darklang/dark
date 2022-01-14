@@ -448,9 +448,14 @@ let configureServices (services : IServiceCollection) : unit =
        LibService.Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
+let noLogger (builder : ILoggingBuilder) : unit =
+  // We use telemetry instead
+  builder.ClearProviders() |> ignore<ILoggingBuilder>
+
+
 
 let webserver
-  (_shouldLog : bool)
+  (loggerSetup : ILoggingBuilder -> unit)
   (httpPort : int)
   (healthCheckPort : int)
   : WebApplication =
@@ -461,6 +466,7 @@ let webserver
   LibService.Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
+  |> fun wh -> wh.ConfigureLogging(loggerSetup)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
@@ -472,7 +478,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdServerPort
   let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver true port k8sPort).Run()
+  (webserver noLogger port k8sPort).Run()
 
 
 
