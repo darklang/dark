@@ -96,7 +96,6 @@ let heapioEvent
 
       // body
       let payload = _payloadForEvent executionID event owner payload
-
       requestMessage.Content <- JsonContent.Create payload
 
       // auth
@@ -105,6 +104,9 @@ let heapioEvent
 
       requestMessage.Headers.Authorization <-
         AuthenticationHeaderValue("Basic", authenticationString)
+      // Content-Type added automatically via JsonContent
+      requestMessage.Headers.Add("Accept", "application/json")
+
 
       let! result = client.SendAsync(requestMessage)
       assertEq "heapid status" System.Net.HttpStatusCode.OK result.StatusCode
