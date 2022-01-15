@@ -111,6 +111,10 @@ let sendException
   : unit =
   try
     print $"rollbar: {message}"
+    do
+      (match e with
+       | :? DarkException as e -> print (string (e.tags ()))
+       | _ -> ())
     print e.Message
     print e.StackTrace
     try
