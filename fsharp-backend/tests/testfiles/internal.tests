@@ -4,7 +4,8 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
 [tests.grants]
 
 [test.empty grants]
-(let _ = DarkInternal.insertUser_v1_ster "empty_grants" "a@eg.com" "test user"
+(let _ = Test.deleteUser_v0 "empty_grants"
+ let _ = DarkInternal.insertUser_v1_ster "empty_grants" "a@eg.com" "test user"
  DarkInternal.orgsFor "empty_grants") = {}
 
 [test.grants and orgs]

@@ -1,5 +1,6 @@
 open Core_kernel
 open Libexecution
+module Db = Libbackend_basics.Db
 
 let of_internal_queryable_v0 (str : string) : string =
   let dval = Dval.of_internal_queryable_v0 str in
@@ -399,6 +400,24 @@ let fns : Types.RuntimeT.fn list =
           | state, [DStr msg] ->
               let msg = Unicode_string.to_string msg in
               DResult (ResError (DError (SourceNone, msg)))
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+ ; { prefix_names = ["Test::deleteUser"]
+    ; infix_names = []
+    ; parameters = [Lib.par "username" TStr]
+    ; return_type = TResult
+    ; description = "Delete a user (test only)"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr username] ->
+              Db.run
+                ~name:"delete_user"
+                "DELETE from ACCOUNTS WHERE username = $1"
+                ~params:[String (Unicode_string.to_string username)] ;
+              DNull
           | args ->
               Lib.fail args)
     ; preview_safety = Safe

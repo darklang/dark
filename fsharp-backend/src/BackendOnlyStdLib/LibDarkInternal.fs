@@ -219,11 +219,7 @@ that's already taken, returns an error."
           | state, [ DStr username; DStr email; DStr name ] ->
             uply {
               let! result =
-                Account.upsertNonAdmin
-                  { username = UserName.create username
-                    email = email
-                    name = name
-                    password = Password.invalid }
+                Account.insertUser (UserName.create username) email name None
               match result with
               | Ok () ->
                 Analytics.identifyUser state.executionID (UserName.create username)
