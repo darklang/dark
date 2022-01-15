@@ -58,8 +58,39 @@ DarkInternal.getCORSSetting_v0 "test-cors1" = Nothing
 
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 
-DarkInternal.checkPermission_v0 "test" "dark" = ""
-DarkInternal.checkPermission_v0 "dark" "test" = "rw"
+[test.checkPermission with none]
+(let user1 = ("cpn_user1_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cpn_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cpn test user1"
+ let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cpn test user2"
+ let startingPermission = DarkInternal.checkPermission_v0 user1 user2
+ let _ = DarkInternal.grant_v0_ster user1 user2 "" in
+ [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["" ; ""]
+
+[test.checkPermission with r]
+(let user1 = ("cpr_user1_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cpr_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cpr test user1"
+ let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cpr test user2"
+ let startingPermission = DarkInternal.checkPermission_v0 user1 user2
+ let _ = DarkInternal.grant_v0_ster user1 user2 "r" in
+ [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["r" ; ""]
+
+[test.checkPermission with r]
+(let user1 = ("cprw_user1_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cprw_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cprw test user1"
+ let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cprw test user2"
+ let startingPermission = DarkInternal.checkPermission_v0 user1 user2
+ let _ = DarkInternal.grant_v0_ster user1 user2 "rw" in
+ [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["rw" ; ""]
+
 
 [test.canvasId length]
 (let _ = DarkInternal.clearStaticAssets "test-canvas-id-of-canvas-name"  // get the canvas created
