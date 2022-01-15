@@ -9,10 +9,10 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
  DarkInternal.orgsFor "empty_grants") = {}
 
 [test.grants and orgs]
-(let _ = DarkInternal.insertUser_v1_ster "g_and_o_org" "org@gaa.com" "test user"
- let _ = DarkInternal.insertUser_v1_ster "g_and_o_user" "user@gaa.com" "test user"
- let _ = DarkInternal.grant "g-a-o-user" "g_and_o_org" "rw" in
- DarkInternal.orgsFor "g_a_o_user") = { ``g_and_o_org`` = "rw" }
+(let _ = DarkInternal.insertUser_v1_ster "gao_org" "gao-test-org@darklang.com" "gao test org"
+ let _ = DarkInternal.insertUser_v1_ster "gao_user" "gao-test-user@darklang.com" "gao test user"
+ let _ = DarkInternal.grant_v0_ster "gao_user" "gao_org" "rw" in
+ DarkInternal.orgsFor "gao_user") = { ``gao_org`` = "rw" }
 
 [test.grants and grants]
 (let _ = DarkInternal.grant "test" "dark" "rw" in
@@ -47,9 +47,9 @@ DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.co
 DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
 DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
 DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/" // OCAMLONLY
-DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '-' or '_'" // FSHARPONLY
+DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'" // FSHARPONLY
 DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/" // OCAMLONLY
-DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '-' or '_'" // FSHARPONLY
+DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'" // FSHARPONLY
 
 [tests.canvases]
 DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown Err: \"No owner found for host not-a-canvas\"" // OCAMLONLY
