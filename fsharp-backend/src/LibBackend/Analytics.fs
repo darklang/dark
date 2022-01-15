@@ -39,7 +39,9 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
         | _ -> username |> string |> OrgName.create)
 
       let heapioMetadata =
-        Json.Vanilla.deserialize<Map<string, string>> heapioMetadataJson
+        heapioMetadataJson
+        |> Option.map Json.Vanilla.deserialize<Map<string, string>>
+        |> Option.defaultValue Map.empty
 
       let payload =
         [ ("username", string userInfoAndCreatedAt.username)

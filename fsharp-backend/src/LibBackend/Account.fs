@@ -208,7 +208,7 @@ let getUserCreatedAt (username : UserName.T) : Task<System.DateTime> =
 
 let getUserAndCreatedAtAndAnalyticsMetadata
   (username : UserName.T)
-  : Task<Option<UserInfoAndCreatedAt * string>> =
+  : Task<Option<UserInfoAndCreatedAt * Option<string>>> =
   Sql.query
     "SELECT name, email, admin, created_at, id, segment_metadata
      FROM accounts
@@ -221,7 +221,7 @@ let getUserAndCreatedAtAndAnalyticsMetadata
       admin = read.bool "admin"
       id = read.uuid "id"
       createdAt = read.dateTime "created_at" },
-    read.string "segment_metadata")
+    read.stringOrNone "segment_metadata")
 
 let getUserByEmail (email : string) : Task<Option<UserInfo>> =
   Sql.query
