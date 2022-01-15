@@ -35,10 +35,7 @@ let testCronFetchActiveCrons =
 
 let testCronSanity =
   testTask "cron sanity" {
-    let name = "cron-sanity"
-    let! owner = testOwner.Force()
-    do! clearCanvasData owner (CanvasName.create name)
-    let! meta = testCanvasInfo owner name
+    let! meta = initializeTestCanvas "cron-sanity"
 
     let h = testCron "test" PT.Handler.EveryDay (p " 5 + 3")
     let oplists = [ hop h ]
@@ -61,11 +58,7 @@ let testCronSanity =
 
 let testCronJustRan =
   testTask "test cron just ran" {
-    let name = "cron-just-ran"
-
-    let! owner = testOwner.Force()
-    do! clearCanvasData owner (CanvasName.create name)
-    let! meta = testCanvasInfo owner name
+    let! meta = initializeTestCanvas "cron-just-ran"
 
     let h = testCron "test" PT.Handler.EveryDay (p "5 + 3")
 

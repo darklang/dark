@@ -23,28 +23,10 @@ module S = LibExecution.Shortcuts
 let testOwner : Lazy<Task<Account.UserInfo>> =
   lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
 
-let testAdmin : Lazy<Task<Account.UserInfo>> =
-  lazy (UserName.create "dark" |> Account.getUser |> Task.map Option.unwrapUnsafe)
-
-let testCanvasInfo (owner : Account.UserInfo) (name : string) : Task<Canvas.Meta> =
-  task {
-    let name = CanvasName.create name
-    let! id = Canvas.canvasIDForCanvasName owner.id name
-    return { id = id; name = name; owner = owner.id }
-  }
-
-let testCanvasID : Lazy<Task<CanvasID>> =
-  lazy
-    (task {
-      let! owner = (testOwner.Force())
-      let! canvasInfo = testCanvasInfo owner "test"
-      return canvasInfo.id
-    })
-
 // delete test data for one canvas
-let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit> =
+let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
   task {
-    let! canvasID = Canvas.canvasIDForCanvasName owner.id name
+    let! canvasID = Canvas.canvasIDForCanvasName owner name
 
     let cronRecords =
       Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
@@ -126,20 +108,57 @@ let clearCanvasData (owner : Account.UserInfo) (name : CanvasName.T) : Task<unit
                       toplevelOplists
                       userData |]
 
-    do!
-      Sql.query "DELETE FROM canvases where id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
     return ()
+  }
+
+let nameToTestName (name : string) : string =
+  // We want to avoid tests sharing the same canvas, so they can be parallelized, so
+  // generate something that's roughly what's provided, that fits in a canvas name,
+  // and that's random. Tests are expected to use the canvasName returned, not the
+  // one they provide.
+  let name =
+    name
+    |> String.toLowercase
+    // replace invalid chars with a single hyphen
+    |> FsRegEx.replace "[^-a-z0-9]+" "-"
+    |> FsRegEx.replace "[-_]+" "-"
+    |> String.take 50
+  let suffix = randomString 5 |> String.toLowercase
+  $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
+
+let initializeCanvasForOwner
+  (owner : Account.UserInfo)
+  (name : string)
+  : Task<Canvas.Meta> =
+  task {
+    let canvasName = CanvasName.create (nameToTestName name)
+    do! clearCanvasData owner.id canvasName
+    let! id = Canvas.canvasIDForCanvasName owner.id canvasName
+    return { id = id; name = canvasName; owner = owner.id }
   }
 
 let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
   task {
-    let name = $"test-{name}"
     let! owner = testOwner.Force()
-    do! clearCanvasData owner (CanvasName.create name)
-    return! testCanvasInfo owner name
+    return! initializeCanvasForOwner owner name
+  }
+
+
+// Same as initializeTestCanvas, for tests that don't need to hit the DB
+let createCanvasForOwner
+  (owner : Account.UserInfo)
+  (name : string)
+  : Task<Canvas.Meta> =
+  task {
+    let canvasName = CanvasName.create (nameToTestName name)
+    let id = System.Guid.NewGuid()
+    return { id = id; name = canvasName; owner = owner.id }
+  }
+
+let createTestCanvas (name : string) : Task<Canvas.Meta> =
+  task {
+    let! owner = testOwner.Force()
+    return! createCanvasForOwner owner name
   }
 
 let testPos = { x = 0; y = 0 }
@@ -231,8 +250,6 @@ let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
     cols = cols
     version = 0 }
 
-
-
 let libraries : Lazy<RT.Libraries> =
   lazy
     ({ stdlib =
@@ -242,39 +259,17 @@ let libraries : Lazy<RT.Libraries> =
        packageFns = Map.empty })
 
 let executionStateFor
-  (owner : Account.UserInfo)
-  (name : string)
+  (meta : Canvas.Meta)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let ownerID : UserID = (owner : Account.UserInfo).id
-    let executionID = ExecutionID $"test-{name}"
-
-    // Performance optimization: don't touch the DB if you don't use the DB
-    let hash =
-      (sha1digest name |> System.Convert.ToBase64String |> String.toLowercase)
-        .Replace("/", "")
-        .Replace("=", "")
-        .Replace("+", "")
-
-    let canvasName = CanvasName.create $"test-{hash}"
-
-    let! canvasID =
-      if Map.count dbs > 0 then
-        task {
-          do! clearCanvasData owner canvasName
-          return! Canvas.canvasIDForCanvasName ownerID canvasName
-        }
-      else
-        task { return! testCanvasID.Force() }
-
-    let tlid = id 7
+    let executionID = ExecutionID(string meta.name)
 
     let program : RT.ProgramContext =
-      { canvasID = canvasID
-        canvasName = canvasName
-        accountID = ownerID
+      { canvasID = meta.id
+        canvasName = meta.name
+        accountID = meta.owner
         userFns = userFunctions
         dbs = dbs
         userTypes = Map.empty
@@ -292,7 +287,7 @@ let executionStateFor
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
         reportException
-        tlid
+        (id 7)
         program
 
   }

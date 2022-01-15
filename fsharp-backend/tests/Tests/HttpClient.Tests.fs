@@ -107,12 +107,6 @@ let t filename =
 
   // Load the testcases first so that redirection works
   testTask $"HttpClient files: {filename}" {
-    let! owner = testOwner.Force()
-    let testOCaml, testFSharp =
-      if String.includes "FSHARPONLY" code then (false, true)
-      else if String.includes "OCAMLONLY" code then (true, false)
-      else (true, true)
-
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
     // debuG "code" code
@@ -120,6 +114,8 @@ let t filename =
     if skip then
       skiptest $"underscore test - {name}"
     else
+      let! meta = createTestCanvas $"http-client-{name}"
+
       // Parse the code
       let shouldEqual, actualProg, expectedResult =
         code
@@ -130,13 +126,18 @@ let t filename =
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
 
-      let! state =
-        executionStateFor owner "test-httpclient-${name}" Map.empty Map.empty
+      let! state = executionStateFor meta Map.empty Map.empty
 
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
 
       let msg = $"\n\n{actualProg}\n=\n{expectedResult}\n\n"
+
+      // Which tests to run
+      let testOCaml, testFSharp =
+        if String.includes "FSHARPONLY" code then (false, true)
+        else if String.includes "OCAMLONLY" code then (true, false)
+        else (true, true)
 
       // Test OCaml
       if testOCaml then

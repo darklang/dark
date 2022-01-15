@@ -1546,7 +1546,7 @@ module UserName =
       Ok name
     else
       Error
-        $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '-' or '_'"
+        $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '_'"
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (str : string) : T =

@@ -638,8 +638,7 @@ module LibJwtJson =
   let roundtripV1 (dv : RT.Dval) : bool =
     let t =
       task {
-        let! owner = testOwner.Force()
-        let! canvasID = testCanvasID.Force()
+        let! meta = initializeTestCanvas "jwt-roundtrip-v1"
 
         let privateKey =
           "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEAvxW2wuTTK2d0ob5mu/ASJ9vYDc/SXy06QAIepF9x9eoVZZVZ\nd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqLn9/0Ag9ua4ml/ft7COprfEYA7klN\nc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGWCV7+3DF2RvDV2okk3x1ZKyBy2Rw2\nuUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTwMlHbmVv9QMY5UetA9o05uPaAXH4B\nCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p4Ur22mtma+6ree45gsdnzlj1OASW\nDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ44wIDAQABAoIBAQC+0olj0a3MT5Fa\noNDpZ9JJubLmAB8e6wSbvUIqdiJRKUXa3y2sgNtVjLTzieKfNXhCaHIxUTdH5DWq\np0G7yo+qxbRghlaHz7tTitsQSUGzphjx3YQaewIujQ6EJXbDZZZBsNLqYHfQgbW+\n1eV/qGvzyckLzd1G9OUrSv/mS+GrPQ00kpIJIX+EInFOPQ04DheppGNdlxoAUwQQ\nXUUhE1LifY4DyyK71mNlUoYyCs+0ozLzbxQwr9n8PKnLKdukL6X0g3tlKEbqQWPv\nvz2J8QZeSyhnZM9AjtYdVqTO6qs4l9dyWjdpDRIV9WylasOsIbb8XP8bv2NpH2Ua\n6a54L/RJAoGBAPVWwU1jU6e86WrnocJf3miydkhF5VV1tporiuAi391N84zCG509\nrWZWa0xsD2tq2+yNDry1qdqMGmvBXKoTJAx3cjpvK/uK7Tkd+tnislDLw8Wq/fCz\nNBdSidGIuASXdh4Bo9OK8iYMBgfpUGXRKAs4rO45mwrS/+b0YYZSiX/1AoGBAMdj\namEa5SzXw7tSqtp4Vr4pp4H52YULKI84UKvEDQOROfazQrZMHxbtaSMXG69x7SBr\nr48MuRYWd8KZ3iUkYjQLhr4n4zw5DS4AVJqgrLootVWHgt6Ey29Xa1g+B4pZOre5\nPJcrxNsG0OjIAEUsTb+yeURSphVjYe+xlXlYD0Z3AoGACdxExKF7WUCEeSF6JN/J\nhpe1nU4B259xiVy6piuAp9pcMYoTpgw2jehnQ5kMPZr739QDhZ4fh4MeBLquyL8g\nMcgTNToGoIOC6UrFLECqPgkSgz1OG4B4VX+hvmQqUTTtMGOMfBIXjWPqUiMUciMn\n4tuSR7jU/GhilJu517Y1hIkCgYEAiZ5ypEdd+s+Jx1dNmbEJngM+HJYIrq1+9ytV\nctjEarvoGACugQiVRMvkj1W5xCSMGJ568+9CKJ6lVmnBTD2KkoWKIOGDE+QE1sVf\nn8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9\n5p0DHg0CgYEAg0Wwqo3sDFSyKii25/Sffjr6tf1ab+3gFMpahRslkUvyFE/ZweKb\nT/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I\nFW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=\n-----END RSA PRIVATE KEY-----"
@@ -649,9 +648,10 @@ module LibJwtJson =
         let callWithBoth code symtable =
           task {
             let ast = FSharpToExpr.parsePTExpr code
-            let! expected = OCamlInterop.execute owner.id canvasID ast symtable [] []
+            let! expected =
+              OCamlInterop.execute meta.owner meta.id ast symtable [] []
 
-            let! state = executionStateFor owner "roundtripV0" Map.empty Map.empty
+            let! state = executionStateFor meta Map.empty Map.empty
             let! actual =
               LibExecution.Execution.executeExpr
                 state
@@ -691,8 +691,7 @@ module LibJwtJson =
   let roundtripV0 (dv : RT.Dval) : bool =
     let t =
       task {
-        let! owner = testOwner.Force()
-        let! canvasID = testCanvasID.Force()
+        let! meta = initializeTestCanvas "jwt-roundtrip-v0"
 
         let privateKey =
           "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEAvxW2wuTTK2d0ob5mu/ASJ9vYDc/SXy06QAIepF9x9eoVZZVZ\nd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqLn9/0Ag9ua4ml/ft7COprfEYA7klN\nc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGWCV7+3DF2RvDV2okk3x1ZKyBy2Rw2\nuUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTwMlHbmVv9QMY5UetA9o05uPaAXH4B\nCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p4Ur22mtma+6ree45gsdnzlj1OASW\nDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ44wIDAQABAoIBAQC+0olj0a3MT5Fa\noNDpZ9JJubLmAB8e6wSbvUIqdiJRKUXa3y2sgNtVjLTzieKfNXhCaHIxUTdH5DWq\np0G7yo+qxbRghlaHz7tTitsQSUGzphjx3YQaewIujQ6EJXbDZZZBsNLqYHfQgbW+\n1eV/qGvzyckLzd1G9OUrSv/mS+GrPQ00kpIJIX+EInFOPQ04DheppGNdlxoAUwQQ\nXUUhE1LifY4DyyK71mNlUoYyCs+0ozLzbxQwr9n8PKnLKdukL6X0g3tlKEbqQWPv\nvz2J8QZeSyhnZM9AjtYdVqTO6qs4l9dyWjdpDRIV9WylasOsIbb8XP8bv2NpH2Ua\n6a54L/RJAoGBAPVWwU1jU6e86WrnocJf3miydkhF5VV1tporiuAi391N84zCG509\nrWZWa0xsD2tq2+yNDry1qdqMGmvBXKoTJAx3cjpvK/uK7Tkd+tnislDLw8Wq/fCz\nNBdSidGIuASXdh4Bo9OK8iYMBgfpUGXRKAs4rO45mwrS/+b0YYZSiX/1AoGBAMdj\namEa5SzXw7tSqtp4Vr4pp4H52YULKI84UKvEDQOROfazQrZMHxbtaSMXG69x7SBr\nr48MuRYWd8KZ3iUkYjQLhr4n4zw5DS4AVJqgrLootVWHgt6Ey29Xa1g+B4pZOre5\nPJcrxNsG0OjIAEUsTb+yeURSphVjYe+xlXlYD0Z3AoGACdxExKF7WUCEeSF6JN/J\nhpe1nU4B259xiVy6piuAp9pcMYoTpgw2jehnQ5kMPZr739QDhZ4fh4MeBLquyL8g\nMcgTNToGoIOC6UrFLECqPgkSgz1OG4B4VX+hvmQqUTTtMGOMfBIXjWPqUiMUciMn\n4tuSR7jU/GhilJu517Y1hIkCgYEAiZ5ypEdd+s+Jx1dNmbEJngM+HJYIrq1+9ytV\nctjEarvoGACugQiVRMvkj1W5xCSMGJ568+9CKJ6lVmnBTD2KkoWKIOGDE+QE1sVf\nn8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9\n5p0DHg0CgYEAg0Wwqo3sDFSyKii25/Sffjr6tf1ab+3gFMpahRslkUvyFE/ZweKb\nT/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I\nFW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=\n-----END RSA PRIVATE KEY-----"
@@ -702,9 +701,10 @@ module LibJwtJson =
         let callWithBoth code symtable =
           task {
             let ast = FSharpToExpr.parsePTExpr code
-            let! expected = OCamlInterop.execute owner.id canvasID ast symtable [] []
+            let! expected =
+              OCamlInterop.execute meta.owner meta.id ast symtable [] []
 
-            let! state = executionStateFor owner "roundtripV0" Map.empty Map.empty
+            let! state = executionStateFor meta Map.empty Map.empty
             let! actual =
               LibExecution.Execution.executeExpr
                 state
@@ -762,8 +762,8 @@ module Passwords =
   let passwordChecks (rawPassword : string) : bool =
     let t =
       task {
-        let! owner = testOwner.Force()
-        let! state = executionStateFor owner "executePure" Map.empty Map.empty
+        let! meta = initializeTestCanvas "executePure"
+        let! state = executionStateFor meta Map.empty Map.empty
 
         let ast =
           $"Password.check_v0 (Password.hash_v0 \"{rawPassword}\") \"{rawPassword}\""
@@ -788,15 +788,14 @@ module BytesToString =
   let toStringTest (bytes : byte []) : bool =
     let t =
       task {
-        let! owner = testOwner.Force()
-        let! canvasID = testCanvasID.Force()
+        let! meta = initializeTestCanvas "bytes-to-string"
 
         let ast = $"toString_v0 myValue" |> FSharpToExpr.parsePTExpr
         let symtable = Map [ "myvalue", RT.DBytes bytes ]
 
-        let! expected = OCamlInterop.execute owner.id canvasID ast symtable [] []
+        let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] []
 
-        let! state = executionStateFor owner "toStringTest" Map.empty Map.empty
+        let! state = executionStateFor meta Map.empty Map.empty
         let! actual =
           LibExecution.Execution.executeExpr state symtable (ast.toRuntimeType ())
 
@@ -1349,20 +1348,16 @@ module ExecutePureFunctions =
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
-        let! owner = testOwner.Force()
+        let! meta = initializeTestCanvas "ExecutePureFunction"
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
 
         let ast = PT.EFnCall(gid (), RT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
-
         let st = Map.ofList args
 
-        let ownerID = System.Guid.NewGuid()
-        let canvasID = System.Guid.NewGuid()
+        let! expected = OCamlInterop.execute meta.owner meta.id ast st [] []
 
-        let! expected = OCamlInterop.execute ownerID canvasID ast st [] []
-
-        let! state = executionStateFor owner "executePure" Map.empty Map.empty
+        let! state = executionStateFor meta Map.empty Map.empty
 
         let! actual =
           LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())

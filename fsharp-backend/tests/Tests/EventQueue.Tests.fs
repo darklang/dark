@@ -28,10 +28,7 @@ let p (code : string) = FSharpToExpr.parsePTExpr code
 
 let testEventQueueRoundtrip =
   testTask "event queue roundtrip" {
-    let! owner = testOwner.Force()
-    let name = "test-event_queue"
-    do! clearCanvasData owner (CanvasName.create name)
-    let! (meta : Canvas.Meta) = testCanvasInfo owner name
+    let! meta = initializeTestCanvas "event-queue-roundtrip"
 
     let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
     let oplists = [ hop h ]
@@ -61,10 +58,7 @@ let testEventQueueRoundtrip =
 
 let testEventQueueIsFifo =
   testTask "event queue is fifo" {
-    let! owner = testOwner.Force()
-    let name = "fifo"
-    do! clearCanvasData owner (CanvasName.create name)
-    let! meta = testCanvasInfo owner name
+    let! meta = initializeTestCanvas "event-queue-is-fifo"
     let apple = testWorker "apple" (p "event")
     let banana = testWorker "banana" (p "event")
 
@@ -82,12 +76,12 @@ let testEventQueueIsFifo =
     do! enqueue "apple" 4L
     do! EQ.testingScheduleAll ()
 
-    let checkDequeue (i : int64) exname : Task<unit> =
+    let checkDequeue (i : int64) expectedName : Task<unit> =
       task {
         let! evt = EQ.dequeue ()
         let evt = Option.unwrapUnsafe evt
 
-        Expect.equal exname evt.name $"dequeue {i} is handler {exname}"
+        Expect.equal evt.name expectedName $"dequeue {i} is handler {expectedName}"
         Expect.equal evt.value (RT.DInt i) $"dequeue {i} has value {i}"
         do! EQ.finish evt
         return ()
@@ -106,10 +100,7 @@ let testEventQueueIsFifo =
 
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
-    let name = "worker-schedules"
-    let! owner = testOwner.Force()
-    do! clearCanvasData owner (CanvasName.create name)
-    let! meta = testCanvasInfo owner name
+    let! meta = initializeTestCanvas "worker-schedules"
 
     let apple = testWorker "apple" (p "1")
     let banana = testWorker "banana" (p "1")
@@ -136,8 +127,10 @@ let testGetWorkerSchedulesForCanvas =
   }
 
 let tests =
-  testList
+  testSequencedGroup
     "eventQueue"
-    [ testEventQueueRoundtrip
-      testEventQueueIsFifo
-      testGetWorkerSchedulesForCanvas ]
+    (testList
+      "eventQueue"
+      [ testEventQueueRoundtrip
+        testEventQueueIsFifo
+        testGetWorkerSchedulesForCanvas ])
