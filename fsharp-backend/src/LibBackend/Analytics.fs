@@ -13,8 +13,7 @@ open Tablecloth
 module FireAndForget = LibService.FireAndForget
 
 
-// We call this in two contexts: DarkInternal:: fns, and
-// bin/heapio_identify_users.exe.
+// We call this in two contexts: DarkInternal:: fns
 let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
   FireAndForget.fireAndForgetTask "identify user" executionID (fun () ->
     task {
@@ -54,13 +53,11 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
       // We do zero checking of fields in heapio_metadata, but this is ok
       // because it's a field we control, going to a service only we see.
       // If we wanted to harden this later, we could List.filter the
-      // heapio_metadata yojson *)
+      // heapio_metadata yojson
       let payload = Map(payload @ Map.toList heapioMetadata)
-      LibService.HeapAnalytics.heapioEvent
+      LibService.HeapAnalytics.identifyUser
         executionID
         userInfoAndCreatedAt.id
-        "identify-user"
-        LibService.HeapAnalytics.Identify
         payload
       return ()
     })

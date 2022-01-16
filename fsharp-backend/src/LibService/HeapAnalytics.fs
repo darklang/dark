@@ -12,7 +12,7 @@ open Tablecloth
 
 module FireAndForget = LibService.FireAndForget
 
-type IdentifyPayload =
+type IdentifyUserPayload =
   { identity : string
     app_id : string
     properties : Map<string, string> }
@@ -26,37 +26,7 @@ type TrackPayload =
 
 type Type =
   | Track
-  | Identify
-
-let standardProperties
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  (owner : UserID)
-  : Map<string, string> =
-  Map.empty
-  |> Map.add "canvas" (string canvasName)
-  |> Map.add "organization" (string owner)
-  |> Map.add "canvas_id" (string canvasID)
-
-
-let _payloadForEvent
-  (executionID : ExecutionID)
-  (event : string)
-  (owner : UserID)
-  (properties : Map<string, string>)
-  : TrackPayload =
-  let timestamp = System.DateTime.Now
-  let properties =
-    properties
-    |> Map.add "timestamp" (string timestamp)
-    |> Map.add "organization" (string owner)
-    |> Map.add "execution_id" (string executionID)
-
-  { identity = string owner
-    timestamp = timestamp
-    event = event
-    app_id = Config.heapioId
-    properties = properties }
+  | IdentifyUser
 
 // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
 let _socketsHandler =
@@ -70,33 +40,23 @@ let httpClient () : HttpClient = new HttpClient(_socketsHandler)
 
 let heapioEvent
   (executionID : ExecutionID)
-  (owner : UserID)
-  (event : string)
   (msgType : Type)
-  (payload : Map<string, string>)
+  (body : JsonContent)
   : unit =
   FireAndForget.fireAndForgetTask "heapio.track" executionID (fun () ->
     task {
-      Telemetry.addEvent
-        // CLEANUP rate limit this, it will double our events otherwise
-        "pushing heapio event via stroller" // CLEANUP it's not via stroller
-        ((Map.toList payload |> List.map (fun (k, v) -> (k, v)))
-         @ [ ("event", event); ("userid", string owner) ])
-
       let client = httpClient ()
 
       // path
       let endpoint =
         match msgType with
         | Track -> "api/track"
-        | Identify -> "api/add_user_properties"
+        | IdentifyUser -> "api/add_user_properties"
 
       let url = $"https://heapanalytics.com/{endpoint}"
       let requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
 
-      // body
-      let payload = _payloadForEvent executionID event owner payload
-      requestMessage.Content <- JsonContent.Create payload
+      requestMessage.Content <- body
 
       // auth
       let authenticationString =
@@ -109,9 +69,39 @@ let heapioEvent
 
 
       let! result = client.SendAsync(requestMessage)
-      assertEq "heapid status" System.Net.HttpStatusCode.OK result.StatusCode
+      if result.StatusCode <> System.Net.HttpStatusCode.OK then
+        let! body = result.Content.ReadAsStringAsync()
+        Rollbar.sendAlert
+          "heapio-apierror"
+          executionID
+          [ "body", body; "statusCode", result.StatusCode ]
       return ()
     })
+
+let trackBody
+  (executionID : ExecutionID)
+  (event : string)
+  (owner : UserID)
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (properties : Map<string, string>)
+  : TrackPayload =
+  let timestamp = System.DateTime.Now
+  let properties =
+    properties
+    |> Map.add "timestamp" (string timestamp)
+    |> Map.add "organization" (string owner)
+    |> Map.add "execution_id" (string executionID)
+    |> Map.add "canvas" (string canvasName)
+    |> Map.add "organization" (string owner)
+    |> Map.add "canvas_id" (string canvasID)
+
+  { identity = string owner
+    timestamp = timestamp
+    event = event
+    app_id = Config.heapioId
+    properties = properties }
+
 
 // CLEANUP do bulk track
 let track
@@ -120,7 +110,33 @@ let track
   (canvasName : CanvasName.T)
   (owner : System.Guid)
   (event : string)
-  (payload : Map<string, string>)
+  (metadata : Map<string, string>)
   : unit =
-  let props = standardProperties canvasName canvasID owner
-  heapioEvent executionID owner event Track (Map.mergeFavoringRight props payload)
+  let body =
+    trackBody executionID event owner canvasName canvasID metadata
+    |> JsonContent.Create
+  heapioEvent executionID Track body
+
+
+
+let identifyUserBody
+  (executionID : ExecutionID)
+  (owner : UserID)
+  (properties : Map<string, string>)
+  : IdentifyUserPayload =
+  let timestamp = System.DateTime.Now
+  let properties =
+    properties
+    |> Map.add "timestamp" (string timestamp)
+    |> Map.add "organization" (string owner)
+    |> Map.add "execution_id" (string executionID)
+
+  { identity = string owner; app_id = Config.heapioId; properties = properties }
+
+let identifyUser
+  (executionID : ExecutionID)
+  (owner : UserID)
+  (metadata : Map<string, string>)
+  : unit =
+  let body = identifyUserBody executionID owner metadata |> JsonContent.Create
+  heapioEvent executionID IdentifyUser body
