@@ -87,6 +87,9 @@ let t
               expected
               $"OCaml: {msg}"
 
+          // Clear the canvas before we run the OCaml tests
+          do! clearCanvasData meta.owner meta.name
+
         if testFSharp then
           let! fsharpActual =
             Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
