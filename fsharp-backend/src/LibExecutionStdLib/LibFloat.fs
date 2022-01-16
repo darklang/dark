@@ -10,17 +10,6 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-(* type coerces one list to another using a function *)
-// let list_coerce ~(f : dval -> 'a option) (l : dval list) :
-//     ('a list, dval list * dval) Result.t =
-//   l
-//   |> List.map (fun dv ->
-//          match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
-//   |> Result.all
-
-
-// let ( >>| ) = Result.( >>| )
-
 let fns : List<BuiltInFn> =
   [ { name = fn "Float" "ceiling" 0
       parameters = [ Param.make "a" TFloat "" ]

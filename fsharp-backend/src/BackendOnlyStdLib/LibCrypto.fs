@@ -12,11 +12,8 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
 let incorrectArgs = Errors.incorrectArgs
 
-let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Crypto" "sha256" 0

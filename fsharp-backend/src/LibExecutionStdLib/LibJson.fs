@@ -12,13 +12,10 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varErr = TVariable "err"
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "JSON" "read" 0

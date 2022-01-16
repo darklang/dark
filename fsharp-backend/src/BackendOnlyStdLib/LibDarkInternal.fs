@@ -21,8 +21,6 @@ open LibBackend
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"

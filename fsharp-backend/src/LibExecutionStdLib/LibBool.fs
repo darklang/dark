@@ -10,7 +10,6 @@ let fn = FQFnName.stdlibFnName
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bool" "not" 0

@@ -9,9 +9,6 @@ module Db = LibBackend.Db
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
-let removedFunction = LibExecution.Errors.removedFunction
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
@@ -19,12 +16,10 @@ let dbType = TDB varA
 
 // CLEANUP use varA for valParam
 let ocamlTObj = TDict(varA)
-let valParam = Param.make "val" varA ""
 let ocamlCompatibleValParam = Param.make "val" ocamlTObj ""
 let keyParam = Param.make "key" TStr ""
 let keysParam = Param.make "keys" (TList TStr) ""
 let tableParam = Param.make "table" dbType ""
-let specParam = Param.make "spec" varA ""
 let ocamlCompatibleSpecParam = Param.make "spec" ocamlTObj ""
 let queryParam = Param.makeWithArgs "filter" (TFn([ varA ], TBool)) "" [ "value" ]
 

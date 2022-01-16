@@ -19,7 +19,6 @@ let err (str : string) = Ply(Dval.errStr str)
 let incorrectArgs = Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 let returnTypeOk = TVariable "result"
 let returnTypeErr = TVariable "error" // FSTODO
 let returnType = TResult(returnTypeOk, returnTypeErr)
