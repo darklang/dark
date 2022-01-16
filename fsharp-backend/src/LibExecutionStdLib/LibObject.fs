@@ -165,6 +165,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "empty" 0) }
+
+
     { name = fn "Object" "merge" 0
       parameters =
         [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
@@ -178,6 +180,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "merge" 0) }
+
+
     { name = fn "Object" "toJSON" 0
       parameters = [ Param.make "obj" (TDict varA) "" ]
       returnType = TStr
@@ -190,6 +194,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Object" "toJSON" 1) }
+
+
     { name = fn "Object" "toJSON" 1
       parameters = [ Param.make "obj" (TDict varA) "" ]
       returnType = TStr

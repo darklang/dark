@@ -31,6 +31,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated =
         DeprecatedBecause("used an old Character type that no longer exists") }
+
+
     { name = fn "Char" "toASCIIChar" 0
       parameters = [ Param.make "i" TInt "" ]
       returnType = TChar
@@ -43,6 +45,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated =
         DeprecatedBecause("used an old Character type that no longer exists") }
+
+
     { name = fn "Char" "toLowercase" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
@@ -55,6 +59,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated =
         DeprecatedBecause("used an old Character type that no longer exists") }
+
+
     { name = fn "Char" "toUppercase" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar

@@ -32,6 +32,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "size" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TInt
@@ -44,6 +46,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "keys" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList TStr)
@@ -61,6 +65,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "values" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList varA)
@@ -72,6 +78,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "toList" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList varA)
@@ -88,6 +96,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
       parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TDict varA
@@ -115,6 +125,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "fromList" 0
       parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TOption(TDict varA)
@@ -148,6 +160,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "get" 0
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = varA
@@ -163,6 +177,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
+
+
     { name = fn "Dict" "get" 1
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TOption varA
@@ -174,6 +190,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 2) }
+
+
     { name = fn "Dict" "get" 2
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TOption varA
@@ -186,6 +204,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "member" 0
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TBool
@@ -198,6 +218,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "foreach" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -221,6 +243,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "map" 0) }
+
+
     { name = fn "Dict" "map" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -253,6 +277,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "filter" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -296,6 +322,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "filter" 1) }
+
+
     { name = fn "Dict" "filter" 1
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -345,6 +373,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "filterMap" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -406,6 +436,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "empty" 0
       parameters = []
       returnType = TDict varA
@@ -417,6 +449,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "isEmpty" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TBool
@@ -428,6 +462,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "merge" 0
       parameters =
         [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
@@ -441,6 +477,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "toJSON" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TStr
@@ -453,6 +491,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "set" 0
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
@@ -467,6 +507,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "remove" 0
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TDict varA

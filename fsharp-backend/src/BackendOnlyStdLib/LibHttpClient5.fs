@@ -192,6 +192,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "put" 5
       parameters = parameters
       returnType = returnType
@@ -201,6 +203,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "get" 5
       parameters = parametersNoBody
       returnType = returnType
@@ -210,6 +214,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "delete" 5
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE the spec
       // says it may have a body
@@ -221,6 +227,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "options" 5
       parameters = parametersNoBody
       returnType = returnType
@@ -230,6 +238,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "head" 5
       parameters = parametersNoBody
       returnType = returnType
@@ -239,6 +249,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "patch" 5
       parameters = parameters
       returnType = returnType

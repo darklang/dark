@@ -30,6 +30,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "parse" 1) }
+
+
     { name = fn "Date" "parse" 1
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TDate, TStr)
@@ -46,6 +48,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "parse" 2) }
+
+
     { name = fn "Date" "parse" 2
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TDate, TStr)
@@ -62,6 +66,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "toString" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TStr
@@ -74,6 +80,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "toStringISO8601BasicDateTime" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TStr
@@ -86,6 +94,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "toStringISO8601BasicDate" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TStr
@@ -97,6 +107,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "now" 0
       parameters = []
       returnType = TDate
@@ -108,6 +120,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "today" 0
       parameters = []
       returnType = TDate
@@ -121,6 +135,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "add" 0
       parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
       returnType = TDate
@@ -132,6 +148,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "sub" 0
       parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
       returnType = TDate
@@ -143,6 +161,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable // As the OCaml one wasn't
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "subtract" 0) }
+
+
     { name = fn "Date" "subtract" 0
       parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
       returnType = TDate
@@ -154,6 +174,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "greaterThan" 0
       parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
       returnType = TBool
@@ -165,6 +187,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp ">"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "lessThan" 0
       parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
       returnType = TBool
@@ -176,6 +200,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp("<")
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "greaterThanOrEqualTo" 0
       parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
       returnType = TBool
@@ -187,6 +213,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp(">=")
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "lessThanOrEqualTo" 0
       parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
       returnType = TBool
@@ -198,6 +226,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp("<=")
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "toSeconds" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -215,6 +245,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "fromSeconds" 0
 
       parameters = [ Param.make "seconds" TInt "" ]
@@ -235,6 +267,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "toHumanReadable" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TStr
@@ -290,6 +324,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = DeprecatedBecause "This function doesn't work" }
+
+
     { name = fn "Date" "year" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -301,6 +337,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "month" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -313,6 +351,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "day" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -324,6 +364,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "weekday" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -339,6 +381,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "hour" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -355,6 +399,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "hour" 1) }
+
+
     { name = fn "Date" "hour" 1
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -369,6 +415,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "minute" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -388,6 +436,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "second" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -402,6 +452,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Date" "atStartOfDay" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TDate

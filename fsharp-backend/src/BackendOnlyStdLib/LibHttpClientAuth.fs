@@ -59,6 +59,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       sqlSpec = NotYetImplementedTODO
       deprecated = ReplacedBy(fn "HttpClient" "basicAuth" 1) }
+
+
     { name = fn "HttpClient" "basicAuth" 1
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
       returnType = TDict TStr

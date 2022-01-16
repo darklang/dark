@@ -27,6 +27,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "delete" 0
       parameters = [ Param.make "value" obj ""; Param.make "table" dbType "" ]
       returnType = TNull
@@ -38,6 +40,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "deleteAll" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = TNull
@@ -49,6 +53,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "update" 0
       parameters = [ Param.make "value" obj ""; Param.make "table" dbType "" ]
       returnType = TNull
@@ -60,6 +66,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "fetchBy" 0
       parameters =
         [ Param.make "value" varA ""
@@ -74,6 +82,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "fetchOneBy" 0
       parameters =
         [ Param.make "value" varA ""
@@ -88,6 +98,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "fetchByMany" 0
       parameters = [ Param.make "spec" obj ""; Param.make "table" dbType "" ]
       returnType = TList varA
@@ -100,6 +112,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "fetchOneByMany" 0
       parameters = [ Param.make "spec" obj ""; Param.make "table" dbType "" ]
       returnType = varA
@@ -112,6 +126,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "fetchAll" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = TList varA
@@ -123,6 +139,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "keys" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = TList varA
@@ -134,6 +152,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
+
+
     { name = fn "DB" "schema" 0
       parameters = [ Param.make "table" dbType "" ]
       returnType = obj

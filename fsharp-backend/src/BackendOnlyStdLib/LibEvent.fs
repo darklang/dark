@@ -44,6 +44,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "" "emit" 0) }
+
+
     { name = fn "" "emit" 1
       parameters = [ Param.make "event" varA ""; Param.make "Name" TStr "" ]
       returnType = varA

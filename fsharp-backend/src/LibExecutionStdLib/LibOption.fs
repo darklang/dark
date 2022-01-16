@@ -46,6 +46,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Option" "map" 1) }
+
+
     { name = fn "Option" "map" 1
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
@@ -67,6 +69,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Option" "map2" 0
       parameters =
         [ Param.make "option1" (TOption varA) ""
@@ -92,6 +96,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Option" "andThen" 0
       parameters =
         [ optionA
@@ -119,6 +125,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Option" "withDefault" 0
       parameters = [ optionA; Param.make "default" varA "" ]
       returnType = varA

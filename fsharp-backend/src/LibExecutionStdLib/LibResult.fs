@@ -47,6 +47,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Result" "map" 1) }
+
+
     { name = fn "Result" "map" 1
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -70,6 +72,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Result" "mapError" 0
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -93,6 +97,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Result" "mapError" 1) }
+
+
     { name = fn "Result" "mapError" 1
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -116,6 +122,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Result" "withDefault" 0
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -133,6 +141,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Result" "fromOption" 0
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
@@ -149,6 +159,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Result" "fromOption" 1) }
+
+
     { name = fn "Result" "fromOption" 1
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
@@ -165,6 +177,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Result" "toOption" 0
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
@@ -179,6 +193,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Result" "toOption" 1) }
+
+
     { name = fn "Result" "toOption" 1
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
@@ -193,6 +209,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Result" "map2" 0
       parameters =
         [ Param.make "result1" (TResult(varA, varErr)) ""
@@ -218,6 +236,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Result" "andThen" 0
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -247,6 +267,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Result" "andThen" 1) }
+
+
     { name = fn "Result" "andThen" 1
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""

@@ -33,6 +33,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "roundUp" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -44,6 +46,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "floor" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -56,6 +60,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "roundDown" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -68,6 +74,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "round" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -79,6 +87,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "truncate" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -91,6 +101,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "absoluteValue" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
@@ -103,6 +115,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "negate" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
@@ -114,6 +128,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "sqrt" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
@@ -125,6 +141,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "power" 0
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
       returnType = TFloat
@@ -136,6 +154,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "^"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "divide" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -147,6 +167,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "/"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "add" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -158,6 +180,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "multiply" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -169,6 +193,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "*"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "subtract" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -180,6 +206,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "greaterThan" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -191,6 +219,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp ">"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "greaterThanOrEqualTo" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -202,6 +232,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp ">="
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "lessThan" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -213,6 +245,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "lessThanOrEqualTo" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -224,6 +258,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<="
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "sum" 0
       parameters = [ Param.make "a" (TList TFloat) "" ]
       returnType = TFloat
@@ -245,6 +281,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "min" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -256,6 +294,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "max" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -267,6 +307,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "clamp" 0
       parameters =
         [ Param.make "value" TFloat ""
@@ -289,6 +331,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Float" "roundTowardsZero" 0
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt

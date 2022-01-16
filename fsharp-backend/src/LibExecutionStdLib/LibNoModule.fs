@@ -30,6 +30,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "" "toRepr" 0
       parameters = [ Param.make "v" varA "" ]
       returnType = TStr
@@ -42,6 +44,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = DeprecatedBecause "Not intended for external use" }
+
+
     { name = fn "" "equals" 0
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
@@ -55,6 +59,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "="
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "" "notEquals" 0
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = TBool
@@ -66,6 +72,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "" "assoc" 0
       parameters =
         [ Param.make "obj" (TDict varA) ""
@@ -80,6 +88,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "set" 0) }
+
+
     { name = fn "" "dissoc" 0
       parameters = [ Param.make "obj" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TDict varA
@@ -91,6 +101,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "remove" 0) }
+
+
     { name = fn "" "toForm" 0
       parameters = [ Param.make "obj" (TDict varA) ""; Param.make "submit" TStr "" ]
       returnType = TStr
@@ -121,6 +133,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = DeprecatedBecause "It is just a demo function" }
+
+
     { name = fn "Error" "toString" 0 // CLEANUP can’t actually call this
       parameters = [ Param.make "err" TError "" ]
       returnType = TStr
@@ -133,6 +147,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated =
         DeprecatedBecause "It is no longer allowed to use errors as arguments" }
+
+
     { name = fn "AWS" "urlencode" 0
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
@@ -189,6 +205,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Twitter" "urlencode" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr

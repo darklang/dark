@@ -37,6 +37,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "JSON" "read" 1) }
+
+
     { name = fn "JSON" "read" 1
       parameters = [ Param.make "json" TStr "" ]
       returnType = varA
@@ -52,6 +54,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "JSON" "parse" 0) }
+
+
     { name = fn "JSON" "parse" 0
       parameters = [ Param.make "json" TStr "" ]
       returnType = varA
@@ -67,6 +71,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "JSON" "parse" 1) }
+
+
     { name = fn "JSON" "parse" 1
       parameters = [ Param.make "json" TStr "" ]
       returnType = TResult(varA, varErr)

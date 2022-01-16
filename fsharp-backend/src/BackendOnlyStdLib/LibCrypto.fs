@@ -30,6 +30,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "sha384" 0
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -41,6 +43,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "md5" 0
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -53,6 +57,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "sha256hmac" 0
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -67,6 +73,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "sha1hmac" 0
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
