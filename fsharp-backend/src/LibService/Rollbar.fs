@@ -100,10 +100,10 @@ let sendAlert
   Rollbar.RollbarLocator.RollbarInstance.Log(level, message, custom)
   |> ignore<Rollbar.ILogger>
 
-let tagsFromDarkException (e : exn) =
+let exceptionMetadata (e : exn) =
   try
     match e with
-    | :? DarkException as e -> e.tags ()
+    | :? DarkException as e -> Exception.toMetadata e
     | _ -> []
   with
   | _ -> []
@@ -126,7 +126,7 @@ let sendException
     print $"rollbar: {message}"
     print e.Message
     print e.StackTrace
-    let metadata = metadata @ tagsFromDarkException e @ pageableMetadata e
+    let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
     printMetadata metadata
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
@@ -152,7 +152,7 @@ let lastDitchBlocking
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
-    let metadata = metadata @ tagsFromDarkException e @ pageableMetadata e
+    let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar
@@ -219,7 +219,7 @@ module AspNet =
                 ctxMetadataFn ctx
               with
               | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
-            let metadata = metadata @ tagsFromDarkException e @ pageableMetadata e
+            let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
             let custom = createState "http" executionID metadata
 
             let package : Rollbar.IRollbarPackage =
