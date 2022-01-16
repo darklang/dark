@@ -60,11 +60,8 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 
   string uri
 
-let addPageableMetadata
-  (e : exn)
-  (metadata : List<string * obj>)
-  : List<string * obj> =
-  if e :? PageableException then ("is_pageable", true) :: metadata else metadata
+let pageableMetadata (e : exn) : List<string * obj> =
+  if e :? PageableException then [ "is_pageable", true ] else []
 
 
 
@@ -85,6 +82,7 @@ let createState
     metadata
   custom
 
+
 let sendAlert
   (message : string)
   (executionID : ExecutionID)
@@ -102,6 +100,21 @@ let sendAlert
   Rollbar.RollbarLocator.RollbarInstance.Log(level, message, custom)
   |> ignore<Rollbar.ILogger>
 
+let tagsFromDarkException (e : exn) =
+  try
+    match e with
+    | :? DarkException as e -> e.tags ()
+    | _ -> []
+  with
+  | _ -> []
+
+let printMetadata (metadata : List<string * obj>) =
+  try
+    print (string metadata)
+  with
+  | _ -> ()
+
+
 
 let sendException
   (message : string)
@@ -111,17 +124,10 @@ let sendException
   : unit =
   try
     print $"rollbar: {message}"
-    do
-      (match e with
-       | :? DarkException as e -> print (string (e.tags ()))
-       | _ -> ())
     print e.Message
     print e.StackTrace
-    try
-      print (string metadata)
-    with
-    | _ -> ()
-    let metadata = addPageableMetadata e metadata
+    let metadata = metadata @ tagsFromDarkException e @ pageableMetadata e
+    printMetadata metadata
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
@@ -132,6 +138,7 @@ let sendException
     print extra.Message
     print extra.StackTrace
     Telemetry.addException "Exception when calling rollbar" extra []
+
 
 // Will block for 5 seconds to make sure this exception gets sent. Use for startup
 // and other places where the process is intended to end after this call.
@@ -145,11 +152,7 @@ let lastDitchBlocking
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
-    try
-      print (string metadata)
-    with
-    | _ -> ()
-    let metadata = addPageableMetadata e metadata
+    let metadata = metadata @ tagsFromDarkException e @ pageableMetadata e
     Telemetry.addException message e metadata
     let custom = createState message executionID metadata
     Rollbar
@@ -216,7 +219,7 @@ module AspNet =
                 ctxMetadataFn ctx
               with
               | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
-            let metadata = addPageableMetadata e metadata
+            let metadata = metadata @ tagsFromDarkException e @ pageableMetadata e
             let custom = createState "http" executionID metadata
 
             let package : Rollbar.IRollbarPackage =
