@@ -107,8 +107,9 @@ let load_v3 ~canvas_id ~trace_id tlid : function_result list =
                "Bad DB format for stored_functions_results.load")
 
 let load ~canvas_id ~trace_id tlid : function_result list =
-  let v3_results = load_v3 ~canvas_id ~trace_id tlid in
-  if List.length v3_results >= 10 then v3_results else
+  (* DISABLED FOR NOW UNTIL THE MIGRATION IS DONE *)
+  (* let v3_results = load_v3 ~canvas_id ~trace_id tlid in *)
+  (* if List.length v3_results >= 10 then v3_results else *)
   load_v2 ~canvas_id ~trace_id tlid
 
 
