@@ -708,7 +708,7 @@ module Expect =
 
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
     dvalEqualityBaseFn [] actual expected (fun path a e ->
-      Expect.equal a e $"{msg}: {pathToString path}")
+      Expect.equal a e $"{msg}: {pathToString path} (overall: {actual})")
 
   let rec equalPattern
     (actual : Pattern)
