@@ -15,8 +15,6 @@ let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
@@ -37,6 +35,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "jsonContentType" 0
       parameters = []
       returnType = TDict TStr
@@ -53,6 +53,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "plainTextContentType" 0
       parameters = []
       returnType = TDict TStr
@@ -65,6 +67,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "htmlContentType" 0
       parameters = []
       returnType = TDict TStr
@@ -77,6 +81,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "bearerToken" 0
       parameters = [ Param.make "token" TStr "" ]
       returnType = TDict TStr
@@ -90,6 +96,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "HttpClient" "bearerToken" 1) }
+
+
     { name = fn "HttpClient" "bearerToken" 1
       parameters = [ Param.make "token" TStr "" ]
       returnType = TDict TStr

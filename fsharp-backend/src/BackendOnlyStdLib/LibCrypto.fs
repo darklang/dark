@@ -12,11 +12,8 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
 let incorrectArgs = Errors.incorrectArgs
 
-let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Crypto" "sha256" 0
@@ -30,6 +27,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "sha384" 0
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -41,6 +40,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "md5" 0
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -53,6 +54,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "sha256hmac" 0
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -67,6 +70,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
+
+
     { name = fn "Crypto" "sha1hmac" 0
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes

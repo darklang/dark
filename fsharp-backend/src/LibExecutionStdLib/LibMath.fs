@@ -11,12 +11,9 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Math" "pi" 0
@@ -31,6 +28,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "tau" 0
       parameters = []
       returnType = TFloat
@@ -43,6 +42,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "degrees" 0
       parameters = [ Param.make "angleInDegrees" TFloat "" ]
       returnType = TFloat
@@ -56,6 +57,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "turns" 0
       parameters = [ Param.make "angleInTurns" TFloat "" ]
       returnType = TFloat
@@ -69,6 +72,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "radians" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -82,6 +87,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "cos" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -95,6 +102,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "sin" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -108,6 +117,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "tan" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -121,6 +132,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "acos" 0
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
@@ -142,6 +155,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "asin" 0
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
@@ -163,6 +178,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "atan" 0
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TFloat
@@ -176,6 +193,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "atan2" 0
       parameters = [ Param.make "y" TFloat ""; Param.make "x" TFloat "" ]
       returnType = TFloat
@@ -189,6 +208,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "cosh" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -200,6 +221,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "sinh" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -211,6 +234,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Math" "tanh" 0
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat

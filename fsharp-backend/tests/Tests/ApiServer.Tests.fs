@@ -172,6 +172,80 @@ let testUiReturnsTheSame =
 
     let port = portFor OCaml
 
+    // There have been some tiny changes, let's work around them. The values here are the NEW values
+    let ocfns =
+      List.map
+        (fun (fn : Functions.FunctionMetadata) ->
+          match string fn.name with
+          | "assoc" ->
+            { fn with
+                description = "Returns a copy of `dict` with the `key` set to `val`."
+                parameters =
+                  [ { name = "dict"
+                      tipe = "Dict"
+                      block_args = []
+                      optional = false
+                      description = "" }
+                    { name = "key"
+                      tipe = "Str"
+                      block_args = []
+                      optional = false
+                      description = "" }
+                    { name = "val"
+                      tipe = "Any"
+                      block_args = []
+                      optional = false
+                      description = "" } ] }
+          | "dissoc" ->
+            { fn with
+                parameters =
+                  [ { name = "dict"
+                      tipe = "Dict"
+                      block_args = []
+                      optional = false
+                      description = "" }
+                    { name = "key"
+                      tipe = "Str"
+                      block_args = []
+                      optional = false
+                      description = "" } ]
+                description =
+                  "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged." }
+          | "Object::empty" ->
+            { fn with description = "Returns an empty dictionary." }
+          | "Object::merge" ->
+            { fn with
+                description =
+                  "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`." }
+          | "Object::toJSON_v1" ->
+            { fn with
+                description = "Returns `dict` as a JSON string."
+                parameters =
+                  [ { name = "dict"
+                      tipe = "Dict"
+                      block_args = []
+                      optional = false
+                      description = "" } ] }
+          | "DB::queryOneWithKey_v2" ->
+            { fn with
+                description =
+                  fn.description + ". Previously called DB::queryOnewithKey_v2" }
+          | "DB::queryWithKey_v2" ->
+            { fn with
+                description =
+                  fn.description + ". Previous called DB::queryWithKey_v2" }
+          | "DB::query_v3" ->
+            { fn with
+                description = fn.description + ". Previously called DB::query_v3" }
+          | "DB::query_v2" ->
+            { fn with
+                description = fn.description + ". Previously called DB::query_v3" }
+          | "DB::queryOne_v2" ->
+            { fn with
+                description = fn.description + ". Previously called DB::queryOne_v2" }
+          | _ -> fn)
+        ocfns
+
     let oc =
       oc
         // a couple of specific ones
@@ -191,10 +265,11 @@ let testUiReturnsTheSame =
 
     Expect.equal fc oc ""
 
-    let allBuiltins = (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns)
+    let fns = LibRealExecution.RealExecution.stdlibFns |> Lazy.force
 
     let builtins =
-      allBuiltins
+      fns
+      |> Map.values
       |> List.filter (fun fn ->
         Functions.fsharpOnlyFns |> Lazy.force |> Set.contains (string fn.name) |> not)
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
@@ -221,7 +296,7 @@ let testUiReturnsTheSame =
     // all.
     let filteredOCamlFns = filtered ocfns
 
-    print $"Implemented fns  : {List.length allBuiltins}"
+    print $"Implemented fns  : {Map.count fns}"
     print $"Excluding F#-only: {Set.length builtins}"
     print $"Fns in OCaml api : {List.length ocfns}"
     print $"Fns in F# api    : {List.length fcfns}"

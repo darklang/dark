@@ -12,12 +12,9 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "" "emit" 0
@@ -44,6 +41,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "" "emit" 0) }
+
+
     { name = fn "" "emit" 1
       parameters = [ Param.make "event" varA ""; Param.make "Name" TStr "" ]
       returnType = varA

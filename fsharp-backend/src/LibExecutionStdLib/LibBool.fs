@@ -10,7 +10,6 @@ let fn = FQFnName.stdlibFnName
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bool" "not" 0
@@ -25,6 +24,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunction "not"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Bool" "and" 0
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
@@ -36,6 +37,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "AND"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Bool" "or" 0
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
@@ -47,6 +50,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "OR"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Bool" "xor" 0
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
@@ -59,6 +64,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Bool" "isNull" 0
       parameters = [ Param.make "check" varA "" ]
       returnType = TBool
@@ -75,6 +82,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Bool" "isError" 0
       parameters = [ Param.make "check" varA "" ]
       returnType = TBool

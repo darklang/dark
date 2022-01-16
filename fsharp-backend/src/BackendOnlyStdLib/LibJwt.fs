@@ -12,8 +12,6 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
@@ -384,6 +382,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "signAndEncode" 1) }
+
+
     { name = fn "JWT" "signAndEncodeWithHeaders" 0
       parameters =
         [ Param.make "pemPrivKey" TStr ""
@@ -400,6 +400,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "signAndEncodeWithHeaders" 1) }
+
+
     { name = fn "JWT" "signAndEncode" 1
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TResult(varB, varErr)
@@ -416,6 +418,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "JWT" "signAndEncodeWithHeaders" 1
       parameters =
         [ Param.make "pemPrivKey" TStr ""
@@ -435,6 +439,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "JWT" "verifyAndExtract" 0
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TOption varA
@@ -468,6 +474,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "verifyAndExtract" 1) }
+
+
     { name = fn "JWT" "verifyAndExtract" 1
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TResult(varA, varErr)

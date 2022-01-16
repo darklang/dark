@@ -5,28 +5,49 @@ open LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let fn = FQFnName.stdlibFnName
 
-let prefixFns : List<BuiltInFn> =
-  List.concat [ LibBool.fns
-                LibBytes.fns
-                LibChar.fns
-                LibDate.fns
-                LibDict.fns
-                LibFloat.fns
-                LibHttp.fns
-                LibHttpClient.fns
-                LibJson.fns
-                LibMath.fns
-                LibObject.fns
-                LibUuid.fns
-                LibInt.fns
-                LibList.fns
-                // LibMiddleware.fns
-                LibNoModule.fns
-                LibOption.fns
-                LibResult.fns
-                LibString.fns ]
+let renames =
+  [ fn "Http" "respond" 0, fn "Http" "response" 0
+    fn "Http" "respondWithHtml" 0, fn "Http" "responseWithHtml" 0
+    fn "Http" "respondWithText" 0, fn "Http" "responseWithText" 0
+    fn "Http" "respondWithJson" 0, fn "Http" "responseWithJson" 0
+    fn "Http" "respondWithHeaders" 0, fn "Http" "responseWithHeaders" 0
+    fn "" "assoc" 0, fn "Dict" "set" 0
+    fn "" "dissoc" 0, fn "Dict" "remove" 0
+    fn "JSON" "read" 1, fn "JSON" "parse" 0
+    fn "Object" "empty" 0, fn "Dict" "empty" 0
+    fn "Object" "merge" 0, fn "Dict" "merge" 0
+    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0 ]
+
+
+let prefixFns : Lazy<List<BuiltInFn>> =
+  lazy
+    ([ LibBool.fns
+       LibBytes.fns
+       LibChar.fns
+       LibDate.fns
+       LibDict.fns
+       LibFloat.fns
+       LibHttp.fns
+       LibHttpClient.fns
+       LibJson.fns
+       LibMath.fns
+       LibObject.fns
+       LibUuid.fns
+       LibInt.fns
+       LibList.fns
+       // LibMiddleware.fns
+       LibNoModule.fns
+       LibOption.fns
+       LibResult.fns
+       LibString.fns ]
+     |> List.concat
+     |> renameFunctions renames)
+
+// -------------------------
+// Infix fns
+// -------------------------
 
 // Map of prefix names to their infix versions
 let infixFnMapping =
@@ -60,15 +81,21 @@ let infixFnNames =
 // Is this the name of an infix function?
 let isInfixName (name : FQFnName.StdlibFnName) = infixFnNames.Contains name
 
-let infixFns : List<BuiltInFn> =
-  let fns =
-    List.choose
-      (fun (builtin : BuiltInFn) ->
+let infixFns : Lazy<List<BuiltInFn>> =
+  lazy
+    (let fns =
+      prefixFns
+      |> Lazy.force
+      |> List.choose (fun (builtin : BuiltInFn) ->
         let opName = infixFnMapping.TryFind builtin.name
         Option.map (fun newName -> { builtin with name = newName }) opName)
-      prefixFns
 
-  assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
-  fns
+     assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
+     fns)
 
-let fns = infixFns @ prefixFns
+
+
+// -------------------------
+// All fns
+// -------------------------
+let fns = lazy (Lazy.force infixFns @ Lazy.force prefixFns)

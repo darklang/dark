@@ -15,8 +15,6 @@ let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Int" "mod" 0
@@ -72,6 +70,8 @@ let fns : List<BuiltInFn> =
     ; sqlSpec = NotYetImplementedTODO
     ; previewable = Pure
     ; deprecated = NotDeprecated } *)
+
+
     { name = fn "Int" "remainder" 0
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
       returnType = TResult(TInt, TStr)
@@ -96,6 +96,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "add" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -107,6 +109,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "subtract" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -118,6 +122,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "multiply" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -129,6 +135,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "*"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "power" 0
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
       returnType = TInt
@@ -157,6 +165,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "^"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "divide" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -169,6 +179,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "/"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "absoluteValue" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
@@ -181,6 +193,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "negate" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
@@ -192,6 +206,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "greaterThan" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -203,6 +219,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp ">"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "greaterThanOrEqualTo" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -214,6 +232,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp ">="
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "lessThan" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -225,6 +245,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<"
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "lessThanOrEqualTo" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -236,6 +258,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<="
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "random" 0
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
@@ -248,6 +272,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "Int" "random" 1) }
+
+
     { name = fn "Int" "random" 1
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
@@ -262,6 +288,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "sqrt" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
@@ -273,6 +301,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "toFloat" 0
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
@@ -284,6 +314,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "sum" 0
       parameters = [ Param.make "a" (TList TInt) "" ]
       returnType = TInt
@@ -305,6 +337,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "max" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -316,6 +350,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "min" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -327,6 +363,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Int" "clamp" 0
       parameters =
         [ Param.make "value" TInt ""

@@ -12,12 +12,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
-
-let varA = TVariable "a"
-let varB = TVariable "b"
 
 // This is deprecated in favor of [encodeBasicAuth u p] due to using non-unicode append
 let encodeBasicAuthBroken (u : string) (p : string) : string =
@@ -59,6 +54,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       sqlSpec = NotYetImplementedTODO
       deprecated = ReplacedBy(fn "HttpClient" "basicAuth" 1) }
+
+
     { name = fn "HttpClient" "basicAuth" 1
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
       returnType = TDict TStr

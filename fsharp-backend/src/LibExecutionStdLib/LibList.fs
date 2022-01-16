@@ -138,6 +138,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "head" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = varA
@@ -150,6 +152,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "head" 1) }
+
+
     { name = fn "List" "head" 1
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -161,6 +165,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "head" 2) }
+
+
     { name = fn "List" "head" 2
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -173,6 +179,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "tail" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption(TList varA)
@@ -189,6 +197,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "empty" 0
       parameters = []
       returnType = TList varA
@@ -200,6 +210,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "push" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
@@ -212,6 +224,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "pushBack" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
@@ -223,6 +237,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "last" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = varA
@@ -235,6 +251,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "last" 1) }
+
+
     { name = fn "List" "last" 1
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -247,6 +265,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "last" 2) }
+
+
     { name = fn "List" "last" 2
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -259,6 +279,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "reverse" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
@@ -270,6 +292,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "findFirst" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -297,6 +321,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "findFirst" 1) }
+
+
     { name = fn "List" "findFirst" 1
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -323,6 +349,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "findFirst" 2) }
+
+
     { name = fn "List" "findFirst" 2
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -349,6 +377,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "contains" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TBool
@@ -361,6 +391,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       // Deprecated in favor of List::member for consistency with Elm's naming
       deprecated = ReplacedBy(fn "List" "member" 0) }
+
+
     { name = fn "List" "member" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TBool
@@ -372,6 +404,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "repeat" 0
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
       returnType = TList varA
@@ -389,6 +423,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "length" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TInt
@@ -400,6 +436,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "range" 0
       parameters =
         [ Param.make "lowest" TInt "First, smallest number in the list"
@@ -415,6 +453,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "fold" 0
       parameters =
         [ Param.make "list" (TList varA) "" // CLEANUP add description "The list of items to process one at a time"
@@ -450,6 +490,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "flatten" 0
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
       returnType = TList varA
@@ -468,6 +510,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "interpose" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "sep" varA "" ]
       returnType = TList varA
@@ -489,6 +533,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "interleave" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
@@ -511,6 +557,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "uniqueBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -541,6 +589,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "isEmpty" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TBool
@@ -552,6 +602,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "sort" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
@@ -565,6 +617,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "sortBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -594,6 +648,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "sortByComparator" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -633,6 +689,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "append" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varA) "" ]
@@ -647,6 +705,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "filter" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -730,6 +790,8 @@ let fns : List<BuiltInFn> =
     //   sqlSpec = NotYetImplementedTODO
     //   previewable = Pure
     //   deprecated = NotDeprecated }
+
+
     { name = fn "List" "filter" 1
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -774,6 +836,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "filter" 2) }
+
+
     { name = fn "List" "filter" 2
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -819,6 +883,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "filterMap" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -869,6 +935,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "drop" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
@@ -883,6 +951,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "dropWhile" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -931,6 +1001,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "take" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
@@ -945,6 +1017,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "takeWhile" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -995,6 +1069,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "foreach" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1020,6 +1096,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "map" 0) }
+
+
     { name = fn "List" "map" 0
       parameters =
         [ Param.make "list" (TList varA) "" // CLEANUP "The list to be operated on"
@@ -1044,6 +1122,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "indexedMap" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1076,6 +1156,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "map2shortest" 0
       parameters =
         [ Param.make "as" (TList varA) ""
@@ -1109,6 +1191,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "map2" 0
       parameters =
         [ Param.make "as" (TList varA) ""
@@ -1147,6 +1231,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "zipShortest" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
@@ -1174,6 +1260,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "zip" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
@@ -1199,6 +1287,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "unzip" 0
       parameters = [ Param.make "pairs" (TList(TList varA)) "" ]
       returnType = TList(TList varA)
@@ -1237,6 +1327,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       // CLEANUP deprecate and replace with tuples
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "getAt" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA
@@ -1253,6 +1345,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "getAt" 1) }
+
+
     { name = fn "List" "getAt" 1
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA
@@ -1269,6 +1363,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "List" "randomElement" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA

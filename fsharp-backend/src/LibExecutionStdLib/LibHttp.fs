@@ -14,27 +14,12 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Http" "respond" 0
-      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
-      returnType = THttpResponse varA
-      description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
-      fn =
-        (function
-        | _, [ dv; DInt code ] -> Ply(DHttpResponse(Response(code, [], dv)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "response" 0) }
-    { name = fn "Http" "response" 0
+  [ { name = fn "Http" "response" 0
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -46,32 +31,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // TODO(ian): merge Http::respond with Http::respond_with_headers
-    //  -- need to figure out how to deprecate functions w/o breaking
-    //  user code
-    { name = fn "Http" "respondWithHeaders" 0
-      parameters =
-        [ Param.make "response" varA ""
-          Param.make "headers" (TDict varA) ""
-          Param.make "code" TInt "" ]
-      returnType = THttpResponse varA
-      description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
-      fn =
-        (function
-        | _, [ dv; DObj o; DInt code ] ->
-          let pairs =
-            Map.toList o
-            |> List.map (fun (k, v) ->
-              match k, v with
-              | k, DStr v -> k, v
-              | k, v -> Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
-          Ply(DHttpResponse(Response(code, pairs, dv)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "responseWithHeaders" 0) }
+
     { name = fn "Http" "responseWithHeaders" 0
       parameters =
         [ Param.make "response" varA ""
@@ -95,6 +56,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Http" "success" 0
       parameters = [ Param.make "response" varA "" ]
       returnType = THttpResponse varA
@@ -107,19 +70,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "respondWithHtml" 0
-      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
-      returnType = THttpResponse varA
-      description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
-      fn =
-        (function
-        | _, [ dv; DInt code ] ->
-          Ply(DHttpResponse(Response(code, [ ("Content-Type", "text/html") ], dv)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "responseWithHtml" 0) }
+
+
     { name = fn "Http" "responseWithHtml" 0
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
@@ -133,19 +85,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "respondWithText" 0
-      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
-      returnType = THttpResponse varA
-      description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
-      fn =
-        (function
-        | _, [ dv; DInt code ] ->
-          Ply(DHttpResponse(Response(code, [ ("Content-Type", "text/plain") ], dv)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "responseWithText" 0) }
+
+
     { name = fn "Http" "responseWithText" 0
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
@@ -159,23 +100,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "respondWithJson" 0
-      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
-      returnType = THttpResponse varA
-      description =
-        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
-      fn =
-        (function
-        | _, [ dv; DInt code ] ->
-          Ply(
-            DHttpResponse(
-              Response(code, [ ("Content-Type", "application/json") ], dv)
-            )
-          )
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "responseWithJson" 0) }
+
+
     { name = fn "Http" "responseWithJson" 0
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
@@ -193,6 +119,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Http" "redirectTo" 0
       parameters = [ Param.make "url" TStr "" ]
       returnType = THttpResponse varA
@@ -205,6 +133,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Http" "badRequest" 0
       parameters = [ Param.make "error" TStr "" ]
       returnType = THttpResponse varA
@@ -217,6 +147,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Http" "notFound" 0
       parameters = []
       returnType = THttpResponse varA
@@ -229,6 +161,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Http" "unauthorized" 0
       parameters = []
       returnType = THttpResponse varA
@@ -241,6 +175,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Http" "forbidden" 0
       parameters = []
       returnType = THttpResponse varA
@@ -253,6 +189,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Http" "setCookie" 0
       parameters =
         [ Param.make "name" TStr ""
@@ -297,6 +235,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "setCookie" 1) }
+
+
     { name = fn "Http" "setCookie" 1
       parameters =
         [ Param.make "name" TStr ""
@@ -348,6 +288,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "setCookie" 2) }
+
+
     { name = fn "Http" "setCookie" 2
       parameters =
         [ Param.make "name" TStr ""

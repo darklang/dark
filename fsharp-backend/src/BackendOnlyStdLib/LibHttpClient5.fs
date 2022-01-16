@@ -19,7 +19,6 @@ let err (str : string) = Ply(Dval.errStr str)
 let incorrectArgs = Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 let returnTypeOk = TVariable "result"
 let returnTypeErr = TVariable "error" // FSTODO
 let returnType = TResult(returnTypeOk, returnTypeErr)
@@ -192,6 +191,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "put" 5
       parameters = parameters
       returnType = returnType
@@ -201,6 +202,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "get" 5
       parameters = parametersNoBody
       returnType = returnType
@@ -210,6 +213,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "delete" 5
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE the spec
       // says it may have a body
@@ -221,6 +226,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "options" 5
       parameters = parametersNoBody
       returnType = returnType
@@ -230,6 +237,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "head" 5
       parameters = parametersNoBody
       returnType = returnType
@@ -239,6 +248,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "HttpClient" "patch" 5
       parameters = parameters
       returnType = returnType

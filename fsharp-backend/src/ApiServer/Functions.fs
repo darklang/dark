@@ -11,7 +11,7 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-// FSCLEANUP
+// CLEANUP
 // These types are to match the existing OCaml serializations that the frontend
 // can read
 type ParamMetadata =
@@ -35,7 +35,6 @@ type FunctionMetadata =
     deprecated : bool
     is_supported_in_query : bool }
 
-let allFunctions = LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
 
 // CLEANUP not needed anymore
 let fsharpOnlyFns : Lazy<Set<string>> =
@@ -114,11 +113,16 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize
 
-let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)
+let adminFunctions : Lazy<string> =
+  lazy
+    (LibRealExecution.RealExecution.stdlibFns.Force()
+     |> Map.values
+     |> functionsToString)
 
 let nonAdminFunctions : Lazy<string> =
   lazy
-    (allFunctions
+    (LibRealExecution.RealExecution.stdlibFns.Force()
+     |> Map.values
      |> List.filter (function
        | { name = { module_ = "DarkInternal" } } -> false
        | _ -> true)

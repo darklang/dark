@@ -21,8 +21,6 @@ open LibBackend
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
@@ -76,6 +74,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "endUsers" 0
       parameters = []
       returnType = TList varA
@@ -96,6 +96,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "checkAllCanvases" 0
       parameters = []
       returnType = TNull
@@ -104,6 +106,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = DeprecatedBecause "oldinternal" }
+
+
     { name = fn "DarkInternal" "migrateAllCanvases" 0
       parameters = []
       returnType = TNull
@@ -112,6 +116,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = DeprecatedBecause "oldinternal" }
+
+
     { name = fn "DarkInternal" "cleanupOldTraces" 0
       parameters = []
       returnType = TNull
@@ -120,6 +126,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTraces" 0) }
+
+
     { name = fn "DarkInternal" "cleanupOldTraces" 1
       parameters = []
       returnType = TFloat
@@ -131,6 +139,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTracesForCanvas" 1) }
+
+
     { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
       parameters = [ Param.make "canvas_id" TUuid "" ]
       returnType = TFloat
@@ -143,6 +153,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = DeprecatedBecause "old internal" }
+
+
     { name = fn "DarkInternal" "checkCanvas" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TBool
@@ -159,6 +171,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       // CLEANUP should be marked deprecated
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "migrateCanvas" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TResult(varA, TStr)
@@ -175,6 +189,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
     // deprecated = DeprecatedBecause "old internal" } CLEANUP
+
+
     { name = fn "DarkInternal" "upsertUser" 0
       parameters =
         [ Param.make "username" TStr ""
@@ -204,6 +220,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "upsertUser" 1) }
+
+
     { name = fn "DarkInternal" "insertUser" 1
       parameters =
         [ Param.make "username" TStr ""
@@ -230,6 +248,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "insertUser" 2) }
+
+
     { name = fn "DarkInternal" "insertUser" 2
       parameters =
         [ Param.make "username" TStr ""
@@ -268,6 +288,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "upsertUser" 1
       parameters =
         [ Param.make "username" TStr ""
@@ -300,6 +322,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getUser" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TOption varA
@@ -321,6 +345,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "getUser" 1) }
+
+
     { name = fn "DarkInternal" "getUser" 1
       parameters = [ Param.make "username" TStr "" ]
       returnType = TOption varA
@@ -343,6 +369,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getUserByEmail" 0
       parameters = [ Param.make "email" TStr "" ]
       returnType = TOption varA
@@ -365,6 +393,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "setAdmin" 0
       parameters = [ Param.make "username" TStr ""; Param.make "admin" TBool "" ]
       returnType = TNull
@@ -383,6 +413,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getUsers" 0
       parameters = []
       returnType = TList TStr
@@ -398,6 +430,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getAllCanvases" 0
       parameters = []
       returnType = TList TStr
@@ -412,6 +446,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "canvasesFor" 0
       parameters = [ Param.make "account" TStr "" ]
       returnType = TList TStr
@@ -430,6 +466,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "schema" 0
       parameters = [ Param.make "host" TStr ""; Param.make "dbid" TStr "" ]
       returnType = TDict TStr
@@ -442,6 +480,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "canvasAsText" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TStr
@@ -455,6 +495,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "handlers" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TList varA
@@ -475,6 +517,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "functions" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TList varA
@@ -494,6 +538,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "canLoadTraces" 0
       parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
       returnType = TBool
@@ -506,6 +552,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getCORSSetting" 0
       parameters = [ Param.make "canvas" TStr "" ]
       returnType = TOption(varA)
@@ -529,6 +577,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "setCORSSetting" 0
       parameters =
         [ Param.make "canvas" TStr ""; Param.make "origins" (TOption varA) "" ]
@@ -575,6 +625,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "dbs" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TList TStr
@@ -597,6 +649,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "oplistInfo" 0
       parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
       returnType = TDict TStr
@@ -610,6 +664,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "storedEvents" 0
       parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
       returnType = TOption varA
@@ -619,6 +675,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "pushStrollerEvent" 0
       parameters =
         [ Param.make "canvas_id" TStr ""
@@ -631,6 +689,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "pushStrollerEvent" 1) }
+
+
     { name = fn "DarkInternal" "pushStrollerEvent" 1
       parameters =
         [ Param.make "canvas_id" TStr ""
@@ -654,6 +714,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "sessionKeyToUsername" 0
       parameters = [ Param.make "sessionKey" TStr "" ]
       returnType = TOption varA
@@ -670,6 +732,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TOption varA
@@ -688,6 +752,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "usernameToUserInfo" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TOption varA
@@ -715,6 +781,8 @@ that's already taken, returns an error."
       deprecated = NotDeprecated
 
     }
+
+
     { name = fn "DarkInternal" "grant" 0
       parameters =
         [ Param.make "username" TStr ""
@@ -756,6 +824,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "grantsFor" 0
       parameters = [ Param.make "org" TStr "" ]
       returnType = TDict(varA)
@@ -778,6 +848,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "orgsFor" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TDict TStr
@@ -799,6 +871,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "checkPermission" 0
       parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
       // CLEANUP: should be TStr
@@ -817,6 +891,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "log" 0
       parameters =
         [ Param.make "level" TStr ""
@@ -845,6 +921,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "fnsUsed" 0
       parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
       returnType = TList varA
@@ -857,6 +935,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "fieldNamesUsed" 0
       parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
       returnType = TList varA
@@ -869,6 +949,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "fnMetadata" 0
       parameters = [ Param.make "name" TStr "" ]
       returnType = TResult(varA, TStr)
@@ -881,6 +963,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "allFunctions" 0
       parameters = []
       returnType = TList varA
@@ -912,6 +996,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "clearStaticAssets" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TNull
@@ -924,6 +1010,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getAllSchedulingRules" 0
       parameters = []
       returnType = TList varA
@@ -939,6 +1027,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
       parameters = [ Param.make "canvas_id" TUuid "" ]
       returnType = TList varA
@@ -956,6 +1046,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
       parameters =
         [ Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr "" ]
@@ -966,6 +1058,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
       parameters =
         [ Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr "" ]
@@ -976,6 +1070,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "newSessionForUsername" 0
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TStr, TStr)
@@ -1004,6 +1100,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "newSessionForUsername" 1) }
+
+
     { name = fn "DarkInternal" "newSessionForUsername" 1
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TStr, TStr)
@@ -1040,6 +1138,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "deleteSession" 0
       parameters = [ Param.make "session_key" TStr "" ]
       returnType = TInt
@@ -1059,6 +1159,8 @@ that's already taken, returns an error."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "getAndLogTableSizes" 0
       parameters = []
       returnType = TDict(varA)

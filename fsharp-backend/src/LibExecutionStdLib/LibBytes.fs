@@ -24,6 +24,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Bytes" "hexEncode" 0
 
       parameters = [ Param.make "bytes" TBytes "" ]
@@ -50,6 +52,8 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+
+
     { name = fn "Bytes" "length" 0
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TInt

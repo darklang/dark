@@ -9,21 +9,35 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 
-let fns : List<RT.BuiltInFn> =
-  List.concat [ LibDB.fns
-                LibCrypto.fns
-                LibDarkInternal.fns
-                LibEvent.fns
-                LibHttpClient0.fns
-                LibHttpClient1.fns
-                LibHttpClient2.fns
-                LibHttpClient3.fns
-                LibHttpClient4.fns
-                LibHttpClient5.fns
-                LibHttpClientAuth.fns
-                LibJwt.fns
-                LibPassword.fns
-                LibStaticAssets.fns
-                LibTwilio.fns
-                LibX509.fns
-                LibDB2.fns ]
+let fn = RT.FQFnName.stdlibFnName
+
+let renames =
+  [ fn "DB" "query" 3, fn "DB" "queryExactFields" 0
+    fn "DB" "query" 2, fn "DB" "query" 3 // don't know why these are the same
+    fn "DB" "queryWithKey" 2, fn "DB" "queryExactFieldsWithKey" 0
+    fn "DB" "get" 1, fn "DB" "get" 2 // don't know why these are the same
+    fn "DB" "queryOne" 2, fn "DB" "queryOneWithExactFields" 0
+    fn "DB" "queryOneWithKey" 2, fn "DB" "queryOneWithExactFieldsWithKey" 0 ]
+
+
+let fns : Lazy<List<RT.BuiltInFn>> =
+  lazy
+    ([ LibDB.fns
+       LibCrypto.fns
+       LibDarkInternal.fns
+       LibEvent.fns
+       LibHttpClient0.fns
+       LibHttpClient1.fns
+       LibHttpClient2.fns
+       LibHttpClient3.fns
+       LibHttpClient4.fns
+       LibHttpClient5.fns
+       LibHttpClientAuth.fns
+       LibJwt.fns
+       LibPassword.fns
+       LibStaticAssets.fns
+       LibTwilio.fns
+       LibX509.fns
+       LibDB2.fns ]
+     |> List.concat
+     |> RT.renameFunctions renames)
