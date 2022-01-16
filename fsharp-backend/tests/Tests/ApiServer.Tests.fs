@@ -172,11 +172,60 @@ let testUiReturnsTheSame =
 
     let port = portFor OCaml
 
-    // There have been some tiny changes, let's work around them
+    // There have been some tiny changes, let's work around them. The values here are the NEW values
     let ocfns =
       List.map
         (fun (fn : Functions.FunctionMetadata) ->
           match string fn.name with
+          | "assoc" ->
+            { fn with
+                description = "Returns a copy of `dict` with the `key` set to `val`."
+                parameters =
+                  [ { name = "dict"
+                      tipe = "Dict"
+                      block_args = []
+                      optional = false
+                      description = "" }
+                    { name = "key"
+                      tipe = "Str"
+                      block_args = []
+                      optional = false
+                      description = "" }
+                    { name = "val"
+                      tipe = "Any"
+                      block_args = []
+                      optional = false
+                      description = "" } ] }
+          | "dissoc" ->
+            { fn with
+                parameters =
+                  [ { name = "dict"
+                      tipe = "Dict"
+                      block_args = []
+                      optional = false
+                      description = "" }
+                    { name = "key"
+                      tipe = "Str"
+                      block_args = []
+                      optional = false
+                      description = "" } ]
+                description =
+                  "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged." }
+          | "Object::empty" ->
+            { fn with description = "Returns an empty dictionary." }
+          | "Object::merge" ->
+            { fn with
+                description =
+                  "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`." }
+          | "Object::toJSON_v1" ->
+            { fn with
+                description = "Returns `dict` as a JSON string."
+                parameters =
+                  [ { name = "dict"
+                      tipe = "Dict"
+                      block_args = []
+                      optional = false
+                      description = "" } ] }
           | "DB::queryOneWithKey_v2" ->
             { fn with
                 description =
