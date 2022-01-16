@@ -18,8 +18,8 @@ open Prelude
 let execute (code : string) : RT.Dval =
   let t =
     task {
-      let! owner = TestUtils.testOwner.Force()
-      let! state = TestUtils.executionStateFor owner "fsi" Map.empty Map.empty
+      let! meta = TestUtils.initializeTestCanvas "fsi"
+      let! state = TestUtils.executionStateFor meta Map.empty Map.empty
       let prog = FSharpToExpr.parseRTExpr code
       return! Exe.executeExpr state Map.empty prog
     }
@@ -30,17 +30,13 @@ let execute (code : string) : RT.Dval =
 let executeOCaml (code : string) : RT.Dval =
   let t =
     task {
-      let! owner = TestUtils.testOwner.Force()
+      let! meta = TestUtils.initializeTestCanvas "fsi"
       let prog = FSharpToExpr.parsePTExpr code
-      let! state = TestUtils.executionStateFor owner "fsi" Map.empty Map.empty
-      let accountID = state.program.accountID
-      let canvasID = state.program.canvasID
-      return! OCamlInterop.execute accountID canvasID prog Map.empty [] []
+      return! OCamlInterop.execute meta.owner meta.id prog Map.empty [] []
     }
 
   Task.WaitAll [| t :> Task |]
   t.Result
-
 
 let toBytes (dv : RT.Dval) : string =
   dv |> string |> UTF8.toBytes |> System.BitConverter.ToString

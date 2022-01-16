@@ -11,37 +11,38 @@ nuget FSharpPlus = 1.2.2
 nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 3.0.0
 nuget FSharp.Core = 6.0.1
-nuget Faithlife.Utility = 0.12.1
+nuget Faithlife.Utility = 0.12.2
+nuget FSharp.SystemTextJson = 0.17.4
 
 // Tests
 nuget Expecto = 9.0.4
 nuget Expecto.FsCheck = 9.0.4
-nuget FsCheck = 2.16.3
+nuget FsCheck = 2.16.4
 nuget FSharp.Compiler.Service = 41.0.1
+nuget NReco.Logging.File = 1.1.3
 
 // Services
-nuget Microsoft.AspNetCore.Mvc.NewtonsoftJson = 6.0.0
 nuget Lib.AspNetCore.ServerTiming = 4.2.0
 nuget PusherServer = 4.6.1
 nuget Rollbar = 4.0.3
 nuget Rollbar.NetCore.AspNet = 4.0.3
-nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.0
-nuget AspNetCore.HealthChecks.Npgsql = 6.0.1-rc2.3
+nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.1
+nuget AspNetCore.HealthChecks.Npgsql = 6.0.1
 
 // Tracing
-nuget Honeycomb.OpenTelemetry = 0.13.0-beta
-nuget Npgsql.OpenTelemetry = 6.0.0
+nuget Honeycomb.OpenTelemetry = 0.18.0-beta
+nuget Npgsql.OpenTelemetry = 6.0.2
 nuget System.Diagnostics.DiagnosticSource = 6.0.0
-nuget OpenTelemetry = 1.2.0-beta1
-nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.2.0-beta1
-nuget OpenTelemetry.Exporter.Console = 1.2.0-beta1
+nuget OpenTelemetry = 1.2.0-rc1
+nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.2.0-rc1
+nuget OpenTelemetry.Exporter.Console = 1.2.0-rc1
 nuget OpenTelemetry.Instrumentation.AspNetCore = 1.0.0-rc8
 nuget OpenTelemetry.Extensions.Hosting = 1.0.0-rc8
 nuget OpenTelemetry.Instrumentation.Http = 1.0.0-rc8
 
 // LibBackend
 nuget Npgsql.FSharp = 4.1.0
-nuget Npgsql = 6.0.0
+nuget Npgsql = 6.0.2
 #git https://github.com/npgsql/npgsql
 nuget Sodium.Core = 1.2.3
 
@@ -52,4 +53,4 @@ nuget Argu = 6.1.1
 group Wasm
   source https://api.nuget.org/v3/index.json
   // Wasm - this is in its own group to avoid a clash with OpenTelemetry
-  nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.0
+  nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.1

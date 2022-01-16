@@ -19,6 +19,7 @@ open TestUtils.TestUtils
 
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
+  (initializeDB : bool)
   (comment : string)
   (code : string)
   (dbs : List<PT.DB.T>)
@@ -32,12 +33,19 @@ let t
     testTask name {
       try
         let! owner = owner
+        let! meta =
+          // Little optimization to skip the DB sometimes
+          if initializeDB then
+            initializeCanvasForOwner owner name
+          else
+            createCanvasForOwner owner name
+
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
 
         let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
 
-        let! state = executionStateFor owner name rtDBs rtFunctions
+        let! state = executionStateFor meta rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
 
@@ -48,6 +56,8 @@ let t
 
         let! expected =
           Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
+
+        do! clearCanvasData meta.owner meta.name
 
         let testOCaml, testFSharp =
           if String.includes "FSHARPONLY" comment then (false, true)
@@ -76,6 +86,9 @@ let t
               (normalizeDvalResult ocamlActual)
               expected
               $"OCaml: {msg}"
+
+          // Clear the canvas before we run the OCaml tests
+          do! clearCanvasData meta.owner meta.name
 
         if testFSharp then
           let! fsharpActual =
@@ -122,6 +135,19 @@ type FnInfo =
     tlid : tlid
     parameters : List<PT.UserFunction.Parameter> }
 
+let testAdmin =
+  lazy
+    (task {
+      let username = UserName.create "libexe_admin"
+      let account : LibBackend.Account.Account =
+        { username = username
+          password = LibBackend.Password.invalid
+          email = "admin-test@darklang.com"
+          name = "test name" }
+      do! LibBackend.Account.upsertAdmin account |> Task.map Result.unwrapUnsafe
+      return! LibBackend.Account.getUser username |> Task.map Option.unwrapUnsafe
+    })
+
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
   let dir = "tests/testfiles/"
@@ -151,9 +177,16 @@ let fileTests () : Test =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
 
     let finish () =
+      let initializeDB = filename = "internal.tests" || currentTest.dbs <> []
       if currentTest.recording then
         let newTestCase =
-          t owner currentTest.name currentTest.code currentTest.dbs functions
+          t
+            owner
+            initializeDB
+            currentTest.name
+            currentTest.code
+            currentTest.dbs
+            functions
 
         allTests <- allTests @ [ newTestCase ]
 
@@ -271,11 +304,20 @@ let fileTests () : Test =
         currentFn <- { currentFn with code = currentFn.code + "\n" + line }
       // 1-line test
       | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
-        let test = t owner $"{comment} (line {i})" code currentGroup.dbs functions
+        let initializeDB = filename = "internal.tests" || currentGroup.dbs <> []
+        let test =
+          t
+            owner
+            initializeDB
+            $"{comment} (line {i})"
+            code
+            currentGroup.dbs
+            functions
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
-        let test = t owner $"line {i}" code currentGroup.dbs functions
+        let initializeDB = filename = "internal.tests" || currentGroup.dbs <> []
+        let test = t owner initializeDB $"line {i}" code currentGroup.dbs functions
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 

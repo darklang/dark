@@ -2,11 +2,17 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
 (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
 
 [tests.grants]
-DarkInternal.orgsFor "test" = {}
+
+[test.empty grants]
+(let _ = Test.deleteUser_v0 "empty_grants"
+ let _ = DarkInternal.insertUser_v1_ster "empty_grants" "a@eg.com" "test user"
+ DarkInternal.orgsFor "empty_grants") = {}
 
 [test.grants and orgs]
-(let _ = DarkInternal.grant "test" "dark" "rw" in
- DarkInternal.orgsFor "test") = { dark = "rw" }
+(let _ = DarkInternal.insertUser_v1_ster "gao_org" "gao-test-org@darklang.com" "gao test org"
+ let _ = DarkInternal.insertUser_v1_ster "gao_user" "gao-test-user@darklang.com" "gao test user"
+ let _ = DarkInternal.grant_v0_ster "gao_user" "gao_org" "rw" in
+ DarkInternal.orgsFor "gao_user") = { ``gao_org`` = "rw" }
 
 [test.grants and grants]
 (let _ = DarkInternal.grant "test" "dark" "rw" in
@@ -41,9 +47,9 @@ DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.co
 DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
 DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
 DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/" // OCAMLONLY
-DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '-' or '_'" // FSHARPONLY
+DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'" // FSHARPONLY
 DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/" // OCAMLONLY
-DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '-' or '_'" // FSHARPONLY
+DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'" // FSHARPONLY
 
 [tests.canvases]
 DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown Err: \"No owner found for host not-a-canvas\"" // OCAMLONLY
@@ -51,10 +57,44 @@ DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "User not foun
 DarkInternal.getCORSSetting_v0 "test-cors1" = Nothing
 
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
-(DarkInternal.canvasIdOfCanvasName_v0 "test") |> Option.map_v1 (fun x -> String.length_v1 x) = Just 36
 
-DarkInternal.checkPermission_v0 "test" "dark" = ""
-DarkInternal.checkPermission_v0 "dark" "test" = "rw"
+[test.checkPermission with none]
+(let user1 = ("cpn_user1_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cpn_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cpn test user1"
+ let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cpn test user2"
+ let startingPermission = DarkInternal.checkPermission_v0 user1 user2
+ let _ = DarkInternal.grant_v0_ster user1 user2 "" in
+ [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["" ; ""]
+
+[test.checkPermission with r]
+(let user1 = ("cpr_user1_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cpr_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cpr test user1"
+ let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cpr test user2"
+ let startingPermission = DarkInternal.checkPermission_v0 user1 user2
+ let _ = DarkInternal.grant_v0_ster user1 user2 "r" in
+ [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["r" ; ""]
+
+[test.checkPermission with r]
+(let user1 = ("cprw_user1_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cprw_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+ let user1Email = user1 ++ "-test@darklang.com"
+ let user2Email = user2 ++ "-test@darklang.com"
+ let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cprw test user1"
+ let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cprw test user2"
+ let startingPermission = DarkInternal.checkPermission_v0 user1 user2
+ let _ = DarkInternal.grant_v0_ster user1 user2 "rw" in
+ [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["rw" ; ""]
+
+
+[test.canvasId length]
+(let _ = DarkInternal.clearStaticAssets "test-canvas-id-of-canvas-name"  // get the canvas created
+ DarkInternal.canvasIdOfCanvasName_v0 "test-canvas-id-of-canvas-name") |> Option.map_v1 (fun x -> String.length_v1 x) = Just 36
 
 [test.roundtrip cors just empty]
 (let _ = DarkInternal.setCORSSetting_v0 "test-cors2" (Just []) in

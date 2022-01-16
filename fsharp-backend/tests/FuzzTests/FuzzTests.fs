@@ -48,6 +48,8 @@ let testProperty (name : string) (x : 'a) : Test =
 let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
   testPropertyWithConfig (baseConfigWithGenerator typ) name x
 
+let tpwg = testPropertyWithGenerator
+
 module Generators =
   let nonNullString (s : string) : bool = s <> null
 
@@ -154,9 +156,7 @@ module FQFnName =
   let ptRoundtrip (a : PT.FQFnName.T) : bool = string a |> PT.FQFnName.parse .=. a
 
   let tests =
-    testList
-      "PT.FQFnName"
-      [ testPropertyWithGenerator typeof<Generator> "roundtripping" ptRoundtrip ]
+    testList "PT.FQFnName" [ tpwg typeof<Generator> "roundtripping" ptRoundtrip ]
 
 
 module OCamlInterop =
@@ -270,7 +270,7 @@ module OCamlInterop =
     .=. pair
 
   let tests =
-    let tp f = testPropertyWithGenerator typeof<Generator> f
+    let tp f = tpwg typeof<Generator> f
 
     testList
       "OcamlInterop"
@@ -320,11 +320,8 @@ module Roundtrippable =
   let tests =
     testList
       "roundtrippable"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "roundtripping works properly"
-          roundtrip
-        testPropertyWithGenerator
+      [ tpwg typeof<Generator> "roundtripping works properly" roundtrip
+        tpwg
           typeof<GeneratorWithBugs>
           "roundtrippable is interoperable"
           isInteroperableV0 ]
@@ -366,7 +363,7 @@ module Queryable =
         (RT.DObj dvm)
 
   let tests =
-    let tp f = testPropertyWithGenerator typeof<Generator> f
+    let tp f = tpwg typeof<Generator> f
 
     testList
       "InternalQueryable"
@@ -394,9 +391,7 @@ module DeveloperRepr =
     .=. (OCamlInterop.toDeveloperRepr dv).Result
 
   let tests =
-    testList
-      "toDeveloperRepr"
-      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+    testList "toDeveloperRepr" [ tpwg typeof<Generator> "roundtripping" equalsOCaml ]
 
 module HttpClient =
   type Generator =
@@ -449,16 +444,13 @@ module HttpClient =
     .=. (OCamlInterop.paramsToQueryString q).Result
 
   let tests =
-    let test name fn = testPropertyWithGenerator typeof<Generator> name fn
+    let test name fn = tpwg typeof<Generator> name fn
     testList
       "FuzzHttpClient"
       [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
         test "dvalToQuery" dvalToQuery
         test "dvalToFormEncoding" dvalToFormEncoding
-        testPropertyWithGenerator
-          typeof<QueryStringGenerator>
-          "queryStringToParams"
-          queryStringToParams // only &=& fails
+        tpwg typeof<QueryStringGenerator> "queryStringToParams" queryStringToParams // only &=& fails
         test "queryToDval" queryToDval
         test "queryToEncodedString" queryToEncodedString ]
 
@@ -481,7 +473,7 @@ module EndUserReadable =
   let tests =
     testList
       "toEnduserReadable"
-      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+      [ tpwg typeof<Generator> "roundtripping" equalsOCaml ]
 
 module Hashing =
   type Generator =
@@ -512,12 +504,9 @@ module Hashing =
   let tests =
     testList
       "hash"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "toHashableRepr"
-          equalsOCamlToHashable
-        testPropertyWithGenerator typeof<Generator> "hashv0" equalsOCamlV0
-        testPropertyWithGenerator typeof<Generator> "hashv1" equalsOCamlV1 ]
+      [ tpwg typeof<Generator> "toHashableRepr" equalsOCamlToHashable
+        tpwg typeof<Generator> "hashv0" equalsOCamlV0
+        tpwg typeof<Generator> "hashv1" equalsOCamlV1 ]
 
 
 module PrettyMachineJson =
@@ -548,10 +537,7 @@ module PrettyMachineJson =
   let tests =
     testList
       "prettyMachineJson"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "roundtripping prettyMachineJson"
-          equalsOCaml ]
+      [ tpwg typeof<Generator> "roundtripping prettyMachineJson" equalsOCaml ]
 
 
 module PrettyResponseJson =
@@ -591,7 +577,7 @@ module PrettyResponseJson =
   let tests =
     testList
       "prettyResponseJson"
-      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
+      [ tpwg typeof<Generator> "compare to ocaml" equalsOCaml ]
 
 
 module PrettyRequestJson =
@@ -625,7 +611,7 @@ module PrettyRequestJson =
   let tests =
     testList
       "prettyRequestJson"
-      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
+      [ tpwg typeof<Generator> "compare to ocaml" equalsOCaml ]
 
 module LibJwtJson =
   type Generator =
@@ -649,14 +635,124 @@ module LibJwtJson =
 
     actual .=. expected
 
+  let roundtripV1 (dv : RT.Dval) : bool =
+    let t =
+      task {
+        let! meta = initializeTestCanvas "jwt-roundtrip-v1"
+
+        let privateKey =
+          "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEAvxW2wuTTK2d0ob5mu/ASJ9vYDc/SXy06QAIepF9x9eoVZZVZ\nd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqLn9/0Ag9ua4ml/ft7COprfEYA7klN\nc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGWCV7+3DF2RvDV2okk3x1ZKyBy2Rw2\nuUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTwMlHbmVv9QMY5UetA9o05uPaAXH4B\nCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p4Ur22mtma+6ree45gsdnzlj1OASW\nDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ44wIDAQABAoIBAQC+0olj0a3MT5Fa\noNDpZ9JJubLmAB8e6wSbvUIqdiJRKUXa3y2sgNtVjLTzieKfNXhCaHIxUTdH5DWq\np0G7yo+qxbRghlaHz7tTitsQSUGzphjx3YQaewIujQ6EJXbDZZZBsNLqYHfQgbW+\n1eV/qGvzyckLzd1G9OUrSv/mS+GrPQ00kpIJIX+EInFOPQ04DheppGNdlxoAUwQQ\nXUUhE1LifY4DyyK71mNlUoYyCs+0ozLzbxQwr9n8PKnLKdukL6X0g3tlKEbqQWPv\nvz2J8QZeSyhnZM9AjtYdVqTO6qs4l9dyWjdpDRIV9WylasOsIbb8XP8bv2NpH2Ua\n6a54L/RJAoGBAPVWwU1jU6e86WrnocJf3miydkhF5VV1tporiuAi391N84zCG509\nrWZWa0xsD2tq2+yNDry1qdqMGmvBXKoTJAx3cjpvK/uK7Tkd+tnislDLw8Wq/fCz\nNBdSidGIuASXdh4Bo9OK8iYMBgfpUGXRKAs4rO45mwrS/+b0YYZSiX/1AoGBAMdj\namEa5SzXw7tSqtp4Vr4pp4H52YULKI84UKvEDQOROfazQrZMHxbtaSMXG69x7SBr\nr48MuRYWd8KZ3iUkYjQLhr4n4zw5DS4AVJqgrLootVWHgt6Ey29Xa1g+B4pZOre5\nPJcrxNsG0OjIAEUsTb+yeURSphVjYe+xlXlYD0Z3AoGACdxExKF7WUCEeSF6JN/J\nhpe1nU4B259xiVy6piuAp9pcMYoTpgw2jehnQ5kMPZr739QDhZ4fh4MeBLquyL8g\nMcgTNToGoIOC6UrFLECqPgkSgz1OG4B4VX+hvmQqUTTtMGOMfBIXjWPqUiMUciMn\n4tuSR7jU/GhilJu517Y1hIkCgYEAiZ5ypEdd+s+Jx1dNmbEJngM+HJYIrq1+9ytV\nctjEarvoGACugQiVRMvkj1W5xCSMGJ568+9CKJ6lVmnBTD2KkoWKIOGDE+QE1sVf\nn8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9\n5p0DHg0CgYEAg0Wwqo3sDFSyKii25/Sffjr6tf1ab+3gFMpahRslkUvyFE/ZweKb\nT/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I\nFW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=\n-----END RSA PRIVATE KEY-----"
+        let publicKey =
+          "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS\nJ9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL\nn9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW\nCV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw\nMlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p\n4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4\n4wIDAQAB\n-----END PUBLIC KEY-----"
+
+        let callWithBoth code symtable =
+          task {
+            let ast = FSharpToExpr.parsePTExpr code
+            let! expected =
+              OCamlInterop.execute meta.owner meta.id ast symtable [] []
+
+            let! state = executionStateFor meta Map.empty Map.empty
+            let! actual =
+              LibExecution.Execution.executeExpr
+                state
+                symtable
+                (ast.toRuntimeType ())
+            return (expected, actual)
+          }
+
+        // Encode it with v1 first
+        let code = "JWT.signAndEncode_v1_ster priv payload"
+        let symtable = Map [ "priv", RT.DStr privateKey; "payload", dv ]
+        let! (expectedEncoded, actual) = callWithBoth code symtable
+
+        Expect.equal (RT.Dval.isFake expectedEncoded) false "isn't an error"
+        Expect.equalDval actual expectedEncoded "signed string matches"
+
+        // check it can be read with v1 decode function
+        let code = "JWT.verifyAndExtract_v1_ster pub encoded"
+        let symtable = Map [ "pub", RT.DStr publicKey; "encoded", expectedEncoded ]
+        let! (expected, actual) = callWithBoth code symtable
+
+        Expect.equal (RT.Dval.isFake expected) false "isn't on the error rail"
+        Expect.equalDval actual expected "extracted matches ocaml"
+
+        return true
+      }
+    try
+      if containsPassword dv || containsFakeDval dv then true else t.Result
+    with
+    | :? System.AggregateException as e ->
+      print e.Message
+      print e.StackTrace
+      false
+
+
+
+  let roundtripV0 (dv : RT.Dval) : bool =
+    let t =
+      task {
+        let! meta = initializeTestCanvas "jwt-roundtrip-v0"
+
+        let privateKey =
+          "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEAvxW2wuTTK2d0ob5mu/ASJ9vYDc/SXy06QAIepF9x9eoVZZVZ\nd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqLn9/0Ag9ua4ml/ft7COprfEYA7klN\nc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGWCV7+3DF2RvDV2okk3x1ZKyBy2Rw2\nuUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTwMlHbmVv9QMY5UetA9o05uPaAXH4B\nCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p4Ur22mtma+6ree45gsdnzlj1OASW\nDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ44wIDAQABAoIBAQC+0olj0a3MT5Fa\noNDpZ9JJubLmAB8e6wSbvUIqdiJRKUXa3y2sgNtVjLTzieKfNXhCaHIxUTdH5DWq\np0G7yo+qxbRghlaHz7tTitsQSUGzphjx3YQaewIujQ6EJXbDZZZBsNLqYHfQgbW+\n1eV/qGvzyckLzd1G9OUrSv/mS+GrPQ00kpIJIX+EInFOPQ04DheppGNdlxoAUwQQ\nXUUhE1LifY4DyyK71mNlUoYyCs+0ozLzbxQwr9n8PKnLKdukL6X0g3tlKEbqQWPv\nvz2J8QZeSyhnZM9AjtYdVqTO6qs4l9dyWjdpDRIV9WylasOsIbb8XP8bv2NpH2Ua\n6a54L/RJAoGBAPVWwU1jU6e86WrnocJf3miydkhF5VV1tporiuAi391N84zCG509\nrWZWa0xsD2tq2+yNDry1qdqMGmvBXKoTJAx3cjpvK/uK7Tkd+tnislDLw8Wq/fCz\nNBdSidGIuASXdh4Bo9OK8iYMBgfpUGXRKAs4rO45mwrS/+b0YYZSiX/1AoGBAMdj\namEa5SzXw7tSqtp4Vr4pp4H52YULKI84UKvEDQOROfazQrZMHxbtaSMXG69x7SBr\nr48MuRYWd8KZ3iUkYjQLhr4n4zw5DS4AVJqgrLootVWHgt6Ey29Xa1g+B4pZOre5\nPJcrxNsG0OjIAEUsTb+yeURSphVjYe+xlXlYD0Z3AoGACdxExKF7WUCEeSF6JN/J\nhpe1nU4B259xiVy6piuAp9pcMYoTpgw2jehnQ5kMPZr739QDhZ4fh4MeBLquyL8g\nMcgTNToGoIOC6UrFLECqPgkSgz1OG4B4VX+hvmQqUTTtMGOMfBIXjWPqUiMUciMn\n4tuSR7jU/GhilJu517Y1hIkCgYEAiZ5ypEdd+s+Jx1dNmbEJngM+HJYIrq1+9ytV\nctjEarvoGACugQiVRMvkj1W5xCSMGJ568+9CKJ6lVmnBTD2KkoWKIOGDE+QE1sVf\nn8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9\n5p0DHg0CgYEAg0Wwqo3sDFSyKii25/Sffjr6tf1ab+3gFMpahRslkUvyFE/ZweKb\nT/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I\nFW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=\n-----END RSA PRIVATE KEY-----"
+        let publicKey =
+          "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS\nJ9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL\nn9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW\nCV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw\nMlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p\n4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4\n4wIDAQAB\n-----END PUBLIC KEY-----"
+
+        let callWithBoth code symtable =
+          task {
+            let ast = FSharpToExpr.parsePTExpr code
+            let! expected =
+              OCamlInterop.execute meta.owner meta.id ast symtable [] []
+
+            let! state = executionStateFor meta Map.empty Map.empty
+            let! actual =
+              LibExecution.Execution.executeExpr
+                state
+                symtable
+                (ast.toRuntimeType ())
+            return (expected, actual)
+          }
+
+        // Encode it with v0 first
+        let code = "JWT.signAndEncode_v0 priv payload"
+        let symtable = Map [ "priv", RT.DStr privateKey; "payload", dv ]
+        let! (expectedEncoded, actual) = callWithBoth code symtable
+
+        Expect.equal (RT.Dval.isFake expectedEncoded) false "isn't an error"
+        Expect.equalDval actual expectedEncoded "signed string matches"
+
+        // check it can be read with v0 decode functions
+        let code = "JWT.verifyAndExtract_v0_ster pub encoded"
+        let symtable = Map [ "pub", RT.DStr publicKey; "encoded", expectedEncoded ]
+        let! (expected, actual) = callWithBoth code symtable
+
+        Expect.equal (RT.Dval.isFake expected) false "isn't on the error rail"
+        Expect.equalDval actual expected "extracted matches ocaml"
+
+        // For v0, the extracted often does not match the original
+        // match actual with
+        // | RT.DObj map ->
+        //   Expect.equalDval map["payload"] dv "extracted matches original"
+        // | _ -> Exception.raiseInternal "doesnt match" []
+
+        return true
+      }
+    try
+      if containsPassword dv || containsFakeDval dv then true else t.Result
+    with
+    | :? System.AggregateException as e ->
+      print e.Message
+      print e.StackTrace
+      false
+
+
+
   let tests =
     testList
       "jwtJson"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "comparing LibJWT json"
-          equalsOCaml ]
-
+      [ tpwg typeof<Generator> "roundtrip jwt v0" roundtripV0
+        tpwg typeof<Generator> "roundtrip jwt v1" roundtripV1
+        tpwg typeof<Generator> "comparing jwt json" equalsOCaml ]
 
 module Passwords =
 
@@ -666,8 +762,8 @@ module Passwords =
   let passwordChecks (rawPassword : string) : bool =
     let t =
       task {
-        let! owner = testOwner.Force()
-        let! state = executionStateFor owner "executePure" Map.empty Map.empty
+        let! meta = initializeTestCanvas "executePure"
+        let! state = executionStateFor meta Map.empty Map.empty
 
         let ast =
           $"Password.check_v0 (Password.hash_v0 \"{rawPassword}\") \"{rawPassword}\""
@@ -682,10 +778,35 @@ module Passwords =
   let tests =
     testList
       "password"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "comparing passwords"
-          passwordChecks ]
+      [ tpwg typeof<Generator> "comparing passwords" passwordChecks ]
+
+module BytesToString =
+
+  type Generator =
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+  let toStringTest (bytes : byte []) : bool =
+    let t =
+      task {
+        let! meta = initializeTestCanvas "bytes-to-string"
+
+        let ast = $"toString_v0 myValue" |> FSharpToExpr.parsePTExpr
+        let symtable = Map [ "myvalue", RT.DBytes bytes ]
+
+        let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] []
+
+        let! state = executionStateFor meta Map.empty Map.empty
+        let! actual =
+          LibExecution.Execution.executeExpr state symtable (ast.toRuntimeType ())
+
+        if dvalEquality actual expected then return true else return false
+      }
+    t.Result
+
+  let tests =
+    testList
+      "bytesToString"
+      [ tpwg typeof<Generator> "comparing bytesToString" toStringTest ]
 
 
 
@@ -1227,20 +1348,16 @@ module ExecutePureFunctions =
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
-        let! owner = testOwner.Force()
+        let! meta = initializeTestCanvas "ExecutePureFunction"
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
 
         let ast = PT.EFnCall(gid (), RT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
-
         let st = Map.ofList args
 
-        let ownerID = System.Guid.NewGuid()
-        let canvasID = System.Guid.NewGuid()
+        let! expected = OCamlInterop.execute meta.owner meta.id ast st [] []
 
-        let! expected = OCamlInterop.execute ownerID canvasID ast st [] []
-
-        let! state = executionStateFor owner "executePure" Map.empty Map.empty
+        let! state = executionStateFor meta Map.empty Map.empty
 
         let! actual =
           LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())
@@ -1383,7 +1500,7 @@ module ExecutePureFunctions =
   let tests =
     testList
       "executePureFunctions"
-      [ testPropertyWithGenerator typeof<Generator> "equalsOCaml" equalsOCaml ]
+      [ tpwg typeof<Generator> "equalsOCaml" equalsOCaml ]
 
 
 let stillBuggy = testList "still buggy" [ OCamlInterop.tests; FQFnName.tests ]
@@ -1402,6 +1519,7 @@ let knownGood =
        PrettyMachineJson.tests
        LibJwtJson.tests
        Passwords.tests
+       BytesToString.tests
        ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]

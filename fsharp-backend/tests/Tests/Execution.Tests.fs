@@ -28,8 +28,8 @@ let executionStateForPreview
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
-    let! owner = testOwner.Force()
-    let! state = executionStateFor owner name dbs fns
+    let! meta = createTestCanvas name
+    let! state = executionStateFor meta dbs fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
@@ -41,6 +41,7 @@ let executionStateForPreview
   }
 
 let execSaveDvals
+  (canvasName : string)
   (dbs : List<DB.T>)
   (userFns : List<UserFunction.T>)
   (ast : Expr)
@@ -48,7 +49,7 @@ let execSaveDvals
   task {
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
-    let! (results, state) = executionStateForPreview "test" dbs fns
+    let! (results, state) = executionStateForPreview canvasName dbs fns
 
     let inputVars = Map.empty
     let! _result = Exe.executeExpr state inputVars ast
@@ -59,12 +60,12 @@ let execSaveDvals
 
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
+    let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
-    let! owner = testOwner.Force()
     let fn =
       testUserFn name [] (PT.EInteger(gid (), 5)) |> PT.UserFunction.toRuntimeType
     let fns = Map.ofList [ (name, fn) ]
-    let! state = executionStateFor owner "test" Map.empty fns
+    let! state = executionStateFor meta Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
@@ -83,9 +84,8 @@ let testExecFunctionTLIDs : Test =
 let testErrorRailUsedInAnalysis : Test =
   testTask
     "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
-
-    let! owner = testOwner.Force()
-    let! state = executionStateFor owner "test" Map.empty Map.empty
+    let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
+    let! state = executionStateFor meta Map.empty Map.empty
 
     let loadTraceResults _ _ = Some(DOption(Some(DInt 12345L)), System.DateTime.Now)
 
@@ -139,7 +139,8 @@ let testListLiterals : Test =
   testTask "Blank in a list evaluates to Incomplete" {
     let id = gid ()
     let ast = eList [ eInt 1; EBlank id ]
-    let! (results : AT.AnalysisResults) = execSaveDvals [] [] ast
+    let! (results : AT.AnalysisResults) =
+      execSaveDvals "blank is incomplete" [] [] ast
 
     return
       match Dictionary.get id results with
@@ -174,7 +175,7 @@ let testRecursionInEditor : Test =
     let recurse =
       testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
-    let! results = execSaveDvals [] [ recurse ] ast
+    let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 
     Expect.equal
       (Dictionary.get callerID results)
@@ -196,7 +197,7 @@ let testIfPreview : Test =
       let thenID = gid ()
       let elseID = gid ()
       let ast = EIf(ifID, cond, EString(thenID, "then"), EString(elseID, "else"))
-      let! results = execSaveDvals [] [] ast
+      let! results = execSaveDvals "if-preview" [] [] ast
 
       return
         (Dictionary.get ifID results |> Option.unwrapUnsafe,
@@ -247,7 +248,7 @@ let testFeatureFlagPreview : Test =
       let newID = gid ()
       let ast =
         EFeatureFlag(ffID, cond, EString(oldID, "old"), EString(newID, "new"))
-      let! results = execSaveDvals [] [] ast
+      let! results = execSaveDvals "ff-preview" [] [] ast
 
       return
         (Dictionary.get ffID results |> Option.unwrapUnsafe,
@@ -293,7 +294,7 @@ let testLambdaPreview : Test =
       let lID = gid ()
       let bodyID = Expr.toID body
       let ast = ELambda(lID, [], body)
-      let! results = execSaveDvals [] [] ast
+      let! results = execSaveDvals "lambda-preview" [] [] ast
 
       return (Dictionary.get lID results, Dictionary.get bodyID results)
     }
@@ -377,7 +378,7 @@ let testMatchPreview : Test =
       =
       task {
         let ast = astFor arg
-        let! results = execSaveDvals [] [] ast
+        let! results = execSaveDvals "match-preview" [] [] ast
         // check expected values are there
         List.iter
           (fun (id, name, value) ->

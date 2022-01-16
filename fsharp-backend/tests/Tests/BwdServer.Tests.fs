@@ -179,12 +179,9 @@ let replaceByteStrings
 
 let t filename =
   testTask $"Httpfiles: {filename}" {
-    let! owner = testOwner.Force()
     let skip = String.startsWith "_" filename
     let name = if skip then String.dropLeft 1 filename else filename
-    let name = $"bwdserver-{name}"
-    let testName = $"test-{name}"
-    do! clearCanvasData owner (CanvasName.create testName)
+    let! (meta : Canvas.Meta) = initializeTestCanvas $"bwdserver-{name}"
 
     let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
@@ -213,7 +210,6 @@ let t filename =
          PT.TLHandler h,
          Canvas.NotDeleted))
 
-    let! (meta : Canvas.Meta) = testCanvasInfo owner testName
     do! Canvas.saveTLIDs meta oplists
 
     // CORS
@@ -282,7 +278,7 @@ let t filename =
         if test.request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH" then
           Expect.isFalse true "LENGTH substitution not done on request"
 
-        let host = $"test-{name}.builtwithdark.localhost:{port}"
+        let host = $"{meta.name}.builtwithdark.localhost:{port}"
         let request =
           test.request |> replaceByteStrings "HOST" host |> Http.setHeadersToCRLF
 
@@ -370,8 +366,8 @@ let t filename =
     else
       do! callServer OCaml // check OCaml to see if we got the right answer
       do! callServer FSharp // test F# impl
-
   }
+
 
 let testsFromFiles =
   // get all files
@@ -395,4 +391,5 @@ open Microsoft.Extensions.Hosting
 let init (token : System.Threading.CancellationToken) : Task =
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
-  (BwdServer.Server.webserver false port k8sPort).RunAsync(token)
+  let logger = configureLogging "test-bwdserver"
+  (BwdServer.Server.webserver logger port k8sPort).RunAsync(token)

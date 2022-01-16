@@ -765,7 +765,91 @@ type Password = Password of byte array
 // Json auto-serialization
 // ----------------------
 module Json =
-  module AutoSerialize =
+
+  module Vanilla =
+
+    open System.Text.Json
+    open System.Text.Json.Serialization
+
+    type TLIDConverter() =
+      inherit JsonConverter<tlid>()
+
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+        if reader.TokenType = JsonTokenType.String then
+          let str = reader.GetString()
+          parseUInt64 str
+        else
+          reader.GetUInt64()
+
+      override _.Write(writer : Utf8JsonWriter, value : tlid, _options) =
+        writer.WriteNumberValue(value)
+
+    type PasswordConverter() =
+      inherit JsonConverter<Password>()
+
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+        reader.GetString() |> UTF8.toBytes |> Password
+
+      override _.Write(writer : Utf8JsonWriter, _ : Password, _options) =
+        writer.WriteStringValue("Redacted")
+
+
+    type RawBytesConverter() =
+      inherit JsonConverter<byte array>()
+      // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
+      // the url-safe version of base64. It's not appropriate for all byte
+      // arrays, but I think this is the only user. If not, we'll need to add a
+      // RawBytes type.
+      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+        reader.GetString() |> Base64.fromUrlEncoded |> Base64.decode
+
+      override _.Write(writer : Utf8JsonWriter, value : byte [], _) =
+        value |> Base64.urlEncodeToString |> writer.WriteStringValue
+
+
+    // This is used for "normal" JSON conversion, such as converting Pos into
+    // json. It does not feature anything for conversion to OCaml-compatible
+    // stuff, such as may be required to communicate with the fuzzer or the
+    // frontend. It does handle F#-specific constructs, and prevents exposing
+    // passwords (just in case).
+
+    let getOptions () =
+      let fsharpConverter =
+        JsonFSharpConverter(
+          unionEncoding =
+            (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
+        )
+      // CLEANUP we can put these converters on the type or property if appropriate.
+      let options = JsonSerializerOptions()
+      options.Converters.Add(TLIDConverter())
+      options.Converters.Add(PasswordConverter())
+      options.Converters.Add(RawBytesConverter())
+      options.Converters.Add(fsharpConverter)
+      options
+
+    let _options = getOptions ()
+
+    let registerConverter (c : JsonConverter<'a>) =
+      // insert in the front as the formatter will use the first converter that
+      // supports the type, not the best one
+      _options.Converters.Insert(0, c)
+
+    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+
+    let deserialize<'a> (json : string) : 'a =
+      JsonSerializer.Deserialize<'a>(json, _options)
+
+    let prettySerialize (data : 'a) : string =
+      let options = getOptions ()
+      options.WriteIndented <- true
+      JsonSerializer.Serialize(data, options)
+
+
+  module OCamlCompatible =
+    // CLEANUP: get rid of OCamlCompatible serializers, replacing it with Vanilla.
+    // AFAIK, the only places we really have to use it are:
+    // - ocamlinterop (needed to parse funky floats like infinity)
+    // - JSON api (we can change the client after the migration is done)
     open Newtonsoft.Json
     open Microsoft.FSharp.Reflection
 
@@ -818,7 +902,8 @@ module Json =
 
       override _.CanConvert(objectType) = FSharpType.IsUnion objectType
 
-    // http://gorodinski.com/blog/2013/01/05/json-dot-net-type-converters-for-f-option-list-tuple/
+    // http://gorodinski.com/blog/2013/01/05/json-dot-net-type-converters-for-f-option-list-tuple
+
     type FSharpListConverter() =
       inherit JsonConverter()
 
@@ -885,7 +970,6 @@ module Json =
         | _ ->
           Exception.raiseInternal "Invalid token" [ "existingValue", existingValue ]
 
-
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
 
@@ -910,6 +994,22 @@ module Json =
           _ : JsonSerializer
         ) : unit =
         writer.WriteValue("Redacted")
+
+    type OCamlRawBytesConverter() =
+      inherit JsonConverter<byte array>()
+      // the url-safe version of base64. It's not appropriate for all byte
+      // arrays, but I think this is the only user. If not, we'll need to add a
+      // RawBytes type.
+      override _.ReadJson(reader : JsonReader, _, v, _, _) =
+        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode
+
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value : byte [],
+          _ : JsonSerializer
+        ) =
+        value |> Base64.urlEncodeToString |> writer.WriteValue
 
 
     // We don't use this at the moment
@@ -982,32 +1082,8 @@ module Json =
         | System.Double.PositiveInfinity -> writer.WriteRawValue "Infinity"
         | System.Double.NegativeInfinity -> writer.WriteRawValue "-Infinity"
         | _ when System.Double.IsNaN value -> writer.WriteRawValue "NaN"
-        | _ -> writer.WriteValue(value)
+        | _ -> writer.WriteValue value
 
-    type OCamlRawBytesConverter() =
-      inherit JsonConverter<byte array>()
-      // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
-      // the url-safe version of base64. It's not appropriate for all byte
-      // arrays, but I think this is the only user. If not, we'll need to add a
-      // RawBytes type.
-      override _.ReadJson(reader : JsonReader, _, v, _, _) =
-        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode
-
-      override _.WriteJson
-        (
-          writer : JsonWriter,
-          value : byte [],
-          _ : JsonSerializer
-        ) =
-        value |> Base64.urlEncodeToString |> writer.WriteValue
-
-  // This is used for "normal" JSON conversion, such as converting Pos into
-  // json. It does not feature anything for conversion to OCaml-compatible
-  // stuff, such as may be required to communicate with the fuzzer or the
-  // frontend. It does handle F#-specific constructs, and prevents exposing
-  // passwords (just in case).
-  module Vanilla =
-    open Newtonsoft.Json
 
     let getSettings () =
       let settings = JsonSerializerSettings()
@@ -1017,11 +1093,14 @@ module Json =
       settings.TypeNameHandling <- TypeNameHandling.None
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
-      settings.Converters.Add(AutoSerialize.TLIDConverter())
-      settings.Converters.Add(AutoSerialize.PasswordConverter())
-      settings.Converters.Add(AutoSerialize.FSharpListConverter())
-      settings.Converters.Add(AutoSerialize.FSharpDuConverter())
-      settings.Converters.Add(AutoSerialize.FSharpTupleConverter()) // gets tripped up on null, so put this last
+      settings.Converters.Add(TLIDConverter())
+      settings.Converters.Add(PasswordConverter())
+      settings.Converters.Add(FSharpListConverter())
+      settings.Converters.Add(OCamlOptionConverter())
+      settings.Converters.Add(FSharpDuConverter())
+      settings.Converters.Add(OCamlRawBytesConverter())
+      settings.Converters.Add(OCamlFloatConverter())
+      settings.Converters.Add(FSharpTupleConverter()) // gets tripped up so put last
       settings
 
     let _settings = getSettings ()
@@ -1031,49 +1110,17 @@ module Json =
       // supports the type, not the best one
       _settings.Converters.Insert(0, c)
 
-    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
-
     let prettySerialize (data : 'a) : string =
       let settings = getSettings ()
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
-    let deserialize<'a> (json : string) : 'a =
-      JsonConvert.DeserializeObject<'a>(json, _settings)
-
-
-
-  module OCamlCompatible =
-    open Newtonsoft.Json
-    open Newtonsoft.Json.Converters
-
-    let _settings =
-      (let settings = JsonSerializerSettings()
-       // This might be a potential vulnerability, turn it off anyway
-       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
-       // This is a potential vulnerability
-       settings.TypeNameHandling <- TypeNameHandling.None
-       // dont deserialize date-looking string as dates
-       settings.DateParseHandling <- DateParseHandling.None
-       settings.Converters.Add(AutoSerialize.TLIDConverter())
-       settings.Converters.Add(AutoSerialize.PasswordConverter())
-       settings.Converters.Add(AutoSerialize.FSharpListConverter())
-       settings.Converters.Add(AutoSerialize.OCamlOptionConverter())
-       settings.Converters.Add(AutoSerialize.FSharpDuConverter())
-       settings.Converters.Add(AutoSerialize.OCamlRawBytesConverter())
-       settings.Converters.Add(AutoSerialize.OCamlFloatConverter())
-       settings.Converters.Add(AutoSerialize.FSharpTupleConverter()) // gets tripped up so put last
-       settings)
-
-    let registerConverter (c : JsonConverter<'a>) =
-      // insert in the front as the formatter will use the first converter that
-      // supports the type, not the best one
-      _settings.Converters.Insert(0, c)
-
     let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
 
     let deserialize<'a> (json : string) : 'a =
       JsonConvert.DeserializeObject<'a>(json, _settings)
+
+
 
 // ----------------------
 // Functions we'll later add to Tablecloth
@@ -1499,7 +1546,7 @@ module UserName =
       Ok name
     else
       Error
-        $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '-' or '_'"
+        $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '_'"
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (str : string) : T =

@@ -6,6 +6,10 @@ module TestUtils.LibTest
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open Npgsql.FSharp
+open Npgsql
+open LibBackend.Db
+
 open LibExecution.RuntimeTypes
 open Prelude
 
@@ -188,6 +192,26 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "deleteUser" 0
+      parameters = [ Param.make "username" TStr "" ]
+      returnType = TResult(TNull, varB)
+      description = "Delete a user (test only)"
+      fn =
+        (function
+        | _, [ DStr username ] ->
+          uply {
+            do!
+              // This is unsafe. A user has canvases, and canvases have traces. It
+              // will either break or cascade (haven't checked)
+              Sql.query "DELETE from ACCOUNTS WHERE username = @username"
+              |> Sql.parameters [ "username", Sql.string (string username) ]
+              |> Sql.executeStatementAsync
+            return DNull
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

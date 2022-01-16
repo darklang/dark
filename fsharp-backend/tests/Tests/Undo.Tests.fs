@@ -34,8 +34,7 @@ let testUndoFns : Test =
 
 let testUndo : Test =
   testTask "test undo" {
-    let! owner = testOwner.Force()
-    do! clearCanvasData owner (CanvasName.create "test-undo")
+    let! meta = initializeTestCanvas "undo"
     let tlid = 7UL
     let ha code = hop ({ handler code with tlid = tlid })
     let sp = PT.TLSavepoint tlid
@@ -45,9 +44,8 @@ let testUndo : Test =
 
     let exe (ops : PT.Oplist) =
       task {
-        let! meta = testCanvasInfo owner "test-undo"
         let c = Canvas.fromOplist meta [] ops
-        let! state = executionStateFor owner "test-undo" Map.empty Map.empty
+        let! state = executionStateFor meta Map.empty Map.empty
         let h = Map.get tlid c.handlers |> Option.unwrapUnsafe
         return! Exe.executeExpr state Map.empty (h.ast.toRuntimeType ())
       }
@@ -81,8 +79,7 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     let dbID2 = gid ()
     let nameID2 = gid ()
     let pos = { x = 0; y = 0 }
-    let! owner = testOwner.Force()
-    let! meta = testCanvasInfo owner "test-undo-verification"
+    let! meta = createTestCanvas "undo-verification"
 
     let ops1 =
       [ PT.CreateDBWithBlankOr(dbID, pos, nameID, "Books")

@@ -642,7 +642,7 @@ let localOnlyTests =
     else
       []
 
-  testList "local" tests
+  testSequencedGroup "local" (testList "local" tests)
 
 // FSTODO: this should be on the *TEST* api server, not the dev one
 let permissions =

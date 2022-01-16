@@ -52,9 +52,9 @@ let testBasicTypecheckWorks : Test =
 let testErrorNotWrappedByErrorRail =
   testTask "error not wrapped by errorRail" {
     let expr = FSharpToExpr.parseRTExpr "Dict.get_v1 (List.empty_v0 []) \"hello\""
-    let! owner = testOwner.Force()
+    let! meta = createTestCanvas "error-not-wrapper-rail"
 
-    let! state = executionStateFor owner "error" Map.empty Map.empty
+    let! state = executionStateFor meta Map.empty Map.empty
 
     let! result = Exe.executeExpr state Map.empty expr
 
@@ -68,7 +68,7 @@ let testErrorNotWrappedByErrorRail =
 let testArguments : Test =
   let t (name, returnType, body) =
     task {
-
+      let! meta = createTestCanvas name
       let userFn : RT.UserFunction.T =
         { tlid = id 7
           name = name
@@ -81,7 +81,7 @@ let testArguments : Test =
 
       let expr = S.eApply (S.eUserFnVal name) []
       let fns = Map.ofList [ name, userFn ]
-      let! state = executionStateFor owner "error" Map.empty fns
+      let! state = executionStateFor meta Map.empty fns
       let! result = Exe.executeExpr state Map.empty expr
       return normalizeDvalResult result
     }

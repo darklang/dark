@@ -40,11 +40,9 @@ let testTraceIDsOfTlidsMatch : Test =
 
 let testFilterSlash : Test =
   testTask "test that a request which doesnt match doesnt end up in the traces" {
-    let! owner = testOwner.Force()
-    do! clearCanvasData owner (CanvasName.create "test-filter_slash")
+    let! meta = initializeTestCanvas "test-filter_slash"
     let route = "/:rest"
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! meta = testCanvasInfo owner "test-filter_slash"
     let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     let t1 = System.Guid.NewGuid()
@@ -59,15 +57,11 @@ let testFilterSlash : Test =
 
 let testRouteVariablesWorkWithStoredEvents : Test =
   testTask "route variables work with stored events" {
-
-    let! owner = testOwner.Force()
-    let canvasName = "test-route_variables_works"
-    do! clearCanvasData owner (CanvasName.create canvasName)
+    let! meta = initializeTestCanvas "route_variables_works"
 
     // set up test
     let httpRoute = "/some/:vars/:and/such"
     let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
-    let! meta = testCanvasInfo owner canvasName
     let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     // store an event and check it comes out
@@ -95,9 +89,7 @@ let testRouteVariablesWorkWithStoredEvents : Test =
 
 let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
   testTask "route variables work with trace inputs and wildcards" {
-    let canvasName = "test-route_variables_works_with_withcards"
-    let! owner = testOwner.Force()
-    do! clearCanvasData owner (CanvasName.create canvasName)
+    let! meta = initializeTestCanvas "route_variables_works_with_withcards"
 
     // note hyphen vs undeerscore
     let route = "/api/create_token"
@@ -105,7 +97,6 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
 
     // set up test
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! meta = testCanvasInfo owner canvasName
     let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     // store an event and check it comes out
@@ -121,14 +112,10 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
 
 let testStoredEventRoundtrip : Test =
   testTask "test stored events can be roundtripped" {
-    let! owner = testOwner.Force()
-    let cn1 = "test-stored_events_can_be_roundtripped1"
-    let cn2 = "test-stored_events_can_be_roundtripped2"
-    do! clearCanvasData owner (CanvasName.create cn1)
-    do! clearCanvasData owner (CanvasName.create cn2)
-
-    let! (meta1 : Canvas.Meta) = testCanvasInfo owner cn1
-    let! (meta2 : Canvas.Meta) = testCanvasInfo owner cn2
+    let! (meta1 : Canvas.Meta) =
+      initializeTestCanvas "stored_events_can_be_roundtripped1"
+    let! (meta2 : Canvas.Meta) =
+      initializeTestCanvas "stored_events_can_be_roundtripped2"
     let id1 = meta1.id
     let id2 = meta2.id
 
@@ -201,18 +188,16 @@ let testTraceDataJsonFormatRedactsPasswords =
              DPassword(Password(UTF8.toBytes "Redacted"))) ] }
     let actual =
       traceData
-      |> Prelude.Json.OCamlCompatible.serialize
-      |> Prelude.Json.OCamlCompatible.deserialize<AT.TraceData>
+      |> Json.OCamlCompatible.serialize
+      |> Json.OCamlCompatible.deserialize<AT.TraceData>
     Expect.equal actual expected "traceData round trip"
   }
 
 
 let testFunctionTracesAreStored =
   testTask "function traces are stored" {
-    let! owner = testOwner.Force()
-    let cn = "test-function-traces-are-stored"
-    do! clearCanvasData owner (CanvasName.create cn)
-    let! (meta : Canvas.Meta) = testCanvasInfo owner cn
+    let! (meta : Canvas.Meta) =
+      initializeTestCanvas "test-function-traces-are-stored"
     let fnid = 12312345234UL
 
     let (userFn : RT.UserFunction.T) =
@@ -227,7 +212,7 @@ let testFunctionTracesAreStored =
     let program =
       { canvasID = meta.id
         canvasName = meta.name
-        accountID = owner.id
+        accountID = meta.owner
         dbs = Map.empty
         userFns = Map.singleton userFn.name userFn
         userTypes = Map.empty

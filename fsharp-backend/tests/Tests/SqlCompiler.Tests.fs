@@ -20,8 +20,8 @@ let compile
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
-    let! owner = testOwner.Force()
-    let! state = executionStateFor owner "test" Map.empty Map.empty
+    let! meta = createTestCanvas (randomString 8)
+    let! state = executionStateFor meta Map.empty Map.empty
 
     try
       let! sql, args =

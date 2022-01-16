@@ -12,6 +12,8 @@ open System.Text.RegularExpressions
 type ConcurrentDictionary<'a, 'b> =
   System.Collections.Concurrent.ConcurrentDictionary<'a, 'b>
 
+open NReco.Logging.File
+
 open Prelude
 open Tablecloth
 
@@ -105,12 +107,6 @@ let t filename =
 
   // Load the testcases first so that redirection works
   testTask $"HttpClient files: {filename}" {
-    let! owner = testOwner.Force()
-    let testOCaml, testFSharp =
-      if String.includes "FSHARPONLY" code then (false, true)
-      else if String.includes "OCAMLONLY" code then (true, false)
-      else (true, true)
-
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
     // debuG "code" code
@@ -118,6 +114,8 @@ let t filename =
     if skip then
       skiptest $"underscore test - {name}"
     else
+      let! meta = createTestCanvas $"http-client-{name}"
+
       // Parse the code
       let shouldEqual, actualProg, expectedResult =
         code
@@ -128,13 +126,18 @@ let t filename =
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
 
-      let! state =
-        executionStateFor owner "test-httpclient-${name}" Map.empty Map.empty
+      let! state = executionStateFor meta Map.empty Map.empty
 
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
 
       let msg = $"\n\n{actualProg}\n=\n{expectedResult}\n\n"
+
+      // Which tests to run
+      let testOCaml, testFSharp =
+        if String.includes "FSHARPONLY" code then (false, true)
+        else if String.includes "OCAMLONLY" code then (true, false)
+        else (true, true)
 
       // Test OCaml
       if testOCaml then
@@ -313,49 +316,10 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       return ctx
     with
     | e ->
-      print $"Exception raised in test handler: {e}"
       Exception.raiseInternal $"Exception raised in test handler" [ "e", e ]
       return ctx
   }
 
-
-// Replace the console logger with one which writes to Prelude.NonBlockingConsole.
-// Has the benefit that it speeds up tests by a factor of 3.
-// https://docs.microsoft.com/en-us/dotnet/core/extensions/custom-logging-provider
-
-type Logger() =
-  interface ILogger with
-    member this.Log<'TState>
-      (
-        level : LogLevel,
-        eventID : EventId,
-        state : 'TState,
-        exc : exn,
-        formatter : System.Func<'TState, exn, string>
-      ) : unit =
-      print ($"{eventID, 3} " + formatter.Invoke(state, exc))
-
-    member _.IsEnabled(level : LogLevel) : bool = true
-
-    member _.BeginScope<'TState>(state : 'TState) : System.IDisposable =
-      Unchecked.defaultof<System.IDisposable>
-
-type LoggerProvider() =
-  interface ILoggerProvider with
-    member this.CreateLogger(_categoryName : string) : ILogger = new Logger()
-
-    member this.Dispose() : unit = ()
-
-let configureLogging (builder : ILoggingBuilder) : unit =
-  // This removes the default ConsoleLogger. Having two console loggers (this one and
-  // also the one in Main), caused a deadlock (possibly from having two different
-  // console logging threads).
-  builder
-    .ClearProviders()
-    .Services
-    .TryAddEnumerable(
-      ServiceDescriptor.Singleton<ILoggerProvider, LoggerProvider>()
-    )
 
 
 
@@ -368,7 +332,7 @@ let configureServices (services : IServiceCollection) : unit = ()
 
 let webserver () =
   Host.CreateDefaultBuilder()
-  |> fun h -> h.ConfigureLogging(configureLogging)
+  |> fun h -> h.ConfigureLogging(configureLogging "test-httpclient-server")
   |> fun h ->
        h.ConfigureWebHost (fun wh ->
          wh

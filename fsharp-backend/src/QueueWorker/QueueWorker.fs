@@ -159,19 +159,30 @@ let shutdown = ref false
 let run () : Task<unit> =
   task {
     while not shutdown.Value do
-      use span = Telemetry.createRoot "QueueWorker.run"
-      // Comment out just in case for now
-      // let! result = dequeueAndProcess ()
-      let result = Ok None
-      match result with
-      | Ok None -> do! Task.Delay 1000
-      | Ok (Some _) -> return ()
-      | Error (e) ->
+      try
+        use span = Telemetry.createRoot "QueueWorker.run"
+        // Comment out just in case for now
+        // let! result = dequeueAndProcess ()
+        let result = Ok None
+        match result with
+        | Ok None -> do! Task.Delay 1000
+        | Ok (Some _) -> return ()
+        | Error (e) ->
+          LibService.Rollbar.sendException
+            "Unhandled exception bubbled to queue worker"
+            (Telemetry.executionID ())
+            []
+            e
+      with
+      | e ->
+        // No matter where else we catch it, this is essential or else the loop won't
+        // continue
         LibService.Rollbar.sendException
-          "Unhandled exception bubbled to queue worker"
+          "Unhandled exception bubbled to run()"
           (Telemetry.executionID ())
           []
           e
+
   }
 
 

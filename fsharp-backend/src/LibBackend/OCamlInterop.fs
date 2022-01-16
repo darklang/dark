@@ -229,6 +229,9 @@ let ofInternalQueryableV1 (str : string) : Task<RT.Dval> =
 let ofInternalRoundtrippableV0 (str : string) : Task<RT.Dval> =
   stringToDvalReq "fuzzing/of_internal_roundtrippable_v0" str
 
+let ofUnknownJsonV0 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_unknown_json_v0" str
+
 let ofUnknownJsonV1 (str : string) : Task<RT.Dval> =
   stringToDvalReq "fuzzing/of_unknown_json_v1" str
 

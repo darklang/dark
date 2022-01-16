@@ -137,10 +137,6 @@ let ocamlStringOfFloat (f : float) : string =
     if result.Contains "." then result else $"{result}."
 
 
-let ocamlBytesToString (bytes : byte []) =
-  // CLEANUP: dumping these as ASCII isn't a great look
-  System.Text.Encoding.UTF8.GetString bytes
-
 // This special format was originally the default OCaml (yojson-derived) format
 // for this.
 let responseOfJson (dv : Dval) (j : JToken) : DHTTP =

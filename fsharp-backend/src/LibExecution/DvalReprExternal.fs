@@ -25,20 +25,28 @@ open System.Text.Json
 // CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
-let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
-  let stream = new System.IO.MemoryStream()
+let jsonWriterOptions : JsonWriterOptions =
   let mutable options = new JsonWriterOptions()
   options.Indented <- true
   options.SkipValidation <- true
   let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
   options.Encoder <- encoder
-  let w = new Utf8JsonWriter(stream, options)
+  options
+
+let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
+  let stream = new System.IO.MemoryStream()
+  let w = new Utf8JsonWriter(stream, jsonWriterOptions)
   f w
   w.Flush()
   UTF8.ofBytesUnsafe (stream.ToArray())
 
+let jsonDocumentOptions : JsonDocumentOptions =
+  let mutable options = new JsonDocumentOptions()
+  options.CommentHandling <- JsonCommentHandling.Skip
+  options
 
-let parseJson (s : string) : JsonDocument = JsonDocument.Parse(s)
+let parseJson (s : string) : JsonDocument =
+  JsonDocument.Parse(s, jsonDocumentOptions)
 
 
 type Utf8JsonWriter with
@@ -52,28 +60,6 @@ type Utf8JsonWriter with
     this.WriteStartArray()
     f ()
     this.WriteEndArray()
-
-  member this.writeOCamlFloatValue(f : float) =
-    if System.Double.IsPositiveInfinity f then
-      this.WriteStringValue("Infinity")
-    else if System.Double.IsNegativeInfinity f then
-      this.WriteStringValue("-Infinity")
-    else if System.Double.IsNaN f then
-      this.WriteStringValue("NaN")
-    else if f = 0.0 && System.Double.IsNegative f then
-      // check for -0.0
-      this.WriteRawValue("-0.0", true)
-    else if System.Math.Abs(f % 1.0) <= System.Double.Epsilon then
-      // Check for int-valued floats. By default, STJ prints them with no decimal
-      let asString = string f
-      if asString.Contains('.') || asString.Contains('E') then // Don't add .0 at the end of 4.2E18
-        this.WriteRawValue(String.toLowercase asString, true)
-      else
-        this.WriteRawValue($"{asString}.0", true)
-    else
-      let v = f |> string |> String.toLowercase
-      this.WriteRawValue(v)
-  member this.writeFullInt64Value(i : int64) = this.WriteRawValue(string i)
 
 
 let (|JString|_|) (j : JsonElement) : Option<string> =
@@ -129,6 +115,7 @@ let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
   | _ -> None
 
 let ocamlStringOfFloat (f : float) : string =
+  // Backward compatible way to stringify floats.
   // We used OCaml's string_of_float in lots of different places and now we're
   // reliant on it. Ugh.  string_of_float in OCaml is C's sprintf with the
   // format "%.12g".
@@ -146,14 +133,9 @@ let ocamlStringOfFloat (f : float) : string =
     if result.Contains "." then result else $"{result}."
 
 
-let ocamlBytesToString (bytes : byte []) =
-  // CLEANUP: dumping these as ASCII isn't a great look
-  System.Text.Encoding.UTF8.GetString bytes
-
 // -------------------------
 // Runtime Types
 // -------------------------
-
 
 // As of Wed Apr 21, 2021, this fn is only used for things that are shown to
 // developers, and not for storage or any other thing that needs to be kept
@@ -216,37 +198,12 @@ let rec typeToBCTypeName (t : DType) : string =
   | TUserType (name, _) -> String.toLowercase name
   | TBytes -> "bytes"
 
-let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
-  let rec inner (indent : int) (dv : Dval) : string =
-    let nl = "\n" + String.replicate indent " "
-    let inl = "\n" + String.replicate (indent + 2) " "
-    let indent = indent + 2
-    let recurse = inner indent
-
-    match dv with
-    | DList l ->
-      if l = [] then
-        "[]"
-      else
-        "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
-    | DObj o ->
-      if o = Map.empty then
-        "{}"
-      else
-        let strs =
-          Map.fold [] (fun l key value -> (key + ": " + recurse value) :: l) o
-
-        // CLEANUP no good reason to have the space before the newline
-        "{ " + inl + String.concat ("," + inl) strs + nl + "}"
-    | _ -> reprfn dv
-
-  inner 0 dv
-
 // When printing to grand-users (our users' users) using text/plain, print a
 // human-readable format. TODO: this should probably be part of the functions
 // generating the responses. Redacts passwords.
 
 let toEnduserReadableTextV0 (dval : Dval) : string =
+
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
     match dv with
@@ -254,6 +211,32 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DUuid _
     | DChar _ -> "\"" + reprfn dv + "\""
     | _ -> reprfn dv
+
+  and toNestedString (dv : Dval) : string =
+    let rec inner (indent : int) (dv : Dval) : string =
+      let nl = "\n" + String.replicate indent " "
+      let inl = "\n" + String.replicate (indent + 2) " "
+      let indent = indent + 2
+      let recurse = inner indent
+
+      match dv with
+      | DList l ->
+        if l = [] then
+          "[]"
+        else
+          "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
+      | DObj o ->
+        if o = Map.empty then
+          "{}"
+        else
+          let strs =
+            Map.fold [] (fun l key value -> (key + ": " + recurse value) :: l) o
+
+          // CLEANUP no good reason to have the space before the newline
+          "{ " + inl + String.concat ("," + inl) strs + nl + "}"
+      | _ -> nestedreprfn dv
+
+    inner 0 dv
 
   and reprfn dv =
     match dv with
@@ -277,7 +260,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
       // redacting, do not unredact
       "<Password>"
     | DObj _
-    | DList _ -> toNestedString nestedreprfn dv
+    | DList _ -> toNestedString dv
     | DErrorRail d ->
       // We don't print error here, because the errorrail value will know
       // whether it's an error or not.
@@ -295,7 +278,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DResult (Error d) -> "Error: " + reprfn d
     | DOption (Some d) -> reprfn d
     | DOption None -> "Nothing"
-    | DBytes bytes -> ocamlBytesToString bytes
+    | DBytes bytes -> System.Text.Encoding.UTF8.GetString bytes
 
   reprfn dval
 
@@ -304,10 +287,32 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 // values are rendered as string. Redacts passwords.
 let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
+  let writeOCamlFloatValue (f : float) =
+    if System.Double.IsPositiveInfinity f then
+      w.WriteStringValue("Infinity")
+    else if System.Double.IsNegativeInfinity f then
+      w.WriteStringValue("-Infinity")
+    else if System.Double.IsNaN f then
+      w.WriteStringValue("NaN")
+    else if f = 0.0 && System.Double.IsNegative f then
+      // check for -0.0
+      w.WriteRawValue("-0.0", true)
+    else if System.Math.Abs(f % 1.0) <= System.Double.Epsilon then
+      // Check for int-valued floats. By default, STJ prints them with no decimal
+      let asString = string f
+      if asString.Contains('.') || asString.Contains('E') then // Don't add .0 at the end of 4.2E18
+        w.WriteRawValue(String.toLowercase asString, true)
+      else
+        w.WriteRawValue($"{asString}.0", true)
+    else
+      let v = f |> string |> String.toLowercase
+      w.WriteRawValue(v)
+
+
   match dv with
   // basic types
-  | DInt i -> w.writeFullInt64Value i
-  | DFloat f -> w.writeOCamlFloatValue f
+  | DInt i -> w.WriteRawValue(string i)
+  | DFloat f -> writeOCamlFloatValue f
   | DBool b -> w.WriteBooleanValue b
   | DNull -> w.WriteNullValue()
   | DStr s -> w.WriteStringValue s
@@ -541,6 +546,7 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
         else
           msg
     Error msg
+  | e -> Error e.Message
 
 
 // Converts an object to (string,string) pairs. Raises an exception if not an object

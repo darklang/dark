@@ -1,5 +1,8 @@
 module Tests.DvalReprExternal
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Expecto
 open Prelude
 open Prelude.Tablecloth
@@ -421,6 +424,128 @@ module LibJwt =
           |> List.filter ((<>) (RT.DInt 4611686018427387904L)))
        |> List.map (fun x -> x, true))
 
+module ParsingMinefield =
+
+  // Run the ofUnknownJson functions against a repo of JSON edge cases, and make sure
+  // they generate the same.
+
+  let functionsEqual
+    (filename : string)
+    (ocamlFn : string -> Task<RT.Dval>)
+    (fsharpFn : string -> Result<RT.Dval, string>)
+    : Result<unit, string> =
+    let str = System.IO.File.ReadAllText(filename, System.Text.Encoding.UTF8)
+    let actual = fsharpFn str
+    let expected =
+      try
+        Ok (ocamlFn str).Result
+      with
+      | :? System.AggregateException as e -> Error e.InnerException.Message
+      | e -> Error e.Message
+
+    let str = if String.length str > 1000 then String.take 1000 str else str
+
+    match actual, expected with
+    | Ok a, Ok e ->
+      Expect.equalDval a e $"{filename} equals dval"
+      Ok()
+    | Error _, Error _ -> Ok()
+    | Ok dv, Error msg ->
+      Error $"F# parsed '{filename}' ({str}) while ocaml errored: {msg}"
+    | Error msg, Ok dv ->
+      Error $"OCaml parsed '{filename}' ({str}) while F# errored: {msg}"
+
+
+  let testFiles () =
+    let dir = "tests/json-test-suite/"
+    System.IO.Directory.GetFiles(dir, "*.json")
+    |> Array.filter ((<>) "README.md")
+    |> Array.filter ((<>) "LICENSE")
+    |> Array.filter ((<>) ".gitattributes")
+    |> Array.toList
+    |> List.sort
+
+  let testOfUnknownJsonV0SameInOCaml =
+    // We ran all the tests then manually checked out the differences, documenting
+    // them in the changelog, then adding them here.
+    let knownDifferences =
+      [ "i_number_too_big_neg_int"
+        "i_number_too_big_pos_int"
+        "i_number_very_big_negative_int"
+        "i_object_key_lone_2nd_surrogate"
+        "n_number_NaN"
+        "n_number_infinity"
+        "n_number_minus_infinity"
+        "n_object_repeated_null_null"
+        "n_object_unquoted_key"
+        "n_string_unescaped_newline"
+        "n_string_unescaped_tab"
+        "n_string_unescaped_tab"
+        "y_string_null_escape" ]
+      |> List.map (fun name -> $"tests/json-test-suite/{name}.json")
+      |> Set
+
+    let unknownV0Equal (filename : string) : Result<unit, string> =
+      functionsEqual filename LibBackend.OCamlInterop.ofUnknownJsonV0 (fun str ->
+        try
+          Ok(DvalReprExternal.unsafeOfUnknownJsonV0 str)
+        with
+        | e -> Error e.Message)
+
+    testMany
+      "ofUnknownJsonV0"
+      unknownV0Equal
+      (testFiles ()
+       |> List.filterMap (fun filename ->
+         if Set.contains filename knownDifferences then
+           None
+         else
+           Some((filename), Ok())))
+
+  let testOfUnknownJsonV1SameInOCaml =
+    // We ran all the tests then manually checked out the differences, documenting
+    // them in the changelog, then adding them here.
+    let knownDifferences =
+      [ "i_number_too_big_neg_int"
+        "i_number_too_big_pos_int"
+        "i_number_very_big_negative_int"
+        "i_object_key_lone_2nd_surrogate"
+        "n_number_NaN"
+        "n_number_infinity"
+        "n_number_minus_infinity"
+        "n_object_repeated_null_null"
+        "n_object_unquoted_key"
+        "n_string_unescaped_newline"
+        "n_string_unescaped_tab"
+        "n_string_unescaped_tab"
+        "y_string_null_escape" ]
+      |> List.map (fun name -> $"tests/json-test-suite/{name}.json")
+      |> Set
+
+    let unknownV1Equal (filename : string) : Result<unit, string> =
+      functionsEqual
+        filename
+        LibBackend.OCamlInterop.ofUnknownJsonV1
+        DvalReprExternal.ofUnknownJsonV1
+
+    testMany
+      "ofUnknownJsonV1"
+      unknownV1Equal
+      (testFiles ()
+       |> List.filterMap (fun filename ->
+         if Set.contains filename knownDifferences then
+           None
+         else
+           Some(filename, Ok())))
+
+
+
+
+  let tests =
+    testList
+      "minefield"
+      [ testOfUnknownJsonV0SameInOCaml; testOfUnknownJsonV1SameInOCaml ]
+
 
 let tests =
   testList
@@ -435,4 +560,5 @@ let tests =
       ToHashableRepr.tests
       Password.tests
       LibJwt.testJsonSameOnBoth
+      ParsingMinefield.tests
       allRoundtrips ]
