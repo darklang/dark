@@ -1179,7 +1179,9 @@ module ExecutePureFunctions =
           member x.Generator =
             gen {
               let fns =
-                (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns)
+                LibRealExecution.RealExecution.stdlibFns
+                |> Lazy.force
+                |> Map.values
                 |> List.filter (fun fn ->
                   let name = string fn.name
                   let has set = Set.contains name set

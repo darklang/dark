@@ -252,11 +252,11 @@ let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
 
 let libraries : Lazy<RT.Libraries> =
   lazy
-    ({ stdlib =
-         (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns @ LibTest.fns
-          |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
-
-       packageFns = Map.empty })
+    (let testFns =
+      LibTest.fns
+      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+      |> Map.mergeFavoringLeft (Lazy.force LibRealExecution.RealExecution.stdlibFns)
+     { stdlib = testFns; packageFns = Map.empty })
 
 let executionStateFor
   (meta : Canvas.Meta)

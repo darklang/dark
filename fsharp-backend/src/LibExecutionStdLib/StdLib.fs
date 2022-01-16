@@ -21,27 +21,29 @@ let renames =
     fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0 ]
 
 
-let prefixFns : List<BuiltInFn> =
-  List.concat [ LibBool.fns
-                LibBytes.fns
-                LibChar.fns
-                LibDate.fns
-                LibDict.fns
-                LibFloat.fns
-                LibHttp.fns
-                LibHttpClient.fns
-                LibJson.fns
-                LibMath.fns
-                LibObject.fns
-                LibUuid.fns
-                LibInt.fns
-                LibList.fns
-                // LibMiddleware.fns
-                LibNoModule.fns
-                LibOption.fns
-                LibResult.fns
-                LibString.fns ]
-  |> renameFunctions renames
+let prefixFns : Lazy<List<BuiltInFn>> =
+  lazy
+    ([ LibBool.fns
+       LibBytes.fns
+       LibChar.fns
+       LibDate.fns
+       LibDict.fns
+       LibFloat.fns
+       LibHttp.fns
+       LibHttpClient.fns
+       LibJson.fns
+       LibMath.fns
+       LibObject.fns
+       LibUuid.fns
+       LibInt.fns
+       LibList.fns
+       // LibMiddleware.fns
+       LibNoModule.fns
+       LibOption.fns
+       LibResult.fns
+       LibString.fns ]
+     |> List.concat
+     |> renameFunctions renames)
 
 // -------------------------
 // Infix fns
@@ -79,20 +81,21 @@ let infixFnNames =
 // Is this the name of an infix function?
 let isInfixName (name : FQFnName.StdlibFnName) = infixFnNames.Contains name
 
-let infixFns : List<BuiltInFn> =
-  let fns =
-    List.choose
-      (fun (builtin : BuiltInFn) ->
+let infixFns : Lazy<List<BuiltInFn>> =
+  lazy
+    (let fns =
+      prefixFns
+      |> Lazy.force
+      |> List.choose (fun (builtin : BuiltInFn) ->
         let opName = infixFnMapping.TryFind builtin.name
         Option.map (fun newName -> { builtin with name = newName }) opName)
-      prefixFns
 
-  assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
-  fns
+     assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
+     fns)
 
 
 
 // -------------------------
 // All fns
 // -------------------------
-let fns = infixFns @ prefixFns
+let fns = lazy (Lazy.force infixFns @ Lazy.force prefixFns)
