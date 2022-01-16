@@ -23,7 +23,7 @@ let () =
     ; ("garbage_collection", Test_garbage_collection.suite)
     ; ("event-queue", Test_event_queue.suite) ]
   in
-  Init.init ~run_side_effects:true ;
+  Init.init ~run_migrations:true ~run_side_effects:true ;
   Log.set_level `All ;
   Account.init_testing () ;
   let wrapped_suites =

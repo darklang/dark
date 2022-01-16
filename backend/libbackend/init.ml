@@ -4,7 +4,7 @@ module File = Libbackend_basics.File
 
 let has_inited : bool ref = ref false
 
-let init ~run_side_effects =
+let init ~run_side_effects ~run_migrations =
   try
     if not !has_inited
     then (
@@ -31,9 +31,10 @@ let init ~run_side_effects =
       (* Dark-specific stuff *)
       File.init () ;
       Httpclient.init () ;
+      if run_migrations
+      then Migrations.init () ;
       if run_side_effects
       then (
-        Migrations.init () ;
         Account.init () ;
         Canvas.write_shape_data () ) ;
       if Config.check_tier_one_hosts then Canvas.check_tier_one_hosts () ;

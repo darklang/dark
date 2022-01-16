@@ -120,7 +120,7 @@ let () =
     print_endline "Starting legacy fuzzing server" ;
     (* see https://github.com/mirage/ocaml-cohttp/issues/511 *)
     let () = Lwt.async_exception_hook := ignore in
-    Libbackend.Init.init ~run_side_effects:false ;
+    Libbackend.Init.init ~run_side_effects:false ~run_migrations:false ;
     Libexecution.Libs.init F.fns ;
     ignore (Lwt_main.run (Nocrypto_entropy_lwt.initialize () >>= server))
   with e ->
