@@ -113,10 +113,10 @@ let t
       | :? DarkException as e ->
         let metadata = Exception.toMetadata e
         print $"Exception thrown in test: {string e}\n{metadata}"
-        return (Expect.equal "Exception thrown in test" (string e) "")
+        return Expect.equal ("Exception thrown in test", []) (string e, metadata) ""
       | e ->
         print $"Exception thrown in test: {e}"
-        return (Expect.equal "Exception thrown in test" (string e) "")
+        return Expect.equal "Exception thrown in test" (string e) ""
     }
 
 
