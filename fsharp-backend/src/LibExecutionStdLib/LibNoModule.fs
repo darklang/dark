@@ -72,35 +72,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "" "assoc" 0
-      parameters =
-        [ Param.make "obj" (TDict varA) ""
-          Param.make "key" TStr ""
-          Param.make "val" varA "" ]
-      returnType = TDict varA
-      description = "Return a copy of `obj` with the `key` set to `val`."
-      fn =
-        (function
-        | _, [ DObj o; DStr k; v ] -> Ply(DObj(Map.add k v o))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Dict" "set" 0) }
-
-
-    { name = fn "" "dissoc" 0
-      parameters = [ Param.make "obj" (TDict varA) ""; Param.make "key" TStr "" ]
-      returnType = TDict varA
-      description = "Return a copy of `obj` with `key` unset."
-      fn =
-        (function
-        | _, [ DObj o; DStr k ] -> Ply(DObj(Map.remove k o))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Dict" "remove" 0) }
-
-
     { name = fn "" "toForm" 0
       parameters = [ Param.make "obj" (TDict varA) ""; Param.make "submit" TStr "" ]
       returnType = TStr

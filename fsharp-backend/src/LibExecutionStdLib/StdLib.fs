@@ -5,6 +5,22 @@ open LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
 
+let fn = FQFnName.stdlibFnName
+
+let renames =
+  [ fn "Http" "respond" 0, fn "Http" "response" 0
+    fn "Http" "respondWithHtml" 0, fn "Http" "responseWithHtml" 0
+    fn "Http" "respondWithText" 0, fn "Http" "responseWithText" 0
+    fn "Http" "respondWithJson" 0, fn "Http" "responseWithJson" 0
+    fn "Http" "respondWithHeaders" 0, fn "Http" "responseWithHeaders" 0
+    fn "" "assoc" 0, fn "Dict" "add" 0
+    fn "" "dissoc" 0, fn "Dict" "remove" 0
+    fn "JSON" "read" 1, fn "JSON" "parse" 0
+    fn "Object" "empty" 0, fn "Dict" "empty" 0
+    fn "Object" "merge" 0, fn "Dict" "merge" 0
+    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0 ]
+
+
 let prefixFns : List<BuiltInFn> =
   List.concat [ LibBool.fns
                 LibBytes.fns
@@ -25,6 +41,7 @@ let prefixFns : List<BuiltInFn> =
                 LibOption.fns
                 LibResult.fns
                 LibString.fns ]
+  |> renameFunctions renames
 
 // -------------------------
 // Infix fns

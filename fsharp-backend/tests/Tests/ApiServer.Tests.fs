@@ -216,8 +216,11 @@ let testUiReturnsTheSame =
 
     Expect.equal fc oc ""
 
+    let fns = LibRealExecution.RealExecution.stdlibFns |> Lazy.force
+
     let builtins =
-      Functions.allFunctions
+      fns
+      |> Map.values
       |> List.filter (fun fn ->
         Functions.fsharpOnlyFns |> Lazy.force |> Set.contains (string fn.name) |> not)
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
@@ -244,7 +247,7 @@ let testUiReturnsTheSame =
     // all.
     let filteredOCamlFns = filtered ocfns
 
-    print $"Implemented fns  : {List.length Functions.allFunctions}"
+    print $"Implemented fns  : {Map.count fns}"
     print $"Excluding F#-only: {Set.length builtins}"
     print $"Fns in OCaml api : {List.length ocfns}"
     print $"Fns in F# api    : {List.length fcfns}"
