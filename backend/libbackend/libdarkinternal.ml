@@ -28,11 +28,13 @@ let internal_fn (f : exec_state * dval list -> dval) =
             let fnName = es.executing_fnname in
             Log.infO
               "internal_fn"
-              ~params:[("user", username); ("status", "starting"); ("fnName", fnName)] ;
+              ~params:
+                [("user", username); ("status", "starting"); ("fnName", fnName)] ;
             let result = f (es, params) in
             Log.infO
               "internal_fn"
-              ~params:[("user", username); ("status", "starting"); ("fnName", fnName)] ;
+              ~params:
+                [("user", username); ("status", "starting"); ("fnName", fnName)] ;
             result )
           else
             username

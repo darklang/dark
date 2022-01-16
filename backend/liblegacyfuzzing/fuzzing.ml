@@ -404,7 +404,7 @@ let fns : Types.RuntimeT.fn list =
               Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
- ; { prefix_names = ["Test::deleteUser"]
+  ; { prefix_names = ["Test::deleteUser"]
     ; infix_names = []
     ; parameters = [Lib.par "username" TStr]
     ; return_type = TResult
