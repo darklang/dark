@@ -63,22 +63,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "set" 1) }
-    { name = fn "DB" "get" 1
-      parameters = [ keyParam; tableParam ]
-      returnType = TOption varA
-      description = "Finds a value in `table` by `key"
-      fn =
-        (function
-        | state, [ DStr key; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! result = UserDB.getOption state db key
-            return Dval.option result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "get" 2) }
     { name = fn "DB" "get" 2
       parameters = [ keyParam; tableParam ]
       returnType = TOption varA
@@ -302,41 +286,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "query" 2) }
-    { name = fn "DB" "query" 2
-
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TList varA
-      description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
-      fn =
-        (function
-        | state, [ DObj fields; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryExactFields state db fields
-            return results |> List.map snd |> Dval.list
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "query" 3) }
-    { name = fn "DB" "query" 3
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TList varA
-      description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
-      fn =
-        (function
-        | state, [ (DObj fields); DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryExactFields state db fields
-            return results |> List.map snd |> Dval.list
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryExactFields" 0) }
     { name = fn "DB" "queryExactFields" 0
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA
@@ -369,24 +318,6 @@ let fns : List<BuiltInFn> =
             let! result = UserDB.queryExactFields state db fields
 
             return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryExactFieldsWithKey" 0) }
-    { name = fn "DB" "queryWithKey" 2
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = ocamlTObj
-      description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has
-          , returning {key : value} as an object"
-      fn =
-        (function
-        | state, [ DObj fields; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! result = UserDB.queryExactFields state db fields
-            return result |> Map.ofList |> DObj
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -430,26 +361,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOne" 2) }
-    { name = fn "DB" "queryOne" 2
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TOption varA
-      description =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
-      fn =
-        (function
-        | state, [ (DObj fields); DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryExactFields state db fields
-
-            match results with
-            | [ (_, v) ] -> return DOption(Some v)
-            | _ -> return DOption None
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryOneWithExactFields" 0) }
     { name = fn "DB" "queryOneWithExactFields" 0
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
@@ -490,26 +401,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOneWithKey" 2) }
-    { name = fn "DB" "queryOneWithKey" 2
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TOption varA
-      description =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
-      fn =
-        (function
-        | state, [ DObj fields; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryExactFields state db fields
-
-            match results with
-            | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
-            | _ -> return DOption None
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryOneExactFieldsWithKey" 0) }
     { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
