@@ -172,6 +172,31 @@ let testUiReturnsTheSame =
 
     let port = portFor OCaml
 
+    // There have been some tiny changes, let's work around them
+    let ocfns =
+      List.map
+        (fun (fn : Functions.FunctionMetadata) ->
+          match string fn.name with
+          | "DB::queryOneWithKey_v2" ->
+            { fn with
+                description =
+                  fn.description + ". Previously called DB::queryOnewithKey_v2" }
+          | "DB::queryWithKey_v2" ->
+            { fn with
+                description =
+                  fn.description + ". Previous called DB::queryWithKey_v2" }
+          | "DB::query_v3" ->
+            { fn with
+                description = fn.description + ". Previously called DB::query_v3" }
+          | "DB::query_v2" ->
+            { fn with
+                description = fn.description + ". Previously called DB::query_v3" }
+          | "DB::queryOne_v2" ->
+            { fn with
+                description = fn.description + ". Previously called DB::queryOne_v2" }
+          | _ -> fn)
+        ocfns
+
     let oc =
       oc
         // a couple of specific ones
@@ -191,10 +216,8 @@ let testUiReturnsTheSame =
 
     Expect.equal fc oc ""
 
-    let allBuiltins = (LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns)
-
     let builtins =
-      allBuiltins
+      Functions.allFunctions
       |> List.filter (fun fn ->
         Functions.fsharpOnlyFns |> Lazy.force |> Set.contains (string fn.name) |> not)
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
@@ -221,7 +244,7 @@ let testUiReturnsTheSame =
     // all.
     let filteredOCamlFns = filtered ocfns
 
-    print $"Implemented fns  : {List.length allBuiltins}"
+    print $"Implemented fns  : {List.length Functions.allFunctions}"
     print $"Excluding F#-only: {Set.length builtins}"
     print $"Fns in OCaml api : {List.length ocfns}"
     print $"Fns in F# api    : {List.length fcfns}"

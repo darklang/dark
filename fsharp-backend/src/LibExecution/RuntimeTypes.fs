@@ -715,6 +715,8 @@ type Previewable =
 
 type Deprecation =
   | NotDeprecated
+  // The exact same function is available under a new, preferred name
+  | RenamedTo of FQFnName.StdlibFnName
   // This has been deprecated and has a replacement we can suggest
   | ReplacedBy of FQFnName.StdlibFnName
   // This has been deprecated and not replaced, provide a message for the user

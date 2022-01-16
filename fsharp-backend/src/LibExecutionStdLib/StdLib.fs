@@ -74,28 +74,8 @@ let infixFns : List<BuiltInFn> =
   fns
 
 
-// -------------------------
-// renamed fns
-// -------------------------
-
-// To cut down on the amount of code, when we rename a function and make no other
-// changes, we don't duplicate it. Instead, we rename it and add the rename to this
-// list. At startup, the renamed functions are created and added to the list.
-let renamed =
-  let fn = FQFnName.stdlibFnName
-  // old name first, new name second. The new one should still be in the codebase
-  [ fn "DB" "query" 3, fn "DB" "queryExactFields" 0
-    fn "DB" "query" 2, fn "DB" "queryExactFields" 3 // don't know why
-    fn "DB" "queryWithKey" 2, fn "DB" "queryExactFieldsWithKey" 0
-    fn "DB" "get" 1, fn "DB" "get" 2
-    fn "DB" "queryOne" 2, fn "DB" "queryOneWithExactFields" 0
-    fn "DB" "queryOneWithKey" 2, fn "DB" "queryOneExactFieldsWithKey" 0
-    fn "x" "x" 0, fn "x" "x" 0 ]
-
-let renamedFunctions = []
-
 
 // -------------------------
 // All fns
 // -------------------------
-let fns = infixFns @ prefixFns @ renamedFunctions
+let fns = infixFns @ prefixFns
