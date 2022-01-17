@@ -3,6 +3,13 @@
 
 set -euo pipefail
 
+# Part of F# tests. They block the dropdb call
+sudo killall legacy_serializtion_server.exe || true
+sudo killall legacy_fuzzing_server.exe || true
+sudo killall ocamltestserver.exe || true
+sudo killall server.exe || true
+killall -9 Tests || true
+
 dropdb --if-exists testdb
 createdb testdb
 DARK_CONFIG_DB_HOST=localhost \
