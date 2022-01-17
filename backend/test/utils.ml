@@ -71,6 +71,10 @@ let clear_test_data () : unit =
     "DELETE FROM function_results_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
     ~params:[List canvas_ids; String Db.array_separator]
+    ~name:"clear_function_results_test_data"
+    "DELETE FROM function_results_v3 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
+  Db.run
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_user_data_test_data"
     "DELETE FROM user_data where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run

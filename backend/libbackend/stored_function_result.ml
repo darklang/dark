@@ -52,7 +52,7 @@ let store_v3
         ; RoundtrippableDval result ]
 
 
-let store = store_v2
+let store = store_v3
 
 let load_v2 ~canvas_id ~trace_id tlid : function_result list =
   (* Right now, we don't allow the user to see multiple results when a function
@@ -87,7 +87,7 @@ let load_v3 ~canvas_id ~trace_id tlid : function_result list =
    * is called in a loop. But, there's a lot of data when functions are called
    * in a loop, so avoid massive responses. *)
   Db.fetch
-    ~name:"sfr_load"
+    ~name:"sfr_load_v3"
     "SELECT
        DISTINCT ON (fnname, id, hash, hash_version)
        fnname, id, hash, hash_version, value, timestamp
@@ -111,10 +111,10 @@ let load_v3 ~canvas_id ~trace_id tlid : function_result list =
 
 
 let load ~canvas_id ~trace_id tlid : function_result list =
-  (* DISABLED FOR NOW UNTIL THE MIGRATION IS DONE *)
-  (* let v3_results = load_v3 ~canvas_id ~trace_id tlid in *)
-  (* if List.length v3_results >= 10 then v3_results else *)
-  load_v2 ~canvas_id ~trace_id tlid
+  let v3_results = load_v3 ~canvas_id ~trace_id tlid in
+  if List.length v3_results >= 10
+  then v3_results
+  else v3_results @ load_v2 ~canvas_id ~trace_id tlid
 
 
 (** trim_results_for_canvas is like trim_results but for a single canvas.
