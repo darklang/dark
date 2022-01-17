@@ -10,7 +10,7 @@ module Db = Libbackend_basics.Db
 (* External *)
 (* ------------------------- *)
 
-let store
+let store_v2
     ~canvas_id ~trace_id (tlid, fnname, id) (arglist : RTT.dval list) result =
   if canvas_id = Stored_event.throttled
   then ()
@@ -31,7 +31,30 @@ let store
         ; RoundtrippableDval result ]
 
 
-let load ~canvas_id ~trace_id tlid : function_result list =
+let store_v3
+    ~canvas_id ~trace_id (tlid, fnname, id) (arglist : RTT.dval list) result =
+  if canvas_id = Stored_event.throttled
+  then ()
+  else
+    Db.run
+      ~name:"stored_function_result.store"
+      "INSERT INTO function_results_v3
+      (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)"
+      ~params:
+        [ Uuid canvas_id
+        ; Uuid trace_id
+        ; ID tlid
+        ; String fnname
+        ; ID id
+        ; String (Dval.hash Dval.current_hash_version arglist)
+        ; Int Dval.current_hash_version
+        ; RoundtrippableDval result ]
+
+
+let store = store_v2
+
+let load_v2 ~canvas_id ~trace_id tlid : function_result list =
   (* Right now, we don't allow the user to see multiple results when a function
    * is called in a loop. But, there's a lot of data when functions are called
    * in a loop, so avoid massive responses. *)
@@ -57,6 +80,41 @@ let load ~canvas_id ~trace_id tlid : function_result list =
          | _ ->
              Exception.internal
                "Bad DB format for stored_functions_results.load")
+
+
+let load_v3 ~canvas_id ~trace_id tlid : function_result list =
+  (* Right now, we don't allow the user to see multiple results when a function
+   * is called in a loop. But, there's a lot of data when functions are called
+   * in a loop, so avoid massive responses. *)
+  Db.fetch
+    ~name:"sfr_load"
+    "SELECT
+       DISTINCT ON (fnname, id, hash, hash_version)
+       fnname, id, hash, hash_version, value, timestamp
+     FROM function_results_v3
+     WHERE canvas_id = $1
+       AND trace_id = $2
+       AND tlid = $3
+     ORDER BY fnname, id, hash, hash_version, timestamp DESC"
+    ~params:[Db.Uuid canvas_id; Db.Uuid trace_id; Db.ID tlid]
+  |> List.map ~f:(function
+         | [fnname; id; hash; hash_version; dval; ts] ->
+             ( fnname
+             , id_of_string id
+             , hash
+               (* hash_version is nullable, nulls come back as empty string *)
+             , (match hash_version with "" -> 0 | hv -> hv |> int_of_string)
+             , Dval.of_internal_roundtrippable_v0 dval )
+         | _ ->
+             Exception.internal
+               "Bad DB format for stored_functions_results.load")
+
+
+let load ~canvas_id ~trace_id tlid : function_result list =
+  (* DISABLED FOR NOW UNTIL THE MIGRATION IS DONE *)
+  (* let v3_results = load_v3 ~canvas_id ~trace_id tlid in *)
+  (* if List.length v3_results >= 10 then v3_results else *)
+  load_v2 ~canvas_id ~trace_id tlid
 
 
 (** trim_results_for_canvas is like trim_results but for a single canvas.

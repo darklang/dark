@@ -28,7 +28,7 @@ let rec cron_checker (pid : int) () =
 
 
 let () =
-  Libbackend.Init.init ~run_side_effects:false ;
+  Libbackend.Init.init ~run_side_effects:false ~run_migrations:false ;
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
   (* Three cases where we want to exit:

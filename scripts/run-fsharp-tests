@@ -30,11 +30,31 @@ done
 sudo killall legacy_serializtion_server.exe || true
 sudo killall legacy_fuzzing_server.exe || true
 sudo killall ocamltestserver.exe || true
+sudo killall server.exe || true
 killall -9 Tests || true
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests
+  EXECHOST=Build/out/ExecHost/Release/net6.0/linux-x64/ExecHost
+else
+  EXE=Build/out/Tests/Debug/net6.0/linux-x64/Tests
+  EXECHOST=Build/out/ExecHost/Debug/net6.0/linux-x64/ExecHost
+fi
+
 
 ./scripts/devcontainer/_wait-for-background-services postgresql
 dropdb --if-exists testdb
 createdb testdb
+
+# Run the migrations before the other servers start
+cd fsharp-backend && \
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_DB_HOST=localhost \
+  DARK_CONFIG_DB_DBNAME=testdb \
+  DARK_CONFIG_DB_USER=dark \
+  DARK_CONFIG_DB_PASSWORD=darklang \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
+  time "${EXECHOST}" run-migrations && cd ..
 
 # These scripts run in the docker container. When this script is run from in the
 # container, these scripts and the spawned processes stay running. this is helpful if
@@ -48,12 +68,6 @@ createdb testdb
 
 # CLEANUP This is where the migrations are run for testdb at the moment
 DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVER_NGINX_PORT}" ./scripts/devcontainer/_wait-until-server-ready
-
-if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests
-else
-  EXE=Build/out/Tests/Debug/net6.0/linux-x64/Tests
-fi
 
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the

@@ -65,6 +65,10 @@ let login (username : string) (password : string) : Task<User> =
     let! loginResp = client.SendAsync(loginReq)
     let! loginContent = loginResp.Content.ReadAsStringAsync()
 
+    if loginResp.StatusCode <> System.Net.HttpStatusCode.OK then
+      debuG "loginContent" loginContent
+      Expect.equal loginResp.StatusCode System.Net.HttpStatusCode.OK ""
+
     let csrfToken =
       match loginContent with
       | Regex "const csrfToken = \"(.*?)\";" [ token ] -> token

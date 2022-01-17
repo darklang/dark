@@ -7,7 +7,7 @@ module Event_queue = Libbackend_basics.Event_queue
 let shutdown = ref false
 
 let queue_worker execution_id =
-  Libbackend.Init.init ~run_side_effects:false ;
+  Libbackend.Init.init ~run_side_effects:false ~run_migrations:false ;
   let rec queue_worker () =
     let result = Libbackend.Queue_worker.run execution_id in
     match result with

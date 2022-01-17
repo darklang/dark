@@ -32,13 +32,10 @@ let initializeMigrationsTable () : unit =
      , sql TEXT NOT NULL)"
   |> Sql.executeStatementSync
 
-let isAlreadyRun (name : string) : bool =
-  Sql.query
-    "SELECT TRUE from system_migrations
-     WHERE name = @name"
-  |> Sql.parameters [ "name", Sql.string name ]
-  |> Sql.executeExistsSync
 
+let getExistingMigrations () : List<string> =
+  Sql.query "SELECT name from system_migrations"
+  |> Sql.execute (fun read -> read.string "name")
 
 let runSystemMigration (name : string) (sql : string) : unit =
 
@@ -46,10 +43,9 @@ let runSystemMigration (name : string) (sql : string) : unit =
   // On conflict, do nothing because another starting process might be running this migration as well.
   let recordMigrationStmt =
     "INSERT INTO system_migrations
-                             (name, execution_date, sql)
-                             VALUES
-                             (@name, CURRENT_TIMESTAMP, @sql)
-                             ON CONFLICT DO NOTHING"
+       (name, execution_date, sql)
+       VALUES (@name, CURRENT_TIMESTAMP, @sql)
+       ON CONFLICT DO NOTHING"
 
   let recordMigrationParams = [ "name", Sql.string name; "sql", Sql.string sql ]
 
@@ -88,12 +84,13 @@ let run () : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
   let migrations = names ()
-  print $"migrations: \n"
+  print "migrations: "
   List.iter (fun m -> print $" - {m}") migrations
+  let existingMigrations = getExistingMigrations () |> Set
 
   List.iter
     (fun name ->
-      if isAlreadyRun name then
+      if Set.contains name existingMigrations then
         print $"migration already run: {name}"
         Telemetry.addEvent "migration already run" [ "data", name ]
       else
