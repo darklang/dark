@@ -30,6 +30,7 @@ let store_v2
         ; Int Dval.current_hash_version
         ; RoundtrippableDval result ]
 
+
 let store_v3
     ~canvas_id ~trace_id (tlid, fnname, id) (arglist : RTT.dval list) result =
   if canvas_id = Stored_event.throttled
@@ -49,6 +50,7 @@ let store_v3
         ; String (Dval.hash Dval.current_hash_version arglist)
         ; Int Dval.current_hash_version
         ; RoundtrippableDval result ]
+
 
 let store = store_v2
 
@@ -79,6 +81,7 @@ let load_v2 ~canvas_id ~trace_id tlid : function_result list =
              Exception.internal
                "Bad DB format for stored_functions_results.load")
 
+
 let load_v3 ~canvas_id ~trace_id tlid : function_result list =
   (* Right now, we don't allow the user to see multiple results when a function
    * is called in a loop. But, there's a lot of data when functions are called
@@ -105,6 +108,7 @@ let load_v3 ~canvas_id ~trace_id tlid : function_result list =
          | _ ->
              Exception.internal
                "Bad DB format for stored_functions_results.load")
+
 
 let load ~canvas_id ~trace_id tlid : function_result list =
   (* DISABLED FOR NOW UNTIL THE MIGRATION IS DONE *)

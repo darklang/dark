@@ -31,8 +31,7 @@ let init ~run_side_effects ~run_migrations =
       (* Dark-specific stuff *)
       File.init () ;
       Httpclient.init () ;
-      if run_migrations
-      then Migrations.init () ;
+      if run_migrations then Migrations.init () ;
       if run_side_effects
       then (
         Account.init () ;
