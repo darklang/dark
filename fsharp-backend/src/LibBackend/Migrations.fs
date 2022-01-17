@@ -34,8 +34,7 @@ let initializeMigrationsTable () : unit =
 
 
 let getExistingMigrations () : List<string> =
-  Sql.query
-    "SELECT name from system_migrations"
+  Sql.query "SELECT name from system_migrations"
   |> Sql.execute (fun read -> read.string "name")
 
 let runSystemMigration (name : string) (sql : string) : unit =
