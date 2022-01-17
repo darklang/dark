@@ -430,12 +430,11 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - run:
-          name: Trigger migrations with runserver
+          name: Run DB migrations
           command: |
             # Run the server long enough to ensure it runs the migrations
-            scripts/build/_generate-etags
-            scripts/run-backend-server
-            scripts/devcontainer/_wait-until-server-ready
+            cd fsharp-backend
+            ./Build/out/ExecHost/Release/net6.0/linux-x64/ExecHost run-migrations
       - run:
           name: Run queue-scheduler tests
           command: scripts/run-rust-tests containers/queue-scheduler
@@ -529,6 +528,7 @@ workflows:
           context: Default
           requires:
             - build-backend
+            - build-fsharp-backend
             - build-client
             - build-queue-scheduler
       - integration-tests:
