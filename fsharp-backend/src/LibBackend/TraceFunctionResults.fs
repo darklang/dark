@@ -30,7 +30,7 @@ let store
     Task.FromResult()
   else
     Sql.query
-      "INSERT INTO function_results_v2
+      "INSERT INTO function_results_v3
       (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
       VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
@@ -62,7 +62,7 @@ let load
     "SELECT
        DISTINCT ON (fnname, id, hash, hash_version)
        fnname, id, hash, hash_version, value, timestamp
-     FROM function_results_v2
+     FROM function_results_v3
      WHERE canvas_id = @canvasID
        AND trace_id = @traceID
        AND tlid = @tlid
