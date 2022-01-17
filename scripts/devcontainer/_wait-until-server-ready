@@ -8,7 +8,7 @@ function wait_for {
   count=0
   until curl --output /dev/null --silent --show-error --head --fail "${test_url}"; do
       ((count++)) && ((count==60)) && exit 1
-      printf "waiting for %s\n" "$1"
+      printf "waiting for %s at %s\n" "$1" "$test_url"
       sleep 1
   done
 }
