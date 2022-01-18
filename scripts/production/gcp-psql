@@ -9,18 +9,11 @@ set -euo pipefail
 # cluster, this will break that.
 # ./scripts/production/gcp-authorize-kubectl
 
-arg="${1:-}"
-
-./scripts/production/_gcp-proxy-db "$arg" &
+./scripts/production/_gcp-proxy-db &
 # Make sure it has time to come up before we try to connect to it
 sleep 1s
 
-if [[ "${arg}x" = "--productionx" ]];
-then
-  PORT=2346
-else
-  PORT=2347
-fi
+PORT=2346
 
 SECRET=$(kubectl get secrets cloudsql-db-credentials -o json)
 
@@ -32,8 +25,4 @@ export PGPASSWORD
 # If we're in a terminal (not a pipe), use pgcli, which has nice interactive features like autocomplete of columns.
 # If we're in a pipe, then use psql (pgcli doesn't let you pipe in a query, psql does)
 echo "Connecting to port $PORT"
-if [[ -t 0 ]]; then
-    pgcli -h localhost -p "${PORT}" --username=${PGUSERNAME} postgres
-else
-    psql -h localhost -p "${PORT}" --user=${PGUSERNAME} postgres
-fi
+psql -h localhost -p "${PORT}" --user=${PGUSERNAME} postgres

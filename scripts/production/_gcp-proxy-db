@@ -2,17 +2,6 @@
 
 set -euo pipefail
 
-target=replica
-
-for i in "$@"
-do
-  case $i in
-      --production)
-	  target=production
-    ;;
-  esac
-done
-
 # cloud_sql_proxy notes:
 
 # 1) `cloud_sql_proxy` is a google thing
@@ -35,19 +24,11 @@ done
 PROJECT=balmy-ground-195100
 REGION=us-west1
 PROD_DB=dark-west
-REPLICA_DB=dark-west-read-replica
 
+echo "Connecting to production (port 2346)"
+DB="${PROD_DB}"
+PORT=2346
 
-
-if [ "${target}x" == "productionx" ]; then
-  echo "Connecting to production (port 2346)"
-  DB="${PROD_DB}"
-  PORT=2346
-else
-  echo "Connecting to the replica (port 2347)"
-  DB="${REPLICA_DB}"
-  PORT=2347
-fi
 
 INSTANCE="${PROJECT}:${REGION}:${DB}"
 
