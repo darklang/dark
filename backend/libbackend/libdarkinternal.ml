@@ -1565,31 +1565,11 @@ human-readable data."
         ; par "traces" TList
         ; par "count" TInt ]
     ; return_type = TInt
-    ; description =
-        "Copy the toplevel traces from function_results_v2 to function_results_v3"
+    ; description = "Doesn't exist anymore"
     ; func =
         internal_fn (function
             | _, [DUuid canvas_id; DStr tlid; DList traces; DInt count] ->
-                let tlid = tlid |> Unicode_string.to_string |> id_of_string in
-                let traces =
-                  traces
-                  |> List.map ~f:(function
-                         | DUuid uuid ->
-                             uuid
-                         | _ ->
-                             failwith "Not a Uuid")
-                  (* builtin trace *)
-                  |> List.cons (Analysis.traceid_of_tlid tlid)
-                in
-                let count = Dint.to_int_exn count in
-                let copied_count =
-                  Stored_function_result_v3_migration.copy_toplevel_traces
-                    ~canvas_id
-                    ~tlid
-                    ~traces
-                    count
-                in
-                Dval.dint copied_count
+                Dval.dint 0
             | args ->
                 fail args)
     ; preview_safety = Unsafe

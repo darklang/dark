@@ -6,30 +6,6 @@ module RTT = Types.RuntimeT
 open Libcommon
 module Db = Libbackend_basics.Db
 
-let copy_toplevel_traces ~canvas_id ~tlid ~traces (count : int) : int =
-  Db.fetch_one
-    ~name:"stored_function_result_v3_migration"
-    (* Chose the fields to match the idx_function_results_v2_most_recent index *)
-    "with rows as (
-      INSERT INTO function_results_v3
-        (SELECT * FROM function_results_v2
-          WHERE canvas_id = $1
-            AND (trace_id = ANY (string_to_array($3, $4)::uuid[])
-            AND tlid = $2)
-        ORDER BY timestamp DESC
-        LIMIT $5)
-        RETURNING 1)
-      SELECT count(*) from rows"
-    ~params:
-      [ Db.Uuid canvas_id
-      ; Db.ID tlid
-      ; traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List
-      ; String Db.array_separator
-      ; Db.Int count ]
-  |> List.hd_exn
-  |> int_of_string
-
-
 let get_handler_traces
     ~canvas_id
     ~(tlid : tlid)

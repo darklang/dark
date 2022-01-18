@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS function_results_v2 RESTRICT
