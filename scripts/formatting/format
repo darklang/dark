@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-CHECK=0 # (0 mean check, 1 means format)
+CHECK=255 # (0 mean check, 1 means format, 255 means error)
 OCAML=0 # (0 means check ocaml files, 1 means don't)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
 RUST=0 # (0 means check rust files, 1 means don't)
@@ -65,6 +65,11 @@ for val in "${@}"; do
       ;;
   esac
 done
+
+if [[ 255 -eq "$CHECK" ]]; then
+  echo -e "usage:\n  ./scripts/formatting/format check [files]\n  ./scripts/formatting/format format [files]"
+  exit 255
+fi
 
 #######################
 # Parse rest of arguments
