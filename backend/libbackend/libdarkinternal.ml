@@ -1582,11 +1582,13 @@ human-readable data."
                   |> List.cons (Analysis.traceid_of_tlid tlid)
                 in
                 let count = Dint.to_int_exn count in
-                let copied_count = Stored_function_result_v3_migration.copy_toplevel_traces
-                  ~canvas_id
-                  ~tlid
-                  ~traces
-                  count in
+                let copied_count =
+                  Stored_function_result_v3_migration.copy_toplevel_traces
+                    ~canvas_id
+                    ~tlid
+                    ~traces
+                    count
+                in
                 Dval.dint copied_count
             | args ->
                 fail args)
