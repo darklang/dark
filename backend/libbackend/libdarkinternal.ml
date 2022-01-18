@@ -1565,8 +1565,7 @@ human-readable data."
         ; par "traces" TList
         ; par "count" TInt ]
     ; return_type = TInt
-    ; description =
-        "Doesn't exist anymore"
+    ; description = "Doesn't exist anymore"
     ; func =
         internal_fn (function
             | _, [DUuid canvas_id; DStr tlid; DList traces; DInt count] ->
