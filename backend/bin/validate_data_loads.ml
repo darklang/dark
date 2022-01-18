@@ -103,10 +103,10 @@ let () =
     Db.iter_with_cursor
       ~name:"get function_results"
       "SELECT canvases.name, value, trace_id
-       FROM function_results_v2
+       FROM function_results_v3
        JOIN canvases ON canvas_id = canvases.id"
       ~params:[]
-      ~f:(validate_row "function_results_v2") ) ;
+      ~f:(validate_row "function_results_v3") ) ;
   if !validate_canvases
   then (
     Log.infO "Next: get_all_canvases" ;
