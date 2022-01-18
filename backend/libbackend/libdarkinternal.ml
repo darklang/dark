@@ -1518,18 +1518,12 @@ human-readable data."
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getHandlerTraces"]
     ; infix_names = []
-    ; parameters =
-        [ par "canvas_id" TUuid
-        ; par "tlid" TStr
-        ; par "count" TInt ]
+    ; parameters = [par "canvas_id" TUuid; par "tlid" TStr; par "count" TInt]
     ; return_type = TList
     ; description = "Get the most recent [count] traces for the handler"
     ; func =
         internal_fn (function
-            | ( _
-              , [ DUuid canvas_id
-                ; DStr tlid
-                ; DInt count ] ) ->
+            | _, [DUuid canvas_id; DStr tlid; DInt count] ->
                 let count = Dint.to_int_exn count in
                 let host = Canvas.name_for_id canvas_id in
                 let tlid = tlid |> Unicode_string.to_string |> id_of_string in
@@ -1547,15 +1541,16 @@ human-readable data."
                 in
                 let result =
                   match Handler.event_desc_for handler with
-                  | Some(module_, path, modifier) ->
-                    Stored_function_result_v3_migration.get_handler_traces
-                      ~canvas_id
-                      ~module_
-                      ~path
-                      ~modifier
-                      ~tlid
-                      count
-                  | _ -> []
+                  | Some (module_, path, modifier) ->
+                      Stored_function_result_v3_migration.get_handler_traces
+                        ~canvas_id
+                        ~module_
+                        ~path
+                        ~modifier
+                        ~tlid
+                        count
+                  | _ ->
+                      []
                 in
                 List.map ~f:(fun uuid -> DUuid uuid) result |> DList
             | args ->

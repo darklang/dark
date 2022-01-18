@@ -25,8 +25,13 @@ let copy_toplevel_traces ~canvas_id ~tlid ~traces (count : int) : unit =
       ; Db.Int count ]
 
 
-let get_handler_traces ~canvas_id ~(tlid:tlid) ~(path:string) ~(module_:string) ~(modifier:string) (count : int) : Uuidm.t list
-    =
+let get_handler_traces
+    ~canvas_id
+    ~(tlid : tlid)
+    ~(path : string)
+    ~(module_ : string)
+    ~(modifier : string)
+    (count : int) : Uuidm.t list =
   let builtin_trace = Analysis.traceid_of_tlid tlid in
   Db.fetch
     ~name:"handler_valid_traces"
@@ -39,7 +44,11 @@ let get_handler_traces ~canvas_id ~(tlid:tlid) ~(path:string) ~(module_:string) 
      ORDER BY MAX(timestamp) DESC
      LIMIT $5"
     ~params:
-      [Db.Uuid canvas_id; Db.String module_; Db.String path; Db.String modifier; Db.Int count]
+      [ Db.Uuid canvas_id
+      ; Db.String module_
+      ; Db.String path
+      ; Db.String modifier
+      ; Db.Int count ]
   |> List.map ~f:(fun uuid ->
          uuid |> List.hd_exn |> Uuidm.of_string |> Option.value_exn)
   |> List.cons builtin_trace
