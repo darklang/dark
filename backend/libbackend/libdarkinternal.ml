@@ -1515,4 +1515,85 @@ human-readable data."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getHandlerTraces"]
+    ; infix_names = []
+    ; parameters =
+        [ par "canvas_id" TUuid
+        ; par "tlid" TStr
+        ; par "count" TInt ]
+    ; return_type = TList
+    ; description = "Get the most recent [count] traces for the handler"
+    ; func =
+        internal_fn (function
+            | ( _
+              , [ DUuid canvas_id
+                ; DStr tlid
+                ; DInt count ] ) ->
+                let count = Dint.to_int_exn count in
+                let host = Canvas.name_for_id canvas_id in
+                let tlid = tlid |> Unicode_string.to_string |> id_of_string in
+                let c =
+                  Canvas.load_only_tlids host ~tlids:[tlid] []
+                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
+                in
+                let handler =
+                  !c.handlers
+                  |> IDMap.data
+                  |> List.map ~f:Toplevel.as_handler
+                  |> List.map ~f:(fun h -> Option.value_exn h)
+                  |> List.find_exn ~f:(fun h -> h.tlid = tlid)
+                in
+                let result =
+                  match Handler.event_desc_for handler with
+                  | Some(module_, path, modifier) ->
+                    Stored_function_result_v3_migration.get_handler_traces
+                      ~canvas_id
+                      ~module_
+                      ~path
+                      ~modifier
+                      ~tlid
+                      count
+                  | _ -> []
+                in
+                List.map ~f:(fun uuid -> DUuid uuid) result |> DList
+            | args ->
+                fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::copyToplevelTraces"]
+    ; infix_names = []
+    ; parameters =
+        [ par "canvas_id" TUuid
+        ; par "tlid" TStr
+        ; par "traces" TList
+        ; par "count" TInt ]
+    ; return_type = TNull
+    ; description =
+        "Copy the toplevel traces from function_results_v2 to function_results_v3"
+    ; func =
+        internal_fn (function
+            | _, [DUuid canvas_id; DStr tlid; DList traces; DInt count] ->
+                let tlid = tlid |> Unicode_string.to_string |> id_of_string in
+                let traces =
+                  traces
+                  |> List.map ~f:(function
+                         | DUuid uuid ->
+                             uuid
+                         | _ ->
+                             failwith "Not a Uuid")
+                  (* builtin trace *)
+                  |> List.cons (Analysis.traceid_of_tlid tlid)
+                in
+                let count = Dint.to_int_exn count in
+                Stored_function_result_v3_migration.copy_toplevel_traces
+                  ~canvas_id
+                  ~tlid
+                  ~traces
+                  count ;
+                DNull
+            | args ->
+                fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]
