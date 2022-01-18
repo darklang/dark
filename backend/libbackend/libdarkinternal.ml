@@ -1564,7 +1564,7 @@ human-readable data."
         ; par "tlid" TStr
         ; par "traces" TList
         ; par "count" TInt ]
-    ; return_type = TNull
+    ; return_type = TInt
     ; description =
         "Copy the toplevel traces from function_results_v2 to function_results_v3"
     ; func =
@@ -1582,12 +1582,12 @@ human-readable data."
                   |> List.cons (Analysis.traceid_of_tlid tlid)
                 in
                 let count = Dint.to_int_exn count in
-                Stored_function_result_v3_migration.copy_toplevel_traces
+                let copied_count = Stored_function_result_v3_migration.copy_toplevel_traces
                   ~canvas_id
                   ~tlid
                   ~traces
-                  count ;
-                DNull
+                  count in
+                Dval.dint copied_count
             | args ->
                 fail args)
     ; preview_safety = Unsafe
