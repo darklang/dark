@@ -52,12 +52,6 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
       :> Task
 
-    let functionResultsV2 =
-      Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-      :> Task
-
     let functionResultsV3 =
       Sql.query "DELETE FROM function_results_v3 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
@@ -106,7 +100,6 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
                       customDomains
                       events
                       functionArguments
-                      functionResultsV2
                       functionResultsV3
                       schedulingRules
                       secrets
