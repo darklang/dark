@@ -96,17 +96,17 @@ let trim_toplevel
     (db_fn action)
       ~name:"gc_function_results_for_handler"
       (* can't do limit on delete, so use nested clause. Chose the
-       * fields to match the idx_function_results_v2_most_recent index
+       * fields to match the idx_function_results_v3_most_recent index
        * *)
       (Printf.sprintf
          "WITH to_delete AS (SELECT canvas_id, trace_id, tlid, timestamp
-                                     FROM function_results_v2
+                                     FROM function_results_v3
                                     WHERE canvas_id = $1
                                       AND tlid = $2
                                       AND timestamp < $3
                                       AND (NOT trace_id = ANY (string_to_array($4, $5)::uuid[]))
                                     LIMIT $6)
-                %s FROM function_results_v2
+                %s FROM function_results_v3
                   WHERE (canvas_id, trace_id, tlid, timestamp) IN
                     (SELECT canvas_id, trace_id, tlid, timestamp
                      FROM to_delete);"
