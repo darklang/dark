@@ -10,8 +10,6 @@ module Db = Libbackend_basics.Db
 (* External *)
 (* ------------------------- *)
 
-
-
 let store
     ~canvas_id ~trace_id (tlid, fnname, id) (arglist : RTT.dval list) result =
   if canvas_id = Stored_event.throttled
@@ -31,7 +29,6 @@ let store
         ; String (Dval.hash Dval.current_hash_version arglist)
         ; Int Dval.current_hash_version
         ; RoundtrippableDval result ]
-
 
 
 let load ~canvas_id ~trace_id tlid : function_result list =
