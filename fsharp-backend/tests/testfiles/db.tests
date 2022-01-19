@@ -200,9 +200,9 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 // DB.getAllWithKeys
 [test.db.getAllWithKeys_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getAllWithKeys_v1 X) = [["one"; { x = "hello" }];["two"; {x = "goodbye"}]]
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ (DB.getAllWithKeys_v1 X) |> List.sortBy (fun x -> List.head_v0_ster x)) = [["one"; { x = "foo" }];["two"; {x = "bar"}]]
 
 [test.db.getAllWithKeys_v2 works] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
