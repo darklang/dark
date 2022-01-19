@@ -99,7 +99,7 @@ let t_stored_event_roundtrip () =
   let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
   check_dval_list
     "load GET events"
-    [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
+    [Dval.dstr_of_string_exn "1"; Dval.dstr_of_string_exn "2"]
     loaded1 ;
   let loaded2 = SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:t4_get4th in
   check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
