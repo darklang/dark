@@ -82,18 +82,25 @@ type PostgresConfig =
   { host : string
     dbname : string
     user : string
-    password : string }
+    password : string
+    poolSize : string }
 
-let pghost = string "DARK_CONFIG_DB_HOST"
+let pgHost = string "DARK_CONFIG_DB_HOST"
 
-let pgdbname = string "DARK_CONFIG_DB_DBNAME"
+let pgDBName = string "DARK_CONFIG_DB_DBNAME"
 
-let pguser = string "DARK_CONFIG_DB_USER"
+let pgUser = string "DARK_CONFIG_DB_USER"
 
-let pgpassword = password "DARK_CONFIG_DB_PASSWORD"
+let pgPassword = password "DARK_CONFIG_DB_PASSWORD"
+
+let pgPoolSize = password "DARK_CONFIG_DB_POOL_SIZE"
 
 let postgresSettings : PostgresConfig =
-  { host = pghost; dbname = pgdbname; user = pguser; password = pgpassword }
+  { host = pgHost
+    dbname = pgDBName
+    user = pgUser
+    password = pgPassword
+    poolSize = pgPoolSize }
 
 // --------------------
 // getting started canvas
