@@ -1375,7 +1375,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList [] ] -> Ply(DOption None)
         | _, [ DList l ] ->
-          Ply(Dval.optionJust l[System.Random.Shared.Next l.Length])
+          let index = RNG.GetInt32(l.Length - 1)
+          Ply(Dval.optionJust l[index])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

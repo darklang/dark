@@ -266,8 +266,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a random integer between a and b (inclusive)"
       fn =
         (function
-        | _, [ DInt a; DInt b ] ->
-          a + System.Random.Shared.NextInt64(b - a) |> DInt |> Ply
+        | _, [ DInt a; DInt b ] -> a + randomSeeded().NextInt64(b - a) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -283,7 +282,7 @@ let fns : List<BuiltInFn> =
         | _, [ DInt a; DInt b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
-          lower + System.Random.Shared.NextInt64(upper - lower) |> DInt |> Ply
+          lower + randomSeeded().NextInt64(upper - lower) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
