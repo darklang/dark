@@ -24,7 +24,7 @@ let hostName = getEnv "HOSTNAME" |> Option.defaultValue "none"
 // rollbar
 // --------------------
 let rollbarServerAccessToken =
-  (* This is what the rollbar UI calls it *)
+  // This is what the rollbar UI calls it
   string "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
 
 let rollbarEnabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
