@@ -1221,4 +1221,23 @@ human-readable data."
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    { name = fn "DarkInternal" "raiseInternalException" 0
+      parameters = [ Param.make "argument" varA "Added as a tag" ]
+      returnType = TNull
+      description =
+        "Raise an internal exception inside Dark. This is intended to test exceptions
+        and exception tracking, not for any real use."
+      fn =
+        internalFn (function
+          | _, [ arg ] ->
+            Exception.raiseInternal
+              "DarkInternal::raiseInternalException"
+              [ "arg", arg ]
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    ]
