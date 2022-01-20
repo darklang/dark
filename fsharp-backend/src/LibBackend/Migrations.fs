@@ -38,6 +38,12 @@ let getExistingMigrations () : List<string> =
   |> Sql.execute (fun read -> read.string "name")
 
 let runSystemMigration (name : string) (sql : string) : unit =
+  print $"running migration: {name}"
+  use span = Telemetry.child "new migration" [ "name", name; "sql", sql ]
+  LibService.Rollbar.notify
+    "running migration"
+    (ExecutionID "none")
+    [ "name", name; "sql", sql ]
 
   // Insert into the string because params don't work here for some reason.
   // On conflict, do nothing because another starting process might be running this migration as well.
@@ -94,8 +100,6 @@ let run () : unit =
         print $"migration already run: {name}"
         Telemetry.addEvent "migration already run" [ "data", name ]
       else
-        print $"new migration: {name}"
-        Telemetry.addEvent "new migration" [ "data", name ]
         let sql = File.readfile Config.Migrations name
         runSystemMigration name sql)
     migrations

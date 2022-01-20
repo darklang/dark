@@ -82,8 +82,8 @@ let createState
     metadata
   custom
 
-
-let sendAlert
+// Not an error, let's just be aware a thing happened
+let notify
   (message : string)
   (executionID : ExecutionID)
   (metadata : List<string * obj>)
@@ -96,8 +96,25 @@ let sendAlert
   print System.Environment.StackTrace
   Telemetry.addEvent message metadata
   let custom = createState message executionID metadata
-  let level = Rollbar.ErrorLevel.Error
-  Rollbar.RollbarLocator.RollbarInstance.Log(level, message, custom)
+  Rollbar.RollbarLocator.RollbarInstance.Info(message, custom)
+  |> ignore<Rollbar.ILogger>
+
+
+// An error but not an exception
+let sendError
+  (message : string)
+  (executionID : ExecutionID)
+  (metadata : List<string * obj>)
+  : unit =
+  print $"rollbar: {message}"
+  try
+    print (string metadata)
+  with
+  | _ -> ()
+  print System.Environment.StackTrace
+  Telemetry.addEvent message metadata
+  let custom = createState message executionID metadata
+  Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
   |> ignore<Rollbar.ILogger>
 
 let exceptionMetadata (e : exn) =
@@ -237,6 +254,7 @@ module AspNet =
               )
             Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
             |> ignore<Rollbar.ILogger>
+            print "Rollbar exception sent"
           // No telemetry call here as it should happen automatically
           with
           | re ->

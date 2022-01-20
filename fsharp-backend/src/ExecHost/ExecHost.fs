@@ -46,14 +46,14 @@ let run (args : string []) : Task<int> =
     try
       match args with
       | [| "emergency-login"; username |] ->
-        Rollbar.sendAlert "emergencyLogin called" id [ "username", username ]
+        Rollbar.notify "emergencyLogin called" id [ "username", username ]
         do! emergencyLogin username
         return 0
       | [| "run-migrations" |] ->
         runMigrations ()
         return 0
       | _ ->
-        Rollbar.sendAlert "execHost called" id [ "args", String.concat "," args ]
+        Rollbar.notify "execHost called" id [ "args", String.concat "," args ]
         print (
           "Invalid usage!!\n\n"
           + "USAGE: ExecHost emergency-login <user>\n"
