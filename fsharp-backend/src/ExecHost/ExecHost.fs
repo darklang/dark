@@ -52,6 +52,10 @@ let run (args : string []) : Task<int> =
       | [| "run-migrations" |] ->
         runMigrations ()
         return 0
+      | [| "trigger-rollbar" |] ->
+        Rollbar.RollbarLocator.RollbarInstance.Error("test message")
+        |> ignore<Rollbar.ILogger>
+        return 0
       | _ ->
         Rollbar.notify "execHost called" id [ "args", String.concat "," args ]
         print (
