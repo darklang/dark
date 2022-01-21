@@ -77,7 +77,6 @@ let testArguments : Test =
           description = ""
           infix = false
           body = body }
-      let! owner = testOwner.Force()
 
       let expr = S.eApply (S.eUserFnVal name) []
       let fns = Map.ofList [ name, userFn ]
