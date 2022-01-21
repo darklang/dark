@@ -898,8 +898,13 @@ def create_arg_parser():
       'push',
       description="Actually do the release",
       parents=[base_parser, services_parser, release_args_parser])
-
   release_push_parser.set_defaults(func=release_push)
+
+  release_prepare_parser = release_subparser.add_parser(
+      'prepare',
+      description="Prepare the release, producing k8s yaml files",
+      parents=[base_parser, services_parser, release_args_parser])
+  release_prepare_parser.set_defaults(func=release_prepare)
 
   return main_parser
 
