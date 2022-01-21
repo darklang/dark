@@ -8,8 +8,8 @@ open Prelude.Tablecloth
 open Tablecloth
 
 let fireAndForgetTask
-  (name : string)
   (executionID : ExecutionID)
+  (name : string)
   (f : unit -> Task<'b>)
   : unit =
   task {
@@ -18,7 +18,7 @@ let fireAndForgetTask
       return ()
     with
     | e ->
-      Rollbar.sendException $"fire-and-forget failed: {name}" executionID [] e
+      Rollbar.sendException executionID $"fire-and-forget failed: {name}" [] e
       return ()
   }
   |> ignore<Task<unit>>

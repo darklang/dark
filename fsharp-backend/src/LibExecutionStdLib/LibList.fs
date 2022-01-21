@@ -1355,10 +1355,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; DInt index ] ->
-          if index > int64 (List.length l) then
-            Ply(DOption None)
-          else
-            (List.tryItem (int index) l) |> Dval.option |> Ply
+          (List.tryItem (int index) l) |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1371,11 +1368,15 @@ let fns : List<BuiltInFn> =
       description =
         "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly selected value in <param list>. Returns {{Nothing}} if <param list> is empty."
       fn =
-
         (function
         | _, [ DList [] ] -> Ply(DOption None)
         | _, [ DList l ] ->
-          Ply(Dval.optionJust l[System.Random.Shared.Next l.Length])
+          // Will return <= (length - 1)
+          // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
+          // that won't affect this as we won't have a list that big for a long long
+          // long time.
+          let index = RNG.GetInt32(l.Length)
+          (List.tryItem index l) |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

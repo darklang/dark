@@ -76,7 +76,7 @@ echo "Done waiting for compiled servers"
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 ./scripts/run-ocaml-legacy-server
 echo "Running migrations"
-"${EXECHOST_EXE}" run-migrations > "$LOGS/fsharp-exechost.log"
+"${EXECHOST_EXE}" migrations run > "$LOGS/fsharp-migrations.log"
 echo "Running apiserver"
 "${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
 echo "Running bwdserver"

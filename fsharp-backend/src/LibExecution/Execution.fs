@@ -29,15 +29,20 @@ let createState
   (executionID : ExecutionID)
   (libraries : RT.Libraries)
   (tracing : RT.Tracing)
-  (reportException : ExecutionID -> string -> exn -> List<string * obj> -> unit)
+  (reportException : RT.ExceptionReporter)
+  (notify : RT.Notifier)
   (tlid : tlid)
   (program : RT.ProgramContext)
   : RT.ExecutionState =
   { libraries = libraries
     tracing = tracing
     program = program
-    test = { sideEffectCount = 0 }
+    test =
+      { sideEffectCount = 0
+        exceptionReports = []
+        postTestExecutionHook = fun _ _ -> () }
     reportException = reportException
+    notify = notify
     executionID = executionID
     tlid = tlid
     callstack = Set.empty
@@ -49,16 +54,20 @@ let executeExpr
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
   : Task<RT.Dval> =
-  let symtable = Interpreter.withGlobals state inputVars
-  Interpreter.eval state symtable expr |> Ply.TplPrimitives.runPlyAsTask
+  task {
+    let symtable = Interpreter.withGlobals state inputVars
+    let! result = Interpreter.eval state symtable expr
+    // Does nothing in non-tests
+    state.test.postTestExecutionHook state.test result
+    return result
+  }
 
 let executeHandler
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
   : Task<RT.Dval> =
-  let symtable = Interpreter.withGlobals state inputVars
-  Interpreter.eval state symtable expr |> Ply.TplPrimitives.runPlyAsTask
+  executeExpr state inputVars expr
 
 
 let executeFunction
@@ -67,8 +76,12 @@ let executeFunction
   (args : List<RT.Dval>)
   (name : RT.FQFnName.T)
   : Task<RT.Dval> =
-  Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
-  |> Ply.TplPrimitives.runPlyAsTask
+  task {
+    let! result = Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
+    // Does nothing in non-tests
+    state.test.postTestExecutionHook state.test result
+    return result
+  }
 
 
 // Return a function to trace TLIDs (add it to state via

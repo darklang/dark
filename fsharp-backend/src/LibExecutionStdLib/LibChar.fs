@@ -21,7 +21,7 @@ let fns : List<BuiltInFn> =
       description = "Return `c`'s ASCII code"
       fn =
         function
-        | state, [ c ] -> Errors.removedFunction ()
+        | state, [ c ] -> Errors.removedFunction state "Char::toASCIICode"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
@@ -35,7 +35,7 @@ let fns : List<BuiltInFn> =
       description = "convert an int to an ASCII character"
       fn =
         function
-        | state, [ i ] -> Errors.removedFunction ()
+        | state, [ i ] -> Errors.removedFunction state "Char::toASCIIChar"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
       description = "Return the lowercase value of `c`"
       fn =
         function
-        | state, [ c ] -> Errors.removedFunction ()
+        | state, [ c ] -> Errors.removedFunction state "Char::toLowercase"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
       description = "Return the uppercase value of `c`"
       fn =
         function
-        | state, [ c ] -> Errors.removedFunction ()
+        | state, [ c ] -> Errors.removedFunction state "Char::toUppercase"
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

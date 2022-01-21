@@ -2,7 +2,7 @@ module LibService.ConfigDsl
 
 open Tablecloth
 
-(* Parsers for env vars *)
+// Parsers for env vars
 
 let getEnv (name : string) : Option<string> =
   let var = System.Environment.GetEnvironmentVariable name

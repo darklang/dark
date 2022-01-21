@@ -42,11 +42,15 @@ else
 fi
 
 
+echo "Dropping testdb database"
 ./scripts/devcontainer/_wait-for-background-services postgresql
 dropdb --if-exists testdb
 createdb testdb
 
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+
 # Run the migrations before the other servers start
+echo "Running migrations"
 cd fsharp-backend && \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_DB_HOST=localhost \
@@ -54,7 +58,7 @@ cd fsharp-backend && \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
-  time "${EXECHOST}" run-migrations && cd ..
+  "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log" && cd ..
 
 # These scripts run in the docker container. When this script is run from in the
 # container, these scripts and the spawned processes stay running. this is helpful if

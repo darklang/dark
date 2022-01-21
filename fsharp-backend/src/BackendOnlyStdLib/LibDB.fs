@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
       description = "Insert `val` into `table`"
       fn =
         function
-        | state, [ v; table ] -> removedFunction ()
+        | state, [ v; table ] -> removedFunction state "DB::insert"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -35,7 +35,7 @@ let fns : List<BuiltInFn> =
       description = "Delete `value` from `table`"
       fn =
         function
-        | state, [ v; table ] -> removedFunction ()
+        | state, [ v; table ] -> removedFunction state "DB::delete"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
       description = "Delete everything from `table`"
       fn =
         function
-        | state, [ table ] -> removedFunction ()
+        | state, [ table ] -> removedFunction state "DB::deleteAll"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
       description = "Update `table` value which has the same ID as `value`"
       fn =
         function
-        | state, [ v; table ] -> removedFunction ()
+        | state, [ v; table ] -> removedFunction state "DB::update"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -77,7 +77,7 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the values in `table` whose `field` is `value`"
       fn =
         function
-        | state, [ v; field; table ] -> removedFunction ()
+        | state, [ v; field; table ] -> removedFunction state "DB::fetchBy"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
       description = "Fetch exactly one value in `table` whose `field` is `value`"
       fn =
         function
-        | state, [ v; field; table ] -> removedFunction ()
+        | state, [ v; field; table ] -> removedFunction state "DB::fetchOneBy"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -107,7 +107,7 @@ let fns : List<BuiltInFn> =
         "Fetch all the values from `table` which have the same fields and values that `spec` has"
       fn =
         function
-        | state, [ spec; table ] -> removedFunction ()
+        | state, [ spec; table ] -> removedFunction state "DB::fetchByMany"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -121,7 +121,7 @@ let fns : List<BuiltInFn> =
         "Fetch exactly one value from `table`, which have the same fields and values that `spec` has"
       fn =
         function
-        | state, [ spec; table ] -> removedFunction ()
+        | state, [ spec; table ] -> removedFunction state "DB::fetchOneByMany"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -134,7 +134,7 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the values in `table`"
       fn =
         function
-        | state, [ table ] -> removedFunction ()
+        | state, [ table ] -> removedFunction state "DB::fetchAll"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -147,7 +147,7 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the keys in `table`"
       fn =
         function
-        | state, [ table ] -> removedFunction ()
+        | state, [ table ] -> removedFunction state "DB::keys"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the values in `table`"
       fn =
         function
-        | state, [ table ] -> removedFunction ()
+        | state, [ table ] -> removedFunction state "DB::schema"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure

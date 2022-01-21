@@ -6,9 +6,7 @@ module ExecHost
 
 // Based on https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-10-creating-an-exec-host-deployment-for-running-one-off-commands/
 
-// Usage:
-// exechost run-migrations
-// exechost login <user>
+// Run with `ExecHost --help` for usage
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -19,9 +17,9 @@ open Tablecloth
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let runMigrations () =
+let runMigrations (executionID : ExecutionID) =
   print $"Running migrations"
-  LibBackend.Migrations.run ()
+  LibBackend.Migrations.run executionID
 
 
 let emergencyLogin (username : string) : Task<unit> =
@@ -40,25 +38,47 @@ let emergencyLogin (username : string) : Task<unit> =
     return ()
   }
 
-let run (args : string []) : Task<int> =
+let help () : unit =
+  [ "USAGE:"
+    "  ExecHost emergency-login <user>"
+    "  ExecHost migrations list"
+    "  ExecHost migrations run"
+    "  ExecHost trigger-rollbar"
+    "  ExecHost help" ]
+  |> List.join "\n"
+  |> print
+
+let run (executionID : ExecutionID) (args : string []) : Task<int> =
   task {
-    let id = (ExecutionID "exechost")
     try
+
       match args with
       | [| "emergency-login"; username |] ->
-        Rollbar.sendAlert "emergencyLogin called" id [ "username", username ]
+        Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
         do! emergencyLogin username
         return 0
-      | [| "run-migrations" |] ->
-        runMigrations ()
+      | [| "migrations"; "list" |] ->
+        print "Migrations needed:\n"
+        LibBackend.Migrations.migrationsToRun ()
+        |> List.iter (fun name -> print $" - {name}")
+        return 0
+      | [| "migrations"; "run" |] ->
+        runMigrations executionID
+        return 0
+      | [| "trigger-rollbar" |] ->
+        Rollbar.RollbarLocator.RollbarInstance.Error("test message")
+        |> ignore<Rollbar.ILogger>
+        return 0
+      | [| "help" |] ->
+        help ()
         return 0
       | _ ->
-        Rollbar.sendAlert "execHost called" id [ "args", String.concat "," args ]
-        print (
-          "Invalid usage!!\n\n"
-          + "USAGE: ExecHost emergency-login <user>\n"
-          + "USAGE: ExecHost run-migrations"
-        )
+        Rollbar.notify
+          executionID
+          "execHost called"
+          [ "args", String.concat "," args ]
+        print "Invalid usage!!\n"
+        help ()
         return 1
     with
     | :? System.TypeInitializationException as e ->
@@ -78,13 +98,14 @@ let main (args : string []) : int =
   try
     LibService.Init.init "ExecHost"
     Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
+    let executionID = Telemetry.executionID ()
     (LibBackend.Init.init "ExecHost" false).Result
-    (run args).Result
+    (run executionID args).Result
   with
   | e ->
     Rollbar.lastDitchBlocking
-      "Error running ExecHost"
       (ExecutionID "execHost")
+      "Error running ExecHost"
       [ "args", args ]
       e
     -1

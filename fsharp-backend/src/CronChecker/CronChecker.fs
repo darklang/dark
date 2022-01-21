@@ -21,8 +21,8 @@ let run () : Task<unit> =
       | e ->
         // If there's an exception, alert and continue
         LibService.Rollbar.sendException
-          "Cronchecker.run iteration"
           (ExecutionID "cronchecker")
+          "Cronchecker.run iteration"
           []
           e
       do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
@@ -60,8 +60,8 @@ let main _ : int =
   with
   | e ->
     LibService.Rollbar.lastDitchBlocking
-      "Error running CronChecker"
       (ExecutionID "cronchecker")
+      "Error running CronChecker"
       []
       e
     -1

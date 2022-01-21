@@ -33,11 +33,17 @@ let initializeMigrationsTable () : unit =
   |> Sql.executeStatementSync
 
 
-let getExistingMigrations () : List<string> =
+let alreadyRunMigrations () : List<string> =
   Sql.query "SELECT name from system_migrations"
   |> Sql.execute (fun read -> read.string "name")
 
-let runSystemMigration (name : string) (sql : string) : unit =
+let runSystemMigration
+  (executionID : ExecutionID)
+  (name : string)
+  (sql : string)
+  : unit =
+  use span = Telemetry.child "new migration" [ "name", name; "sql", sql ]
+  LibService.Rollbar.notify executionID "running migration" [ "name", name ]
 
   // Insert into the string because params don't work here for some reason.
   // On conflict, do nothing because another starting process might be running this migration as well.
@@ -73,29 +79,20 @@ let runSystemMigration (name : string) (sql : string) : unit =
     ()
 
 
-let names () : List<string> =
+let allMigrations () : List<string> =
   File.lsdir Config.Migrations ""
   // endsWith sql filters out, say, the .swp files vim sometimes leaves behind
   |> List.filter (String.endsWith ".sql")
   |> List.sort
 
+let migrationsToRun () =
+  let alreadyRun = alreadyRunMigrations () |> Set
+  allMigrations () |> List.filter (fun name -> not (Set.contains name alreadyRun))
 
-let run () : unit =
+let run (executionID : ExecutionID) : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
-  let migrations = names ()
-  print "migrations: "
-  List.iter (fun m -> print $" - {m}") migrations
-  let existingMigrations = getExistingMigrations () |> Set
-
-  List.iter
-    (fun name ->
-      if Set.contains name existingMigrations then
-        print $"migration already run: {name}"
-        Telemetry.addEvent "migration already run" [ "data", name ]
-      else
-        print $"new migration: {name}"
-        Telemetry.addEvent "new migration" [ "data", name ]
-        let sql = File.readfile Config.Migrations name
-        runSystemMigration name sql)
-    migrations
+  migrationsToRun ()
+  |> List.iter (fun name ->
+    let sql = File.readfile Config.Migrations name
+    runSystemMigration executionID name sql)

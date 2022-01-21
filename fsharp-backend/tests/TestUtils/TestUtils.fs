@@ -275,21 +275,51 @@ let executionStateFor
         userTypes = Map.empty
         secrets = [] }
 
-    let reportException (executionID : ExecutionID) (msg : string) (exn : exn) tags =
-      // Don't rethrow exceptions as sometimes we want to test errors
-      print "Exception Thrown"
-      print exn.Message
-      print exn.StackTrace
+    let testContext : RT.TestContext =
+      { sideEffectCount = 0
+        exceptionReports = []
+        postTestExecutionHook =
+          fun tc result ->
+            // In an effort to find error in the test suite, we track exceptions that
+            // we report in the runtime and check for them after the test completes.
+            // Because there are some places where exceptions are allowed, a rule of
+            // thumb is that if the result is a DError, the exception was reported to
+            // the user as an error, and that's probably what the test was for.
+            // This isn't a perfect rule and we may need to do better, but it seems
+            // to work for now
+            let errorsExpected = RT.Dval.isDError result
+            if tc.exceptionReports.Length > 0 && not errorsExpected then
+              print $"UNEXPECTED EXCEPTION in {meta.name}"
+              List.iter
+                (fun (executionID, msg, tags, exn) ->
+                  RT.consoleReporter executionID msg tags exn)
+                tc.exceptionReports
+              Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
 
-    return
+    // Typically, exceptions thrown in tests have surprised us. Take these errors and
+    // catch them much closer to where they happen (usually in the function
+    // definition)
+    let exceptionReporter : RT.ExceptionReporter =
+      fun executionID msg tags (exn : exn) ->
+        testContext.exceptionReports <-
+          (executionID, msg, tags, exn) :: testContext.exceptionReports
+
+    // For now, lets not track notifications, as often our tests explicitly trigger
+    // things that notify, while Exceptions have historically been unexpected errors
+    // in the tests and so are worth watching out for.
+    let notifier : RT.Notifier = fun executionID msg tags -> ()
+
+    let state =
       Exe.createState
         executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
-        reportException
+        exceptionReporter
+        notifier
         (id 7)
         program
-
+    let state = { state with test = testContext }
+    return state
   }
 
 // saves and reloads the canvas for the Toplevvel

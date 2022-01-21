@@ -569,9 +569,13 @@ that's already taken, returns an error."
                 | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
                 | Some (Canvas.Origins os) ->
                   os |> List.map DStr |> DList |> Some |> DOption
-              let! c = Canvas.getMeta (CanvasName.create host)
-              let! cors = Canvas.fetchCORSSetting c.id
-              return corsSettingToDval cors
+              try
+                let! c = Canvas.getMeta (CanvasName.create host)
+                let! cors = Canvas.fetchCORSSetting c.id
+                return corsSettingToDval cors
+              with
+              | :? DarkException as e ->
+                return DError(SourceNone, Exception.toDeveloperMessage e)
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1090,8 +1094,8 @@ that's already taken, returns an error."
                 let attrs = [ "username", username :> obj ]
                 Telemetry.addException "DarkInternal::newSessionForUserName" e attrs
                 LibService.Rollbar.sendException
-                  "Failed to create session"
                   state.executionID
+                  "Failed to create session"
                   attrs
                   e
                 return DResult(Error(DStr "Failed to create session"))
@@ -1128,8 +1132,8 @@ that's already taken, returns an error."
               | e ->
                 let attrs = [ "username", username :> obj ]
                 LibService.Rollbar.sendException
-                  "Failed to create session"
                   state.executionID
+                  "Failed to create session"
                   attrs
                   e
                 return DResult(Error(DStr "Failed to create session"))
@@ -1221,4 +1225,23 @@ human-readable data."
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    { name = fn "DarkInternal" "raiseInternalException" 0
+      parameters = [ Param.make "argument" varA "Added as a tag" ]
+      returnType = TNull
+      description =
+        "Raise an internal exception inside Dark. This is intended to test exceptions
+        and exception tracking, not for any real use."
+      fn =
+        internalFn (function
+          | _, [ arg ] ->
+            Exception.raiseInternal
+              "DarkInternal::raiseInternalException"
+              [ "arg", arg ]
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    ]

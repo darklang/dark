@@ -15,7 +15,7 @@ module FireAndForget = LibService.FireAndForget
 
 // We call this in two contexts: DarkInternal:: fns
 let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
-  FireAndForget.fireAndForgetTask "identify user" executionID (fun () ->
+  FireAndForget.fireAndForgetTask executionID "identify user" (fun () ->
     task {
       let! data = Account.getUserAndCreatedAtAndAnalyticsMetadata username
       let (userInfoAndCreatedAt, heapioMetadataJson) =

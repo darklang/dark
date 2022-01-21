@@ -609,15 +609,22 @@ type System.DateTime with
 // Random numbers
 // ----------------------
 
-// .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
-// OS-generated truly-random number.
-// https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
-// also use a single global value for the VM, so that users cannot be
-// guaranteed to get multiple consequetive values (as other requests may intervene)
+// .NET's System.Random is a PRNG, and it is relatively easy to work out the random
+// seed. Better to use a True random number generator.
+type RNG = System.Security.Cryptography.RandomNumberGenerator
+
+// return a System.Random PRNG with a truly random seed. This allows using the
+// System.Random methods which have many more options.
+let randomSeeded () : System.Random =
+  let seed = RNG.GetInt32(System.Int32.MaxValue)
+  System.Random(seed)
+
+
 let gid () : uint64 =
   try
-    let rand64 : uint64 = uint64 (System.Random.Shared.NextInt64())
+    let rand64 = RNG.GetBytes(8) |> System.BitConverter.ToUInt64
     // Keep 30 bits
+    // CLEANUP To be compabible to OCAML, keep this at 32 bit for now.
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
@@ -626,7 +633,7 @@ let gid () : uint64 =
 
 let randomString (length : int) : string =
   let result =
-    Array.init length (fun _ -> char (System.Random.Shared.Next(0x41, 0x5a)))
+    Array.init length (fun _ -> char (RNG.GetInt32(int32 'A', int32 'Z')))
     |> System.String
 
   assertEq "randomString length is correct" result.Length length

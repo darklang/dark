@@ -122,6 +122,24 @@ let addEvent (name : string) (tags : List<string * obj>) : unit =
     System.Diagnostics.ActivityEvent(name, System.DateTime.Now, tagCollection)
   span.AddEvent(event) |> ignore<Span.T>
 
+// Add a notification. You can find these in Honeycomb by searching for name =
+// 'notification'. This is used for anything out of the ordinary which should be
+// inspected.
+let notify (name : string) (tags : List<string * obj>) : unit =
+  let span = Span.current ()
+  let tagCollection = System.Diagnostics.ActivityTagsCollection()
+  List.iter (fun (k, v) -> tagCollection[k] <- v) tags
+  tagCollection["notification_type"] <- name
+  let event =
+    System.Diagnostics.ActivityEvent(
+      "notification",
+      System.DateTime.Now,
+      tagCollection
+    )
+  span.AddEvent(event) |> ignore<Span.T>
+
+
+
 let addException (name : string) (e : exn) (tags : List<string * obj>) : unit =
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/1191a2a3da7be8deae7aa94083b5981cb7610080/src/OpenTelemetry.Api/Trace/ActivityExtensions.cs#L79
   // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.

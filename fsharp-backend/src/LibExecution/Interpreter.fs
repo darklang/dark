@@ -726,7 +726,9 @@ and execFn
                    + TypeChecker.Error.listToString errs)
                 )
         with
-        | Errors.FakeValFoundInQuery dv -> return dv
+        | Errors.FakeValFoundInQuery dv ->
+          state.notify state.executionID "fakeval found in query" [ "dval", dv ]
+          return dv
         | Errors.DBQueryException e ->
           return (Dval.errStr (Errors.queryCompilerErrorTemplate + e))
         | Errors.StdlibException (Errors.StringError msg) ->
@@ -752,10 +754,15 @@ and execFn
             | (p, actual) :: _ ->
               let msg = Errors.incorrectArgsMsg (fn.name) p actual
               return (Dval.errSStr sourceID msg)
-        | Errors.StdlibException Errors.FunctionRemoved ->
-          return (Dval.errSStr sourceID $"{fn.name} was removed from Dark")
-        | Errors.StdlibException (Errors.FakeDvalFound dv) -> return dv
+        | Errors.StdlibException (Errors.FakeDvalFound dv) ->
+          state.notify state.executionID "fakedval found" [ "dval", dv ]
+          return dv
         | DarkException _ as e ->
+          state.reportException
+            state.executionID
+            "darkexception caught in fncall"
+            []
+            e
           // The GrandUser doesn't get to see DErrors, so it's safe to include this
           // value and show it to the Dark Developer
           return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
@@ -767,8 +774,8 @@ and execFn
           state.reportException
             state.executionID
             "An unknown exception was caught in the interpreter"
-            e
             []
+            e
           return (Dval.errSStr sourceID "An unknown error occured")
 
   }

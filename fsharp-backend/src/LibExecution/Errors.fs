@@ -10,7 +10,6 @@ open RuntimeTypes
 // ------------------
 
 type StdlibError =
-  | FunctionRemoved
   | IncorrectArgs
   // When we encounter a fakeDval, this exception allows us to jump out of the
   // computation immediately, and the caller can return the dval. This is useful
@@ -107,7 +106,9 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
 
 
 // When a function has been removed (rarely happens but does happen occasionally)
-let removedFunction () : 'b = raise (StdlibException FunctionRemoved)
+let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
+  state.notify state.executionID "function removed" [ "fnName", fnName ]
+  Ply(DError(SourceNone, $"{fnName} was removed from Dark"))
 
 // When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (StdlibException(FakeDvalFound dv))
