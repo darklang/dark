@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
       fn =
         function
-        | state, [ s; f ] -> Errors.removedFunction ()
+        | state, [ s; f ] -> Errors.removedFunction state "String::foreach"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
@@ -119,7 +119,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the list of characters (byte, not EGC) in the string"
       fn =
         function
-        | state, [ s ] -> Errors.removedFunction ()
+        | state, [ s ] -> Errors.removedFunction state "String::toList"
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
@@ -592,7 +592,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the list of characters as a string"
       fn =
         function
-        | state, [ l ] -> Errors.removedFunction ()
+        | state, [ l ] -> Errors.removedFunction state "String::fromList"
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -626,7 +626,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a char to a string"
       fn =
         function
-        | state, [ c ] -> Errors.removedFunction ()
+        | state, [ c ] -> Errors.removedFunction state "String::fromChar"
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

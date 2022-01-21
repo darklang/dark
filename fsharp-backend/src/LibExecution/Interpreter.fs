@@ -754,9 +754,6 @@ and execFn
             | (p, actual) :: _ ->
               let msg = Errors.incorrectArgsMsg (fn.name) p actual
               return (Dval.errSStr sourceID msg)
-        | Errors.StdlibException Errors.FunctionRemoved ->
-          state.notify state.executionID "function removed" [ "fnName", fn.name ]
-          return (Dval.errSStr sourceID $"{fn.name} was removed from Dark")
         | Errors.StdlibException (Errors.FakeDvalFound dv) ->
           state.notify state.executionID "fakedval found" [ "dval", dv ]
           return dv
