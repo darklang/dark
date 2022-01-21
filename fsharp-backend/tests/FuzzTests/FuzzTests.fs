@@ -651,7 +651,7 @@ module LibJwtJson =
             let! expected =
               OCamlInterop.execute meta.owner meta.id ast symtable [] []
 
-            let! state = executionStateFor meta Map.empty Map.empty 0
+            let! state = executionStateFor meta Map.empty Map.empty
             let! actual =
               LibExecution.Execution.executeExpr
                 state
@@ -704,7 +704,7 @@ module LibJwtJson =
             let! expected =
               OCamlInterop.execute meta.owner meta.id ast symtable [] []
 
-            let! state = executionStateFor meta Map.empty Map.empty 0
+            let! state = executionStateFor meta Map.empty Map.empty
             let! actual =
               LibExecution.Execution.executeExpr
                 state
@@ -763,7 +763,7 @@ module Passwords =
     let t =
       task {
         let! meta = initializeTestCanvas "executePure"
-        let! state = executionStateFor meta Map.empty Map.empty 0
+        let! state = executionStateFor meta Map.empty Map.empty
 
         let ast =
           $"Password.check_v0 (Password.hash_v0 \"{rawPassword}\") \"{rawPassword}\""
@@ -795,7 +795,7 @@ module BytesToString =
 
         let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] []
 
-        let! state = executionStateFor meta Map.empty Map.empty 0
+        let! state = executionStateFor meta Map.empty Map.empty
         let! actual =
           LibExecution.Execution.executeExpr state symtable (ast.toRuntimeType ())
 
@@ -1359,7 +1359,7 @@ module ExecutePureFunctions =
 
         let! expected = OCamlInterop.execute meta.owner meta.id ast st [] []
 
-        let! state = executionStateFor meta Map.empty Map.empty 0
+        let! state = executionStateFor meta Map.empty Map.empty
 
         let! actual =
           LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())

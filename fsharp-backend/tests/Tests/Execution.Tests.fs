@@ -29,7 +29,7 @@ let executionStateForPreview
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
     let! meta = createTestCanvas name
-    let! state = executionStateFor meta dbs fns 0
+    let! state = executionStateFor meta dbs fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
@@ -65,7 +65,7 @@ let testExecFunctionTLIDs : Test =
     let fn =
       testUserFn name [] (PT.EInteger(gid (), 5)) |> PT.UserFunction.toRuntimeType
     let fns = Map.ofList [ (name, fn) ]
-    let! state = executionStateFor meta Map.empty fns 0
+    let! state = executionStateFor meta Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
@@ -85,7 +85,7 @@ let testErrorRailUsedInAnalysis : Test =
   testTask
     "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
     let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
-    let! state = executionStateFor meta Map.empty Map.empty 0
+    let! state = executionStateFor meta Map.empty Map.empty
 
     let loadTraceResults _ _ = Some(DOption(Some(DInt 12345L)), System.DateTime.Now)
 

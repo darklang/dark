@@ -40,8 +40,6 @@ let createState
     test =
       { sideEffectCount = 0
         exceptionReports = []
-        notifications = []
-        expectedExceptionAndNotificationCount = 0
         postTestExecutionHook = fun _ _ -> () }
     reportException = reportException
     notify = notify

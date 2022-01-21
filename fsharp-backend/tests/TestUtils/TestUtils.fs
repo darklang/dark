@@ -262,7 +262,6 @@ let executionStateFor
   (meta : Canvas.Meta)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
-  (expectedExceptionAndNotificationCount : int)
   : Task<RT.ExecutionState> =
   task {
     let executionID = ExecutionID(string meta.name)
@@ -278,9 +277,7 @@ let executionStateFor
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
-        notifications = []
         exceptionReports = []
-        expectedExceptionAndNotificationCount = expectedExceptionAndNotificationCount
         postTestExecutionHook =
           fun tc result ->
             // In an effort to find error in the test suite, we track exceptions that
@@ -297,9 +294,7 @@ let executionStateFor
                 (fun (executionID, msg, tags, exn) ->
                   RT.consoleReporter executionID msg tags exn)
                 tc.exceptionReports
-              Exception.raiseInternal
-                $"UNEXPECTED EXCEPTION in test {meta.name}"
-                [ "expectedCount", expectedExceptionAndNotificationCount ] }
+              Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function

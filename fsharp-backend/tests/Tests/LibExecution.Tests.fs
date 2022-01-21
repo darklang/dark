@@ -45,7 +45,7 @@ let t
 
         let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
 
-        let! state = executionStateFor meta rtDBs rtFunctions 0
+        let! state = executionStateFor meta rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
 
