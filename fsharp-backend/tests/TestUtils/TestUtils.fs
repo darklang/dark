@@ -262,6 +262,7 @@ let executionStateFor
   (meta : Canvas.Meta)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
+  (expectedExceptionAndNotificationCount : int)
   : Task<RT.ExecutionState> =
   task {
     let executionID = ExecutionID(string meta.name)
@@ -275,16 +276,54 @@ let executionStateFor
         userTypes = Map.empty
         secrets = [] }
 
-    return
+    let testContext : RT.TestContext =
+      { sideEffectCount = 0
+        notifications = []
+        exceptionReports = []
+        expectedExceptionAndNotificationCount = expectedExceptionAndNotificationCount
+        postTestExecutionHook =
+          fun tc ->
+            let actualCount = tc.exceptionReports.Length + tc.notifications.Length
+            if actualCount <> expectedExceptionAndNotificationCount then
+              // We track the number of expections and notifications in a test, and
+              // manually check each test to see if the reports and notifications are
+              // valid. If so, we pass that into the test, and allow them (preferably with
+              // a comment somewhere explaining why these errors etc are OK)
+              print $"UNEXPECTED COUNT OF REPORTS AND NOTIFICATIONS in {meta.name}"
+              List.iter
+                (fun (executionID, msg, tags, exn) ->
+                  RT.consoleReporter executionID msg tags exn)
+                tc.exceptionReports
+              List.iter
+                (fun (executionID, msg, tags) ->
+                  RT.consoleNotifier executionID msg tags)
+                tc.notifications
+              Exception.raiseInternal
+                $"UNEXPECTED COUNT OF REPORTS AND NOTIFICATIONS in test {meta.name}"
+                [ "actualCount", actualCount
+                  "expectedCount", expectedExceptionAndNotificationCount ] }
+
+    let exceptionReporter : RT.ExceptionReporter =
+      fun executionID msg tags (exn : exn) ->
+        testContext.exceptionReports <-
+          (executionID, msg, tags, exn) :: testContext.exceptionReports
+
+    let notifier : RT.Notifier =
+      fun executionID msg tags ->
+        testContext.notifications <-
+          (executionID, msg, tags) :: testContext.notifications
+
+    let state =
       Exe.createState
         executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
-        RT.consoleReporter
-        RT.consoleNotifier
+        exceptionReporter
+        notifier
         (id 7)
         program
-
+    let state = { state with test = testContext }
+    return state
   }
 
 // saves and reloads the canvas for the Toplevvel

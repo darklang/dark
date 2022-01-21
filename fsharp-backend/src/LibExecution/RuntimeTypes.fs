@@ -830,7 +830,12 @@ and Tracing =
     realOrPreview : RealOrPreview }
 
 // Used for testing
-and TestContext = { mutable sideEffectCount : int }
+and TestContext =
+  { mutable sideEffectCount : int
+    mutable exceptionReports : List<ExecutionID * string * List<string * obj> * exn>
+    mutable notifications : List<ExecutionID * string * List<string * obj>>
+    expectedExceptionAndNotificationCount : int
+    postTestExecutionHook : TestContext -> unit }
 
 // Non-user-specific functionality needed to run code
 and Libraries =
@@ -871,7 +876,7 @@ let consoleReporter : ExceptionReporter =
       $"An error was reported in the runtime ({executionID}):  \n{msg}\n  {exn.Message}\n{exn.StackTrace}\n  {tags}\n\n"
 
 let consoleNotifier : Notifier =
-  fun msg executionID tags ->
+  fun executionID msg tags ->
     print
       $"An notifcation happened in the runtime ({executionID}):\n  {msg}\n  {tags}\n\n"
 

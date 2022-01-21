@@ -126,7 +126,7 @@ let t filename =
         |> FSharpToExpr.parse
         |> FSharpToExpr.convertToTest
 
-      let! state = executionStateFor meta Map.empty Map.empty
+      let! state = executionStateFor meta Map.empty Map.empty 0
 
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
