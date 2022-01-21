@@ -33,7 +33,7 @@ let initializeMigrationsTable () : unit =
   |> Sql.executeStatementSync
 
 
-let getExistingMigrations () : List<string> =
+let alreadyRunMigrations () : List<string> =
   Sql.query "SELECT name from system_migrations"
   |> Sql.execute (fun read -> read.string "name")
 
@@ -79,24 +79,20 @@ let runSystemMigration
     ()
 
 
-let names () : List<string> =
+let allMigrations () : List<string> =
   File.lsdir Config.Migrations ""
   // endsWith sql filters out, say, the .swp files vim sometimes leaves behind
   |> List.filter (String.endsWith ".sql")
   |> List.sort
 
+let migrationsToRun () =
+  let alreadyRun = alreadyRunMigrations () |> Set
+  allMigrations () |> List.filter (fun name -> not (Set.contains name alreadyRun))
+
 let run (executionID : ExecutionID) : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
-  let migrations = names ()
-  List.iter (fun m -> print $" - {m}") migrations
-  let existingMigrations = getExistingMigrations () |> Set
-
-  List.iter
-    (fun name ->
-      if Set.contains name existingMigrations then
-        print $"migration already run: {name}"
-      else
-        let sql = File.readfile Config.Migrations name
-        runSystemMigration executionID name sql)
-    migrations
+  migrationsToRun ()
+  |> List.iter (fun name ->
+    let sql = File.readfile Config.Migrations name
+    runSystemMigration executionID name sql)

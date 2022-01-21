@@ -6,9 +6,7 @@ module ExecHost
 
 // Based on https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-10-creating-an-exec-host-deployment-for-running-one-off-commands/
 
-// Usage:
-// exechost run-migrations
-// exechost login <user>
+// Run with `ExecHost --help` for usage
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -40,31 +38,47 @@ let emergencyLogin (username : string) : Task<unit> =
     return ()
   }
 
+let help () : unit =
+  [ "USAGE:"
+    "  ExecHost emergency-login <user>"
+    "  ExecHost migrations list"
+    "  ExecHost migrations run"
+    "  ExecHost trigger-rollbar"
+    "  ExecHost help" ]
+  |> List.join "\n"
+  |> print
+
 let run (executionID : ExecutionID) (args : string []) : Task<int> =
   task {
     try
+
       match args with
       | [| "emergency-login"; username |] ->
         Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
         do! emergencyLogin username
         return 0
-      | [| "run-migrations" |] ->
+      | [| "migrations"; "list" |] ->
+        print "Migrations needed:\n"
+        LibBackend.Migrations.migrationsToRun ()
+        |> List.iter (fun name -> print $" - {name}")
+        return 0
+      | [| "migrations"; "run" |] ->
         runMigrations executionID
         return 0
       | [| "trigger-rollbar" |] ->
         Rollbar.RollbarLocator.RollbarInstance.Error("test message")
         |> ignore<Rollbar.ILogger>
         return 0
+      | [| "help" |] ->
+        help ()
+        return 0
       | _ ->
         Rollbar.notify
           executionID
           "execHost called"
           [ "args", String.concat "," args ]
-        print (
-          "Invalid usage!!\n\n"
-          + "USAGE: ExecHost emergency-login <user>\n"
-          + "USAGE: ExecHost run-migrations"
-        )
+        print "Invalid usage!!\n"
+        help ()
         return 1
     with
     | :? System.TypeInitializationException as e ->
