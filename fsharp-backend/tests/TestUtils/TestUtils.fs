@@ -282,36 +282,37 @@ let executionStateFor
         exceptionReports = []
         expectedExceptionAndNotificationCount = expectedExceptionAndNotificationCount
         postTestExecutionHook =
-          fun tc ->
-            let actualCount = tc.exceptionReports.Length + tc.notifications.Length
-            if actualCount <> expectedExceptionAndNotificationCount then
-              // We track the number of expections and notifications in a test, and
-              // manually check each test to see if the reports and notifications are
-              // valid. If so, we pass that into the test, and allow them (preferably with
-              // a comment somewhere explaining why these errors etc are OK)
-              print $"UNEXPECTED COUNT OF REPORTS AND NOTIFICATIONS in {meta.name}"
+          fun tc result ->
+            // In an effort to find error in the test suite, we track exceptions that
+            // we report in the runtime and check for them after the test completes.
+            // Because there are some places where exceptions are allowed, a rule of
+            // thumb is that if the result is a DError, the exception was reported to
+            // the user as an error, and that's probably what the test was for.
+            // This isn't a perfect rule and we may need to do better, but it seems
+            // to work for now
+            let errorsExpected = RT.Dval.isDError result
+            if tc.exceptionReports.Length > 0 && not errorsExpected then
+              print $"UNEXPECTED EXCEPTION in {meta.name}"
               List.iter
                 (fun (executionID, msg, tags, exn) ->
                   RT.consoleReporter executionID msg tags exn)
                 tc.exceptionReports
-              List.iter
-                (fun (executionID, msg, tags) ->
-                  RT.consoleNotifier executionID msg tags)
-                tc.notifications
               Exception.raiseInternal
-                $"UNEXPECTED COUNT OF REPORTS AND NOTIFICATIONS in test {meta.name}"
-                [ "actualCount", actualCount
-                  "expectedCount", expectedExceptionAndNotificationCount ] }
+                $"UNEXPECTED EXCEPTION in test {meta.name}"
+                [ "expectedCount", expectedExceptionAndNotificationCount ] }
 
+    // Typically, exceptions thrown in tests have surprised us. Take these errors and
+    // catch them much closer to where they happen (usually in the function
+    // definition)
     let exceptionReporter : RT.ExceptionReporter =
       fun executionID msg tags (exn : exn) ->
         testContext.exceptionReports <-
           (executionID, msg, tags, exn) :: testContext.exceptionReports
 
-    let notifier : RT.Notifier =
-      fun executionID msg tags ->
-        testContext.notifications <-
-          (executionID, msg, tags) :: testContext.notifications
+    // For now, lets not track notifications, as often our tests explicitly trigger
+    // things that notify, while Exceptions have historically been unexpected errors
+    // in the tests and so are worth watching out for.
+    let notifier : RT.Notifier = fun executionID msg tags -> ()
 
     let state =
       Exe.createState

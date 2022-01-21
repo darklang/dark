@@ -835,7 +835,7 @@ and TestContext =
     mutable exceptionReports : List<ExecutionID * string * List<string * obj> * exn>
     mutable notifications : List<ExecutionID * string * List<string * obj>>
     expectedExceptionAndNotificationCount : int
-    postTestExecutionHook : TestContext -> unit }
+    postTestExecutionHook : TestContext -> Dval -> unit }
 
 // Non-user-specific functionality needed to run code
 and Libraries =
@@ -878,7 +878,7 @@ let consoleReporter : ExceptionReporter =
 let consoleNotifier : Notifier =
   fun executionID msg tags ->
     print
-      $"An notifcation happened in the runtime ({executionID}):\n  {msg}\n  {tags}\n\n"
+      $"A notifcation happened in the runtime ({executionID}):\n  {msg}\n  {tags}\n\n"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name

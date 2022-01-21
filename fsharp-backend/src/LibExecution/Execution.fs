@@ -42,7 +42,7 @@ let createState
         exceptionReports = []
         notifications = []
         expectedExceptionAndNotificationCount = 0
-        postTestExecutionHook = fun _ -> () }
+        postTestExecutionHook = fun _ _ -> () }
     reportException = reportException
     notify = notify
     executionID = executionID
@@ -60,7 +60,7 @@ let executeExpr
     let symtable = Interpreter.withGlobals state inputVars
     let! result = Interpreter.eval state symtable expr
     // Does nothing in non-tests
-    state.test.postTestExecutionHook state.test
+    state.test.postTestExecutionHook state.test result
     return result
   }
 
@@ -81,7 +81,7 @@ let executeFunction
   task {
     let! result = Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
     // Does nothing in non-tests
-    state.test.postTestExecutionHook state.test
+    state.test.postTestExecutionHook state.test result
     return result
   }
 
