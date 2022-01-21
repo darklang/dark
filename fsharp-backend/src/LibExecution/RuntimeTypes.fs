@@ -868,12 +868,12 @@ and ExecutionState =
 let consoleReporter : ExceptionReporter =
   fun executionID msg tags (exn : exn) ->
     print
-      $"An error was reported in the runtime ({executionID}):  \n{msg}\n  {exn.Message}, {exn.StackTrace}\n  {tags}"
+      $"An error was reported in the runtime ({executionID}):  \n{msg}\n  {exn.Message}\n{exn.StackTrace}\n  {tags}\n\n"
 
 let consoleNotifier : Notifier =
   fun msg executionID tags ->
     print
-      $"An notifcation happened in the runtime ({executionID}):\n  {msg}\n  {tags}"
+      $"An notifcation happened in the runtime ({executionID}):\n  {msg}\n  {tags}\n\n"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
