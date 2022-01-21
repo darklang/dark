@@ -281,7 +281,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
-
           lower + randomSeeded().NextInt64(upper - lower) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
