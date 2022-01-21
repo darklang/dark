@@ -106,17 +106,12 @@ let t
           else
             Expect.notEqual fsharpActual expected $"FSharp: {msg}"
 
-
-
         return ()
       with
       | :? DarkException as e ->
         let metadata = Exception.toMetadata e
-        print $"Exception thrown in test: {string e}\n{metadata}"
         return Expect.equal ("Exception thrown in test", []) (string e, metadata) ""
-      | e ->
-        print $"Exception thrown in test: {e}"
-        return Expect.equal "Exception thrown in test" (string e) ""
+      | e -> return Expect.equal "Exception thrown in test" (string e) ""
     }
 
 
