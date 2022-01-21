@@ -4,13 +4,15 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
 [tests.grants]
 
 [test.empty grants]
+// CLEANUP remove upsertUser_v1
 (let _ = Test.deleteUser_v0 "empty_grants"
- let _ = DarkInternal.insertUser_v1_ster "empty_grants" "a@eg.com" "test user"
+ let _ = DarkInternal.upsertUser_v1_ster "empty_grants" "a@eg.com" "test user"
  DarkInternal.orgsFor "empty_grants") = {}
 
 [test.grants and orgs]
-(let _ = DarkInternal.insertUser_v1_ster "gao_org" "gao-test-org@darklang.com" "gao test org"
- let _ = DarkInternal.insertUser_v1_ster "gao_user" "gao-test-user@darklang.com" "gao test user"
+// CLEANUP remove upsertUser_v1
+(let _ = DarkInternal.upsertUser_v1_ster "gao_org" "gao-test-org@darklang.com" "gao test org"
+ let _ = DarkInternal.upsertUser_v1_ster "gao_user" "gao-test-user@darklang.com" "gao test user"
  let _ = DarkInternal.grant_v0_ster "gao_user" "gao_org" "rw" in
  DarkInternal.orgsFor "gao_user") = { ``gao_org`` = "rw" }
 
@@ -63,6 +65,7 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  let user2 = ("cpn_user2_" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
+// CLEANUP remove upsertUser_v1
  let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cpn test user1"
  let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cpn test user2"
  let startingPermission = DarkInternal.checkPermission_v0 user1 user2
@@ -74,6 +77,7 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  let user2 = ("cpr_user2_" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
+// CLEANUP remove upsertUser_v1
  let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cpr test user1"
  let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cpr test user2"
  let startingPermission = DarkInternal.checkPermission_v0 user1 user2
@@ -85,6 +89,7 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  let user2 = ("cprw_user2_" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
+// CLEANUP remove upsertUser_v1
  let _ = DarkInternal.upsertUser_v1_ster user1 user1Email "cprw test user1"
  let _ = DarkInternal.upsertUser_v1_ster user2 user2Email "cprw test user2"
  let startingPermission = DarkInternal.checkPermission_v0 user1 user2
