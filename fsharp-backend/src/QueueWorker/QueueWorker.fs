@@ -169,8 +169,8 @@ let run () : Task<unit> =
         | Ok (Some _) -> return ()
         | Error (e) ->
           LibService.Rollbar.sendException
-            "Unhandled exception bubbled to queue worker"
             (Telemetry.executionID ())
+            "Unhandled exception bubbled to queue worker"
             []
             e
       with
@@ -178,8 +178,8 @@ let run () : Task<unit> =
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
         LibService.Rollbar.sendException
-          "Unhandled exception bubbled to run()"
           (Telemetry.executionID ())
+          "Unhandled exception bubbled to run()"
           []
           e
 
@@ -219,8 +219,8 @@ let main _ : int =
   with
   | e ->
     LibService.Rollbar.lastDitchBlocking
-      "Error running CronChecker"
       (ExecutionID "cronchecker")
+      "Error running CronChecker"
       []
       e
     (-1)

@@ -19,9 +19,9 @@ open Tablecloth
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let runMigrations () =
+let runMigrations (executionID : ExecutionID) =
   print $"Running migrations"
-  LibBackend.Migrations.run ()
+  LibBackend.Migrations.run executionID
 
 
 let emergencyLogin (username : string) : Task<unit> =
@@ -40,24 +40,26 @@ let emergencyLogin (username : string) : Task<unit> =
     return ()
   }
 
-let run (args : string []) : Task<int> =
+let run (executionID : ExecutionID) (args : string []) : Task<int> =
   task {
-    let id = (ExecutionID "exechost")
     try
       match args with
       | [| "emergency-login"; username |] ->
-        Rollbar.notify "emergencyLogin called" id [ "username", username ]
+        Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
         do! emergencyLogin username
         return 0
       | [| "run-migrations" |] ->
-        runMigrations ()
+        runMigrations executionID
         return 0
       | [| "trigger-rollbar" |] ->
         Rollbar.RollbarLocator.RollbarInstance.Error("test message")
         |> ignore<Rollbar.ILogger>
         return 0
       | _ ->
-        Rollbar.notify "execHost called" id [ "args", String.concat "," args ]
+        Rollbar.notify
+          executionID
+          "execHost called"
+          [ "args", String.concat "," args ]
         print (
           "Invalid usage!!\n\n"
           + "USAGE: ExecHost emergency-login <user>\n"
@@ -82,13 +84,14 @@ let main (args : string []) : int =
   try
     LibService.Init.init "ExecHost"
     Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
+    let executionID = Telemetry.executionID ()
     (LibBackend.Init.init "ExecHost" false).Result
-    (run args).Result
+    (run executionID args).Result
   with
   | e ->
     Rollbar.lastDitchBlocking
-      "Error running ExecHost"
       (ExecutionID "execHost")
+      "Error running ExecHost"
       [ "args", args ]
       e
     -1

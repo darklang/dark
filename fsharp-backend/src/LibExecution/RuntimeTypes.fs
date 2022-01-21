@@ -837,13 +837,22 @@ and Libraries =
   { stdlib : Map<FQFnName.T, BuiltInFn>
     packageFns : Map<FQFnName.T, Package.Fn> }
 
+and ExceptionReporter = ExecutionID -> string -> List<string * obj> -> exn -> unit
+
+and Notifier = ExecutionID -> string -> List<string * obj> -> unit
+
 // All state used while running a program
 and ExecutionState =
   { libraries : Libraries
     tracing : Tracing
     program : ProgramContext
     test : TestContext
-    reportException : ExecutionID -> string -> exn -> List<string * obj> -> unit
+    // Allow reporting exceptions
+    reportException : ExceptionReporter
+    // Notify that something of interest (that isn't an exception) has happened.
+    // Useful for tracking behaviour we want to deprecate, understanding what users
+    // are doing, etc.
+    notify : Notifier
     // TLID of the currently executing handler/fn
     tlid : tlid
     executionID : ExecutionID
@@ -855,6 +864,16 @@ and ExecutionState =
     // Whether the currently executing code is really being executed (as
     // opposed to being executed for traces)
     onExecutionPath : bool }
+
+let consoleReporter : ExceptionReporter =
+  fun executionID msg tags (exn : exn) ->
+    print
+      $"An error was reported in the runtime ({executionID}):  \n{msg}\n  {exn.Message}, {exn.StackTrace}\n  {tags}"
+
+let consoleNotifier : Notifier =
+  fun msg executionID tags ->
+    print
+      $"An notifcation happened in the runtime ({executionID}):\n  {msg}\n  {tags}"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name

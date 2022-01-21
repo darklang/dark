@@ -43,7 +43,7 @@ let heapioEvent
   (msgType : Type)
   (body : JsonContent)
   : unit =
-  FireAndForget.fireAndForgetTask "heapio.track" executionID (fun () ->
+  FireAndForget.fireAndForgetTask executionID "heapio.track" (fun () ->
     task {
       let client = httpClient ()
 
@@ -72,8 +72,8 @@ let heapioEvent
       if result.StatusCode <> System.Net.HttpStatusCode.OK then
         let! body = result.Content.ReadAsStringAsync()
         Rollbar.sendError
-          "heapio-apierror"
           executionID
+          "heapio-apierror"
           [ "body", body; "statusCode", result.StatusCode ]
       return ()
     })

@@ -37,7 +37,7 @@ let push
   (eventName : string)
   (payload : 'x)
   : unit =
-  FireAndForget.fireAndForgetTask $"pusher: {eventName}" executionID (fun () ->
+  FireAndForget.fireAndForgetTask executionID $"pusher: {eventName}" (fun () ->
     task {
       // TODO: handle messages over 10k
       // TODO: make channels private and end-to-end encrypted in order to add public canvases

@@ -37,12 +37,16 @@ let getExistingMigrations () : List<string> =
   Sql.query "SELECT name from system_migrations"
   |> Sql.execute (fun read -> read.string "name")
 
-let runSystemMigration (name : string) (sql : string) : unit =
+let runSystemMigration
+  (executionID : ExecutionID)
+  (name : string)
+  (sql : string)
+  : unit =
   print $"running migration: {name}"
   use span = Telemetry.child "new migration" [ "name", name; "sql", sql ]
   LibService.Rollbar.notify
+    executionID
     "running migration"
-    (ExecutionID "none")
     [ "name", name; "sql", sql ]
 
   // Insert into the string because params don't work here for some reason.
@@ -86,7 +90,7 @@ let names () : List<string> =
   |> List.sort
 
 
-let run () : unit =
+let run (executionID : ExecutionID) : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
   let migrations = names ()
@@ -101,5 +105,5 @@ let run () : unit =
         Telemetry.addEvent "migration already run" [ "data", name ]
       else
         let sql = File.readfile Config.Migrations name
-        runSystemMigration name sql)
+        runSystemMigration executionID name sql)
     migrations

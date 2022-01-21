@@ -275,18 +275,13 @@ let executionStateFor
         userTypes = Map.empty
         secrets = [] }
 
-    let reportException (executionID : ExecutionID) (msg : string) (exn : exn) tags =
-      // Don't rethrow exceptions as sometimes we want to test errors
-      print "Exception Thrown"
-      print exn.Message
-      print exn.StackTrace
-
     return
       Exe.createState
         executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
-        reportException
+        RT.consoleReporter
+        RT.consoleNotifier
         (id 7)
         program
 

@@ -1090,8 +1090,8 @@ that's already taken, returns an error."
                 let attrs = [ "username", username :> obj ]
                 Telemetry.addException "DarkInternal::newSessionForUserName" e attrs
                 LibService.Rollbar.sendException
-                  "Failed to create session"
                   state.executionID
+                  "Failed to create session"
                   attrs
                   e
                 return DResult(Error(DStr "Failed to create session"))
@@ -1128,8 +1128,8 @@ that's already taken, returns an error."
               | e ->
                 let attrs = [ "username", username :> obj ]
                 LibService.Rollbar.sendException
-                  "Failed to create session"
                   state.executionID
+                  "Failed to create session"
                   attrs
                   e
                 return DResult(Error(DStr "Failed to create session"))

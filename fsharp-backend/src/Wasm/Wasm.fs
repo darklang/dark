@@ -203,11 +203,15 @@ module Eval =
             loadFnResult = loadFromTrace functionResults }
 
       let executionID = ExecutionID "analysis"
-      let reportError executionID msg (exn : exn) tags =
-        print
-          $"An error was reported in the runtime: {msg}\n  {exn.Message}, {exn.StackTrace}"
       let state =
-        Exe.createState executionID libraries tracing reportError tlid program
+        Exe.createState
+          executionID
+          libraries
+          tracing
+          RT.consoleReporter
+          RT.consoleNotifier
+          tlid
+          program
 
       let ast = (expr |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
       let inputVars = Map traceData.input

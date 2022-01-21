@@ -67,8 +67,8 @@ let pageableMetadata (e : exn) : List<string * obj> =
 
 
 let createState
-  (message : string)
   (executionID : ExecutionID)
+  (message : string)
   (metadata : List<string * obj>)
   : Dictionary.T<string, obj> =
 
@@ -85,8 +85,8 @@ let createState
 
 // Not an error, let's just be aware a thing happened
 let notify
-  (message : string)
   (executionID : ExecutionID)
+  (message : string)
   (metadata : List<string * obj>)
   : unit =
   print $"rollbar: {message}"
@@ -94,17 +94,18 @@ let notify
     print (string metadata)
   with
   | _ -> ()
-  print System.Environment.StackTrace
-  Telemetry.addEvent message metadata
-  let custom = createState message executionID metadata
+  let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
+  let metadata = stacktraceMetadata :: metadata
+  Telemetry.notify message metadata
+  let custom = createState executionID message metadata
   Rollbar.RollbarLocator.RollbarInstance.Info(message, custom)
   |> ignore<Rollbar.ILogger>
 
 
 // An error but not an exception
 let sendError
-  (message : string)
   (executionID : ExecutionID)
+  (message : string)
   (metadata : List<string * obj>)
   : unit =
   print $"rollbar: {message}"
@@ -114,7 +115,7 @@ let sendError
   | _ -> ()
   print System.Environment.StackTrace
   Telemetry.addEvent message metadata
-  let custom = createState message executionID metadata
+  let custom = createState executionID message metadata
   Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
   |> ignore<Rollbar.ILogger>
 
@@ -135,8 +136,8 @@ let printMetadata (metadata : List<string * obj>) =
 
 
 let sendException
-  (message : string)
   (executionID : ExecutionID)
+  (message : string)
   (metadata : List<string * obj>)
   (e : exn)
   : unit =
@@ -147,7 +148,7 @@ let sendException
     let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
     printMetadata metadata
     Telemetry.addException message e metadata
-    let custom = createState message executionID metadata
+    let custom = createState executionID message metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
     |> ignore<Rollbar.ILogger>
   with
@@ -161,8 +162,8 @@ let sendException
 // Will block for 5 seconds to make sure this exception gets sent. Use for startup
 // and other places where the process is intended to end after this call.
 let lastDitchBlocking
-  (message : string)
   (executionID : ExecutionID)
+  (message : string)
   (metadata : List<string * obj>)
   (e : exn)
   : unit =
@@ -170,9 +171,10 @@ let lastDitchBlocking
     print $"last ditch rollbar: {message}"
     print e.Message
     print e.StackTrace
+    // FSTODO: handle SystemInitializationException with a .Inner
     let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
     Telemetry.addException message e metadata
-    let custom = createState message executionID metadata
+    let custom = createState executionID message metadata
     Rollbar
       .RollbarLocator
       .RollbarInstance
@@ -238,7 +240,7 @@ module AspNet =
               with
               | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
             let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
-            let custom = createState "http" executionID metadata
+            let custom = createState executionID "http" metadata
 
             let package : Rollbar.IRollbarPackage =
               new Rollbar.ExceptionPackage(e, e.Message)

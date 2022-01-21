@@ -319,7 +319,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
-            FireAndForget.fireAndForgetTask "store-event" executionID (fun () ->
+            FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
               TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request)
 
           // Send to pusher - Do not resolve task, send this into the ether
@@ -498,8 +498,8 @@ let main _ =
   with
   | e ->
     LibService.Rollbar.lastDitchBlocking
-      "Error starting BwdServer"
       (ExecutionID "BwdServer")
+      "Error starting BwdServer"
       []
       e
     (-1)
