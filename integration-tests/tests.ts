@@ -174,12 +174,9 @@ test.describe.parallel("Integration Tests", async () => {
         expect(class_).not.toContain("failure");
 
         // Ensure there are no errors in the logs
-        let errorMessages = getMessages(testInfo).filter(
-          (msg: ConsoleMessage) => msg.type() == "error",
-        );
-        errorMessages.map((msg: ConsoleMessage) =>
-          console.log(`[console ${msg.type()}]: ${msg.text()}`),
-        );
+        var errorMessages = getMessages(testInfo)
+          .filter((msg: ConsoleMessage) => msg.type() == "error")
+          .map(msg => `[console ${msg.type()}]: ${msg.text()}`);
         expect(errorMessages).toHaveLength(0);
         flushedLogs = flushLogs();
       } catch (e) {
