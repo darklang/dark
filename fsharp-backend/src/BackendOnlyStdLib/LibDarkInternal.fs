@@ -569,9 +569,13 @@ that's already taken, returns an error."
                 | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
                 | Some (Canvas.Origins os) ->
                   os |> List.map DStr |> DList |> Some |> DOption
-              let! c = Canvas.getMeta (CanvasName.create host)
-              let! cors = Canvas.fetchCORSSetting c.id
-              return corsSettingToDval cors
+              try
+                let! c = Canvas.getMeta (CanvasName.create host)
+                let! cors = Canvas.fetchCORSSetting c.id
+                return corsSettingToDval cors
+              with
+              | :? DarkException as e ->
+                return DError(SourceNone, Exception.toDeveloperMessage e)
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
