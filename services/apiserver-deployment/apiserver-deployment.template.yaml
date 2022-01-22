@@ -8,11 +8,11 @@ metadata:
 
 spec:
   revisionHistoryLimit: 10
-  replicas: 1 # FSTODO
+  replicas: 2 # FSTODO - probably 4, depends on load supported
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0 # FSTODO
+      maxUnavailable: 1
 
   selector:
     matchLabels:
