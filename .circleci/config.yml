@@ -150,7 +150,7 @@ commands:
   ##########################
   prep-container-creation:
     steps:
-      - setup_remote_docker: { docker_layer_caching: true, version: 19.03.13 }
+      - setup_remote_docker: { docker_layer_caching: true, version: 20.10.11 }
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
