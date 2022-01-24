@@ -182,7 +182,8 @@ def collect_versioned_configmaps(dir, parent):
   for name, cm in parent.get("versioned-configmaps", {}).items():
     hashed_name = get_hashed_configmap_name(dir, name, cm)
     filespec = read_config_map_source(dir, cm)
-    cms[hashed_name] = filespec
+    namespace = read_config_map_namespace(cm)
+    cms[hashed_name] = {"filespec": filespec, "namespace": namespace}
   return cms
 
 
@@ -216,6 +217,12 @@ def read_config_map_source(dir, cm):
     return f"--from-env-file={filename}"
 
 
+def read_config_map_namespace(cm):
+  # TODO: it might be better to put the namespace at the toplevel of the shipit file
+  namespace = cm.get("namespace").strip()
+  return f"--namespace={namespace}"
+
+
 def manual_diff(cliargs):
   do_validation(cliargs)
 
@@ -232,8 +239,9 @@ def manual_diff(cliargs):
     cms = config['k8s'].get("manually-deployed").get("configmaps", {})
     for name, cm in cms.items():
       filespec = read_config_map_source(dir, cm)
+      namespace = read_config_map_namespace(cm)
       run("kubectl diff configmap",
-          f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
+          f"kubectl create configmap {name} {filespec} {namespace} --dry-run=client -o yaml | kubectl diff --filename=-",
           shell=True,
           stop_on_error=False)
 
@@ -266,13 +274,14 @@ def manual_apply(cliargs):
     cms = config['k8s'].get("manually-deployed", {}).get("configmaps", {})
     for name, cm in cms.items():
       filespec = read_config_map_source(dir, cm)
+      namespace = read_config_map_namespace(cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
-            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
+            f"kubectl create configmap {name} {filespec} {namespace} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
             shell=True)
       else:
         run("kubectl apply configmap",
-            f"kubectl create configmap {name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=-",
+            f"kubectl create configmap {name} {filespec} {namespace} --dry-run=client -o yaml | kubectl apply --filename=-",
             shell=True)
 
   # Custom apply
@@ -558,9 +567,9 @@ def release_diff(cliargs):
     if release:
       maps = collect_versioned_configmaps(dir, release)
       all_configmaps.update(maps)
-  for hashed_name, filespec in all_configmaps.items():
+  for hashed_name, cm in all_configmaps.items():
     run("kubectl diff configmap",
-        f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl diff --filename=-",
+        f"kubectl create configmap {hashed_name} {cm.filespec} {cm.namespace} --dry-run=client -o yaml | kubectl diff --filename=-",
         shell=True,
         stop_on_error=False)
 
@@ -588,14 +597,14 @@ def release_push(cliargs):
     if release:
       maps = collect_versioned_configmaps(dir, release)
       all_configmaps.update(maps)
-  for hashed_name, filespec in all_configmaps.items():
+  for hashed_name, cm in all_configmaps.items():
     if should_dry_run:
       run("kubectl apply configmap",
-          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
+          f"kubectl create configmap {hashed_name} {cm['filespec']} {cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
           shell=True)
     else:
       run("kubectl apply configmap",
-          f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=-",
+          f"kubectl create configmap {hashed_name} {cm.filespec} {cm.namespace} --dry-run=client -o yaml | kubectl apply --filename=-",
           shell=True)
 
   files = collect_release_templated_configs(cliargs)
@@ -643,7 +652,10 @@ properties:
                   type: string
                 env-file:
                   type: string
+                namespace:
+                  type: string
               additionalProperties: false
+              required: [namespace]
           custom-diff:
             type: array
             items:
@@ -677,7 +689,10 @@ properties:
                   type: string
                 env-file:
                   type: string
+                namespace:
+                  type: string
               additionalProperties: false
+              required: [namespace]
           expected-args:
             type: array
             items:
@@ -698,6 +713,10 @@ def do_validation(cliargs):
     if configmaps is None:
       return
     for name, desc in configmaps.items():
+      namespace = desc.get("namespace")
+      if not re.match(r"^([-a-z0-9]+)$", namespace):
+        bad(f"namespace \"{namespace}\" not in valid")
+
       from_file = desc.get("text-file") or desc.get("env-file")
       if from_file:
         assert_file_exists(dir, from_file)
