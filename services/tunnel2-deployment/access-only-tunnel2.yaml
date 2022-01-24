@@ -16,8 +16,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app:
-        apiserver-app
+      use-proxy: tunnel2
   policyTypes:
     - Egress
   egress:

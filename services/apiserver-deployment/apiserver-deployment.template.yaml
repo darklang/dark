@@ -16,11 +16,12 @@ spec:
 
   selector:
     matchLabels:
-      app: apiserver
+      app: apiserver-app
   template:
     metadata:
       labels:
-        app: apiserver
+        app: apiserver-app
+        use-proxy: tunnel2
     spec:
       #####################
       # Pod-level security
