@@ -421,6 +421,7 @@ def containers_build(cliargs):
     dir = os.path.join("containers", c)
     if os.path.isdir(dir) and os.path.exists(os.path.join(dir, "Dockerfile")):
       print(f"\nBuild container {c}")
+      # CLEANUP: remove prep.sh files and this logic
       prep = os.path.join(dir, "prep.sh")
       if os.path.exists(prep):
         buildDir = run_output(prep)
