@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: darklang
+  name: tunnel2-deployment
+  annotations:
+    kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
+spec:
+  revisionHistoryLimit: 10
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: tunnel2-app
+  template:
+    metadata:
+      labels:
+        app: tunnel2-app
+    spec:
+
+      #####################
+      # Pod-level security
+      #####################
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+      hostPID: false
+      automountServiceAccountToken: false # https://docs.bridgecrew.io/docs/bc_k8s_35
+
+      ###################
+      # Container definitions
+      ###################
+      containers:
+
+        ###################
+        # Main tunnel container
+        ###################
+        - name: tunnel-ctr
+          image: "gcr.io/balmy-ground-195100/tunnel:{IMAGEID:tunnel}"
+          ports:
+            - name: tunnel2-port
+              containerPort: 1080
+
+          #####################
+          # Security - https://docs.bridgecrew.io/docs
+          #####################
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+
+          #####################
+          # Resource limits
+          #####################
+          # Resource limits + requests are intentionally the same, to ensure
+          # this pod is a 'Guaranteed' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "100Mi"
+              cpu: "100m"
+
+          #####################
+          # Lifecycles probes
+          #####################
+          livenessProbe:
+            exec:
+              command:
+                - "curl"
+                - "--max-time"
+                - "5"
+                - "--proxy"
+                - "socks5h://localhost:1080"
+                - "google.com"
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - "curl"
+                - "--max-time"
+                - "5"
+                - "--proxy"
+                - "socks5h://localhost:1080"
+                - "google.com"
+            initialDelaySeconds: 1
+            periodSeconds: 5

@@ -1,0 +1,45 @@
+# This is the network-policy for all services which run user code. The should be able
+# to access the DB and the tunnel2 proxy, and nothing else.
+
+# Note that this is not the network-policy for the tunnel2 proxy.
+
+# We use 3rd party services, such as honeycomb, rollbar, and pusher. Those are fine
+# to go through the proxy. They need to be configured to do so.
+
+# In the future when we use more GCP services, we don't want them to go through the
+# proxy, so we'll need to expand this a bit.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: access-only-tunnel2
+spec:
+  podSelector:
+    matchLabels:
+      app:
+        apiserver-app
+  policyTypes:
+    - Egress
+  egress:
+
+    # DNS
+    - to:
+        # use google DNS, not k8s dns, as we don't provide access to it from here
+        - ipBlock:
+            cidr: 8.8.8.8/0
+        - ipBlock:
+            cidr: 8.8.4.4/0
+      ports: # DNS is both TCP and UDP
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # FSTODO: won't it need access to tunnel2-service using k8s dns?
+    # Allow access to the tunnel2 proxy to get http traffic to the external world
+    - to:
+        - podSelector:
+            matchLabels:
+              app: tunnel2-app
+
+# FSTODO: Allow access to the DB (for cloud-sql-proxy)

@@ -1,0 +1,11 @@
+k8s:
+  manually-deployed:
+    configs:
+      - access-only-tunnel2.yaml
+      - tunnel2-service.yaml
+  release:
+    config-template: tunnel2-deployment.template.yaml
+    containers:
+      - tunnel
+    expected-args:
+      - CHANGE_CAUSE
