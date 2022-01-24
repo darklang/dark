@@ -423,8 +423,15 @@ def containers_build(cliargs):
       print(f"\nBuild container {c}")
       prep = os.path.join(dir, "prep.sh")
       if os.path.exists(prep):
-        dir = run_output(prep)
-      sha = run_output(["docker", "build", "--quiet", "--tag", f"{c}:latest", dir])
+        buildDir = run_output(prep)
+      else:
+        buildDir = os.getcwd()
+      args = [
+          "docker", "build", "--quiet", "--tag", f"{c}:latest", "--file",
+          f"{dir}/Dockerfile", buildDir
+      ]
+      sha = run_output(args, env={"DOCKER_BUILDKIT": "1"})
+
       sha = sha[7:19]
       print(sha)
       shas[c] = sha
