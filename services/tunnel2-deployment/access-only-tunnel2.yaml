@@ -13,6 +13,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: access-only-tunnel2
+  namespace: darklang
 spec:
   podSelector:
     matchLabels:
