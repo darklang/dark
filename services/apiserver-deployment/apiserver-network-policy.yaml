@@ -5,7 +5,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: apiserver-app
+      app: apiserver
   policyTypes:
     - Egress
     - Ingress
