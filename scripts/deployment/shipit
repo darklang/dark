@@ -47,9 +47,13 @@ def handle_error(msg):
     error = msg
 
 
-def debug(str):
+def debug(str, str2=None, str3=None):
   if should_debug:
-    print("DEBUG: ", str)
+    if str2 != None:
+      str = f"{str} {str2}"
+    if str3 != None:
+      str = f"{str} {str3}"
+    rich.print(f"[bold red]DEBUG: {str}[/bold red]")
 
 
 def readfile(filename):
