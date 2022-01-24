@@ -2,26 +2,69 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bwdserver-deployment
+  namespace: darklang
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
+
 spec:
   revisionHistoryLimit: 10
-  selector:
-    matchLabels:
-      app: bwdserver
-  replicas: 1 # FSTODO
+  replicas: 2 # FSTODO - probably 4, depends on load supported
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0 # FSTODO
+      maxUnavailable: 1
+
+  selector:
+    matchLabels:
+      app: bwdserver-app
   template:
     metadata:
       labels:
-        app: bwdserver
+        app: bwdserver-app
+        use-proxy: tunnel2
     spec:
+      #####################
+      # Pod-level security
+      #####################
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+      hostPID: false
+      automountServiceAccountToken: false # https://docs.bridgecrew.io/docs/bc_k8s_35
+
+      ###################
+      # Container definitions
+      ###################
       containers:
+
+        ###################
+        # Main container
+        ###################
         - name: bwdserver-ctr
           image: "gcr.io/balmy-ground-195100/gcp-fsharp-bwdserver:{IMAGEID:gcp-fsharp-bwdserver}"
+          ports:
+            # Name length limit is 15 chars.
+            - name: bwdsvr-ctr-port
+              containerPort: 11001
+
+          #####################
+          # Security - https://docs.bridgecrew.io/docs
+          #####################
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+
+          #####################
+          # Resource limits
+          #####################
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -32,10 +75,10 @@ spec:
             limits:
               memory: "1000Mi"
               cpu: "125m"
-          ports:
-            # Name length limit is 15 chars.
-            - name: bwdsvr-ctr-port
-              containerPort: 11001
+
+          #####################
+          # Lifecycles probes
+          #####################
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -63,6 +106,10 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 10
             failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
+
+          #####################
+          # Environment
+          #####################
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -105,11 +152,34 @@ spec:
                 secretKeyRef:
                   name: honeycomb
                   key: api-key
+
+
         #########################
-        # Legacyserver
+        # Legacyserver container
         #########################
         - name: legacy-ctr
           image: "gcr.io/balmy-ground-195100/legacyserver:{IMAGEID:legacyserver}"
+          ports:
+            - name: legacy-port
+              containerPort: 5000
+
+          #####################
+          # Security - https://docs.bridgecrew.io/docs
+          #####################
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+
+          #####################
+          # Resource limits
+          #####################
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -120,9 +190,10 @@ spec:
             limits:
               memory: "1000Mi"
               cpu: "125m"
-          ports:
-            - name: legacy-port
-              containerPort: 5000
+
+          #####################
+          # Lifecycle probes
+          #####################
           lifecycle:
             preStop:
               httpGet:
@@ -147,6 +218,10 @@ spec:
             periodSeconds: 10 # every 10 seconds
             timeoutSeconds: 10 # time out after 10 seconds
             failureThreshold: 3 # kill container after 3 successive time outs
+
+          #####################
+          # Environment
+          #####################
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -166,6 +241,12 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
+            # rollbar
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar
+                  key: post_token
             # pusher
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
@@ -177,46 +258,58 @@ spec:
                 secretKeyRef:
                   name: pusher-account-credentials
                   key: secret
-            # rollbar
-            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
-              valueFrom:
-                secretKeyRef:
-                  name: rollbar
-                  key: post_token
+
+
         #########################
-        # Postgres proxy config
+        # Cloudsql proxy container
         # To connect to postgres from kubernetes, we need to add a proxy. See
         # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
         # Note in particular that we needed to create a service account and a
         # set of GKE secrets, listed below, to manage this.
         #########################
         - name: cloudsql-proxy
-          image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
-          resources:
-            requests:
-              memory: "500Mi"
-              cpu: "125m"
-            limits:
-              memory: "500Mi"
-              cpu: "125m"
-          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
+          image: "gcr.io/cloudsql-docker/gce-proxy:1.28.0@sha256:69880f1a8c3ac450f9cb083b91adb2d881ef71af3928ebf6b88b8933314f118a"
+          command:
+            - "/cloud_sql_proxy"
+            - "-dir=/cloudsql"
+            - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
+            - "-credential_file=/secrets/cloudsql/credentials.json"
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
               readOnly: true
 
-        #########################
-        # Nginx proxy
-        #########################
-        - name: http-proxy
-          image: nginx:1.16.1
+          #####################
+          # Security
+          #####################
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+
+          #####################
+          # Resource limits
+          #####################
           resources:
             requests:
-              memory: "50Mi"
-              cpu: "100m"
+              memory: "500Mi"
+              cpu: "125m"
             limits:
-              memory: "50Mi"
-              cpu: "100m"
+              memory: "500Mi"
+              cpu: "125m"
+
+
+        #########################
+        # Nginx inbound-proxy container
+        #########################
+        - name: http-proxy
+          image: nginx:1.21.1:ee89b00528ff
           ports:
             - name: http-proxy-port
               containerPort: 11000
@@ -228,11 +321,48 @@ spec:
               name: bwdserver-nginx-conf
             - mountPath: /etc/nginx/conf.d/bwdserver-nginx-override-conf
               name: bwdserver-nginx-override-conf
+
+          #####################
+          # Security
+          #####################
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+
+          #####################
+          # Resource limits
+          #####################
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: "100m"
+            limits:
+              memory: "50Mi"
+              cpu: "100m"
+
+          #####################
+          # Lifecycle probes
+          #####################
           lifecycle:
             preStop:
               exec:
                 # https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/
-                command: ["/bin/sh", "-c", "nginx -s quit; while killall -0 nginx; do sleep 1; done"]
+                command:
+                  - "/bin/sh"
+                  - "-c"
+                  - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
+
+
+      #####################
+      # Pod volume definitions
+      #####################
       volumes:
         - name: cloudsql-instance-credentials
           secret:
