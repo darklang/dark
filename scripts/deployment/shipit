@@ -92,10 +92,17 @@ def run(name, args, shell=False, input=None, stop_on_error=True):
 
 
 # Runs a command that's part of running the script, captures stdout
-def run_output(args, shell=False, input=None, stop_on_error=True):
+def run_output(args, shell=False, input=None, stop_on_error=True, env=None):
   try:
-    debug(f"Running command:\n  {args}")
-    return subprocess.check_output(args, shell=shell,
+    if env != None:
+      env = {**os.environ, **env}  # merge two dicts in python 3.8
+    if should_dry_run:
+      color = "bold green"
+    else:
+      color = "bold magenta"
+    rich.print(f"[{color}]Running `{args}` command[/{color}]")
+
+    return subprocess.check_output(args, shell=shell, env=env,
                                    input=input).decode("utf-8").strip()
   except subprocess.CalledProcessError as e:
     msg = f"Error running command:\n  {e}\n"
