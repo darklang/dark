@@ -569,7 +569,7 @@ def release_diff(cliargs):
       all_configmaps.update(maps)
   for hashed_name, cm in all_configmaps.items():
     run("kubectl diff configmap",
-        f"kubectl create configmap {hashed_name} {cm.filespec} {cm.namespace} --dry-run=client -o yaml | kubectl diff --filename=-",
+        f"kubectl create configmap {hashed_name} {cm['filespec']} {cm['namespace']} --dry-run=client -o yaml | kubectl diff --filename=-",
         shell=True,
         stop_on_error=False)
 
@@ -604,7 +604,7 @@ def release_push(cliargs):
           shell=True)
     else:
       run("kubectl apply configmap",
-          f"kubectl create configmap {hashed_name} {cm.filespec} {cm.namespace} --dry-run=client -o yaml | kubectl apply --filename=-",
+          f"kubectl create configmap {hashed_name} {cm['filespec']} {cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=-",
           shell=True)
 
   files = collect_release_templated_configs(cliargs)

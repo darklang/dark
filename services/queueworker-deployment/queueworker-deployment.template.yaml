@@ -115,7 +115,7 @@ spec:
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
-                  name: rollbar
+                  name: rollbar-acount-credentials
                   key: post_token
             # pusher
             - name: DARK_CONFIG_PUSHER_KEY
