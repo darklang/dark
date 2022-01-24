@@ -144,8 +144,8 @@ def assert_string_in_file(filename, file_str, substr):
 ##################################
 # Load services / config
 ##################################
-def get_service_dirs(args):
-  dirs = args.services
+def get_service_dirs(cliargs):
+  dirs = cliargs.services
   if dirs == []:
     dirs = [path for path in glob.glob(r'services/**') if "README.md" not in path]
   elif len(dirs) == 1 and dirs[0].endswith("shipit.yaml"):
@@ -191,9 +191,9 @@ def collect_versioned_configmaps(dir, parent):
 ##################################
 
 
-def get_all_config_file_arguments(args):
+def get_all_config_file_arguments(cliargs):
   files = []
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     for f in config['k8s']["manually-deployed"]["configs"]:
       files.append(os.path.join(dir, f))
@@ -216,18 +216,18 @@ def read_config_map_source(dir, cm):
     return f"--from-env-file={filename}"
 
 
-def manual_diff(args):
-  do_validation(args)
+def manual_diff(cliargs):
+  do_validation(cliargs)
 
   # Config files
-  file_args = get_all_config_file_arguments(args)
+  file_args = get_all_config_file_arguments(cliargs)
   if file_args == []:
     debug("No configs to diff, skipping")
   else:
     run("kubectl diff", ["kubectl", "diff"] + file_args, stop_on_error=False)
 
   # Configmaps
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     cms = config['k8s'].get("manually-deployed").get("configmaps", {})
     for name, cm in cms.items():
@@ -238,19 +238,19 @@ def manual_diff(args):
           stop_on_error=False)
 
   # Custom diff
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     manual = config['k8s'].get("manually-deployed")
     for c in manual.get("custom-diff", []):
       run("custom diff", c, shell=True, stop_on_error=False)
 
 
-def manual_apply(args):
-  args.services = [args.service]
-  do_validation(args)
+def manual_apply(cliargs):
+  cliargs.services = [cliargs.service]
+  do_validation(cliargs)
 
   # Config files
-  file_args = get_all_config_file_arguments(args)
+  file_args = get_all_config_file_arguments(cliargs)
   if file_args == []:
     debug("No configs to apply, skipping")
   else:
@@ -261,7 +261,7 @@ def manual_apply(args):
       run("kubectl apply", ["kubectl", "apply"] + file_args)
 
   # Configmaps
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     cms = config['k8s'].get("manually-deployed", {}).get("configmaps", {})
     for name, cm in cms.items():
@@ -276,7 +276,7 @@ def manual_apply(args):
             shell=True)
 
   # Custom apply
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     manual = config['k8s'].get("manually-deployed", {})
     for c in manual.get("custom-apply", []):
@@ -286,7 +286,7 @@ def manual_apply(args):
         run("custom apply", c, shell=True)
 
   # Custom post-apply (used for restarting services)
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     manual = config['k8s'].get("manually-deployed", {})
     for c in manual.get("custom-post-apply", []):
@@ -299,8 +299,8 @@ def manual_apply(args):
 ##################################
 # Manifests
 ##################################
-def manifest_validate(args, shas):
-  containers = get_service_containers(args)
+def manifest_validate(cliargs, shas):
+  containers = get_service_containers(cliargs)
   keys = set(shas.keys())
   for c in containers:
     if c not in keys:
@@ -314,17 +314,17 @@ def manifest_validate(args, shas):
       bad(f"Sha does not match expected format: {c}")
 
 
-def manifest_save(args, shas):
-  manifest_validate(args, shas)
-  with open(args.save_manifest, "w") as f:
+def manifest_save(cliargs, shas):
+  manifest_validate(cliargs, shas)
+  with open(cliargs.save_manifest, "w") as f:
     json.dump(shas, f, indent=2, sort_keys=True)
-  print(f"Saved manifest in {args.save_manifest}")
+  print(f"Saved manifest in {cliargs.save_manifest}")
 
 
-def manifest_load(args):
-  with open(args.manifest, "r") as f:
+def manifest_load(cliargs):
+  with open(cliargs.manifest, "r") as f:
     shas = json.load(f)
-  manifest_validate(args, shas)
+  manifest_validate(cliargs, shas)
   return shas
 
 
@@ -333,9 +333,9 @@ def manifest_load(args):
 ##################################
 
 
-def get_service_containers(args):
+def get_service_containers(cliargs):
   needed_containers = set()
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     containers = config['k8s'].get("release", {"containers": []})["containers"]
     for c in containers:
@@ -343,10 +343,10 @@ def get_service_containers(args):
   return needed_containers
 
 
-def containers_list(args):
-  do_validation(args)
+def containers_list(cliargs):
+  do_validation(cliargs)
   status = run_output(["docker", "image", "ls"]).split("\n")
-  service_containers = get_service_containers(args)
+  service_containers = get_service_containers(cliargs)
   for line in status:
     for c in service_containers:
       if c in line:
@@ -354,23 +354,23 @@ def containers_list(args):
         break
 
 
-def containers_pull(args):
+def containers_pull(cliargs):
   print("Pulling, if error you might need `gcloud auth configure-docker`")
   shas = {}
-  do_validation(args)
-  for c in get_service_containers(args):
+  do_validation(cliargs)
+  for c in get_service_containers(cliargs):
     url = f"gcr.io/{PROJECT}/{c}"
     image = f"gcr.io/{PROJECT}/{c}:latest"
     run("docker pull", ["docker", "pull", image])
     # Now get the ID we just pulled
     id = run_output(["docker", "images", url, "-q"]).split("\n")[0]
     shas[c] = id
-  manifest_save(args, shas)
+  manifest_save(cliargs, shas)
 
 
-def containers_push(args):
+def containers_push(cliargs):
   print("Pushing, if error you might need `gcloud auth configure-docker`")
-  do_validation(args)
+  do_validation(cliargs)
 
   def image_info(c):
     image_id = run_output([f"docker images -q {c} | head -n 1"], shell=True)
@@ -380,19 +380,19 @@ def containers_push(args):
         'image_latest': f"{url}:latest"
     })()
 
-  for c in get_service_containers(args):
+  for c in get_service_containers(cliargs):
     info = image_info(c)
     run("docker tag id", ["docker", "tag", f"{c}:latest", info.image])
     run("docker tag latest", ["docker", "tag", f"{c}:latest", info.image_latest])
 
-  for c in get_service_containers(args):
+  for c in get_service_containers(cliargs):
     info = image_info(c)
     run("docker push", ["docker", "push", info.image])
     run("docker push", ["docker", "push", info.image_latest])
 
 
-def containers_build(args):
-  do_validation(args)
+def containers_build(cliargs):
+  do_validation(cliargs)
 
   def build(name, dockerfilename, commitSha):
     print(f"building {name} docker image")
@@ -417,7 +417,7 @@ def containers_build(args):
   # echos. If there is no dockerfile, then do nothing (sometimes we use vendor
   # containers and so we just need to store config files).
   shas = {}
-  for c in get_service_containers(args):
+  for c in get_service_containers(cliargs):
     dir = os.path.join("containers", c)
     if os.path.isdir(dir) and os.path.exists(os.path.join(dir, "Dockerfile")):
       print(f"\nBuild container {c}")
@@ -430,15 +430,15 @@ def containers_build(args):
       shas[c] = sha
     else:
       print(f"\nNo dockerfile, skipping {c}")
-  manifest_save(args, shas)
+  manifest_save(cliargs, shas)
 
 
 ##################################
 # Releases
 ##################################
-def get_expected_args(args):
+def get_expected_args(cliargs):
   expected_args = {}
-  for arg in args.arg or []:
+  for arg in cliargs.arg or []:
     items = arg.strip().split("=")
     k = items[0].strip()
     v = "=".join(items[1:]).strip()
@@ -449,9 +449,9 @@ def get_expected_args(args):
   return expected_args
 
 
-def collect_release_templated_configs(args):
+def collect_release_templated_configs(cliargs):
   files = []
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
@@ -461,12 +461,12 @@ def collect_release_templated_configs(args):
   return files
 
 
-def release_prepare(args):
-  do_validation(args)
+def release_prepare(cliargs):
+  do_validation(cliargs)
   builtins = {"CLOUDSQL_INSTANCE_NAME": CLOUDSQL_INSTANCE_NAME}
-  expected_args = get_expected_args(args)
-  ids = manifest_load(args)
-  for dir in get_service_dirs(args):
+  expected_args = get_expected_args(cliargs)
+  ids = manifest_load(cliargs)
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
@@ -509,10 +509,10 @@ def release_prepare(args):
 
 
 # Read the current container shas from production
-def release_current_manifest(args):
-  do_validation(args)
+def release_current_manifest(cliargs):
+  do_validation(cliargs)
   shas = {}
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     containers = set(config['k8s'].get("release", {}).get("containers", []))
     # Only check yamls with a containers section
@@ -535,16 +535,16 @@ def release_current_manifest(args):
       for c in containers:
         if shas.get(c) == None:
           bad(f"{c} not found in manifest")
-  manifest_save(args, shas)
+  manifest_save(cliargs, shas)
 
 
-def release_diff(args):
-  do_validation(args)
-  release_prepare(args)
+def release_diff(cliargs):
+  do_validation(cliargs)
+  release_prepare(cliargs)
 
   # Configmaps
   all_configmaps = {}
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
@@ -557,7 +557,7 @@ def release_diff(args):
         stop_on_error=False)
 
   # diff it against production
-  files = collect_release_templated_configs(args)
+  files = collect_release_templated_configs(cliargs)
   if files == []:
     debug("No release configs to diff, skipping")
   else:
@@ -568,13 +568,13 @@ def release_diff(args):
     run("kubectl diff", file_args, stop_on_error=False)
 
 
-def release_push(args):
-  do_validation(args)
-  release_prepare(args)
+def release_push(cliargs):
+  do_validation(cliargs)
+  release_prepare(cliargs)
 
   # Do the config maps first, as they're used by the deploys
   all_configmaps = {}
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
     if release:
@@ -590,7 +590,7 @@ def release_push(args):
           f"kubectl create configmap {hashed_name} {filespec} --dry-run=client -o yaml | kubectl apply --filename=-",
           shell=True)
 
-  files = collect_release_templated_configs(args)
+  files = collect_release_templated_configs(cliargs)
 
   # diff it against production
   if files == []:
@@ -685,7 +685,7 @@ properties:
 """
 
 
-def do_validation(args):
+def do_validation(cliargs):
   def validate_configmaps(configmaps):
     if configmaps is None:
       return
@@ -696,7 +696,7 @@ def do_validation(args):
       else:
         bad(f"Need either `text-file` or `env-file` for {name}")
 
-  for dir in get_service_dirs(args):
+  for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     debug(f"Validating config for {dir}")
     try:
@@ -770,8 +770,8 @@ def do_validation(args):
           bad(f"Unexpected placeholder \"{{{match}}}\" in\n{template_filename}")
 
 
-def validate(args):
-  do_validation(args)
+def validate(cliargs):
+  do_validation(cliargs)
   print("All shipit.yaml files successfully validated")
 
 
@@ -930,11 +930,11 @@ def main():
   global should_dry_run
   global dry_run_target
   parser = create_arg_parser()
-  args = parser.parse_args()
-  should_debug = args.debug
-  should_dry_run = args.dry_run in ['client', 'server']
-  dry_run_target = args.dry_run
-  args.func(args)
+  cliargs = parser.parse_args()
+  should_debug = cliargs.debug
+  should_dry_run = cliargs.dry_run in ['client', 'server']
+  dry_run_target = cliargs.dry_run
+  cliargs.func(cliargs)
   if error:
     sys.exit(1)
 
