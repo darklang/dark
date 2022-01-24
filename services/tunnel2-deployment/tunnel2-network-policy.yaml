@@ -27,8 +27,5 @@ spec:
   ingress:
     - from:
         - podSelector:
-            matchExpressions:
-              - key: app
-                operator: In
-                # FSTODO: others
-                values: [apiserver-app]
+            matchLabels:
+              use-proxy: tunnel2
