@@ -16,6 +16,6 @@ sha2 = "0.8.2"
 reqwest = "0.9.24"
 slog = "2.7.0"
 slog-scope = "4.4.0"
-slog-json = "2.3.0"
+slog-json = "2.5.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 uuid = { version = "0.8", features = ["v4"] }
