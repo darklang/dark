@@ -313,7 +313,7 @@ spec:
         # Nginx inbound-proxy container
         #########################
         - name: http-proxy
-          image: "nginx:1.21.1@sha256:ee89b00528ff"
+          image: "nginx:1.21.5@sha256:ee89b00528ff"
           ports:
             - name: http-proxy-port
               containerPort: 9000
