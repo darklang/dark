@@ -62,7 +62,10 @@ spec:
             privileged: false
             readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
-            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+            runAsUser: 1000 # https://stackoverflow.com/questions/49720308
+          volumeMounts:
+            - mountPath: /home/dark/gcp-rundir # security
+              name: apiserver-rundir
 
           #####################
           # Resource limits
@@ -394,4 +397,7 @@ spec:
         - name: nginx-cache-volume
           emptyDir: { }
         - name: nginx-pid-volume
+          emptyDir: { }
+        # to allow readOnlyRootFilesystem for apiserver
+        - name: apiserver-rundir
           emptyDir: { }
