@@ -23,9 +23,9 @@ spec:
         app: apiserver-app
         use-proxy: tunnel2
     spec:
-      #####################
+      # ---------------------
       # Pod-level security
-      #####################
+      # ---------------------
       securityContext:
         seccompProfile:
           type: RuntimeDefault
@@ -49,9 +49,9 @@ spec:
             - name: apisvr-ctr-port
               containerPort: 9001
 
-          #####################
+          # ---------------------
           # Security - https://docs.bridgecrew.io/docs
-          #####################
+          # ---------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -67,9 +67,9 @@ spec:
             - mountPath: /home/dark/gcp-rundir # security
               name: apiserver-rundir
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
           # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -81,9 +81,9 @@ spec:
               memory: "1000Mi"
               cpu: "125m"
 
-          #####################
+          # ---------------------
           # Lifecycles probes
-          #####################
+          # ---------------------
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -112,9 +112,9 @@ spec:
             timeoutSeconds: 10
             failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
 
-          #####################
+          # ---------------------
           # Environment
-          #####################
+          # ---------------------
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -168,9 +168,9 @@ spec:
             - name: legacy-port
               containerPort: 5000
 
-          #####################
+          # ---------------------
           # Security - https://docs.bridgecrew.io/docs
-          #####################
+          # ---------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -183,12 +183,12 @@ spec:
             runAsNonRoot: false
             runAsUser: 0
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
-          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
               memory: "100Mi"
@@ -197,9 +197,9 @@ spec:
               memory: "1000Mi"
               cpu: "125m"
 
-          #####################
+          # ---------------------
           # Lifecycle probes
-          #####################
+          # ---------------------
           lifecycle:
             preStop:
               httpGet:
@@ -225,9 +225,9 @@ spec:
             timeoutSeconds: 10 # time out after 10 seconds
             failureThreshold: 3 # kill container after 3 successive time outs
 
-          #####################
+          # ---------------------
           # Environment
-          #####################
+          # ---------------------
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -285,9 +285,9 @@ spec:
               mountPath: /secrets/cloudsql
               readOnly: true
 
-          #####################
+          # --------------------
           # Security
-          #####################
+          # ---------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -300,9 +300,9 @@ spec:
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
             runAsUser: 25432 # https://stackoverflow.com/questions/49720308
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           resources:
             requests:
               memory: "20Mi"
@@ -330,9 +330,9 @@ spec:
             - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
               name: apiserver-nginx-override-conf
 
-          #####################
+          # ---------------------
           # Security
-          #####################
+          # ---------------------
           imagePullPolicy: Always
           securityContext:
             # This wouldn't run except as root, needed these settings
@@ -353,9 +353,9 @@ spec:
                 - ALL
                 - NET_RAW
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           resources:
             requests:
               memory: "20Mi"
@@ -364,9 +364,9 @@ spec:
               memory: "50Mi"
               cpu: "100m"
 
-          #####################
+          # ---------------------
           # Lifecycle probes
-          #####################
+          # ---------------------
           lifecycle:
             preStop:
               exec:
@@ -377,9 +377,9 @@ spec:
                   - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
 
 
-      #####################
+      # ---------------------
       # Pod volume definitions
-      #####################
+      # ---------------------
       volumes:
         - name: cloudsql-instance-credentials
           secret:
