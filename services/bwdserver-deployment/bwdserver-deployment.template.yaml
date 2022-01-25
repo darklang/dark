@@ -30,6 +30,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
         runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+        runAsUser: 25432 # https://stackoverflow.com/questions/49720308
       hostPID: false
       automountServiceAccountToken: false # https://docs.bridgecrew.io/docs/bc_k8s_35
 
@@ -61,6 +62,7 @@ spec:
             privileged: false
             readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
 
           #####################
           # Resource limits
@@ -176,6 +178,7 @@ spec:
             privileged: false
             readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
 
           #####################
           # Resource limits
@@ -292,6 +295,7 @@ spec:
             privileged: false
             readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
 
           #####################
           # Resource limits
@@ -335,6 +339,7 @@ spec:
             privileged: false
             readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
 
           #####################
           # Resource limits
