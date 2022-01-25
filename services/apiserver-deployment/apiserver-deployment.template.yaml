@@ -280,6 +280,9 @@ spec:
             - "-dir=/cloudsql"
             - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
             - "-credential_file=/secrets/cloudsql/credentials.json"
+            - "-term_timeout=28s" # match the apiserver's termination code
+            - "-structured_logs"
+            - "-use_http_health_check"
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
@@ -311,6 +314,39 @@ spec:
               memory: "500Mi"
               cpu: "125m"
 
+          # ---------------------
+          # Lifecycle probes
+          # ---------------------
+          # from https://github.com/GoogleCloudPlatform/cloudsql-proxy/blob/9e4bf2c689eaa117e0f89c7ac5d181bfcc03a849/examples/k8s-health-check/proxy_with_http_health_check.yaml#L91
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 60
+            timeoutSeconds: 30
+            # If periodSeconds = 60, 5 tries will result in five minutes of
+            # checks. The proxy starts to refresh a certificate five minutes
+            # before its expiration. If those five minutes lapse without a
+            # successful refresh, the liveness probe will fail and the pod will be
+            # restarted.
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 8090
+            periodSeconds: 1
+            timeoutSeconds: 5
+            failureThreshold: 20
 
         #########################
         # Nginx inbound-proxy container
