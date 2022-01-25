@@ -316,7 +316,8 @@ spec:
         # Nginx inbound-proxy container
         #########################
         - name: http-proxy
-          image: "nginx:1.21.5@sha256:ee89b00528ff4f02f2405e4ee221743ebc3f8e8dd0bfd5c4c20a2fa2aaa7ede3"
+          # latest as of Jan 25, 2022. Probably 1.20
+          image: "nginxinc/nginx-unprivileged@sha256:dc6c6c3052ec07e73ad87d8bcb30f23a9f95f6af3a50925eae334097450ec358"
           ports:
             - name: http-proxy-port
               containerPort: 9000
@@ -328,10 +329,6 @@ spec:
               name: apiserver-nginx-conf
             - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
               name: apiserver-nginx-override-conf
-            - mountPath: /var/cache/nginx # security
-              name: nginx-cache-volume
-            - mountPath: /var/run # security
-              name: nginx-pid-volume
 
           #####################
           # Security
@@ -344,7 +341,12 @@ spec:
             runAsNonRoot: true
             runAsGroup: 101 # nginx default
             runAsUser: 101 # nginx default
-            readOnlyRootFilesystem: true
+            # It's hard to get nginx to work with this. It needs to write to the
+            # mounted config files, which are mounted as root. Using fsGroup would
+            # allow a different user, but that's a pod setting, not a container one,
+            # and that probably won't work with other containers. There's no settings
+            # on volumeMounts. So the simplest this is just to let this go for now.
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
             capabilities:
               drop:
@@ -391,12 +393,6 @@ spec:
         - name: apiserver-nginx-override-conf
           configMap:
             name: apiserver-nginx-override-conf
-        # to allow readOnlyRootFilesystem for nginx
-        # see https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
-        - name: nginx-cache-volume
-          emptyDir: { }
-        - name: nginx-pid-volume
-          emptyDir: { }
         # to allow readOnlyRootFilesystem for apiserver
         - name: apiserver-rundir
           emptyDir: { }
