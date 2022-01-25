@@ -177,10 +177,9 @@ spec:
             capabilities:
               drop:
                 - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
-                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
             privileged: false
-            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
-            # this is expected to run as root. We're getting rid of it soon though.
+            # this is expected to run as root. We're getting rid of the container
+            # soon so not worth fixing.
             runAsNonRoot: false
             runAsUser: 0
 
