@@ -177,8 +177,9 @@ spec:
                 - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
             privileged: false
             readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
-            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
-            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+            # this is expected to run as root. We're getting rid of it soon though.
+            runAsNonRoot: false
+            runAsUser: 0
 
           #####################
           # Resource limits
