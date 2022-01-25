@@ -15,7 +15,12 @@ let legacyServerCheck : LibService.Kubernetes.HealthCheck =
     checkFn =
       fun (_ : System.Threading.CancellationToken) ->
         task {
-          do! Canvas.checkTierOneHosts ()
+          // Make sure we can load a canvas
+          // Loading all the tier one canvases takes way too long, so just pick a simple one
+          // do! Canvas.checkTierOneHosts ()
+          let host = CanvasName.create "ian-httpbin"
+          let! meta = Canvas.getMeta host
+          let! (_ : Canvas.T) = Canvas.loadAll meta
           return HealthCheckResult.Healthy("It's fine")
         } }
 
