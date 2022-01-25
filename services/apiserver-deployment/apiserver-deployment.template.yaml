@@ -191,8 +191,8 @@ spec:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "100Mi"
+              cpu: "10m"
             limits:
               memory: "1000Mi"
               cpu: "125m"
@@ -305,8 +305,8 @@ spec:
           #####################
           resources:
             requests:
-              memory: "500Mi"
-              cpu: "125m"
+              memory: "20Mi"
+              cpu: "10m"
             limits:
               memory: "500Mi"
               cpu: "125m"
@@ -356,8 +356,8 @@ spec:
           #####################
           resources:
             requests:
-              memory: "50Mi"
-              cpu: "100m"
+              memory: "20Mi"
+              cpu: "10m"
             limits:
               memory: "50Mi"
               cpu: "100m"
