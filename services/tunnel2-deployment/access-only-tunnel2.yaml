@@ -24,7 +24,8 @@ spec:
 
     # DNS
     - to:
-        # use google DNS, not k8s dns, as we don't provide access to it from here
+        # use google DNS, not k8s dns, since we don't want user code to be able to
+        # touch it
         - ipBlock:
             cidr: 8.8.8.8/0
         - ipBlock:
