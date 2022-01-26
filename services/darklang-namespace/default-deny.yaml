@@ -1,0 +1,27 @@
+# Deny all traffic by default, then enable the traffic we intend to allow
+# https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-security-blueprints/master/restricting-traffic/default-deny/default-deny.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: default-deny
+spec:
+  policyTypes:
+    - Ingress
+    - Egress
+  podSelector: { }
+  # Allow access to kube-dns so that dns discovery keeps working
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              k8s-namespace: kube-system
+          podSelector:
+            matchExpressions:
+              - key: k8s-app
+                operator: In
+                values: ["kube-dns", "node-local-dns"]
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
