@@ -3,6 +3,7 @@ k8s:
     configs:
       - access-only-tunnel2.yaml
       - tunnel2-service.yaml
+      - tunnel2-network-policy.yaml
   release:
     config-template: tunnel2-deployment.template.yaml
     containers:
