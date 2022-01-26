@@ -21,7 +21,7 @@ spec:
               # since there's sensitive data in http://metadata
               - 169.254.0.0/16
               # don't allow anything kubernetes
-              - 10.0.0.0./24
+              - 10.0.0.0/8
 
   # Allow access from any of the code-executing apps
   ingress:
