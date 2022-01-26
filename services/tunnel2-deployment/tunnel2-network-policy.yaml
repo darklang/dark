@@ -22,8 +22,12 @@ spec:
               - 169.254.0.0/16
               # don't allow anything kubernetes
               - 10.0.0.0/8
+              # Let's deny all private stuff just to be sure
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 127.0.0.0/8
 
-  # Allow access from any of the code-executing apps
+  # Allow access from any of the code-executing apps but nowhere else
   ingress:
     - from:
         - podSelector:
