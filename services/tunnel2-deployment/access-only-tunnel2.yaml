@@ -27,9 +27,9 @@ spec:
         # use google DNS, not k8s dns, since we don't want user code to be able to
         # touch it
         - ipBlock:
-            cidr: 8.8.8.8/0
+            cidr: 8.8.8.8/32
         - ipBlock:
-            cidr: 8.8.4.4/0
+            cidr: 8.8.4.4/32
       ports: # DNS is both TCP and UDP
         - protocol: UDP
           port: 53
