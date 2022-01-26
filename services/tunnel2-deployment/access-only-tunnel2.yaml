@@ -37,10 +37,19 @@ spec:
           port: 53
 
     # FSTODO: won't it need access to tunnel2-service using k8s dns?
+    # Cloud SQL
+    - to:
+        - ipBlock:
+            cidr: 35.203.144.131/32
+      ports:
+        - protocol: TCP
+          port: 3307 # port cloudsqlproxy uses
+        # Cloud sql proxy needs to hit a JSON endpoint to get the settings
+        - protocol: TCP
+          port: 443
+
     # Allow access to the tunnel2 proxy to get http traffic to the external world
     - to:
         - podSelector:
             matchLabels:
               app: tunnel2-app
-
-# FSTODO: Allow access to the DB (for cloud-sql-proxy)
