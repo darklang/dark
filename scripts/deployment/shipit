@@ -878,7 +878,7 @@ def create_arg_parser():
   manual_apply_parser = manual_subparser.add_parser(
       'apply',
       description=
-      "Checks that the config files listed in the k8s.manually-deployed key of shipit.yaml are already properly deployed, using `kubectl diff`",
+      "Apply the manually applied config for the config listed in the k8s.manually-deployed key of shipit.yaml, using `kubectl apply` and `kubectl create`",
       parents=[base_parser])
   manual_apply_parser.add_argument(
       'service',
