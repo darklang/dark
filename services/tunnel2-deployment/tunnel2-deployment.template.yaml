@@ -37,8 +37,8 @@ spec:
         ###################
         # Main tunnel container
         ###################
-        - name: tunnel-ctr
-          image: "gcr.io/balmy-ground-195100/tunnel:{IMAGEID:tunnel}"
+        - name: tunnel2-ctr
+          image: "gcr.io/balmy-ground-195100/tunnel2:{IMAGEID:tunnel2}"
           ports:
             - name: tunnel2-port
               containerPort: 1080

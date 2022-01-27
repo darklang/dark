@@ -7,6 +7,6 @@ k8s:
   release:
     config-template: tunnel2-deployment.template.yaml
     containers:
-      - tunnel
+      - tunnel2
     expected-args:
       - CHANGE_CAUSE
