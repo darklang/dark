@@ -2,4 +2,7 @@ k8s:
   manually-deployed:
     configs:
       - darklang-namespace.yaml
-      - default-deny.yaml
+      - networkpolicy-default-deny.yaml
+      - networkpolicy-allow-kube-dns.yaml
+      - networkpolicy-allow-google-dns.yaml
+      - networkpolicy-allow-external-internet.yaml

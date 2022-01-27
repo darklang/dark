@@ -1,0 +1,25 @@
+# Creates an egress rule to allow a pod to access google DNS (8.8.8.8, 8.8.4.4). Add
+# `egress-allow-google-dns: "true"` to a pod to enable
+
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-google-dns
+  namespace: darklang
+spec:
+  policyTypes:
+    - Egress
+  podSelector:
+    matchLabels:
+      egress-allow-google-dns: "true"
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 8.8.8.8/32
+        - ipBlock:
+            cidr: 8.8.4.4/32
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53

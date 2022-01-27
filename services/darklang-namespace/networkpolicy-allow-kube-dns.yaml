@@ -1,15 +1,17 @@
-# Deny all traffic by default, then enable the traffic we intend to allow
-# https://raw.githubusercontent.com/GoogleCloudPlatform/anthos-security-blueprints/master/restricting-traffic/default-deny/default-deny.yaml
+# Adds a rule to allow access to kubedns. Add `egress-allow-kube-dns: "true"` to a
+# pod to enable
+
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  name: default-deny
+  name: allow-kube-dns
   namespace: darklang
 spec:
   policyTypes:
-    - Ingress
     - Egress
-  podSelector: { }
+  podSelector:
+    matchLabels:
+      egress-allow-kube-dns: "true"
   # Allow access to kube-dns so that dns discovery keeps working
   egress:
     - to:

@@ -1,0 +1,26 @@
+# Creates an egress rule to allow a pod to access external internet. To use it, add
+# `egress-allow-external-internet: "true"` on a pod.
+
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-external-internet
+  namespace: darklang
+spec:
+  policyTypes:
+    - Egress
+  podSelector:
+    matchLabels:
+      egress-allow-external-internet: "true"
+  egress:
+    - to:
+        - ipBlock:
+            # Allows all IPs
+            cidr: 0.0.0.0/0
+            except:
+              # Exclude any local addresses
+              - 169.254.0.0/16
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 127.0.0.0/8
