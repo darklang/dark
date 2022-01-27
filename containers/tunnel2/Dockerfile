@@ -16,7 +16,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
 RUN mkdir /run/sshd
 RUN adduser --disabled-password --gecos '' tunnel
 
-COPY containers/tunnel/tunnel-daemon /usr/local/bin/tunnel-daemon
+COPY containers/tunnel2/tunnel-daemon /usr/local/bin/tunnel2-daemon
+COPY containers/tunnel2/test.sh /test.sh
 
 EXPOSE 1080/tcp
-CMD /usr/local/bin/tunnel-daemon
+CMD /usr/local/bin/tunnel2-daemon
