@@ -6,28 +6,27 @@ Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
-HTTP/1.1 302 Found
+HTTP/1.1 304 Not Modified
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /response-redirect-destination
+Location: /v5/response-redirect-destination
 
 
 [test]
-(let response = HttpClient.get_v5_ster "http://URL" {} {}
+(let response = HttpClient.get_v5_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
-  { body = "Redirect destination reached"
-    code = 200
-    error = ""
-    headers =
+   { body = "Redirect destination reached"
+     code = 200
+     error = ""
+     headers =
       {
         ``Arbitrary-header`` = "Test value"
         ``Content-Length`` = "28"
         ``Content-Type`` = "text/plain; charset=utf-8"
-        ``HTTP/1.1 302 Found`` = ""
+        Location = "/v5/response-redirect-destination"
         ``HTTP/1.1 200 OK`` = ""
-        Location = "/response-redirect-destination"
-        ``Transfer-Encoding`` = "chunked"
+        ``HTTP/1.1 304 Not Modified`` = ""
         Server = "Kestrel"
       }
-    raw = "Redirect destination reached"
-  }
+     raw = "Redirect destination reached"}
+

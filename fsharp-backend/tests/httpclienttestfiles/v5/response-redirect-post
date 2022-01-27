@@ -8,7 +8,7 @@ Host: HOST
 [response]
 HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /response-redirect-dest-post
+Location: /v5/response-redirect-dest-post
 
 
 [test]
@@ -25,7 +25,7 @@ Location: /response-redirect-dest-post
         ``Content-Type`` = "text/plain; charset=utf-8"
         ``HTTP/1.1 200 OK`` = ""
         ``HTTP/1.1 302 Found`` = ""
-        ``Location`` = "/response-redirect-dest-post"
+        ``Location`` = "/v5/response-redirect-dest-post"
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }

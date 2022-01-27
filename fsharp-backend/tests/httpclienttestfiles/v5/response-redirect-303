@@ -6,9 +6,9 @@ Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
-HTTP/1.1 305 Use Proxy
+HTTP/1.1 303 See Other
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /response-redirect-destination
+Location: /v5/response-redirect-destination
 
 
 [test]
@@ -23,9 +23,9 @@ Location: /response-redirect-destination
         ``Arbitrary-header`` = "Test value"
         ``Content-Length`` = "28"
         ``Content-Type`` = "text/plain; charset=utf-8"
-        Location = "/response-redirect-destination"
+        Location = "/v5/response-redirect-destination"
         ``HTTP/1.1 200 OK`` = ""
-        ``HTTP/1.1 305 Use Proxy`` = ""
+        ``HTTP/1.1 303 See Other`` = ""
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }

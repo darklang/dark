@@ -6,10 +6,10 @@ Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
-HTTP/1.1 301 Moved Permanently
-Redirect-header-1: 1
-Redirect-header: 1
-Location: /response-redirect-chain-0
+HTTP/1.1 302 Found
+Redirect-header-2: 2
+Redirect-header: 2
+Location: /v5/response-redirect-chain-1
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 
 
@@ -27,11 +27,13 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
         ``Content-Type`` = "text/plain; charset=utf-8"
         ``HTTP/1.1 200 OK`` = ""
         ``HTTP/1.1 301 Moved Permanently`` = ""
+        ``HTTP/1.1 302 Found`` = ""
         ``HTTP/1.1 308 Permanent Redirect`` = ""
-        Location = "/response-redirect-chain-0"
+        Location = "/v5/response-redirect-chain-1"
         ``Redirect-header-0`` = "0"
         ``Redirect-header-1`` = "1"
-        ``Redirect-header`` = "1"
+        ``Redirect-header-2`` = "2"
+        ``Redirect-header`` = "2"
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }

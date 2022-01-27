@@ -8,7 +8,7 @@ Host: HOST
 [response]
 HTTP/1.1 303 See Other
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /invalid-url
+Location: /v5/invalid-url
 
 
 [test]
@@ -25,7 +25,7 @@ Location: /invalid-url
         ``Content-Length`` = "0"
         ``HTTP/1.1 303 See Other`` = ""
         ``HTTP/1.1 500 Internal Server Error`` = ""
-        Location = "/invalid-url"
+        Location = "/v5/invalid-url"
         ``Transfer-Encoding`` = "chunked"
         Server = "Kestrel"
       }

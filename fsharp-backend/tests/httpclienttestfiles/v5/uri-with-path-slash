@@ -1,5 +1,5 @@
 [expected-request]
-GET /uri-with-path-slash/ HTTP/1.1
+GET /v5/uri-with-path-slash/ HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
 Content-Type: text/plain; charset=utf-8

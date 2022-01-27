@@ -5,6 +5,8 @@ module Tests.HttpClient
 // They all follow a standard format, and this file provides
 // a framework for loading, running, and assessing those tests
 
+let baseDirectory = "tests/httpclienttestfiles"
+
 open Expecto
 
 open System.Threading.Tasks
@@ -72,13 +74,13 @@ let updateBody (body : byte array) : byte array =
 
 
 
-let t filename =
+let makeTest versionName filename =
   // Parse the file contents now, rather than later, so that tests that refer to
   // other tests (that is, tests for redirects) will work.
   let shouldSkipTest = String.startsWith "_" filename
   let testName = if shouldSkipTest then String.dropLeft 1 filename else filename
 
-  let filename = $"tests/httpclienttestfiles/{filename}"
+  let filename = $"{baseDirectory}/{versionName}/{filename}"
   let contents = System.IO.File.ReadAllBytes filename
   let content = UTF8.ofBytesUnsafe contents
 
@@ -112,7 +114,8 @@ let t filename =
         headers = normalizeHeaders newResponseBody response.headers
         body = newResponseBody }
 
-  testCases[testName] <- { expected = expected; result = response }
+  testCases[$"{versionName}/{testName}"] <- { expected = expected
+                                              result = response }
 
 
   // Load the testcases first so that redirection works
@@ -129,7 +132,7 @@ let t filename =
       // Parse the code
       let shouldEqual, actualDarkProg, expectedResult =
         darkCode
-        |> String.replace "URL" $"{host}/{testName}"
+        |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
@@ -229,10 +232,26 @@ type Compression =
 let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     try
-      let testName =
-        let segment = System.Uri(ctx.Request.Path.Value).Segments.[1]
-        if String.endsWith "/" segment then String.dropRight 1 segment else segment
-      let testCase = testCases[testName]
+      let versionName, testName =
+        let segments = System.Uri(ctx.Request.Path.Value).Segments
+
+        let versionName = segments.[1]
+        let versionName =
+          if String.endsWith "/" versionName then
+            String.dropRight 1 versionName
+          else
+            versionName
+
+        let testName = segments.[2]
+        let testName =
+          if String.endsWith "/" testName then
+            String.dropRight 1 testName
+          else
+            testName
+
+        versionName, testName
+
+      let testCase = testCases.[$"{versionName}/{testName}"]
 
       let actualHeaders =
         BwdServer.Server.getHeaders ctx
@@ -361,14 +380,15 @@ let init (token : System.Threading.CancellationToken) : Task =
   (webserver ()).RunAsync(token)
 
 
-let testsFromFiles =
-  let dir = "tests/httpclienttestfiles/"
-
-  System.IO.Directory.GetFiles(dir, "*")
+let testsFromFiles version =
+  System.IO.Directory.GetFiles($"{baseDirectory}/{version}", "*")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
-  |> List.filter ((<>) "README.md")
-  |> List.filter ((<>) ".gitattributes")
-  |> List.map t
+  |> List.map (makeTest version)
 
-let tests = testList "HttpClient" [ testList "From files" testsFromFiles ]
+let tests =
+  [ "v5" ]
+  |> List.map (fun versionName ->
+    let tests = testsFromFiles versionName
+    testList $"From files, {versionName}" tests)
+  |> testList "HttpClient"
