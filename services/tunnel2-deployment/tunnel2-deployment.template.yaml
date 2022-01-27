@@ -19,6 +19,15 @@ spec:
         egress-allow-google-dns: "true"
         egress-allow-external-internet: "true"
     spec:
+      dnsPolicy: "None"
+
+      # When tunneling, the httpclient should use the tunnel's DNS servers. Let's
+      # make sure to use the google one so we're not resolving k8s stuff.
+      # TODO: check it does use the tunnel's DNS server
+      dnsConfig:
+        nameservers:
+          - "8.8.8.8"
+          - "8.8.4.4"
 
       #####################
       # Pod-level security
