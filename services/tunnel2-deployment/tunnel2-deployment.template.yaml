@@ -16,6 +16,8 @@ spec:
     metadata:
       labels:
         app: tunnel2-app
+        egress-allow-google-dns: "true"
+        egress-allow-external-internet: "true"
     spec:
 
       #####################
