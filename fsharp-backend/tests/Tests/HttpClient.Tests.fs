@@ -1,5 +1,10 @@
 module Tests.HttpClient
 
+// There are a variety of http client tests located in
+// "./tests/httpclienttestfiles".
+// They all follow a standard format, and this file provides
+// a framework for loading, running, and assessing those tests
+
 open Expecto
 
 open System.Threading.Tasks
@@ -45,13 +50,16 @@ let normalizeHeaders
 let randomBytes =
   [ 0x2euy; 0x0Auy; 0xE8uy; 0xE6uy; 0xF1uy; 0xE0uy; 0x9Buy; 0xA6uy; 0xEuy ]
 
-// We can't add bytes to the test cases cause they're parsed a strings, so allow the
-// string RANDOM_BYTES which will be replaced with the pre-selected bytes chosen at
-// random.
-
 let updateBody (body : byte array) : byte array =
+  // Test cases are parsed as strings, so we can't "add bytes" to the tests directly.
+  // To get around this, we include the string "RANDOM_BYTES" in our test file,
+  // and replace that during the test at run-time.
+  let randomBytes =
+    [ 0x2euy; 0x0Auy; 0xE8uy; 0xE6uy; 0xF1uy; 0xE0uy; 0x9Buy; 0xA6uy; 0xEuy ]
+
   let rec find (bytes : byte list) : byte list =
     match bytes with
+    // Note: "51 41 ..." is equivalent to "RANDOM_BYTES"
     | 0x52uy :: 0x41uy :: 0x4Euy :: 0x44uy :: 0x4Fuy :: 0x4Duy :: 0x5Fuy :: 0x42uy :: 0x59uy :: 0x54uy :: 0x45uy :: 0x53uy :: tail ->
       randomBytes @ find tail
     | [] -> []
@@ -67,14 +75,16 @@ let updateBody (body : byte array) : byte array =
 let t filename =
   // Parse the file contents now, rather than later, so that tests that refer to
   // other tests (that is, tests for redirects) will work.
-  let skip = String.startsWith "_" filename
-  let name = if skip then String.dropLeft 1 filename else filename
+  let shouldSkipTest = String.startsWith "_" filename
+  let testName = if shouldSkipTest then String.dropLeft 1 filename else filename
 
   let filename = $"tests/httpclienttestfiles/{filename}"
   let contents = System.IO.File.ReadAllBytes filename
   let content = UTF8.ofBytesUnsafe contents
 
-  let expectedRequest, response, code =
+  // Parse the Dark code and expected HTTP request,
+  // as well as the (static) HTTP response to return
+  let expectedRequest, response, darkCode =
     let m =
       Regex.Match(
         content,
@@ -83,7 +93,7 @@ let t filename =
       )
 
     if not m.Success then
-      Exception.raiseInternal $"incorrect format" [ "name", name ]
+      Exception.raiseInternal $"incorrect format" [ "name", testName ]
     let g = m.Groups
 
     (g[2].Value, g[3].Value, g[4].Value)
@@ -102,24 +112,24 @@ let t filename =
         headers = normalizeHeaders newResponseBody response.headers
         body = newResponseBody }
 
-  testCases[name] <- { expected = expected; result = response }
+  testCases[testName] <- { expected = expected; result = response }
 
 
   // Load the testcases first so that redirection works
   testTask $"HttpClient files: {filename}" {
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
-    // debuG "code" code
+    // debuG "darkCode" darkCode
 
-    if skip then
-      skiptest $"underscore test - {name}"
+    if shouldSkipTest then
+      skiptest $"underscore test - {testName}"
     else
-      let! meta = createTestCanvas $"http-client-{name}"
+      let! meta = createTestCanvas $"http-client-{testName}"
 
       // Parse the code
-      let shouldEqual, actualProg, expectedResult =
-        code
-        |> String.replace "URL" $"{host}/{name}"
+      let shouldEqual, actualDarkProg, expectedResult =
+        darkCode
+        |> String.replace "URL" $"{host}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
@@ -128,15 +138,18 @@ let t filename =
 
       let! state = executionStateFor meta Map.empty Map.empty
 
+      // The Dark program is an expression - what's the expected result of that expression?
+      // note: in many cases, the expression is some sort of equality-checker,
+      //   in which case this 'expected' is an eBool (a known runtime type)
       let! expected =
         Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
 
-      let msg = $"\n\n{actualProg}\n=\n{expectedResult}\n\n"
+      let debugMsg = $"\n\n{actualDarkProg}\n=\n{expectedResult}\n\n"
 
       // Which tests to run
       let testOCaml, testFSharp =
-        if String.includes "FSHARPONLY" code then (false, true)
-        else if String.includes "OCAMLONLY" code then (true, false)
+        if String.includes "FSHARPONLY" darkCode then (false, true)
+        else if String.includes "OCAMLONLY" darkCode then (true, false)
         else (true, true)
 
       // Test OCaml
@@ -146,7 +159,7 @@ let t filename =
             LibBackend.OCamlInterop.execute
               state.program.accountID
               state.program.canvasID
-              actualProg
+              actualDarkProg
               Map.empty
               []
               []
@@ -155,31 +168,31 @@ let t filename =
           | e ->
             Exception.raiseInternal
               $"When calling OCaml code, OCaml server failed"
-              [ "msg", msg ]
+              [ "msg", debugMsg ]
               [ "exception", e ]
 
         if shouldEqual then
           Expect.equalDval
             (normalizeDvalResult ocamlActual)
             expected
-            $"{msg} -> OCaml"
+            $"{debugMsg} -> OCaml"
         else
           Expect.notEqual
             (normalizeDvalResult ocamlActual)
             expected
-            $"{msg} -> OCaml"
+            $"{debugMsg} -> OCaml"
 
       // Test F#
       if testFSharp then
         let! fsharpActual =
-          Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
+          Exe.executeExpr state Map.empty (actualDarkProg.toRuntimeType ())
 
         let fsharpActual = normalizeDvalResult fsharpActual
 
         if shouldEqual then
-          Expect.equalDval fsharpActual expected $"{msg} -> FSharp"
+          Expect.equalDval fsharpActual expected $"{debugMsg} -> FSharp"
         else
-          Expect.notEqual fsharpActual expected $"{msg} -> FSharp"
+          Expect.notEqual fsharpActual expected $"{debugMsg} -> FSharp"
   }
 
 
