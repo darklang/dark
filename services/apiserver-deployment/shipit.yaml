@@ -11,7 +11,7 @@ k8s:
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
-      - kubectl rollout restart deployment apiserver-deployment
+      - kubectl rollout restart --namespace darklang deployment apiserver-deployment
 
   release:
     config-template: apiserver-deployment.template.yaml

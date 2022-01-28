@@ -21,7 +21,7 @@ spec:
     metadata:
       labels:
         app: apiserver-app
-        use-proxy: tunnel2
+        dark-executor: "true"
     spec:
       # ---------------------
       # Pod-level security

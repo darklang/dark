@@ -1,9 +1,9 @@
 k8s:
   manually-deployed:
     configs:
-      - access-only-tunnel2.yaml
       - tunnel2-service.yaml
-      - tunnel2-network-policy.yaml
+      - tunnel2-networkpolicy.yaml
+      - darklang-executors-networkpolicy.yaml
   release:
     config-template: tunnel2-deployment.template.yaml
     containers:

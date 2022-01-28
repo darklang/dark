@@ -1,0 +1,55 @@
+# Pods that do dark execution should all have the same set of rules for what they can
+# access, specifically that they all route their traffic through the tunnel2 service
+# These pods are labelled with `dark-executor: "true"`
+
+# Egress to allow their traffic into tunnel2, as well as other places they need to go
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: dark-executors
+  namespace: darklang
+spec:
+  policyTypes:
+    - Egress
+  podSelector:
+    matchLabels:
+      dark-executor: "true"
+  egress:
+    # Allow access to kube-dns so that dns discovery of tunnel2 works
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              k8s-namespace: kube-system
+          podSelector:
+            matchExpressions:
+              - key: k8s-app
+                operator: In
+                values: ["kube-dns", "node-local-dns"]
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+
+    # Allow access to tunnel2
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              k8s-namespace: darklang
+          podSelector:
+            matchLabels:
+              app: tunnel2-app
+      ports:
+        - protocol: TCP
+          port: 1080
+
+    # Allow access to Cloud SQL
+    - to:
+        - ipBlock:
+            cidr: 35.203.144.131/32
+      ports:
+        - protocol: TCP
+          port: 3307 # port cloudsqlproxy uses
+        # Cloud sql proxy needs to hit a JSON endpoint to get the settings
+        - protocol: TCP
+          port: 443
