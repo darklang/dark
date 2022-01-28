@@ -377,7 +377,7 @@ let makeHttpCall
   }
 
 
-module LegacyHttpClientV1 =
+module LegacyHttpClientV0 =
   let rec httpCall
     (count : int)
     (rawBytes : bool)
@@ -428,6 +428,8 @@ module LegacyHttpClientV1 =
           | _ -> return response
         | _ -> return response
     }
+
+module LegacyHttpClientV1 = LegacyHttpClientV0
 
 module LegacyHttpClientV2 =
   let rec httpCall
@@ -505,6 +507,104 @@ let encodeRequestBody jsonFn (headers : headers) (body : Dval option) : Content 
       FakeFormContentToMatchCurl(jsonFn dv)
     | _ -> StringContent(jsonFn dv)
   | None -> NoContent
+
+// used by v0-v2 Dark fns
+// - v2 uses wrapped_call & _no_body
+// - v1 and v0 use
+module LibhttpclientV0 =
+  let sendRequest
+    (uri : string)
+    (verb : HttpMethod)
+    (jsonFn : Dval -> string)
+    (reqBody : Dval option)
+    (query : Dval)
+    (reqHeaders : Dval)
+    : Ply<Dval> =
+    uply {
+      let query = DvalRepr.toQuery query |> Exception.unwrapResultDeveloper
+
+      let encodedReqHeaders =
+        DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+      let encodedReqBody = encodeRequestBody jsonFn encodedReqHeaders reqBody
+
+      match!
+        LegacyHttpClientV0.httpCall
+          0
+          false
+          uri
+          query
+          verb
+          encodedReqHeaders
+          encodedReqBody
+        with
+      | Ok response ->
+        let parsedResponseBody =
+          if ContentType.hasJsonHeader response.headers then
+            DvalRepr.unsafeOfUnknownJsonV0 response.body
+          else
+            DStr response.body
+
+        let parsedResponseHeaders =
+          response.headers
+          |> List.map (fun (k, v) -> (String.trim k, DStr(String.trim v)))
+          |> List.filter (fun (k, _) -> String.length k > 0)
+          |> Map.ofList
+          |> DObj // in old version, this was Dval.obj, however we want to allow duplicates
+
+        let obj =
+          Dval.obj [ ("body", parsedResponseBody)
+                     ("headers", parsedResponseHeaders)
+                     ("raw", DStr response.body) ]
+        return obj
+      | Error err -> return DResult(Error(DStr err.error))
+    }
+
+  let call (method : HttpMethod) jsonFn : BuiltInFnSig =
+    (function
+    | _, [ DStr uri; body; query; headers ] ->
+      sendRequest uri method jsonFn (Some body) query headers
+    | _ -> incorrectArgs ())
+
+  let callNoBody (method : HttpMethod) jsonFn : BuiltInFnSig =
+    (function
+    | _, [ DStr uri; query; headers ] ->
+      sendRequest uri method jsonFn None query headers
+    | _ -> incorrectArgs ())
+
+  let callIgnoreBody (method : HttpMethod) jsonFn : BuiltInFnSig =
+    (function
+    | _, [ DStr uri; _body; query; headers ] ->
+      sendRequest uri method jsonFn None query headers
+    | _ -> incorrectArgs ())
+
+  let wrappedSendRequest
+    (uri : string)
+    (verb : HttpMethod)
+    (jsonFn : Dval -> string)
+    (reqBody : Dval option)
+    (query : Dval)
+    (reqHeaders : Dval)
+    =
+    uply {
+      try
+        let! r = sendRequest uri verb jsonFn reqBody query reqHeaders
+        return DResult(Ok(r))
+      with
+      | e -> return DResult(Error(DStr(e.Message)))
+    }
+
+  let wrappedCall verb jsonFn : BuiltInFnSig =
+    function
+    | _state, [ DStr uri; body; query; headers ] ->
+      wrappedSendRequest uri verb jsonFn (Some body) query headers
+    | _ -> incorrectArgs ()
+
+  let wrappedCallNoBody verb jsonFn : BuiltInFnSig =
+    function
+    | _state, [ DStr uri; query; headers ] ->
+      wrappedSendRequest uri verb jsonFn None query headers
+    | _ -> incorrectArgs ()
+
 
 // used by v3 Dark fns
 module LibhttpclientV1 =
@@ -589,7 +689,7 @@ module LibhttpclientV2 =
     uply {
       let query = DvalRepr.toQuery query |> Exception.unwrapResultDeveloper
 
-      let encodedReqHeaders : List<string * string> =
+      let encodedReqHeaders =
         DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
       let encodedReqBody =
         encodeRequestBody
