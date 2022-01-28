@@ -1,0 +1,17 @@
+[expected-request]
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip, br
+Host: HOST
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-Length: LENGTH
+
+RANDOM_BYTES
+
+[test]
+// RANDOM_BYTES filled in by the test suite for response, but not for test.
+HttpClient.get_v0_ster "http://URL" {} {} {} =
+ Test.typeError "Unknown Err:  \"Invalid UTF-8 string\""

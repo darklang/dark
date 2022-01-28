@@ -33,13 +33,11 @@ let jsonFn = DvalReprExternal.toPrettyMachineJsonStringV1
 type headers = (string * string) list
 
 let fns : List<BuiltInFn> =
-  [
-    { name = fn "HttpClient" "post" 1
+  [ { name = fn "HttpClient" "post" 1
       parameters = parameters
       returnType = returnType
       description = "Make blocking HTTP POST call to `uri`"
-      fn =
-        LegacyLibHttp.LibhttpclientV0.call HttpMethod.Post jsonFn
+      fn = LegacyLibHttp.LibhttpclientV0.call HttpMethod.Post jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "post" 2) }
@@ -47,8 +45,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description = "Make blocking HTTP PUT call to `uri`"
-      fn =
-        LegacyLibHttp.LibhttpclientV0.call HttpMethod.Put jsonFn
+      fn = LegacyLibHttp.LibhttpclientV0.call HttpMethod.Put jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "put" 2) }
@@ -56,8 +53,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description = "Make blocking HTTP GET call to `uri`"
-      fn =
-        LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Get jsonFn
+      fn = LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Get jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "get" 2) }
@@ -65,8 +61,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description = "Make blocking HTTP DELETE call to `uri`"
-      fn =
-        LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Delete jsonFn
+      fn = LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Delete jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "delete" 2) }
@@ -74,8 +69,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description = "Make blocking HTTP OPTIONS call to `uri`"
-      fn =
-        LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Options jsonFn
+      fn = LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Options jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "options" 2) }
@@ -83,8 +77,7 @@ let fns : List<BuiltInFn> =
       parameters = parametersNoBody
       returnType = returnType
       description = "Make blocking HTTP HEAD call to `uri`"
-      fn =
-        LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Head jsonFn
+      fn = LegacyLibHttp.LibhttpclientV0.callNoBody HttpMethod.Head jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "head" 2) }
@@ -92,9 +85,7 @@ let fns : List<BuiltInFn> =
       parameters = parameters
       returnType = returnType
       description = "Make blocking HTTP PATCH call to `uri`"
-      fn =
-        LegacyLibHttp.LibhttpclientV0.call HttpMethod.Patch jsonFn
+      fn = LegacyLibHttp.LibhttpclientV0.call HttpMethod.Patch jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "HttpClient" "patch" 2) }
-  ]
+      deprecated = ReplacedBy(fn "HttpClient" "patch" 2) } ]

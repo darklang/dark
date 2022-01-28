@@ -1,22 +1,11 @@
 module BackendOnlyStdLib.LibHttpClient0
 
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
+open System.Net.Http
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution
+open LibExecution.RuntimeTypes
 
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
-
-let varA = TVariable "a"
-let varB = TVariable "b"
 
 module PrettyRequestJson =
   // This was a terrible format, I'm not even sure why this is called json
@@ -74,93 +63,81 @@ module PrettyRequestJson =
           "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
     to_repr_ 0 dv
 
+let fn = FQFnName.stdlibFnName
+let err (str : string) = Ply(Dval.errStr str)
 
+let varA = TVariable "a"
+
+// CLEANUP: remove the obj type and use varA instead
+// this^ comment was copied from LibDB.fs - reevaluate
+let obj = TDict varA
+
+let returnType = obj
+
+let parameters =
+  [ Param.make "uri" TStr ""
+    Param.make "body" varA ""
+    Param.make "query" (TDict TStr) ""
+    Param.make "headers" (TDict TStr) "" ]
+
+let jsonFn = PrettyRequestJson.toPrettyRequestJson
 
 let fns : List<BuiltInFn> =
-  [
-  // [ { name = fn "HttpClient" "post" 0
-//
-//   ; parameters = parameters
-//   ; returnType = TObj
-//   ; description =
-//       "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
-//   ; fn =
-//       Legacy.LibhttpclientV0.call
-//         Httpclient.POST
-//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "HttpClient" "put" 0
-//   ; parameters = parameters
-//   ; returnType = TObj
-//   ; description =
-//       "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
-//   ; fn =
-//       Legacy.LibhttpclientV0.call
-//         Httpclient.PUT
-//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "HttpClient" "get" 0
-//   ; parameters = parameters
-//   ; returnType = TObj
-//   ; description =
-//       "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
-//   ; fn =
-//       Legacy.LibhttpclientV0.call
-//         Httpclient.GET
-//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "HttpClient" "delete" 0
-//   ; parameters = parameters
-//   ; returnType = TObj
-//   ; description =
-//       "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
-//   ; fn =
-//       Legacy.LibhttpclientV0.call
-//         Httpclient.DELETE
-//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "HttpClient" "options" 0
-//   ; parameters = parameters
-//   ; returnType = TObj
-//   ; description =
-//       "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
-//   ; fn =
-//       Legacy.LibhttpclientV0.call
-//         Httpclient.OPTIONS
-//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "HttpClient" "head" 0
-//   ; parameters = parameters
-//   ; returnType = TObj
-//   ; description =
-//       "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
-//   ; fn =
-//       Legacy.LibhttpclientV0.call
-//         Httpclient.HEAD
-//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "HttpClient" "patch" 0
-//   ; parameters = parameters
-//   ; returnType = TObj
-//   ; description =
-//       "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
-//   ; fn =
-//       Legacy.LibhttpclientV0.call
-//         Httpclient.PATCH
-//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-  ]
+  [ { name = fn "HttpClient" "post" 0
+      parameters = parameters
+      returnType = returnType
+      description = "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
+      fn = LegacyLibHttp.LibhttpclientV0.call HttpMethod.Post jsonFn
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "HttpClient" "post" 1) }
+    { name = fn "HttpClient" "put" 0
+      parameters = parameters
+      returnType = returnType
+      description = "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
+      fn = LegacyLibHttp.LibhttpclientV0.call HttpMethod.Put jsonFn
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "HttpClient" "put" 1) }
+    { name = fn "HttpClient" "get" 0
+      parameters = parameters
+      returnType = returnType
+      description = "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
+      fn = LegacyLibHttp.LibhttpclientV0.callIgnoreBody HttpMethod.Get jsonFn
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "HttpClient" "get" 1) }
+    { name = fn "HttpClient" "delete" 0
+      parameters = parameters
+      returnType = returnType
+      description =
+        "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
+      fn = LegacyLibHttp.LibhttpclientV0.callIgnoreBody HttpMethod.Delete jsonFn
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "HttpClient" "delete" 1) }
+    { name = fn "HttpClient" "options" 0
+      parameters = parameters
+      returnType = returnType
+      description =
+        "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
+      fn = LegacyLibHttp.LibhttpclientV0.callIgnoreBody HttpMethod.Options jsonFn
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "HttpClient" "options" 1) }
+    { name = fn "HttpClient" "head" 0
+      parameters = parameters
+      returnType = returnType
+      description = "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
+      fn = LegacyLibHttp.LibhttpclientV0.callIgnoreBody HttpMethod.Head jsonFn
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "HttpClient" "head" 1) }
+    { name = fn "HttpClient" "patch" 0
+      parameters = parameters
+      returnType = returnType
+      description = "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
+      fn = LegacyLibHttp.LibhttpclientV0.call HttpMethod.Patch jsonFn
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "HttpClient" "patch" 1) } ]
