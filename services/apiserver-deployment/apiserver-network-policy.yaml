@@ -8,7 +8,7 @@ spec:
     matchLabels:
       app: apiserver-app
   policyTypes:
-    # egress policy is in tunnel2/access-only-tunnel2
+    # egress policy is in tunnel2/darklang-executors-networkpolicy.yaml
     - Ingress
   ingress:
     - ports:

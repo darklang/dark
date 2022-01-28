@@ -15,6 +15,6 @@ spec:
     - Egress
   # No namespaceSelector so this is only for the darklang namespace
   podSelector: { }
-  # Note: this even blocks access kube-dns, see networkpolicy-allow-kube-dns for details
+  # Note: this even blocks access kube-dns
   egress: []
   ingress: []
