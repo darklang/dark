@@ -42,11 +42,6 @@ spec:
                 secretKeyRef:
                   name: rollbar-account-credentials
                   key: post_token
-            - name: DARK_CONFIG_PUSHER_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: pusher-account-credentials
-                  key: secret
             # pusher (not used here but needed for startup)
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
