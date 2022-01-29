@@ -69,10 +69,24 @@ spec:
           port: 443
 
     # Accessing the DB isn't working with the above settings, so allow access to
-    # everywhere while we figure this out
+    # everywhere while we figure this out. This isn't as secure as it could be, but
+    # it's not terrible either considering that the outbound traffic is going through
+    # tunnel2, and we've locked down internal stuff.
+    # TODO: it seems that the extra access is to sqladmin.googleapis.com, which is
+    # not an explicit IP and so can't be tackled in the rules here. Recently it has
+    # been both 142.251.40.138 and 172.217.165.138. I have a support request in with
+    # GCP to see what to do here.
     - to:
         - ipBlock:
-            cidr: 0.0.0.0/32
+            cidr: 0.0.0.0/0
+            except:
+              # Exclude any local addresses. We allow some of these above, but rules
+              # are ORed together, so it's fine to exclude them here.
+              - 169.254.0.0/16
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 127.0.0.0/8
       ports:
         - port: 443
           protocol: TCP
