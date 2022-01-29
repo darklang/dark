@@ -53,3 +53,28 @@ spec:
         # Cloud sql proxy needs to hit a JSON endpoint to get the settings
         - protocol: TCP
           port: 443
+        - protocol: UDP
+          port: 53
+
+    # Allow access to Cloud SQL proxy: TODO:
+    - to:
+        - ipBlock:
+            cidr: 127.0.0.1/32
+      ports:
+        - protocol: TCP
+          port: 5432 # port cloudsqlproxy provides
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+
+    # Accessing the DB isn't working with the above settings, so allow access to
+    # everywhere while we figure this out
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/32
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 53
+          protocol: UDP
