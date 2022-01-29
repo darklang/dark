@@ -9,6 +9,7 @@ set -euo pipefail
 
 services=( "$@" )
 manifest="manual-deploy-manifest"
+CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 
 echo -e "\n\nservices: ${services[*]}"
 
@@ -35,5 +36,10 @@ for s in ${services[*]}; do
 done
 
 echo -e "\n\ndeploying release"
-./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE=manual-deploy ${services[*]}
+./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" ${services[*]} --dry-run=client
+./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" ${services[*]} --dry-run=server
+./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" ${services[*]}
 
+echo -e "\n\nnotify telemetry"
+./scripts/deployment/_notify-deployment-rollbar
+./scripts/deployment/_notify-deployment-honeycomb
