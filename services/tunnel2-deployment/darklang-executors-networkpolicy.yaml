@@ -17,17 +17,11 @@ spec:
   egress:
     # Allow access to kube-dns so that dns discovery of tunnel2 works
     - to:
-        - namespaceSelector:
-            matchLabels:
-              k8s-namespace: kube-system
+        - namespaceSelector: { }
           podSelector:
-            matchExpressions:
-              - key: k8s-app
-                operator: In
-                values: ["kube-dns", "node-local-dns"]
+            matchLabels:
+              k8s-app: kube-dns
       ports:
-        - protocol: TCP
-          port: 53
         - protocol: UDP
           port: 53
 
