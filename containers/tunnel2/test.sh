@@ -14,10 +14,10 @@ function expect_success() {
     return 1
   fi
 }
-
-function expect_failure() {
-  if curl --insecure --connect-timeout 3 $1 > /dev/null 2>&1; then
-    echo -e "${green}success: unable to connect to ${1}${reset}"
+function expect_not_there () {
+  if curl --insecure --connect-timeout 3 $1 > /dev/null 2>&1 ; then
+    echo -e "${red}FAIL: ${1} shouldn't even exist${reset}"
+    return 1
   else
     echo -e "${green}success: non-existant destination ${1} wasn't there${reset}"
   fi
