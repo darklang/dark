@@ -50,23 +50,7 @@ spec:
       ports:
         - protocol: TCP
           port: 3307 # port cloudsqlproxy uses
-        # Cloud sql proxy needs to hit a JSON endpoint to get the settings
-        - protocol: TCP
-          port: 443
-        - protocol: UDP
-          port: 53
 
-    # Allow access to Cloud SQL proxy: TODO:
-    - to:
-        - ipBlock:
-            cidr: 127.0.0.1/32
-      ports:
-        - protocol: TCP
-          port: 5432 # port cloudsqlproxy provides
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 443
 
     # Accessing the DB isn't working with the above settings, so allow access to
     # everywhere while we figure this out. This isn't as secure as it could be, but
@@ -83,10 +67,11 @@ spec:
               # Exclude any local addresses. We allow some of these above, but rules
               # are ORed together, so it's fine to exclude them here.
               - 169.254.0.0/16
-              - 10.0.0.0/8
+              # - 10.0.0.0/8
               - 172.16.0.0/12
               - 192.168.0.0/16
               - 127.0.0.0/8
+              - 35.203.144.131/32 # rule for the server provided above
       ports:
         - port: 443
           protocol: TCP
