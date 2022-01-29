@@ -281,6 +281,7 @@ spec:
             - "-credential_file=/secrets/cloudsql/credentials.json"
             - "-term_timeout=28s" # match the apiserver's termination code
             - "-structured_logs"
+            - "-verbose"
             - "-use_http_health_check"
           volumeMounts:
             - name: cloudsql-instance-credentials
