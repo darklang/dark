@@ -102,6 +102,7 @@ DARK_CONFIG_DB_POOL_SIZE=10
 
 # Httpclient
 DARK_CONFIG_CURL_TUNNEL_URL=socks5://localhost
+DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL=socks5://localhost:1080
 
 # Publicly accessible domain
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
