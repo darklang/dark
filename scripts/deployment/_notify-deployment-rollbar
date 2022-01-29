@@ -7,18 +7,12 @@ set -euo pipefail
 
 LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
 
-if [[ -v CI  ]]; then
-  COMMENT="${CIRCLE_BUILD_URL}"
-else
-  COMMENT="Manual deploy to prod"
-fi
-
 ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
 curl -s https://api.rollbar.com/api/1/deploy/ \
   -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
   -F "environment=production" \
   -F "revision=$(git rev-parse --short HEAD)" \
-  -F "comment=${COMMENT}" \
+  -F "comment=$1" \
   -F "local_username=${LOCAL_USERNAME}" > /dev/null
 echo "Rollbar notified."
 

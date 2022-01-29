@@ -41,5 +41,5 @@ echo -e "\n\ndeploying release"
 ./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" ${services[*]}
 
 echo -e "\n\nnotify telemetry"
-./scripts/deployment/_notify-deployment-rollbar
-./scripts/deployment/_notify-deployment-honeycomb
+./scripts/deployment/_notify-deployment-rollbar "${CHANGE_CAUSE}"
+./scripts/deployment/_notify-deployment-honeycomb "${CHANGE_CAUSE}"
