@@ -19,6 +19,7 @@ spec:
   # Allow access from any of the code-executing apps but nowhere else
   ingress:
     - from:
+        - namespaceSelector: { }
         - podSelector:
             matchLabels:
               dark-executor: "true"
