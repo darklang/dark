@@ -54,6 +54,8 @@ spec:
     # not an explicit IP and so can't be tackled in the rules here. Recently it has
     # been both 142.251.40.138 and 172.217.165.138. I have a support request in with
     # GCP to see what to do here.
+    # It seems fqdn are supported in cilium, which is part of DataPlaneV2, which is
+    # not on our cluster. We'll have to make a new cluster to support this.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
