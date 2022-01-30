@@ -412,14 +412,16 @@ spec:
                   - "-c"
                   - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
 
-
       # ---------------------
       # Pod volume definitions
       # ---------------------
       volumes:
+        # Cloud sql
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+
+        # Nginx
         - name: apiserver-nginx-base-conf
           configMap:
             name: "{VERSIONED-CONFIGMAP:apiserver-nginx-base-conf}"

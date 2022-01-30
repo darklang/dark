@@ -347,9 +347,12 @@ spec:
       # Pod volume definitions
       # ---------------------
       volumes:
+        # Cloud sql
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+
+        # Main container
         # to allow readOnlyRootFilesystem
         - name: rundir
           emptyDir: { }
