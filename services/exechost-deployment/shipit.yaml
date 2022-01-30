@@ -1,6 +1,7 @@
 k8s:
   manually-deployed:
-    configs: []
+    configs:
+      - exechost-network-policy.yaml
   release:
     config-template: exechost-deployment.template.yaml
     versioned-configmaps:

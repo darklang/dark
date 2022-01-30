@@ -59,7 +59,7 @@ spec:
             runAsUser: 1000 # https://stackoverflow.com/questions/49720308
           volumeMounts:
             - mountPath: /home/dark/gcp-rundir # security
-              name: exechost-rundir
+              name: rundir
 
           # ---------------------
           # Resource limits
@@ -133,7 +133,7 @@ spec:
             - "/cloud_sql_proxy"
             - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
             - "-credential_file=/secrets/cloudsql/credentials.json"
-            - "-term_timeout=28s" # match the apiserver's termination code
+            - "-term_timeout=28s" # match the termination code
             - "-structured_logs"
             - "-verbose"
             - "-use_http_health_check"
@@ -212,5 +212,5 @@ spec:
             secretName: cloudsql-instance-credentials
 
         # to allow readOnlyRootFilesystem
-        - name: exechost-rundir
+        - name: rundir
           emptyDir: { }
