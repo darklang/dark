@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: exechost-deployment
+  namespace: darklang
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 spec:
