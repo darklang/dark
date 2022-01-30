@@ -7,6 +7,9 @@ WORKDIR /home/dark
 COPY --chown=dark:dark backend/templates templates
 COPY --chown=dark:dark scripts scripts
 
+RUN mkdir webroot
+COPY --chown=dark:dark backend/static/etags.json webroot/etags.json
+
 RUN mkdir app
 
 # Setting this now means we can set the filesystem to readonly

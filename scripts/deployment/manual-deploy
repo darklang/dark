@@ -30,7 +30,6 @@ echo -e "\n\npushing containers"
 
 for s in ${services[*]}; do
   echo -e "\n\napplying manual settings for $s"
-  ./scripts/deployment/shipit manual diff "$s"
   ./scripts/deployment/shipit manual apply "$s" --dry-run=server
   ./scripts/deployment/shipit manual apply "$s"
 done

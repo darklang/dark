@@ -21,11 +21,11 @@ spec:
     metadata:
       labels:
         app: bwdserver-app
-        use-proxy: tunnel2
+        dark-executor: "true"
     spec:
-      #####################
+      # ---------------------
       # Pod-level security
-      #####################
+      # ---------------------
       securityContext:
         seccompProfile:
           type: RuntimeDefault
@@ -49,9 +49,9 @@ spec:
             - name: bwdsvr-ctr-port
               containerPort: 11001
 
-          #####################
+          # ---------------------
           # Security - https://docs.bridgecrew.io/docs
-          #####################
+          # ---------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -62,14 +62,17 @@ spec:
             privileged: false
             readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
-            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+            runAsUser: 1000 # https://stackoverflow.com/questions/49720308
+          volumeMounts:
+            - mountPath: /home/dark/gcp-rundir # security
+              name: rundir
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
-          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
               memory: "1000Mi"
@@ -78,9 +81,9 @@ spec:
               memory: "1000Mi"
               cpu: "125m"
 
-          #####################
+          # ---------------------
           # Lifecycles probes
-          #####################
+          # ---------------------
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -109,9 +112,9 @@ spec:
             timeoutSeconds: 10
             failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
 
-          #####################
+          # ---------------------
           # Environment
-          #####################
+          # ---------------------
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -165,38 +168,38 @@ spec:
             - name: legacy-port
               containerPort: 5000
 
-          #####################
+          # ---------------------
           # Security - https://docs.bridgecrew.io/docs
-          #####################
+          # ---------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
-                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
             privileged: false
-            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
-            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
-            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+            # this is expected to run as root. We're getting rid of the container
+            # soon so not worth fixing.
+            runAsNonRoot: false
+            runAsUser: 0
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
-          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "100Mi"
+              cpu: "10m"
             limits:
               memory: "1000Mi"
               cpu: "125m"
 
-          #####################
+          # ---------------------
           # Lifecycle probes
-          #####################
+          # ---------------------
           lifecycle:
             preStop:
               httpGet:
@@ -222,9 +225,9 @@ spec:
             timeoutSeconds: 10 # time out after 10 seconds
             failureThreshold: 3 # kill container after 3 successive time outs
 
-          #####################
+          # ---------------------
           # Environment
-          #####################
+          # ---------------------
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -248,7 +251,7 @@ spec:
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
-                  name: rollbar
+                  name: rollbar-account-credentials
                   key: post_token
             # pusher
             - name: DARK_CONFIG_PUSHER_KEY
@@ -274,17 +277,20 @@ spec:
           image: "gcr.io/cloudsql-docker/gce-proxy:1.28.0@sha256:69880f1a8c3ac450f9cb083b91adb2d881ef71af3928ebf6b88b8933314f118a"
           command:
             - "/cloud_sql_proxy"
-            - "-dir=/cloudsql"
             - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
             - "-credential_file=/secrets/cloudsql/credentials.json"
+            - "-term_timeout=28s" # match termination code
+            - "-structured_logs"
+            - "-verbose"
+            - "-use_http_health_check"
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
               readOnly: true
 
-          #####################
+          # --------------------
           # Security
-          #####################
+          # --------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -297,9 +303,9 @@ spec:
             runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
             runAsUser: 25432 # https://stackoverflow.com/questions/49720308
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           resources:
             requests:
               memory: "500Mi"
@@ -308,12 +314,46 @@ spec:
               memory: "500Mi"
               cpu: "125m"
 
+          # ---------------------
+          # Lifecycle probes
+          # ---------------------
+          # from https://github.com/GoogleCloudPlatform/cloudsql-proxy/blob/9e4bf2c689eaa117e0f89c7ac5d181bfcc03a849/examples/k8s-health-check/proxy_with_http_health_check.yaml#L91
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 60
+            timeoutSeconds: 30
+            # If periodSeconds = 60, 5 tries will result in five minutes of
+            # checks. The proxy starts to refresh a certificate five minutes
+            # before its expiration. If those five minutes lapse without a
+            # successful refresh, the liveness probe will fail and the pod will be
+            # restarted.
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 8090
+            periodSeconds: 1
+            timeoutSeconds: 5
+            failureThreshold: 20
 
         #########################
         # Nginx inbound-proxy container
         #########################
         - name: http-proxy
-          image: nginx:1.21.1:ee89b00528ff
+          # latest as of Jan 25, 2022. Probably 1.20
+          image: "nginxinc/nginx-unprivileged@sha256:dc6c6c3052ec07e73ad87d8bcb30f23a9f95f6af3a50925eae334097450ec358"
           ports:
             - name: http-proxy-port
               containerPort: 11000
@@ -325,36 +365,48 @@ spec:
               name: bwdserver-nginx-conf
             - mountPath: /etc/nginx/conf.d/bwdserver-nginx-override-conf
               name: bwdserver-nginx-override-conf
+            - mountPath: /var/cache/nginx # security
+              name: nginx-cache-volume
+            - mountPath: /var/run # security
+              name: nginx-pid-volume
 
-          #####################
+          # ---------------------
           # Security
-          #####################
+          # ---------------------
           imagePullPolicy: Always
           securityContext:
+            # This wouldn't run except as root, needed these settings
+            # See https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
+            privileged: false
+            runAsNonRoot: true
+            runAsGroup: 101 # nginx default
+            runAsUser: 101 # nginx default
+            # It's hard to get nginx to work with this. It needs to write to the
+            # mounted config files, which are mounted as root. Using fsGroup would
+            # allow a different user, but that's a pod setting, not a container one,
+            # and that probably won't work with other containers. There's no settings
+            # on volumeMounts. So the simplest this is just to let this go for now.
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
             capabilities:
               drop:
-                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
-                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
-            privileged: false
-            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
-            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
-            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+                - ALL
+                - NET_RAW
 
-          #####################
+          # ---------------------
           # Resource limits
-          #####################
+          # ---------------------
           resources:
             requests:
-              memory: "50Mi"
-              cpu: "100m"
+              memory: "20Mi"
+              cpu: "10m"
             limits:
               memory: "50Mi"
               cpu: "100m"
 
-          #####################
+          # ---------------------
           # Lifecycle probes
-          #####################
+          # ---------------------
           lifecycle:
             preStop:
               exec:
@@ -364,14 +416,16 @@ spec:
                   - "-c"
                   - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
 
-
-      #####################
+      # ---------------------
       # Pod volume definitions
-      #####################
+      # ---------------------
       volumes:
+        # Cloud sql
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+
+        # Nginx
         - name: bwdserver-nginx-base-conf
           configMap:
             name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-base-conf}"
@@ -381,3 +435,14 @@ spec:
         - name: bwdserver-nginx-override-conf
           configMap:
             name: bwdserver-nginx-override-conf
+        # to allow readOnlyRootFilesystem for nginx
+        # see https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
+        - name: nginx-cache-volume
+          emptyDir: { }
+        - name: nginx-pid-volume
+          emptyDir: { }
+
+        # Main container
+        # to allow readOnlyRootFilesystem
+        - name: rundir
+          emptyDir: { }

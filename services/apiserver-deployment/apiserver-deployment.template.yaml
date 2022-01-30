@@ -65,7 +65,7 @@ spec:
             runAsUser: 1000 # https://stackoverflow.com/questions/49720308
           volumeMounts:
             - mountPath: /home/dark/gcp-rundir # security
-              name: apiserver-rundir
+              name: rundir
 
           # ---------------------
           # Resource limits
@@ -279,7 +279,7 @@ spec:
             - "/cloud_sql_proxy"
             - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
             - "-credential_file=/secrets/cloudsql/credentials.json"
-            - "-term_timeout=28s" # match the apiserver's termination code
+            - "-term_timeout=28s" # match termination code
             - "-structured_logs"
             - "-verbose"
             - "-use_http_health_check"
@@ -290,7 +290,7 @@ spec:
 
           # --------------------
           # Security
-          # ---------------------
+          # --------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -365,6 +365,10 @@ spec:
               name: apiserver-nginx-conf
             - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
               name: apiserver-nginx-override-conf
+            - mountPath: /var/cache/nginx # security
+              name: nginx-cache-volume
+            - mountPath: /var/run # security
+              name: nginx-pid-volume
 
           # ---------------------
           # Security
@@ -412,14 +416,16 @@ spec:
                   - "-c"
                   - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
 
-
       # ---------------------
       # Pod volume definitions
       # ---------------------
       volumes:
+        # Cloud sql
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+
+        # Nginx
         - name: apiserver-nginx-base-conf
           configMap:
             name: "{VERSIONED-CONFIGMAP:apiserver-nginx-base-conf}"
@@ -429,6 +435,14 @@ spec:
         - name: apiserver-nginx-override-conf
           configMap:
             name: apiserver-nginx-override-conf
-        # to allow readOnlyRootFilesystem for apiserver
-        - name: apiserver-rundir
+        # to allow readOnlyRootFilesystem for nginx
+        # see https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
+        - name: nginx-cache-volume
+          emptyDir: { }
+        - name: nginx-pid-volume
+          emptyDir: { }
+
+        # Main container
+        # to allow readOnlyRootFilesystem
+        - name: rundir
           emptyDir: { }
