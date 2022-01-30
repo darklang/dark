@@ -1,7 +1,6 @@
 k8s:
   manually-deployed:
-    configs:
-      - queueworker-network-policy.yaml
+    configs: []
   release:
     config-template: queueworker-deployment.template.yaml
     versioned-configmaps:
