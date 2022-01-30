@@ -429,6 +429,6 @@ spec:
         - name: apiserver-nginx-override-conf
           configMap:
             name: apiserver-nginx-override-conf
-        # to allow readOnlyRootFilesystem for apiserver
+        # to allow readOnlyRootFilesystem
         - name: apiserver-rundir
           emptyDir: { }
