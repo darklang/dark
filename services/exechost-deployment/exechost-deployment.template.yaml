@@ -133,7 +133,7 @@ spec:
             - "/cloud_sql_proxy"
             - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
             - "-credential_file=/secrets/cloudsql/credentials.json"
-            - "-term_timeout=28s" # match the termination code
+            - "-term_timeout=28s" # match termination code
             - "-structured_logs"
             - "-verbose"
             - "-use_http_health_check"
@@ -144,7 +144,7 @@ spec:
 
           # --------------------
           # Security
-          # ---------------------
+          # --------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -166,8 +166,8 @@ spec:
               memory: "10Mi"
               cpu: "10m"
             limits:
-              memory: "20Mi"
-              cpu: "20m"
+              memory: "50Mi"
+              cpu: "50m"
 
           # ---------------------
           # Lifecycle probes
@@ -210,7 +210,6 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
-
         # to allow readOnlyRootFilesystem
         - name: rundir
           emptyDir: { }

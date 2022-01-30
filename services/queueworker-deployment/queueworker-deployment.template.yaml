@@ -186,8 +186,8 @@ spec:
           # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "100Mi"
+              cpu: "10m"
             limits:
               memory: "1000Mi"
               cpu: "125m"
@@ -285,7 +285,7 @@ spec:
 
           # --------------------
           # Security
-          # ---------------------
+          # --------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -342,7 +342,6 @@ spec:
             periodSeconds: 1
             timeoutSeconds: 5
             failureThreshold: 20
-
 
       # ---------------------
       # Pod volume definitions

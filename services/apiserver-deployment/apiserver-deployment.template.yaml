@@ -290,7 +290,7 @@ spec:
 
           # --------------------
           # Security
-          # ---------------------
+          # --------------------
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
