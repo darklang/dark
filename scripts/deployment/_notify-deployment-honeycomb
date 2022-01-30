@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# Tell honeycomb about a deploy
+
+LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
+
+# Docs: https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
+HONEYCOMB_DATASETS="integration-tests
+kubernetes-bwd-nginx
+kubernetes-bwd-ocaml
+kubernetes-cluster-events
+kubernetes-garbagecollector
+kubernetes-metrics
+kubernetes-scheduler
+kubernetes-stroller
+postgres"
+
+if [[ -v CI ]]; then
+  key="${BUILDEVENT_APIKEY}"
+  msg="${CIRCLE_USERNAME} deployed PR (SHA1: ${CIRCLE_SHA1})"
+  url="${CIRCLE_BUILD_URL}"
+else
+  key="${DARK_CONFIG_HONEYCOMB_API_KEY}"
+  msg="${1:-no msg}"
+  msg="manual deploy by ${LOCAL_USERNAME} ${msg}"
+  url=""
+fi
+
+for dataset in $HONEYCOMB_DATASETS; do
+  honeymarker add \
+      --writekey="${key}" \
+      --dataset="$dataset" \
+      --msg="${msg}" \
+      --url="${url}" \
+      --type="deploy"
+done
+
+echo "Honeycomb notified."

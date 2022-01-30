@@ -7,6 +7,7 @@ k8s:
     configmaps:
       bwdserver-nginx-override-conf:
         text-file: nginx-override.conf
+        namespace: darklang
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
@@ -17,10 +18,13 @@ k8s:
     versioned-configmaps:
       bwdserver-nginx-base-conf:
         text-file: ../../containers/ocaml-nginx/base-nginx.conf
+        namespace: darklang
       bwdserver-nginx-conf:
         text-file: nginx.conf
+        namespace: darklang
       app-config:
         env-file: ../../config/gke-builtwithdark
+        namespace: darklang
     containers:
       - gcp-fsharp-bwdserver
       - legacyserver

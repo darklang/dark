@@ -13,3 +13,5 @@ fi
 
 # We just need the directory to exist
 mkdir -p "${home}/.config/gcloud"
+# Must exist and be a file
+touch "${home}/.dark_bash_history"

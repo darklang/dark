@@ -90,12 +90,12 @@ let server () =
           let message = Libexecution.Exception.exn_to_string e in
           Libcommon.Log.erroR
             "Error in legacyserver call"
-            ~data:"Received shutdown request - shutting down"
+            ~data:message
             ~params:
               [ ("uri", Uri.to_string uri)
               ; ("path", Uri.path uri)
               ; ("method", Cohttp.Code.string_of_method meth)
-              ; ("error", message) ] ;
+              ; ("body", body_string) ] ;
           S.respond_string ~status:`Bad_request ~body:message ~headers () )
     | `GET, None ->
       ( match path with

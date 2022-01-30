@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 # CLEANUP don't run as root
 USER root
@@ -10,12 +10,14 @@ RUN DEBIAN_FRONTEND=noninteractive \
       -y \
       --no-install-recommends \
       curl \
-      ssh
+      ssh \
+      ca-certificates
 
 RUN mkdir /run/sshd
 RUN adduser --disabled-password --gecos '' tunnel
 
-COPY containers/tunnel/tunnel-daemon /usr/local/bin/tunnel-daemon
+COPY containers/tunnel2/tunnel2-daemon /usr/local/bin/tunnel2-daemon
+COPY containers/tunnel2/test.sh /test.sh
 
 EXPOSE 1080/tcp
-CMD /usr/local/bin/tunnel-daemon
+CMD /usr/local/bin/tunnel2-daemon

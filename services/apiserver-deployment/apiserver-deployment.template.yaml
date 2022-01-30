@@ -2,29 +2,77 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: apiserver-deployment
+  namespace: darklang
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
+
 spec:
   revisionHistoryLimit: 10
-  selector:
-    matchLabels:
-      app: apiserver
-  replicas: 1 # FSTODO
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0 # FSTODO
+      maxUnavailable: 1
+
+  selector:
+    matchLabels:
+      app: apiserver-app
   template:
     metadata:
       labels:
-        app: apiserver
+        app: apiserver-app
+        dark-executor: "true"
     spec:
+      # ---------------------
+      # Pod-level security
+      # ---------------------
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+        runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+      hostPID: false
+      automountServiceAccountToken: false # https://docs.bridgecrew.io/docs/bc_k8s_35
+
+      ###################
+      # Container definitions
+      ###################
       containers:
+
+        ###################
+        # Main container
+        ###################
         - name: apiserver-ctr
           image: "gcr.io/balmy-ground-195100/gcp-fsharp-apiserver:{IMAGEID:gcp-fsharp-apiserver}"
+          ports:
+            # Name length limit is 15 chars.
+            - name: apisvr-ctr-port
+              containerPort: 9001
+
+          # ---------------------
+          # Security - https://docs.bridgecrew.io/docs
+          # ---------------------
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+            runAsUser: 1000 # https://stackoverflow.com/questions/49720308
+          volumeMounts:
+            - mountPath: /home/dark/gcp-rundir # security
+              name: apiserver-rundir
+
+          # ---------------------
+          # Resource limits
+          # ---------------------
           # Resource limits + requests are intentionally the same, to ensure
           # this pod is a 'Guaranteed' pod, ref:
-          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
               memory: "1000Mi"
@@ -32,10 +80,10 @@ spec:
             limits:
               memory: "1000Mi"
               cpu: "125m"
-          ports:
-            # Name length limit is 15 chars.
-            - name: apisvr-ctr-port
-              containerPort: 9001
+
+          # ---------------------
+          # Lifecycles probes
+          # ---------------------
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd
@@ -63,6 +111,10 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 10
             failureThreshold: 3 # kill container after 30 seconds (3x10s checks)
+
+          # ---------------------
+          # Environment
+          # ---------------------
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -73,7 +125,7 @@ spec:
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
-                  name: rollbar
+                  name: rollbar-account-credentials
                   key: post_token
             # pusher
             - name: DARK_CONFIG_PUSHER_KEY
@@ -103,26 +155,51 @@ spec:
             - name: DARK_CONFIG_HONEYCOMB_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: honeycomb
+                  name: honeycomb-account-credentials
                   key: api-key
+
+
         #########################
-        # Legacyserver
+        # Legacyserver container
         #########################
         - name: legacy-ctr
           image: "gcr.io/balmy-ground-195100/legacyserver:{IMAGEID:legacyserver}"
-          # Resource limits + requests are intentionally the same, to ensure
-          # this pod is a 'Guaranteed' pod, ref:
-          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
-          resources:
-            requests:
-              memory: "1000Mi"
-              cpu: "125m"
-            limits:
-              memory: "1000Mi"
-              cpu: "125m"
           ports:
             - name: legacy-port
               containerPort: 5000
+
+          # ---------------------
+          # Security - https://docs.bridgecrew.io/docs
+          # ---------------------
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+            privileged: false
+            # this is expected to run as root. We're getting rid of the container
+            # soon so not worth fixing.
+            runAsNonRoot: false
+            runAsUser: 0
+
+          # ---------------------
+          # Resource limits
+          # ---------------------
+          # Resource limits + requests are intentionally the same, to ensure
+          # this pod is a 'Guaranteed' pod, ref:
+          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "10m"
+            limits:
+              memory: "1000Mi"
+              cpu: "125m"
+
+          # ---------------------
+          # Lifecycle probes
+          # ---------------------
           lifecycle:
             preStop:
               httpGet:
@@ -147,6 +224,10 @@ spec:
             periodSeconds: 10 # every 10 seconds
             timeoutSeconds: 10 # time out after 10 seconds
             failureThreshold: 3 # kill container after 3 successive time outs
+
+          # ---------------------
+          # Environment
+          # ---------------------
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
@@ -170,7 +251,7 @@ spec:
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
-                  name: rollbar
+                  name: rollbar-account-credentials
                   key: post_token
             # pusher
             - name: DARK_CONFIG_PUSHER_KEY
@@ -184,40 +265,95 @@ spec:
                   name: pusher-account-credentials
                   key: secret
 
+
         #########################
-        # Postgres proxy config
+        # Cloudsql proxy container
         # To connect to postgres from kubernetes, we need to add a proxy. See
         # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
         # Note in particular that we needed to create a service account and a
         # set of GKE secrets, listed below, to manage this.
         #########################
         - name: cloudsql-proxy
-          image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
-          resources:
-            requests:
-              memory: "500Mi"
-              cpu: "125m"
-            limits:
-              memory: "500Mi"
-              cpu: "125m"
-          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
+          image: "gcr.io/cloudsql-docker/gce-proxy:1.28.0@sha256:69880f1a8c3ac450f9cb083b91adb2d881ef71af3928ebf6b88b8933314f118a"
+          command:
+            - "/cloud_sql_proxy"
+            - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
+            - "-credential_file=/secrets/cloudsql/credentials.json"
+            - "-term_timeout=28s" # match the apiserver's termination code
+            - "-structured_logs"
+            - "-verbose"
+            - "-use_http_health_check"
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
               readOnly: true
 
-        #########################
-        # Nginx proxy
-        #########################
-        - name: http-proxy
-          image: nginx:1.16.1
+          # --------------------
+          # Security
+          # ---------------------
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+
+          # ---------------------
+          # Resource limits
+          # ---------------------
           resources:
             requests:
-              memory: "50Mi"
-              cpu: "100m"
+              memory: "20Mi"
+              cpu: "10m"
             limits:
-              memory: "50Mi"
-              cpu: "100m"
+              memory: "500Mi"
+              cpu: "125m"
+
+          # ---------------------
+          # Lifecycle probes
+          # ---------------------
+          # from https://github.com/GoogleCloudPlatform/cloudsql-proxy/blob/9e4bf2c689eaa117e0f89c7ac5d181bfcc03a849/examples/k8s-health-check/proxy_with_http_health_check.yaml#L91
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 60
+            timeoutSeconds: 30
+            # If periodSeconds = 60, 5 tries will result in five minutes of
+            # checks. The proxy starts to refresh a certificate five minutes
+            # before its expiration. If those five minutes lapse without a
+            # successful refresh, the liveness probe will fail and the pod will be
+            # restarted.
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 8090
+            periodSeconds: 1
+            timeoutSeconds: 5
+            failureThreshold: 20
+
+        #########################
+        # Nginx inbound-proxy container
+        #########################
+        - name: http-proxy
+          # latest as of Jan 25, 2022. Probably 1.20
+          image: "nginxinc/nginx-unprivileged@sha256:dc6c6c3052ec07e73ad87d8bcb30f23a9f95f6af3a50925eae334097450ec358"
           ports:
             - name: http-proxy-port
               containerPort: 9000
@@ -229,12 +365,57 @@ spec:
               name: apiserver-nginx-conf
             - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
               name: apiserver-nginx-override-conf
+
+          # ---------------------
+          # Security
+          # ---------------------
+          imagePullPolicy: Always
+          securityContext:
+            # This wouldn't run except as root, needed these settings
+            # See https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
+            privileged: false
+            runAsNonRoot: true
+            runAsGroup: 101 # nginx default
+            runAsUser: 101 # nginx default
+            # It's hard to get nginx to work with this. It needs to write to the
+            # mounted config files, which are mounted as root. Using fsGroup would
+            # allow a different user, but that's a pod setting, not a container one,
+            # and that probably won't work with other containers. There's no settings
+            # on volumeMounts. So the simplest this is just to let this go for now.
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+                - NET_RAW
+
+          # ---------------------
+          # Resource limits
+          # ---------------------
+          resources:
+            requests:
+              memory: "20Mi"
+              cpu: "10m"
+            limits:
+              memory: "50Mi"
+              cpu: "100m"
+
+          # ---------------------
+          # Lifecycle probes
+          # ---------------------
           lifecycle:
             preStop:
               exec:
                 # https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/
-                command: ["/bin/sh", "-c", "nginx -s quit; while killall -0 nginx; do sleep 1; done"]
+                command:
+                  - "/bin/sh"
+                  - "-c"
+                  - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
 
+
+      # ---------------------
+      # Pod volume definitions
+      # ---------------------
       volumes:
         - name: cloudsql-instance-credentials
           secret:
@@ -248,3 +429,6 @@ spec:
         - name: apiserver-nginx-override-conf
           configMap:
             name: apiserver-nginx-override-conf
+        # to allow readOnlyRootFilesystem for apiserver
+        - name: apiserver-rundir
+          emptyDir: { }

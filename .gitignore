@@ -40,13 +40,17 @@ services/apiserver-deployment/apiserver-deployment.yaml
 services/bwd-deployment/bwd-deployment.yaml
 services/bwdserver-deployment/bwdserver-deployment.yaml
 services/cron-deployment/cron-deployment.yaml
+services/cronchecker-deployment/cronchecker-deployment.yaml
 services/editor-deployment/editor-deployment.yaml
+services/exechost-deployment/exechost-deployment.yaml
 services/garbagecollector-deployment/garbagecollector-deployment.yaml
 services/postgres-honeytail-deployment.yaml
 services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 services/qw-deployment/qw-deployment.yaml
+services/queueworker-deployment/queueworker-deployment.yaml
 services/scheduler-deployment/scheduler-deployment.yaml
 services/tunnel-deployment/tunnel-deployment.yaml
+services/tunnel2-deployment/tunnel2-deployment.yaml
 
 # Rust projects build into target/
 containers/*/target
