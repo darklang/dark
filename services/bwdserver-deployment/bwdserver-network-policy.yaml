@@ -15,4 +15,3 @@ spec:
     - ports:
         - protocol: TCP
           port: 11000
-
