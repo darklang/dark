@@ -365,6 +365,10 @@ spec:
               name: apiserver-nginx-conf
             - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
               name: apiserver-nginx-override-conf
+            - mountPath: /var/cache/nginx # security
+              name: nginx-cache-volume
+            - mountPath: /var/run # security
+              name: nginx-pid-volume
 
           # ---------------------
           # Security
@@ -431,6 +435,14 @@ spec:
         - name: apiserver-nginx-override-conf
           configMap:
             name: apiserver-nginx-override-conf
+        # to allow readOnlyRootFilesystem for nginx
+        # see https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
+        - name: nginx-cache-volume
+          emptyDir: { }
+        - name: nginx-pid-volume
+          emptyDir: { }
+
+        # Main container
         # to allow readOnlyRootFilesystem
         - name: rundir
           emptyDir: { }
