@@ -11,6 +11,5 @@ Location: file:////etc/passwd
 
 
 [test]
-(match HttpClient.get_v4 "http://URL" {} {} with
- | Ok -> "fail"
- | Error response -> response) = "Unsupported protocol"
+HttpClient.get_v4 "http://URL" {} {} =
+  Test.typeError "Internal HTTP-stack exception: Unsupported protocol"
