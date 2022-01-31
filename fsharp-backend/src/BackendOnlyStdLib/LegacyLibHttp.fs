@@ -556,7 +556,7 @@ module LibhttpclientV0 =
                      ("headers", parsedResponseHeaders)
                      ("raw", DStr response.body) ]
         return obj
-      | Error err -> return DResult(Error(DStr err.error))
+      | Error err -> return DError(SourceNone, err.error)
     }
 
   let call (method : HttpMethod) jsonFn : BuiltInFnSig =
@@ -662,7 +662,7 @@ module LibhttpclientV1 =
           return DResult(Ok obj)
         else
           return DResult(Error obj)
-      | Error err -> return DResult(Error(DStr err.error))
+      | Error err -> return DError(SourceNone, err.error)
     }
 
   let call (method : HttpMethod) =
@@ -733,7 +733,7 @@ module LibhttpclientV2 =
           return DResult(Ok obj)
         else
           return DResult(Error obj)
-      | Error err -> return DResult(Error(DStr err.error))
+      | Error err -> return DError(SourceNone, err.error)
     }
 
   let call (method : HttpMethod) =
