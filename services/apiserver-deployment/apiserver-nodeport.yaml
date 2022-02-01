@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: apiserver-nodeport
+  namespace: darklang
+spec:
+  type: NodePort
+  selector:
+    app: apiserver-app
+  ports:
+    - name: apiserver-nodeport-port
+      protocol: TCP
+      port: 80
+      targetPort: http-proxy-port
