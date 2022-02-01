@@ -6,10 +6,39 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: gce
 spec:
+  # The default backend goes to the OCaml service (editor-deployment)
   defaultBackend:
     service:
       name: darklang-nodeport
       port:
         number: 80
+  rules:
+    # See https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress
+    - http:
+        paths:
+          # No slash at the end
+          - path: /a/trydarkfsharp
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-redirect-nodeport
+                port:
+                  number: 80
+          # Slash at the end and things after it
+          - path: /a/trydarkfsharp/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-redirect-nodeport
+                port:
+                  number: 80
+          # Api
+          - path: /api/trydarkfsharp/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-redirect-nodeport
+                port:
+                  number: 80
   tls:
     - secretName: darklang.com-tls
