@@ -15,7 +15,7 @@ echo -e "\n\nservices: ${services[*]}"
 
 echo -e "\n\nauthorizing"
 ./scripts/production/gcp-authorize-kubectl
-gcloud auth configure-docker
+gcloud auth configure-docker --quiet
 
 echo -e "\n\nvalidation"
 
