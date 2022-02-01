@@ -2,7 +2,7 @@ k8s:
   manually-deployed:
     configs:
       - apiserver-network-policy.yaml
-      - apiserver-nodeport.yaml
+      - apiserver-service.yaml
       - apiserver-redirect-service.yaml
 
     # Manually deployed so it can be used to override

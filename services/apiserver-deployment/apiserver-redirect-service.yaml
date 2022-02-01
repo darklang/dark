@@ -1,15 +1,15 @@
-# Apiserver-nodeport is in the darklang namespace, while the darklang ingress is in
+# Apiserver-service is in the darklang namespace, while the darklang ingress is in
 # the default namespace. That means that the darklang ingress cannot reach the
 # apiserver service. To solve this, we add this service in the default namespace
-# which points to apiserver-nodeport in the darklang namespace
+# which points to apiserver-service in the darklang namespace
 kind: Service
 apiVersion: v1
 metadata:
-  name: apiserver-redirect-nodeport
+  name: apiserver-redirect-service
   namespace: default
 spec:
   type: ExternalName
-  externalName: apiserver-nodeport.darklang.svc.cluster.local
+  externalName: apiserver-service.darklang.svc.cluster.local
   ports:
     - port: 80
       targetPort: 80

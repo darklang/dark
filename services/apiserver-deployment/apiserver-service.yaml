@@ -1,7 +1,7 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: apiserver-nodeport
+  name: apiserver-service
   namespace: darklang
 spec:
   # We could use a cluster IP here, but in the future we want to point the ingress
