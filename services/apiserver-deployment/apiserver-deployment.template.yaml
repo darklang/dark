@@ -415,10 +415,13 @@ spec:
                   - "/bin/sh"
                   - "-c"
                   - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
-          readinessProbe: # can it serve http requests?
+          readinessProbe:
+            # Test whether it is actually proxying for apiserver
             exec:
               command:
-                - '[[ $(curl -s 127.0.0.1:9000/check-apiserver -H "darklang.com") == "success: this is apiserver" ]]'
+                - "/bin/bash"
+                - "-c"
+                - '[[ $(curl -s 127.0.0.1:9000/check-apiserver -H "Host:darklang.com") == "success: this is apiserver" ]]'
             initialDelaySeconds: 0
             periodSeconds: 5
             successThreshold: 3

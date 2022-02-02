@@ -76,7 +76,9 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   addRoute "POST" "/login" html None Login.loginHandler
   addRoute "GET" "/logout" html None Login.logout
   addRoute "POST" "/logout" html None Login.logout
-  addRoute "GET" "/check-apiserver" html None checkApiserver
+
+  // Provide an unauthenticated route to check the server
+  builder.MapGet("/check-apiserver", checkApiserver) |> ignore<IRouteBuilder>
 
   addRoute "GET" "/a/{canvasName}" html R (htmlHandler Ui.uiHandler)
 
