@@ -21,7 +21,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: apiserver-redirect-nodeport
+                name: apiserver-redirect-service
                 port:
                   number: 80
           # Slash at the end and things after it
@@ -29,7 +29,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: apiserver-redirect-nodeport
+                name: apiserver-redirect-service
                 port:
                   number: 80
           # Api
@@ -37,7 +37,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: apiserver-redirect-nodeport
+                name: apiserver-redirect-service
                 port:
                   number: 80
   tls:
