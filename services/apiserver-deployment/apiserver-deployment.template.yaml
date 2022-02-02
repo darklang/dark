@@ -361,9 +361,9 @@ spec:
             - mountPath: /etc/nginx/nginx.conf
               name: apiserver-nginx-base-conf
               subPath: base-nginx.conf
-            - mountPath: /etc/nginx/conf.d/apiserver-nginx-conf
+            - mountPath: /etc/nginx/conf.d/
               name: apiserver-nginx-conf
-            - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
+            - mountPath: /etc/nginx/conf.d/
               name: apiserver-nginx-override-conf
             - mountPath: /var/cache/nginx # security
               name: nginx-cache-volume
