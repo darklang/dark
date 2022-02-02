@@ -36,6 +36,11 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
 
   let builder = RouteBuilder(ab)
 
+  // This route is used so that we know that the http proxy is actually proxying the server
+  let checkApiserver : HttpHandler =
+    (fun (ctx : HttpContext) ->
+      task { return ctx.Response.WriteAsync("success: this is apiserver") })
+
   let addRoute
     (verb : string)
     (pattern : string)
@@ -71,6 +76,7 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   addRoute "POST" "/login" html None Login.loginHandler
   addRoute "GET" "/logout" html None Login.logout
   addRoute "POST" "/logout" html None Login.logout
+  addRoute "GET" "/check-apiserver" html None checkApiserver
 
   addRoute "GET" "/a/{canvasName}" html R (htmlHandler Ui.uiHandler)
 
