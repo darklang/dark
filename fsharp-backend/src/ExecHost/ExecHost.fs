@@ -51,7 +51,8 @@ let help () : unit =
 let run (executionID : ExecutionID) (args : string []) : Task<int> =
   task {
     try
-
+      use _ = Telemetry.createRoot "execHost run"
+      Telemetry.addTags [ "args", args ]
       match args with
       | [| "emergency-login"; username |] ->
         Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
