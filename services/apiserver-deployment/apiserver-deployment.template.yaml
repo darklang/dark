@@ -361,9 +361,9 @@ spec:
             - mountPath: /etc/nginx/nginx.conf
               name: apiserver-nginx-base-conf
               subPath: base-nginx.conf
-            - mountPath: /etc/nginx/conf.d/apiserver-nginx-conf
+            - mountPath: /etc/nginx/conf.d/
               name: apiserver-nginx-conf
-            - mountPath: /etc/nginx/conf.d/apiserver-nginx-override-conf
+            - mountPath: /etc/nginx/conf.d/
               name: apiserver-nginx-override-conf
             - mountPath: /var/cache/nginx # security
               name: nginx-cache-volume
@@ -401,7 +401,7 @@ spec:
               memory: "20Mi"
               cpu: "10m"
             limits:
-              memory: "50Mi"
+              memory: "200Mi"
               cpu: "100m"
 
           # ---------------------
@@ -415,6 +415,17 @@ spec:
                   - "/bin/sh"
                   - "-c"
                   - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
+          readinessProbe:
+            # Test whether it is actually proxying for apiserver
+            exec:
+              command:
+                - "/bin/bash"
+                - "-c"
+                - '[[ $(curl -s 127.0.0.1:9000/check-apiserver -H "Host:darklang.com") == "success: this is apiserver" ]]'
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            successThreshold: 3
+
 
       # ---------------------
       # Pod volume definitions

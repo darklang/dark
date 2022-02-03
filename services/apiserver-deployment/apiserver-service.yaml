@@ -1,0 +1,15 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: apiserver-service
+  namespace: darklang
+spec:
+  # We could use a cluster IP here, but in the future we want to point the ingress
+  # directly at this (which requires a nodeport), so may as well start with a nodeport
+  type: NodePort
+  selector:
+    app: apiserver-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: http-proxy-port

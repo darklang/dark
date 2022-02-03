@@ -1,0 +1,19 @@
+# Apiserver-service is in the darklang namespace, while the darklang ingress is in
+# the default namespace. That means that the darklang ingress cannot reach the
+# apiserver service. To solve this, we add this service in the default namespace
+# which points to apiserver-service in the darklang namespace.
+# CLEANUP This redirection thing does not actually work on a GKE ingress, and
+# stackoverflow recommends using an nginx ingress instead if we want to do this. But
+# it would be better just to combine everything into a single namespace instead.
+# This is enabled for now. If we find another solution we can delete it.
+kind: Service
+apiVersion: v1
+metadata:
+  name: apiserver-service-redirect
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: apiserver-service.darklang.svc.cluster.local
+  ports:
+    - port: 80
+      targetPort: 80
