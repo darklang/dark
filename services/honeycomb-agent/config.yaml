@@ -1,5 +1,5 @@
 honeycomb:
-  existingSecret: honeycomb
+  existingSecret: honeycomb-account-credentials
   apiHost: https://api.honeycomb.io/
 metrics:
   clusterName: k8s-cluster

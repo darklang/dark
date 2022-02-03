@@ -102,7 +102,7 @@ spec:
             - name: DARK_CONFIG_HONEYCOMB_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: honeycomb
+                  name: honeycomb-account-credentials
                   key: api-key
 
         #########################
