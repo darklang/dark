@@ -38,7 +38,7 @@ spec:
             - name: HONEYCOMB_WRITEKEY
               valueFrom:
                 secretKeyRef:
-                  name: honeycomb
+                  name: honeycomb-account-credentials
                   key: api-key
             - name: SUBSCRIPTION_NAME
               value: postgres-logs-dark-west-honeycomb
