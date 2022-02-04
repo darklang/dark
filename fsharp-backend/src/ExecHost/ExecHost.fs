@@ -17,9 +17,14 @@ open Tablecloth
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let runMigrations (executionID : ExecutionID) =
+let runMigrations (executionID : ExecutionID) : unit =
   print $"Running migrations"
   LibBackend.Migrations.run executionID
+
+let listMigrations (executionID : ExecutionID) : unit =
+  print "Migrations needed:\n"
+  LibBackend.Migrations.migrationsToRun ()
+  |> List.iter (fun name -> print $" - {name}")
 
 
 let emergencyLogin (username : string) : Task<unit> =
@@ -38,6 +43,26 @@ let emergencyLogin (username : string) : Task<unit> =
     return ()
   }
 
+let triggerRollbar (executionID : ExecutionID) : unit =
+  let tags = [ "int", 6 :> obj; "string", "string"; "float", -0.6; "bool", true ]
+  let prefix = "execHost test: "
+
+  // Send async notification ("info" level in the rollbar UI)
+  Rollbar.notify executionID $"{prefix} notify" tags
+
+  // Send async error
+  Rollbar.sendError executionID $"{prefix} sendError" tags
+
+  // Send async exception
+  let e = new System.Exception($"{prefix} sendException exception")
+  Rollbar.sendException executionID $"{prefix} sendException" tags e
+
+  // Send sync exception - do this last to wait for the others
+  let e = new System.Exception($"{prefix} last ditch blocking exception")
+  Rollbar.lastDitchBlocking executionID $"{prefix} last ditch blocking" tags e
+
+
+
 let help () : unit =
   [ "USAGE:"
     "  ExecHost emergency-login <user>"
@@ -51,37 +76,45 @@ let help () : unit =
 let run (executionID : ExecutionID) (args : string []) : Task<int> =
   task {
     try
-      use _ = Telemetry.createRoot "execHost run"
+      // Track calls to the this
+      use _ = Telemetry.createRoot "ExecHost run"
       Telemetry.addTags [ "args", args ]
+      Rollbar.notify executionID "execHost called" [ "args", String.concat "," args ]
+
       match args with
+
       | [| "emergency-login"; username |] ->
         Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
         do! emergencyLogin username
         return 0
+
       | [| "migrations"; "list" |] ->
-        print "Migrations needed:\n"
-        LibBackend.Migrations.migrationsToRun ()
-        |> List.iter (fun name -> print $" - {name}")
+        listMigrations executionID
         return 0
+
       | [| "migrations"; "run" |] ->
         runMigrations executionID
         return 0
+
       | [| "trigger-rollbar" |] ->
-        Rollbar.RollbarLocator.RollbarInstance.Error("test message")
-        |> ignore<Rollbar.ILogger>
+        triggerRollbar executionID
+        // The async operations go in a queue, and I don't know how to block until
+        // the queue is empty. Maybe not necessary due to lastDitchBlocking above,
+        // but worth keeping in to be certain it arrives
+        do! Task.Delay 5000
         return 0
+
       | [| "help" |] ->
         help ()
         return 0
+
       | _ ->
-        Rollbar.notify
-          executionID
-          "execHost called"
-          [ "args", String.concat "," args ]
         print "Invalid usage!!\n"
         help ()
         return 1
+
     with
+    // Don't reraise as ExecHost is only run interactively
     | :? System.TypeInitializationException as e ->
       print e.Message
       print e.StackTrace
