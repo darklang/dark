@@ -18,7 +18,7 @@ let init (serviceName : string) : unit =
   config.Enabled <- Config.rollbarEnabled |> debug "rollbar enabled"
   config.CaptureUncaughtExceptions <- true // doesn't seem to work afaict
   config.Environment <- Config.rollbarEnvironment |> debug "rb env"
-  config.LogLevel <- Rollbar.ErrorLevel.Error
+  config.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
   config.RethrowExceptionsAfterReporting <- false
   config.ScrubFields <-
     Array.append config.ScrubFields [| "Set-Cookie"; "Cookie"; "Authorization" |]
