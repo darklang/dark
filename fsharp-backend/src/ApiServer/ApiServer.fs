@@ -63,7 +63,7 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   let html = htmlMiddleware
 
   let api name perm f =
-    let handler = (jsonHandler f)
+    let handler = jsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
