@@ -33,6 +33,9 @@ let init (serviceName : string) : unit =
 
   Rollbar.RollbarLocator.RollbarInstance.Configure config
   |> ignore<Rollbar.IRollbar>
+
+  Rollbar.RollbarLocator.RollbarInstance.InternalEvent.AddHandler (fun this e ->
+    print $"rollbar internal error: {e.TraceAsString()}")
   print " Configured rollbar"
   ()
 
