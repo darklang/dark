@@ -13,11 +13,10 @@ open Exception
 
 let init (serviceName : string) : unit =
   print "Configuring rollbar"
-  let config =
-    Rollbar.RollbarConfig(Config.rollbarServerAccessToken |> debug "rbsat")
-  config.Enabled <- Config.rollbarEnabled |> debug "rollbar enabled"
+  let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
+  config.Enabled <- Config.rollbarEnabled
   config.CaptureUncaughtExceptions <- true // doesn't seem to work afaict
-  config.Environment <- Config.rollbarEnvironment |> debug "rb env"
+  config.Environment <- Config.rollbarEnvironment
   config.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
   config.RethrowExceptionsAfterReporting <- false
   config.ScrubFields <-
@@ -28,7 +27,7 @@ let init (serviceName : string) : unit =
   let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
   state["service"] <- serviceName
   config.Server <- Rollbar.DTOs.Server(state)
-  config.Server.Host <- Config.hostName |> debug "hostdir"
+  config.Server.Host <- Config.hostName
   config.Server.Root <- Config.rootDir
   config.Server.CodeVersion <- Config.buildHash
 
