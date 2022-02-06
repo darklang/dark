@@ -8,10 +8,10 @@ set -euo pipefail
 body=$(
   find backend/static -type f -and -not  -name "*.gz" -printf "%p\n" \
   | xargs sha256sum \
-  | sed 's/\([a-z0-9]\+\)  \(.*\)/,"\1": "\2"/g')
+  | sed 's!\([a-z0-9]\+\)  backend/static/\(.*\)!, "\2": "\1"!g')
 
 cat > backend/static/etags.json <<EOF
 { "__date": "$(date -Iseconds)"
-  ${body}
+${body}
 }
 EOF
