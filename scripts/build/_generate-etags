@@ -5,11 +5,13 @@ set -euo pipefail
 # generate an etags doc for the following files, put it in
 # static/etags.json
 
+body=$(
+  find backend/static -type f -and -not  -name "*.gz" -printf "%p\n" \
+  | xargs sha256sum \
+  | sed 's/\([a-z0-9]\+\)  \(.*\)/,"\1": "\2"/g')
+
 cat > backend/static/etags.json <<EOF
 { "__date": "$(date -Iseconds)"
-$(for file in $(find backend/static -type f -and -not -name "*.gz" -printf "%P\n"); do
-  SHA="$(sha256sum backend/static/"$file" | cut -d " " -f 1)"
-  echo ", \"${file/\"/\\\"}\": \"${SHA/\"/\\\"}\""
-done)
+  ${body}
 }
 EOF
