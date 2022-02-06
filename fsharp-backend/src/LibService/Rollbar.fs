@@ -99,19 +99,13 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 
   string uri
 
-let pageableMetadata (e : exn) : List<string * obj> =
-  if e :? PageableException then [ "is_pageable", true ] else []
-
-
 
 let createState
   (executionID : ExecutionID)
-  (message : string)
-  (metadata : List<string * obj>)
+  (metadata : Metadata)
   : Dictionary.T<string, obj> =
 
   let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
-  custom["message"] <- message
   // CLEANUP rollbar has a built-in way to do this called "Service links"
   custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
   custom["execution_id"] <- string executionID
@@ -125,7 +119,7 @@ let createState
 let notify
   (executionID : ExecutionID)
   (message : string)
-  (metadata : List<string * obj>)
+  (metadata : Metadata)
   : unit =
   print $"rollbar: {message}"
   try
@@ -135,7 +129,7 @@ let notify
   let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
   let metadata = stacktraceMetadata :: metadata
   Telemetry.notify message metadata
-  let custom = createState executionID message metadata
+  let custom = createState executionID metadata
   Rollbar.RollbarLocator.RollbarInstance.Info(message, custom)
   |> ignore<Rollbar.ILogger>
 
@@ -144,7 +138,7 @@ let notify
 let sendError
   (executionID : ExecutionID)
   (message : string)
-  (metadata : List<string * obj>)
+  (metadata : Metadata)
   : unit =
   print $"rollbar: {message}"
   try
@@ -153,81 +147,120 @@ let sendError
   | _ -> ()
   print System.Environment.StackTrace
   Telemetry.addEvent message metadata
-  let custom = createState executionID message metadata
+  let custom = createState executionID (("message", message :> obj) :: metadata)
   Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
   |> ignore<Rollbar.ILogger>
 
-let exceptionMetadata (e : exn) =
-  try
-    match e with
-    | :? DarkException as e -> Exception.toMetadata e
-    | _ -> []
-  with
-  | _ -> []
-
-let printMetadata (metadata : List<string * obj>) =
+let printMetadata (metadata : Metadata) =
   try
     print (string metadata)
   with
   | _ -> ()
 
-
-
-let sendException
-  (executionID : ExecutionID)
-  (message : string)
-  (metadata : List<string * obj>)
-  (e : exn)
+// If there is an exception while processing the exception
+let exceptionWhileProcessingException
+  (original : exn)
+  (processingException : exn)
   : unit =
+
+  // If there's an exception while creating another exception, let's try to report
+  // as much as possible without error
   try
-    print $"rollbar: {message}"
-    print e.Message
+    print "Exception when processing exception"
+  with
+  | _ -> ()
+
+  try
+    // Let's first try to get the new exception into the tracker quickly
+    Rollbar.RollbarLocator.RollbarInstance.Critical(processingException)
+    |> ignore<Rollbar.ILogger>
+  with
+  | _ -> ()
+
+  try
+    // Then try to get the original exception into it
+    Rollbar.RollbarLocator.RollbarInstance.Error(original)
+    |> ignore<Rollbar.ILogger>
+  with
+  | _ -> ()
+
+  try
+    // Now let's send a pageable exception, as our exception processing being down is
+    // a pageable situation
+    let e =
+      PageableException("Exception when processing exception", processingException)
+    Rollbar.RollbarLocator.RollbarInstance.Critical(e) |> ignore<Rollbar.ILogger>
+  with
+  | _ -> ()
+
+  try
+    // Do this after, as these could cause exceptions
+    print "Original exception"
+    print original.Message
+    print original.StackTrace
+  with
+  | _ ->
+
+    try
+      // Do this after, as these could cause exceptions
+      print "Processing exception"
+      print processingException.Message
+      print processingException.StackTrace
+    with
+    | _ ->
+
+      try
+        // Do telemetry later, in case that's the cause
+        if Telemetry.Span.current () = null then
+          Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
+        Telemetry.addException original
+        Telemetry.addException processingException
+      with
+      | _ -> ()
+
+
+let sendException (executionID : ExecutionID) (e : exn) : unit =
+  try
+    print $"rollbar: {e.Message}"
     print e.StackTrace
-    let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
+    let metadata = Exception.toMetadata e
     printMetadata metadata
-    Telemetry.addException message e metadata
-    let custom = createState executionID message metadata
+    Telemetry.addException e
+    let custom = createState executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
     |> ignore<Rollbar.ILogger>
   with
-  | extra ->
-    print "Exception when calling rollbar"
-    print extra.Message
-    print extra.StackTrace
-    Telemetry.addException "Exception when calling rollbar" extra []
+  | processingException -> exceptionWhileProcessingException e processingException
 
 
-// Will block for 5 seconds to make sure this exception gets sent. Use for startup
-// and other places where the process is intended to end after this call.
-let lastDitchBlocking
-  (executionID : ExecutionID)
-  (message : string)
-  (metadata : List<string * obj>)
-  (e : exn)
-  : unit =
+// Wraps the exception in a PageableException, then sends in to rollbar in a blocking
+// call to make sure this exception gets sent. Use for startup and other places where
+// the process is intended to end after this call. Do not use this in general code,
+// as it blocks. Returns an int as the process will exit immediately after.
+let lastDitchBlockAndPage (msg : string) (inner : exn) : int =
   try
-    print $"last ditch rollbar: {message}"
-    print e.Message
-    print e.StackTrace
+    let e = PageableException(msg, inner)
+    print $"last ditch rollbar: {msg}"
+    print inner.Message
+    print inner.StackTrace
     // FSTODO: handle SystemInitializationException with a .Inner
-    let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
-    Telemetry.addException message e metadata
-    let custom = createState executionID message metadata
+    let metadata = Exception.toMetadata e
+    Telemetry.addException e
+    let custom = createState (ExecutionID "last ditch") metadata
     Rollbar
       .RollbarLocator
       .RollbarInstance
       .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
       .Error(e, custom)
     |> ignore<Rollbar.ILogger>
-    Telemetry.addException message e metadata
+    Telemetry.addException e
+    (-1)
   with
-  | extra ->
-    print "Exception when calling rollbar"
-    print extra.Message
-    print extra.StackTrace
-    if Telemetry.Span.current () = null then
-      Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
-    Telemetry.addException "Exception when calling rollbar" e []
+  | processingException ->
+    exceptionWhileProcessingException inner processingException
+    // Pause so that the exceptions can send
+    Task.Delay(10000).Wait()
+    (-1)
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
@@ -251,7 +284,7 @@ module AspNet =
   type DarkRollbarMiddleware
     (
       nextRequestProcessor : RequestDelegate,
-      ctxMetadataFn : HttpContext -> Person * List<string * obj>
+      ctxMetadataFn : HttpContext -> Person * Metadata
     ) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
     member this.Invoke(ctx : HttpContext) : Task =
@@ -277,8 +310,8 @@ module AspNet =
                 ctxMetadataFn ctx
               with
               | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
-            let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
-            let custom = createState executionID "http" metadata
+            let metadata = metadata @ Exception.toMetadata e
+            let custom = createState executionID metadata
 
             let package : Rollbar.IRollbarPackage =
               new Rollbar.ExceptionPackage(e, e.Message)
@@ -298,11 +331,8 @@ module AspNet =
             print "Rollbar exception sent"
           // No telemetry call here as it should happen automatically
           with
-          | re ->
-            print "Exception when calling rollbar"
-            print re.Message
-            print re.StackTrace
-            Telemetry.addException "Exception when calling rollbar" re []
+          | processingException ->
+            exceptionWhileProcessingException e processingException
           e.Reraise()
       }
 

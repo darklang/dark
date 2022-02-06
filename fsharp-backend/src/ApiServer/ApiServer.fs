@@ -196,10 +196,4 @@ let main _ =
     run ()
     0
   with
-  | e ->
-    LibService.Rollbar.lastDitchBlocking
-      (Prelude.ExecutionID "apiserver")
-      "Error starting ApiServer"
-      []
-      e
-    -1
+  | e -> LibService.Rollbar.lastDitchBlockAndPage "Error starting ApiServer" e

@@ -140,14 +140,16 @@ let notify (name : string) (tags : Metadata) : unit =
 
 
 
-let addException (name : string) (e : exn) (tags : List<string * obj>) : unit =
+let addException (e : exn) : unit =
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/1191a2a3da7be8deae7aa94083b5981cb7610080/src/OpenTelemetry.Api/Trace/ActivityExtensions.cs#L79
   // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
   let exceptionTags =
-    [ "exception.type", e.GetType().FullName :> obj
+    [ "exception", true :> obj
+      "exception.type", e.GetType().FullName :> obj
       "exception.stacktrace", string e.StackTrace
       "exception.message", e.Message ]
-  addEvent name (tags @ exceptionTags)
+    @ Exception.toMetadata e
+  addEvent e.Message exceptionTags
 
 
 
@@ -173,12 +175,11 @@ let init (serviceName : string) : unit =
 
   // Allow exceptions to be associated with the right span (the one in which they're created)
   Prelude.exceptionCallback <-
-    (fun e typ msg tags ->
-      let tags = ("exception", true :> obj) :: ("exception.darkType", typ) :: tags
+    (fun (e : exn) ->
       // These won't have stacktraces. We could add them but they're expensive, and
       // if they make it to the top they'll get a stacktrace. So let's not do
       // stacktraces until we learn we need them
-      addException msg e tags)
+      addException e)
   print " Configured Telemetry"
 
 
@@ -200,10 +201,11 @@ let configureAspNetCore
       | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
         // CLEANUP
         // The .NET instrumentation uses http.{path,url}, etc, but we used
-        // request.whatever in the OCaml version. To make sure that I can compare
-        // the old and new requests, I'm also adding request.whatever for now, but
-        // they can be removed once it's been switched over. Events are infinitely
-        // wide so this shouldn't cause any issues.
+        // request.whatever in the OCaml version. To make sure that I can compare the
+        // old and new requests, I'm also adding request.whatever for now, but they
+        // can be removed once it's been switched over. Events are infinitely wide so
+        // this shouldn't cause any issues.  This is separate from rollbar data,
+        // which is done by the library and does not use the same prefixes
         let ipAddress =
           try
             httpRequest.Headers.["x-forward-for"].[0]

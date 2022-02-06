@@ -396,9 +396,9 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // GrandUsers any info not intended for them. We want the rest to be caught by
       // the 500 handler, be reported, and then have a small error message printed
       | NotFoundException msg -> return! errorResponse ctx msg 404
-      | DarkException (GrandUserError msg) ->
+      | :? GrandUserException as e ->
         // Messages caused by user input should be displayed to the user
-        return! errorResponse ctx msg 400
+        return! errorResponse ctx e.Message 400
       | e ->
         // respond and then reraise to get it to the rollbar middleware
         let! (_ : HttpContext) = internalErrorResponse ctx
@@ -407,7 +407,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
 
   let rollbarCtxToMetadata
     (ctx : HttpContext)
-    : LibService.Rollbar.AspNet.Person * List<string * obj> =
+    : LibService.Rollbar.AspNet.Person * Metadata =
     let canvasName =
       try
         Some(ctx.Items["canvasName"] :?> CanvasName.T)
@@ -496,10 +496,4 @@ let main _ =
     run ()
     0
   with
-  | e ->
-    LibService.Rollbar.lastDitchBlocking
-      (ExecutionID "BwdServer")
-      "Error starting BwdServer"
-      []
-      e
-    (-1)
+  | e -> LibService.Rollbar.lastDitchBlockAndPage "error starting bwdserver" e

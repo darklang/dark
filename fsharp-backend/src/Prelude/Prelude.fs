@@ -57,72 +57,83 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
 // ----------------------
 // Exceptions
+// We don't use the F# exception syntax as we want to allow wrapping inner exceptions
 // ----------------------
 
 type Metadata = List<string * obj>
 
-// Exceptions indicate who is responsible for a problem, and include messages which
-// may be shown to users
-type DarkExceptionData =
-  // Do not show to anyone, we need to rollbar this and address it
-  | InternalError of string * List<string * obj>
+// Do not show to anyone, we need to rollbar this and address it
+type InternalException(message : string, metadata : Metadata, inner : exn) =
+  inherit System.Exception(message, inner)
+  member _.metadata = metadata
+  new(msg : string) = InternalException(msg, [], null)
+  new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
+  new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-  // An error caused by the grand user making the request, show the error to the
-  // requester no matter who they are
-  | GrandUserError of string
+// An error caused by the grand user making the request, show the error to the
+// requester no matter who they are
+type GrandUserException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
+  new(msg : string) = GrandUserException(msg, null)
 
-  // An error caused by how the developer wrote the code, such as calling a function
-  // with the wrong type
-  | DeveloperError of string
+// An error caused by how the developer wrote the code, such as calling a function
+// with the wrong type
+type DeveloperException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
+  new(msg : string) = DeveloperException(msg, null)
 
-  // An error caused by the editor doing something it shouldn't, so as an Redo or
-  // rename that isn't allowed. The editor should have caught this on the client and
-  // not made the request.
-  | EditorError of string
+// An error caused by the editor doing something it shouldn't, so as an Redo or
+// rename that isn't allowed. The editor should have caught this on the client and
+// not made the request.
+type EditorException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
+  new(msg : string) = EditorException(msg, null)
 
-  // An error in library or framework code, such as calling a function with a negative
-  // number when it doesn't support it. We probably caused this by allowing it to
-  // happen, so we definitely want to fix it, but it's OK to tell the developer what
-  // happened (not grandusers though)
-  | LibraryError of string * List<string * obj>
+// An error in library or framework code, such as calling a function with a negative
+// number when it doesn't support it. We probably caused this by allowing it to
+// happen, so we definitely want to fix it, but it's OK to tell the developer what
+// happened (not grandusers though)
+type LibraryException(message : string, metadata : Metadata, inner : exn) =
+  inherit System.Exception(message, inner)
+  member _.metadata = metadata
+  new(msg : string, metadata : Metadata) = LibraryException(msg, metadata, null)
 
-exception DarkException of data : DarkExceptionData with
-  override this.Message : string =
-    match this.data with
-    | InternalError (msg, _) -> msg
-    | DeveloperError msg -> msg
-    | EditorError msg -> msg
-    | LibraryError (msg, _) -> msg
-    | GrandUserError msg -> msg
+// A pageable exception will cause the pager to go off! This is something that should
+// never happen and is an indicator that the service is broken in some way.  The
+// pager goes off because a pageable exception sets the `{ is_pageable: true }`
+// metadata, which causes a honeycomb trigger that sets off PagerDuty.
+type PageableException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
 
-
-exception PageableException of inner : System.Exception with
-  override this.Message = this.inner.Message
 
 // This is for tracing
-let mutable exceptionCallback =
-  (fun (e : exn) (typ : string) (msg : string) (tags : List<string * obj>) -> ())
+let mutable exceptionCallback = (fun (e : exn) -> ())
 
 module Exception =
 
-  let toMetadata (e : DarkException) : List<string * obj> =
-    match e.data with
-    | InternalError (_, md)
-    | LibraryError (_, md) -> md
-    | DeveloperError _
-    | EditorError _
-    | GrandUserError _ -> []
+  let rec toMetadata (e : exn) : Metadata =
+    let innerMetadata =
+      if e.InnerException <> null then toMetadata e.InnerException else []
+    let thisMetadata =
+      match e with
+      | :? InternalException as e -> e.metadata
+      | :? LibraryException as e -> e.metadata
+      | :? DeveloperException
+      | :? EditorException
+      | :? GrandUserException
+      | :? PageableException as e -> [ "is_pageable", true ]
+      | _ -> []
+    thisMetadata @ innerMetadata
 
 
-
-  let callExceptionCallback e typ msg tags =
+  let callExceptionCallback (e : exn) =
     try
-      exceptionCallback e typ msg tags
+      exceptionCallback e
     with
     | e ->
       // We're completely screwed at this point
       System.Console.WriteLine "Exception calling callExceptionCallback"
-      System.Console.WriteLine(e.Message, typ, tags)
+      System.Console.WriteLine(e.Message)
       System.Console.WriteLine e.StackTrace
 
 
@@ -130,15 +141,15 @@ module Exception =
   // msg is suitable to show to the grand user. We don't care about grandUser
   // exceptions, they're normal.
   let raiseGrandUser (msg : string) =
-    let e = DarkException(GrandUserError(msg))
-    callExceptionCallback e "grand" msg []
+    let e = GrandUserException(msg)
+    callExceptionCallback e
     raise e
 
   // A developer exception is one caused by the incorrect actions of our
   // user/developer. The msg is suitable to show to the user.
   let raiseDeveloper (msg : string) =
-    let e = DarkException(DeveloperError(msg))
-    callExceptionCallback e "developer" msg []
+    let e = DeveloperException(msg)
+    callExceptionCallback e
     raise e
 
   let unwrapResultDeveloper (r : Result<'ok, string>) : 'ok =
@@ -150,59 +161,50 @@ module Exception =
   // the Dark editor. We are interested in these. The message may be shown to the
   // logged-in user, and should be suitable for this.
   let raiseEditor (msg : string) =
-    let e = DarkException(EditorError(msg))
-    callExceptionCallback e "editor" msg []
+    let e = EditorException(msg)
+    callExceptionCallback e
     raise e
 
   // An internal error. Should be rollbarred, and should not be shown to users.
-  let raiseInternal (msg : string) (tags : List<string * obj>) =
-    let e = DarkException(InternalError(msg, tags))
-    callExceptionCallback e "internal" msg tags
+  let raiseInternal (msg : string) (tags : Metadata) =
+    let e = InternalException(msg, tags)
+    callExceptionCallback e
     raise e
 
-  let unwrapOptionInternal
-    (msg : string)
-    (tags : List<string * obj>)
-    (o : Option<'a>)
-    : 'a =
+  let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
     match o with
     | Some v -> v
     | None -> raiseInternal msg tags
 
-  let unwrapResultInternal (tags : List<string * obj>) (r : Result<'a, 'msg>) : 'a =
+  let unwrapResultInternal (tags : Metadata) (r : Result<'a, 'msg>) : 'a =
     match r with
     | Ok v -> v
     | Error msg -> raiseInternal (string msg) tags
 
-  let reraiseAsPageable (e : exn) = raise (PageableException e)
+  let reraiseAsPageable (msg : string) (e : exn) = raise (PageableException(msg, e))
 
 
 
   // An error in library code - should not be shown to grand users. May be shown to
   // logged-in developers (most typically in a DError or a Result).
-  let raiseLibrary (msg : string) (tags : List<string * obj>) =
-    let e = DarkException(LibraryError(msg, tags))
-    callExceptionCallback e "library" msg tags
+  let raiseLibrary (msg : string) (tags : Metadata) =
+    let e = LibraryException(msg, tags)
+    callExceptionCallback e
     raise e
 
   let unknownErrorMessage = "Unknown error"
 
   let toGrandUserMessage (e : exn) : string =
     match e with
-    | DarkException (InternalError _)
-    | DarkException (DeveloperError _)
-    | DarkException (LibraryError _)
-    | DarkException (EditorError _) -> unknownErrorMessage
-    | DarkException (GrandUserError msg) -> msg
+    | :? GrandUserException as e -> e.Message
     | _ -> unknownErrorMessage
 
   let toDeveloperMessage (e : exn) : string =
     match e with
-    | DarkException (InternalError _) -> unknownErrorMessage
-    | DarkException (DeveloperError msg)
-    | DarkException (LibraryError (msg, _))
-    | DarkException (EditorError msg)
-    | DarkException (GrandUserError msg) -> msg
+    | :? GrandUserException as e -> e.Message
+    | :? DeveloperException as e -> e.Message
+    | :? LibraryException as e -> e.Message
+    | :? EditorException as e -> e.Message
     | _ -> unknownErrorMessage
 
 
