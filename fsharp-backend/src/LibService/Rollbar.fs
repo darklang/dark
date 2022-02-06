@@ -13,29 +13,65 @@ open Exception
 
 let init (serviceName : string) : unit =
   print "Configuring rollbar"
-  let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
-  config.Enabled <- Config.rollbarEnabled
-  config.CaptureUncaughtExceptions <- true // doesn't seem to work afaict
-  config.Environment <- Config.rollbarEnvironment
-  config.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
-  config.RethrowExceptionsAfterReporting <- false
-  config.ScrubFields <-
-    Array.append config.ScrubFields [| "Set-Cookie"; "Cookie"; "Authorization" |]
-  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
-  config.Transform <- fun payload -> payload.Data.Language <- "f#"
+  let config =
+    Rollbar.RollbarInfrastructureConfig(
+      Config.rollbarServerAccessToken,
+      Config.rollbarEnvironment
+    )
+  // We don't have any settings here
+  let _destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
+  let _telemetryOptions = config.RollbarTelemetryOptions
 
+  // Offline storage
+  let offlineStoreOptions = config.RollbarOfflineStoreOptions
+  let oso = Rollbar.RollbarOfflineStoreOptions()
+  oso.EnableLocalPayloadStore <- false
+  offlineStoreOptions.Reconfigure oso
+  |> ignore<Rollbar.IRollbarOfflineStoreOptions>
+
+  // Main options
+  let infraOptions = config.RollbarInfrastructureOptions
+  infraOptions.CaptureUncaughtExceptions <- true // doesn't seem to work afaict (true in v4, unclear in v5)
+
+  let developerOptions = config.RollbarLoggerConfig.RollbarDeveloperOptions
+  developerOptions.Enabled <- Config.rollbarEnabled
+  developerOptions.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
+  developerOptions.RethrowExceptionsAfterReporting <- false
+  developerOptions.WrapReportedExceptionWithRollbarException <- false
+
+  // data options
+  let dataSecurityOptions = config.RollbarLoggerConfig.RollbarDataSecurityOptions
+  let s = Rollbar.RollbarDataSecurityOptions()
+  s.ScrubFields <-
+    Array.append
+      dataSecurityOptions.ScrubFields
+      [| "Set-Cookie"; "Cookie"; "Authorization" |]
+  dataSecurityOptions.Reconfigure(s)
+  |> ignore<Rollbar.IRollbarDataSecurityOptions>
+
+  let payloadAdditionOptions =
+    config.RollbarLoggerConfig.RollbarPayloadAdditionOptions
   let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
   state["service"] <- serviceName
-  config.Server <- Rollbar.DTOs.Server(state)
-  config.Server.Host <- Config.hostName
-  config.Server.Root <- Config.rootDir
-  config.Server.CodeVersion <- Config.buildHash
+  payloadAdditionOptions.Server <- Rollbar.DTOs.Server(state)
+  payloadAdditionOptions.Server.Host <- Config.hostName
+  payloadAdditionOptions.Server.Root <- Config.rootDir
+  payloadAdditionOptions.Server.CodeVersion <- Config.buildHash
 
-  Rollbar.RollbarLocator.RollbarInstance.Configure config
-  |> ignore<Rollbar.IRollbar>
+  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
+  let payloadManipulationOptions =
+    config.RollbarLoggerConfig.RollbarPayloadManipulationOptions
+  let pmo = Rollbar.RollbarPayloadManipulationOptions()
+  pmo.Transform <- (fun payload -> payload.Data.Language <- "f#")
+  payloadManipulationOptions.Reconfigure pmo
+  |> ignore<Rollbar.IRollbarPayloadManipulationOptions>
 
-  Rollbar.RollbarLocator.RollbarInstance.InternalEvent.AddHandler (fun this e ->
-    print $"rollbar internal error: {e.TraceAsString()}")
+  // Initialize
+  Rollbar.RollbarInfrastructure.Instance.Init(config)
+  // Debug apiserver rollbar
+  Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
+    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
+
   print " Configured rollbar"
   ()
 
