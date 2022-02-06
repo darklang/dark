@@ -315,6 +315,6 @@ module AspNet =
   let addRollbarToApp
     (
       app : IApplicationBuilder,
-      ctxMetadataFn : HttpContext -> Person * List<string * obj>
+      ctxMetadataFn : HttpContext -> Person * Metadata
     ) : IApplicationBuilder =
     app.UseMiddleware<DarkRollbarMiddleware>(ctxMetadataFn)

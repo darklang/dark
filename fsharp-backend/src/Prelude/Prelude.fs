@@ -59,6 +59,8 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // Exceptions
 // ----------------------
 
+type Metadata = List<string * obj>
+
 // Exceptions indicate who is responsible for a problem, and include messages which
 // may be shown to users
 type DarkExceptionData =

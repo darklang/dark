@@ -78,7 +78,7 @@ module Span =
   // Spans (Activities) need to stop or they'll have the wrong end-time. You can
   // either use `use` when allocating them, which will mean they are stopped as soon
   // as they go out of scope, or you can explicitly call stop.
-  let child (name : string) (parent : T) (tags : List<string * obj>) : T =
+  let child (name : string) (parent : T) (tags : Metadata) : T =
     assert_
       "Telemetry must be initialized before creating root"
       (Internal._source <> null)
@@ -93,10 +93,10 @@ module Span =
   let addTag (name : string) (value : obj) (span : T) : unit =
     span.SetTag(name, value) |> ignore<T>
 
-  let addTags (tags : List<string * obj>) (span : T) : unit =
+  let addTags (tags : Metadata) (span : T) : unit =
     List.iter (fun (name, value : obj) -> span.SetTag(name, value) |> ignore<T>) tags
 
-  let addEvent (name : string) (tags : List<string * obj>) (span : T) : unit =
+  let addEvent (name : string) (tags : Metadata) (span : T) : unit =
     let e = span.AddEvent(System.Diagnostics.ActivityEvent name)
     List.iter (fun (name, value : obj) -> e.SetTag(name, value) |> ignore<T>) tags
 
@@ -104,7 +104,7 @@ module Span =
 // This creates a new root. The correct way to use this is to call `use span =
 // Telemetry.child` so that it falls out of scope properly and the parent takes over
 // again
-let child (name : string) (tags : List<string * obj>) : Span.T =
+let child (name : string) (tags : Metadata) : Span.T =
   Span.child name (Span.current ()) tags
 
 let createRoot (name : string) : Span.T = Span.root name
@@ -112,9 +112,9 @@ let createRoot (name : string) : Span.T = Span.root name
 let addTag (name : string) (value : obj) : unit =
   Span.addTag name value (Span.current ())
 
-let addTags (tags : List<string * obj>) : unit = Span.addTags tags (Span.current ())
+let addTags (tags : Metadata) : unit = Span.addTags tags (Span.current ())
 
-let addEvent (name : string) (tags : List<string * obj>) : unit =
+let addEvent (name : string) (tags : Metadata) : unit =
   let span = Span.current ()
   let tagCollection = System.Diagnostics.ActivityTagsCollection()
   List.iter (fun (k, v) -> tagCollection[k] <- v) tags
@@ -125,7 +125,7 @@ let addEvent (name : string) (tags : List<string * obj>) : unit =
 // Add a notification. You can find these in Honeycomb by searching for name =
 // 'notification'. This is used for anything out of the ordinary which should be
 // inspected.
-let notify (name : string) (tags : List<string * obj>) : unit =
+let notify (name : string) (tags : Metadata) : unit =
   let span = Span.current ()
   let tagCollection = System.Diagnostics.ActivityTagsCollection()
   List.iter (fun (k, v) -> tagCollection[k] <- v) tags
