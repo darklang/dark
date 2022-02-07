@@ -118,6 +118,29 @@ let init (serviceName : string) : unit =
   Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
     (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
 
+  // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
+  // We actually want to call
+  // Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor.Disable() to disable
+  // the ConnectivityMonitor. However, ConnectivityMonitor is an internal class, and
+  // we're only provided access to an IConnectivityMonitor, which does not have that
+  // method.
+  // We need to disable this because the ConnectivityMonitor checks for
+  // www.rollbar.com:80 instead of api.rollbar.com:443, and we firewall that off in
+  // production.
+  // let cm = Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor
+  // cm
+  //   .GetType()
+  //   .InvokeMember(
+  //     "Disable",
+  //     System.Reflection.BindingFlags.Public
+  //     ||| System.Reflection.BindingFlags.InvokeMethod
+  //     ||| System.Reflection.BindingFlags.Instance,
+  //     null,
+  //     cm,
+  //     [||]
+  //   )
+  // |> ignore<obj>
+
   print " Configured rollbar"
   ()
 
