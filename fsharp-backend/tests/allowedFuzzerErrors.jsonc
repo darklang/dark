@@ -1,7 +1,7 @@
 {
-  // If None, test anything. If `Some fn`, only test fn
-  "functionToTest": ["None"],
-  //"functionToTest": ["Some", "String::base64Decode"],
+  // If null, test anything. If `"fn"`, only test fn
+  "functionToTest": null,
+  //"functionToTest": "String::base64Decode",
   "knownDifferingFunctions": [
     // These use a different sort order in OCaml
     "List::sort", // FSTODO

@@ -842,6 +842,11 @@ module Json =
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
 
+    let deserializeWithComments<'a> (json : string) : 'a =
+      let options = getOptions ()
+      options.ReadCommentHandling <- JsonCommentHandling.Skip
+      JsonSerializer.Deserialize<'a>(json, options)
+
     let prettySerialize (data : 'a) : string =
       let options = getOptions ()
       options.WriteIndented <- true
