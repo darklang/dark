@@ -291,8 +291,7 @@ let executionStateFor
             if tc.exceptionReports.Length > 0 && not errorsExpected then
               print $"UNEXPECTED EXCEPTION in {meta.name}"
               List.iter
-                (fun (executionID, msg, tags, exn) ->
-                  RT.consoleReporter executionID msg tags exn)
+                (fun (executionID, exn) -> RT.consoleReporter executionID exn)
                 tc.exceptionReports
               Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
 
@@ -300,9 +299,9 @@ let executionStateFor
     // catch them much closer to where they happen (usually in the function
     // definition)
     let exceptionReporter : RT.ExceptionReporter =
-      fun executionID msg tags (exn : exn) ->
+      fun executionID (exn : exn) ->
         testContext.exceptionReports <-
-          (executionID, msg, tags, exn) :: testContext.exceptionReports
+          (executionID, exn) :: testContext.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors

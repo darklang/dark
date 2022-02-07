@@ -260,10 +260,8 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   with
   | e ->
     // Log here so we have context, but then re-raise
-    Telemetry.addException
-      "apply_op failure"
-      e
-      [ ("host", c.meta.name); ("op", string op) ]
+    let tags = [ ("host", c.meta.name :> obj); ("op", string op) ]
+    Telemetry.addException (InternalException("apply_op", tags, e))
     e.Reraise()
 
 
@@ -445,7 +443,7 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
 
       return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
     with
-    | e -> return Exception.reraiseAsPageable e
+    | e -> return Exception.reraiseAsPageable "canvas load failed" e
   }
 
 let loadAll (meta : Meta) : Task<T> =
@@ -635,7 +633,7 @@ let saveTLIDs
     |> List.map (fun t -> t : Task)
     |> Task.WhenAll
   with
-  | e -> Exception.reraiseAsPageable e
+  | e -> Exception.reraiseAsPageable "canvas save failed" e
 
 
 // -------------------------
