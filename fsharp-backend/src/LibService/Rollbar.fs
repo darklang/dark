@@ -114,9 +114,11 @@ let init (serviceName : string) : unit =
 
   // Initialize
   Rollbar.RollbarInfrastructure.Instance.Init(config)
-  // Debug apiserver rollbar
-  Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
-    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
+
+  // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
+  // Enabling this callback lets us see what actually happens when it's processed
+  // Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
+  //   (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
 
   // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
   // We actually want to call
