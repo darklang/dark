@@ -837,10 +837,10 @@ module ExecutePureFunctions =
 
   // Keep a list of allowed errors where we can edit it without recompiling
   let readAllowedErrors () =
-    use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
+    use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.jsonc"
     let json = r.ReadToEnd()
 
-    Json.Vanilla.deserialize<AllowedFuzzerErrorFileStructure> json
+    Json.Vanilla.deserializeWithComments<AllowedFuzzerErrorFileStructure> json
 
   let allowedErrors = readAllowedErrors ()
 
