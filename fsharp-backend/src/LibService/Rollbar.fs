@@ -19,51 +19,56 @@ let init (serviceName : string) : unit =
       Config.rollbarEnvironment
     )
   // We don't have any settings here
-  let _destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
-  let _telemetryOptions = config.RollbarTelemetryOptions
+  // let _destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
+  // let _telemetryOptions = config.RollbarTelemetryOptions
 
   // Offline storage
   let offlineStoreOptions = config.RollbarOfflineStoreOptions
-  let oso = Rollbar.RollbarOfflineStoreOptions()
-  oso.EnableLocalPayloadStore <- false
-  offlineStoreOptions.Reconfigure oso
+  let osOpts = Rollbar.RollbarOfflineStoreOptions()
+  osOpts.EnableLocalPayloadStore <- false
+  offlineStoreOptions.Reconfigure osOpts
   |> ignore<Rollbar.IRollbarOfflineStoreOptions>
 
   // Main options
-  let infraOptions = config.RollbarInfrastructureOptions
-  infraOptions.CaptureUncaughtExceptions <- true // doesn't seem to work afaict (true in v4, unclear in v5)
+  let iOpts = Rollbar.RollbarInfrastructureOptions()
+  iOpts.CaptureUncaughtExceptions <- true // doesn't seem to work afaict (true in v4, unclear in v5)
+  config.RollbarInfrastructureOptions.Reconfigure(iOpts)
+  |> ignore<Rollbar.IRollbarInfrastructureOptions>
 
-  let developerOptions = config.RollbarLoggerConfig.RollbarDeveloperOptions
-  developerOptions.Enabled <- Config.rollbarEnabled
-  developerOptions.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
-  developerOptions.RethrowExceptionsAfterReporting <- false
-  developerOptions.WrapReportedExceptionWithRollbarException <- false
+  let dOpts = Rollbar.RollbarDeveloperOptions()
+  dOpts.Enabled <- Config.rollbarEnabled
+  dOpts.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
+  dOpts.Transmit <- true
+  dOpts.RethrowExceptionsAfterReporting <- false
+  dOpts.WrapReportedExceptionWithRollbarException <- false
+  config.RollbarLoggerConfig.RollbarDeveloperOptions.Reconfigure(dOpts)
+  |> ignore<Rollbar.IRollbarDeveloperOptions>
 
   // data options
-  let dataSecurityOptions = config.RollbarLoggerConfig.RollbarDataSecurityOptions
-  let s = Rollbar.RollbarDataSecurityOptions()
-  s.ScrubFields <-
+  let dsOpts = Rollbar.RollbarDataSecurityOptions()
+  dsOpts.ScrubFields <-
     Array.append
-      dataSecurityOptions.ScrubFields
+      config.RollbarLoggerConfig.RollbarDataSecurityOptions.ScrubFields
       [| "Set-Cookie"; "Cookie"; "Authorization" |]
-  dataSecurityOptions.Reconfigure(s)
+  config.RollbarLoggerConfig.RollbarDataSecurityOptions.Reconfigure dsOpts
   |> ignore<Rollbar.IRollbarDataSecurityOptions>
 
-  let payloadAdditionOptions =
-    config.RollbarLoggerConfig.RollbarPayloadAdditionOptions
+  let paOpts = Rollbar.RollbarPayloadAdditionOptions()
+
   let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
   state["service"] <- serviceName
-  payloadAdditionOptions.Server <- Rollbar.DTOs.Server(state)
-  payloadAdditionOptions.Server.Host <- Config.hostName
-  payloadAdditionOptions.Server.Root <- Config.rootDir
-  payloadAdditionOptions.Server.CodeVersion <- Config.buildHash
+  paOpts.Server <- Rollbar.DTOs.Server(state)
+  paOpts.Server.Host <- Config.hostName
+  paOpts.Server.Root <- Config.rootDir
+  paOpts.Server.CodeVersion <- Config.buildHash
+  config.RollbarLoggerConfig.RollbarPayloadAdditionOptions.Reconfigure paOpts
+  |> ignore<Rollbar.IRollbarPayloadAdditionOptions>
+
 
   // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
-  let payloadManipulationOptions =
-    config.RollbarLoggerConfig.RollbarPayloadManipulationOptions
-  let pmo = Rollbar.RollbarPayloadManipulationOptions()
-  pmo.Transform <- (fun payload -> payload.Data.Language <- "f#")
-  payloadManipulationOptions.Reconfigure pmo
+  let pmOpts = Rollbar.RollbarPayloadManipulationOptions()
+  pmOpts.Transform <- (fun payload -> payload.Data.Language <- "f#")
+  config.RollbarLoggerConfig.RollbarPayloadManipulationOptions.Reconfigure pmOpts
   |> ignore<Rollbar.IRollbarPayloadManipulationOptions>
 
   // Initialize
