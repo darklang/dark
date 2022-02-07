@@ -116,12 +116,12 @@ module Exception =
       if e.InnerException <> null then toMetadata e.InnerException else []
     let thisMetadata =
       match e with
+      | :? PageableException -> [ "is_pageable", true :> obj ]
       | :? InternalException as e -> e.metadata
       | :? LibraryException as e -> e.metadata
       | :? DeveloperException
       | :? EditorException
       | :? GrandUserException
-      | :? PageableException as e -> [ "is_pageable", true ]
       | _ -> []
     thisMetadata @ innerMetadata
 
