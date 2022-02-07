@@ -11,6 +11,47 @@ open Prelude
 open Tablecloth
 open Exception
 
+let debugRollbarConfig () =
+  let config = Rollbar.RollbarInfrastructure.Instance.Config
+  let destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
+  debuG
+    "destinationOptions"
+    ((destinationOptions :?> Rollbar.RollbarDestinationOptions).TraceAsString())
+  let telemetryOptions = config.RollbarTelemetryOptions
+  debuG
+    "telemetryOptions"
+    ((telemetryOptions :?> Rollbar.RollbarTelemetryOptions).TraceAsString())
+  let offlineStoreOptions = config.RollbarOfflineStoreOptions
+  debuG
+    "offlineStoreOptions"
+    ((offlineStoreOptions :?> Rollbar.RollbarOfflineStoreOptions).TraceAsString())
+  let infraOptions = config.RollbarInfrastructureOptions
+  debuG
+    "infraOptions"
+    ((infraOptions :?> Rollbar.RollbarInfrastructureOptions).TraceAsString())
+  let developerOptions = config.RollbarLoggerConfig.RollbarDeveloperOptions
+  debuG
+    "developerOptions"
+    ((developerOptions :?> Rollbar.RollbarDeveloperOptions).TraceAsString())
+  let dataSecurityOptions = config.RollbarLoggerConfig.RollbarDataSecurityOptions
+  debuG
+    "dataSecurityOptions"
+    ((dataSecurityOptions :?> Rollbar.RollbarDataSecurityOptions).TraceAsString())
+  let payloadAdditionOptions =
+    config.RollbarLoggerConfig.RollbarPayloadAdditionOptions
+  debuG
+    "payloadAdditionOptions"
+    ((payloadAdditionOptions :?> Rollbar.RollbarPayloadAdditionOptions)
+      .TraceAsString())
+  let payloadManipulationOptions =
+    config.RollbarLoggerConfig.RollbarPayloadManipulationOptions
+  debuG
+    "payloadManipulationOptions"
+    ((payloadManipulationOptions :?> Rollbar.RollbarPayloadManipulationOptions)
+      .TraceAsString())
+  ()
+
+
 let init (serviceName : string) : unit =
   print "Configuring rollbar"
   let config =
