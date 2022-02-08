@@ -648,10 +648,17 @@ let static_assets_upload_handler
                       || is_valid_text body
                       (* application/ or unknown and valid UTF-8*)
               then
-                String.substr_replace_all
-                  body
-                  ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
-                  ~with_:sa.url
+                if String.is_substring ~substring:"https://DARK_STATIC_ASSETS_BASE_URL" body
+                then
+                  String.substr_replace_all
+                    body
+                    ~pattern:"https://DARK_STATIC_ASSETS_BASE_URL"
+                    ~with_:sa.url
+                else
+                  String.substr_replace_all
+                    body
+                    ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
+                    ~with_:sa.url
               else (* application/* or unknown and _not_ valid UTF-8 *)
                 body
             in
