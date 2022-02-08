@@ -433,7 +433,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       { id = id; username = username; email = None }
     (person, metadata)
 
-  LibService.Rollbar.AspNet.addRollbarToApp (app, rollbarCtxToMetadata)
+  LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp healthCheckPort

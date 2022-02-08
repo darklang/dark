@@ -125,26 +125,27 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   else
     app
 
+let rollbarCtxToMetadata
+  (ctx : HttpContext)
+  : (LibService.Rollbar.AspNet.Person * Metadata) =
+  let person =
+    try
+      loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
+    with
+    | _ -> LibService.Rollbar.AspNet.emptyPerson
+  let canvas =
+    try
+      string (loadCanvasInfo ctx).name
+    with
+    | _ -> null
+  (person, [ "canvas", canvas ])
+
 let configureApp (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> fun app ->
-       LibService.Rollbar.AspNet.addRollbarToApp (
-         app,
-         (fun (ctx : HttpContext) ->
-           let person =
-             try
-               loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
-             with
-             | _ -> LibService.Rollbar.AspNet.emptyPerson
-           let canvas =
-             try
-               string (loadCanvasInfo ctx).name
-             with
-             | _ -> null
-           (person, [ "canvas", canvas ]))
-       )
+       LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   // must go after UseRouting

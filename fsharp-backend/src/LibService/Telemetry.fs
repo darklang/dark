@@ -180,6 +180,8 @@ let init (serviceName : string) : unit =
       // if they make it to the top they'll get a stacktrace. So let's not do
       // stacktraces until we learn we need them
       addException e)
+  // Ensure there is always a root span
+  Span.root $"Starting {serviceName}" |> ignore<Span.T>
   print " Configured Telemetry"
 
 
