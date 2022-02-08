@@ -38,6 +38,7 @@ let main _ : int =
     LibRealExecution.Init.init "CronChecker"
 
     Telemetry.Console.loadTelemetry "CronChecker" Telemetry.DontTraceDBQueries
+
     // we need to stop running if we're told to stop by k8s
     LibService.Kubernetes.runKubernetesServer
       "CronChecker"
@@ -47,6 +48,11 @@ let main _ : int =
         Telemetry.addEvent "Shutting down" []
         shutdown.Value <- true)
     |> ignore<Task>
+
+
+    // Don't start until the DB is available. Otherwise we'll just spin off
+    // exceptions in a loop.
+    LibBackend.Init.waitForDB().Result
 
     if LibBackend.Config.triggerCrons then
       (run ()).Result
