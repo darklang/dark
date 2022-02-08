@@ -347,6 +347,14 @@ module AspNet =
   let emptyPerson = { id = None; email = None; username = None }
 
 
+  // Setup parameters for rollbar middleware
+  type RollbarContext =
+    {
+      // Using the HttpContext, fetch the Person and any useful metadata
+      ctxMetadataFn : HttpContext -> Person * Metadata
+      // Ignore this path, used to ignore exceptions that happen during the k8s startupProbe
+      ignoreStartupPath : Option<string> }
+
   // Rollbar's ASP.NET core middleware requires an IHttpContextAccessor, which
   // supposedly costs significant performance (couldn't see a cost in practice
   // though). AFAICT, this allows HTTP vars to be shared across the Task using an
@@ -355,7 +363,7 @@ module AspNet =
   type DarkRollbarMiddleware
     (
       nextRequestProcessor : RequestDelegate,
-      ctxMetadataFn : HttpContext -> Person * Metadata
+      rollbarCtx : RollbarContext
     ) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
     member this.Invoke(ctx : HttpContext) : Task =
@@ -364,46 +372,49 @@ module AspNet =
           do! this._nextRequestProcessor.Invoke(ctx)
         with
         | e ->
-          try
-            print $"rollbar in http middleware"
-            print e.Message
-            print e.StackTrace
-            print (ctx.Request.GetEncodedUrl())
+          if Some(string ctx.Request.Path) = rollbarCtx.ignoreStartupPath then
+            ()
+          else
+            try
+              print $"rollbar in http middleware"
+              print e.Message
+              print e.StackTrace
+              print (ctx.Request.GetEncodedUrl())
 
-            let executionID =
-              try
-                ctx.Items["executionID"] :?> ExecutionID
-              with
-              | _ -> ExecutionID "unavailable"
+              let executionID =
+                try
+                  ctx.Items["executionID"] :?> ExecutionID
+                with
+                | _ -> ExecutionID "unavailable"
 
-            let person, metadata =
-              try
-                ctxMetadataFn ctx
-              with
-              | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
-            let metadata = metadata @ Exception.toMetadata e
-            let custom = createState executionID metadata
+              let person, metadata =
+                try
+                  rollbarCtx.ctxMetadataFn ctx
+                with
+                | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
+              let metadata = metadata @ Exception.toMetadata e
+              let custom = createState executionID metadata
 
-            let package : Rollbar.IRollbarPackage =
-              new Rollbar.ExceptionPackage(e, e.Message)
-            // decorate the http info
-            let package = HttpRequestPackageDecorator(package, ctx.Request, true)
-            let package =
-              new HttpResponsePackageDecorator(package, ctx.Response, true)
-            let package =
-              Rollbar.PersonPackageDecorator(
-                package,
-                person.id |> Option.map string |> Option.defaultValue null,
-                person.username |> Option.map string |> Option.defaultValue null,
-                person.email |> Option.defaultValue null
-              )
-            Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
-            |> ignore<Rollbar.ILogger>
-            print "Rollbar exception sent"
-          // No telemetry call here as it should happen automatically
-          with
-          | processingException ->
-            exceptionWhileProcessingException e processingException
+              let package : Rollbar.IRollbarPackage =
+                new Rollbar.ExceptionPackage(e, e.Message)
+              // decorate the http info
+              let package = HttpRequestPackageDecorator(package, ctx.Request, true)
+              let package =
+                new HttpResponsePackageDecorator(package, ctx.Response, true)
+              let package =
+                Rollbar.PersonPackageDecorator(
+                  package,
+                  person.id |> Option.map string |> Option.defaultValue null,
+                  person.username |> Option.map string |> Option.defaultValue null,
+                  person.email |> Option.defaultValue null
+                )
+              Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
+              |> ignore<Rollbar.ILogger>
+              print "Rollbar exception sent"
+            // No telemetry call here as it should happen automatically
+            with
+            | processingException ->
+              exceptionWhileProcessingException e processingException
           e.Reraise()
       }
 
@@ -414,8 +425,10 @@ module AspNet =
     services
 
   let addRollbarToApp
-    (
-      app : IApplicationBuilder,
-      ctxMetadataFn : HttpContext -> Person * Metadata
-    ) : IApplicationBuilder =
-    app.UseMiddleware<DarkRollbarMiddleware>(ctxMetadataFn)
+    (app : IApplicationBuilder)
+    (ctxMetadataFn : HttpContext -> Person * Metadata)
+    (ignoreStatupPath : Option<string>)
+    : IApplicationBuilder =
+    app.UseMiddleware<DarkRollbarMiddleware>(
+      { ctxMetadataFn = ctxMetadataFn; ignoreStartupPath = ignoreStatupPath }
+    )
