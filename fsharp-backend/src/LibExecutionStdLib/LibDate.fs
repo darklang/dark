@@ -5,9 +5,112 @@ open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open Prelude
 
+type DateTime = System.DateTime
+
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
+
+let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
+  // https://github.com/janestreet/core/blob/b0be1daa71b662bd38ef2bb406f7b3e70d63d05f/core/src/time.ml#L398
+  let rec r (remainingFormats : List<string>) =
+    match remainingFormats with
+    | f :: rest ->
+      try
+        let c = System.Globalization.CultureInfo.InvariantCulture
+        let v = DateTime.ParseExact(s, f, c)
+        print $"SUCCESS parsed {s} with {f}"
+        Ok v
+      with
+      | e ->
+        print $"          can't parse {s} with {f}"
+        r rest
+    | [] -> Error()
+  // Support every permutation of
+  // - date fields separated by ' ' or '-' or nothing
+  // - date seprated from time by 'T' or ' ' or nothing
+  // - time fields separated by ':'
+  // - optional '.fff' format (millisecond precision)
+  // - optional 'zzz' format (support timezone offsets)
+  // - optional 'Z' at the end
+  // - FSTODO: do we allow other timezones? ('K' format)
+  let formats =
+    [ "yyyy MM dd HH:mm:ss"
+      "yyyy MM dd HH:mm:ss.fff"
+      "yyyy MM dd HH:mm:ss.fffZ"
+      "yyyy MM dd HH:mm:ss.fffzzz"
+      "yyyy MM dd HH:mm:ss.fffzzzZ"
+      "yyyy MM dd HH:mm:ssZ"
+      "yyyy MM dd HH:mm:sszzz"
+      "yyyy MM dd HH:mm:sszzzZ"
+      "yyyy MM ddHH:mm:ss"
+      "yyyy MM ddHH:mm:ss.fff"
+      "yyyy MM ddHH:mm:ss.fffZ"
+      "yyyy MM ddHH:mm:ss.fffzzz"
+      "yyyy MM ddHH:mm:ss.fffzzzZ"
+      "yyyy MM ddHH:mm:ssZ"
+      "yyyy MM ddHH:mm:sszzz"
+      "yyyy MM ddHH:mm:sszzzZ"
+      "yyyy MM ddTHH:mm:ss"
+      "yyyy MM ddTHH:mm:ss.fff"
+      "yyyy MM ddTHH:mm:ss.fffZ"
+      "yyyy MM ddTHH:mm:ss.fffzzz"
+      "yyyy MM ddTHH:mm:ss.fffzzzZ"
+      "yyyy MM ddTHH:mm:ssZ"
+      "yyyy MM ddTHH:mm:sszzz"
+      "yyyy MM ddTHH:mm:sszzzZ"
+      "yyyy-MM-dd HH:mm:ss"
+      "yyyy-MM-dd HH:mm:ss.fff"
+      "yyyy-MM-dd HH:mm:ss.fffZ"
+      "yyyy-MM-dd HH:mm:ss.fffzzz"
+      "yyyy-MM-dd HH:mm:ss.fffzzzZ"
+      "yyyy-MM-dd HH:mm:ssZ"
+      "yyyy-MM-dd HH:mm:sszzz"
+      "yyyy-MM-dd HH:mm:sszzzZ"
+      "yyyy-MM-ddHH:mm:ss"
+      "yyyy-MM-ddHH:mm:ss.fff"
+      "yyyy-MM-ddHH:mm:ss.fffZ"
+      "yyyy-MM-ddHH:mm:ss.fffzzz"
+      "yyyy-MM-ddHH:mm:ss.fffzzzZ"
+      "yyyy-MM-ddHH:mm:ssZ"
+      "yyyy-MM-ddHH:mm:sszzz"
+      "yyyy-MM-ddHH:mm:sszzzZ"
+      "yyyy-MM-ddTHH:mm:ss"
+      "yyyy-MM-ddTHH:mm:ss.fff"
+      "yyyy-MM-ddTHH:mm:ss.fffZ"
+      "yyyy-MM-ddTHH:mm:ss.fffzzz"
+      "yyyy-MM-ddTHH:mm:ss.fffzzzZ"
+      "yyyy-MM-ddTHH:mm:ssZ"
+      "yyyy-MM-ddTHH:mm:sszzz"
+      "yyyy-MM-ddTHH:mm:sszzzZ"
+      "yyyyMMdd HH:mm:ss"
+      "yyyyMMdd HH:mm:ss.fff"
+      "yyyyMMdd HH:mm:ss.fffZ"
+      "yyyyMMdd HH:mm:ss.fffzzz"
+      "yyyyMMdd HH:mm:ss.fffzzzZ"
+      "yyyyMMdd HH:mm:ssZ"
+      "yyyyMMdd HH:mm:sszzz"
+      "yyyyMMdd HH:mm:sszzzZ"
+      "yyyyMMddHH:mm:ss"
+      "yyyyMMddHH:mm:ss.fff"
+      "yyyyMMddHH:mm:ss.fffZ"
+      "yyyyMMddHH:mm:ss.fffzzz"
+      "yyyyMMddHH:mm:ss.fffzzzZ"
+      "yyyyMMddHH:mm:ssZ"
+      "yyyyMMddHH:mm:sszzz"
+      "yyyyMMddHH:mm:sszzzZ"
+      "yyyyMMddTHH:mm"
+      "yyyyMMddTHH:mm:ss"
+      "yyyyMMddTHH:mm:ss.fff"
+      "yyyyMMddTHH:mm:ss.fffZ"
+      "yyyyMMddTHH:mm:ss.fffzzz"
+      "yyyyMMddTHH:mm:ss.fffzzzZ"
+      "yyyyMMddTHH:mm:ssZ"
+      "yyyyMMddTHH:mm:sszzz"
+      "yyyyMMddTHH:mm:sszzzZ"
+      "yyyyMMddTHH:mmZ"
+      "yyyyMMddTHH:mmzzz" ]
+  r formats
 
 
 let fns : List<BuiltInFn> =
@@ -17,13 +120,11 @@ let fns : List<BuiltInFn> =
       description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
       fn =
-
         (function
         | _, [ DStr s ] ->
-          (try
-            Ply(DDate(System.DateTime.ofIsoString s))
-           with
-           | e -> Ply(DError(SourceNone, "Invalid date format")))
+          match ocamlCompatibleDateParser s with
+          | Error () -> Ply(DError(SourceNone, "Invalid date format"))
+          | Ok d -> Ply(DDate d)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -38,10 +139,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-          (try
-            Ply(DResult(Ok(DDate(System.DateTime.ofIsoString s))))
-           with
-           | e -> Ply(DResult(Error(DStr "Invalid date format"))))
+          ocamlCompatibleDateParser s
+          |> Result.map DDate
+          |> Result.mapError (fun () -> DStr "Invalid date format")
+          |> DResult
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -56,10 +158,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-          (try
-            Ply(Dval.resultOk (DDate(System.DateTime.ofIsoString s)))
-           with
-           | e -> Ply(Dval.resultError (DStr "Invalid date format")))
+          ocamlCompatibleDateParser s
+          |> Result.map DDate
+          |> Result.mapError (fun () -> DStr "Invalid date format")
+          |> DResult
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -607,7 +607,11 @@ type System.DateTime with
     this.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
   static member ofIsoString(str : string) : System.DateTime =
-    System.DateTime.Parse(str, System.Globalization.CultureInfo.InvariantCulture)
+    System.DateTime.ParseExact(
+      str,
+      "yyyy-MM-ddThh:mm:ssZ",
+      System.Globalization.CultureInfo.InvariantCulture
+    )
 
 // ----------------------
 // Random numbers
