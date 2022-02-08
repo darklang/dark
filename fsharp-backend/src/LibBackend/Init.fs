@@ -5,6 +5,9 @@ module LibBackend.Init
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open Npgsql.FSharp
+open Db
+
 open Prelude
 open Microsoft.Extensions.Diagnostics.HealthChecks
 
@@ -23,6 +26,24 @@ let legacyServerCheck : LibService.Kubernetes.HealthCheck =
           let! (_ : Canvas.T) = Canvas.loadAll meta
           return HealthCheckResult.Healthy("It's fine")
         } }
+
+
+
+let waitForDB () : Task<unit> =
+  task {
+    let mutable success = false
+    while not success do
+      try
+        do!
+          Sql.query "select current_date"
+          |> Sql.parameters []
+          |> Sql.executeStatementAsync
+        success <- true
+      with
+      | _ -> do! Task.Delay 1000
+      return ()
+  }
+
 
 
 let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
