@@ -22,10 +22,10 @@ let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
         print $"SUCCESS parsed {s} with {f}"
         Ok v
       with
-      | e ->
-        print $"          can't parse {s} with {f}"
-        r rest
-    | [] -> Error()
+      | e -> r rest
+    | [] ->
+      print $"          couldn't parse {s}"
+      Error()
   // Support every permutation of
   // - date fields separated by ' ' or '-' or nothing
   // - date seprated from time by 'T' or ' ' or nothing
