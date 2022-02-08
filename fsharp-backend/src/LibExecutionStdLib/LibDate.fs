@@ -35,7 +35,16 @@ let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
   // - optional 'Z' at the end
   // - FSTODO: do we allow other timezones? ('K' format)
   let formats =
-    [ "yyyy MM dd HH:mm:ss"
+    [
+      // Do the most common ones first
+      "yyyy-MM-ddTHH:mm:ssZ"
+      "yyyy-MM-ddTHH:mm:ss"
+      "yyyy-MM-dd HH:mm:ssZ"
+      "yyyy-MM-dd HH:mm:ss"
+      "yyyy MM dd HH:mm:ssZ"
+      "yyyy MM dd HH:mm:ss"
+      // Intended to be an exhaustive list of everything OCaml supports
+      "yyyy MM dd HH:mm:ss"
       "yyyy MM dd HH:mm:ss.fff"
       "yyyy MM dd HH:mm:ss.fffZ"
       "yyyy MM dd HH:mm:ss.fffzzz"
