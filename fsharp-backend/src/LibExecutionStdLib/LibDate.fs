@@ -11,58 +11,50 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
+let product lists =
+  let folder list state = state |> Seq.allPairs list |> Seq.map List.Cons
+  Seq.singleton List.empty |> List.foldBack folder lists
+
 let ocamlDateTimeFormats : array<string> =
+  // List of DateTime custom formats intented to exactly match the behaviour of OCaml Core.Time.of_string.
   // https://github.com/janestreet/core/blob/b0be1daa71b662bd38ef2bb406f7b3e70d63d05f/core/src/time.ml#L398
-  // Support every permutation of
-  // - date fields separated by ' ' or '-' or nothing
-  // - date seprated from time by 'T' or ' ' or nothing
-  // - time fields separated by ':'
-  // - optional '.fffffff' format (millisecond precision)
-  // - optional 'zzz' format (support timezone offsets)
-  // - optional 'Z' at the end
+  // I looked at every permutation of separators and optional fields to match it
+  // exactly. We generate about 600 different patterns.
+
+  // All the different variations
   let dateFieldSeparators = [ " "; "-"; "" ]
   let dateTimeSeparator = [ "T"; " "; "" ]
   let timeSeparator = [ ":"; "" ]
   let millisecondFormat =
+    // Support up to 7-digits of sub-second precision
     [ ""; ".f"; ".ff"; ".fff"; ".ffff"; ".fffff"; ".ffffff"; ".fffffff" ]
   let seconds = [ "ss"; "" ]
-  let meridians = [ "tt"; "" ]
-  let tzSuffixes = [ "zzz"; "Z"; "" ]
-  List.map
-    (fun dfs ->
-      List.map
-        (fun dts ->
-          List.map
-            (fun ts ->
-              List.map
-                (fun ss ->
-                  // Dont allow separator and then no seconds
-                  let ss = if ss = "" then "" else ts + ss
-                  List.map
-                    (fun tt ->
-                      // AM/PM requires 12 hour format
-                      let hh = if tt = "" then "HH" else "hh"
-                      List.map
-                        (fun msf ->
-                          // Don't allow milliseconds if no seconds
-                          let msf = if ss = "" then "" else msf
-                          List.map
-                            (fun tzs ->
-                              $"yyyy{dfs}MM{dfs}dd{dts}{hh}{ts}mm{ss}{msf}{tt}{tzs}")
-                            tzSuffixes)
-                        millisecondFormat)
-                    meridians)
-                seconds)
-            timeSeparator)
-        dateTimeSeparator)
-    dateFieldSeparators
-  |> List.concat
-  |> List.concat
-  |> List.concat
-  |> List.concat
-  |> List.concat
-  |> List.concat
-  |> set // remove dups
+  let meridians = [ "tt"; "" ] // am or pm
+  let tzSuffixes = [ "zzz"; "Z"; "" ] // +01:30 or just 'Z'
+
+  // Cartesian product
+  [ dateFieldSeparators
+    dateTimeSeparator
+    timeSeparator
+    seconds
+    meridians
+    millisecondFormat
+    tzSuffixes ]
+  |> product
+  |> Seq.map (function
+    | [ dfs; dts; ts; ss; tt; msf; tzs ] ->
+      // Dont use a time separator for seconds if there are no seconds
+      let ss = if ss = "" then "" else ts + ss
+
+      // AM/PM requires the 12-hour hour format, but otherwise we support 24 hour
+      let hh = if tt = "" then "HH" else "hh"
+
+      // Don't allow milliseconds if no seconds
+      let msf = if ss = "" then "" else msf
+
+      $"yyyy{dfs}MM{dfs}dd{dts}{hh}{ts}mm{ss}{msf}{tt}{tzs}"
+    | _ -> Exception.raiseInternal "ocamlDateTimeFormats is wrong shape" [])
+  |> Set.ofSeq // remove dups
   |> Set.toArray
   |> (fun allFormats ->
     let mostCommon =
@@ -77,7 +69,9 @@ let ocamlDateTimeFormats : array<string> =
     Array.append mostCommon allFormats)
 // |> debugBy "formats" (String.concat "\n  ")
 
-// CLEANUP The Date parser was OCaml's Core.Time.of_string, which supported an awful lot of use cases. Our docs say that we only want to support the format "yyyy-MM-ddTHH:mm:ssZ"
+// CLEANUP The Date parser was OCaml's Core.Time.of_string, which supported an awful
+// lot of use cases. Our docs say that we only want to support the format
+// "yyyy-MM-ddTHH:mm:ssZ", so add a new version that only supports that format.
 let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
   if s.EndsWith('z') || s.Contains("GMT") then
     Error()
