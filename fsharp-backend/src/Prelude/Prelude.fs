@@ -609,7 +609,7 @@ type System.DateTime with
   static member ofIsoString(str : string) : System.DateTime =
     System.DateTime.ParseExact(
       str,
-      "yyyy-MM-ddThh:mm:ssZ",
+      "yyyy-MM-ddTHH:mm:ssZ",
       System.Globalization.CultureInfo.InvariantCulture
     )
 
