@@ -22,7 +22,8 @@ let ocamlDateTimeFormats : List<string> =
   let dateFieldSeparators = [ " "; "-"; "" ]
   let dateTimeSeparator = [ "T"; " "; "" ]
   let timeSeparator = [ ":"; "" ]
-  let millisecondFormat = [ ""; ".fff"; ".fffffff" ] // FSTODO: do we need more
+  let millisecondFormat =
+    [ ""; ".f"; ".ff"; ".fff"; ".ffff"; ".fffff"; ".ffffff"; ".fffffff" ]
   let seconds = [ "ss"; "" ]
   let tzSuffixes = [ "K"; "" ] // "Equivalent to either literal "Z" or format "zzz"
   List.map
