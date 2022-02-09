@@ -25,6 +25,7 @@ let ocamlDateTimeFormats : List<string> =
   let millisecondFormat =
     [ ""; ".f"; ".ff"; ".fff"; ".ffff"; ".fffff"; ".ffffff"; ".fffffff" ]
   let seconds = [ "ss"; "" ]
+  let meridians = [ "tt"; "" ]
   let tzSuffixes = [ "K"; "" ] // "Equivalent to either literal "Z" or format "zzz"
   List.map
     (fun dfs ->
@@ -37,11 +38,19 @@ let ocamlDateTimeFormats : List<string> =
                   // Dont allow separator and then no seconds
                   let ss = if ss = "" then "" else ts + ss
                   List.map
-                    (fun msf ->
+                    (fun tt ->
+                      // AM/PM requires 12 hour format
+                      let hh = if tt = "" then "HH" else "hh"
                       List.map
-                        (fun tzs -> $"yyyy{dfs}MM{dfs}dd{dts}HH{ts}mm{ss}{msf}{tzs}")
-                        tzSuffixes)
-                    millisecondFormat)
+                        (fun msf ->
+                          // Don't allow milliseconds if no seconds
+                          let msf = if ss = "" then "" else msf
+                          List.map
+                            (fun tzs ->
+                              $"yyyy{dfs}MM{dfs}dd{dts}{hh}{ts}mm{ss}{msf}{tt}{tzs}")
+                            tzSuffixes)
+                        millisecondFormat)
+                    meridians)
                 seconds)
             timeSeparator)
         dateTimeSeparator)
