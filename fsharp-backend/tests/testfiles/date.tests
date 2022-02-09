@@ -125,6 +125,7 @@ p " 2006-06-09T10:20:30.040+02:00 " = Error "Invalid date format" // whitespace
 p "20061204T1020 am" = Error "Invalid date format"
 p "20061204T1020 AM" = Error "Invalid date format"
 p "2008-09-15T09:30:41 GMT" = Error "Invalid date format"
+p "2008-09-15T09:30.456" = Error "Invalid date format"
 
 
 [tests.date inequality]

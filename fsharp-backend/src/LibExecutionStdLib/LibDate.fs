@@ -60,6 +60,9 @@ let ocamlDateTimeFormats : List<string> =
   |> List.concat
   |> List.concat
   |> List.concat
+  |> List.concat
+  |> set // remove dups
+  |> Set.toList
   |> debugBy "formats" (String.concat "\n  ")
 
 let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
