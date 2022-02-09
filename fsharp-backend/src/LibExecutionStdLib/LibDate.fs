@@ -27,7 +27,7 @@ let ocamlDateTimeFormats : array<string> =
     [ ""; ".f"; ".ff"; ".fff"; ".ffff"; ".fffff"; ".ffffff"; ".fffffff" ]
   let seconds = [ "ss"; "" ]
   let meridians = [ "tt"; "" ]
-  let tzSuffixes = [ "K"; "" ] // "Equivalent to either literal "Z" or format "zzz"
+  let tzSuffixes = [ "zzz"; "Z"; "" ]
   List.map
     (fun dfs ->
       List.map
@@ -77,16 +77,20 @@ let ocamlDateTimeFormats : array<string> =
     Array.append mostCommon allFormats)
 // |> debugBy "formats" (String.concat "\n  ")
 
+// CLEANUP The Date parser was OCaml's Core.Time.of_string, which supported an awful lot of use cases. Our docs say that we only want to support the format "yyyy-MM-ddTHH:mm:ssZ"
 let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
-  let culture = System.Globalization.CultureInfo.InvariantCulture
-  let styles = System.Globalization.DateTimeStyles.AssumeUniversal
-  let mutable (result : DateTime) = Unchecked.defaultof<DateTime>
-  if DateTime.TryParseExact(s, ocamlDateTimeFormats, culture, styles, &result) then
-    // print $"SUCCESS parsed {s}"
-    Ok result
-  else
-    // print $"              failed to parse {s}"
+  if s.EndsWith('z') || s.Contains("GMT") then
     Error()
+  else
+    let culture = System.Globalization.CultureInfo.InvariantCulture
+    let styles = System.Globalization.DateTimeStyles.AssumeUniversal
+    let mutable (result : DateTime) = Unchecked.defaultof<DateTime>
+    if DateTime.TryParseExact(s, ocamlDateTimeFormats, culture, styles, &result) then
+      // print $"SUCCESS parsed {s}"
+      Ok result
+    else
+      // print $"              failed to parse {s}"
+      Error()
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Date" "parse" 0
