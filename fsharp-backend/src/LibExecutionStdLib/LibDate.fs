@@ -34,11 +34,12 @@ let ocamlDateTimeFormats : List<string> =
             (fun ts ->
               List.map
                 (fun ss ->
+                  // Dont allow separator and then no seconds
+                  let ss = if ss = "" then "" else ts + ss
                   List.map
                     (fun msf ->
                       List.map
-                        (fun tzs ->
-                          $"yyyy{dfs}MM{dfs}dd{dts}HH{ts}mm{ts}{ss}{msf}{tzs}")
+                        (fun tzs -> $"yyyy{dfs}MM{dfs}dd{dts}HH{ts}mm{ss}{msf}{tzs}")
                         tzSuffixes)
                     millisecondFormat)
                 seconds)
