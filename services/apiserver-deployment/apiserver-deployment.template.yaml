@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: apiserver-deployment
-  namespace: darklang
+  namespace: default
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 

@@ -2,10 +2,9 @@ kind: Service
 apiVersion: v1
 metadata:
   name: apiserver-service
-  namespace: darklang
+  namespace: default
 spec:
-  # We could use a cluster IP here, but in the future we want to point the ingress
-  # directly at this (which requires a nodeport), so may as well start with a nodeport
+  # GKE ingress requires this to be a nodeport
   type: NodePort
   selector:
     app: apiserver-app
