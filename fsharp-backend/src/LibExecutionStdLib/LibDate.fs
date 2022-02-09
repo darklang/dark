@@ -21,26 +21,30 @@ let ocamlDateTimeFormats : List<string> =
   // - optional 'Z' at the end
   let dateFieldSeparators = [ " "; "-"; "" ]
   let dateTimeSeparator = [ "T"; " "; "" ]
+  let timeSeparator = [ ":"; "" ]
   let millisecondFormat = [ ""; ".fff"; ".fffffff" ] // FSTODO: do we need more
-  let timezoneOffsetFormat = [ "zzz"; "" ]
-  let tzSuffixes = [ "Z"; "" ]
-  // - FSTODO: do we allow other timezones? ('K' format)
-  // - FSTODO: seconds are optional
+  let seconds = [ "ss"; "" ]
+  let tzSuffixes = [ "K"; "" ] // "Equivalent to either literal "Z" or format "zzz"
   List.map
     (fun dfs ->
       List.map
         (fun dts ->
           List.map
-            (fun msf ->
+            (fun ts ->
               List.map
-                (fun tzs ->
+                (fun ss ->
                   List.map
-                    (fun tzof -> $"yyyy{dfs}MM{dfs}dd{dts}HH:mm:ss{msf}{tzof}{tzs}")
-                    timezoneOffsetFormat)
-                tzSuffixes)
-            millisecondFormat)
+                    (fun msf ->
+                      List.map
+                        (fun tzs ->
+                          $"yyyy{dfs}MM{dfs}dd{dts}HH{ts}mm{ts}{ss}{msf}{tzs}")
+                        tzSuffixes)
+                    millisecondFormat)
+                seconds)
+            timeSeparator)
         dateTimeSeparator)
     dateFieldSeparators
+  |> List.concat
   |> List.concat
   |> List.concat
   |> List.concat
