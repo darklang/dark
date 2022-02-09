@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: apiserver-deployment
-  namespace: darklang
+  namespace: default
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 
@@ -362,9 +362,7 @@ spec:
               name: apiserver-nginx-base-conf
               subPath: base-nginx.conf
             - mountPath: /etc/nginx/conf.d/
-              name: apiserver-nginx-conf
-            - mountPath: /etc/nginx/conf.d/
-              name: apiserver-nginx-override-conf
+              name: apiserver-nginx-confs
             - mountPath: /var/cache/nginx # security
               name: nginx-cache-volume
             - mountPath: /var/run # security
@@ -437,15 +435,16 @@ spec:
             secretName: cloudsql-instance-credentials
 
         # Nginx
+        - name: apiserver-nginx-confs
+          projected:
+            sources:
+              - configMap:
+                  name: "{VERSIONED-CONFIGMAP:apiserver-nginx-conf}"
+              - configMap:
+                  name: apiserver-nginx-override-conf
         - name: apiserver-nginx-base-conf
           configMap:
             name: "{VERSIONED-CONFIGMAP:apiserver-nginx-base-conf}"
-        - name: apiserver-nginx-conf
-          configMap:
-            name: "{VERSIONED-CONFIGMAP:apiserver-nginx-conf}"
-        - name: apiserver-nginx-override-conf
-          configMap:
-            name: apiserver-nginx-override-conf
         # to allow readOnlyRootFilesystem for nginx
         # see https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
         - name: nginx-cache-volume

@@ -3,7 +3,6 @@ k8s:
     configs:
       - apiserver-network-policy.yaml
       - apiserver-service.yaml
-      - apiserver-service-redirect.yaml
 
     # Manually deployed so it can be used to override
     configmaps:
@@ -13,21 +12,21 @@ k8s:
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
-      - kubectl rollout restart --namespace darklang deployment apiserver-deployment
+      - kubectl rollout restart --namespace default deployment apiserver-deployment
 
   release:
     config-template: apiserver-deployment.template.yaml
     versioned-configmaps:
       apiserver-nginx-base-conf:
         text-file: ../../containers/ocaml-nginx/base-nginx.conf
-        namespace: darklang
+        namespace: default
       apiserver-nginx-conf:
         text-file: nginx.conf
-        namespace: darklang
+        namespace: default
       app-config:
         # deployed to both namespaces
         env-file: ../../config/gke-builtwithdark
-        namespace: darklang
+        namespace: default
     containers:
       - gcp-fsharp-apiserver
       - legacyserver
