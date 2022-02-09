@@ -11,7 +11,8 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let ocamlDateTimeFormats : List<string> =
+let ocamlDateTimeFormats : array<string> =
+  // https://github.com/janestreet/core/blob/b0be1daa71b662bd38ef2bb406f7b3e70d63d05f/core/src/time.ml#L398
   // Support every permutation of
   // - date fields separated by ' ' or '-' or nothing
   // - date seprated from time by 'T' or ' ' or nothing
@@ -62,37 +63,30 @@ let ocamlDateTimeFormats : List<string> =
   |> List.concat
   |> List.concat
   |> set // remove dups
-  |> Set.toList
-  |> debugBy "formats" (String.concat "\n  ")
+  |> Set.toArray
+  |> (fun allFormats ->
+    let mostCommon =
+      [|
+         // Do the most common ones first
+         "yyyy-MM-ddTHH:mm:ssZ"
+         "yyyy-MM-ddTHH:mm:ss"
+         "yyyy-MM-dd HH:mm:ssZ"
+         "yyyy-MM-dd HH:mm:ss"
+         "yyyy MM dd HH:mm:ssZ"
+         "yyyy MM dd HH:mm:ss" |]
+    Array.append mostCommon allFormats)
+// |> debugBy "formats" (String.concat "\n  ")
 
 let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
-  // https://github.com/janestreet/core/blob/b0be1daa71b662bd38ef2bb406f7b3e70d63d05f/core/src/time.ml#L398
-  let rec r (remainingFormats : List<string>) =
-    match remainingFormats with
-    | f :: rest ->
-      try
-        let c = System.Globalization.CultureInfo.InvariantCulture
-        let v = DateTime.ParseExact(s, f, c)
-        print $"SUCCESS parsed {s} with {f}"
-        Ok v
-      with
-      | e -> r rest
-    | [] ->
-      print $"          couldn't parse {s}"
-      Error()
-  let formats =
-    [
-      // Do the most common ones first
-      "yyyy-MM-ddTHH:mm:ssZ"
-      "yyyy-MM-ddTHH:mm:ss"
-      "yyyy-MM-dd HH:mm:ssZ"
-      "yyyy-MM-dd HH:mm:ss"
-      "yyyy MM dd HH:mm:ssZ"
-      "yyyy MM dd HH:mm:ss" ]
-    @ ocamlDateTimeFormats
-  // Intended to be an exhaustive list of everything OCaml supports
-  r formats
-
+  let culture = System.Globalization.CultureInfo.InvariantCulture
+  let styles = System.Globalization.DateTimeStyles.AssumeUniversal
+  let mutable (result : DateTime) = Unchecked.defaultof<DateTime>
+  if DateTime.TryParseExact(s, ocamlDateTimeFormats, culture, styles, &result) then
+    // print $"SUCCESS parsed {s}"
+    Ok result
+  else
+    // print $"              failed to parse {s}"
+    Error()
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Date" "parse" 0
