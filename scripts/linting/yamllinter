@@ -4,7 +4,7 @@
 set -euo pipefail
 
 function check {
-  if [[ "$1" == *"/services/"* && "$1" != *"/services/honeycomb-agent/config.yaml" && $(basename "$1") != "shipit.yaml" ]]; then
+  if [[ "$1" == *"services/"* && "$1" != *"/services/honeycomb-agent/config.yaml" && $(basename "$1") != "shipit.yaml" ]]; then
     echo "kubeconform $1"
     echo "$1" | check_k8s_files
   else
@@ -29,9 +29,9 @@ check_k8s_files() {
     kubeconform \
       -strict \
       -kubernetes-version 1.20.12 \
-      -skip Certificate,ConfigConnector,StorageBucket,BackendConfig,CustomResourceDefinition,Issuer \
+      -skip CustomResourceDefinition \
       -schema-location default \
-      -schema-location 'scripts/linting/crd-schemas/{{ .ResourceKind }}{{ .KindSuffix }}.json'
+      -schema-location 'scripts/linting/crd-schemas/{{ .ResourceKind }}_{{ .ResourceAPIVersion }}.json'
 }
 
 all_yaml_files() {
