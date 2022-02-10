@@ -6,6 +6,6 @@ metadata:
 spec:
   # A backendconfig allows us to configure how a load balancer talks to a service.
   # The default / returns a 301, so
-  healthcheck:
+  healthCheck:
     requestPath: "/check-apiserver"
-    protocol: HTTP
+    type: HTTP
