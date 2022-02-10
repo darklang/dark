@@ -5,14 +5,8 @@ set -euo pipefail
 
 function check {
   if [[ "$1" == *"/services/"* && "$1" != *"/services/honeycomb-agent/config.yaml" && $(basename "$1") != "shipit.yaml" ]]; then
-    echo "kubeval $1"
-    kubeconform \
-      -strict \
-      -kubernetes-version 1.20.12 \
-      -skip Certificate,ConfigConnector,StorageBucket,BackendConfig,CustomResourceDefinition,Issuer \
-      -schema-location default \
-      -schema-location 'scripts/linting/crd-schemas/{{ .ResourceKind }}{{ .KindSuffix }}.json' \
-      "$1"
+    echo "kubeconform $1"
+    echo "$1" | check_k8s_files
   else
     echo "not kubernetes so no kubeconform: $1"
   fi
@@ -23,14 +17,27 @@ function check {
   fi
 }
 
-if [[ "$#" -eq 1 ]]; then
-  check "$1"
-else
-  echo "checking yaml files ..."
-  # skip circleci for now
-  # shellcheck disable=SC2038
-  FILES=$(find ./* -type f \
-    \( -name "*.yml" \
+all_k8s_files() {
+  find services/* \
+    -path services/honeycomb-agent/config.yaml -prune \
+    -o -name "shipit.yaml" -prune \
+    -o -type f -name "*.yaml" -print
+}
+
+check_k8s_files() {
+  xargs \
+    kubeconform \
+      -strict \
+      -kubernetes-version 1.20.12 \
+      -skip Certificate,ConfigConnector,StorageBucket,BackendConfig,CustomResourceDefinition,Issuer \
+      -schema-location default \
+      -schema-location 'scripts/linting/crd-schemas/{{ .ResourceKind }}{{ .KindSuffix }}.json'
+}
+
+all_yaml_files() {
+  find ./* -type f \
+    -path "./services/cert-manager/cert-manager.yaml" -prune \
+    -o \( -name "*.yml" \
     -o -name "*.yaml" \) -print \
     -o -path ".git" -prune \
     -o -path "_build" -prune \
@@ -51,9 +58,14 @@ else
     -o -path "./containers/stroller/target" -prune \
     -o -path "containers/queue-scheduler/target" -prune \
     -o -path "./containers/queue-scheduler/target" -prune \
-    -o -path ".circleci/config.yml" -prune)
-    for i in $FILES; do
-      check $i
-    done
-    check .circleci/config.yml
-  fi
+    -o -path ".circleci/config.yml" -prune
+}
+
+if [[ "$#" -eq 1 ]]; then
+  check "$1"
+else
+  echo "checking k8s files ..."
+  all_k8s_files | check_k8s_files
+  echo "linting yaml files ..."
+  all_yaml_files | xargs yamllint
+fi
