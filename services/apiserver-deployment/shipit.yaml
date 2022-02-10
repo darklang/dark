@@ -8,7 +8,7 @@ k8s:
     configmaps:
       apiserver-nginx-override-conf:
         text-file: nginx-override.conf
-        namespace: darklang
+        namespace: default
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:

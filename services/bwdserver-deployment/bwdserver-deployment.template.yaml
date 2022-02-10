@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bwdserver-deployment
-  namespace: darklang
+  namespace: default
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 
@@ -362,9 +362,7 @@ spec:
               name: bwdserver-nginx-base-conf
               subPath: base-nginx.conf
             - mountPath: /etc/nginx/conf.d/
-              name: bwdserver-nginx-conf
-            - mountPath: /etc/nginx/conf.d/
-              name: bwdserver-nginx-override-conf
+              name: bwdserver-nginx-confs
             - mountPath: /var/cache/nginx # security
               name: nginx-cache-volume
             - mountPath: /var/run # security
@@ -426,15 +424,16 @@ spec:
             secretName: cloudsql-instance-credentials
 
         # Nginx
+        - name: bwdserver-nginx-confs
+          projected:
+            sources:
+              - configMap:
+                  name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-conf}"
+              - configMap:
+                  name: bwdserver-nginx-override-conf
         - name: bwdserver-nginx-base-conf
           configMap:
             name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-base-conf}"
-        - name: bwdserver-nginx-conf
-          configMap:
-            name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-conf}"
-        - name: bwdserver-nginx-override-conf
-          configMap:
-            name: bwdserver-nginx-override-conf
         # to allow readOnlyRootFilesystem for nginx
         # see https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
         - name: nginx-cache-volume
