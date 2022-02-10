@@ -99,7 +99,20 @@ let floatTests =
           82.10, (Positive, "82", "099999999999994315658113919198513031005859375")
           -180.0, (Negative, "180", "0") ] ]
 
+let dateTests =
+  testList
+    "Date"
+    [ testMany
+        "toIsoString"
+        (fun (d : System.DateTime) -> d.toIsoString ())
+        [ System.DateTime(2000, 10, 1, 16, 1, 1), "2000-10-01T16:01:01Z" ]
+      testMany
+        "ofIsoString"
+        System.DateTime.ofIsoString
+        [ "2000-10-01T16:01:01Z", System.DateTime(2000, 10, 1, 16, 1, 1) ] ]
 
 
 let tests =
-  testList "prelude" [ canvasName; asyncTests; mapTests; listTests; floatTests ]
+  testList
+    "prelude"
+    [ canvasName; asyncTests; mapTests; listTests; floatTests; dateTests ]
