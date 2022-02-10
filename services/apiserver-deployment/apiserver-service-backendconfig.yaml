@@ -1,0 +1,11 @@
+kind: BackendConfig
+apiVersion: cloud.google.com/v1
+metadata:
+  name: apiserver-service-backendconfig
+  namespace: default
+spec:
+  # A backendconfig allows us to configure how a load balancer talks to a service.
+  # The default / returns a 301, so
+  healthcheck:
+    requestPath: "/check-apiserver"
+    protocol: HTTP
