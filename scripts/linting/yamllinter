@@ -6,16 +6,15 @@ set -euo pipefail
 function check {
   if [[ "$1" == *"/services/"* && "$1" != *"/services/honeycomb-agent/config.yaml" && $(basename "$1") != "shipit.yaml" ]]; then
     echo "kubeval $1"
-    kubeval \
-      --strict \
-      --additional-schema-locations \
-        https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master \
-      --skip-kinds=StorageBucket,ConfigConnector,Certificate,Issuer,CustomResourceDefinition \
-      --kubernetes-version=1.19.12 \
-      --force-color \
+    kubeconform \
+      -strict \
+      -kubernetes-version 1.20.12 \
+      -skip Certificate,ConfigConnector,StorageBucket,BackendConfig,CustomResourceDefinition,Issuer \
+      -schema-location default \
+      -schema-location 'scripts/linting/crd-schemas/{{ .ResourceKind }}{{ .KindSuffix }}.json' \
       "$1"
   else
-    echo "not kubernetes so no kubeval: $1"
+    echo "not kubernetes so no kubeconform: $1"
   fi
   # Too big to fuck with right now
   if [[ "$1" != *"/cert-manager.yaml" ]]; then
