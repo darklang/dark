@@ -233,7 +233,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   function bwdUrl(testInfo: TestInfo, path: string) {
     return (
-      "http://test-" + testInfo.title + ".builtwithdark.lvh.me:8000" + path
+      "http://test-" + testInfo.title + ".builtwithdark.localhost:8000" + path
     );
   }
 
