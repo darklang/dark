@@ -5,7 +5,9 @@ metadata:
   namespace: default
 spec:
   # A backendconfig allows us to configure how a load balancer talks to a service.
-  # The default / returns a 301, so
   healthCheck:
-    requestPath: "/check-apiserver"
+    # The default / returns a 301, so don't use that.
+    requestPath: "/k8s/livenessProbe"
     type: HTTP
+  logging:
+    enable: true
