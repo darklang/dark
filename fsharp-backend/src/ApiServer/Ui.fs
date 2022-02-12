@@ -118,8 +118,8 @@ let uiHtml
   if shouldHash then
     prodHashReplacements
     |> Lazy.force
-    |> Map.iter (fun filename hash ->
-      t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
+    |> Map.iter (fun filename hashed ->
+      t.Replace(filename, hashed) |> ignore<StringBuilder>)
 
   string t
 
