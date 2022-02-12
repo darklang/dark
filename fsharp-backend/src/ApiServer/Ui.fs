@@ -38,7 +38,7 @@ let adminUiTemplate : Lazy<string> =
 
 let hashedFilename (filename : string) (hash : string) : string =
   match filename.Split '.' with
-  | [| name; extension |] -> $"/{name}-{hash}{extension}"
+  | [| name; extension |] -> $"/{name}-{hash}.{extension}"
   | _ -> Exception.raiseInternal "incorrect hash name" [ "filename", filename ]
 
 
