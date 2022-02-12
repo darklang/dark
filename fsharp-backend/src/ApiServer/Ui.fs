@@ -92,14 +92,12 @@ let uiHtml
     | _ -> Config.apiServerStaticHost
 
 
-  // TODO: allow APPSUPPORT in here
   let t = StringBuilder(adminUiTemplate.Force())
 
   // CLEANUP move functions into an API call, or even to the CDN
   // CLEANUP move the user info into an API call
   t
     .Replace("{{ALLFUNCTIONS}}", (Functions.functions user.admin).Force())
-    .Replace("{{STATIC}}", staticHost)
     .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
     .Replace("{{USER_USERNAME}}", string user.username)
     .Replace("{{USER_EMAIL}}", user.email)
