@@ -45,9 +45,9 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
  DarkInternal.deleteSession_v0 session1.sessionKey) = 1
 
 [tests.users]
-DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
-DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
-DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark OCaml Tests"; username = "test"}
+DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
+DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
+DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/" // OCAMLONLY
 DarkInternal.upsertUser_v0 "name with space" "valid@email.com" "accidentalusername" = Test.typeError_v0 "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'" // FSHARPONLY
 DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', must match /^[a-z][a-z0-9_]{2,20}$/" // OCAMLONLY

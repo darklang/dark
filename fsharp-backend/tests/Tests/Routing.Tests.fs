@@ -123,9 +123,9 @@ let unitTests =
       (fun h ->
         h |> canvasNameFromHost |> Task.map (Option.map (fun cn -> cn.ToString())))
       [ ("test-something.builtwithdark.com", Some "test-something")
-        ("my-canvas.builtwithdark.localhost", Some "my-canvas")
+        ("some-canvas.builtwithdark.localhost", Some "some-canvas")
         ("builtwithdark.localhost", Some "builtwithdark")
-        ("my-canvas.darkcustomdomain.com", Some "my-canvas")
+        ("some-canvas.darkcustomdomain.com", Some "some-canvas")
         ("www.microsoft.com", None) ] ]
 
 
