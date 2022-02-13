@@ -16,9 +16,7 @@ spec:
     # See
     # https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress
     # These rules are intended to enable one user onto the new F# backend, while we
-    # see what works.  However, there does not seem to be a way on GKE to route to a
-    # service in another namespace. I have a request in with GCP support and we'll
-    # see what they say to enable this.
+    # see what works.
     - http:
         paths:
           # No slash at the end
