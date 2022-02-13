@@ -403,7 +403,7 @@ val equal:
   ('error -> 'error -> bool) ->
   t<'ok, 'error> ->
   t<'ok, 'error> ->
-  bool
+    bool
 (** Test two results for equality using the provided functions.
 
     {2 Examples}
@@ -424,7 +424,7 @@ val compare:
   ('error -> 'error -> int) ->
   t<'ok, 'error> ->
   t<'ok, 'error> ->
-  int
+    int
 (** Compare results for using the provided functions.
 
     In the case when one of the results is an [Error] and one is [Ok], [Error]s  are considered 'less' then [Ok]s
