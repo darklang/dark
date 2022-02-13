@@ -42,7 +42,7 @@ module Option =
 
 module Result =
 
-  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
                              0,
                              IsError = true,
                              IsHidden = true)>]
