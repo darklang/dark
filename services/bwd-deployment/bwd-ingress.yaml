@@ -20,7 +20,7 @@ spec:
       http:
         paths:
           - path: /first-only-one-very-specific-path-to-ensure-this-doesnt-go-wrong
-            pathType: Exact
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: bwdserver-service
