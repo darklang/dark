@@ -3,6 +3,8 @@ apiVersion: v1
 metadata:
   name: apiserver-service
   namespace: default
+  annotations:
+    cloud.google.com/backend-config: '{"default": "apiserver-service-backendconfig"}'
 spec:
   # GKE ingress requires this to be a nodeport
   type: NodePort
