@@ -7,8 +7,9 @@ WORKDIR /home/dark
 COPY --chown=dark:dark backend/templates templates
 COPY --chown=dark:dark scripts scripts
 
-RUN mkdir webroot
-COPY --chown=dark:dark backend/static/etags.json webroot/etags.json
+RUN mkdir -p webroot/static
+COPY --chown=dark:dark backend/static/etags.json webroot/static/etags.json
+COPY --chown=dark:dark backend/static/appsupport.js webroot/static/appsupport.js
 
 RUN mkdir app
 

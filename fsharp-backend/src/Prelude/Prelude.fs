@@ -42,7 +42,7 @@ module Option =
 
 module Result =
 
-  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
                              0,
                              IsError = true,
                              IsHidden = true)>]
@@ -1541,31 +1541,36 @@ module UserName =
       // original to us from here
       "billing"
       "dev"
-
       // alpha, but not beta, because user beta already exists (with ownership
       // transferred to us)
       "alpha" ]
     |> Set
 
+  let allowedPattern : string = @"[a-z][_a-z0-9]{2,20}"
 
   let validate (name : string) : Result<string, string> =
-    let regex = @"^[a-z][a-z0-9_]{2,20}$"
-    if Set.contains name banned then
-      Error "Username is not allowed"
-    else if String.length name > 20 then
+    // Better to keep simple rules, even though some username are weird like u__r
+    // or user_
+    // 3-21 characters
+    // starts with [a-z]
+    // underscores allowed
+    if String.length name > 21 then
       Error "Username was too long, must be <= 20."
-    else if System.Text.RegularExpressions.Regex.IsMatch(name, regex) then
+    else if System.Text.RegularExpressions.Regex.IsMatch(name, $"^{allowedPattern}$") then
       Ok name
     else
       Error
         $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '_'"
 
+  let newUserAllowed (name : string) : Result<unit, string> =
+    match validate name with
+    | Ok _ ->
+      if Set.contains name banned then Error "Username is not allowed" else Ok()
+    | Error msg as error -> Error msg
+
   // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (str : string) : T =
     str |> validate |> Exception.unwrapResultInternal [] |> UserName
-
-  // For testing and creating banned names
-  let createUnsafe (str : string) : T = UserName str
 
 module OrgName =
   type T =
@@ -1602,7 +1607,15 @@ module CanvasName =
     override this.ToString() = let (CanvasName name) = this in name
 
   let validate (name : string) : Result<string, string> =
-    let regex = "^([a-z0-9]+[_-]?)*[a-z0-9]$"
+    // starts with username
+    // no capitals
+    // hyphen between username and canvasname
+    // more hyphens allowed
+    let canvasRegex = "[-_a-z0-9]+"
+    let userNameRegex = UserName.allowedPattern
+    // CLEANUP disallow canvas names like "username-"
+    // This is complicated because users have canvas names like "username-"
+    let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
 
     if String.length name > 64 then
       Error "Canvas name was too long, must be <= 64."

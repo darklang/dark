@@ -1,5 +1,7 @@
 module Tests.Account
 
+// Tests for LibBackend.Account
+
 open Expecto
 open Prelude
 open TestUtils.TestUtils
@@ -55,8 +57,45 @@ let testUsernameValidationWorks =
       "myusername09", Ok "myusername09"
       "paul", Ok "paul" ]
 
+let testCannotCreateBannedUser =
+  let bannedAccount () : Account.Account =
+    { username = UserName.create "admin"
+      password = LibBackend.Password.invalid
+      email = $"test+cannot-create-banned@darklang.com"
+      name = "test account" }
+  let okAccount (suffix : string) : Account.Account =
+    { username = UserName.create $"notbanned_{suffix}"
+      password = LibBackend.Password.invalid
+      email = $"test+notbanned_{suffix}@darklang.com"
+      name = "test account" }
+  testList
+    "bannedUser"
+    [ testTask "upsert banned" {
+        let a = bannedAccount ()
+        let! upserted = Account.upsertAccount false a
+        Expect.equal upserted (Error "Username is not allowed") "banned"
+      }
+      testTask "upsert not banned" {
+        let a = okAccount "a"
+        let! upserted = Account.upsertAccount false a
+        Expect.equal upserted (Ok()) "not banned"
+      }
+      testTask "insert banned" {
+        let a = bannedAccount ()
+        let! inserted = Account.insertUser a.username a.email a.name None
+        Expect.equal inserted (Error "Username is not allowed") "banned"
+      }
+      testTask "insert not banned" {
+        let a = okAccount "b"
+        let! inserted = Account.insertUser a.username a.email a.name None
+        Expect.equal inserted (Ok()) "not banned"
+      } ]
+
 
 let tests =
   testList
     "Account"
-    [ testEmailValidationWorks; testUsernameValidationWorks; testAuthentication ]
+    [ testEmailValidationWorks
+      testUsernameValidationWorks
+      testAuthentication
+      testCannotCreateBannedUser ]
