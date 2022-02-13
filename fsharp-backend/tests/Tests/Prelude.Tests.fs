@@ -23,7 +23,7 @@ let canvasName =
        ("User-canvas", false)
        ("u__r-canvas", true)
        ("user", true)
-       ("user-", false)
+       ("user-", true)
        ("user-%2525F0%25259F%2525AA%252590", false)
        ("user-(^@^)", false)
        ("user--canvas", true)

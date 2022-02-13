@@ -1613,7 +1613,9 @@ module CanvasName =
     // more hyphens allowed
     let canvasRegex = "[-_a-z0-9]+"
     let userNameRegex = UserName.allowedPattern
-    let regex = $"^{userNameRegex}(-{canvasRegex})?$"
+    // CLEANUP disallow canvas names like "username-"
+    // This is complicated because users have canvas names like "username-"
+    let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
 
     if String.length name > 64 then
       Error "Canvas name was too long, must be <= 64."
