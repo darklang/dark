@@ -8,7 +8,7 @@ BINPATH="_build/default/backend/bin"
 SERVER_EXE="$BINPATH/server.exe"
 QW_EXE="$BINPATH/queue_worker.exe"
 CRON_EXE="$BINPATH/cron_checker.exe"
-TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
+TUNNEL_DAEMON_EXE="containers/tunnel2/tunnel2-daemon"
 
 # Stop the server processes
 echo "Stopping servers"

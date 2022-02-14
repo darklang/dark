@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: apiserver-service
+  namespace: default
+spec:
+  # GKE ingress requires this to be a nodeport
+  type: NodePort
+  selector:
+    app: apiserver-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: http-proxy-port

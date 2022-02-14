@@ -4,9 +4,10 @@ apiVersion: v1
 metadata:
   name: darklang-nodeport
 spec:
+  # We use a nodeport because google says to: https://cloud.google.com/kubernetes-engine/docs/concepts/ingress#multiple_backend_services
+  # "In the Service manifest, you must use type: NodePort"
   type: NodePort
   selector:
-    # FSTODO: this would point to apiserver-app when it's ready
     app: editor-app
   ports:
     - name: darklang-nodeport-port

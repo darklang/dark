@@ -4,6 +4,7 @@ k8s:
     configmaps:
       honeycomb-agent:
         text-file: config.yaml
+        namespace: default
 
     custom-post-apply:
       - kubectl rollout restart ds/honeycomb-agent

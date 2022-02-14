@@ -1,5 +1,5 @@
 honeycomb:
-  existingSecret: honeycomb
+  existingSecret: honeycomb-account-credentials
   apiHost: https://api.honeycomb.io/
 metrics:
   clusterName: k8s-cluster
@@ -65,13 +65,11 @@ watchers:
     parser: json
   # the apiserver itself uses opentelemetry to write directly, but the legacyserver
   # still uses json logs like the rest of ocaml containers
-  # FSTODO add other pods here
-  - labelSelector: "app in (apiserver, bwdserver)"
+  - labelSelector: "app in (apiserver-app, bwdserver-app, queueworker-app)"
     containerName: legacy-ctr
     dataset: kubernetes-bwd-ocaml
     parser: json
-  # FSTODO add other pods here
-  - labelSelector: "app in (bwd-app, editor-app, apiserver, bwdserver)"
+  - labelSelector: "app in (bwd-app, editor-app, apiserver-app, bwdserver-app)"
     containerName: http-proxy
     dataset: kubernetes-bwd-nginx
     parser:

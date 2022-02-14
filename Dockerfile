@@ -181,7 +181,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-RUN sudo npm install -g prettier@2.2.1
+RUN sudo npm install -g prettier@2.5.1
 
 # Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
 # - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
@@ -276,7 +276,7 @@ RUN sudo pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PAT
 RUN pip3 install git+https://github.com/pbiggar/watchgod.git@b74cd7ec064ebc7b4263dc532c7c97e046002bef
 # Formatting
 
-RUN pip3 install yapf==0.31.0
+RUN pip3 install yapf==0.32.0
 
 ####################################
 # CircleCI
@@ -288,7 +288,7 @@ RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/ma
 # Ubuntu has a very old version
 ############################
 RUN \
-  VERSION=v0.7.2 \
+  VERSION=v0.8.0 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
   && wget -P tmp_install_folder/ https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
@@ -296,22 +296,22 @@ RUN \
   && rm -Rf tmp_install_folder
 
 ############################
-# Kubeval - for linting k8s files
+# Kubeconform - for linting k8s files
 ############################
 RUN \
-  VERSION=v0.16.1 \
-  && wget -P tmp_install_folder/ https://github.com/instrumenta/kubeval/releases/download/${VERSION}/kubeval-linux-amd64.tar.gz \
-  && tar xvf tmp_install_folder/kubeval-linux-amd64.tar.gz -C  tmp_install_folder \
-  && sudo cp tmp_install_folder/kubeval /usr/bin/ \
+  VERSION=v0.4.12 \
+  && wget -P tmp_install_folder/ https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-amd64.tar.gz \
+  && tar xvf tmp_install_folder/kubeconform-linux-amd64.tar.gz -C  tmp_install_folder \
+  && sudo cp tmp_install_folder/kubeconform /usr/bin/ \
   && rm -Rf tmp_install_folder
 
 ####################################
 # Honeytail and honeymarker installs
 ####################################
-RUN wget -q https://honeycomb.io/download/honeytail/v1.4.1/honeytail_1.4.1_amd64.deb && \
-      echo '3d77fd956b0990919b523f37ec98ac29f40bb0c6181db203678546d55bf4cf81  honeytail_1.4.1_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeytail_1.4.1_amd64.deb && \
-      rm honeytail_1.4.1_amd64.deb
+RUN wget -q https://honeycomb.io/download/honeytail/v1.6.1/honeytail_1.6.1_amd64.deb && \
+      echo 'd099dd50b8446926be7a011eb4b98ed5bf07e5e7a4f9fce8015fe2147492833c  honeytail_1.6.1_amd64.deb' | sha256sum -c && \
+      sudo dpkg -i honeytail_1.6.1_amd64.deb && \
+      rm honeytail_1.6.1_amd64.deb
 
 RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd64.deb && \
       echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \
@@ -357,7 +357,7 @@ RUN dotnet tool install -g dotnet-sos
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
-RUN dotnet tool install fantomas-tool --version 4.6.0-alpha-010 -g
+RUN dotnet tool install fantomas-tool --version 4.6.3 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 

@@ -215,8 +215,8 @@ val equal:
   ('b -> 'b -> bool) ->
   ('c -> 'c -> bool) ->
   'a * 'b * 'c ->
-  'a * 'b * 'c ->
-  bool
+    'a * 'b * 'c ->
+      bool
 (** Test two {!Tuple3}s for equality, using the provided functions to test the
     first, second and third components.
 
@@ -232,8 +232,8 @@ val compare:
   ('b -> 'b -> int) ->
   ('c -> 'c -> int) ->
   'a * 'b * 'c ->
-  'a * 'b * 'c ->
-  int
+    'a * 'b * 'c ->
+      int
 (** Compare two {!Tuple3}s, using the provided functions to compare the first
     components then, if the first components are equal, the second components,
     then the third components

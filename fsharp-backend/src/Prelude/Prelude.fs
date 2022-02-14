@@ -42,7 +42,7 @@ module Option =
 
 module Result =
 
-  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
                              0,
                              IsError = true,
                              IsHidden = true)>]
@@ -57,70 +57,83 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
 // ----------------------
 // Exceptions
+// We don't use the F# exception syntax as we want to allow wrapping inner exceptions
 // ----------------------
 
-// Exceptions indicate who is responsible for a problem, and include messages which
-// may be shown to users
-type DarkExceptionData =
-  // Do not show to anyone, we need to rollbar this and address it
-  | InternalError of string * List<string * obj>
+type Metadata = List<string * obj>
 
-  // An error caused by the grand user making the request, show the error to the
-  // requester no matter who they are
-  | GrandUserError of string
+// Do not show to anyone, we need to rollbar this and address it
+type InternalException(message : string, metadata : Metadata, inner : exn) =
+  inherit System.Exception(message, inner)
+  member _.metadata = metadata
+  new(msg : string) = InternalException(msg, [], null)
+  new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
+  new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-  // An error caused by how the developer wrote the code, such as calling a function
-  // with the wrong type
-  | DeveloperError of string
+// An error caused by the grand user making the request, show the error to the
+// requester no matter who they are
+type GrandUserException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
+  new(msg : string) = GrandUserException(msg, null)
 
-  // An error caused by the editor doing something it shouldn't, so as an Redo or
-  // rename that isn't allowed. The editor should have caught this on the client and
-  // not made the request.
-  | EditorError of string
+// An error caused by how the developer wrote the code, such as calling a function
+// with the wrong type
+type DeveloperException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
+  new(msg : string) = DeveloperException(msg, null)
 
-  // An error in library or framework code, such as calling a function with a negative
-  // number when it doesn't support it. We probably caused this by allowing it to
-  // happen, so we definitely want to fix it, but it's OK to tell the developer what
-  // happened (not grandusers though)
-  | LibraryError of string * List<string * obj>
+// An error caused by the editor doing something it shouldn't, so as an Redo or
+// rename that isn't allowed. The editor should have caught this on the client and
+// not made the request.
+type EditorException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
+  new(msg : string) = EditorException(msg, null)
 
-exception DarkException of data : DarkExceptionData with
-  override this.Message : string =
-    match this.data with
-    | InternalError (msg, _) -> msg
-    | DeveloperError msg -> msg
-    | EditorError msg -> msg
-    | LibraryError (msg, _) -> msg
-    | GrandUserError msg -> msg
+// An error in library or framework code, such as calling a function with a negative
+// number when it doesn't support it. We probably caused this by allowing it to
+// happen, so we definitely want to fix it, but it's OK to tell the developer what
+// happened (not grandusers though)
+type LibraryException(message : string, metadata : Metadata, inner : exn) =
+  inherit System.Exception(message, inner)
+  member _.metadata = metadata
+  new(msg : string, metadata : Metadata) = LibraryException(msg, metadata, null)
 
+// A pageable exception will cause the pager to go off! This is something that should
+// never happen and is an indicator that the service is broken in some way.  The
+// pager goes off because a pageable exception sets the `{ is_pageable: true }`
+// metadata, which causes a honeycomb trigger that sets off PagerDuty.
+type PageableException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
 
-exception PageableException of inner : System.Exception with
-  override this.Message = this.inner.Message
 
 // This is for tracing
-let mutable exceptionCallback =
-  (fun (e : exn) (typ : string) (msg : string) (tags : List<string * obj>) -> ())
+let mutable exceptionCallback = (fun (e : exn) -> ())
 
 module Exception =
 
-  let toMetadata (e : DarkException) : List<string * obj> =
-    match e.data with
-    | InternalError (_, md)
-    | LibraryError (_, md) -> md
-    | DeveloperError _
-    | EditorError _
-    | GrandUserError _ -> []
+  let rec toMetadata (e : exn) : Metadata =
+    let innerMetadata =
+      if e.InnerException <> null then toMetadata e.InnerException else []
+    let thisMetadata =
+      match e with
+      | :? PageableException -> [ "is_pageable", true :> obj ]
+      | :? InternalException as e -> e.metadata
+      | :? LibraryException as e -> e.metadata
+      | :? DeveloperException
+      | :? EditorException
+      | :? GrandUserException
+      | _ -> []
+    thisMetadata @ innerMetadata
 
 
-
-  let callExceptionCallback e typ msg tags =
+  let callExceptionCallback (e : exn) =
     try
-      exceptionCallback e typ msg tags
+      exceptionCallback e
     with
     | e ->
       // We're completely screwed at this point
       System.Console.WriteLine "Exception calling callExceptionCallback"
-      System.Console.WriteLine(e.Message, typ, tags)
+      System.Console.WriteLine(e.Message)
       System.Console.WriteLine e.StackTrace
 
 
@@ -128,15 +141,15 @@ module Exception =
   // msg is suitable to show to the grand user. We don't care about grandUser
   // exceptions, they're normal.
   let raiseGrandUser (msg : string) =
-    let e = DarkException(GrandUserError(msg))
-    callExceptionCallback e "grand" msg []
+    let e = GrandUserException(msg)
+    callExceptionCallback e
     raise e
 
   // A developer exception is one caused by the incorrect actions of our
   // user/developer. The msg is suitable to show to the user.
   let raiseDeveloper (msg : string) =
-    let e = DarkException(DeveloperError(msg))
-    callExceptionCallback e "developer" msg []
+    let e = DeveloperException(msg)
+    callExceptionCallback e
     raise e
 
   let unwrapResultDeveloper (r : Result<'ok, string>) : 'ok =
@@ -148,59 +161,50 @@ module Exception =
   // the Dark editor. We are interested in these. The message may be shown to the
   // logged-in user, and should be suitable for this.
   let raiseEditor (msg : string) =
-    let e = DarkException(EditorError(msg))
-    callExceptionCallback e "editor" msg []
+    let e = EditorException(msg)
+    callExceptionCallback e
     raise e
 
   // An internal error. Should be rollbarred, and should not be shown to users.
-  let raiseInternal (msg : string) (tags : List<string * obj>) =
-    let e = DarkException(InternalError(msg, tags))
-    callExceptionCallback e "internal" msg tags
+  let raiseInternal (msg : string) (tags : Metadata) =
+    let e = InternalException(msg, tags)
+    callExceptionCallback e
     raise e
 
-  let unwrapOptionInternal
-    (msg : string)
-    (tags : List<string * obj>)
-    (o : Option<'a>)
-    : 'a =
+  let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
     match o with
     | Some v -> v
     | None -> raiseInternal msg tags
 
-  let unwrapResultInternal (tags : List<string * obj>) (r : Result<'a, 'msg>) : 'a =
+  let unwrapResultInternal (tags : Metadata) (r : Result<'a, 'msg>) : 'a =
     match r with
     | Ok v -> v
     | Error msg -> raiseInternal (string msg) tags
 
-  let reraiseAsPageable (e : exn) = raise (PageableException e)
+  let reraiseAsPageable (msg : string) (e : exn) = raise (PageableException(msg, e))
 
 
 
   // An error in library code - should not be shown to grand users. May be shown to
   // logged-in developers (most typically in a DError or a Result).
-  let raiseLibrary (msg : string) (tags : List<string * obj>) =
-    let e = DarkException(LibraryError(msg, tags))
-    callExceptionCallback e "library" msg tags
+  let raiseLibrary (msg : string) (tags : Metadata) =
+    let e = LibraryException(msg, tags)
+    callExceptionCallback e
     raise e
 
   let unknownErrorMessage = "Unknown error"
 
   let toGrandUserMessage (e : exn) : string =
     match e with
-    | DarkException (InternalError _)
-    | DarkException (DeveloperError _)
-    | DarkException (LibraryError _)
-    | DarkException (EditorError _) -> unknownErrorMessage
-    | DarkException (GrandUserError msg) -> msg
+    | :? GrandUserException as e -> e.Message
     | _ -> unknownErrorMessage
 
   let toDeveloperMessage (e : exn) : string =
     match e with
-    | DarkException (InternalError _) -> unknownErrorMessage
-    | DarkException (DeveloperError msg)
-    | DarkException (LibraryError (msg, _))
-    | DarkException (EditorError msg)
-    | DarkException (GrandUserError msg) -> msg
+    | :? GrandUserException as e -> e.Message
+    | :? DeveloperException as e -> e.Message
+    | :? LibraryException as e -> e.Message
+    | :? EditorException as e -> e.Message
     | _ -> unknownErrorMessage
 
 
@@ -603,7 +607,11 @@ type System.DateTime with
     this.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
   static member ofIsoString(str : string) : System.DateTime =
-    System.DateTime.Parse(str, System.Globalization.CultureInfo.InvariantCulture)
+    System.DateTime.ParseExact(
+      str,
+      "yyyy-MM-ddTHH:mm:ssZ",
+      System.Globalization.CultureInfo.InvariantCulture
+    )
 
 // ----------------------
 // Random numbers
@@ -837,6 +845,11 @@ module Json =
 
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
+
+    let deserializeWithComments<'a> (json : string) : 'a =
+      let options = getOptions ()
+      options.ReadCommentHandling <- JsonCommentHandling.Skip
+      JsonSerializer.Deserialize<'a>(json, options)
 
     let prettySerialize (data : 'a) : string =
       let options = getOptions ()
@@ -1528,31 +1541,36 @@ module UserName =
       // original to us from here
       "billing"
       "dev"
-
       // alpha, but not beta, because user beta already exists (with ownership
       // transferred to us)
       "alpha" ]
     |> Set
 
+  let allowedPattern : string = @"[a-z][_a-z0-9]{2,20}"
 
   let validate (name : string) : Result<string, string> =
-    let regex = @"^[a-z][a-z0-9_]{2,20}$"
-    if Set.contains name banned then
-      Error "Username is not allowed"
-    else if String.length name > 20 then
+    // Better to keep simple rules, even though some username are weird like u__r
+    // or user_
+    // 3-21 characters
+    // starts with [a-z]
+    // underscores allowed
+    if String.length name > 21 then
       Error "Username was too long, must be <= 20."
-    else if System.Text.RegularExpressions.Regex.IsMatch(name, regex) then
+    else if System.Text.RegularExpressions.Regex.IsMatch(name, $"^{allowedPattern}$") then
       Ok name
     else
       Error
         $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '_'"
 
+  let newUserAllowed (name : string) : Result<unit, string> =
+    match validate name with
+    | Ok _ ->
+      if Set.contains name banned then Error "Username is not allowed" else Ok()
+    | Error msg as error -> Error msg
+
   // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (str : string) : T =
     str |> validate |> Exception.unwrapResultInternal [] |> UserName
-
-  // For testing and creating banned names
-  let createUnsafe (str : string) : T = UserName str
 
 module OrgName =
   type T =
@@ -1589,7 +1607,15 @@ module CanvasName =
     override this.ToString() = let (CanvasName name) = this in name
 
   let validate (name : string) : Result<string, string> =
-    let regex = "^([a-z0-9]+[_-]?)*[a-z0-9]$"
+    // starts with username
+    // no capitals
+    // hyphen between username and canvasname
+    // more hyphens allowed
+    let canvasRegex = "[-_a-z0-9]+"
+    let userNameRegex = UserName.allowedPattern
+    // CLEANUP disallow canvas names like "username-"
+    // This is complicated because users have canvas names like "username-"
+    let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
 
     if String.length name > 64 then
       Error "Canvas name was too long, must be <= 64."

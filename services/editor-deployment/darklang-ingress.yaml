@@ -6,10 +6,44 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: gce
 spec:
+  # The default backend goes to the OCaml service (editor-deployment)
   defaultBackend:
     service:
       name: darklang-nodeport
       port:
         number: 80
+  rules:
+    # See
+    # https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress
+    # These rules are intended to enable one user onto the new F# backend, while we
+    # see what works.  However, there does not seem to be a way on GKE to route to a
+    # service in another namespace. I have a request in with GCP support and we'll
+    # see what they say to enable this.
+    - http:
+        paths:
+          # No slash at the end
+          - path: /a/trydarkfsharp
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-service
+                port:
+                  number: 80
+          # Slash at the end and things after it
+          - path: /a/trydarkfsharp/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-service
+                port:
+                  number: 80
+          # Api
+          - path: /api/trydarkfsharp/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-service
+                port:
+                  number: 80
   tls:
     - secretName: darklang.com-tls

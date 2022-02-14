@@ -4,7 +4,12 @@ FROM dark-fsharp-service:latest
 
 WORKDIR /home/dark
 
-COPY --chown=dark . ./
+COPY --chown=dark:dark scripts scripts
+COPY --chown=dark:dark containers/gcp-fsharp-cronchecker/gcp-run-fsharp-cronchecker .
+
+RUN mkdir app
+
+COPY --chown=dark:dark fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/* app/
 
 RUN ./scripts/linting/_check-linked-libs app/CronChecker
 

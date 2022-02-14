@@ -574,8 +574,7 @@ that's already taken, returns an error."
                 let! cors = Canvas.fetchCORSSetting c.id
                 return corsSettingToDval cors
               with
-              | :? DarkException as e ->
-                return DError(SourceNone, Exception.toDeveloperMessage e)
+              | e -> return DError(SourceNone, Exception.toDeveloperMessage e)
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1091,13 +1090,11 @@ that's already taken, returns an error."
                 return DResult(Ok(DStr session.sessionKey))
               with
               | e ->
-                let attrs = [ "username", username :> obj ]
-                Telemetry.addException "DarkInternal::newSessionForUserName" e attrs
-                LibService.Rollbar.sendException
-                  state.executionID
-                  "Failed to create session"
-                  attrs
-                  e
+                let attrs =
+                  [ "username", username :> obj
+                    "fn", "DarkInternal::newSessionForUserName" ]
+                let e = InternalException("Failed to create session", attrs, e)
+                LibService.Rollbar.sendException state.executionID e
                 return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())
@@ -1130,12 +1127,11 @@ that's already taken, returns an error."
                   )
               with
               | e ->
-                let attrs = [ "username", username :> obj ]
-                LibService.Rollbar.sendException
-                  state.executionID
-                  "Failed to create session"
-                  attrs
-                  e
+                let attrs =
+                  [ "username", username :> obj
+                    "fn", "DarkInternal::newSessionForUserName" ]
+                let e = InternalException("Failed to create session", attrs, e)
+                LibService.Rollbar.sendException state.executionID e
                 return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())

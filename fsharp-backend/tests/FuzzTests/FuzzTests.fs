@@ -809,6 +809,21 @@ module BytesToString =
       [ tpwg typeof<Generator> "comparing bytesToString" toStringTest ]
 
 
+module Date =
+
+  let roundtrip (date : System.DateTime) : bool =
+    let truncate (d : System.DateTime) =
+      d.AddTicks(-(d.Ticks % System.TimeSpan.TicksPerSecond))
+    let date = truncate date
+    let roundTripped =
+      date.toIsoString ()
+      |> System.DateTime.ofIsoString
+      |> fun d -> d.toIsoString ()
+      |> System.DateTime.ofIsoString
+    roundTripped = date
+
+  let tests = testList "date" [ testProperty "roundtrip" roundtrip ]
+
 
 module ExecutePureFunctions =
   open LibExecution.ProgramTypes.Shortcuts
@@ -837,10 +852,10 @@ module ExecutePureFunctions =
 
   // Keep a list of allowed errors where we can edit it without recompiling
   let readAllowedErrors () =
-    use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
+    use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.jsonc"
     let json = r.ReadToEnd()
 
-    Json.Vanilla.deserialize<AllowedFuzzerErrorFileStructure> json
+    Json.Vanilla.deserializeWithComments<AllowedFuzzerErrorFileStructure> json
 
   let allowedErrors = readAllowedErrors ()
 
@@ -1522,6 +1537,7 @@ let knownGood =
        LibJwtJson.tests
        Passwords.tests
        BytesToString.tests
+       Date.tests
        ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]

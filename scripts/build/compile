@@ -29,10 +29,11 @@ def run(start, bash):
   proc = subprocess.run(bash, shell=True)
   stop = time.time()
   success = proc.returncode == 0
+  duration = "{:.2f}".format(stop - start)
   if success:
-    print(f">> Success in {str(stop - start)}s")
+    print(f">> Success in {duration}s")
   else:
-    print(f">> Failed in {str(stop - start)}s")
+    print(f">> Failed in {duration}s")
 
   return success
 

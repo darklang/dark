@@ -11,29 +11,138 @@ open Prelude
 open Tablecloth
 open Exception
 
+let debugRollbarConfig () =
+  let config = Rollbar.RollbarInfrastructure.Instance.Config
+  let destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
+  debuG
+    "destinationOptions"
+    ((destinationOptions :?> Rollbar.RollbarDestinationOptions).TraceAsString())
+  let telemetryOptions = config.RollbarTelemetryOptions
+  debuG
+    "telemetryOptions"
+    ((telemetryOptions :?> Rollbar.RollbarTelemetryOptions).TraceAsString())
+  let offlineStoreOptions = config.RollbarOfflineStoreOptions
+  debuG
+    "offlineStoreOptions"
+    ((offlineStoreOptions :?> Rollbar.RollbarOfflineStoreOptions).TraceAsString())
+  let infraOptions = config.RollbarInfrastructureOptions
+  debuG
+    "infraOptions"
+    ((infraOptions :?> Rollbar.RollbarInfrastructureOptions).TraceAsString())
+  let developerOptions = config.RollbarLoggerConfig.RollbarDeveloperOptions
+  debuG
+    "developerOptions"
+    ((developerOptions :?> Rollbar.RollbarDeveloperOptions).TraceAsString())
+  let dataSecurityOptions = config.RollbarLoggerConfig.RollbarDataSecurityOptions
+  debuG
+    "dataSecurityOptions"
+    ((dataSecurityOptions :?> Rollbar.RollbarDataSecurityOptions).TraceAsString())
+  let payloadAdditionOptions =
+    config.RollbarLoggerConfig.RollbarPayloadAdditionOptions
+  debuG
+    "payloadAdditionOptions"
+    ((payloadAdditionOptions :?> Rollbar.RollbarPayloadAdditionOptions)
+      .TraceAsString())
+  let payloadManipulationOptions =
+    config.RollbarLoggerConfig.RollbarPayloadManipulationOptions
+  debuG
+    "payloadManipulationOptions"
+    ((payloadManipulationOptions :?> Rollbar.RollbarPayloadManipulationOptions)
+      .TraceAsString())
+  ()
+
+
 let init (serviceName : string) : unit =
   print "Configuring rollbar"
   let config =
-    Rollbar.RollbarConfig(Config.rollbarServerAccessToken |> debug "rbsat")
-  config.Enabled <- Config.rollbarEnabled |> debug "rollbar enabled"
-  config.CaptureUncaughtExceptions <- true // doesn't seem to work afaict
-  config.Environment <- Config.rollbarEnvironment |> debug "rb env"
-  config.LogLevel <- Rollbar.ErrorLevel.Error
-  config.RethrowExceptionsAfterReporting <- false
-  config.ScrubFields <-
-    Array.append config.ScrubFields [| "Set-Cookie"; "Cookie"; "Authorization" |]
-  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
-  config.Transform <- fun payload -> payload.Data.Language <- "f#"
+    Rollbar.RollbarInfrastructureConfig(
+      Config.rollbarServerAccessToken,
+      Config.rollbarEnvironment
+    )
+  // We don't have any settings here
+  // let _destinationOptions = config.RollbarLoggerConfig.RollbarDestinationOptions
+  // let _telemetryOptions = config.RollbarTelemetryOptions
+
+  // Offline storage
+  let offlineStoreOptions = config.RollbarOfflineStoreOptions
+  let osOpts = Rollbar.RollbarOfflineStoreOptions()
+  osOpts.EnableLocalPayloadStore <- false
+  offlineStoreOptions.Reconfigure osOpts
+  |> ignore<Rollbar.IRollbarOfflineStoreOptions>
+
+  // Main options
+  let iOpts = Rollbar.RollbarInfrastructureOptions()
+  iOpts.CaptureUncaughtExceptions <- true // doesn't seem to work afaict (true in v4, unclear in v5)
+  config.RollbarInfrastructureOptions.Reconfigure(iOpts)
+  |> ignore<Rollbar.IRollbarInfrastructureOptions>
+
+  let dOpts = Rollbar.RollbarDeveloperOptions()
+  dOpts.Enabled <- Config.rollbarEnabled
+  dOpts.LogLevel <- Rollbar.ErrorLevel.Info // We use Info for notifications
+  dOpts.Transmit <- true
+  dOpts.RethrowExceptionsAfterReporting <- false
+  dOpts.WrapReportedExceptionWithRollbarException <- false
+  config.RollbarLoggerConfig.RollbarDeveloperOptions.Reconfigure(dOpts)
+  |> ignore<Rollbar.IRollbarDeveloperOptions>
+
+  // data options
+  let dsOpts = Rollbar.RollbarDataSecurityOptions()
+  dsOpts.ScrubFields <-
+    Array.append
+      config.RollbarLoggerConfig.RollbarDataSecurityOptions.ScrubFields
+      [| "Set-Cookie"; "Cookie"; "Authorization" |]
+  config.RollbarLoggerConfig.RollbarDataSecurityOptions.Reconfigure dsOpts
+  |> ignore<Rollbar.IRollbarDataSecurityOptions>
+
+  let paOpts = Rollbar.RollbarPayloadAdditionOptions()
 
   let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
   state["service"] <- serviceName
-  config.Server <- Rollbar.DTOs.Server(state)
-  config.Server.Host <- Config.hostName |> debug "hostdir"
-  config.Server.Root <- Config.rootDir
-  config.Server.CodeVersion <- Config.buildHash
+  paOpts.Server <- Rollbar.DTOs.Server(state)
+  paOpts.Server.Host <- Config.hostName
+  paOpts.Server.Root <- Config.rootDir
+  paOpts.Server.CodeVersion <- Config.buildHash
+  config.RollbarLoggerConfig.RollbarPayloadAdditionOptions.Reconfigure paOpts
+  |> ignore<Rollbar.IRollbarPayloadAdditionOptions>
 
-  Rollbar.RollbarLocator.RollbarInstance.Configure config
-  |> ignore<Rollbar.IRollbar>
+
+  // Seems we don't have the ability to set Rollbar.DTOs.Data.DefaultLanguage
+  let pmOpts = Rollbar.RollbarPayloadManipulationOptions()
+  pmOpts.Transform <- (fun payload -> payload.Data.Language <- "f#")
+  config.RollbarLoggerConfig.RollbarPayloadManipulationOptions.Reconfigure pmOpts
+  |> ignore<Rollbar.IRollbarPayloadManipulationOptions>
+
+  // Initialize
+  Rollbar.RollbarInfrastructure.Instance.Init(config)
+
+  // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
+  // Enabling this callback lets us see what actually happens when it's processed
+  // Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
+  //   (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
+
+  // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
+  // We actually want to call
+  // Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor.Disable() to disable
+  // the ConnectivityMonitor. However, ConnectivityMonitor is an internal class, and
+  // we're only provided access to an IConnectivityMonitor, which does not have that
+  // method.
+  // We need to disable this because the ConnectivityMonitor checks for
+  // www.rollbar.com:80 instead of api.rollbar.com:443, and we firewall that off in
+  // production.
+  // let cm = Rollbar.RollbarInfrastructure.Instance.ConnectivityMonitor
+  // cm
+  //   .GetType()
+  //   .InvokeMember(
+  //     "Disable",
+  //     System.Reflection.BindingFlags.Public
+  //     ||| System.Reflection.BindingFlags.InvokeMethod
+  //     ||| System.Reflection.BindingFlags.Instance,
+  //     null,
+  //     cm,
+  //     [||]
+  //   )
+  // |> ignore<obj>
+
   print " Configured rollbar"
   ()
 
@@ -61,19 +170,13 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 
   string uri
 
-let pageableMetadata (e : exn) : List<string * obj> =
-  if e :? PageableException then [ "is_pageable", true ] else []
-
-
 
 let createState
   (executionID : ExecutionID)
-  (message : string)
-  (metadata : List<string * obj>)
+  (metadata : Metadata)
   : Dictionary.T<string, obj> =
 
   let (custom : Dictionary.T<string, obj>) = Dictionary.empty ()
-  custom["message"] <- message
   // CLEANUP rollbar has a built-in way to do this called "Service links"
   custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
   custom["execution_id"] <- string executionID
@@ -87,7 +190,7 @@ let createState
 let notify
   (executionID : ExecutionID)
   (message : string)
-  (metadata : List<string * obj>)
+  (metadata : Metadata)
   : unit =
   print $"rollbar: {message}"
   try
@@ -97,7 +200,7 @@ let notify
   let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
   let metadata = stacktraceMetadata :: metadata
   Telemetry.notify message metadata
-  let custom = createState executionID message metadata
+  let custom = createState executionID metadata
   Rollbar.RollbarLocator.RollbarInstance.Info(message, custom)
   |> ignore<Rollbar.ILogger>
 
@@ -106,7 +209,7 @@ let notify
 let sendError
   (executionID : ExecutionID)
   (message : string)
-  (metadata : List<string * obj>)
+  (metadata : Metadata)
   : unit =
   print $"rollbar: {message}"
   try
@@ -115,81 +218,120 @@ let sendError
   | _ -> ()
   print System.Environment.StackTrace
   Telemetry.addEvent message metadata
-  let custom = createState executionID message metadata
+  let custom = createState executionID (("message", message :> obj) :: metadata)
   Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
   |> ignore<Rollbar.ILogger>
 
-let exceptionMetadata (e : exn) =
-  try
-    match e with
-    | :? DarkException as e -> Exception.toMetadata e
-    | _ -> []
-  with
-  | _ -> []
-
-let printMetadata (metadata : List<string * obj>) =
+let printMetadata (metadata : Metadata) =
   try
     print (string metadata)
   with
   | _ -> ()
 
-
-
-let sendException
-  (executionID : ExecutionID)
-  (message : string)
-  (metadata : List<string * obj>)
-  (e : exn)
+// If there is an exception while processing the exception
+let exceptionWhileProcessingException
+  (original : exn)
+  (processingException : exn)
   : unit =
+
+  // If there's an exception while creating another exception, let's try to report
+  // as much as possible without error
   try
-    print $"rollbar: {message}"
-    print e.Message
+    print "Exception when processing exception"
+  with
+  | _ -> ()
+
+  try
+    // Let's first try to get the new exception into the tracker quickly
+    Rollbar.RollbarLocator.RollbarInstance.Critical(processingException)
+    |> ignore<Rollbar.ILogger>
+  with
+  | _ -> ()
+
+  try
+    // Then try to get the original exception into it
+    Rollbar.RollbarLocator.RollbarInstance.Error(original)
+    |> ignore<Rollbar.ILogger>
+  with
+  | _ -> ()
+
+  try
+    // Now let's send a pageable exception, as our exception processing being down is
+    // a pageable situation
+    let e =
+      PageableException("Exception when processing exception", processingException)
+    Rollbar.RollbarLocator.RollbarInstance.Critical(e) |> ignore<Rollbar.ILogger>
+  with
+  | _ -> ()
+
+  try
+    // Do this after, as these could cause exceptions
+    print "Original exception"
+    print original.Message
+    print original.StackTrace
+  with
+  | _ ->
+
+    try
+      // Do this after, as these could cause exceptions
+      print "Processing exception"
+      print processingException.Message
+      print processingException.StackTrace
+    with
+    | _ ->
+
+      try
+        // Do telemetry later, in case that's the cause
+        if Telemetry.Span.current () = null then
+          Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
+        Telemetry.addException original
+        Telemetry.addException processingException
+      with
+      | _ -> ()
+
+
+let sendException (executionID : ExecutionID) (e : exn) : unit =
+  try
+    print $"rollbar: {e.Message}"
     print e.StackTrace
-    let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
+    let metadata = Exception.toMetadata e
     printMetadata metadata
-    Telemetry.addException message e metadata
-    let custom = createState executionID message metadata
+    Telemetry.addException e
+    let custom = createState executionID metadata
     Rollbar.RollbarLocator.RollbarInstance.Error(e, custom)
     |> ignore<Rollbar.ILogger>
   with
-  | extra ->
-    print "Exception when calling rollbar"
-    print extra.Message
-    print extra.StackTrace
-    Telemetry.addException "Exception when calling rollbar" extra []
+  | processingException -> exceptionWhileProcessingException e processingException
 
 
-// Will block for 5 seconds to make sure this exception gets sent. Use for startup
-// and other places where the process is intended to end after this call.
-let lastDitchBlocking
-  (executionID : ExecutionID)
-  (message : string)
-  (metadata : List<string * obj>)
-  (e : exn)
-  : unit =
+// Wraps the exception in a PageableException, then sends in to rollbar in a blocking
+// call to make sure this exception gets sent. Use for startup and other places where
+// the process is intended to end after this call. Do not use this in general code,
+// as it blocks. Returns an int as the process will exit immediately after.
+let lastDitchBlockAndPage (msg : string) (inner : exn) : int =
   try
-    print $"last ditch rollbar: {message}"
-    print e.Message
-    print e.StackTrace
+    let e = PageableException(msg, inner)
+    print $"last ditch rollbar: {msg}"
+    print inner.Message
+    print inner.StackTrace
     // FSTODO: handle SystemInitializationException with a .Inner
-    let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
-    Telemetry.addException message e metadata
-    let custom = createState executionID message metadata
+    let metadata = Exception.toMetadata e
+    Telemetry.addException e
+    let custom = createState (ExecutionID "last ditch") metadata
     Rollbar
       .RollbarLocator
       .RollbarInstance
       .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
       .Error(e, custom)
     |> ignore<Rollbar.ILogger>
-    Telemetry.addException message e metadata
+    Telemetry.addException e
+    (-1)
   with
-  | extra ->
-    print "Exception when calling rollbar"
-    print extra.Message
-    print extra.StackTrace
-    if Telemetry.Span.current () = null then
-      Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
-    Telemetry.addException "Exception when calling rollbar" e []
+  | processingException ->
+    exceptionWhileProcessingException inner processingException
+    // Pause so that the exceptions can send
+    Task.Delay(10000).Wait()
+    (-1)
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
@@ -205,6 +347,14 @@ module AspNet =
   let emptyPerson = { id = None; email = None; username = None }
 
 
+  // Setup parameters for rollbar middleware
+  type RollbarContext =
+    {
+      // Using the HttpContext, fetch the Person and any useful metadata
+      ctxMetadataFn : HttpContext -> Person * Metadata
+      // Ignore this path, used to ignore exceptions that happen during the k8s startupProbe
+      ignoreStartupPath : Option<string> }
+
   // Rollbar's ASP.NET core middleware requires an IHttpContextAccessor, which
   // supposedly costs significant performance (couldn't see a cost in practice
   // though). AFAICT, this allows HTTP vars to be shared across the Task using an
@@ -213,7 +363,7 @@ module AspNet =
   type DarkRollbarMiddleware
     (
       nextRequestProcessor : RequestDelegate,
-      ctxMetadataFn : HttpContext -> Person * List<string * obj>
+      rollbarCtx : RollbarContext
     ) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
     member this.Invoke(ctx : HttpContext) : Task =
@@ -222,49 +372,49 @@ module AspNet =
           do! this._nextRequestProcessor.Invoke(ctx)
         with
         | e ->
-          try
-            print $"rollbar in http middleware"
-            print e.Message
-            print e.StackTrace
-            print (ctx.Request.GetEncodedUrl())
+          if Some(string ctx.Request.Path) = rollbarCtx.ignoreStartupPath then
+            ()
+          else
+            try
+              print $"rollbar in http middleware"
+              print e.Message
+              print e.StackTrace
+              print (ctx.Request.GetEncodedUrl())
 
-            let executionID =
-              try
-                ctx.Items["executionID"] :?> ExecutionID
-              with
-              | _ -> ExecutionID "unavailable"
+              let executionID =
+                try
+                  ctx.Items["executionID"] :?> ExecutionID
+                with
+                | _ -> ExecutionID "unavailable"
 
-            let person, metadata =
-              try
-                ctxMetadataFn ctx
-              with
-              | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
-            let metadata = metadata @ exceptionMetadata e @ pageableMetadata e
-            let custom = createState executionID "http" metadata
+              let person, metadata =
+                try
+                  rollbarCtx.ctxMetadataFn ctx
+                with
+                | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
+              let metadata = metadata @ Exception.toMetadata e
+              let custom = createState executionID metadata
 
-            let package : Rollbar.IRollbarPackage =
-              new Rollbar.ExceptionPackage(e, e.Message)
-            // decorate the http info
-            let package = HttpRequestPackageDecorator(package, ctx.Request, true)
-            let package =
-              new HttpResponsePackageDecorator(package, ctx.Response, true)
-            let package =
-              Rollbar.PersonPackageDecorator(
-                package,
-                person.id |> Option.map string |> Option.defaultValue null,
-                person.username |> Option.map string |> Option.defaultValue null,
-                person.email |> Option.defaultValue null
-              )
-            Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
-            |> ignore<Rollbar.ILogger>
-            print "Rollbar exception sent"
-          // No telemetry call here as it should happen automatically
-          with
-          | re ->
-            print "Exception when calling rollbar"
-            print re.Message
-            print re.StackTrace
-            Telemetry.addException "Exception when calling rollbar" re []
+              let package : Rollbar.IRollbarPackage =
+                new Rollbar.ExceptionPackage(e, e.Message)
+              // decorate the http info
+              let package = HttpRequestPackageDecorator(package, ctx.Request, true)
+              let package =
+                new HttpResponsePackageDecorator(package, ctx.Response, true)
+              let package =
+                Rollbar.PersonPackageDecorator(
+                  package,
+                  person.id |> Option.map string |> Option.defaultValue null,
+                  person.username |> Option.map string |> Option.defaultValue null,
+                  person.email |> Option.defaultValue null
+                )
+              Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
+              |> ignore<Rollbar.ILogger>
+              print "Rollbar exception sent"
+            // No telemetry call here as it should happen automatically
+            with
+            | processingException ->
+              exceptionWhileProcessingException e processingException
           e.Reraise()
       }
 
@@ -275,8 +425,10 @@ module AspNet =
     services
 
   let addRollbarToApp
-    (
-      app : IApplicationBuilder,
-      ctxMetadataFn : HttpContext -> Person * List<string * obj>
-    ) : IApplicationBuilder =
-    app.UseMiddleware<DarkRollbarMiddleware>(ctxMetadataFn)
+    (app : IApplicationBuilder)
+    (ctxMetadataFn : HttpContext -> Person * Metadata)
+    (ignoreStatupPath : Option<string>)
+    : IApplicationBuilder =
+    app.UseMiddleware<DarkRollbarMiddleware>(
+      { ctxMetadataFn = ctxMetadataFn; ignoreStartupPath = ignoreStatupPath }
+    )

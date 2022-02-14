@@ -20,7 +20,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:df131a0
+      - image: darklang/dark-base:ed2d924
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -29,7 +29,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:df131a0
+      - image: darklang/dark-rust:ed2d924
 
 commands:
   show-large-files-and-directories:
@@ -150,7 +150,7 @@ commands:
   ##########################
   prep-container-creation:
     steps:
-      - setup_remote_docker: { docker_layer_caching: true }
+      - setup_remote_docker: { docker_layer_caching: true, version: 20.10.11 }
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
@@ -332,7 +332,7 @@ jobs:
       - darkcheckout
       - auth-with-gcp: { background: false }
       - run: scripts/build/compile-project shipit
-      - run: scripts/deployment/shipit manual diff
+      - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
       - notify-job-failure
 
   build-stroller:

@@ -832,7 +832,7 @@ and Tracing =
 // Used for testing
 and TestContext =
   { mutable sideEffectCount : int
-    mutable exceptionReports : List<ExecutionID * string * List<string * obj> * exn>
+    mutable exceptionReports : List<ExecutionID * exn>
     postTestExecutionHook : TestContext -> Dval -> unit }
 
 // Non-user-specific functionality needed to run code
@@ -840,9 +840,9 @@ and Libraries =
   { stdlib : Map<FQFnName.T, BuiltInFn>
     packageFns : Map<FQFnName.T, Package.Fn> }
 
-and ExceptionReporter = ExecutionID -> string -> List<string * obj> -> exn -> unit
+and ExceptionReporter = ExecutionID -> exn -> unit
 
-and Notifier = ExecutionID -> string -> List<string * obj> -> unit
+and Notifier = ExecutionID -> string -> Metadata -> unit
 
 // All state used while running a program
 and ExecutionState =
@@ -869,9 +869,9 @@ and ExecutionState =
     onExecutionPath : bool }
 
 let consoleReporter : ExceptionReporter =
-  fun executionID msg tags (exn : exn) ->
+  fun executionID (exn : exn) ->
     print
-      $"An error was reported in the runtime ({executionID}):  \n{msg}\n  {exn.Message}\n{exn.StackTrace}\n  {tags}\n\n"
+      $"An error was reported in the runtime ({executionID}):  \n  {exn.Message}\n{exn.StackTrace}\n  {Exception.toMetadata exn}\n\n"
 
 let consoleNotifier : Notifier =
   fun executionID msg tags ->

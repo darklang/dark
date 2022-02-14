@@ -6,6 +6,7 @@ k8s:
     versioned-configmaps:
       app-config:
         env-file: ../../config/gke-builtwithdark
+        namespace: default
     containers:
       - queue-scheduler
     builtins:

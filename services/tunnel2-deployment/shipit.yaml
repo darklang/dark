@@ -1,0 +1,12 @@
+k8s:
+  manually-deployed:
+    configs:
+      - tunnel2-service.yaml
+      - tunnel2-networkpolicy.yaml
+      - darklang-executors-networkpolicy.yaml
+  release:
+    config-template: tunnel2-deployment.template.yaml
+    containers:
+      - tunnel2
+    expected-args:
+      - CHANGE_CAUSE

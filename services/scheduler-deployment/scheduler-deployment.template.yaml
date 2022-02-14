@@ -37,7 +37,7 @@ spec:
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
-                  name: rollbar
+                  name: rollbar-account-credentials
                   key: post_token
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
