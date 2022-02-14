@@ -177,7 +177,7 @@ def backend_build():
     return "backend/bin/" + mlfile.replace(".ml", ".exe")
 
   exes = [rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml")]
-  exes.append("@analysis.js")
+  # exes.append("@analysis.js")
   exes.append("backend/test/test.exe")
   exes = " ".join(exes)
   if optimize:
