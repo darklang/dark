@@ -272,6 +272,7 @@ window.Dark = {
     requestAnalysis: function (params) {
       const analysis = window.Dark.fsharpAnalysis;
       const worker = window.BlazorWorker;
+
       if (!analysis.initialized) {
         console.log("BlazorWorker not loaded yet");
         setTimeout(function () {
@@ -307,20 +308,20 @@ window.Dark = {
         console.log("Blazor loaded");
         analysis.initialized = true;
       };
+
       // Only load when asked for
-      if (window.Dark.analysis.useBlazor) {
-        // FSTODO: make default
+      if (!window.Dark.analysis.wasmUseOcaml) {
         window.BlazorWorker.initWorker(initializedCallback, analysis.callback);
       }
     },
   },
   analysis: {
-    useBlazor: (function () {
+    wasmUseOcaml: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("use-blazor");
+      return urlParams.get("wasm-use-ocaml");
     })(),
     requestAnalysis: function (params) {
-      if (window.Dark.analysis.useBlazor) {
+      if (!window.Dark.analysis.wasmUseOcaml) {
         window.Dark.fsharpAnalysis.requestAnalysis(params);
       } else {
         window.Dark.ocamlAnalysis.requestAnalysis(params);
