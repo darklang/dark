@@ -628,7 +628,7 @@ let static_assets_upload_handler
             (* Replace DARK_STATIC_ASSETS_BASE_URL with the deployed URL. This
              * will allow users to create SPAs with a sentinel value in them to
              * converts to the absolute url. In React, you would do this with
-             * PUBLIC_URL. *)
+             * PUBLIC_URL. In Gatsby, you would do this with assetPrefix and include https schema*)
             let body =
               let filetype = Magic_mime.lookup filename in
               let is_valid_text body =
