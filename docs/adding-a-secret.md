@@ -9,6 +9,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: segment-account-credentials
+  namespace: darklang
 type: Opaque
 data:
   username: YWRtaW4=

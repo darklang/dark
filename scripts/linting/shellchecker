@@ -32,6 +32,8 @@ else
     -o -path "./containers/stroller/target" -prune \
     -o -path "containers/queue-scheduler/target" -prune \
     -o -path "./containers/queue-scheduler/target" -prune \
+    -o -path "fsharp-backend/paket-files" -prune \
+    -o -path "./fsharp-backend/paket-files" -prune \
     -o -type f \
     -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
     | xargs shellcheck -e SC2002 -e SC2044 -e SC2086

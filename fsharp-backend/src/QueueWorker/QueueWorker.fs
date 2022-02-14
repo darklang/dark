@@ -160,7 +160,7 @@ let run () : Task<unit> =
   task {
     while not shutdown.Value do
       try
-        use span = Telemetry.createRoot "QueueWorker.run"
+        use _span = Telemetry.createRoot "QueueWorker.run"
         // Comment out just in case for now
         // let! result = dequeueAndProcess ()
         let result = Ok None
@@ -170,18 +170,14 @@ let run () : Task<unit> =
         | Error (e) ->
           LibService.Rollbar.sendException
             (Telemetry.executionID ())
-            "Unhandled exception bubbled to queue worker"
-            []
-            e
+            (PageableException("Unhandled exception bubbled to queue worker", e))
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
         LibService.Rollbar.sendException
           (Telemetry.executionID ())
-          "Unhandled exception bubbled to run()"
-          []
-          e
+          (PageableException("Unhandled exception bubbled to run", e))
 
   }
 
@@ -217,10 +213,4 @@ let main _ : int =
     0
 
   with
-  | e ->
-    LibService.Rollbar.lastDitchBlocking
-      (ExecutionID "cronchecker")
-      "Error running CronChecker"
-      []
-      e
-    (-1)
+  | e -> LibService.Rollbar.lastDitchBlockAndPage "Error running Queueworker" e

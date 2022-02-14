@@ -58,7 +58,6 @@ set -x
 #############################
 # set variables now so this fails early if they're not available
 #############################
-LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default | awk '{print $3}' | awk -F "@" '{print $1}')"
 
 if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
   CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
@@ -99,7 +98,7 @@ trap cleanup_deploy_lock INT QUIT TERM ERR
 #############################
 
 # Check that the prod cluster matches our view of the world, once we have the lock
-./scripts/deployment/shipit manual diff
+./scripts/deployment/shipit manual diff > /dev/null 2>&1
 
 # Check that the everything can be deployed
 ./scripts/deployment/shipit release push --dry-run=client --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
@@ -121,45 +120,8 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 # Tell everyone about the deploy
 #########################
 
-# Tell rollbar
-if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  COMMENT="Manual deploy to prod"
-else
-  COMMENT="${CIRCLE_BUILD_URL}"
-fi
-
-ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
-curl -s https://api.rollbar.com/api/1/deploy/ \
-  -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
-  -F "environment=production" \
-  -F "revision=$(git rev-parse --short HEAD)" \
-  -F "comment=${COMMENT}" \
-  -F "local_username=${LOCAL_USERNAME}" > /dev/null
-echo "Rollbar notified."
-
-# Tell honeycomb
-# Docs: https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
-HONEYCOMB_DATASETS="integration-tests
-kubernetes-bwd-nginx
-kubernetes-bwd-ocaml
-kubernetes-cluster-events
-kubernetes-garbagecollector
-kubernetes-metrics
-kubernetes-scheduler
-kubernetes-stroller
-postgres"
-
-msg="${CIRCLE_USERNAME} deployed PR (SHA1: ${CIRCLE_SHA1})"
-
-for dataset in $HONEYCOMB_DATASETS; do
-  honeymarker add \
-      --writekey="${BUILDEVENT_APIKEY}" \
-      --dataset="$dataset" \
-      --msg="${msg}" \
-      --url="${CIRCLE_BUILD_URL}" \
-      --type="deploy"
-done
-
+./scripts/deployment/_notify-deployment-rollbar "${CHANGE_CAUSE}"
+./scripts/deployment/_notify-deployment-honeycomb "${CHANGE_CAUSE}"
 
 ####################
 # Unlock post-deploy

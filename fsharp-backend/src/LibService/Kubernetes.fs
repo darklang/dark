@@ -55,6 +55,10 @@ let configureServices
     |> ignore<IHealthChecksBuilder>)
   services
 
+let livenessPath = "/k8s/livenessProbe"
+let startupPath = "/k8s/startupProbe"
+let readinessPath = "/k8s/readinessProbe"
+
 let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder =
   app.UseEndpoints(
     (fun endpoints ->
@@ -63,9 +67,9 @@ let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder 
       let addHealthCheck (path : string) (tag : string) =
         endpoints.MapHealthChecks(path, taggedWith tag).RequireHost($"*:{port}")
         |> ignore<IEndpointConventionBuilder>
-      addHealthCheck "/k8s/livenessProbe" livenessTag
-      addHealthCheck "/k8s/startupProbe" startupTag
-      addHealthCheck "/k8s/readinessProbe" readinessTag)
+      addHealthCheck livenessPath livenessTag
+      addHealthCheck startupPath startupTag
+      addHealthCheck readinessPath readinessTag)
   )
 
 
@@ -128,7 +132,11 @@ let runKubernetesServer
   builder.WebHost.UseUrls(url port) |> ignore<IWebHostBuilder>
 
   let app = builder.Build()
-  Rollbar.AspNet.addRollbarToApp (app, (fun _ -> Rollbar.AspNet.emptyPerson, []))
+  Rollbar.AspNet.addRollbarToApp
+    app
+    (fun _ -> Rollbar.AspNet.emptyPerson, [])
+    (Some startupPath)
+
   |> fun app -> app.UseRouting()
   |> configureApp port
   |> ignore<IApplicationBuilder>

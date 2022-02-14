@@ -1,0 +1,15 @@
+kind: BackendConfig
+apiVersion: cloud.google.com/v1
+metadata:
+  name: apiserver-service-backendconfig
+  namespace: default
+spec:
+  # A backendconfig allows us to configure how a load balancer talks to a service.
+  healthCheck:
+    # The default / returns a 301, so don't use that.
+    requestPath: "/k8s/livenessProbe"
+    type: HTTP
+  logging:
+    # Changing this setting didn't seem to do anything - I needed to Edit it in the
+    # GCP web console (or presumably using the gcloud command line utilily)
+    enable: false

@@ -58,7 +58,8 @@ let validateEmail (email : string) : Result<unit, string> =
 
 
 let validateAccount (account : Account) : Result<unit, string> =
-  validateEmail account.email
+  UserName.newUserAllowed (string account.username)
+  |> Result.and_ (validateEmail account.email)
 
 // Passwords set here are only valid locally, production uses auth0 to check
 // access
@@ -92,6 +93,7 @@ let upsertNonAdmin = upsertAccount false
 
 // Any external calls to this should also call Analytics.identifyUser;
 // we can't do it here because that sets up a module dependency cycle
+// CLEANUP remove the separate user creation functions
 let insertUser
   (username : UserName.T)
   (email : string)
@@ -112,7 +114,7 @@ let insertUser
 
     match validateAccount account with
     | Ok () ->
-      let analyticsMetadata = analyticsMetadata |> Option.unwrap (Map.empty)
+      let analyticsMetadata = analyticsMetadata |> Option.unwrap Map.empty
 
       try
         do!
@@ -127,7 +129,7 @@ let insertUser
                               "name", Sql.string name
                               "email", Sql.string email
                               ("password", Sql.string (string Password.invalid))
-                              ("analytics_metadata",
+                              ("metadata",
                                Sql.jsonb (
                                  DvalReprInternal.toInternalQueryableV1
                                    analyticsMetadata
@@ -136,7 +138,7 @@ let insertUser
         let! exists =
           // CLEANUP: if this was added with a different email/name/etc this won't pick it up
           Sql.query
-            "SELECT 1 from ACCOUNTS
+            "SELECT TRUE from ACCOUNTS
               WHERE username = @username
                 AND name = @name
                 AND email = @email
@@ -152,8 +154,10 @@ let insertUser
           return
             Error "Insert failed, probably because the username is already taken."
       with
-      | _ ->
-        return Error "Insert failed, probably because the username is already taken."
+      | e ->
+        // CLEANUP this is a bad error message
+        return Error e.Message
+    // return Error "Insert failed, probably because the username is already taken."
     | Error e -> return Error e
   }
 
@@ -306,9 +310,9 @@ let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
 
 let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
   Sql.query
-    "SELECT DISTINCT c.name
-     FROM canvases c
-     WHERE c.account_id = @userID"
+    "SELECT name
+     FROM canvases
+     WHERE account_id = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
   |> Task.map List.sort
@@ -349,7 +353,7 @@ let initTestAccounts () : Task<unit> =
         { username = UserName.create "test_unhashed"
           password = Password.fromHash "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+unhashed@darklang.com"
-          name = "Dark OCaml Tests with Unhashed Password" }
+          name = "Dark Backend Tests with Unhashed Password" }
       |> Task.map (Exception.unwrapResultInternal [])
 
     do!
@@ -357,7 +361,7 @@ let initTestAccounts () : Task<unit> =
         { username = UserName.create "test"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test@darklang.com"
-          name = "Dark OCaml Tests" }
+          name = "Dark Backend Tests" }
       |> Task.map (Exception.unwrapResultInternal [])
 
     do!
@@ -365,24 +369,16 @@ let initTestAccounts () : Task<unit> =
         { username = UserName.create "test_admin"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+admin@darklang.com"
-          name = "Dark OCaml Test Admin" }
+          name = "Dark Backend Test Admin" }
       |> Task.map (Exception.unwrapResultInternal [])
 
-    return ()
-  }
-
-let initBannedAccounts () : Task<unit> =
-  task {
     do!
-      UserName.banned
-      |> Set.toList
-      |> Task.iterSequentially (fun username ->
-        upsertNonAdmin
-          { username = UserName.createUnsafe username
-            password = Password.invalid
-            email = $"ops+{username}@darklang.com"
-            name = $"Disallowed account {username}" }
-        |> Task.map (Exception.unwrapResultInternal []))
+      upsertNonAdmin
+        { username = UserName.create "sample"
+          password = Password.invalid
+          email = "test+sample@darklang.com"
+          name = "Dark Backend Sample owner" }
+      |> Task.map (Exception.unwrapResultInternal [])
 
     return ()
   }
@@ -413,30 +409,12 @@ let initAdmins () : Task<unit> =
     return ()
   }
 
-// accounts to create namespaces for dark canvases
-let initUsefulCanvases () : Task<unit> =
-  // Needed for tests
-  task {
-    do!
-      upsertNonAdmin
-        { username = UserName.create "sample"
-          password = Password.invalid
-          email = "opsample@darklang.com"
-          name = "Sample owner" }
-      |> Task.map (Exception.unwrapResultInternal [])
-
-    return ()
-  }
-
-
 let init (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend.Account in {serviceName}"
     if Config.createAccounts then
       do! initTestAccounts ()
-      do! initBannedAccounts ()
       do! initAdmins ()
-      do! initUsefulCanvases ()
       return ()
     else
       return ()

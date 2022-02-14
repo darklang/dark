@@ -34,7 +34,7 @@ BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
 CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
 QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 EXECHOST_EXE="${EXECHOST_BINPATH}/ExecHost"
-TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
+TUNNEL_DAEMON_EXE="containers/tunnel2/tunnel2-daemon"
 
 # Stop the server processes
 echo "Stopping servers"

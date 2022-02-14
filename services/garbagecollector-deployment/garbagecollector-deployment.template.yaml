@@ -40,7 +40,7 @@ spec:
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
-                  name: rollbar
+                  name: rollbar-account-credentials
                   key: post_token
             # connect to sql proxy in the same pod
             - name: DARK_CONFIG_DB_HOST

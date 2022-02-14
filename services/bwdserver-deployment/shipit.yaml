@@ -7,20 +7,24 @@ k8s:
     configmaps:
       bwdserver-nginx-override-conf:
         text-file: nginx-override.conf
+        namespace: default
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
-      - kubectl rollout restart deployment bwdserver-deployment
+      - kubectl rollout restart --namespace darklang deployment bwdserver-deployment
 
   release:
     config-template: bwdserver-deployment.template.yaml
     versioned-configmaps:
       bwdserver-nginx-base-conf:
         text-file: ../../containers/ocaml-nginx/base-nginx.conf
+        namespace: default
       bwdserver-nginx-conf:
         text-file: nginx.conf
+        namespace: default
       app-config:
         env-file: ../../config/gke-builtwithdark
+        namespace: default
     containers:
       - gcp-fsharp-bwdserver
       - legacyserver

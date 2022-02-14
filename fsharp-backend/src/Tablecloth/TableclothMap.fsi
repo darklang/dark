@@ -138,7 +138,7 @@ val update:
   key: 'key ->
   f: ('value option -> 'value option) ->
   t<'key, 'value> ->
-  t<'key, 'value>
+    t<'key, 'value>
 (** Update the value for a specific key using [f]. If [key] is not present in the map [f] will be called with [None].
 
     {2 Examples}

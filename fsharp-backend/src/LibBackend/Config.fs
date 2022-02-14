@@ -51,7 +51,7 @@ let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
 // Kubernetes
 // -------------------------
 
-let curlTunnelUrl = string "DARK_CONFIG_CURL_TUNNEL_URL"
+let httpclientProxyUrl = string "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL"
 
 // --------------------
 // For use in Util

@@ -36,6 +36,11 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
 
   let builder = RouteBuilder(ab)
 
+  // This route is used so that we know that the http proxy is actually proxying the server
+  let checkApiserver : HttpHandler =
+    (fun (ctx : HttpContext) ->
+      task { return ctx.Response.WriteAsync("success: this is apiserver") })
+
   let addRoute
     (verb : string)
     (pattern : string)
@@ -58,7 +63,7 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   let html = htmlMiddleware
 
   let api name perm f =
-    let handler = (jsonHandler f)
+    let handler = jsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
@@ -71,6 +76,9 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   addRoute "POST" "/login" html None Login.loginHandler
   addRoute "GET" "/logout" html None Login.logout
   addRoute "POST" "/logout" html None Login.logout
+
+  // Provide an unauthenticated route to check the server
+  builder.MapGet("/check-apiserver", checkApiserver) |> ignore<IRouteBuilder>
 
   addRoute "GET" "/a/{canvasName}" html R (htmlHandler Ui.uiHandler)
 
@@ -117,26 +125,27 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   else
     app
 
+let rollbarCtxToMetadata
+  (ctx : HttpContext)
+  : (LibService.Rollbar.AspNet.Person * Metadata) =
+  let person =
+    try
+      loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
+    with
+    | _ -> LibService.Rollbar.AspNet.emptyPerson
+  let canvas =
+    try
+      string (loadCanvasInfo ctx).name
+    with
+    | _ -> null
+  (person, [ "canvas", canvas ])
+
 let configureApp (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> fun app ->
-       LibService.Rollbar.AspNet.addRollbarToApp (
-         app,
-         (fun (ctx : HttpContext) ->
-           let person =
-             try
-               loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
-             with
-             | _ -> LibService.Rollbar.AspNet.emptyPerson
-           let canvas =
-             try
-               string (loadCanvasInfo ctx).name
-             with
-             | _ -> null
-           (person, [ "canvas", canvas ]))
-       )
+       LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
@@ -188,10 +197,4 @@ let main _ =
     run ()
     0
   with
-  | e ->
-    LibService.Rollbar.lastDitchBlocking
-      (Prelude.ExecutionID "apiserver")
-      "Error starting ApiServer"
-      []
-      e
-    -1
+  | e -> LibService.Rollbar.lastDitchBlockAndPage "Error starting ApiServer" e

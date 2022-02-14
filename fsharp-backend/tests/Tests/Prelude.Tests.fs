@@ -16,18 +16,61 @@ let canvasName =
         true
       with
       | e -> false)
-    [ ("a", true)
-      ("demo-hello", true)
-      ("demo-", false)
-      ("demo--", false)
-      ("demo", true)
-      ("demo-hello-world", true)
-      ("demo-hello_world", true)
-      ("demo-hello world", false)
-      ("-demo", false)
-      ("demo-(^@^)", false)
-      ("demo-a_a", true)
-      ("demo-9", true) ]
+    ([ ("a", false)
+       ("-user", false)
+       ("USER", false)
+       ("USER-canvas", false)
+       ("User-canvas", false)
+       ("u__r-canvas", true)
+       ("user", true)
+       ("user-", true)
+       ("user-%2525F0%25259F%2525AA%252590", false)
+       ("user-(^@^)", false)
+       ("user--canvas", true)
+       ("user-9", true)
+       ("user-9abc", true)
+       ("user-CAnva9na", false)
+       ("user-CanvasName", false)
+       ("user-a_a", true)
+       ("user-canvas name", false)
+       ("user-canvas", true)
+       ("user-canvas%20new%20messages", false)
+       ("user-canvas%23db=1019933638", false)
+       ("user-canvas%255D", false)
+       ("user-canvas&name=0", false)
+       ("user-canvas--name", true)
+       ("user-canvas-nAME", false)
+       ("user-canvas-name", true)
+       ("user-canvas-name-matc%20h", false)
+       ("user-canvas.name", false)
+       ("user-canvas.name-name2", false)
+       ("user-canvas;name", false)
+       ("user-canvas=123456789", false)
+       ("user-canvasName", false)
+       ("user-canvas_name", true)
+       ("user_", true) ])
+
+let userName =
+  testMany
+    "userName.create"
+    (fun c ->
+      try
+        UserName.create c |> ignore<UserName.T>
+        true
+      with
+      | e -> false)
+    [ ("0startsnumber", false)
+      ("xx", false)
+      ("u__r", true)
+      ("abc_", true)
+      ("_abc", false)
+      ("a01234567890123456789a", false)
+      ("a01234567890123456789", true)
+      ("User", false)
+      ("user-name", false)
+      ("user_name", true)
+      ("test-hashed", false) ]
+
 
 let asyncTests =
 
@@ -99,7 +142,20 @@ let floatTests =
           82.10, (Positive, "82", "099999999999994315658113919198513031005859375")
           -180.0, (Negative, "180", "0") ] ]
 
+let dateTests =
+  testList
+    "Date"
+    [ testMany
+        "toIsoString"
+        (fun (d : System.DateTime) -> d.toIsoString ())
+        [ System.DateTime(2000, 10, 1, 16, 1, 1), "2000-10-01T16:01:01Z" ]
+      testMany
+        "ofIsoString"
+        System.DateTime.ofIsoString
+        [ "2000-10-01T16:01:01Z", System.DateTime(2000, 10, 1, 16, 1, 1) ] ]
 
 
 let tests =
-  testList "prelude" [ canvasName; asyncTests; mapTests; listTests; floatTests ]
+  testList
+    "prelude"
+    [ canvasName; userName; asyncTests; mapTests; listTests; floatTests; dateTests ]

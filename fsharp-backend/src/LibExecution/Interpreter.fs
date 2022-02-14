@@ -757,25 +757,13 @@ and execFn
         | Errors.StdlibException (Errors.FakeDvalFound dv) ->
           state.notify state.executionID "fakedval found" [ "dval", dv ]
           return dv
-        | DarkException _ as e ->
-          state.reportException
-            state.executionID
-            "darkexception caught in fncall"
-            []
-            e
-          // The GrandUser doesn't get to see DErrors, so it's safe to include this
-          // value and show it to the Dark Developer
-          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
         | e ->
-          // We don't know what's happening here, so there could be sensitive
-          // information in the message. Let's report the error and hide the message
-          // from the user
           // CLEANUP could we show the user the execution id here?
           state.reportException
             state.executionID
-            "An unknown exception was caught in the interpreter"
-            []
-            e
-          return (Dval.errSStr sourceID "An unknown error occured")
+            (InternalException("An exception was caught in fncall", e))
+          // The GrandUser doesn't get to see DErrors, so it's safe to include this
+          // value and show it to the Dark Developer
+          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
 
   }

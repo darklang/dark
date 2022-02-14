@@ -69,11 +69,8 @@ let socketHandler : HttpMessageHandler =
   // we're going to have to implement this manually
   handler.AllowAutoRedirect <- false
 
-  // CLEANUP rename CurlTunnelUrl
-  // CLEANUP add port into config var
-  // This port is assumed by Curl in the OCaml version, but not by .NET
   handler.UseProxy <- true
-  handler.Proxy <- System.Net.WebProxy($"{Config.curlTunnelUrl}:1080", false)
+  handler.Proxy <- System.Net.WebProxy(Config.httpclientProxyUrl, false)
 
   // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false

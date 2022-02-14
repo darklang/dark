@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Connection to a production container
+
+set -euo pipefail
+
+pod=$1 # a deployment name is also allowed
+container=$2
+namespace="${3:-darklang}"
+
+./scripts/production/gcp-authorize-kubectl
+
+kubectl exec --stdin --tty $pod -c $container --namespace $namespace -- /bin/bash
