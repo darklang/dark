@@ -7,12 +7,15 @@ set -euo pipefail
 # This deliberately can be run outside the container - sometimes you want to test on
 # the host
 
+# todo: this script fails if you cd to this directory.
+# we should adjust to either allow such, or warn so dev doesn't get confused
+
 PATTERN=".*"
 DEBUG_MODE_FLAG=""
 CONCURRENCY=1
 RETRIES=0
 REPEAT=1 # repeat allows us to repeat individual tests many times to check for edge cases
-BASE_URL="http://darklang.localhost:8000"
+BASE_URL="http://darklang.localhost:9000"
 BROWSER="chromium"
 
 for i in "$@"
@@ -38,8 +41,8 @@ do
     DEBUG_MODE_FLAG="--debug"
     shift
     ;;
-    --fsharp)
-    BASE_URL="http://darklang.localhost:9000"
+    --ocaml)
+    BASE_URL="http://darklang.localhost:8000"
     shift
     ;;
     *)

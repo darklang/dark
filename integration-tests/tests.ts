@@ -750,7 +750,8 @@ test("feature_flag_in_function", async ({ page }) => {
     await awaitAnalysis(page, timestamp);
 
     await page.waitForSelector(".return-value");
-    const expectedText = "but + only works on Ints.";
+
+    const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
     await expectContainsText(page, ".return-value", expectedText);
   });
 
@@ -1063,6 +1064,8 @@ test("feature_flag_in_function", async ({ page }) => {
   test("empty_fn_never_called_result", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "fn=602952746");
     const timestamp = Date.now();
+
+    await page.pause();
 
     await page.click(".id-1276585567");
     // clicking twice in hopes of making the test more stable
