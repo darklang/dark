@@ -7,9 +7,6 @@ version: 2.1
 # scripts/build/_build-server. Generally, if you add something to this file,
 # there's an equivalent to be added in one of those files.
 
-orbs:
-  slack: circleci/slack@4.4.4
-
 executors:
   simple-executor:
     docker:
@@ -83,11 +80,46 @@ commands:
   ##########################
   # Slack
   ##########################
-  notify-job-failure:
+  slack-notify-failure:
     steps:
-      - slack/notify:
-          event: fail
-          template: basic_fail_1
+      - run:
+          name: Slack failure notification
+          when: on_success
+          command: |
+            curl
+              -v
+              -X POST
+              -H 'Content-type: application/json'
+              -d '{ "success": true \
+                  , "branch": "$CIRCLE_BRANCH" \
+                  , "url": "$CIRCLE_BUILD_URL" \
+                  , "prs": "$CIRCLE_PULL_REQUESTS" \
+                  , "sha": "$CIRCLE_SHA1" \
+                  , "username": "$CIRCLE_USERNAME" \
+                  , "job": "$CIRCLE_JOB" \
+                  }'
+              https://ops-circleci.builtwithdark.com/notify-slack
+
+
+  slack-notify-success:
+    steps:
+      - run:
+          name: Slack failure notification
+          when: on_fail
+          command: |
+            curl
+              -v
+              -X POST
+              -H 'Content-type: application/json'
+              -d '{ "success": false \
+                  , "branch": "$CIRCLE_BRANCH" \
+                  , "url": "$CIRCLE_BUILD_URL" \
+                  , "prs": "$CIRCLE_PULL_REQUESTS" \
+                  , "sha": "$CIRCLE_SHA1" \
+                  , "username": "$CIRCLE_USERNAME" \
+                  , "job": "$CIRCLE_JOB" \
+                  }'
+              https://ops-circleci.builtwithdark.com/notify-slack
 
   ##########################
   # Rust
@@ -218,7 +250,7 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
-      - notify-job-failure
+      - slack-notify-failure
 
   build-backend:
     executor: in-container
@@ -273,7 +305,7 @@ jobs:
           key: v9-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
-      - notify-job-failure
+      - slack-notify-failure
 
   build-fsharp-backend:
     executor: in-container
@@ -313,7 +345,7 @@ jobs:
           key: v5-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
-      - notify-job-failure
+      - slack-notify-failure
 
   static-checks:
     executor: in-rust-container
@@ -324,7 +356,7 @@ jobs:
       - run: scripts/formatting/format check
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit validate
-      - notify-job-failure
+      - slack-notify-failure
 
   predeployment-checks:
     executor: in-container
@@ -333,7 +365,7 @@ jobs:
       - auth-with-gcp: { background: false }
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
-      - notify-job-failure
+      - slack-notify-failure
 
   build-stroller:
     executor: in-rust-container
@@ -343,7 +375,7 @@ jobs:
       - run: scripts/build/compile-project stroller --test
       - assert-clean-worktree
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
-      - notify-job-failure
+      - slack-notify-failure
 
   build-queue-scheduler:
     executor: in-rust-container
@@ -354,7 +386,7 @@ jobs:
       - run: scripts/build/compile-project queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
-      - notify-job-failure
+      - slack-notify-failure
 
   build-postgres-honeytail:
     executor: simple-executor
@@ -362,7 +394,7 @@ jobs:
       - darkcheckout
       - prep-container-creation
       - run: cd containers/postgres-honeytail && docker build -t postgres-honeytail .
-      - notify-job-failure
+      - slack-notify-failure
 
   validate-honeycomb-config:
     executor: simple-executor
@@ -370,7 +402,7 @@ jobs:
       - darkcheckout
       - prep-container-creation
       - run: bash -c scripts/linting/test-honeycomb-config.sh
-      - notify-job-failure
+      - slack-notify-failure
 
   integration-tests:
     executor: in-container
@@ -424,7 +456,7 @@ jobs:
           name: "Save packagejson-specific cache"
           paths: ["integration-tests/node_modules", "/home/dark/.cache/ms-playwright"]
           key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
-      - notify-job-failure
+      - slack-notify-failure
 
 
   rust-integration-tests:
@@ -445,7 +477,7 @@ jobs:
           command: scripts/run-rust-tests containers/queue-scheduler
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
-      - notify-job-failure
+      - slack-notify-failure
 
   gcp-containers-test:
     executor: in-container
@@ -457,7 +489,7 @@ jobs:
       # This is needed because kubectl --dry-run uses it
       - auth-with-gcp: { background: false }
       - build-gcp-containers
-      - notify-job-failure
+      - slack-notify-failure
 
   push-to-gcp:
     executor: in-container
@@ -474,7 +506,7 @@ jobs:
           paths: ["gcr-image-ids.json"]
       - run: scripts/deployment/_push-assets-to-cdn
       - run: scripts/deployment/shipit containers push
-      - notify-job-failure
+      - slack-notify-failure
 
   deploy:
     executor: in-container
@@ -486,64 +518,45 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
-      - notify-job-failure
-      - slack/notify:
-          event: pass
-          template: success_tagged_deploy_1
+      - slack-notify-failure
+      - slack-notify-success
 
   notify-non-deploy:
     executor: simple-executor
     steps:
-      - slack/notify:
-          event: pass
-          template: basic_success_1
-      - slack/notify:
-          event: fail
-          template: basic_fail_1
-
+      - slack-notify-success
+      - slack-notify-failure
 
 workflows:
   version: 2
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - static-checks:
-          context: Default
-      - predeployment-checks:
-          context: Default
-      - build-postgres-honeytail:
-          context: Default
-      - validate-honeycomb-config:
-          context: Default
-      - build-backend:
-          context: Default
-      - build-client:
-          context: Default
-      - build-stroller:
-          context: Default
-      - build-queue-scheduler:
-          context: Default
+      - static-checks
+      - predeployment-checks
+      - build-postgres-honeytail
+      - validate-honeycomb-config
+      - build-backend
+      - build-client
+      - build-stroller
+      - build-queue-scheduler
       - build-fsharp-backend:
-          context: Default
           requires:
             - build-backend
 
       # expensive tests
       - rust-integration-tests:
-          context: Default
           requires:
             - build-backend
             - build-fsharp-backend
             - build-client
             - build-queue-scheduler
       - integration-tests:
-          context: Default
           requires:
             - build-backend
             - build-client
             - build-fsharp-backend
       - gcp-containers-test:
-          context: Default
           requires:
             - build-client # to rebuild etags
             - build-backend
@@ -553,7 +566,6 @@ workflows:
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
-          context: Default
           filters:
             branches:
               only: main
@@ -567,7 +579,6 @@ workflows:
 
       # actual deploy
       - deploy:
-          context: Default
           filters:
             branches:
               only: main
@@ -580,7 +591,6 @@ workflows:
             - predeployment-checks
 
       - notify-non-deploy:
-          context: Default
           filters:
             branches:
               ignore: main
