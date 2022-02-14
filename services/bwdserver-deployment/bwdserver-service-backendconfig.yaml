@@ -7,7 +7,7 @@ spec:
   # A backendconfig allows us to configure how a load balancer talks to a service.
   healthCheck:
     # Lets see how this goes for now
-    requestPath: "/"
+    requestPath: "/k8s/livenessProbe"
     type: HTTP
   logging:
     # Changing this setting didn't seem to do anything - I needed to Edit it in the
