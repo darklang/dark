@@ -88,10 +88,9 @@ commands:
           name: Slack notification
           when: on_fail
           command: |
-            curl
-              -v
-              -X POST
-              -H 'Content-type: application/json'
+            curl \
+              -X POST \
+              -H 'Content-type: application/json' \
               -d '{ "success": false \
                   , "buildType" <<parameters.buildType>> \
                   , "branch": "$CIRCLE_BRANCH" \
@@ -100,7 +99,7 @@ commands:
                   , "sha": "$CIRCLE_SHA1" \
                   , "username": "$CIRCLE_USERNAME" \
                   , "job": "$CIRCLE_JOB" \
-                  }'
+                  }' \
               https://ops-circleci.builtwithdark.com/notify-slack
 
   slack-notify-success:
@@ -111,10 +110,9 @@ commands:
           name: Slack notification
           when: on_success
           command: |
-            curl
-              -v
-              -X POST
-              -H 'Content-type: application/json'
+            curl \
+              -X POST \
+              -H 'Content-type: application/json' \
               -d '{ "success": true \
                   , "buildType" <<parameters.buildType>> \
                   , "branch": "$CIRCLE_BRANCH" \
@@ -123,7 +121,7 @@ commands:
                   , "sha": "$CIRCLE_SHA1" \
                   , "username": "$CIRCLE_USERNAME" \
                   , "job": "$CIRCLE_JOB" \
-                  }'
+                  }' \
               https://ops-circleci.builtwithdark.com/notify-slack
 
   slack-notify-job-failure:
