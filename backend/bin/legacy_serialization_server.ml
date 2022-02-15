@@ -169,8 +169,18 @@ let server () =
 let () =
   try
     Libcommon.Log.infO "Starting legacy server" ;
+
+    (* Below inlined from Libbackend.Init.init. We want to avoid needing the DB. *)
+    Printexc.record_backtrace true ;
+    Exn.initialize_module () ;
     (* We need this to ensure that infix is correct *)
-    Libbackend.Init.init ~run_side_effects:false ~run_migrations:false ;
+    Libexecution.Init.init
+      Libservice.Config.log_level
+      Libservice.Config.log_format
+      [] ;
+    (* Dark-specific stuff *)
+    Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete" ;
+
     (* see https://github.com/mirage/ocaml-cohttp/issues/511 *)
     let () = Lwt.async_exception_hook := ignore in
     ignore (Lwt_main.run (Nocrypto_entropy_lwt.initialize () >>= server))

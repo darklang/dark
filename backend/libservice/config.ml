@@ -50,3 +50,56 @@ let getting_started_canvas_name =
 
 let getting_started_canvas_source =
   string "DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE"
+
+
+(* ------------------------- *)
+(* Logs *)
+(* ------------------------- *)
+let log_format : [`Json | `DecoratedJson] =
+  let as_str =
+    string_choice "DARK_CONFIG_LOGGING_FORMAT" ["json"; "decorated_json"]
+  in
+  match as_str with
+  | "json" ->
+      `Json
+  | "decorated_json" ->
+      `DecoratedJson
+  | _ ->
+      failwith ("Invalid logging format: " ^ as_str)
+
+
+let log_level =
+  let as_str =
+    string_choice
+      "DARK_CONFIG_LOGLEVEL"
+      [ "off"
+      ; "inspect"
+      ; "fatal"
+      ; "error"
+      ; "warn"
+      ; "info"
+      ; "success"
+      ; "debug"
+      ; "all" ]
+  in
+  match as_str with
+  | "off" ->
+      `Off
+  | "inspect" ->
+      `Inspect
+  | "fatal" ->
+      `Fatal
+  | "error" ->
+      `Error
+  | "warn" ->
+      `Warn
+  | "info" ->
+      `Info
+  | "success" ->
+      `Success
+  | "debug" ->
+      `Debug
+  | "all" ->
+      `All
+  | _ ->
+      failwith ("Invalid level name:" ^ as_str)
