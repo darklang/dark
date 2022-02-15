@@ -1,37 +1,20 @@
 k8s:
   manually-deployed:
     configs:
-      - apiserver-network-policy.yaml
-      - apiserver-service.yaml
-      - apiserver-service-backendconfig.yaml
-
-    # Manually deployed so it can be used to override
-    configmaps:
-      apiserver-nginx-override-conf:
-        text-file: nginx-override.conf
-        namespace: default
+      - legacyserver-network-policy.yaml
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
-      - kubectl rollout restart --namespace default deployment apiserver-deployment
+      - kubectl rollout restart --namespace darklang deployment legacyserver-deployment
 
   release:
-    config-template: apiserver-deployment.template.yaml
+    config-template: legacyserver-deployment.template.yaml
     versioned-configmaps:
-      apiserver-nginx-base-conf:
-        text-file: ../../containers/ocaml-nginx/base-nginx.conf
-        namespace: default
-      apiserver-nginx-conf:
-        text-file: nginx.conf
-        namespace: default
       app-config:
         # deployed to both namespaces
         env-file: ../../config/gke-builtwithdark
-        namespace: default
+        namespace: darklang
     containers:
-      - gcp-fsharp-apiserver
       - legacyserver
-    builtins:
-      - CLOUDSQL_INSTANCE_NAME
     expected-args:
       - CHANGE_CAUSE
