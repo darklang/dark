@@ -76,7 +76,6 @@ let uiHtml
     if localhostAssets = None then Config.hashStaticFilenames else false
 
   let hashReplacements =
-
     if shouldHash then prodHashReplacementsString.Force() else "{}"
 
   let accountCreatedMsTs =
