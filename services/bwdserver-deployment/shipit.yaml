@@ -2,6 +2,8 @@ k8s:
   manually-deployed:
     configs:
       - bwdserver-network-policy.yaml
+      - bwdserver-service.yaml
+      - bwdserver-service-backendconfig.yaml
 
     # Manually deployed so it can be used to override
     configmaps:
@@ -11,7 +13,7 @@ k8s:
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
-      - kubectl rollout restart --namespace darklang deployment bwdserver-deployment
+      - kubectl rollout restart --namespace default deployment bwdserver-deployment
 
   release:
     config-template: bwdserver-deployment.template.yaml
