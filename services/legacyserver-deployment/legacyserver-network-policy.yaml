@@ -1,0 +1,17 @@
+# Network policy for ApiServer
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apiserver-network-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: apiserver-app
+  policyTypes:
+    # egress policy is in tunnel2/darklang-executors-networkpolicy.yaml
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: http-proxy-port
