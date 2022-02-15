@@ -99,7 +99,7 @@ commands:
                   , "sha": "$CIRCLE_SHA1"
                   , "username": "$CIRCLE_USERNAME"
                   , "job": "$CIRCLE_JOB"
-                  }'
+                  }' \
               https://ops-circleci.builtwithdark.com/notify-slack
 
   slack-notify-success:
