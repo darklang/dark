@@ -4,9 +4,8 @@ kind: Ingress
 metadata:
   name: darklang-tls-ingress
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: darklang-tls-ip
+    kubernetes.io/ingress.class: gce
 spec:
-  ingressClassName: gce
   # The default backend goes to the OCaml service (editor-deployment)
   defaultBackend:
     service:
