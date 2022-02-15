@@ -109,6 +109,27 @@ spec:
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
+          env:
+            # rollbar
+            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
+              valueFrom:
+                secretKeyRef:
+                  name: rollbar-account-credentials
+                  key: post_token
+            # database - not needed but won't start without it
+            - name: DARK_CONFIG_DB_HOST
+              value: 127.0.0.1
+            - name: DARK_CONFIG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: username
+            - name: DARK_CONFIG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: password
+
 
       # ---------------------
       # Pod volume definitions
