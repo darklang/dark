@@ -1,3 +1,6 @@
+# honeycomb-agent is deployed via helm. I don't know a great deal about it, but it seems we can update the deployment with
+# helm upgrade --install honeycomb honeycomb/honeycomb --values services/honeycomb-agent/config.yaml
+# I think the regular config below also works
 k8s:
   manually-deployed:
     configs: []
