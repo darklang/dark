@@ -39,6 +39,21 @@ spec:
       ports:
         - protocol: TCP
           port: 1080
+    # Allow access to legacyserver
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              k8s-namespace: darklang
+          podSelector:
+            matchLabels:
+              app: legacyserver-app
+        # TODO: I do not know why this is needed, shouldn't the selectors handle this?
+        - ipBlock:
+            cidr: 10.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: legacy-port
+
 
     # Allow access to Cloud SQL
     - to:
