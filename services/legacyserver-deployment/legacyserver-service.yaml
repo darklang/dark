@@ -1,16 +1,13 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: apiserver-service
-  namespace: default
-  annotations:
-    cloud.google.com/backend-config: '{"default": "apiserver-service-backendconfig"}'
+  name: legacyserver-service
+  namespace: darklang
 spec:
   # GKE ingress requires this to be a nodeport
   type: NodePort
   selector:
-    app: apiserver-app
+    app: legacyserver-app
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: http-proxy-port
+      port: 5000
