@@ -91,14 +91,14 @@ commands:
             curl \
               -X POST \
               -H 'Content-type: application/json' \
-              -d "{ 'success': false
-                  , 'buildType': <<parameters.buildType>>
-                  , 'branch': '$CIRCLE_BRANCH'
-                  , 'url': '$CIRCLE_BUILD_URL'
-                  , 'prs': '$CIRCLE_PULL_REQUESTS'
-                  , 'sha': '$CIRCLE_SHA1'
-                  , 'username': '$CIRCLE_USERNAME'
-                  , 'job': '$CIRCLE_JOB'
+              -d "{ \"success\": false
+                  , \"buildType\": \"<<parameters.buildType>>\"
+                  , \"branch\": \"$CIRCLE_BRANCH\"
+                  , \"url\": \"$CIRCLE_BUILD_URL\"
+                  , \"prs\": [$CIRCLE_PULL_REQUESTS]
+                  , \"sha\": \"$CIRCLE_SHA1\"
+                  , \"username\": \"$CIRCLE_USERNAME\"
+                  , \"job\": \"$CIRCLE_JOB\"
                   }" \
               https://ops-circleci.builtwithdark.com/notify-slack
 
@@ -113,14 +113,14 @@ commands:
             curl \
               -X POST \
               -H 'Content-type: application/json' \
-              -d "{ 'success': true
-                  , 'buildType': <<parameters.buildType>>
-                  , 'branch': '$CIRCLE_BRANCH'
-                  , 'url': '$CIRCLE_BUILD_URL'
-                  , 'prs': '$CIRCLE_PULL_REQUESTS'
-                  , 'sha': '$CIRCLE_SHA1'
-                  , 'username': "$CIRCLE_USERNAME'
-                  , 'job': '$CIRCLE_JOB'
+              -d "{ \"success\": true
+                  , \"buildType\": \"<<parameters.buildType>>\"
+                  , \"branch\": \"$CIRCLE_BRANCH\"
+                  , \"url\": \"$CIRCLE_BUILD_URL\"
+                  , \"prs\": [$CIRCLE_PULL_REQUESTS]
+                  , \"sha\": \"$CIRCLE_SHA1\"
+                  , \"username\": "$CIRCLE_USERNAME\"
+                  , \"job\": \"$CIRCLE_JOB\"
                   }" \
               https://ops-circleci.builtwithdark.com/notify-slack
 
