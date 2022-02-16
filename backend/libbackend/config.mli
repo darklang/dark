@@ -17,10 +17,6 @@ val dir : root -> string
 
 val port : int
 
-val log_format : [`Json | `DecoratedJson]
-
-val log_level : Libcommon.Log.level
-
 val should_write_shape_data : bool
 
 val allow_test_routes : bool

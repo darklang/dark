@@ -29,7 +29,6 @@ k8s:
         namespace: default
     containers:
       - gcp-fsharp-bwdserver
-      - legacyserver
     builtins:
       - CLOUDSQL_INSTANCE_NAME
     expected-args:

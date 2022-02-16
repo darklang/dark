@@ -39,6 +39,18 @@ spec:
       ports:
         - protocol: TCP
           port: 1080
+    # Allow access to legacyserver
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              k8s-namespace: darklang
+          podSelector:
+            matchLabels:
+              app: legacyserver-app
+      ports:
+        - protocol: TCP
+          port: legacy-port
+
 
     # Allow access to Cloud SQL
     - to:
