@@ -27,6 +27,14 @@ let server () =
   let callback (conn : S.conn) (req : CRequest.t) (req_body : Cl.Body.t) :
       (CResponse.t * Cl.Body.t) Lwt.t =
     let%lwt body_string = Cl.Body.to_string req_body in
+    let ch, _ = conn in
+    let ip_address : string =
+      match Conduit_lwt_unix.endp_of_flow ch with
+      | `TCP (ip, port) ->
+          Ipaddr.to_string ip
+      | _ ->
+          assert false
+    in
     let uri = CRequest.uri req in
     let meth = CRequest.meth req in
     let path =
@@ -84,6 +92,16 @@ let server () =
     | `POST, Some fn ->
       ( try
           let result = body_string |> fn in
+          Libcommon.Log.infO
+            "Successfully completed legacyserver call"
+            ~data:""
+            ~params:
+              [ ("uri", Uri.to_string uri)
+              ; ("path", Uri.path uri)
+              ; ("method", Cohttp.Code.string_of_method meth)
+              ; ("length", string_of_int (String.length result))
+              ; ("ip_address", ip_address)
+              ; ("result", String.sub ~pos:0 ~len:50 result) ] ;
           respond_json_ok result
         with e ->
           let headers = Header.init () in
