@@ -21,6 +21,7 @@ let legacy_fuzzing_server_port = int "DARK_CONFIG_LEGACY_FUZZING_SERVER_PORT"
 let legacy_serialization_server_port =
   int "DARK_CONFIG_LEGACY_SERIALIZATION_SERVER_PORT"
 
+
 let legacy_serialization_server_host =
   string "DARK_CONFIG_LEGACY_SERIALIZATION_SERVER_HOST"
 
