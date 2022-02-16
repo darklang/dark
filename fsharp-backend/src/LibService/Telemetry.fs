@@ -298,7 +298,11 @@ let addTelemetry
   |> fun b ->
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
-  |> fun b -> b.AddHttpClientInstrumentation()
+  |> fun b ->
+       b.AddHttpClientInstrumentation (fun options ->
+         options.SetHttpFlavor <- true // Record HTTP version
+         options.RecordException <- true
+         ())
   |> fun b ->
        match traceDBQueries with
        | TraceDBQueries -> b.AddNpgsql()
