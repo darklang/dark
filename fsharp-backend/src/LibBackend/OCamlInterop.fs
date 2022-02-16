@@ -30,19 +30,28 @@ let digest () = "0e91e490041f06fae012f850231eb6ab"
 // Getting values from OCaml
 // ----------------
 
+// Make it lazy so that it initialized AFTER Telemetry initializes
 let client =
-  // In .NET 6, this is fine without having to do anything about socket exhaustion or
-  // DNS.
-  let client = new System.Net.Http.HttpClient()
-  // We prefer that this raise than hang
-  client.Timeout <- System.TimeSpan.FromSeconds 5
-  client
+  lazy
+    (let handler = new System.Net.Http.SocketsHttpHandler()
+
+     // Unsure whether we need this, but the code is going away so best be sure
+     handler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
+     handler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
+     // In .NET 6, this is fine without having to do anything about socket exhaustion or
+     // DNS.
+     let client = new System.Net.Http.HttpClient(handler, disposeHandler = false)
+     // We prefer that this raise than hang
+     client.Timeout <- System.TimeSpan.FromSeconds 5
+     client)
 
 let legacyReq
   (endpoint : string)
   (data : byte array)
   : Task<System.Net.Http.HttpContent> =
   task {
+    // CLEANUP I can't figure out HttpClient auto-instrumentation, so let's do it manually
+    use _span = LibService.Telemetry.child "legacyReq" [ "endpoint", endpoint ]
     let host, port =
       if endpoint.StartsWith("bs") then
         (LibService.Config.legacySerializationServerHost,
@@ -61,13 +70,15 @@ let legacyReq
 
     message.Content <- new System.Net.Http.ByteArrayContent(data)
 
-    let! response = client.SendAsync(message)
+    let! response = client.Force().SendAsync(message)
+    LibService.Telemetry.addTag "statuscode" response.StatusCode
 
     if response.StatusCode = System.Net.HttpStatusCode.OK then
       ()
     else if response.StatusCode = System.Net.HttpStatusCode.BadRequest then
       // This is how errors are reported
       let! content = response.Content.ReadAsStringAsync()
+      LibService.Telemetry.addTag "error" content
       Exception.raiseInternal content []
     else
       let! content = response.Content.ReadAsStringAsync()
