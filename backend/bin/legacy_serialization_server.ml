@@ -92,6 +92,7 @@ let server () =
     | `POST, Some fn ->
       ( try
           let result = body_string |> fn in
+          let sub_length = min (String.length result) 50 in
           Libcommon.Log.infO
             "Successfully completed legacyserver call"
             ~data:""
@@ -101,7 +102,7 @@ let server () =
               ; ("method", Cohttp.Code.string_of_method meth)
               ; ("length", string_of_int (String.length result))
               ; ("ip_address", ip_address)
-              ; ("result", String.sub ~pos:0 ~len:50 result) ] ;
+              ; ("result", String.sub ~pos:0 ~len:sub_length result) ] ;
           respond_json_ok result
         with e ->
           let headers = Header.init () in
