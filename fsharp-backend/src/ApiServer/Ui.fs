@@ -76,7 +76,6 @@ let uiHtml
     if localhostAssets = None then Config.hashStaticFilenames else false
 
   let hashReplacements =
-
     if shouldHash then prodHashReplacementsString.Force() else "{}"
 
   let accountCreatedMsTs =
@@ -93,6 +92,13 @@ let uiHtml
 
 
   let t = StringBuilder(adminUiTemplate.Force())
+
+  // Replace any filenames in the response html with the hashed version
+  if shouldHash then
+    prodHashReplacements
+    |> Lazy.force
+    |> Map.iter (fun filename hashed ->
+      t.Replace(filename, hashed) |> ignore<StringBuilder>)
 
   // CLEANUP move functions into an API call, or even to the CDN
   // CLEANUP move the user info into an API call
@@ -111,13 +117,6 @@ let uiHtml
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
   |> ignore<StringBuilder>
-
-  // Replace any filenames in the file with the hashed version
-  if shouldHash then
-    prodHashReplacements
-    |> Lazy.force
-    |> Map.iter (fun filename hashed ->
-      t.Replace(filename, hashed) |> ignore<StringBuilder>)
 
   string t
 
