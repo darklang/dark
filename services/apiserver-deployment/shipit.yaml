@@ -30,6 +30,7 @@ k8s:
         namespace: default
     containers:
       - gcp-fsharp-apiserver
+      - legacyserver
     builtins:
       - CLOUDSQL_INSTANCE_NAME
     expected-args:
