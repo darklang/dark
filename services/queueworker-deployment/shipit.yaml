@@ -9,6 +9,7 @@ k8s:
         namespace: darklang
     containers:
       - gcp-fsharp-queueworker
+      - legacyserver
     builtins:
       - CLOUDSQL_INSTANCE_NAME
     expected-args:

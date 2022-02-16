@@ -44,7 +44,6 @@ services/cronchecker-deployment/cronchecker-deployment.yaml
 services/editor-deployment/editor-deployment.yaml
 services/exechost-deployment/exechost-deployment.yaml
 services/garbagecollector-deployment/garbagecollector-deployment.yaml
-services/legacyserver-deployment/legacyserver-deployment.yaml
 services/postgres-honeytail-deployment.yaml
 services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 services/qw-deployment/qw-deployment.yaml
