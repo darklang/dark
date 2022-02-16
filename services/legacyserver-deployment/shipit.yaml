@@ -2,6 +2,7 @@ k8s:
   manually-deployed:
     configs:
       - legacyserver-network-policy.yaml
+      - legacyserver-service.yaml
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
