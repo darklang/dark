@@ -486,7 +486,11 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       # This is needed because kubectl --dry-run uses it
-      - auth-with-gcp: { background: false }
+      - auth-with-gcp:
+          background: false
+          filters:
+            branches:
+              ignore: /^(pull\/).*$/
       - build-gcp-containers
       - slack-notify-job-failure
 
