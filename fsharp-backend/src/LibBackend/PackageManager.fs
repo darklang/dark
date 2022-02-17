@@ -324,15 +324,18 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
             deprecated,
             tlid) ->
         task {
+          let name : PT.FQFnName.PackageFnName =
+            { owner = username
+              package = package
+              module_ = module_
+              function_ = fnname
+              version = version }
+          use _span =
+            LibService.Telemetry.child "decode package binary" [ "fn", string name ]
           let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
 
           return
-            ({ name =
-                 { owner = username
-                   package = package
-                   module_ = module_
-                   function_ = fnname
-                   version = version }
+            ({ name = name
                body = expr
                returnType =
                  PT.DType.parse returnType
