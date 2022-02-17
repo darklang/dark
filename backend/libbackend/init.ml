@@ -25,7 +25,10 @@ let init ~run_side_effects ~run_migrations =
         @ Libbackend_stdlib.Libjwt.fns
         @ Libbackend_stdlib.Libx509.fns
       in
-      Libexecution.Init.init Config.log_level Config.log_format non_client_fns ;
+      Libexecution.Init.init
+        Libservice.Config.log_level
+        Libservice.Config.log_format
+        non_client_fns ;
       (* init the Random module, will be seeded from /dev/urandom on Linux *)
       Random.self_init () ;
       (* Dark-specific stuff *)

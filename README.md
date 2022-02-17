@@ -5,6 +5,14 @@ This is the main repo for [Dark](https://darklang.com), a combined language, edi
 This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
 [source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
+See also:
+
+- [Project Tracking](https://github.com/darklang/dark/projects/1) - what we're actually
+  working on right
+- [Darklang Community Slack](https://darklang.com/slack-invite)
+- [Roadmap](https://github.com/darklang/dark/issues/3284)
+- [Contributor guide](https://docs.darklang.com/contributing/getting-started)
+
 See our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing.
 
 ## Contributing
@@ -16,8 +24,8 @@ and learn about the code base.
 
 ## Getting started
 
-We try to make it really easy to get started. If you have any problems, please
-ask in Slack and we'll work to fix any issues you have.
+We try to make it really easy to get started. If you have any problems, please ask in
+[Slack](https://darklang.com/slack-invite) and we'll work to fix any issues you have.
 
 ### Install dependencies
 
@@ -31,7 +39,7 @@ To build and run the server you must have the following installed (and running):
 
 - [Homebrew for Mac](https://brew.sh/)
 - [Docker for Mac](https://docs.docker.com/docker-for-mac/install/)
-- The latest version of bash: `brew install bash`
+- Bash 4 or later: `brew install bash`
 
 #### Linux
 
@@ -51,7 +59,7 @@ On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
 - You need to clone the dark repo with the git `core.autocrlf` setting set to
   `false`. You can configure this by running `git config --global core.autocrlf false`. If you have already cloned dark, you will need to reclone it.
 - This section of the guide is incomplete. Please [create an
-  issue](https://github.com/darklang/dark) if you find something doesn't work.
+  issue](https://github.com/darklang/dark/issues) if you find something doesn't work.
 
 ### Building and running for the first time
 
@@ -127,8 +135,9 @@ There are good debugging options for integration testing. See
 
 ## Config files
 
-Config files ([config/](config)) define all env vars that you can use in Dark
-code. All config vars must start with `DARK_CONFIG`.
+Config files ([config/](config)) define all env vars that you can use in Dark code.
+All config vars must start with `DARK_CONFIG`. Changing a config variable in
+`config/dev` requires restaring the devcontanier.
 
 ## Debugging the client
 
@@ -145,10 +154,11 @@ Formatters".
 
 ### Debugger
 
-The VSCode debugger works out of the box with Dark, supporting stepping,
-breakpoints, inspecting the stack, etc. You can edit 
-[`launch.json`](.vscode/launch.json) to change what tests are run or how 
-other binaries are started up, which should be straightforward.
+The VSCode debugger works out of the box with Dark, supporting stepping, breakpoints,
+inspecting the stack, etc. You must launch the executable from VSCode for this to
+work--attaching does not currently seem to work. You can edit
+[`launch.json`](.vscode/launch.json) to change what tests are run or how other
+binaries are started up, which should be straightforward.
 
 ### REPL (fsi)
 
@@ -212,4 +222,5 @@ Google Cloud services. Some deployments just have a single container (eg
 - [Editing other BS libraries](docs/modifying-libraries.md)
 - [Add an account for yourself](docs/add-account.md)
 - [Using fuzzers to develop Dark](docs/fuzzer.md)
+- [Logging and telemetry](docs/logging-and-telemetry.md)
 - [Writing docstrings in the Dark Standard library](docs/writing-docstrings.md)

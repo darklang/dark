@@ -75,11 +75,11 @@ spec:
           # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "2000Mi"
+              cpu: "3"
             limits:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "3000Mi"
+              cpu: "4"
 
           # ---------------------
           # Lifecycles probes
@@ -119,8 +119,6 @@ spec:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
-            - name: DARK_CONFIG_RUNNING_IN_GKE
-              value: "true"
             # rollbar
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:

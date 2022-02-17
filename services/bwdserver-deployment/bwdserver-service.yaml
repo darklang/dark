@@ -1,15 +1,15 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: apiserver-service
+  name: bwdserver-service
   namespace: default
   annotations:
-    cloud.google.com/backend-config: '{"default": "apiserver-service-backendconfig"}'
+    cloud.google.com/backend-config: '{"default": "bwdserver-service-backendconfig"}'
 spec:
   # GKE ingress requires this to be a nodeport
   type: NodePort
   selector:
-    app: apiserver-app
+    app: bwdserver-app
   ports:
     - protocol: TCP
       port: 80

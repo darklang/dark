@@ -8,7 +8,7 @@
       "name": "Attach to ApiServer",
       "type": "coreclr",
       "request": "attach",
-      "program": "/home/dark/app/fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/ApiServer2",
+      "program": "/home/dark/app/fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/ApiServer",
       "stopAtEntry": true
     },
     {

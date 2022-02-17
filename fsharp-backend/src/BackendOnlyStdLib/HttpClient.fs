@@ -72,6 +72,9 @@ let socketHandler : HttpMessageHandler =
   handler.UseProxy <- true
   handler.Proxy <- System.Net.WebProxy(Config.httpclientProxyUrl, false)
 
+  // Don't add a RequestId header for opentelemetry
+  handler.ActivityHeadersPropagator <- null
+
   // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false
   handler
@@ -325,11 +328,3 @@ let rec httpCall
         | _ -> return response
       | _ -> return response
   }
-
-
-let init (serviceName : string) =
-  print $"Configuring HttpClient"
-  // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
-  // idea, but it's a change (one that breaks all the tests), and so something we
-  // should do consciously.
-  System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
