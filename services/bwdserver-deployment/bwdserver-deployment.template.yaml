@@ -75,11 +75,11 @@ spec:
           # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "2000Mi"
+              cpu: "3"
             limits:
-              memory: "1000Mi"
-              cpu: "125m"
+              memory: "2000Mi"
+              cpu: "3"
 
           # ---------------------
           # Lifecycles probes
