@@ -291,17 +291,25 @@ let executionStateFor
             if tc.exceptionReports.Length > 0 && not errorsExpected then
               print $"UNEXPECTED EXCEPTION in {meta.name}"
               List.iter
-                (fun (executionID, exn) -> RT.consoleReporter executionID exn)
+                (fun (executionID, msg, stackTrace, metadata) ->
+                  print
+                    $"An error was reported in the runtime ({executionID}):  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
               Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
     // definition)
-    let exceptionReporter : RT.ExceptionReporter =
+    let rec exceptionReporter : RT.ExceptionReporter =
       fun executionID (exn : exn) ->
+        let message = exn.Message
+        let stackTrace = exn.StackTrace
+        let metadata = Exception.toMetadata exn
+        let inner = exn.InnerException
+        if inner <> null then (exceptionReporter executionID inner) else ()
         testContext.exceptionReports <-
-          (executionID, exn) :: testContext.exceptionReports
+          (executionID, message, stackTrace, metadata)
+          :: testContext.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors

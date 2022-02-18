@@ -850,7 +850,7 @@ and Tracing =
 // Used for testing
 and TestContext =
   { mutable sideEffectCount : int
-    mutable exceptionReports : List<ExecutionID * exn>
+    mutable exceptionReports : List<ExecutionID * string * string * Metadata>
     postTestExecutionHook : TestContext -> Dval -> unit }
 
 // Non-user-specific functionality needed to run code
@@ -894,7 +894,7 @@ let consoleReporter : ExceptionReporter =
 let consoleNotifier : Notifier =
   fun executionID msg tags ->
     print
-      $"A notifcation happened in the runtime ({executionID}):\n  {msg}\n  {tags}\n\n"
+      $"A notification happened in the runtime ({executionID}):\n  {msg}\n  {tags}\n\n"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
