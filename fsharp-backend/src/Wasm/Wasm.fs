@@ -80,7 +80,7 @@ module ClientInterop =
 
   type TraceData =
     { input : InputVars
-      timestamp : System.DateTime
+      timestamp : NodaTime.Instant
       function_results : List<FunctionResult> }
 
   let convert_trace_data (td : TraceData) : AT.TraceData =
@@ -133,7 +133,7 @@ module Eval =
     (results : AT.FunctionResult list)
     ((_tlid, fnName, callerID) : RT.FunctionRecord)
     (args : List<RT.Dval>)
-    : Option<RT.Dval * System.DateTime> =
+    : Option<RT.Dval * NodaTime.Instant> =
     let hashes =
       DvalReprInternal.supportedHashVersions
       |> List.map (fun key -> (key, DvalReprInternal.hash key args))
@@ -149,7 +149,7 @@ module Eval =
         None)
     |> List.head
     (* We don't use the time, so just hack it to get the interface right. *)
-    |> Option.map (fun dv -> (dv, System.DateTime.Now))
+    |> Option.map (fun dv -> (dv, NodaTime.Instant.now ()))
 
 
 

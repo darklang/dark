@@ -250,7 +250,7 @@ type Generator =
             let name = ti.ToTitleCase name
             return RT.EVariable(gid (), name)
           | RT.TDate ->
-            let! d = Arb.generate<System.DateTime>
+            let! d = Arb.generate<NodaTime.Instant>
             return call "Date" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
           | RT.TUuid ->
             let! u = Arb.generate<System.Guid>
@@ -307,11 +307,11 @@ type Generator =
           | RT.TDate ->
             return!
               Gen.map
-                (fun (dt : System.DateTime) ->
+                (fun (dt : RT.DDateTime.T) ->
                   // Set milliseconds to zero
-                  let dt = (dt.AddMilliseconds(-(double dt.Millisecond)))
-                  RT.DDate dt)
-                Arb.generate<System.DateTime>
+                  RT.DDate(dt.PlusMilliseconds(-dt.Millisecond)))
+
+                Arb.generate<RT.DDateTime.T>
           | RT.TChar ->
             let! v = G.char ()
             return RT.DChar v

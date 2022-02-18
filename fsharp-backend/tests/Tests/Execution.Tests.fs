@@ -87,7 +87,8 @@ let testErrorRailUsedInAnalysis : Test =
     let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
     let! state = executionStateFor meta Map.empty Map.empty
 
-    let loadTraceResults _ _ = Some(DOption(Some(DInt 12345L)), System.DateTime.Now)
+    let loadTraceResults _ _ =
+      Some(DOption(Some(DInt 12345L)), NodaTime.Instant.now ())
 
     let state =
       { state with

@@ -21,7 +21,7 @@ type TrackPayload =
   { identity : string
     app_id : string
     event : string
-    timestamp : System.DateTime
+    timestamp : NodaTime.Instant
     properties : Map<string, string> }
 
 type Type =
@@ -86,7 +86,7 @@ let trackBody
   (canvasID : CanvasID)
   (properties : Map<string, string>)
   : TrackPayload =
-  let timestamp = System.DateTime.Now
+  let timestamp = NodaTime.Instant.now ()
   let properties =
     properties
     |> Map.add "timestamp" (string timestamp)
@@ -124,7 +124,7 @@ let identifyUserBody
   (owner : UserID)
   (properties : Map<string, string>)
   : IdentifyUserPayload =
-  let timestamp = System.DateTime.Now
+  let timestamp = NodaTime.Instant.now ()
   let properties =
     properties
     |> Map.add "timestamp" (string timestamp)

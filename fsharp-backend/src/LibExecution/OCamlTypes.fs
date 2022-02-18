@@ -229,7 +229,7 @@ module RuntimeT =
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
     | DDB of string
-    | DDate of System.DateTime
+    | DDate of RT.DDateTime.T
     | DPassword of byte array // We dont use this path for testing, see DvalReprExternal.Tests
     | DUuid of System.Guid
     | DOption of optionT

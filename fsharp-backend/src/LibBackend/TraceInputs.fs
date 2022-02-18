@@ -30,14 +30,14 @@ module RT = LibExecution.RuntimeTypes
 // space, path, modifier
 type EventDesc = string * string * string
 
-type EventRecord = string * string * string * System.DateTime * AT.TraceID
+type EventRecord = string * string * string * NodaTime.Instant * AT.TraceID
 
 type F404 = EventRecord
 
 type Limit =
   | All
-  | After of System.DateTime
-  | Before of System.DateTime
+  | After of NodaTime.Instant
+  | Before of NodaTime.Instant
 
 // let event_subject module_ path modifier = module_ ^ "_" ^ path ^ "_" ^ modifier
 
@@ -71,9 +71,9 @@ let storeEvent
   (traceID : AT.TraceID)
   ((module_, path, modifier) : EventDesc)
   (event : RT.Dval)
-  : Task<System.DateTime> =
+  : Task<NodaTime.Instant> =
   if canvasID = throttled then
-    Task.FromResult System.DateTime.Now
+    Task.FromResult(NodaTime.Instant.now ())
   else
     Sql.query
       "INSERT INTO stored_events_v2
@@ -89,12 +89,12 @@ let storeEvent
                          event
                          |> LibExecution.DvalReprInternal.toInternalRoundtrippableV0
                          |> Sql.string) ]
-    |> Sql.executeRowAsync (fun reader -> reader.dateTime "timestamp")
+    |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   let timestampSql, timestamp =
     match limit with
-    | All -> "", System.DateTime.Now
+    | All -> "", NodaTime.Instant.now ()
     | After ts -> "AND timestamp > @timestamp", ts
     | Before ts -> "AND timestamp < @timestamp", ts
 
@@ -120,7 +120,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
     (read.string "module",
      read.string "path",
      read.string "modifier",
-     read.dateTime "timestamp",
+     read.instant "timestamp",
      read.uuid "trace_id"))
 
 
@@ -163,7 +163,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 let loadEvents
   (canvasID : CanvasID)
   ((module_, route, modifier) : EventDesc)
-  : Task<List<string * AT.TraceID * System.DateTime * RT.Dval>> =
+  : Task<List<string * AT.TraceID * NodaTime.Instant * RT.Dval>> =
   let route = Routing.routeToPostgresPattern route
 
   Sql.query
@@ -181,14 +181,14 @@ let loadEvents
   |> Sql.executeAsync (fun read ->
     (read.string "path",
      read.uuid "trace_id",
-     read.dateTime "timestamp",
+     read.instant "timestamp",
      read.string "value" |> LibExecution.DvalReprInternal.ofInternalRoundtrippableV0))
 
 
 let loadEventForTrace
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  : Task<Option<string * System.DateTime * RT.Dval>> =
+  : Task<Option<string * NodaTime.Instant * RT.Dval>> =
   Sql.query
     "SELECT path, value, timestamp FROM stored_events_v2
        WHERE canvas_id = @canvasID
@@ -197,7 +197,7 @@ let loadEventForTrace
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
   |> Sql.executeRowOptionAsync (fun read ->
     (read.string "path",
-     read.dateTime "timestamp",
+     read.instant "timestamp",
      read.string "value" |> LibExecution.DvalReprInternal.ofInternalRoundtrippableV0))
 
 
@@ -254,7 +254,7 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
   }
 
 let getRecent404s (canvasID : CanvasID) : Task<F404 list> =
-  get404s (After(System.DateTime.Now.AddDays(-7.0))) canvasID
+  get404s (After(NodaTime.Instant.now () - NodaTime.Duration.FromDays 7)) canvasID
 
 
 let delete404s

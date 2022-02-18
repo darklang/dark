@@ -52,6 +52,7 @@ let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
   task {
 
     print $"Initing LibBackend in {serviceName}"
+    Db.init ()
 
     Json.OCamlCompatible.registerConverter (
       EventQueue.WorkerStates.JsonConverter.WorkerStateConverter()

@@ -248,7 +248,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
     | DChar c -> c
     | DNull -> "null"
-    | DDate d -> d.toIsoString ()
+    | DDate d -> (DDateTime.toInstant d).toIsoString ()
     | DUuid uuid -> string uuid
     | DDB dbname -> $"<DB: {dbname}>"
     | DError _ -> "Error"
@@ -333,7 +333,7 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DHttpResponse (Redirect _) -> writeDval DNull
   | DHttpResponse (Response (_, _, response)) -> writeDval response
   | DDB dbName -> w.WriteStringValue dbName
-  | DDate date -> w.WriteStringValue(date.toIsoString ())
+  | DDate date -> w.WriteStringValue((DDateTime.toInstant date).toIsoString ())
   | DPassword _ ->
     w.writeObject (fun () -> w.WriteString("Error", "Password is redacted"))
   | DUuid uuid -> w.WriteStringValue uuid
@@ -392,7 +392,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
       justtipe
     | DIncomplete _ -> justtipe
     | DError _ -> "<error>"
-    | DDate d -> wrap (d.toIsoString ())
+    | DDate d -> wrap ((DDateTime.toInstant d).toIsoString ())
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
     | DHttpResponse h ->
@@ -475,7 +475,7 @@ let unsafeOfUnknownJsonV0 str =
       | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
         DHttpResponse(responseOfJson (convert b) a)
       | [ ("type", JString "date"); ("value", JString v) ] ->
-        DDate(System.DateTime.ofIsoString v)
+        DDate(NodaTime.Instant.ofIsoString v |> DDateTime.fromInstant)
       | [ ("type", JString "password"); ("value", JString v) ] ->
         v |> Base64.fromDefaultEncoded |> Base64.decode |> Password |> DPassword
       | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
@@ -587,7 +587,7 @@ let rec toUrlString (dv : Dval) : string =
   | DFloat f -> ocamlStringOfFloat f
   | DChar c -> c
   | DNull -> "null"
-  | DDate d -> d.toIsoString ()
+  | DDate d -> (DDateTime.toInstant d).toIsoString ()
   | DDB dbname -> dbname
   | DErrorRail d -> r d
   | DError _ -> "error="

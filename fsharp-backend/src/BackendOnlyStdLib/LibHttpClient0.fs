@@ -29,7 +29,7 @@ module PrettyRequestJson =
       | DFnVal _ -> "block"
       | DIncomplete _ -> "<incomplete: <incomplete>>"
       | DError _ -> "<error: error>"
-      | DDate d -> $"<date: {d.toIsoString ()}>"
+      | DDate d -> $"<date: {(DDateTime.toInstant d).toIsoString ()}>"
       | DDB dbname -> $"<datastore: {dbname}>"
       | DUuid uuid -> $"<uuid: {uuid}>"
       | DPassword _ -> "<password: <password>>"

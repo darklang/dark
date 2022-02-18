@@ -7,17 +7,12 @@ open Prelude
 open TestUtils.TestUtils
 open FuzzTests.Utils
 
-let roundtrip (date : System.DateTime) : bool =
-  let truncate (d : System.DateTime) =
-    d.AddTicks(-(d.Ticks % System.TimeSpan.TicksPerSecond))
-
-  let date = truncate date
-
+let roundtrip (date : NodaTime.Instant) : bool =
   let roundTripped =
     date.toIsoString ()
-    |> System.DateTime.ofIsoString
+    |> NodaTime.Instant.ofIsoString
     |> fun d -> d.toIsoString ()
-    |> System.DateTime.ofIsoString
+    |> NodaTime.Instant.ofIsoString
 
   roundTripped = date
 

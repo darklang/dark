@@ -600,18 +600,57 @@ module Tuple2 =
     : (System.Collections.Generic.KeyValuePair<'a, 'b>) =
     System.Collections.Generic.KeyValuePair<'a, 'b>(k, v)
 
+type NodaTime.Instant with
 
-type System.DateTime with
+  static member UnixEpoch = NodaTime.Instant.FromUnixTimeSeconds 0
+
+  static member now() : NodaTime.Instant =
+    NodaTime.SystemClock.Instance.GetCurrentInstant()
+
+  // Convert to an LocalDateTime with an implicit Utc timezone
+  member this.toUtcLocalTimeZone() : NodaTime.LocalDateTime =
+    let utc = NodaTime.DateTimeZone.Utc
+    let zonedDateTime = NodaTime.ZonedDateTime(this, utc)
+    let mutable localDateTime = NodaTime.LocalDateTime()
+    let mutable (tz : NodaTime.DateTimeZone) = null
+    let mutable (offset : NodaTime.Offset) = NodaTime.Offset()
+    zonedDateTime.Deconstruct(&localDateTime, &tz, &offset)
+    localDateTime
 
   member this.toIsoString() : string =
-    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
+    let dt = this.ToDateTimeUtc()
+    dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
-  static member ofIsoString(str : string) : System.DateTime =
-    System.DateTime.ParseExact(
-      str,
-      "yyyy-MM-ddTHH:mm:ssZ",
-      System.Globalization.CultureInfo.InvariantCulture
-    )
+  static member ofIsoString(str : string) : NodaTime.Instant =
+    let dt =
+      System.DateTime.ParseExact(
+        str,
+        "yyyy-MM-ddTHH:mm:ssZ",
+        System.Globalization.CultureInfo.InvariantCulture
+      )
+    let utcDateTime = System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
+    NodaTime.Instant.FromDateTimeUtc utcDateTime
+  static member ofUtcInstant
+    (
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second : int
+    ) : NodaTime.Instant =
+    let local = NodaTime.LocalDateTime(year, month, day, hour, minute, second)
+    NodaTime
+      .ZonedDateTime(local, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
+      .ToInstant()
+
+  static member parse(str : string) : NodaTime.Instant =
+    // Parse using standard. Assume always UTC
+    let dt = System.DateTime.Parse(str)
+    let utcDateTime = System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
+    NodaTime.Instant.FromDateTimeUtc utcDateTime
+
+
 
 // ----------------------
 // Random numbers

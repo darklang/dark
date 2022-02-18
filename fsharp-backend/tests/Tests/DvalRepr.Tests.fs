@@ -109,7 +109,9 @@ let testToPrettyRequestJson =
       RT.DPassword(Password [| 76uy; 13uy |]), "<password: <password>>"
       RT.DBytes [||],
       "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
-      RT.DDate(System.DateTime.Parse "2019-07-28T22:42:36Z"),
+      RT.DDate(
+        NodaTime.Instant.parse "2019-07-28T22:42:36Z" |> RT.DDateTime.fromInstant
+      ),
       "<date: 2019-07-28T22:42:36Z>"
       (RT.DErrorRail(RT.DHttpResponse(RT.Redirect("some url"))),
        "ErrorRail: 302 some url\n  null")
@@ -408,7 +410,9 @@ module LibJwt =
            Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                         ("a", RT.DErrorRail(RT.DFloat nan)) ]
          )
-         RT.DDate(System.DateTime.Parse "7/29/2028 12:00:00 AM")
+         RT.DDate(
+           NodaTime.Instant.parse "7/29/2028 12:00:00 AM" |> RT.DDateTime.fromInstant
+         )
          RT.DStr "痃"
          RT.DError(RT.SourceNone, "ܱ")
          RT.DDB "ϴ"

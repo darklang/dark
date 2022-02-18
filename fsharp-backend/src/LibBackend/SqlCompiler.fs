@@ -57,7 +57,7 @@ let dvalToSql (dval : Dval) : SqlValue =
     error2
       "This value is not yet supported"
       (DvalReprExternal.toDeveloperReprV0 dval)
-  | DDate date -> Sql.timestamp date
+  | DDate date -> Sql.dDateTime date
   | DInt i ->
     // TODO: gonna have to do better than this for infinite precision
     Sql.int64 (int64 i)

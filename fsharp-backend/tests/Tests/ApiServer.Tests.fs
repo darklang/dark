@@ -28,10 +28,6 @@ type Server =
   | FSharp
   | OCaml
 
-
-let canonicalizeDate (d : System.DateTime) : System.DateTime =
-  d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
-
 let ident = Fun.identity
 
 type User = { client : HttpClient; csrf : string }
@@ -408,8 +404,7 @@ let testGetTraceData =
         { t with
             trace =
               t.trace
-              |> Tuple2.mapSecond (fun td ->
-                { td with timestamp = canonicalizeDate td.timestamp }) })
+              |> Tuple2.mapSecond (fun td -> { td with timestamp = td.timestamp }) })
 
     do!
       body
@@ -690,7 +685,7 @@ let testInitialLoadReturnsTheSame =
           |> List.sortBy (fun tl -> tl.tlid)
           |> List.map clearTypes
         canvas_list = v.canvas_list |> List.sort
-        creation_date = v.creation_date |> canonicalizeDate }
+        creation_date = v.creation_date }
 
   testPostApi "initial_load" "" deserialize canonicalize
 

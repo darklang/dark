@@ -149,6 +149,23 @@ module FQFnName =
 
   let binopFqName (op : string) : T = stdlibFqName "" op 0
 
+module DDateTime =
+  open NodaTime
+  // A datetime in Dark is always in UTC, so we don't include the utc info
+  type T = LocalDateTime
+  let utc = DateTimeZone.Utc
+
+  let toZonedDateTime (dt : T) = ZonedDateTime(dt, utc, Offset.Zero)
+
+  let toInstant (dt : T) = (toZonedDateTime dt).ToInstant()
+  let toDateTime (dt : T) = (toInstant dt).ToDateTimeUtc()
+
+  let fromInstant (i : Instant) : T = i.toUtcLocalTimeZone ()
+
+  let fromDateTime (dt : System.DateTime) : T =
+    Instant.FromDateTimeUtc dt |> fromInstant
+
+
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
   | EInteger of id * int64
@@ -215,6 +232,7 @@ and DHTTP =
   | Redirect of string
   | Response of int64 * List<string * string> * Dval
 
+and DDateTime = NodaTime.LocalDate
 and Dval =
   | DInt of int64
   | DFloat of double
@@ -269,10 +287,10 @@ and Dval =
   // - an if with an derrorrail in an subexpression is a derrorrail
   // -  a list containing a derrorrail is a derrorail
   | DErrorRail of Dval
-  (* user types: awaiting a better type system *)
+  // user types: awaiting a better type system
   | DHttpResponse of DHTTP
   | DDB of string
-  | DDate of System.DateTime
+  | DDate of DDateTime.T
   | DPassword of Password
   | DUuid of System.Guid
   | DOption of Option<Dval>
@@ -801,11 +819,11 @@ and TraceDval = bool -> id -> Dval -> unit
 
 and TraceTLID = tlid -> unit
 
-and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * System.DateTime>
+and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instant>
 
 and StoreFnResult = FunctionRecord -> Dval list -> Dval -> Task<unit>
 
-and LoadFnArguments = tlid -> List<DvalMap * System.DateTime>
+and LoadFnArguments = tlid -> List<DvalMap * NodaTime.Instant>
 
 and StoreFnArguments = tlid -> DvalMap -> Task<unit>
 

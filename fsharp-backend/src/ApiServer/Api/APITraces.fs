@@ -32,7 +32,7 @@ module TraceData =
 
   type TraceData =
     { input : InputVars
-      timestamp : System.DateTime
+      timestamp : NodaTime.Instant
       function_results : List<FunctionResult> }
 
   type Trace = AT.TraceID * TraceData

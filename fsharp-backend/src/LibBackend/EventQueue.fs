@@ -87,7 +87,7 @@ module SchedulingRule =
       canvasID : CanvasID
       handlerName : string
       eventSpace : string
-      createdAt : System.DateTime }
+      createdAt : NodaTime.Instant }
 
   let toDval (r : T) : RT.Dval =
     RT.Dval.obj [ ("id", RT.Dval.int r.id)
@@ -95,7 +95,7 @@ module SchedulingRule =
                   ("canvas_id", RT.Dval.DUuid r.canvasID)
                   ("handler_name", RT.Dval.DStr r.handlerName)
                   ("event_space", RT.Dval.DStr r.eventSpace)
-                  ("created_at", RT.Dval.DDate r.createdAt) ]
+                  ("created_at", RT.Dval.DDate(RT.DDateTime.fromInstant r.createdAt)) ]
 
 module WorkerStates =
 
@@ -328,12 +328,12 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
     canvasID = read.uuid "canvas_id"
     handlerName = read.string "handler_name"
     eventSpace = read.string "event_space"
-    createdAt = read.dateTime "created_at" }
+    createdAt = read.instantWithoutTimeZone "created_at" }
 
 
 // DARK INTERNAL FN
 // Gets all event scheduling rules, as used by the queue-scheduler.
-let getAllSchedulingRules unit : Task<List<SchedulingRule.T>> =
+let getAllSchedulingRules () : Task<List<SchedulingRule.T>> =
   Sql.query
     "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
      FROM scheduling_rules"
