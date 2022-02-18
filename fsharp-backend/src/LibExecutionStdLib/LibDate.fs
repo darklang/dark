@@ -15,7 +15,7 @@ let product lists =
   let folder list state = state |> Seq.allPairs list |> Seq.map List.Cons
   Seq.singleton List.empty |> List.foldBack folder lists
 
-let ocamlInstantFormats : array<string> =
+let ocamlDateTimeFormats : array<string> =
   // List of Instant custom formats intented to exactly match the behaviour of OCaml Core.Time.of_string.
   // https://github.com/janestreet/core/blob/b0be1daa71b662bd38ef2bb406f7b3e70d63d05f/core/src/time.ml#L398
   // I looked at every permutation of separators and optional fields to match it
@@ -53,7 +53,7 @@ let ocamlInstantFormats : array<string> =
       let msf = if ss = "" then "" else msf
 
       $"yyyy{dfs}MM{dfs}dd{dts}{hh}{ts}mm{ss}{msf}{tt}{tzs}"
-    | _ -> Exception.raiseInternal "ocamlInstantFormats is wrong shape" [])
+    | _ -> Exception.raiseInternal "ocamlDateTimeFormats is wrong shape" [])
   |> Set.ofSeq // remove dups
   |> Set.toArray
   |> (fun allFormats ->
@@ -83,7 +83,7 @@ let ocamlCompatibleDateParser (s : string) : Result<DDateTime.T, unit> =
       System.DateTime.TryParseExact
         (
           s,
-          ocamlInstantFormats,
+          ocamlDateTimeFormats,
           culture,
           styles,
           &result
