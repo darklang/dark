@@ -117,8 +117,7 @@ module PrettyResponseJsonV0 =
 
             writeDval hdv))
     | DDB dbname -> wrapStringValue "datastore" dbname
-    | DDate date ->
-      wrapStringValue "date" ((DDateTime.toInstant date).toIsoString ())
+    | DDate date -> wrapStringValue "date" (DDateTime.toIsoString date)
     | DPassword _ -> wrapNullValue "password"
     | DUuid uuid -> wrapStringValue "uuid" (string uuid)
     | DOption opt ->

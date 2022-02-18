@@ -347,7 +347,7 @@ let fns : List<BuiltInFn> =
             | "expires", v ->
               (match v with
                | DDate d ->
-                 let dt = DDateTime.toDateTime d
+                 let dt = DDateTime.toDateTimeUtc d
                  (sprintf
                    "%s=%s"
                    key

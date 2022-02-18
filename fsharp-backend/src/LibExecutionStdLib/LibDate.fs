@@ -159,7 +159,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          let dt = (DDateTime.toInstant d).ToDateTimeUtc()
+          let dt = DDateTime.toDateTimeUtc d
           dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
           |> DStr
           |> Ply
@@ -177,7 +177,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          (DDateTime.toDateTime d).ToString("yyyyMMddTHHmmssZ") |> DStr |> Ply
+          (DDateTime.toDateTimeUtc d).ToString("yyyyMMddTHHmmssZ") |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -191,7 +191,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          (DDateTime.toDateTime d).ToString("yyyyMMdd") |> DStr |> Ply
+          (DDateTime.toDateTimeUtc d).ToString("yyyyMMdd") |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

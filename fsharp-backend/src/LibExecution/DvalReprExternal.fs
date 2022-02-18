@@ -248,7 +248,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
     | DChar c -> c
     | DNull -> "null"
-    | DDate d -> (DDateTime.toInstant d).toIsoString ()
+    | DDate d -> DDateTime.toIsoString d
     | DUuid uuid -> string uuid
     | DDB dbname -> $"<DB: {dbname}>"
     | DError _ -> "Error"
@@ -333,7 +333,7 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DHttpResponse (Redirect _) -> writeDval DNull
   | DHttpResponse (Response (_, _, response)) -> writeDval response
   | DDB dbName -> w.WriteStringValue dbName
-  | DDate date -> w.WriteStringValue((DDateTime.toInstant date).toIsoString ())
+  | DDate date -> w.WriteStringValue(DDateTime.toIsoString date)
   | DPassword _ ->
     w.writeObject (fun () -> w.WriteString("Error", "Password is redacted"))
   | DUuid uuid -> w.WriteStringValue uuid
@@ -392,7 +392,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
       justtipe
     | DIncomplete _ -> justtipe
     | DError _ -> "<error>"
-    | DDate d -> wrap ((DDateTime.toInstant d).toIsoString ())
+    | DDate d -> wrap (DDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
     | DHttpResponse h ->
@@ -587,7 +587,7 @@ let rec toUrlString (dv : Dval) : string =
   | DFloat f -> ocamlStringOfFloat f
   | DChar c -> c
   | DNull -> "null"
-  | DDate d -> (DDateTime.toInstant d).toIsoString ()
+  | DDate d -> DDateTime.toIsoString d
   | DDB dbname -> dbname
   | DErrorRail d -> r d
   | DError _ -> "error="

@@ -440,7 +440,7 @@ let rec debugDval (v : Dval) : string =
   | DStr s ->
     $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDate d ->
-    $"DDate '{(DDateTime.toInstant d).toIsoString ()}': (millies {d.InUtc().Millisecond})"
+    $"DDate '{DDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
   | DObj obj ->
     obj
     |> Map.toList

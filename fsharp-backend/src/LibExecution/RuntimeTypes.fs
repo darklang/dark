@@ -158,12 +158,15 @@ module DDateTime =
   let toZonedDateTime (dt : T) = ZonedDateTime(dt, utc, Offset.Zero)
 
   let toInstant (dt : T) = (toZonedDateTime dt).ToInstant()
-  let toDateTime (dt : T) = (toInstant dt).ToDateTimeUtc()
+
+  let toDateTimeUtc (dt : T) = (toInstant dt).ToDateTimeUtc()
 
   let fromInstant (i : Instant) : T = i.toUtcLocalTimeZone ()
 
   let fromDateTime (dt : System.DateTime) : T =
     Instant.FromDateTimeUtc dt |> fromInstant
+
+  let toIsoString (d : T) : string = (toInstant d).toIsoString ()
 
 
 // This Expr is the AST, expressing what the user sees in their editor.

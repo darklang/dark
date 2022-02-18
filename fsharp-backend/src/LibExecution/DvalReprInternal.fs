@@ -500,8 +500,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
     (* See docs/dblock-serialization.ml *)
     "<block: <block>>" |> UTF8.toBytes
   | DError _ -> "<error>" |> UTF8.toBytes
-  | DDate d ->
-    "<date: " + (DDateTime.toInstant d).toIsoString () + ">" |> UTF8.toBytes
+  | DDate d -> "<date: " + DDateTime.toIsoString d + ">" |> UTF8.toBytes
   | DPassword _ -> "<password: <password>>" |> UTF8.toBytes
   | DUuid id -> "<uuid: " + string id + ">" |> UTF8.toBytes
   | DHttpResponse d ->
