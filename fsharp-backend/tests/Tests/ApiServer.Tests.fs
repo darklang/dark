@@ -685,7 +685,7 @@ let testInitialLoadReturnsTheSame =
           |> List.sortBy (fun tl -> tl.tlid)
           |> List.map clearTypes
         canvas_list = v.canvas_list |> List.sort
-        creation_date = v.creation_date }
+        creation_date = v.creation_date.truncate () }
 
   testPostApi "initial_load" "" deserialize canonicalize
 

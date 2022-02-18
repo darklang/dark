@@ -621,6 +621,14 @@ type NodaTime.Instant with
     let dt = this.ToDateTimeUtc()
     dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
+  // Returns a new datetime with truncated
+  member this.truncate() : NodaTime.Instant =
+    // get it to zero milliseconds
+    let dt = this.ToDateTimeUtc()
+    let dt = dt.AddTicks(-dt.Ticks % System.TimeSpan.TicksPerSecond)
+    NodaTime.Instant.FromDateTimeUtc dt
+
+
   static member ofIsoString(str : string) : NodaTime.Instant =
     let dt =
       System.DateTime.ParseExact(
