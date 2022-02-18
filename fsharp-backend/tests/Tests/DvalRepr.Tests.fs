@@ -36,7 +36,7 @@ let testInternalRoundtrippableDoesntCareAboutOrder =
 let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
-    FuzzTests.All.Roundtrippable.roundtrip
+    FuzzTests.OCamlInterop.Roundtrippable.roundtrip
     [ RT.DObj(
         Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                      ("a", RT.DErrorRail(RT.DFloat nan)) ]
@@ -222,8 +222,6 @@ module ToHashableRepr =
   let tests = testList "hashing" [ testToHashableRepr; testHashV0; testHashV1 ]
 
 
-module F = FuzzTests.All
-
 let allRoundtrips =
   let t = testListUsingProperty
 
@@ -245,20 +243,23 @@ let allRoundtrips =
     "roundtrips"
     [ t
         "roundtrippable"
-        F.Roundtrippable.roundtrip
+        FuzzTests.OCamlInterop.Roundtrippable.roundtrip
         (dvs (DvalReprInternal.isRoundtrippableDval false))
       t
         "roundtrippable interop"
-        F.Roundtrippable.isInteroperableV0
+        FuzzTests.OCamlInterop.Roundtrippable.isInteroperableV0
         (dvs (DvalReprInternal.isRoundtrippableDval false))
-      t "queryable v0" F.Queryable.v1Roundtrip (dvs DvalReprInternal.isQueryableDval)
+      t
+        "queryable v0"
+        FuzzTests.OCamlInterop.Queryable.v1Roundtrip
+        (dvs DvalReprInternal.isQueryableDval)
       t
         "queryable interop v1"
-        F.Queryable.isInteroperableV1
+        FuzzTests.OCamlInterop.Queryable.isInteroperableV1
         (dvs DvalReprInternal.isQueryableDval)
-      t "enduserReadable" F.EndUserReadable.equalsOCaml all
-      t "developerRepr" F.DeveloperRepr.equalsOCaml all
-      t "prettyMachineJson" F.PrettyMachineJson.equalsOCaml all ]
+      t "enduserReadable" FuzzTests.DvalRepr.EndUserReadable.equalsOCaml all
+      t "developerRepr" FuzzTests.DvalRepr.equalsOCaml all
+      t "prettyMachineJson" FuzzTests.Json.PrettyMachineJson.equalsOCaml all ]
 
 
 
@@ -402,7 +403,7 @@ module LibJwt =
   let testJsonSameOnBoth =
     testMany
       "LibJwt json toString works same on both"
-      FuzzTests.All.LibJwtJson.equalsOCaml
+      FuzzTests.Json.LibJwtJson.equalsOCaml
       ([ RT.DObj(
            Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                         ("a", RT.DErrorRail(RT.DFloat nan)) ]

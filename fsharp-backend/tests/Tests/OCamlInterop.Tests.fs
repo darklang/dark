@@ -12,7 +12,7 @@ open LibExecution.ProgramTypes
 let fuzzedTests =
   [ testListUsingProperty
       "OCamlInterop expr tests"
-      FuzzTests.All.OCamlInterop.yojsonExprRoundtrip
+      FuzzTests.OCamlInterop.yojsonExprRoundtrip
       [ ("norail was copied wrong",
          EFnCall(0UL, FQFnName.parse "b/k/C::r_v1", [], NoRail))
         ("",
@@ -31,7 +31,7 @@ let fuzzedTests =
          )) ]
     testListUsingProperty
       "OCamlInterop Yojson handler tests"
-      FuzzTests.All.OCamlInterop.yojsonHandlerRoundtrip
+      FuzzTests.OCamlInterop.yojsonHandlerRoundtrip
       [ ("",
          { tlid = 0UL
            ast = EFnCall(0UL, FQFnName.parse "o/t/F::e_v1", [], NoRail)
@@ -50,7 +50,7 @@ let fuzzedTests =
              ) }) ]
     testListUsingProperty
       "queryStringToParams"
-      FuzzTests.All.HttpClient.queryStringToParams
+      FuzzTests.HttpClient.queryStringToParams
       [ "empty", ""
         "newline", "\n"
         "newline with value", "\n=6"
@@ -69,19 +69,19 @@ let fuzzedTests =
         "question mark surrounded later with value", "x=5&y?y=6" ]
     testListUsingProperty
       "toQueryString"
-      FuzzTests.All.HttpClient.queryToEncodedString
+      FuzzTests.HttpClient.queryToEncodedString
       [ "empty", [ "", [] ]
         "empty string value", [ "", [ "" ] ]
         "empty value", [ "a", [] ]
         "empty value and empty string value", [ "a", [ "" ] ] ]
     testListUsingProperty
       "queryToDval"
-      FuzzTests.All.HttpClient.queryToDval
+      FuzzTests.HttpClient.queryToDval
       [ "empty", [ "", [] ] ]
 
     testListUsingProperty
       "OCamlInterop Binary handler tests"
-      FuzzTests.All.OCamlInterop.binaryHandlerRoundtrip
+      FuzzTests.OCamlInterop.binaryHandlerRoundtrip
       [] ]
 
 let tests = testList "ocamlInterop" fuzzedTests

@@ -22,7 +22,7 @@ let equalsOCaml =
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany
     "equalsOCaml"
-    (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
+    (FuzzTests.ExecutePureFunctions.equalsOCaml)
     [ ((RT.FQFnName.stdlibFnName "List" "fold" 0,
         [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
           RT.DList []
