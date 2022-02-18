@@ -468,8 +468,7 @@ let webserver
   builder.WebHost
   |> fun wh -> wh.ConfigureLogging(loggerSetup)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-  |> fun wh ->
-       wh.UseUrls(hcUrl, $"http://*:{httpPort}", "http://bwdserver-healthcheck")
+  |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
 
   let app = builder.Build()
