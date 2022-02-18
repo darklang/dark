@@ -291,17 +291,25 @@ let executionStateFor
             if tc.exceptionReports.Length > 0 && not errorsExpected then
               print $"UNEXPECTED EXCEPTION in {meta.name}"
               List.iter
-                (fun (executionID, exn) -> RT.consoleReporter executionID exn)
+                (fun (executionID, msg, stackTrace, metadata) ->
+                  print
+                    $"An error was reported in the runtime ({executionID}):  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
               Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
     // definition)
-    let exceptionReporter : RT.ExceptionReporter =
+    let rec exceptionReporter : RT.ExceptionReporter =
       fun executionID (exn : exn) ->
+        let message = exn.Message
+        let stackTrace = exn.StackTrace
+        let metadata = Exception.toMetadata exn
+        let inner = exn.InnerException
+        if inner <> null then (exceptionReporter executionID inner) else ()
         testContext.exceptionReports <-
-          (executionID, exn) :: testContext.exceptionReports
+          (executionID, message, stackTrace, metadata)
+          :: testContext.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
@@ -431,7 +439,8 @@ let rec debugDval (v : Dval) : string =
   match v with
   | DStr s ->
     $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
-  | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
+  | DDate d ->
+    $"DDate '{DDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
   | DObj obj ->
     obj
     |> Map.toList
@@ -927,7 +936,10 @@ let interestingDvals =
     ("httpresponse",
      DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
     ("db", DDB "Visitors")
-    ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
+    ("date",
+     DDate(
+       DDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
+     ))
     ("password", DPassword(Password(UTF8.toBytes "somebytes")))
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))

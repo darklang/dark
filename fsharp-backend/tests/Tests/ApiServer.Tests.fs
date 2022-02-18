@@ -28,10 +28,6 @@ type Server =
   | FSharp
   | OCaml
 
-
-let canonicalizeDate (d : System.DateTime) : System.DateTime =
-  d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
-
 let ident = Fun.identity
 
 type User = { client : HttpClient; csrf : string }
@@ -409,7 +405,7 @@ let testGetTraceData =
             trace =
               t.trace
               |> Tuple2.mapSecond (fun td ->
-                { td with timestamp = canonicalizeDate td.timestamp }) })
+                { td with timestamp = td.timestamp.truncate () }) })
 
     do!
       body
@@ -690,13 +686,24 @@ let testInitialLoadReturnsTheSame =
           |> List.sortBy (fun tl -> tl.tlid)
           |> List.map clearTypes
         canvas_list = v.canvas_list |> List.sort
-        creation_date = v.creation_date |> canonicalizeDate }
+        creation_date = v.creation_date.truncate () }
 
   testPostApi "initial_load" "" deserialize canonicalize
 
 let localOnlyTests =
+  let canonicalizePackages (ps : Packages.List.T) : Packages.List.T =
+    ps
+    |> List.map (fun p ->
+      { p with
+          body =
+            LibExecution.OCamlTypesAst.preTraversal
+              (function
+              // This is a random number so make it zero so they can be compared
+              | LibExecution.OCamlTypes.RuntimeT.EPipeTarget _ ->
+                LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
+              | other -> other)
+              p.body })
   let tests =
-
     if System.Environment.GetEnvironmentVariable "CI" = null then
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
@@ -713,7 +720,7 @@ let localOnlyTests =
         testWorkerStats
         testInitialLoadReturnsTheSame
         testInsertDeleteSecrets
-        testPostApi "packages" "" (deserialize<Packages.List.T>) ident
+        testPostApi "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
         // TODO upload_package
         testTriggerHandler
         // FSTODO worker_schedule

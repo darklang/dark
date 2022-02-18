@@ -68,7 +68,7 @@ let uiHtml
   (canvasName : CanvasName.T)
   (csrfToken : string)
   (localhostAssets : string option)
-  (accountCreated : System.DateTime)
+  (accountCreated : NodaTime.Instant)
   (user : Account.UserInfo)
   : string =
 
@@ -79,7 +79,7 @@ let uiHtml
     if shouldHash then prodHashReplacementsString.Force() else "{}"
 
   let accountCreatedMsTs =
-    System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds()
+    accountCreated.ToUnixTimeMilliseconds()
     // CLEANUP strip milliseconds to make it identical to ocaml
     |> fun x -> (x / 1000L) * 1000L
     |> string

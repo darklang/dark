@@ -47,7 +47,7 @@ let testFilterSlash : Test =
 
     let t1 = System.Guid.NewGuid()
     let desc = ("HTTP", "/", "GET")
-    let! (_d : System.DateTime) = TI.storeEvent meta.id t1 desc (DStr "1")
+    let! (_d : NodaTime.Instant) = TI.storeEvent meta.id t1 desc (DStr "1")
     let! loaded = Traces.traceIDsForHandler c handler
     Expect.equal loaded [ Traces.traceIDofTLID handler.tlid ] "ids is the default"
 
@@ -68,7 +68,7 @@ let testRouteVariablesWorkWithStoredEvents : Test =
     let t1 = System.Guid.NewGuid()
     let httpRequestPath = "/some/vars/and/such"
     let desc = ("HTTP", httpRequestPath, "GET")
-    let! (_ : System.DateTime) = TI.storeEvent c.meta.id t1 desc (DStr "1")
+    let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
 
     // check we get back the data we put into it
     let! events = TI.loadEvents c.meta.id ("HTTP", httpRoute, "GET")
@@ -102,7 +102,7 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
     // store an event and check it comes out
     let t1 = System.Guid.NewGuid()
     let desc = ("HTTP", requestPath, "GET")
-    let! (_ : System.DateTime) = TI.storeEvent c.meta.id t1 desc (DStr "1")
+    let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
 
     // check we get back the path for a route with a variable in it
     let! events = TI.loadEvents c.meta.id ("HTTP", route, "GET")
@@ -170,7 +170,7 @@ let testTraceDataJsonFormatRedactsPasswords =
     let id = gid () in
     let traceData : AT.TraceData =
       { input = [ ("event", DPassword(Password(UTF8.toBytes "redactme1"))) ]
-        timestamp = System.DateTime.UnixEpoch
+        timestamp = NodaTime.Instant.UnixEpoch
         function_results =
           [ ("Password::hash",
              id,
@@ -179,7 +179,7 @@ let testTraceDataJsonFormatRedactsPasswords =
              DPassword(Password(UTF8.toBytes "redactme2"))) ] }
     let expected : AT.TraceData =
       { input = [ ("event", DPassword(Password(UTF8.toBytes "Redacted"))) ]
-        timestamp = System.DateTime.UnixEpoch
+        timestamp = NodaTime.Instant.UnixEpoch
         function_results =
           [ ("Password::hash",
              id,

@@ -82,7 +82,7 @@ module Legacy =
     | DHttpResponse (Redirect _) -> Null
     | DHttpResponse (Response (_, _, hdv)) -> toYojson hdv
     | DDB name -> String name
-    | DDate date -> String(date.toIsoString ())
+    | DDate date -> String(DDateTime.toIsoString date)
     | DPassword _ -> Assoc [ "Error", String "Password is redacted" ]
     | DUuid uuid -> String(string uuid)
     | DOption None -> Null

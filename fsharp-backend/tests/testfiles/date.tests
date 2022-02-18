@@ -161,18 +161,25 @@ Date.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") 
 Date.year_v0 (d "2019-07-28T22:42:36Z") = 2019
 Date.month_v0 (d "2019-07-28T22:42:36Z") = 7
 Date.day_v0 (d "2019-07-28T22:42:36Z") = 28
-Date.weekday_v0 (d "2019-07-28T22:42:36Z") = 7
 Date.hour_v0 (d "2019-07-28T22:42:36Z") = 22
 Date.hour_v1 (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
 Date.minute_v0 (d "2019-07-28T22:42:36Z") = 42
 Date.second_v0 (d "2019-07-28T22:42:36Z") = 36
 Date.second_v0 (d "1905-12-13T10:12:14Z") = -46
 Date.second_v0 (d "1965-04-24T09:54:28Z") = -32
-
 Date.second_v0  (d "1969-07-05T12:34:00Z") = 0
 Date.minute_v0  (d "1955-05-16T18:08:00Z") = -52
 Date.minute_v0  (d "1949-06-27T12:26:00Z") = -34
 Date.minute_v0  (d "1908-05-12T10:18:00Z") = -42
+
+Date.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
+Date.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
+Date.weekday_v0 (d "2019-07-24T22:42:36Z") = 3
+Date.weekday_v0 (d "2019-07-25T22:42:36Z") = 4
+Date.weekday_v0 (d "2019-07-26T22:42:36Z") = 5
+Date.weekday_v0 (d "2019-07-27T22:42:36Z") = 6
+Date.weekday_v0 (d "2019-07-28T22:42:36Z") = 7
+
 
 // CLEANUP: a bug in our implementation causes dates before 1970 to be wrong
 [tests.date before the epoch is negative - 1919]
