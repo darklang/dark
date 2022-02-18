@@ -124,7 +124,7 @@ module Sql =
     Sql.parameter param
 
   // We sometimes erroneously store these as timestamps that are not Utc. But we mean them to be Utc.
-  let timestampWithoutTimeZone (i : NodaTime.Instant) : SqlValue =
+  let instantWithoutTimeZone (i : NodaTime.Instant) : SqlValue =
     // We can't use a Utc System.DateTime here as
     Sql.timestamp (i.toUtcLocalTimeZone().ToDateTimeUnspecified())
 
