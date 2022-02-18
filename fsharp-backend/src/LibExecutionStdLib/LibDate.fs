@@ -169,7 +169,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Date" "toStringISO8601BasicInstant" 0
+    { name = fn "Date" "toStringISO8601BasicDateTime" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TStr
       description =
