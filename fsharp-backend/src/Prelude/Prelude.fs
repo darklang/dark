@@ -1070,7 +1070,12 @@ module Json =
       override _.CanConvert(t : System.Type) =
         t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
 
-      override _.WriteJson(writer : JsonWriter, value, serializer : JsonSerializer) =
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value,
+          serializer : JsonSerializer
+        ) : unit =
         let value =
           if value = null then
             null
@@ -1086,7 +1091,7 @@ module Json =
           t : System.Type,
           _,
           serializer : JsonSerializer
-        ) =
+        ) : obj =
         let cases = FSharpType.GetUnionCases(t)
 
         if reader.TokenType = JsonToken.Null then
@@ -1106,6 +1111,31 @@ module Json =
             FSharpValue.MakeUnion(cases[0], [||])
           else
             FSharpValue.MakeUnion(cases[1], [| value |])
+
+    // Since we're getting this back from OCaml in DDates, we need to use the
+    // timezone even though there isn't on in the type
+    type LocalDateTimeConverter() =
+      inherit JsonConverter<NodaTime.LocalDateTime>()
+
+      override _.ReadJson(reader : JsonReader, _, v, _, _) =
+        let rawToken = string reader.Value
+        (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
+
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value : NodaTime.LocalDateTime,
+          serializer : JsonSerializer
+        ) : unit =
+        let value =
+          NodaTime
+            .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
+            .ToInstant()
+            .toIsoString ()
+        serializer.Serialize(writer, value)
+
+
+
 
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
@@ -1146,6 +1176,7 @@ module Json =
       settings.DateParseHandling <- DateParseHandling.None
       settings.Converters.Add(TLIDConverter())
       settings.Converters.Add(PasswordConverter())
+      settings.Converters.Add(LocalDateTimeConverter())
       settings.Converters.Add(FSharpListConverter())
       settings.Converters.Add(OCamlOptionConverter())
       settings.Converters.Add(FSharpDuConverter())
