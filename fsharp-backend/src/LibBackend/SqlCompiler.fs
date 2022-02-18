@@ -15,7 +15,7 @@ open LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
 
-module Ast = LibExecution.Ast
+module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
 let error (str : string) : 'a = raise (Errors.DBQueryException str)
@@ -130,7 +130,7 @@ let rec inline'
   (symtable : Map<string, Expr>)
   (expr : Expr)
   : Expr =
-  Ast.postTraversal
+  RuntimeTypesAst.postTraversal
     (function
     | ELet (_, name, expr, body) ->
       inline' paramName (Map.add name expr symtable) body

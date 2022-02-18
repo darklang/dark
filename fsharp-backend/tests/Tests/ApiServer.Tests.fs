@@ -690,8 +690,19 @@ let testInitialLoadReturnsTheSame =
   testPostApi "initial_load" "" deserialize canonicalize
 
 let localOnlyTests =
+  let canonicalizePackages (ps : Packages.List.T) : Packages.List.T =
+    ps
+    |> List.map (fun p ->
+      { p with
+          body =
+            LibExecution.OCamlTypesAst.preTraversal
+              (function
+              // This is a random number so make it zero so they can be compared
+              | LibExecution.OCamlTypes.RuntimeT.EPipeTarget _ ->
+                LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
+              | other -> other)
+              p.body })
   let tests =
-
     if System.Environment.GetEnvironmentVariable "CI" = null then
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
@@ -708,7 +719,7 @@ let localOnlyTests =
         testWorkerStats
         testInitialLoadReturnsTheSame
         testInsertDeleteSecrets
-        testPostApi "packages" "" (deserialize<Packages.List.T>) ident
+        testPostApi "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
         // TODO upload_package
         testTriggerHandler
         // FSTODO worker_schedule

@@ -13,7 +13,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Shortcuts
 
 module Exe = LibExecution.Execution
-module Ast = LibExecution.Ast
+module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
@@ -394,7 +394,7 @@ let testMatchPreview : Test =
         let argIDs = ref []
 
         arg
-        |> Ast.postTraversal (fun e ->
+        |> RuntimeTypesAst.postTraversal (fun e ->
           argIDs.Value <- (Expr.toID e) :: argIDs.Value
           e)
         |> ignore<Expr>
