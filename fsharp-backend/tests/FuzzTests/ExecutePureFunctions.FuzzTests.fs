@@ -1,6 +1,7 @@
 module FuzzTests.ExecutePureFunctions
 
 open System.Threading.Tasks
+open FSharp.Control.Tasks
 open System.Text.RegularExpressions
 
 open Expecto
