@@ -8,6 +8,7 @@ open TestUtils.TestUtils
 open FuzzTests.Utils
 
 let roundtrip (date : NodaTime.Instant) : bool =
+  let date = date.truncate ()
   let roundTripped =
     date.toIsoString ()
     |> NodaTime.Instant.ofIsoString

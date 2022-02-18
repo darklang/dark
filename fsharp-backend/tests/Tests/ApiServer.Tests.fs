@@ -404,7 +404,8 @@ let testGetTraceData =
         { t with
             trace =
               t.trace
-              |> Tuple2.mapSecond (fun td -> { td with timestamp = td.timestamp }) })
+              |> Tuple2.mapSecond (fun td ->
+                { td with timestamp = td.timestamp.truncate () }) })
 
     do!
       body
