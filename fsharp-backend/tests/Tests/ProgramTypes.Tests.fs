@@ -41,7 +41,7 @@ let parseTests =
     "Parsing fn names"
     [ testListUsingProperty
         "FQFnName roundtrip tests"
-        FuzzTests.All.FQFnName.ptRoundtrip
+        FuzzTests.FQFnName.ptRoundtrip
         [ ("", p "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3")
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
           ("", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1")
