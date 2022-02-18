@@ -129,8 +129,8 @@ module Sql =
     Sql.timestamp (i.toUtcLocalTimeZone().ToDateTimeUnspecified())
 
   let dDateTime (dt : RT.DDateTime.T) : SqlValue =
-    // We can't use a Utc System.DateTime here as
-    (RT.DDateTime.toInstant dt).ToDateTimeUtc() |> Sql.timestamp
+    // The SqlCompiler uses timezones
+    (RT.DDateTime.toInstant dt).ToDateTimeUtc() |> Sql.timestamptz
 
 
 
