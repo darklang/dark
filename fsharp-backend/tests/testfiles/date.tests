@@ -172,7 +172,7 @@ Date.minute_v0  (d "1955-05-16T18:08:00Z") = -52
 Date.minute_v0  (d "1949-06-27T12:26:00Z") = -34
 Date.minute_v0  (d "1908-05-12T10:18:00Z") = -42
 
-Date.weekday_v0 (d "2019-07-22T22:42:36Z") = 1
+Date.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
 Date.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
 Date.weekday_v0 (d "2019-07-24T22:42:36Z") = 3
 Date.weekday_v0 (d "2019-07-25T22:42:36Z") = 4
