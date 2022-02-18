@@ -288,8 +288,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
 
           writeDval hdv))
   | DDB dbname -> wrapStringValue "datastore" dbname
-  | DDate date ->
-    wrapStringValue "date" ((date |> DDateTime.toInstant).toIsoString ())
+  | DDate date -> wrapStringValue "date" (DDateTime.toIsoString date)
   | DPassword (Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (string uuid)
