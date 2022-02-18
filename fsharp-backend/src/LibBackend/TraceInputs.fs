@@ -115,7 +115,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 
   Sql.query sql
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "timestamp", Sql.timestamp timestamp ]
+                      "timestamp", Sql.timestampWithoutTimeZone timestamp ]
   |> Sql.executeAsync (fun read ->
     (read.string "module",
      read.string "path",
