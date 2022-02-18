@@ -33,7 +33,7 @@ let server () =
       |> String.split ~on:'/'
     in
     print_endline
-      ("got request: " ^ Uri.path uri ^ " and body\n: " ^ body_string) ;
+      ("got request: " ^ Uri.path uri ^ " and body:\n" ^ body_string) ;
     let fn =
       match path with
       | ["execute"] ->
@@ -94,6 +94,8 @@ let server () =
     | `POST, Some fn ->
       ( try
           let result = body_string |> fn in
+          print_endline
+            ("got response:\n" ^ result) ;
           respond_json_ok result
         with e ->
           let headers = Header.init () in
