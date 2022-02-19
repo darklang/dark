@@ -2,7 +2,7 @@
 POST PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: application/json; charset=utf-8
+Content-Type: application/x-www-form-urlencoded
 Host: HOST
 
 [

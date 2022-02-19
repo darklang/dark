@@ -1,10 +1,11 @@
 [expected-request]
-GET PATH HTTP/1.1
+POST PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
 Content-Type: text/plain; charset=utf-8
 Host: HOST
 
+null
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -14,7 +15,7 @@ Content-Length: LENGTH
 "Hello back"
 
 [test]
-(let response = HttpClient.get_v4_ster "http://URL" {} {} in
+(let response = HttpClient.post_v4_ster "http://URL" Nothing {} {``Content-Type`` = "text/plain; charset=utf-8" } in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""
