@@ -78,7 +78,10 @@ let makeTest versionName filename =
   // Parse the file contents now, rather than later, so that tests that refer to
   // other tests (that is, tests for redirects) will work.
   let shouldSkipTest = String.startsWith "_" filename
-  let testName = if shouldSkipTest then String.dropLeft 1 filename else filename
+  let testName =
+    let withoutPrefix =
+      if shouldSkipTest then String.dropLeft 1 filename else filename
+    withoutPrefix |> String.dropRight 5 // ".test"
 
   let filename = $"{baseDirectory}/{versionName}/{filename}"
   let contents = System.IO.File.ReadAllBytes filename
@@ -381,7 +384,7 @@ let init (token : System.Threading.CancellationToken) : Task =
 
 
 let testsFromFiles version =
-  System.IO.Directory.GetFiles($"{baseDirectory}/{version}", "*")
+  System.IO.Directory.GetFiles($"{baseDirectory}/{version}", "*.test")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
   |> List.map (makeTest version)
