@@ -157,11 +157,10 @@ let socketHandler : HttpMessageHandler =
   // we're going to have to implement this manually
   handler.AllowAutoRedirect <- false
 
-  // CLEANUP rename CurlTunnelUrl
   // CLEANUP add port into config var
   // This port is assumed by Curl in the OCaml version, but not by .NET
   handler.UseProxy <- true
-  handler.Proxy <- System.Net.WebProxy($"{Config.curlTunnelUrl}:1080", false)
+  handler.Proxy <- System.Net.WebProxy(Config.httpclientProxyUrl, false)
 
   // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false
@@ -209,7 +208,11 @@ let makeHttpCall
     try
       let uri = System.Uri(url, System.UriKind.Absolute)
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
-        return Error { url = url; code = 0; error = prependInternalErrorMessage "Unsupported protocol" }
+        return
+          Error
+            { url = url
+              code = 0
+              error = prependInternalErrorMessage "Unsupported protocol" }
       else
         // Remove the parts of the existing Uri that are duplicated or handled in
         // other ways
@@ -359,24 +362,30 @@ let makeHttpCall
         return Ok result
     with
     | InvalidEncodingException code ->
-      let error =
-        "Unrecognized or bad HTTP Content or Transfer-Encoding"
-      return Error { url = url; code = code; error = prependInternalErrorMessage error }
+      let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
+      return
+        Error { url = url; code = code; error = prependInternalErrorMessage error }
     | :? TaskCanceledException -> // only timeouts
-      return Error { url = url; code = 0; error = prependInternalErrorMessage "Timeout" }
+      return
+        Error { url = url; code = 0; error = prependInternalErrorMessage "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
       let message =
         if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
           "Unsupported protocol"
         else
           e.Message
-      return Error { url = url; code = 0; error = prependInternalErrorMessage message }
+      return
+        Error { url = url; code = 0; error = prependInternalErrorMessage message }
     | :? System.UriFormatException ->
       return Error { url = url; code = 0; error = "Invalid URI" }
-    | :? IOException as e -> return Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
+    | :? IOException as e ->
+      return
+        Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
-      return Error { url = url; code = code; error = prependInternalErrorMessage e.Message }
+      return
+        Error
+          { url = url; code = code; error = prependInternalErrorMessage e.Message }
   }
 
 
@@ -559,8 +568,7 @@ module LibhttpclientV0 =
                      ("headers", parsedResponseHeaders)
                      ("raw", DStr response.body) ]
         return obj
-      | Error err ->
-        return DError(SourceNone, err.error)
+      | Error err -> return DError(SourceNone, err.error)
     }
 
   let call (method : HttpMethod) jsonFn : BuiltInFnSig =
