@@ -1,5 +1,7 @@
 module BackendOnlyStdLib.LegacyHttpClient2
 
+// HttpClient for LibHttpClient4
+
 open System.IO
 open System.IO.Compression
 open System.Net.Http
@@ -52,6 +54,7 @@ let rec httpCall
         let location =
           result.headers
           |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive "location" k)
+
         match location with
         | Some (_, locationUrl) when method <> HttpMethod.Delete ->
           let newCount = count + 1
@@ -72,17 +75,6 @@ let rec httpCall
   }
 
 
-let init (serviceName : string) =
-  print $"Initing LegacyHttpClient v2 in {serviceName}"
-  // Don't add "traceparent" headers in HttpClient calls. It's not necessarily a bad
-  // idea, but it's a change (one that breaks all the tests), and so something we
-  // should do consciously.
-  System.AppContext.SetSwitch("System.Net.Http.EnableActivityPropagation", false)
-  print $" Inited LegacyHttpClient v2 in {serviceName}"
-
-
-
-// used by v4 Dark fns
 let sendRequest
   (uri : string)
   (verb : HttpMethod)
