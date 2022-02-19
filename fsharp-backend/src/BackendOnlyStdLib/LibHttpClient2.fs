@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
       returnType = returnType
       description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-      fn = LegacyLibHttp.LibhttpclientV0.wrappedCall HttpMethod.Post jsonFn
+      fn = LegacyHttpClient0.wrappedCall HttpMethod.Post jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "post" 3) }
@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
       returnType = returnType
       description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-      fn = LegacyLibHttp.LibhttpclientV0.wrappedCall HttpMethod.Put jsonFn
+      fn = LegacyHttpClient0.wrappedCall HttpMethod.Put jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "put" 3) }
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
       returnType = returnType
       description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-      fn = LegacyLibHttp.LibhttpclientV0.wrappedCallNoBody HttpMethod.Get jsonFn
+      fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Get jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "get" 3) }
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
       returnType = returnType
       description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-      fn = LegacyLibHttp.LibhttpclientV0.wrappedCallNoBody HttpMethod.Delete jsonFn
+      fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Delete jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "delete" 3) }
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
       returnType = returnType
       description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-      fn = LegacyLibHttp.LibhttpclientV0.wrappedCallNoBody HttpMethod.Options jsonFn
+      fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Options jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "options" 3) }
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
       returnType = returnType
       description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-      fn = LegacyLibHttp.LibhttpclientV0.wrappedCallNoBody HttpMethod.Head jsonFn
+      fn = LegacyHttpClient0.wrappedCallNoBody HttpMethod.Head jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "head" 3) }
@@ -92,7 +92,7 @@ let fns : List<BuiltInFn> =
       returnType = returnType
       description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-      fn = LegacyLibHttp.LibhttpclientV0.wrappedCall HttpMethod.Patch jsonFn
+      fn = LegacyHttpClient0.wrappedCall HttpMethod.Patch jsonFn
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "HttpClient" "patch" 3) } ]

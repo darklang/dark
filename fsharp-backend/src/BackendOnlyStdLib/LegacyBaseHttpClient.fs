@@ -1,5 +1,8 @@
 module BackendOnlyStdLib.LegacyBaseHttpClient
 
+// Provides the basic http client used by LibHttpClients 0-4. Superceded by
+// HttpClient which supports LibHttpClient5.
+
 open System.IO
 open System.IO.Compression
 open System.Net.Http
@@ -15,10 +18,6 @@ open LibExecution.VendoredTablecloth
 type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 module DvalRepr = LibExecution.DvalReprExternal
-module Errors = LibExecution.Errors
-module RT = RuntimeTypes
-
-let incorrectArgs = Errors.incorrectArgs
 
 module MediaType =
   type T =
@@ -387,3 +386,20 @@ let makeHttpCall
         Error
           { url = url; code = code; error = prependInternalErrorMessage e.Message }
   }
+
+// Encodes [body] as a UTF-8 string, safe for sending across the internet! Uses
+// the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
+// how to encode said body. Returns a tuple of the encoded body, and the passed headers that
+// have potentially had a Content-Type added to them based on the magic decision we've made.
+let encodeRequestBody jsonFn (headers : headers) (body : Dval option) : Content =
+  match body with
+  | Some dv ->
+    match dv with
+    | DObj _ when ContentType.hasFormHeaderWithoutCharset headers ->
+      match DvalReprExternal.toFormEncoding dv with
+      | Ok content -> FormContent(content)
+      | Error msg -> Exception.raiseDeveloper msg
+    | _ when ContentType.hasNoContentType headers ->
+      FakeFormContentToMatchCurl(jsonFn dv)
+    | _ -> StringContent(jsonFn dv)
+  | None -> NoContent
