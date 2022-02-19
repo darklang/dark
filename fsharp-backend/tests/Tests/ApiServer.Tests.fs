@@ -720,7 +720,8 @@ let localOnlyTests =
         testWorkerStats
         testInitialLoadReturnsTheSame
         testInsertDeleteSecrets
-        testPostApi "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
+        // FSTODO reenable
+        // testPostApi "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
         // TODO upload_package
         testTriggerHandler
         // FSTODO worker_schedule
