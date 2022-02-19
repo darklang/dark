@@ -5,9 +5,9 @@ module BackendOnlyStdLib.HttpClient
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open System.Net.Http
-open System.IO.Compression
 open System.IO
+open System.IO.Compression
+open System.Net.Http
 
 type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
@@ -20,7 +20,6 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 
 type HttpHeaders = List<string * string>
-
 
 type HttpResult =
   { body : string
@@ -41,7 +40,6 @@ type Content =
   | FormContent of string
   | StringContent of string
   | NoContent
-
 
 // There has been quite a history of HTTPClient having problems in previous versions
 // of .NET, including socket exhaustion and DNS results not expiring. The history is
@@ -94,9 +92,8 @@ let convertHeaders (headers : AspHeaders) : HttpHeaders =
   |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
   |> Seq.toList
 
-
-
 exception InvalidEncodingException of int
+
 // CLEANUP add dark-specific user-agent
 let makeHttpCall
   (rawBytes : bool)

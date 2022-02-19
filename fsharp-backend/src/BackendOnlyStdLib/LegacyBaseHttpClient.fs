@@ -3,21 +3,25 @@ module BackendOnlyStdLib.LegacyBaseHttpClient
 // Provides the basic http client used by LibHttpClients 0-4. Superceded by
 // HttpClient which supports LibHttpClient5.
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open System.IO
 open System.IO.Compression
 open System.Net.Http
-open System.Threading.Tasks
-open FSharp.Control.Tasks
+
+type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 open Prelude
 open LibExecution
 open LibBackend
-open LibExecution.RuntimeTypes
-open LibExecution.VendoredTablecloth
+open VendoredTablecloth
 
-type AspHeaders = System.Net.Http.Headers.HttpHeaders
+module RT = RuntimeTypes
 
-module DvalRepr = LibExecution.DvalReprExternal
+type HttpResult = { body : string; code : int; headers : HttpHeaders.T }
+
+type ClientError = { url : string; error : string; code : int }
 
 module MediaType =
   type T =
@@ -156,14 +160,15 @@ let socketHandler : HttpMessageHandler =
   // we're going to have to implement this manually
   handler.AllowAutoRedirect <- false
 
-  // CLEANUP add port into config var
-  // This port is assumed by Curl in the OCaml version, but not by .NET
   handler.UseProxy <- true
   handler.Proxy <- System.Net.WebProxy(Config.httpclientProxyUrl, false)
 
+  // Don't add a RequestId header for opentelemetry
+  handler.ActivityHeadersPropagator <- null
+
   // Users share the HttpClient, don't let them share cookies!
   handler.UseCookies <- false
-  handler :> HttpMessageHandler
+  handler
 
 
 let httpClient : HttpClient =
@@ -173,24 +178,14 @@ let httpClient : HttpClient =
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
-type HttpResult = { body : string; code : int; headers : HttpHeaders.T }
-
-type ClientError = { url : string; error : string; code : int }
-
-// -------------------------
-// Forms and queries Functions
-// -------------------------
-
 // Convert .NET HttpHeaders into Dark-style headers
 let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
   headers
-  |> Seq.map
-    (fun (kvp : System.Collections.Generic.KeyValuePair<string, seq<string>>) ->
-      (kvp.Key, kvp.Value |> Seq.toList |> String.concat ","))
+  |> Seq.map Tuple2.fromKeyValuePair
+  |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
   |> Seq.toList
 
 exception InvalidEncodingException of int
-
 
 let prependInternalErrorMessage errorMessage =
   $"Internal HTTP-stack exception: {errorMessage}"
@@ -224,8 +219,8 @@ let makeHttpCall
           // Remove leading '?'
           if uri.Query = "" then "" else uri.Query.Substring 1
         reqUri.Query <-
-          DvalRepr.queryToEncodedString (
-            queryParams @ DvalRepr.parseQueryString queryString
+          DvalReprExternal.queryToEncodedString (
+            queryParams @ DvalReprExternal.parseQueryString queryString
           )
         use req = new HttpRequestMessage(method, string reqUri)
 
@@ -266,8 +261,7 @@ let makeHttpCall
 
         // headers
         let defaultHeaders =
-          [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ] |> Map
-
+          Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
         Map reqHeaders
         |> Map.mergeFavoringRight defaultHeaders
         |> Map.iter (fun k v ->
@@ -295,14 +289,14 @@ let makeHttpCall
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
         use! responseStream = response.Content.ReadAsStreamAsync()
-        use contentStream =
+        use contentStream : Stream =
           let decompress = CompressionMode.Decompress
           // The version of Curl we used in OCaml does not support zstd, so omitting
           // that won't break anything.
           match String.toLowercase encoding with
-          | "br" -> new BrotliStream(responseStream, decompress) :> Stream
-          | "gzip" -> new GZipStream(responseStream, decompress) :> Stream
-          | "deflate" -> new DeflateStream(responseStream, decompress) :> Stream
+          | "br" -> new BrotliStream(responseStream, decompress)
+          | "gzip" -> new GZipStream(responseStream, decompress)
+          | "deflate" -> new DeflateStream(responseStream, decompress)
           | "" -> responseStream
           | _ -> raise (InvalidEncodingException(int response.StatusCode))
 
@@ -391,11 +385,11 @@ let makeHttpCall
 // the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
 // how to encode said body. Returns a tuple of the encoded body, and the passed headers that
 // have potentially had a Content-Type added to them based on the magic decision we've made.
-let encodeRequestBody jsonFn (headers : headers) (body : Dval option) : Content =
+let encodeRequestBody jsonFn (headers : headers) (body : RT.Dval option) : Content =
   match body with
   | Some dv ->
     match dv with
-    | DObj _ when ContentType.hasFormHeaderWithoutCharset headers ->
+    | RT.DObj _ when ContentType.hasFormHeaderWithoutCharset headers ->
       match DvalReprExternal.toFormEncoding dv with
       | Ok content -> FormContent(content)
       | Error msg -> Exception.raiseDeveloper msg
