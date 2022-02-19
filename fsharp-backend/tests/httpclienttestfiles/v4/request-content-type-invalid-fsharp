@@ -18,4 +18,4 @@ Content-Length: LENGTH
 (let reqHeaders = { ``Content-Type`` = "just an invalid string" } in
  let response = HttpClient.get_v4_ster "http://URL" {} reqHeaders in
  response) =
-   Test.typeError_v0 "An unknown error occured"
+   Test.typeError_v0 "Invalid content-type header"
