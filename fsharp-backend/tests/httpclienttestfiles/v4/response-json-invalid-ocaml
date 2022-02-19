@@ -20,7 +20,7 @@ Content-Length: LENGTH
 
 [test]
 // OCAMLONLY
-(let response = HttpClient.get_v5_ster "http://URL" {} {} in
+(let response = HttpClient.get_v4_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = {
@@ -30,7 +30,6 @@ Content-Length: LENGTH
               aBool = false
             }
      code = 200
-     error = ""
      headers =
       {
         ``Content-Length`` = "LENGTH"

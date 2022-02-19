@@ -2,7 +2,6 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
@@ -12,6 +11,6 @@ Location: ftp://speedtest.tele2.net/1KB.zip
 
 
 [test]
-(match HttpClient.get_v5 "http://URL" {} {} with
+(match HttpClient.get_v4 "http://URL" {} {} with
  | Ok -> "fail"
  | Error response -> response) = "Unsupported protocol"
