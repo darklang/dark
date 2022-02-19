@@ -24,8 +24,6 @@ module RT = RuntimeTypes
 
 let incorrectArgs = Errors.incorrectArgs
 
-let httpCall = LegacyHttpClient0.httpCall
-
 let sendRequest
   (uri : string)
   (verb : HttpMethod)
