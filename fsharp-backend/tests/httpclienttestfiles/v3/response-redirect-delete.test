@@ -7,11 +7,11 @@ Host: HOST
 [response]
 HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /v4/response-redirect-destination
+Location: /v3/response-redirect-destination
 
 
 [test]
-(match HttpClient.delete_v4 "http://URL" {} {} with
+(match HttpClient.delete_v3 "http://URL" {} {} with
  | Ok _ -> "fail"
  | Error response ->
     let respHeaders = response.headers |> Dict.remove_v0 "Date" in
@@ -21,7 +21,7 @@ Location: /v4/response-redirect-destination
      headers =
       {
         ``HTTP/1.1 302 Found`` = ""
-        ``Location`` = "/v4/response-redirect-destination"
+        ``Location`` = "/v3/response-redirect-destination"
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }
