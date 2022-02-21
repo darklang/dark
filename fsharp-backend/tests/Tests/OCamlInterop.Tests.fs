@@ -82,6 +82,43 @@ let fuzzedTests =
     testListUsingProperty
       "OCamlInterop Binary handler tests"
       FuzzTests.OCamlInterop.binaryHandlerRoundtrip
-      [] ]
+      []
+
+    testListUsingProperty
+      "OCamlInterop Binary toplevel tests"
+      FuzzTests.OCamlInterop.binaryToplevelRoundtrip
+      [ ("User function with param stays a user function",
+         let simpleParam : PT.UserFunction.Parameter =
+           { name = "fn_param_a"
+             nameID = gid ()
+             typ = None
+             typeID = gid ()
+             description = "" }
+
+         let userFn : PT.UserFunction.T =
+           { tlid = gid ()
+             name = "fn_a"
+             nameID = gid ()
+             parameters = [ simpleParam ]
+             returnType = TInt
+             returnTypeID = gid ()
+             description = ""
+             infix = false
+             body = gid () |> EBlank }
+         PT.TLFunction userFn)
+
+        ("User DB with column stays a DB",
+         let simpleCol : PT.DB.Col =
+           { name = "db_col_a"; typ = None; nameID = gid (); typeID = gid () }
+
+         let userDb : PT.DB.T =
+           { tlid = gid ()
+             pos = { x = 0; y = 0 }
+             nameID = gid ()
+             name = "db_a"
+             version = 0
+             cols = [ simpleCol ] }
+
+         PT.TLDB userDb) ] ]
 
 let tests = testList "ocamlInterop" fuzzedTests

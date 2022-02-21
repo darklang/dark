@@ -113,6 +113,14 @@ let yojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> deserialize
   .=. a
 
+let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
+  pair
+  |> exprTLIDPairToCachedBinary
+  |> result
+  |> exprTLIDPairOfCachedBinary
+  |> result
+  .=. pair
+
 let binaryHandlerRoundtrip (a : PT.Handler.T) : bool =
   let h = PT.TLHandler a
 
@@ -124,13 +132,14 @@ let binaryHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> result
   .=. h
 
-let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
-  pair
-  |> exprTLIDPairToCachedBinary
+let binaryToplevelRoundtrip (tl : PT.Toplevel) : bool =
+  tl
+  |> toplevelToCachedBinary
   |> result
-  |> exprTLIDPairOfCachedBinary
+  |> (fun bin -> bin, None)
+  |> toplevelBin2Json
   |> result
-  .=. pair
+  .=. tl
 
 let tests =
   let tp f = tpwg typeof<Generator> f
