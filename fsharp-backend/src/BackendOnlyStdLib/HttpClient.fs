@@ -19,12 +19,10 @@ open VendoredTablecloth
 
 module RT = RuntimeTypes
 
-type HttpHeaders = List<string * string>
-
 type HttpResult =
   { body : string
     code : int
-    headers : HttpHeaders
+    headers : HttpHeaders.T
     error : string }
 
 type ClientError = { url : string; error : string; code : int }
@@ -86,7 +84,7 @@ let httpClient : HttpClient =
   client
 
 // Convert .NET HttpHeaders into Dark-style headers
-let convertHeaders (headers : AspHeaders) : HttpHeaders =
+let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
   headers
   |> Seq.map Tuple2.fromKeyValuePair
   |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
@@ -100,7 +98,7 @@ let makeHttpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders)
+  (reqHeaders : HttpHeaders.T)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
@@ -284,7 +282,7 @@ let rec httpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders)
+  (reqHeaders : HttpHeaders.T)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {

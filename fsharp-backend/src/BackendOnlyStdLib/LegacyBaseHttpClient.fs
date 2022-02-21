@@ -17,12 +17,18 @@ open LibExecution
 open LibBackend
 open VendoredTablecloth
 
+
 module RT = RuntimeTypes
 
 type HttpResult = { body : string; code : int; headers : HttpHeaders.T }
 
 type ClientError = { url : string; error : string; code : int }
 
+
+
+// -------------------------
+// Forms and queries Functions
+// -------------------------
 module MediaType =
   type T =
     | Form
@@ -121,7 +127,6 @@ module ContentType =
     |> Option.defaultValue false
 
 
-type headers = (string * string) list
 
 // includes an implicit content-type
 type Content =
@@ -390,7 +395,7 @@ let makeHttpCall
 // the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
 // how to encode said body. Returns a tuple of the encoded body, and the passed headers that
 // have potentially had a Content-Type added to them based on the magic decision we've made.
-let encodeRequestBody jsonFn (headers : headers) (body : RT.Dval option) : Content =
+let encodeRequestBody jsonFn (headers : HttpHeaders.T) (body : RT.Dval option) : Content =
   match body with
   | Some dv ->
     match dv with
