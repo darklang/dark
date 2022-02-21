@@ -17,7 +17,7 @@ Redirect destination reached
 
 [test]
 // This is here to be a destination for valid redirect tests
-(let response = HttpClient.post_v5_ster "http://URL" "" {} {``Content-Type`` = "text/plain; charset=utf-8"} in
+(let response = HttpClient.post_v5_ster "http://URL" "" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
