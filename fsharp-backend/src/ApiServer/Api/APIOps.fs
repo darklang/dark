@@ -1,11 +1,10 @@
+/// API endpoint to receive and handle an Operation
 module ApiServer.AddOps
-
-// Functions and API endpoints for the API
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
+
 open Prelude
 open Tablecloth
 open Http
@@ -43,6 +42,10 @@ let empty : Op.AddOpResult =
 
 let causesAnyChanges (ops : PT.Oplist) : bool = List.any Op.hasEffect ops
 
+/// API endpoint to add a set of Operations in a Canvas
+///
+/// The Operations usually relate to a single Toplevel within the Canvas,
+/// but can technically include Operations against several TLIDs
 let addOp (ctx : HttpContext) : Task<T> =
   task {
     use t = startTimer "read-api" ctx

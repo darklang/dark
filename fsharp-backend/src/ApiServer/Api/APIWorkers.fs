@@ -1,11 +1,9 @@
+/// API endpoints for Workers
 module ApiServer.Workers
-
-// API endpoints for Workers
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
 
 open Prelude
 open Tablecloth
@@ -26,6 +24,7 @@ module WorkerStats =
 
   type T = { count : int }
 
+  /// API endpoint to get statistical data related to a Worker
   let getStats (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
@@ -42,6 +41,7 @@ module Scheduler =
   type Params = { name : string; schedule : string }
   type T = EQ.WorkerStates.T
 
+  /// API endpoint to update the Schedule of a Worker
   let updateSchedule (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx

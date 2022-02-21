@@ -1,8 +1,8 @@
+/// Http utilities used by the API server.
+///
+/// We used to use Giraffe, but it's a lot to know on top of ASP.NET,
+/// and we only use a subset. Most of this is taken from Giraffe.
 module ApiServer.Http
-
-// Http utilities used by the API server. We used to use Giraffe, but it's a lot to
-// know on top of ASP.NET, and we only use a subset. Most of this is taken from
-// Giraffe.
 
 open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Primitives
@@ -38,17 +38,20 @@ type TraceTimer =
   interface System.IDisposable with
     member this.Dispose() = this.stop ()
 
-// Returns a value to help tracing and setting ServerTiming headers. It immediately
-// starts a Span named [initialName]. It returns a value [t], and when you call
-// [t.next name], it automatically ends the current span and starts a new one with
-// the new name. It also records a server-timing header for each span when it ends,
-// using the duration from the Span. Make sure to use `use` instead of `let`, to
-// ensure that `stop` gets called.
+/// Returns a value to help tracing and setting ServerTiming headers.
+///
+/// It immediately starts a Span named [initialName]. It returns a value [t],
+/// and when you call [t.next name], it automatically ends the current span
+/// and starts a new one with the new name. It also records a server-timing
+/// header for each span when it ends, using the duration from the Span.
+/// Make sure to use `use` instead of `let`, to ensure that `stop` gets called.
 let startTimer (initialName : string) (ctx : HttpContext) : TraceTimer =
   let parent = Span.current () // Don't use `use`, we want this to live
   let mutable child = Span.child initialName parent []
+
   let st =
     ctx.RequestServices.GetService<Lib.AspNetCore.ServerTiming.IServerTiming>()
+
   let stop () : unit =
     child.Stop()
     let result = child.Duration.TotalMilliseconds |> decimal
@@ -57,6 +60,7 @@ let startTimer (initialName : string) (ctx : HttpContext) : TraceTimer =
       // This is a header, and headers can't be added after the body has started. We
       // still produce the telemetry events
       st.Metrics.Add(ServerTimingMetric(name, result))
+
   { next =
       fun name ->
         stop ()
@@ -186,18 +190,21 @@ type HttpHandler = HttpContext -> Task
 // Handlers
 // ------------------
 
+/// Helper to set Unauthorized (401) status code and response body text
 let unauthorized (ctx : HttpContext) : Task =
   task {
     ctx.Response.StatusCode <- 401
     return! ctx.WriteTextAsync "Not Authorized"
   }
 
+/// Helper to set Not Found (404) status code and response body text
 let notFound (ctx : HttpContext) : Task =
   task {
     ctx.Response.StatusCode <- 404
     return! ctx.WriteTextAsync "Not Found"
   }
 
+/// Helper to write HTML string as response body
 let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
   (fun ctx ->
     task {
@@ -205,6 +212,7 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
       return! ctx.WriteHtmlAsync result
     })
 
+/// Helper to write a value as serialized JSON response body
 let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
   (fun ctx ->
     task {
@@ -212,6 +220,9 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
       return! ctx.WriteJsonAsync result
     })
 
+/// Helper to write a Optional value as serialized JSON response body
+///
+/// In the case of a None, responds with 404
 let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
   (fun ctx ->
     task {
@@ -242,9 +253,11 @@ type dataID =
     | Permission -> "permission"
     | ExecutionID -> "executionID"
 
+/// Sets a standard piece of data to the HTTP Context
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : unit =
   ctx.Items[ string id ] <- value
 
+/// Loads a standard piece of data from the HTTP Context
 let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items[string id] :?> 'a
 
 let loadSessionData (ctx : HttpContext) : Session.T =

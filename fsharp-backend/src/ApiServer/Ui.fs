@@ -1,3 +1,7 @@
+/// Supports loading of static HTML pages
+///
+/// Handles replacements of known variables (e.g. `{{LIVERELOADJS}}`)
+/// used within .html files
 module ApiServer.Ui
 
 open Microsoft.AspNetCore.Http
@@ -15,6 +19,10 @@ module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 
+/// Loads the Admin UI HTML template
+///
+/// Handles the replacement of known used variables
+/// such as `{{ENVIRONMENT_NAME}}`
 let adminUiTemplate : Lazy<string> =
   lazy
     (let liveReloadStr =
