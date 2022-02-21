@@ -17,7 +17,6 @@ RANDOM_BYTES
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "utf-8 decoding error"
-     code = 200
      headers =
       {
         ``Content-Length`` = "LENGTH"

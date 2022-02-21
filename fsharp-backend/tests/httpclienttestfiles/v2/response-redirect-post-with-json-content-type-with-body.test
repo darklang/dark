@@ -17,7 +17,6 @@ Location: /v2/response-redirect-dest-post-with-json-content-type-with-body
  let respHeaders = response.headers |> Dict.remove_v0 "Date"
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
-     code = 200
      headers =
       {
         ``Arbitrary-header`` = "Test value"
