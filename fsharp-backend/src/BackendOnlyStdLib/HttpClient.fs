@@ -319,8 +319,11 @@ let rec httpCall
           // FSTODO: are some headers involved
           let method, reqBody =
             match reqBody with
-            | StringContent body when method = HttpMethod.Post && body <> "" ->
-              HttpMethod.Get, NoContent
+            | StringContent body when body <> "" ->
+              if method = HttpMethod.Post then
+                HttpMethod.Get, NoContent
+              else
+                method, NoContent
             | _ -> method, reqBody
 
           // Unlike HttpClient, do not drop the authorization header
