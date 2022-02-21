@@ -1,6 +1,7 @@
+/// Middlewares used by the API server.
+///
+/// Includes middleware functions and middleware stacks
 module ApiServer.Middleware
-
-// Middlewares used by the API server. Includes middleware functions and middleware stacks
 
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
@@ -8,12 +9,11 @@ open System.Runtime.CompilerServices
 open Microsoft.AspNetCore.Routing
 open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.AspNetCore.Http
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 type ServerTimingMetric = Lib.AspNetCore.ServerTiming.Http.Headers.ServerTimingMetric
 type ServerTiming = Lib.AspNetCore.ServerTiming.IServerTiming
-
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
@@ -37,8 +37,8 @@ type HttpMiddleware = HttpHandler -> HttpHandler
 // APIServer Middlewares
 // --------------------
 
-// Either redirect to a login page, or apply the passed function if a
-// redirection is inappropriate (eg for the API)
+/// Either redirect to a login page, or apply the passed function if a
+/// redirection is inappropriate (eg for the API)
 let redirectOr (f : HttpContext -> Task) (ctx : HttpContext) : Task =
   task {
     if String.startsWith "/api/" ctx.Request.Path.Value then

@@ -1,11 +1,9 @@
+/// API endpoint called when client initially loads a Canvas
 module ApiServer.InitialLoad
-
-// InitialLoad API endpoint
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
 
 open Prelude
 open Tablecloth
@@ -13,7 +11,6 @@ open Http
 
 open Npgsql.FSharp
 open LibBackend.Db
-open LibService.Telemetry
 
 module PT = LibExecution.ProgramTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
@@ -64,6 +61,10 @@ type T =
     worker_schedules : LibBackend.EventQueue.WorkerStates.T
     secrets : List<ApiSecret> }
 
+/// API endpoint called when client initially loads a Canvas
+///
+/// Returns high-level references of the Canvas' components,
+/// along with data beyond the specific canvas (e.g. account info)
 let initialLoad (ctx : HttpContext) : Task<T> =
   task {
     use t = startTimer "read-api" ctx

@@ -941,6 +941,10 @@ module Secret =
 
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
 
+/// An Operation on a Canvas
+///
+/// "Op" is an abbreviation for Operation,
+/// and is preferred throughout code and documentation.
 type Op =
   | SetHandler of tlid * pos * Handler.T
   | CreateDB of tlid * pos * string

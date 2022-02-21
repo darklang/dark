@@ -1,3 +1,4 @@
+///
 module ApiServer.Login
 
 open Microsoft.AspNetCore
@@ -50,8 +51,10 @@ let cookieOptionsFor (ctx : HttpContext) =
 // --------------------
 // Logout
 // --------------------
-// FSTODO: test logout when logged in, and when logged out
+
+/// API endpoint to log out of a User's session
 let logout : HttpHandler =
+  // FSTODO: test logout when logged in, and when logged out
   (fun (ctx : HttpContext) ->
     // TODO move these into config urls
     task {
@@ -79,6 +82,7 @@ let logout : HttpHandler =
 // --------------------
 let loginUiTemplate : string = LibBackend.File.readfile Config.Templates "login.html"
 
+/// API endpoint that returns the HTML login page
 let loginPage (ctx : HttpContext) : Task =
   task {
     // CLEANUP move these into config urls
@@ -95,6 +99,7 @@ let loginPage (ctx : HttpContext) : Task =
   }
 
 
+/// API endpoint to handle a Login request, given credentials
 let loginHandler (ctx : HttpContext) : Task =
   task {
     let usernameOrEmail = ctx.GetFormValue "username" |> Option.unwrap ""
