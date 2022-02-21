@@ -311,10 +311,10 @@ let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
         |> Some
       | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ])
 
-let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
+let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
+  |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
 
 let updateCorsSetting
   (canvasID : CanvasID)

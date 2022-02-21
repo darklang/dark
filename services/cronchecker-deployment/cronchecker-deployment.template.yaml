@@ -66,8 +66,6 @@ spec:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
-            - name: DARK_CONFIG_RUNNING_IN_GKE
-              value: "true"
             # rollbar
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:

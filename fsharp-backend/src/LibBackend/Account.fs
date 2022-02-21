@@ -37,7 +37,7 @@ type UserInfoAndCreatedAt =
     admin : bool
     email : string
     id : UserID
-    createdAt : System.DateTime }
+    createdAt : NodaTime.Instant }
 
 let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.AspNet.Person =
   { id = Some ui.id; email = Some ui.email; username = Some ui.username }
@@ -202,13 +202,13 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
       admin = read.bool "admin"
       id = read.uuid "id" })
 
-let getUserCreatedAt (username : UserName.T) : Task<System.DateTime> =
+let getUserCreatedAt (username : UserName.T) : Task<NodaTime.Instant> =
   Sql.query
     "SELECT created_at
      FROM accounts
      WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
+  |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
 
 let getUserAndCreatedAtAndAnalyticsMetadata
   (username : UserName.T)
@@ -224,7 +224,7 @@ let getUserAndCreatedAtAndAnalyticsMetadata
       email = read.string "email"
       admin = read.bool "admin"
       id = read.uuid "id"
-      createdAt = read.dateTime "created_at" },
+      createdAt = read.instantWithoutTimeZone "created_at" },
     read.stringOrNone "segment_metadata")
 
 let getUserByEmail (email : string) : Task<Option<UserInfo>> =

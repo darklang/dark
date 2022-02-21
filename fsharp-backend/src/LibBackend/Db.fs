@@ -5,6 +5,7 @@ open FSharp.Control.Tasks
 
 open Npgsql
 open Npgsql.FSharp
+open Npgsql.NodaTime
 
 open Prelude
 
@@ -122,11 +123,41 @@ module Sql =
       LibExecution.DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj dvalmap)
     Sql.parameter param
 
+  // We sometimes erroneously store these as timestamps that are not Utc. But we mean them to be Utc.
+  let instantWithoutTimeZone (i : NodaTime.Instant) : SqlValue =
+    Sql.timestamp (i.toUtcLocalTimeZone().ToDateTimeUnspecified())
+
+
+
 // Extension methods
 type RowReader with
 
   member this.tlid(name : string) : tlid = this.int64 name |> uint64
   member this.id(name : string) : id = this.int64 name |> uint64
+
+  // CLEANUP migrate these
+  // When creating our DB schema, we often incorrectly chose `timestamp` (aka
+  // `timestamp without a time zone`) as the type, when we should have chosen
+  // `timestampz` (aka `timestamp with a timezone`, though actually just a UTC
+  // timestamp). However, internally they're all timestamp in Utc. So this just gets
+  // a value from a `timestamp` field and converts it to an instant (adding in the
+  // implied UTC timezone)
+  member this.instantWithoutTimeZone(name : string) : NodaTime.Instant =
+    // fetch as LocalDateTime
+    let dateTime : System.DateTime = this.dateTime (name) // with Kind = Unspecific
+    // add timezone
+    let utcDateTime = System.DateTime(dateTime.Ticks, System.DateTimeKind.Utc)
+
+    NodaTime.Instant.FromDateTimeUtc utcDateTime
+
+  member this.instant(name : string) : NodaTime.Instant =
+    let dateTime : System.DateTime = this.dateTime (name)
+    NodaTime.Instant.FromDateTimeUtc dateTime
+
+  member this.instantOrNone(name : string) : Option<NodaTime.Instant> =
+    this.dateTimeOrNone (name) |> Option.map NodaTime.Instant.FromDateTimeUtc
+
+
 
 // member this.queryableDval(name : string) =
 //   this.string name |> LibExecution.DvalReprExternal.ofInternalQueryableV1
@@ -202,3 +233,7 @@ let tableStats () : Task<List<TableStatsRow>> =
       rows = read.int64OrNone "rows" |> Tablecloth.Option.unwrap 0
       diskHuman = read.string "disk_human"
       rowsHuman = read.string "rows_human" })
+
+let init () : unit =
+  NpgsqlConnection.GlobalTypeMapper.UseNodaTime()
+  |> ignore<TypeMapping.INpgsqlTypeMapper>

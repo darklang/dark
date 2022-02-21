@@ -119,7 +119,11 @@ let addEvent (name : string) (tags : Metadata) : unit =
   let tagCollection = System.Diagnostics.ActivityTagsCollection()
   List.iter (fun (k, v) -> tagCollection[k] <- v) tags
   let event =
-    System.Diagnostics.ActivityEvent(name, System.DateTime.Now, tagCollection)
+    System.Diagnostics.ActivityEvent(
+      name,
+      NodaTime.Instant.now().ToDateTimeOffset(),
+      tagCollection
+    )
   span.AddEvent(event) |> ignore<Span.T>
 
 // Add a notification. You can find these in Honeycomb by searching for name =
@@ -133,7 +137,7 @@ let notify (name : string) (tags : Metadata) : unit =
   let event =
     System.Diagnostics.ActivityEvent(
       "notification",
-      System.DateTime.Now,
+      NodaTime.Instant.now().ToDateTimeOffset(),
       tagCollection
     )
   span.AddEvent(event) |> ignore<Span.T>
@@ -298,7 +302,11 @@ let addTelemetry
   |> fun b ->
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
-  |> fun b -> b.AddHttpClientInstrumentation()
+  |> fun b ->
+       b.AddHttpClientInstrumentation (fun options ->
+         options.SetHttpFlavor <- true // Record HTTP version
+         options.RecordException <- true
+         ())
   |> fun b ->
        match traceDBQueries with
        | TraceDBQueries -> b.AddNpgsql()

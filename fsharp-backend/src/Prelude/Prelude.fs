@@ -600,18 +600,65 @@ module Tuple2 =
     : (System.Collections.Generic.KeyValuePair<'a, 'b>) =
     System.Collections.Generic.KeyValuePair<'a, 'b>(k, v)
 
+type NodaTime.Instant with
 
-type System.DateTime with
+  static member UnixEpoch = NodaTime.Instant.FromUnixTimeSeconds 0
+
+  static member now() : NodaTime.Instant =
+    NodaTime.SystemClock.Instance.GetCurrentInstant()
+
+  // Convert to an LocalDateTime with an implicit Utc timezone
+  member this.toUtcLocalTimeZone() : NodaTime.LocalDateTime =
+    let utc = NodaTime.DateTimeZone.Utc
+    let zonedDateTime = NodaTime.ZonedDateTime(this, utc)
+    let mutable localDateTime = NodaTime.LocalDateTime()
+    let mutable (tz : NodaTime.DateTimeZone) = null
+    let mutable (offset : NodaTime.Offset) = NodaTime.Offset()
+    zonedDateTime.Deconstruct(&localDateTime, &tz, &offset)
+    localDateTime
 
   member this.toIsoString() : string =
-    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
+    let dt = this.ToDateTimeUtc()
+    dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
-  static member ofIsoString(str : string) : System.DateTime =
-    System.DateTime.ParseExact(
-      str,
-      "yyyy-MM-ddTHH:mm:ssZ",
-      System.Globalization.CultureInfo.InvariantCulture
-    )
+  // Returns a new datetime with truncated
+  member this.truncate() : NodaTime.Instant =
+    // get it to zero milliseconds
+    let dt = this.ToDateTimeUtc()
+    let dt = dt.AddTicks(-dt.Ticks % System.TimeSpan.TicksPerSecond)
+    NodaTime.Instant.FromDateTimeUtc dt
+
+
+  static member ofIsoString(str : string) : NodaTime.Instant =
+    let dt =
+      System.DateTime.ParseExact(
+        str,
+        "yyyy-MM-ddTHH:mm:ssZ",
+        System.Globalization.CultureInfo.InvariantCulture
+      )
+    let utcDateTime = System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
+    NodaTime.Instant.FromDateTimeUtc utcDateTime
+  static member ofUtcInstant
+    (
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second : int
+    ) : NodaTime.Instant =
+    let local = NodaTime.LocalDateTime(year, month, day, hour, minute, second)
+    NodaTime
+      .ZonedDateTime(local, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
+      .ToInstant()
+
+  static member parse(str : string) : NodaTime.Instant =
+    // Parse using standard. Assume always UTC
+    let dt = System.DateTime.Parse(str)
+    let utcDateTime = System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
+    NodaTime.Instant.FromDateTimeUtc utcDateTime
+
+
 
 // ----------------------
 // Random numbers
@@ -1031,7 +1078,12 @@ module Json =
       override _.CanConvert(t : System.Type) =
         t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
 
-      override _.WriteJson(writer : JsonWriter, value, serializer : JsonSerializer) =
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value,
+          serializer : JsonSerializer
+        ) : unit =
         let value =
           if value = null then
             null
@@ -1047,7 +1099,7 @@ module Json =
           t : System.Type,
           _,
           serializer : JsonSerializer
-        ) =
+        ) : obj =
         let cases = FSharpType.GetUnionCases(t)
 
         if reader.TokenType = JsonToken.Null then
@@ -1067,6 +1119,31 @@ module Json =
             FSharpValue.MakeUnion(cases[0], [||])
           else
             FSharpValue.MakeUnion(cases[1], [| value |])
+
+    // Since we're getting this back from OCaml in DDates, we need to use the
+    // timezone even though there isn't on in the type
+    type LocalDateTimeConverter() =
+      inherit JsonConverter<NodaTime.LocalDateTime>()
+
+      override _.ReadJson(reader : JsonReader, _, v, _, _) =
+        let rawToken = string reader.Value
+        (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
+
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value : NodaTime.LocalDateTime,
+          serializer : JsonSerializer
+        ) : unit =
+        let value =
+          NodaTime
+            .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
+            .ToInstant()
+            .toIsoString ()
+        serializer.Serialize(writer, value)
+
+
+
 
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
@@ -1107,6 +1184,7 @@ module Json =
       settings.DateParseHandling <- DateParseHandling.None
       settings.Converters.Add(TLIDConverter())
       settings.Converters.Add(PasswordConverter())
+      settings.Converters.Add(LocalDateTimeConverter())
       settings.Converters.Add(FSharpListConverter())
       settings.Converters.Add(OCamlOptionConverter())
       settings.Converters.Add(FSharpDuConverter())

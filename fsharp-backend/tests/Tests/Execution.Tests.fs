@@ -13,7 +13,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Shortcuts
 
 module Exe = LibExecution.Execution
-module Ast = LibExecution.Ast
+module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
@@ -87,7 +87,8 @@ let testErrorRailUsedInAnalysis : Test =
     let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
     let! state = executionStateFor meta Map.empty Map.empty
 
-    let loadTraceResults _ _ = Some(DOption(Some(DInt 12345L)), System.DateTime.Now)
+    let loadTraceResults _ _ =
+      Some(DOption(Some(DInt 12345L)), NodaTime.Instant.now ())
 
     let state =
       { state with
@@ -393,7 +394,7 @@ let testMatchPreview : Test =
         let argIDs = ref []
 
         arg
-        |> Ast.postTraversal (fun e ->
+        |> RuntimeTypesAst.postTraversal (fun e ->
           argIDs.Value <- (Expr.toID e) :: argIDs.Value
           e)
         |> ignore<Expr>

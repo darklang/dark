@@ -12,5 +12,10 @@ spec:
     app: bwdserver-app
   ports:
     - protocol: TCP
+      name: bwdserver-port
       port: 80
       targetPort: http-proxy-port
+    - protocol: TCP
+      name: bwdserver-healthcheck-port
+      port: 11002
+      targetPort: 11002
