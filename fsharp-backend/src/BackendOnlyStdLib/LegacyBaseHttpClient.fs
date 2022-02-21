@@ -395,7 +395,11 @@ let makeHttpCall
 // the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
 // how to encode said body. Returns a tuple of the encoded body, and the passed headers that
 // have potentially had a Content-Type added to them based on the magic decision we've made.
-let encodeRequestBody jsonFn (headers : HttpHeaders.T) (body : RT.Dval option) : Content =
+let encodeRequestBody
+  jsonFn
+  (headers : HttpHeaders.T)
+  (body : RT.Dval option)
+  : Content =
   match body with
   | Some dv ->
     match dv with
@@ -442,11 +446,25 @@ let rec httpCall
         match location with
         | Some (_, locationUrl) when method <> HttpMethod.Delete ->
           let newCount = count + 1
+
           // It might be a relative URL. If the location is absolute, the location will win over the last URL
           let newUrl = System.Uri(System.Uri(url), locationUrl).ToString()
+
+          // Match curls default redirect behaviour: if it's a POST with content, redirect to GET
+          // FSTODO: are some headers involved
+          let method, reqBody =
+            match reqBody with
+            | StringContent body when body <> "" ->
+              if method = HttpMethod.Post then
+                HttpMethod.Get, NoContent
+              else
+                method, NoContent
+            | _ -> method, reqBody
+
           // Unlike HttpClient, do not drop the authorization header
           let! newResponse =
             httpCall newCount rawBytes newUrl queryParams method reqHeaders reqBody
+
           return
             Result.map
               (fun redirectResult ->
