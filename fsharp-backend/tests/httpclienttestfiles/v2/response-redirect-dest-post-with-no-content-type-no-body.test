@@ -9,9 +9,12 @@ Host: HOST
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-type: text/plain; charset=utf-8
-Content-Encoding: not-valid
+Arbitrary-header: Test value
+Content-Length: LENGTH
 
-"Hello back"
+Redirect destination reached
 
 [test]
-HttpClient.get_v2 "http://URL/" {} {} = Error "Internal HTTP-stack exception: Unrecognized or bad HTTP Content or Transfer-Encoding"
+// This is here to be a destination for valid redirect tests
+// No way to make this request directly
+true

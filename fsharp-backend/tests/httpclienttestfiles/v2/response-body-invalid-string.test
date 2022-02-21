@@ -13,7 +13,7 @@ RANDOM_BYTES
 
 [test]
 // RANDOM_BYTES filled in by the test suite
-(let response = HttpClient.get_v3_ster "http://URL" {} {} in
+(let response = HttpClient.get_v2_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "utf-8 decoding error"
