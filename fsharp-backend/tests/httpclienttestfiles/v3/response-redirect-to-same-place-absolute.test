@@ -10,19 +10,4 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Location: http://URL
 
 [test]
-(match HttpClient.get_v3 "http://URL" {} {} with
- | Ok -> "fail"
- | Error response ->
-    let respHeaders = response.headers |> Dict.remove_v0 "Date" in
-    Dict.set_v0 response "headers" respHeaders) =
-  { body = ""
-    code = 302
-    headers =
-      {
-        ``HTTP/1.1 302 Found`` = ""
-        ``Transfer-Encoding`` = "chunked"
-        Server = "Kestrel"
-      }
-    raw = ""
-  }
-
+HttpClient.get_v3 "http://URL" {} {} = Test.typeError "Bad HTTP response (302) in call to http://URL"

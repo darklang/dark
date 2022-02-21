@@ -68,7 +68,11 @@ let sendRequest
       if response.code >= 200 && response.code <= 299 then
         return DResult(Ok obj)
       else
-        return DResult(Error obj)
+        // The OCaml version of this was Legacy.LibHttpClientv1, which called
+        // Legacy.HttpClientv1.http_call, which threw exceptions for non-200 status
+        // codes
+        return
+          DError(SourceNone, $"Bad HTTP response ({response.code}) in call to {uri}")
     | Error err -> return DError(SourceNone, err.error)
   }
 
