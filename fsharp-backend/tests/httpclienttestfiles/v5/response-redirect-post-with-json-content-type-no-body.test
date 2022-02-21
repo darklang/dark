@@ -2,18 +2,18 @@
 POST PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
+Content-Type: application/json
 Host: HOST
 
-body
+
 [response]
 HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /v5/response-redirect-dest-post-with-plain-content-type-with-body
+Location: /v5/response-redirect-dest-post-with-json-content-type-no-body
 
 
 [test]
-(let response = HttpClient.post_v5_ster "http://URL" "body" {} {``Content-Type`` = "text/plain; charset=utf-8" }
+(let response = HttpClient.post_v5_ster "http://URL" "" {} {``Content-Type`` = "application/json" }
  let respHeaders = response.headers |> Dict.remove_v0 "Date"
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
@@ -26,7 +26,7 @@ Location: /v5/response-redirect-dest-post-with-plain-content-type-with-body
         ``Content-Type`` = "text/plain; charset=utf-8"
         ``HTTP/1.1 200 OK`` = ""
         ``HTTP/1.1 302 Found`` = ""
-        ``Location`` = "/v5/response-redirect-dest-post-with-plain-content-type-with-body"
+        ``Location`` = "/v5/response-redirect-dest-post-with-json-content-type-no-body"
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }
