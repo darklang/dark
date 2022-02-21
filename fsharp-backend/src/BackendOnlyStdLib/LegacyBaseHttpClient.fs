@@ -459,6 +459,12 @@ let rec httpCall
                 HttpMethod.Get, NoContent
               else
                 method, NoContent
+            | FakeFormContentToMatchCurl body when body <> "" ->
+              if method = HttpMethod.Post then
+                HttpMethod.Get, NoContent
+              else
+                method, NoContent
+
             | _ -> method, reqBody
 
           // Unlike HttpClient, do not drop the authorization header
