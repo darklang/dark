@@ -177,7 +177,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
     | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
       DHttpResponse(responseOfJson (convert b) a)
     | [ ("type", JString "date"); ("value", JString v) ] ->
-      DDate(System.DateTime.ofIsoString v)
+      DDate(NodaTime.Instant.ofIsoString v |> DDateTime.fromInstant)
     | [ ("type", JString "password"); ("value", JString v) ] ->
       v |> Base64.fromEncoded |> Base64.decode |> Password |> DPassword
     | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
@@ -288,7 +288,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
 
           writeDval hdv))
   | DDB dbname -> wrapStringValue "datastore" dbname
-  | DDate date -> wrapStringValue "date" (date.toIsoString ())
+  | DDate date -> wrapStringValue "date" (DDateTime.toIsoString date)
   | DPassword (Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (string uuid)
@@ -453,7 +453,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
       // do is to use the DB's type and version to encode/decode them correctly
       match fields with
       | [ ("type", JString "date"); ("value", JString v) ] ->
-        DDate(System.DateTime.ofIsoString v)
+        DDate(NodaTime.Instant.ofIsoString v |> DDateTime.fromInstant)
       | [ ("type", JString "password"); ("value", JString v) ] ->
         v |> Base64.decodeFromString |> Password |> DPassword
       | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
@@ -499,7 +499,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
     (* See docs/dblock-serialization.ml *)
     "<block: <block>>" |> UTF8.toBytes
   | DError _ -> "<error>" |> UTF8.toBytes
-  | DDate d -> "<date: " + d.toIsoString () + ">" |> UTF8.toBytes
+  | DDate d -> "<date: " + DDateTime.toIsoString d + ">" |> UTF8.toBytes
   | DPassword _ -> "<password: <password>>" |> UTF8.toBytes
   | DUuid id -> "<uuid: " + string id + ">" |> UTF8.toBytes
   | DHttpResponse d ->

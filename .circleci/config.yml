@@ -204,7 +204,7 @@ commands:
       - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
       - run: cat gcr-image-ids.json
       # Test them
-      - run: scripts/deployment/shipit release push --dry-run=client --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
+      - run: scripts/deployment/shipit release prepare --dry-run=client --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
   ##########################
   # misc
@@ -485,8 +485,6 @@ jobs:
       - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
-      # This is needed because kubectl --dry-run uses it
-      - auth-with-gcp: { background: false }
       - build-gcp-containers
       - slack-notify-job-failure
 
@@ -530,7 +528,10 @@ workflows:
     jobs:
       # initial builds & tests
       - static-checks
-      - predeployment-checks
+      - predeployment-checks:
+          filters:
+            branches:
+              ignore: /^(pull\/).*$/
       - build-postgres-honeytail
       - validate-honeycomb-config
       - build-backend

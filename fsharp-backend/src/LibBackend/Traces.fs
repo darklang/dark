@@ -101,7 +101,7 @@ let handlerTrace
       match event with
       | Some (requestPath, timestamp, event) ->
         (savedInputVars h requestPath event, timestamp)
-      | None -> (sampleInputVars h, System.DateTime.UnixEpoch)
+      | None -> (sampleInputVars h, NodaTime.Instant.UnixEpoch)
 
     let! functionResults = TraceFunctionResults.load canvasID traceID h.tlid
 
@@ -122,7 +122,7 @@ let userfnTrace
     let ivs, timestamp =
       match event with
       | Some (inputVars, timestamp) -> (inputVars, timestamp)
-      | None -> (sampleFunctionInputVars fn, System.DateTime.UnixEpoch)
+      | None -> (sampleFunctionInputVars fn, NodaTime.Instant.UnixEpoch)
 
     let! functionResults = TraceFunctionResults.load canvasID traceID fn.tlid
 

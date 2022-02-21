@@ -29,7 +29,7 @@ type StaticAssetError =
 type StaticDeploy =
   { deployHash : string
     url : string
-    lastUpdate : System.DateTime
+    lastUpdate : NodaTime.Instant
     status : DeployStatus }
 
 // let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
@@ -272,9 +272,9 @@ let allDeploysInCanvas
     let deployHash = read.string "deploy_hash"
 
     let status, lastUpdate =
-      match read.dateTimeOrNone "live_at" with
+      match read.instantOrNone "live_at" with
       | Some datetime -> Deployed, datetime
-      | None -> Deploying, read.dateTime "created_at"
+      | None -> Deploying, read.instant "created_at"
 
     { deployHash = deployHash
       url = url canvasName canvasID deployHash Short

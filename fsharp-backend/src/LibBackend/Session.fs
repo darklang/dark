@@ -14,7 +14,7 @@ type JsonData = { username : string; csrf_token : string }
 type T =
   { username : UserName.T
     csrfToken : string
-    expiry : System.DateTime
+    expiry : NodaTime.Instant
     key : string }
 
 type AuthData = { csrfToken : string; sessionKey : string }
@@ -31,7 +31,7 @@ let getNoCSRF (key : string) : Task<Option<T>> =
   |> Sql.parameters [ "key", Sql.string key ]
   |> Sql.executeRowOptionAsync (fun read ->
     let serializedData = read.string "session_data"
-    let date = read.dateTime "expire_date"
+    let date = read.instant "expire_date"
     let data = Json.Vanilla.deserialize<JsonData> serializedData
 
     { username = UserName.create data.username

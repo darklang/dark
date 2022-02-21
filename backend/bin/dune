@@ -113,7 +113,7 @@
                ))
 
   (flags (-warn-error +A -w +9))
-  (libraries liblegacyserialization libbackend lwt cohttp-lwt)
+  (libraries liblegacyserialization lwt cohttp-lwt)
 )
 
 (executable

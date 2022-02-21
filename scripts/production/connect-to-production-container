@@ -5,10 +5,6 @@
 
 set -euo pipefail
 
-pod=$1 # a deployment name is also allowed
-container=$2
-namespace="${3:-darklang}"
-
 ./scripts/production/gcp-authorize-kubectl
 
-kubectl exec --stdin --tty $pod -c $container --namespace $namespace -- /bin/bash
+kubectl exec --stdin --tty "$@" -- /bin/bash

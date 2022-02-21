@@ -147,12 +147,14 @@ let dateTests =
     "Date"
     [ testMany
         "toIsoString"
-        (fun (d : System.DateTime) -> d.toIsoString ())
-        [ System.DateTime(2000, 10, 1, 16, 1, 1), "2000-10-01T16:01:01Z" ]
+        (fun (i : NodaTime.Instant) -> i.toIsoString ())
+        [ NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1),
+          "2000-10-01T16:01:01Z" ]
       testMany
         "ofIsoString"
-        System.DateTime.ofIsoString
-        [ "2000-10-01T16:01:01Z", System.DateTime(2000, 10, 1, 16, 1, 1) ] ]
+        NodaTime.Instant.ofIsoString
+        [ "2000-10-01T16:01:01Z",
+          NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1) ] ]
 
 
 let tests =

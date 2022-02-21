@@ -34,7 +34,7 @@ type ApiUserInfo =
 type ApiStaticDeploy =
   { deploy_hash : string
     url : string
-    last_update : System.DateTime
+    last_update : NodaTime.Instant
     status : SA.DeployStatus }
 
 let toApiStaticDeploys (d : SA.StaticDeploy) : ApiStaticDeploy =
@@ -60,7 +60,7 @@ type T =
     permission : Auth.Permission option
     orgs : string list
     account : ApiUserInfo
-    creation_date : System.DateTime
+    creation_date : NodaTime.Instant
     worker_schedules : LibBackend.EventQueue.WorkerStates.T
     secrets : List<ApiSecret> }
 

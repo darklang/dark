@@ -347,10 +347,11 @@ let fns : List<BuiltInFn> =
             | "expires", v ->
               (match v with
                | DDate d ->
+                 let dt = DDateTime.toDateTimeUtc d
                  (sprintf
                    "%s=%s"
                    key
-                   (d.ToString("ddd, dd MMM yyyy HH':'mm':'ss 'GMT'"))
+                   (dt.ToString("ddd, dd MMM yyyy HH':'mm':'ss 'GMT'"))
                   :: acc)
                | _ -> Errors.throw (Errors.argumentWasnt "a date" "Expires" v))
             // Error if the set-cookie parameter is invalid

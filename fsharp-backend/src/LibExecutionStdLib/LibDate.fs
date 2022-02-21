@@ -5,7 +5,7 @@ open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open Prelude
 
-type DateTime = System.DateTime
+type Instant = NodaTime.Instant
 
 let fn = FQFnName.stdlibFnName
 
@@ -16,7 +16,7 @@ let product lists =
   Seq.singleton List.empty |> List.foldBack folder lists
 
 let ocamlDateTimeFormats : array<string> =
-  // List of DateTime custom formats intented to exactly match the behaviour of OCaml Core.Time.of_string.
+  // List of Instant custom formats intented to exactly match the behaviour of OCaml Core.Time.of_string.
   // https://github.com/janestreet/core/blob/b0be1daa71b662bd38ef2bb406f7b3e70d63d05f/core/src/time.ml#L398
   // I looked at every permutation of separators and optional fields to match it
   // exactly. We generate about 600 different patterns.
@@ -72,16 +72,25 @@ let ocamlDateTimeFormats : array<string> =
 // CLEANUP The Date parser was OCaml's Core.Time.of_string, which supported an awful
 // lot of use cases. Our docs say that we only want to support the format
 // "yyyy-MM-ddTHH:mm:ssZ", so add a new version that only supports that format.
-let ocamlCompatibleDateParser (s : string) : Result<DateTime, unit> =
+let ocamlCompatibleDateParser (s : string) : Result<DDateTime.T, unit> =
   if s.EndsWith('z') || s.Contains("GMT") then
     Error()
   else
     let culture = System.Globalization.CultureInfo.InvariantCulture
     let styles = System.Globalization.DateTimeStyles.AssumeUniversal
-    let mutable (result : DateTime) = Unchecked.defaultof<DateTime>
-    if DateTime.TryParseExact(s, ocamlDateTimeFormats, culture, styles, &result) then
+    let mutable (result : System.DateTime) = Unchecked.defaultof<System.DateTime>
+    if
+      System.DateTime.TryParseExact
+        (
+          s,
+          ocamlDateTimeFormats,
+          culture,
+          styles,
+          &result
+        )
+    then
       // print $"SUCCESS parsed {s}"
-      Ok result
+      Ok(DDateTime.fromDateTime (result.ToUniversalTime()))
     else
       // print $"              failed to parse {s}"
       Error()
@@ -149,7 +158,11 @@ let fns : List<BuiltInFn> =
         "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
       fn =
         (function
-        | _, [ DDate d ] -> d.toIsoString () |> DStr |> Ply
+        | _, [ DDate d ] ->
+          let dt = DDateTime.toDateTimeUtc d
+          dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
+          |> DStr
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -163,7 +176,8 @@ let fns : List<BuiltInFn> =
         "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
       fn =
         (function
-        | _, [ DDate d ] -> d.ToString("yyyyMMddTHHmmssZ") |> DStr |> Ply
+        | _, [ DDate d ] ->
+          (DDateTime.toDateTimeUtc d).ToString("yyyyMMddTHHmmssZ") |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -176,7 +190,8 @@ let fns : List<BuiltInFn> =
       description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
       fn =
         (function
-        | _, [ DDate d ] -> d.ToString("yyyyMMdd") |> DStr |> Ply
+        | _, [ DDate d ] ->
+          (DDateTime.toDateTimeUtc d).ToString("yyyyMMdd") |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -189,7 +204,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the current time."
       fn =
         (function
-        | _, [] -> Ply(DDate(System.DateTime.Now))
+        | _, [] -> Instant.now () |> DDateTime.fromInstant |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -203,8 +218,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] ->
-          let now = System.DateTime.Now
-          Ply(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
+          let now = DDateTime.fromInstant (Instant.now ())
+          Ply(DDate(DDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -217,7 +232,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a new Date `seconds` seconds after `d`"
       fn =
         (function
-        | _, [ DDate d; DInt s ] -> (Ply(DDate(d.AddSeconds(float s))))
+        | _, [ DDate d; DInt s ] ->
+          d + (NodaTime.Period.FromSeconds s) |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -230,7 +246,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a new Date `seconds` seconds before `d`"
       fn =
         (function
-        | _, [ DDate d; DInt s ] -> (Ply(DDate(d.AddSeconds(float -s))))
+        | _, [ DDate d; DInt s ] ->
+          d - (NodaTime.Period.FromSeconds s) |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable // As the OCaml one wasn't
       previewable = Pure
@@ -243,7 +260,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a new Date `seconds` seconds before `d`"
       fn =
         (function
-        | _, [ DDate d; DInt s ] -> (Ply(DDate(d.AddSeconds(float -s))))
+        | _, [ DDate d; DInt s ] ->
+          d - (NodaTime.Period.FromSeconds s) |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -310,11 +328,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          d
-          |> System.DateTimeOffset
-          |> (fun dto -> dto.ToUnixTimeSeconds())
-          |> DInt
-          |> Ply
+          (DDateTime.toInstant d).ToUnixTimeSeconds() |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -322,21 +336,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Date" "fromSeconds" 0
-
       parameters = [ Param.make "seconds" TInt "" ]
       returnType = TDate
       description =
         "Converts an integer representing seconds since the Unix epoch into a Date"
       fn =
-
         (function
         | _, [ DInt s ] ->
-          s
-          |> int64
-          |> System.DateTimeOffset.FromUnixTimeSeconds
-          |> (fun dto -> dto.DateTime)
-          |> DDate
-          |> Ply
+          s |> Instant.FromUnixTimeSeconds |> DDateTime.fromInstant |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -350,11 +357,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate date ] ->
-          let time =
-            date
-            |> System.DateTimeOffset
-            |> (fun dto -> dto.ToUnixTimeSeconds())
-            |> float
+          let time = (DDateTime.toInstant date).ToUnixTimeSeconds() |> float
 
           let msPerMinute = 60.0 * 1000.0
           let msPerHour = msPerMinute * 60.0
@@ -447,10 +450,7 @@ let fns : List<BuiltInFn> =
         "Returns the weekday of `date` as an int. Monday = 1, Tuesday = 2, ... Sunday = 7 (in accordance with ISO 8601)."
       fn =
         (function
-        | _, [ DDate d ] ->
-          let day = d.DayOfWeek
-          let day = if day = System.DayOfWeek.Sunday then 7 else int day
-          day |> Dval.int |> Ply
+        | _, [ DDate d ] -> d.DayOfWeek |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -465,10 +465,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d ] ->
           // This is wrong, hence being replaced
-          ((d - System.DateTime.UnixEpoch).TotalHours % 60.0)
-          |> int
-          |> Dval.int
-          |> Ply
+          let duration = DDateTime.toInstant d - Instant.UnixEpoch
+          (duration.TotalHours % 60.0) |> int |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -535,7 +533,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          System.DateTime(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Ply
+          DDateTime.T(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
       previewable = Pure

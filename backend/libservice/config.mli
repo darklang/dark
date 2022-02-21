@@ -25,3 +25,7 @@ val postgres_settings : postgres_config
 val getting_started_canvas_name : string
 
 val getting_started_canvas_source : string
+
+val log_format : [`Json | `DecoratedJson]
+
+val log_level : Libcommon.Log.level
