@@ -1,4 +1,4 @@
-/// Supports loading of static HTML pages
+/// Supports loading of HTML pages
 ///
 /// Handles replacements of known variables (e.g. `{{LIVERELOADJS}}`)
 /// used within .html files
@@ -128,6 +128,9 @@ let uiHtml
 
   string t
 
+/// API endpoint that returns HTML for given Canvas
+///
+/// Contains special logic for special case of integration tests
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
     use t = startTimer "read-request" ctx

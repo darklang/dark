@@ -1,6 +1,5 @@
+/// Helper functions related to Ops
 module LibBackend.Op
-
-// Functions on Ops
 
 open Prelude
 open Tablecloth
