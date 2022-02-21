@@ -123,6 +123,7 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 (match null with | null -> "pass" | var -> "fail") = "pass"
 (match 2.0 with | blank -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
 (match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
+(match "nothing matches" with | "not this" -> "fail") = blank
 
 [test.matchInt]
 (match 5 with
