@@ -17,18 +17,5 @@ Redirect destination reached
 
 [test]
 // This is here to be a destination for valid redirect tests
-(let response = HttpClient.get_v5_ster "http://URL" {} {``Content-Type`` = "text/plain; charset=utf-8"} in
- let respHeaders = response.headers |> Dict.remove_v0 "Date" in
- Dict.set_v0 response "headers" respHeaders) =
-   { body = "Redirect destination reached"
-     code = 200
-     error = ""
-     headers =
-      {
-        ``Arbitrary-header`` = "Test value"
-        ``Content-Length`` = "LENGTH"
-        ``Content-Type`` = "text/plain; charset=utf-8"
-        ``HTTP/1.1 200 OK`` = ""
-        Server = "Kestrel"
-      }
-     raw = "Redirect destination reached"}
+// No way to make this request directly
+true
