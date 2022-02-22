@@ -11,4 +11,5 @@ Location: /v2/response-redirect-destination
 
 
 [test]
-HttpClient.get_v2 "http://URL" {} {} = Test.typeError "Bad HTTP response (400) in call to http://URL"
+HttpClient.get_v2 "http://URL" {} {} =
+  Error "Bad HTTP response (400) in call to http://URL"

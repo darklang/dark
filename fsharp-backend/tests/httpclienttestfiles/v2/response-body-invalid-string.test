@@ -16,11 +16,4 @@ RANDOM_BYTES
 (let response = HttpClient.get_v2_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
-   { body = "utf-8 decoding error"
-     headers =
-      {
-        ``Content-Length`` = "LENGTH"
-        ``HTTP/1.1 200 OK`` = ""
-        Server = "Kestrel"
-      }
-     raw = "utf-8 decoding error"}
+   Test.typeError_v0 "Unknown Err:  \"Invalid UTF-8 string:.\\\n\\n\\232\\230\\241\\224\\155\\166\\014\""
