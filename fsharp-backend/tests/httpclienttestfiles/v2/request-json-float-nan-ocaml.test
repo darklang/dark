@@ -16,7 +16,7 @@ Content-Length: LENGTH
 
 [test]
 // OCAMLONLY
-(let response = HttpClient.post_v5_ster "http://URL" (Test.nan_v0) {} HttpClient.jsonContentType_v0 in
+(let response = HttpClient.post_v2_ster "http://URL" (Test.nan_v0) {} HttpClient.jsonContentType_v0 in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""

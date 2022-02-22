@@ -20,7 +20,7 @@ Content-Length: LENGTH
 
 [test]
 // FSHARPONLY
-(let response = HttpClient.get_v5_ster "http://URL" {} {} in
+(let response = HttpClient.get_v1_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "json decoding error"

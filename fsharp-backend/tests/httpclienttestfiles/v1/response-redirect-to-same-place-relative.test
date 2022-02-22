@@ -7,10 +7,10 @@ Host: HOST
 [response]
 HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /v4/response-redirect-to-same-place-relative
+Location: /v1/response-redirect-to-same-place-relative
 
 [test]
-(match HttpClient.get_v4 "http://URL" {} {} with
+(match HttpClient.get_v1 "http://URL" {} {} with
  | Ok -> "fail"
  | Error response ->
     let respHeaders = response.headers |> Dict.remove_v0 "Date" in
