@@ -2,7 +2,6 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
@@ -14,12 +13,11 @@ Content-Length: LENGTH
 "Hello back"
 
 [test]
-(let response = HttpClient.get_v1_ster "http://URL" {} {} in
+(let response = HttpClient.get_v1 "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""
-     code = 200
-     error = ""
+
      headers =
       {
         ``Content-Length`` = "LENGTH"

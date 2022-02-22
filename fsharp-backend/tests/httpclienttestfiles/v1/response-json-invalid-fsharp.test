@@ -2,7 +2,6 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
@@ -20,19 +19,4 @@ Content-Length: LENGTH
 
 [test]
 // FSHARPONLY
-(let response = HttpClient.get_v1_ster "http://URL" {} {} in
- let respHeaders = response.headers |> Dict.remove_v0 "Date" in
- Dict.set_v0 response "headers" respHeaders) =
-   { body = "json decoding error"
-     code = 200
-     error = ""
-     headers =
-      {
-        ``Content-Length`` = "LENGTH"
-        ``Content-Type`` = "application/json; charset=utf-8"
-        ``HTTP/1.1 200 OK`` = ""
-        Server = "Kestrel"
-      }
-     raw = "{\n  anInt: 5,\n  aString: \"a string\",\n  aList: [1,2,3],\n  aBool: false\n}"}
-
-
+HttpClient.get_v1 "http://URL" {} {} = Test.typeError "Unknown error"
