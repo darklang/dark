@@ -11,4 +11,5 @@ Location: /v2/response-redirect-destination
 
 
 [test]
-HttpClient.delete_v2 "http://URL" {} {} = Test.typeError "Bad HTTP response (302) in call to http://URL"
+HttpClient.delete_v2 "http://URL" {} {} =
+  Error "Bad HTTP response (302) in call to http://URL"

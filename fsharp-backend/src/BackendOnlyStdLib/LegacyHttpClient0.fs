@@ -86,7 +86,18 @@ let sendRequest
           Dval.obj [ ("body", parsedResponseBody)
                      ("headers", parsedResponseHeaders)
                      ("raw", DStr body) ]
-        return obj
+
+        if response.code >= 200 && response.code <= 299 then
+          return obj
+        else
+          // The OCaml version of this was Legacy.LibHttpClientv1, which called
+          // Legacy.HttpClientv1.http_call, which threw exceptions for non-200 status
+          // codes
+          return
+            Exception.raiseLibrary
+              $"Bad HTTP response ({response.code}) in call to {uri}"
+              []
+
     // Raise to be caught in the right place
     | Error err -> return Exception.raiseLibrary err.error []
   }
