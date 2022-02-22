@@ -131,7 +131,7 @@ module ContentType =
 // includes an implicit content-type
 type Content =
   // OCaml's impl. uses cURL under the hood.
-  // cURL is special_ in that it will assume that
+  // cURL is special in that it will assume that
   // the request is a _form_ request if unspecified,
   // when POST/PUTing
   | FakeFormContentToMatchCurl of string
