@@ -20,7 +20,7 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 
 type HttpResult =
-  { body : string
+  { body : byte []
     code : int
     headers : HttpHeaders.T
     error : string }
@@ -205,7 +205,7 @@ let makeHttpCall
         do! contentStream.CopyToAsync(memoryStream)
         let respBody = memoryStream.ToArray()
 
-        let respString =
+        let respBody =
           // CLEANUP we can support any encoding that .NET supports, which I bet is a
           // lot
           let latin1 =
@@ -220,10 +220,9 @@ let makeHttpCall
             with
             | _ -> false
           if latin1 then
-            System.Text.Encoding.Latin1.GetString respBody
+            System.Text.Encoding.Latin1.GetString respBody |> UTF8.toBytes
           else
-            // CLEANUP there are other options here, and this is a bad error message
-            UTF8.ofBytesOpt respBody |> Option.defaultValue "utf-8 decoding error"
+            respBody
 
         let code = int response.StatusCode
 
@@ -250,7 +249,7 @@ let makeHttpCall
             headers
 
         let result =
-          { body = respString
+          { body = respBody
             code = code
             headers = [ statusHeader, "" ] @ headers
             error = "" }

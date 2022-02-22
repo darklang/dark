@@ -44,14 +44,18 @@ let sendRequest
 
     match! httpCall 0 false uri query verb encodedReqHeaders encodedReqBody with
     | Ok response ->
+      let body =
+        response.body
+        |> UTF8.ofBytesOpt
+        |> Option.defaultValue "utf-8 decoding error"
       let parsedResponseBody =
         if ContentType.hasJsonHeader response.headers then
           try
-            DvalRepr.unsafeOfUnknownJsonV0 response.body
+            DvalRepr.unsafeOfUnknownJsonV0 body
           with
           | _ -> DStr "json decoding error"
         else
-          DStr response.body
+          DStr body
 
       let parsedResponseHeaders =
         response.headers
@@ -63,7 +67,7 @@ let sendRequest
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
                    ("headers", parsedResponseHeaders)
-                   ("raw", DStr response.body)
+                   ("raw", DStr body)
                    ("code", DInt(int64 response.code)) ]
       if response.code >= 200 && response.code <= 299 then
         return DResult(Ok obj)

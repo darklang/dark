@@ -133,20 +133,21 @@ let sendRequest
 
     match! HttpClient.httpCall 0 false uri query verb reqHeaders encodedReqBody with
     | Ok response ->
+      let body = UTF8.ofBytesOpt response.body
       let parsedResponseBody =
         // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
         if false then // HttpHeaders.hasFormHeader response.headers
           try
-            DvalReprExternal.ofQueryString response.body
+            DvalReprExternal.ofQueryString (Option.unwrapUnsafe body)
           with
           | _ -> DStr "form decoding error"
         elif hasJsonHeader response.headers then
           try
-            DvalReprExternal.unsafeOfUnknownJsonV0 response.body
+            DvalReprExternal.unsafeOfUnknownJsonV0 (Option.unwrapUnsafe body)
           with
           | _ -> DStr "json decoding error"
         else
-          DStr response.body
+          body |> Option.defaultValue "utf-8 decoding error" |> DStr
 
       let parsedResponseHeaders =
         response.headers
@@ -158,7 +159,7 @@ let sendRequest
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
                    ("headers", parsedResponseHeaders)
-                   ("raw", DStr response.body)
+                   ("raw", body |> Option.defaultValue "utf-8 decoding error" |> DStr)
                    ("code", DInt(int64 response.code))
                    ("error", DStr response.error) ]
       if response.code >= 200 && response.code <= 299 then
