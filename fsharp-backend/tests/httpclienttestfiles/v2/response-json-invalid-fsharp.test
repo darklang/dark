@@ -2,7 +2,6 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
@@ -24,7 +23,6 @@ Content-Length: LENGTH
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "json decoding error"
-     code = 200
      headers =
       {
         ``Content-Length`` = "LENGTH"

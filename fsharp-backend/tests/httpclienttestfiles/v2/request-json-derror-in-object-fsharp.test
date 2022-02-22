@@ -25,7 +25,6 @@ Content-Length: LENGTH
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = { x = { ``Error`` = null } }
-     code = 200
      headers =
       {
         ``Content-Length`` = "LENGTH"

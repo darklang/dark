@@ -2,7 +2,6 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
@@ -29,7 +28,6 @@ Content-Length: LENGTH
               aList = [1,2,3]
               aBool = false
             }
-     code = 200
      headers =
       {
         ``Content-Length`` = "LENGTH"
