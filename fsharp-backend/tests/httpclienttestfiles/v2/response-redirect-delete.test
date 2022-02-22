@@ -7,9 +7,8 @@ Host: HOST
 [response]
 HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /v2/response-redirect-destination
+Location: /v3/response-redirect-destination
 
 
 [test]
-HttpClient.get_v2 "http://URL" {} {} =
-  Error "Bad HTTP response (400) in call to http://URL"
+HttpClient.delete_v3 "http://URL" {} {} = Test.typeError "Bad HTTP response (302) in call to http://URL"

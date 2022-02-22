@@ -11,4 +11,4 @@ Location: /v3/response-redirect-destination
 
 
 [test]
-HttpClient.get_v3 "http://URL" {} {} = Test.typeError "Bad HTTP response (400) in call to http://URL"
+HttpClient.delete_v3 "http://URL" {} {} = Test.typeError "Bad HTTP response (302) in call to http://URL"
