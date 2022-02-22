@@ -5,10 +5,8 @@ Accept-Encoding: deflate, gzip, br
 Content-Type: application/json; charset=utf-8
 Host: HOST
 
-{
-  "x": {
-    "Error": null
-  }
+{ 
+  x: <error: error>
 }
 [response]
 HTTP/1.1 200 OK

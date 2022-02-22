@@ -11,5 +11,5 @@ Location: file:////etc/passwd
 
 
 [test]
-HttpClient.get_v0 "http://URL" {} {} =
+HttpClient.get_v0 "http://URL" "" {} {} =
   Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"

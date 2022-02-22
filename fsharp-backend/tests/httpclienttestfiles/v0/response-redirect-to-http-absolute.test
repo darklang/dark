@@ -12,7 +12,7 @@ Location: https://httpbin.org/status/200
 
 
 [test]
-(let response = HttpClient.get "http://URL" {} {} {}
+(let response = HttpClient.get_v0 "http://URL" {} {} {}
  let respHeaders = response.headers |> Dict.remove_v0 "date" in
  Dict.set_v0 response "headers" respHeaders) =
     { body = ""

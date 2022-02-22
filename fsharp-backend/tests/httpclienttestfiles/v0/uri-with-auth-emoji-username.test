@@ -16,7 +16,7 @@ Content-Length: LENGTH
 
 [test]
 // FSHARPONLY - this fails in OCaml but succeeds in F#. We get the right answer using Curl
-(let response = HttpClient.get "http://us👨‍👩‍👧‍👦er@URL" {} {} {} in
+(let response = HttpClient.get_v0 "http://us👨‍👩‍👧‍👦er@URL" {} {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""

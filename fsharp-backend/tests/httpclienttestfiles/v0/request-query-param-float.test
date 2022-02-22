@@ -14,7 +14,7 @@ Content-Length: LENGTH
 "Hello back"
 
 [test]
-(let response = HttpClient.get "http://URL" {} { f = 5.7; n = -0.0; l = 1231325345345345.34534534634634634 } {} in
+(let response = HttpClient.get_v0 "http://URL" {} { f = 5.7; n = -0.0; l = 1231325345345345.34534534634634634 } {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""

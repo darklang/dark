@@ -11,7 +11,7 @@ Location: /v0/response-redirect-destination
 
 
 [test]
-(let response = HttpClient.get "http://URL" {} {} {}
+(let response = HttpClient.get_v0 "http://URL" {} {} {}
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
   { body = "Redirect destination reached"

@@ -16,6 +16,6 @@ Content-Length: LENGTH
 [test]
 // FSHARPONLY
 (let reqHeaders = { ``Content-Type`` = "just an invalid string" } in
- let response = HttpClient.get "http://URL" {} {} reqHeaders in
+ let response = HttpClient.get_v0 "http://URL" {} {} reqHeaders in
  response) =
   Test.typeError_v0 "Invalid content-type header"

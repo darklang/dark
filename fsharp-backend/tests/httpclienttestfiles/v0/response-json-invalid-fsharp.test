@@ -19,4 +19,4 @@ Content-Length: LENGTH
 
 [test]
 // FSHARPONLY
-HttpClient.get_v0 "http://URL" {} {} = Test.typeError "Unknown error"
+HttpClient.get_v0 "http://URL" "" {} {} = Test.typeError "Unknown error"

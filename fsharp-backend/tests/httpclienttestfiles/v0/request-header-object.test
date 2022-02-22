@@ -15,5 +15,5 @@ Content-Length: LENGTH
 
 [test]
 (let reqHeaders = { some_header = {} }
- HttpClient.get "http://URL" {} {} reqHeaders) =
+ HttpClient.get_v0 "http://URL" {} {} reqHeaders) =
  Test.typeError_v0 "expecting str")

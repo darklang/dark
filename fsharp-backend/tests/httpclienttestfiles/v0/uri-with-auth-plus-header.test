@@ -16,7 +16,7 @@ Content-Length: LENGTH
 
 [test]
 (let headers = { Authorization = "Basic: bWU6b3BlbnNlc2FtZQ==" } in
- let response = HttpClient.get "http://user:password@URL" {} {} headers in
+ let response = HttpClient.get_v0 "http://user:password@URL" {} {} headers in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""

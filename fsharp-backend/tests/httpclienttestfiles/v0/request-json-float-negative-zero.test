@@ -5,7 +5,7 @@ Accept-Encoding: deflate, gzip, br
 Content-Type: application/json; charset=utf-8
 Host: HOST
 
--0.0
+-0.
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx

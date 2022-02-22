@@ -10,4 +10,4 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Location: http://URL
 
 [test]
-HttpClient.get_v0 "http://URL" {} {} = Test.typeError "Bad HTTP response (302) in call to http://URL"
+HttpClient.get_v0 "http://URL" "" {} {} = Test.typeError "Bad HTTP response (302) in call to http://URL"

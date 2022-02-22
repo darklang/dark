@@ -11,4 +11,4 @@ Location: /invalid-url
 
 
 [test]
-HttpClient.get_v0 "http://URL" {} {} = Test.typeError "Bad HTTP response (500) in call to http://URL"
+HttpClient.get_v0 "http://URL" "" {} {} = Test.typeError "Bad HTTP response (500) in call to http://URL"

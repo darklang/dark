@@ -16,7 +16,7 @@ Content-Length: LENGTH
 [test]
 // OCAMLONLY
 (let reqHeaders = { ``Content-Type`` = "just an invalid string" } in
- let response = HttpClient.get "http://URL" {} {} reqHeaders in
+ let response = HttpClient.get_v0 "http://URL" {} {} reqHeaders in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""

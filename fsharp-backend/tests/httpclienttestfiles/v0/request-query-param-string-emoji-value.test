@@ -16,7 +16,7 @@ Content-Length: LENGTH
 [test]
 // CLEANUP this matches what OCAML does, unclear this is the right thing to do
 (let query = { emoji = "😭👨‍👩‍👧‍👦" } in
- let response = HttpClient.get "http://URL" {} query {} in
+ let response = HttpClient.get_v0 "http://URL" {} query {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""

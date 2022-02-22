@@ -16,7 +16,7 @@ Content-Length: LENGTH
 
 [test]
 (let query = { ``😭👨‍👩‍👧‍👦`` = "emoji" } in
- let response = HttpClient.get "http://URL" {} query HttpClient.jsonContentType_v0 in
+ let response = HttpClient.get_v0 "http://URL" {} query HttpClient.jsonContentType_v0 in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""
