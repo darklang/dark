@@ -60,7 +60,8 @@ let sendRequest
                    ("headers", parsedResponseHeaders)
                    ("raw", DStr response.body) ]
       return obj
-    | Error err -> return DError(SourceNone, err.error)
+    // Raise to be caught in the right place
+    | Error err -> return Exception.raiseLibrary err.error []
   }
 
 let call (method : HttpMethod) jsonFn : BuiltInFnSig =
