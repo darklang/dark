@@ -299,6 +299,11 @@ type NonBlockingConsole() =
         thread.Name <- "Prelude.NonBlockingConsole printer"
         thread.Start()
 
+  static member wait() : unit =
+    while mQueue.Count >= 1 do
+      ()
+
+
 
   static member WriteLine(value : string) : unit =
     if isBlazor then System.Console.WriteLine value else mQueue.Add(value)
