@@ -56,8 +56,7 @@ let updateBody (body : byte array) : byte array =
   // Test cases are parsed as strings, so we can't "add bytes" to the tests directly.
   // To get around this, we include the string "RANDOM_BYTES" in our test file,
   // and replace that during the test at run-time.
-  let randomBytes =
-    [ 0x2euy; 0x0Auy; 0xE8uy; 0xE6uy; 0xF1uy; 0xE0uy; 0x9Buy; 0xA6uy; 0xEuy ]
+  let randomBytes = List.range 0 255 |> List.map (fun i -> byte i)
 
   let rec find (bytes : byte list) : byte list =
     match bytes with
