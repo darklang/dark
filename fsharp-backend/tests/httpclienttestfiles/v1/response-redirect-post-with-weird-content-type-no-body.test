@@ -2,18 +2,18 @@
 POST PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: application/x-www-form-urlencoded
+Content-Type: text/askdjnkajsfunr
 Host: HOST
 
 ""
 [response]
 HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: /v1/response-redirect-dest-post
+Location: /v1/response-redirect-dest-post-with-weird-content-type-no-body
 
 
 [test]
-(let response = HttpClient.post_v1_ster "http://URL" "" {} {}
+(let response = HttpClient.post_v1_ster "http://URL" "" {} {``Content-Type`` = "text/askdjnkajsfunr" }
  let respHeaders = response.headers |> Dict.remove_v0 "Date"
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
@@ -24,7 +24,7 @@ Location: /v1/response-redirect-dest-post
         ``Content-Type`` = "text/plain; charset=utf-8"
         ``HTTP/1.1 200 OK`` = ""
         ``HTTP/1.1 302 Found`` = ""
-        ``Location`` = "/v1/response-redirect-dest-post"
+        ``Location`` = "/v1/response-redirect-dest-post-with-weird-content-type-no-body"
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }

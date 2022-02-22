@@ -6,12 +6,12 @@ Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
-HTTP/1.1 301 Moved Permanently
+HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: file:////etc/passwd
+Location: ftp://speedtest.tele2.net/1KB.zip
 
 
 [test]
-(match HttpClient.get_v1 "http://URL" {} {} with
+(match HttpClient.get_v5 "http://URL" {} {} with
  | Ok -> "fail"
  | Error response -> response) = "Unsupported protocol"
