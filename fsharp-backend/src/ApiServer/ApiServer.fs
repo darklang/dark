@@ -20,6 +20,7 @@ open Tablecloth
 
 open Http
 open Middleware
+open Microsoft.AspNetCore.StaticFiles
 
 module Auth = LibBackend.Authorization
 module Config = LibBackend.Config
@@ -112,6 +113,10 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
 // --------------------
 let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   if Config.apiServerServeStaticContent then
+    let contentTypeProvider = FileExtensionContentTypeProvider()
+    contentTypeProvider.Mappings[ ".dll" ] <- "application/wasm"
+    contentTypeProvider.Mappings[ ".wasm" ] <- "application/wasm"
+
     app.UseStaticFiles(
       StaticFileOptions(
         ServeUnknownFileTypes = true,
@@ -119,7 +124,8 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
         OnPrepareResponse =
           (fun ctx ->
             ctx.Context.Response.Headers[ "Access-Control-Allow-Origin" ] <-
-              StringValues([| "*" |]))
+              StringValues([| "*" |])),
+        ContentTypeProvider = contentTypeProvider
       )
     )
   else

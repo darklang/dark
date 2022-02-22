@@ -28,7 +28,7 @@ type CronScheduleData = Serialize.CronScheduleData
 // TODO: this is a query per cron handler. Might be worth seeing (later) if a we
 // could do this better with a join in the initial query that gets all cron
 // handlers from toplevel_oplists.
-let lastRanAt (cron : CronScheduleData) : Task<Option<System.DateTime>> =
+let lastRanAt (cron : CronScheduleData) : Task<Option<NodaTime.Instant>> =
   Sql.query
     "SELECT ran_at
        FROM cron_records
@@ -38,27 +38,26 @@ let lastRanAt (cron : CronScheduleData) : Task<Option<System.DateTime>> =
        LIMIT 1"
   |> Sql.parameters [ "tlid", Sql.tlid cron.tlid
                       "canvasID", Sql.uuid cron.canvasID ]
-  |> Sql.executeRowOptionAsync (fun read -> read.dateTime "ran_at")
+  |> Sql.executeRowOptionAsync (fun read -> read.instantWithoutTimeZone "ran_at")
 
 
-let convertInterval (interval : PT.Handler.CronInterval) : System.TimeSpan =
-  // Must use the 5-value constructor as the 3-value constructor doesn't support days
+let convertInterval (interval : PT.Handler.CronInterval) : NodaTime.Period =
   match interval with
-  | PT.Handler.EveryDay -> System.TimeSpan(1, 0, 0, 0, 0)
-  | PT.Handler.EveryWeek -> System.TimeSpan(7, 0, 0, 0, 0)
-  | PT.Handler.EveryFortnight -> System.TimeSpan(14, 0, 0, 0, 0)
-  | PT.Handler.EveryHour -> System.TimeSpan(0, 1, 0, 0, 0)
-  | PT.Handler.Every12Hours -> System.TimeSpan(0, 12, 0, 0, 0)
-  | PT.Handler.EveryMinute -> System.TimeSpan(0, 0, 1, 0, 0)
+  | PT.Handler.EveryDay -> NodaTime.Period.FromDays 1
+  | PT.Handler.EveryWeek -> NodaTime.Period.FromWeeks 1
+  | PT.Handler.EveryFortnight -> NodaTime.Period.FromWeeks 2
+  | PT.Handler.EveryHour -> NodaTime.Period.FromHours 1
+  | PT.Handler.Every12Hours -> NodaTime.Period.FromHours 12
+  | PT.Handler.EveryMinute -> NodaTime.Period.FromMinutes 1
 
 
 type NextExecution =
-  { scheduledRunAt : Option<System.DateTime>
-    interval : Option<System.TimeSpan> }
+  { scheduledRunAt : Option<NodaTime.Instant>
+    interval : Option<NodaTime.Period> }
 
 let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
   task {
-    let now = System.DateTime.Now in
+    let now = NodaTime.Instant.now () in
 
     match! lastRanAt cron with
     | None ->
@@ -72,12 +71,11 @@ let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
       //   therefore:
       //     shouldRunAfter is 17:01
       //     and we should run once now >= shouldRunAfter
-      let interval = convertInterval cron.interval
-      let shouldRunAfter = lrt + interval
+      let period = convertInterval cron.interval
+      let shouldRunAfter = lrt + period.ToDuration()
 
       if now >= shouldRunAfter then
-        return
-          Some { scheduledRunAt = Some shouldRunAfter; interval = Some interval }
+        return Some { scheduledRunAt = Some shouldRunAfter; interval = Some period }
       else
         return None
   }
@@ -117,11 +115,10 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
       // It's a little silly to recalculate now when we just did
       // it in executionCheck, but maybe EventQueue.enqueue was
       // slow or something
-      let now = System.DateTime.Now
+      let now = NodaTime.Instant.now ()
       let delayMs =
         check.scheduledRunAt
-        |> Option.map (fun scheduled ->
-          System.TimeSpan(now.Ticks - scheduled.Ticks).TotalMilliseconds)
+        |> Option.map (fun scheduled -> (now - scheduled).TotalMilliseconds)
       let delayLog = delayMs |> Option.map (fun delay -> ("delay", delay :> obj))
       let intervalLog =
         // Floats are IEEE-754, which has a max at 2**31-1;
@@ -129,12 +126,11 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
         // longest allowed cron interval is two weeks, this is
         // fine
         check.interval
-        |> Option.map (fun interval ->
-          ("interval", interval.TotalMilliseconds :> obj))
+        |> Option.map (fun interval -> ("interval", interval.Milliseconds :> obj))
       let delayRatioLog =
         Option.map2
-          (fun delayMs (interval : System.TimeSpan) ->
-            delayMs / interval.TotalMilliseconds)
+          (fun delayMs (interval : NodaTime.Period) ->
+            delayMs / interval.ToDuration().TotalMilliseconds)
           delayMs
           check.interval
         |> Option.map (fun delayRatio -> ("delay_ratio", delayRatio :> obj))

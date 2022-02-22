@@ -46,7 +46,7 @@ let loadForAnalysis
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   (tlid : tlid)
-  : Task<Option<AT.InputVars * System.DateTime>> =
+  : Task<Option<AT.InputVars * NodaTime.Instant>> =
   // We need to alias the subquery (here aliased as `q`) because Postgres
   // requires inner SELECTs to be aliased.
   Sql.query
@@ -68,7 +68,7 @@ let loadForAnalysis
      |> DvalReprInternal.ofInternalRoundtrippableV0
      |> fun dv ->
           RT.Dval.toPairs dv |> Exception.unwrapResultInternal [ "dval", dv ],
-          read.dateTime "timestamp"))
+          read.instant "timestamp"))
 
 
 let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =

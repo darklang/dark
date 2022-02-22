@@ -67,6 +67,14 @@ let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder 
       let addHealthCheck (path : string) (tag : string) =
         endpoints.MapHealthChecks(path, taggedWith tag).RequireHost($"*:{port}")
         |> ignore<IEndpointConventionBuilder>
+        // The k8s healthcheck comes in on a port, but the google load balancer
+        // health check does not include the port in its request. We manually set the
+        // load balancer to set the host header to be "bwdserver-healthcheck" (adding
+        // a port was not supported)
+        endpoints
+          .MapHealthChecks(path, taggedWith tag)
+          .RequireHost($"bwdserver-healthcheck")
+        |> ignore<IEndpointConventionBuilder>
       addHealthCheck livenessPath livenessTag
       addHealthCheck startupPath startupTag
       addHealthCheck readinessPath readinessTag)

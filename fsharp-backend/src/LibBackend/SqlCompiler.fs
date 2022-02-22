@@ -15,7 +15,7 @@ open LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
 
-module Ast = LibExecution.Ast
+module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
 let error (str : string) : 'a = raise (Errors.DBQueryException str)
@@ -57,10 +57,8 @@ let dvalToSql (dval : Dval) : SqlValue =
     error2
       "This value is not yet supported"
       (DvalReprExternal.toDeveloperReprV0 dval)
-  | DDate date -> Sql.timestamp date
-  | DInt i ->
-    // TODO: gonna have to do better than this for infinite precision
-    Sql.int64 (int64 i)
+  | DDate date -> date |> DDateTime.toDateTimeUtc |> Sql.timestamptz
+  | DInt i -> Sql.int64 i
   | DFloat v -> Sql.double v
   | DBool b -> Sql.bool b
   | DNull -> Sql.dbnull
@@ -130,7 +128,7 @@ let rec inline'
   (symtable : Map<string, Expr>)
   (expr : Expr)
   : Expr =
-  Ast.postTraversal
+  RuntimeTypesAst.postTraversal
     (function
     | ELet (_, name, expr, body) ->
       inline' paramName (Map.add name expr symtable) body

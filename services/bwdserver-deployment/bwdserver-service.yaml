@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: bwdserver-service
+  namespace: default
+  annotations:
+    cloud.google.com/backend-config: '{"default": "bwdserver-service-backendconfig"}'
+spec:
+  # GKE ingress requires this to be a nodeport
+  type: NodePort
+  selector:
+    app: bwdserver-app
+  ports:
+    - protocol: TCP
+      name: bwdserver-port
+      port: 80
+      targetPort: http-proxy-port
+    - protocol: TCP
+      name: bwdserver-healthcheck-port
+      port: 11002
+      targetPort: 11002
