@@ -15,7 +15,7 @@ RANDOM_BYTES
 // OCAMLONLY - this exception is not a DarkException so it doesn't get caught and so
 // it escapes the httpclient call and makes it to the outer execution
 // RANDOM_BYTES filled in by the test suite
-(let response = HttpClient.get_v1_ster "http://URL" {} {} in
+(let response = HttpClient.get_v1 "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    Test.typeError_v0 "Unknown Err:  \"Invalid UTF-8 string:\\000\\001\\002\\003\\004\\005\\006\\007\\b\\t\\

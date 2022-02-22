@@ -13,7 +13,7 @@ Location: /v1/response-redirect-dest-put-with-content-type-with-body
 
 
 [test]
-(let response = HttpClient.put_v1_ster "http://URL" "body" {} {``Content-Type`` = "text/plain; charset=utf-8" }
+(let response = HttpClient.put_v1 "http://URL" "body" {} {``Content-Type`` = "text/plain; charset=utf-8" }
  let respHeaders = response.headers |> Dict.remove_v0 "Date"
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"

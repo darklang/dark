@@ -15,4 +15,4 @@ Content-Encoding: not-valid
 
 [test]
 HttpClient.get_v1 "http://URL/" {} {} =
-  Error "Internal HTTP-stack exception: Unrecognized or bad HTTP Content or Transfer-Encoding"
+  Test.typeError_v0 "Internal HTTP-stack exception: Unrecognized or bad HTTP Content or Transfer-Encoding"
