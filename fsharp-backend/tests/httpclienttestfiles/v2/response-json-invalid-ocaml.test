@@ -30,7 +30,6 @@ Content-Length: LENGTH
               aBool = false
             }
      code = 200
-     error = ""
      headers =
       {
         ``Content-Length`` = "LENGTH"

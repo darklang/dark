@@ -19,7 +19,6 @@ Content-Length: LENGTH
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""
      code = 200
-     error = ""
      headers =
       {
         ``Content-Length`` = "LENGTH"

@@ -2,10 +2,10 @@
 POST PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
+Content-Type: application/x-www-form-urlencoded
 Host: HOST
 
-Hello world
+"Hello world"
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -20,7 +20,6 @@ Content-Length: LENGTH
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""
      code = 200
-     error = ""
      headers =
       {
         ``Content-Length`` = "LENGTH"

@@ -2,7 +2,6 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
@@ -25,7 +24,6 @@ Content-Length: LENGTH
  Dict.set_v0 response "headers" respHeaders) =
    { body = "json decoding error"
      code = 200
-     error = ""
      headers =
       {
         ``Content-Length`` = "LENGTH"
