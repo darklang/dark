@@ -44,29 +44,28 @@ let sendRequest
     | Ok response ->
       match UTF8.ofBytesOpt response.body with
       | None ->
-        let urlEncodeExcept (bytes : byte []) : string =
-          let encodeByte (b : byte) : byte array =
-            if b = (byte '\"') then
-              [| byte '\\'; byte '"' |]
-            else if b = (byte '\\') then
-              [| byte '\\'; byte '\\' |]
-            else if (b >= (byte ' ') && b <= (byte '~')) then
-              [| b |]
-            else if b = (byte '\t') then
-              [| byte '\\'; byte 't' |]
-            else if b = (byte '\n') then
-              [| byte '\\'; byte '\n'; byte '\\'; byte 'n' |]
-            else if b = (byte '\r') then
-              [| byte '\\'; byte 'r' |]
-            else if b = (byte '\b') then
-              [| byte '\\'; byte 'b' |]
-            else
-              // 3-digit decimal value, such as \014
-              UTF8.toBytes ("\\" + b.ToString("D3"))
-          bytes |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
-
-
-        let asStr = urlEncodeExcept response.body
+        // Match how OCaml prints this error
+        let encodeByte (b : byte) : byte array =
+          if b = (byte '\"') then
+            [| byte '\\'; byte '"' |]
+          else if b = (byte '\\') then
+            [| byte '\\'; byte '\\' |]
+          else if (b >= (byte ' ') && b <= (byte '~')) then
+            // This is where the vast majority of bytes, including all alphanumeric
+            // ones, are handled
+            [| b |]
+          else if b = (byte '\t') then
+            [| byte '\\'; byte 't' |]
+          else if b = (byte '\n') then
+            [| byte '\\'; byte '\n'; byte '\\'; byte 'n' |]
+          else if b = (byte '\r') then
+            [| byte '\\'; byte 'r' |]
+          else if b = (byte '\b') then
+            [| byte '\\'; byte 'b' |]
+          else
+            // 3-digit decimal value, such as \014
+            UTF8.toBytes ("\\" + b.ToString("D3"))
+        let asStr = response.body |> Array.collect encodeByte |> UTF8.ofBytesUnsafe
         return DError(SourceNone, $"Unknown Err:  \"Invalid UTF-8 string:{asStr}\"")
       | Some body ->
         let parsedResponseBody =
