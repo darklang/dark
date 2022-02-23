@@ -180,7 +180,9 @@ let replaceByteStrings
 let t filename =
   testTask $"Httpfiles: {filename}" {
     let skip = String.startsWith "_" filename
-    let name = if skip then String.dropLeft 1 filename else filename
+    let name =
+      let withoutPrefix = if skip then String.dropLeft 1 filename else filename
+      withoutPrefix |> String.dropRight 5 // ".test"
     let! (meta : Canvas.Meta) = initializeTestCanvas $"bwdserver-{name}"
 
     let filename = $"tests/httptestfiles/{filename}"
@@ -373,12 +375,9 @@ let testsFromFiles =
   // get all files
   let dir = "tests/httptestfiles/"
 
-  System.IO.Directory.GetFiles(dir, "*")
-  |> Array.filter ((<>) "tests/httptestfiles/README.md")
+  System.IO.Directory.GetFiles(dir, "*.test")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
-  |> List.filter ((<>) ".gitattributes")
-  |> List.filter ((<>) "README.md")
   |> List.map t
 
 

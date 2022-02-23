@@ -96,9 +96,9 @@ type toplevel =
 let toplevel_of_binary_string (str : string) : toplevel =
   try handler_of_binary_string str |> Handler
   with e1 ->
-    ( try db_of_binary_string str |> DB
+    ( try user_fn_of_binary_string str |> UserFn
       with e2 ->
-        ( try user_fn_of_binary_string str |> UserFn
+        ( try db_of_binary_string str |> DB
           with e3 ->
             ( try user_tipe_of_binary_string str |> UserType
               with e4 -> failwith "could not parse binary toplevel" ) ) )

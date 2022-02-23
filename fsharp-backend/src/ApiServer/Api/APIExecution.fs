@@ -1,11 +1,9 @@
+/// API endpoints to function and Handler execution
 module ApiServer.Execution
-
-// Execution API endpoints
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
 
 open Prelude
 open Tablecloth
@@ -39,6 +37,7 @@ module Function =
       touched_tlids : tlid list
       unlocked_dbs : tlid list }
 
+  /// API endpoint to execute a User Function and return the result
   let execute (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
@@ -88,6 +87,9 @@ module Handler =
 
   type T = { touched_tlids : tlid list }
 
+  /// API endpoint to trigger the execution of a Handler
+  ///
+  /// Handlers are handled asynchronously, so the result is not returned
   let trigger (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx

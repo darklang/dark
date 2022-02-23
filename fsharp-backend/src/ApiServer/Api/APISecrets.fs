@@ -1,11 +1,9 @@
+/// API endpoints to manage Secrets
 module ApiServer.Secrets
-
-// API endpoints for Secrets
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
 
 open Prelude
 open Tablecloth
@@ -25,6 +23,7 @@ module Insert =
   type Params = Secret
   type T = { secrets : List<Secret> }
 
+  /// API endpoint to insert a Secret within a canvas
   let insert (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
@@ -65,6 +64,7 @@ module Delete =
   type Params = { secret_name : string }
   type T = { secrets : List<Secret> }
 
+  /// API endpoint to delete a specific Secret
   let delete (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
