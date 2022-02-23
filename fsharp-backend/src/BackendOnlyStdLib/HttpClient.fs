@@ -5,9 +5,9 @@ module BackendOnlyStdLib.HttpClient
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open System.Net.Http
-open System.IO.Compression
 open System.IO
+open System.IO.Compression
+open System.Net.Http
 
 type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
@@ -19,13 +19,10 @@ open VendoredTablecloth
 
 module RT = RuntimeTypes
 
-type HttpHeaders = List<string * string>
-
-
 type HttpResult =
-  { body : string
+  { body : byte []
     code : int
-    headers : HttpHeaders
+    headers : HttpHeaders.T
     error : string }
 
 type ClientError = { url : string; error : string; code : int }
@@ -41,7 +38,6 @@ type Content =
   | FormContent of string
   | StringContent of string
   | NoContent
-
 
 // There has been quite a history of HTTPClient having problems in previous versions
 // of .NET, including socket exhaustion and DNS results not expiring. The history is
@@ -88,22 +84,21 @@ let httpClient : HttpClient =
   client
 
 // Convert .NET HttpHeaders into Dark-style headers
-let convertHeaders (headers : AspHeaders) : HttpHeaders =
+let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
   headers
   |> Seq.map Tuple2.fromKeyValuePair
   |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
   |> Seq.toList
 
-
-
 exception InvalidEncodingException of int
+
 // CLEANUP add dark-specific user-agent
 let makeHttpCall
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders)
+  (reqHeaders : HttpHeaders.T)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
@@ -210,7 +205,7 @@ let makeHttpCall
         do! contentStream.CopyToAsync(memoryStream)
         let respBody = memoryStream.ToArray()
 
-        let respString =
+        let respBody =
           // CLEANUP we can support any encoding that .NET supports, which I bet is a
           // lot
           let latin1 =
@@ -225,10 +220,9 @@ let makeHttpCall
             with
             | _ -> false
           if latin1 then
-            System.Text.Encoding.Latin1.GetString respBody
+            System.Text.Encoding.Latin1.GetString respBody |> UTF8.toBytes
           else
-            // CLEANUP there are other options here, and this is a bad error message
-            UTF8.ofBytesOpt respBody |> Option.defaultValue "utf-8 decoding error"
+            respBody
 
         let code = int response.StatusCode
 
@@ -255,7 +249,7 @@ let makeHttpCall
             headers
 
         let result =
-          { body = respString
+          { body = respBody
             code = code
             headers = [ statusHeader, "" ] @ headers
             error = "" }
@@ -287,7 +281,7 @@ let rec httpCall
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
-  (reqHeaders : HttpHeaders)
+  (reqHeaders : HttpHeaders.T)
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
@@ -305,19 +299,36 @@ let rec httpCall
       return Error { url = url; code = 0; error = "Too many redirects" }
     else
       let! response = makeHttpCall rawBytes url queryParams method reqHeaders reqBody
+
       match response with
       | Ok result when result.code >= 300 && result.code < 400 ->
         let location =
           result.headers
           |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive "location" k)
+
         match location with
         | Some (_, locationUrl) when method <> HttpMethod.Delete ->
           let newCount = count + 1
+
           // It might be a relative URL. If the location is absolute, the location will win over the last URL
           let newUrl = System.Uri(System.Uri(url), locationUrl).ToString()
+
+          // CLEANUP no reason to do this
+          // Match curls default redirect behaviour: if it's a POST with content, redirect to GET
+          // FSTODO: are some headers involved
+          let method, reqBody =
+            match reqBody with
+            | StringContent body when body <> "" ->
+              if method = HttpMethod.Post then
+                HttpMethod.Get, NoContent
+              else
+                method, NoContent
+            | _ -> method, reqBody
+
           // Unlike HttpClient, do not drop the authorization header
           let! newResponse =
             httpCall newCount rawBytes newUrl queryParams method reqHeaders reqBody
+
           return
             Result.map
               (fun redirectResult ->

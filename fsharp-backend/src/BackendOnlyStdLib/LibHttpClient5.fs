@@ -133,20 +133,21 @@ let sendRequest
 
     match! HttpClient.httpCall 0 false uri query verb reqHeaders encodedReqBody with
     | Ok response ->
+      let body = UTF8.ofBytesOpt response.body
       let parsedResponseBody =
         // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
         if false then // HttpHeaders.hasFormHeader response.headers
           try
-            DvalReprExternal.ofQueryString response.body
+            DvalReprExternal.ofQueryString (Option.unwrapUnsafe body)
           with
           | _ -> DStr "form decoding error"
         elif hasJsonHeader response.headers then
           try
-            DvalReprExternal.unsafeOfUnknownJsonV0 response.body
+            DvalReprExternal.unsafeOfUnknownJsonV0 (Option.unwrapUnsafe body)
           with
           | _ -> DStr "json decoding error"
         else
-          DStr response.body
+          body |> Option.defaultValue "utf-8 decoding error" |> DStr
 
       let parsedResponseHeaders =
         response.headers
@@ -158,7 +159,7 @@ let sendRequest
       let obj =
         Dval.obj [ ("body", parsedResponseBody)
                    ("headers", parsedResponseHeaders)
-                   ("raw", DStr response.body)
+                   ("raw", body |> Option.defaultValue "utf-8 decoding error" |> DStr)
                    ("code", DInt(int64 response.code))
                    ("error", DStr response.error) ]
       if response.code >= 200 && response.code <= 299 then
@@ -188,7 +189,7 @@ let fns : List<BuiltInFn> =
       description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
       fn = call HttpMethod.Post
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -199,7 +200,7 @@ let fns : List<BuiltInFn> =
       description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
       fn = call HttpMethod.Put
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -210,7 +211,7 @@ let fns : List<BuiltInFn> =
       description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
       fn = callNoBody HttpMethod.Get
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -223,7 +224,7 @@ let fns : List<BuiltInFn> =
       description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
       fn = callNoBody HttpMethod.Delete
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -234,7 +235,7 @@ let fns : List<BuiltInFn> =
       description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
       fn = callNoBody HttpMethod.Options
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -245,7 +246,7 @@ let fns : List<BuiltInFn> =
       description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
       fn = callNoBody HttpMethod.Head
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -256,6 +257,6 @@ let fns : List<BuiltInFn> =
       description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
       fn = call HttpMethod.Patch
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

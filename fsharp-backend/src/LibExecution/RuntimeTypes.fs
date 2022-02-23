@@ -38,8 +38,8 @@ open VendoredTablecloth
 module J = Prelude.Json
 
 
-// A function description: a fully-qualified function name, including package,
-// module, and version information.
+/// A Fully-Qualified Function Name
+/// Includes package, module, and version information where relevant.
 module FQFnName =
   type StdlibFnName =
     { module_ : string

@@ -44,13 +44,13 @@ Result.map_v1 blank (fun x -> Int.divide_v0 x 2) = blank
 
 Result.toOption_v0 (Error "test") = Nothing
 Result.toOption_v0 (Ok 6) = Just 6
-Result.toOption_v0 (Error Test.errorRailNothing_v0) = Test.errorRailNothing_v0
-Result.toOption_v0 (Ok Test.errorRailNothing_v0) = Test.errorRailNothing_v0
+Result.toOption_v0 (Error (Test.errorRailValue_v0 Nothing)) = Test.errorRailValue_v0 Nothing
+Result.toOption_v0 (Ok (Test.errorRailValue_v0 Nothing)) = Test.errorRailValue_v0 Nothing
 
 Result.toOption_v1 (Error "test") = Nothing
 Result.toOption_v1 blank = blank
-Result.toOption_v1 (Error Test.errorRailNothing_v0) = Test.errorRailNothing_v0
-Result.toOption_v1 (Ok Test.errorRailNothing_v0) = Test.errorRailNothing_v0
+Result.toOption_v1 (Error (Test.errorRailValue_v0 Nothing)) = Test.errorRailValue_v0 Nothing
+Result.toOption_v1 (Ok (Test.errorRailValue_v0 Nothing)) = Test.errorRailValue_v0 Nothing
 
 Result.withDefault_v0 (Error "test") 5 = 5
 Result.withDefault_v0 (Ok 6) 5 = 6

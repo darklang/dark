@@ -82,17 +82,20 @@ type DeveloperException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = DeveloperException(msg, null)
 
-// An error caused by the editor doing something it shouldn't, so as an Redo or
-// rename that isn't allowed. The editor should have caught this on the client and
-// not made the request.
+/// An editor exception is one which is caused by an invalid action on the part of
+/// the Dark editor, such as an Redo or rename that isn't allowed.  We are
+/// interested in these, as the editor should have caught this on the client and not
+/// made the request.The message may be shown to the logged-in user, and should be
+/// suitable for this.
 type EditorException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = EditorException(msg, null)
 
-// An error in library or framework code, such as calling a function with a negative
-// number when it doesn't support it. We probably caused this by allowing it to
-// happen, so we definitely want to fix it, but it's OK to tell the developer what
-// happened (not grandusers though)
+// A known error in library or framework code, such as calling a function with a
+// negative number when it doesn't support it. When we find internal or other
+// exceptions in library code, we replace it with this exception to indicate that we
+// know about it: that the library is wrong but that also we're stuck with it. It's
+// OK to tell the developer what happened (not grandusers though)
 type LibraryException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
@@ -157,9 +160,12 @@ module Exception =
     | Ok v -> v
     | Error msg -> raiseDeveloper msg
 
-  // An editor exception is one which is caused by an invalid action on the part of
-  // the Dark editor. We are interested in these. The message may be shown to the
-  // logged-in user, and should be suitable for this.
+  let unwrapOptionDeveloper (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
+    match o with
+    | Some v -> v
+    | None -> raiseDeveloper msg tags
+
+
   let raiseEditor (msg : string) =
     let e = EditorException(msg)
     callExceptionCallback e
@@ -184,13 +190,15 @@ module Exception =
   let reraiseAsPageable (msg : string) (e : exn) = raise (PageableException(msg, e))
 
 
-
-  // An error in library code - should not be shown to grand users. May be shown to
-  // logged-in developers (most typically in a DError or a Result).
   let raiseLibrary (msg : string) (tags : Metadata) =
     let e = LibraryException(msg, tags)
     callExceptionCallback e
     raise e
+
+  let unwrapOptionLibrary (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
+    match o with
+    | Some v -> v
+    | None -> raiseLibrary msg tags
 
   let unknownErrorMessage = "Unknown error"
 
@@ -290,6 +298,11 @@ type NonBlockingConsole() =
         thread.IsBackground <- true
         thread.Name <- "Prelude.NonBlockingConsole printer"
         thread.Start()
+
+  static member wait() : unit =
+    while mQueue.Count >= 1 do
+      ()
+
 
 
   static member WriteLine(value : string) : unit =

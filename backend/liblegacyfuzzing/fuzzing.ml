@@ -214,15 +214,15 @@ let hash_v1 (json : string) : string =
 let sideEffectCount : int String.Map.t ref = ref String.Map.empty
 
 let fns : Types.RuntimeT.fn list =
-  [ { prefix_names = ["Test::errorRailNothing"]
+  [ { prefix_names = ["Test::errorRailValue"]
     ; infix_names = []
-    ; parameters = []
+    ; parameters = [Lib.par "errorString" TAny]
     ; return_type = TOption
-    ; description = "Return an errorRail wrapping nothing."
+    ; description = "Return an errorRail wrapping a value."
     ; func =
         InProcess
           (function
-          | state, [] -> DErrorRail (DOption OptNothing) | args -> Lib.fail args)
+          | state, [value] -> DErrorRail value | args -> Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Test::typeError"]
