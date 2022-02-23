@@ -1,9 +1,5 @@
+///
 module ApiServer.Functions
-
-// Functions
-
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
@@ -128,6 +124,8 @@ let nonAdminFunctions : Lazy<string> =
        | _ -> true)
      |> functionsToString)
 
-
+/// Returns a list of all standard library Functions
+///
+/// Depending on `includeAdminFns` flag, may exclude Dark admin-only fns
 let functions (includeAdminFns : bool) : Lazy<string> =
   if includeAdminFns then adminFunctions else nonAdminFunctions

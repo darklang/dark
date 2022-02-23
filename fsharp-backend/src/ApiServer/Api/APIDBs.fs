@@ -1,11 +1,9 @@
+/// API endpoints related to DBs
 module ApiServer.DBs
-
-// DB-related API endpoints
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
 
 open Prelude
 open Tablecloth
@@ -26,6 +24,9 @@ module Telemetry = LibService.Telemetry
 module Unlocked =
   type T = { unlocked_dbs : tlid list }
 
+  /// API endpoint to fetch a list of unlocked User DBs
+  ///
+  /// A 'locked' database cannot have its fields/types changed
   let get (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
@@ -42,6 +43,7 @@ module DBStats =
   type Stat = { count : int; example : Option<ORT.dval * string> }
   type T = Map<tlid, Stat>
 
+  /// API endpoint to get statistical data regarding User DBs
   let getStats (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx

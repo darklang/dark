@@ -1,11 +1,9 @@
+/// API endpoints to fetch Traces
 module ApiServer.Traces
-
-// API endpoints for Traces
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
 
 open Prelude
 open Tablecloth
@@ -40,6 +38,9 @@ module TraceData =
 
   type T = Option<TraceResult>
 
+  /// API endpoint to fetch data for a specific Trace
+  ///
+  /// Data returned includes input, timestamp, and results
   let getTraceData (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
@@ -92,6 +93,9 @@ module AllTraces =
 
   type T = { traces : List<tlid * AT.TraceID> }
 
+  /// API endpoint to fetch a list of Traces for a Toplevel
+  ///
+  /// Only returns metadata - does not include inputs/outputs
   let fetchAll (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx

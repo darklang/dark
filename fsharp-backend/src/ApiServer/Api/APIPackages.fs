@@ -1,11 +1,9 @@
+/// API endpoints to list and manage Packages
 module ApiServer.Packages
-
-// API endpoints for Packages
-
-open Microsoft.AspNetCore.Http
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.AspNetCore.Http
 
 open Prelude
 open Tablecloth
@@ -19,6 +17,7 @@ module Convert = LibExecution.OCamlTypes.Convert
 module List =
   type T = List<OT.PackageManager.fn>
 
+  /// API endpoint to fetch a list of available Packages
   let packages (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx

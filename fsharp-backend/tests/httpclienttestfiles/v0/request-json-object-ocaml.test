@@ -1,0 +1,37 @@
+[expected-request]
+POST PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip, br
+Content-Type: application/json; charset=utf-8
+Host: HOST
+
+{ 
+  z: [ 
+    "string"
+  ],
+  y: 3.4,
+  x: 6
+}
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: LENGTH
+
+"Hello back"
+
+[test]
+// OCAMLONLY
+(let reqBody = { x = 6; y = 3.4; z = ["string"]} in
+ HttpClient.post "http://URL" reqBody {} HttpClient.jsonContentType_v0) =
+  {
+    body = "\"Hello back\""
+    headers = {
+      ``Content-Length`` = "12"
+      ``Content-Type`` = "text/plain; charset=utf-8"
+      Date = "xxx, xx xxx xxxx xx:xx:xx xxx"
+      ``HTTP/1.1 200 OK`` = ""
+      Server = "Kestrel"
+    }
+    raw = "\"Hello back\""
+  }

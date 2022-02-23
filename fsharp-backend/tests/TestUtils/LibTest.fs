@@ -21,13 +21,13 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Test" "errorRailNothing" 0
-      parameters = []
-      returnType = TOption varA
-      description = "Return an errorRail wrapping nothing."
+  [ { name = fn "Test" "errorRailValue" 0
+      parameters = [ Param.make "value" varA "" ]
+      returnType = varA
+      description = "Return an errorRail wrapping a value."
       fn =
         (function
-        | state, [] -> Ply(DErrorRail(DOption None))
+        | state, [ value ] -> Ply(DErrorRail(value))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

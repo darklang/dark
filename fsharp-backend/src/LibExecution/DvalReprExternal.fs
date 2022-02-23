@@ -1,7 +1,7 @@
 module LibExecution.DvalReprExternal
 
 // Printing Dvals is more complicated than you'd expect. Different situations
-// have different constaints, such as develop-focused representation showing
+// have different constraints, such as develop-focused representation showing
 // explicitly what the value is, vs an API-based representation which does
 // something clever with Option/Result types. There is also versioning, as not
 // all changes are going to be backward compatible.

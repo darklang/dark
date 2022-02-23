@@ -217,7 +217,7 @@ let testIfPreview : Test =
         AT.NonExecutedResult(DStr "then"),
         AT.ExecutedResult(DStr "else")))
       // fakevals
-      (eFn "Test" "errorRailNothing" 0 [],
+      (eFn "Test" "errorRailValue" 0 [ eConstructor "Nothing" [] ],
        (AT.ExecutedResult(DErrorRail(DOption None)),
         AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
@@ -268,7 +268,7 @@ let testFeatureFlagPreview : Test =
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new")))
-      (eFn "Test" "errorRailNothing" 0 [],
+      (eFn "Test" "errorRailValue" 0 [ eConstructor "Nothing" [] ],
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new")))
