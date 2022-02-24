@@ -1,4 +1,4 @@
-/// HttpClient used by LibHttpClient5 standard library functions
+/// HttpClient used by LibHttpClient5 StdLib functions
 module BackendOnlyStdLib.HttpClient
 
 open System.Threading.Tasks
