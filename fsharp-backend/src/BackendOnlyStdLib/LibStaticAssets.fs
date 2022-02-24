@@ -14,8 +14,95 @@ let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let varA = TVariable "a"
-let varB = TVariable "b"
+open System.IO
+open System.IO.Compression
+open System.Net.Http
+
+let httpClient =
+  let socketHandler : HttpMessageHandler =
+    let handler = new SocketsHttpHandler()
+
+    // Cookies shouldn't be necessary
+    handler.UseCookies <- false
+    handler
+
+  let client = new HttpClient(socketHandler, disposeHandler = false)
+  client.Timeout <- System.TimeSpan.FromSeconds 30.0
+  // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
+  client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
+  client
+
+
+
+
+/// Replaces legacy HttpClientv0. Returns bytes, and throws on non-200s or if
+/// anything goes wrong.
+let getV0 (url : string) : Task<byte []> =
+  task {
+    try
+      use req = new HttpRequestMessage(HttpMethod.Get, url)
+      let! response = httpClient.SendAsync req
+      let code = int response.StatusCode
+      let! body = response.Content.ReadAsByteArrayAsync()
+      if code < 200 || code >= 300 then
+        return
+          Exception.raiseLibrary
+            $"Bad HTTP response ({code}) in call to {url}"
+            [ "url", url; "code", code; "body", UTF8.ofBytesWithReplacement body ]
+      else
+        return body
+    with
+    | e ->
+      return
+        Exception.raiseLibrary
+          $"Internal HTTP-stack exception: {e.Message}"
+          [ "url", url ]
+  }
+
+/// Replaces legacy HttpClientv1. Returns bytes, headers, and status code, and throws
+/// on non-200s or if anything goes wrong.
+let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
+  task {
+    try
+      use req = new HttpRequestMessage(HttpMethod.Get, url)
+      let! response = httpClient.SendAsync req
+      let code = int response.StatusCode
+      let headers = response.Headers |> HttpClient.convertHeaders
+      let! body = response.Content.ReadAsByteArrayAsync()
+      if code < 200 || code >= 300 then
+        return
+          Exception.raiseLibrary
+            $"Bad HTTP response ({code}) in call to {url}"
+            [ "url", url; "code", code; "body", UTF8.ofBytesWithReplacement body ]
+      else
+        return body, headers, code
+    with
+    | e ->
+      return
+        Exception.raiseLibrary
+          $"Internal HTTP-stack exception: {e.Message}"
+          [ "url", url ]
+  }
+
+/// Replaces legacy HttpClientv2. Returns bytes, headers, and status code, and throws
+/// if the request has issues. Does not raise on non-200 status code.
+let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
+  task {
+    try
+      use req = new HttpRequestMessage(HttpMethod.Get, url)
+      let! response = httpClient.SendAsync req
+      let code = int response.StatusCode
+      let headers = response.Headers |> HttpClient.convertHeaders
+      let! body = response.Content.ReadAsByteArrayAsync()
+      return body, headers, code
+    with
+    | e ->
+      return
+        Exception.raiseLibrary
+          $"Internal HTTP-stack exception: {e.Message}"
+          [ "url", url ]
+  }
+
 
 let fns : List<BuiltInFn> =
   [ { name = fn "StaticAssets" "baseUrlFor" 0
@@ -27,7 +114,7 @@ let fns : List<BuiltInFn> =
         | state, [ DStr deployHash ] ->
           SA.url state.program.canvasName deployHash SA.Short |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -45,7 +132,7 @@ let fns : List<BuiltInFn> =
             return DStr url
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -59,7 +146,7 @@ let fns : List<BuiltInFn> =
         | state, [ DStr deployHash; DStr file ] ->
           SA.urlFor state.program.canvasName deployHash SA.Short file |> DStr |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -77,7 +164,7 @@ let fns : List<BuiltInFn> =
             return DStr url
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -92,13 +179,14 @@ let fns : List<BuiltInFn> =
         | state, [ DStr deployHash; DStr file ] ->
           uply {
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! response = Legacy.HttpclientV0.call url Httpclient.GET [] ""
-            match response with
-            | Some dv -> return DResult(Ok dv)
+
+            let! response = getV0 url
+            match UTF8.ofBytesOpt response with
+            | Some dv -> return DResult(Ok(DStr dv))
             | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "" "" 0) }
 
@@ -113,13 +201,13 @@ let fns : List<BuiltInFn> =
         | state, [ DStr deployHash; DStr file ] ->
           uply {
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let response = Legacy.HttpclientV0.call url Httpclient.GET [] ""
-            match response with
-            | Some dv -> return Dval.resultOk dv
+            let! response = getV0 url
+            match UTF8.ofBytesOpt response with
+            | Some dv -> return DResult(Ok(DStr dv))
             | None -> return (DResult(Error(DStr "Response was not UTF-8 safe")))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -133,11 +221,11 @@ let fns : List<BuiltInFn> =
         | state, [ DStr deployHash; DStr file ] ->
           uply {
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let response = Legacy.HttpclientV1.call true url Httpclient.GET [] ""
-            return DResult(Ok(DBytes(response |> UTF8.toBytes)))
+            let! response, _, _ = getV1 url
+            return DResult(Ok(DBytes response))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -153,13 +241,13 @@ let fns : List<BuiltInFn> =
           uply {
             let! deployHash = SA.latestDeployHash state.program.canvasID
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let response = Legacy.HttpclientV0.call url Httpclient.GET [] ""
-            match response with
-            | Some dv -> return DResult(Ok dv)
+            let! response = getV0 url
+            match UTF8.ofBytesOpt response with
+            | Some str -> return DResult(Ok(DStr str))
             | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "StaticAssets" "fetchLatest" 1) }
 
@@ -175,13 +263,13 @@ let fns : List<BuiltInFn> =
           uply {
             let! deployHash = SA.latestDeployHash state.program.canvasID
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let response = Legacy.HttpclientV0.call url Httpclient.GET [] ""
-            match response with
-            | Some dv -> return Dval.resultOk dv
+            let! response = getV0 url
+            match UTF8.ofBytesOpt response with
+            | Some str -> return Dval.resultOk (DStr str)
             | None -> return Dval.resultError (DStr "Response was not UTF-8 safe")
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -196,11 +284,11 @@ let fns : List<BuiltInFn> =
           uply {
             let! deployHash = SA.latestDeployHash state.program.canvasID
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let response = Legacy.HttpclientV1.call true url Httpclient.GET [] ""
-            return DResult(Ok(DBytes(response |> UTF8.toBytes)))
+            let! response, _, _ = getV1 url
+            return DResult(Ok(DBytes(response)))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -215,26 +303,22 @@ let fns : List<BuiltInFn> =
         | state, [ DStr deployHash; DStr file ] ->
           uply {
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let body, code, headers, _erroreturnType =
-              Legacy.HttpclientV2.http_call_with_code url [] Httpclient.GET [] ""
+            let! (body, headers, code) = getV2 url
             let headers =
               headers
-              |> List.map (fun (k, v) -> (k, String.trim v))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Content-Length"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Transfer-Encoding"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (String.trim k = ""))
-              |> List.filter (fun (k, v) -> not (String.trim v = ""))
-            match body with
-            | Some dv ->
-              return DResult(Ok(DHttpResponse(Response(code, headers, dv))))
+              |> List.map (fun (k, v) -> (k, v.Trim()))
+              |> List.filter (fun (k, v) -> not (k.Contains("Content-Length")))
+              |> List.filter (fun (k, v) -> not (k.Contains("Transfer-Encoding")))
+              |> List.filter (fun (k, v) -> not (k.Contains("Cache-Control")))
+              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
+            match UTF8.ofBytesOpt body with
+            | Some str ->
+              return DResult(Ok(DHttpResponse(Response(code, headers, DStr str))))
             | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "StaticAssets" "serve" 1) }
 
@@ -248,29 +332,19 @@ let fns : List<BuiltInFn> =
         | state, [ DStr deployHash; DStr file ] ->
           uply {
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let body, code, headers, _erroreturnType =
-              Legacy.HttpclientV2.http_call_with_code
-                true
-                url
-                []
-                Httpclient.GET
-                []
-                ""
+            let! (body, headers, code) = getV2 url
             let headers =
               headers
-              |> List.map (fun (k, v) -> (k, String.trim v))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Content-Length"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Transfer-Encoding"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (String.trim k = ""))
-              |> List.filter (fun (k, v) -> not (String.trim v = ""))
+              |> List.map (fun (k, v) -> (k, v.Trim()))
+              |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
+              |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
+              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             return DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -286,36 +360,26 @@ let fns : List<BuiltInFn> =
           uply {
             let! deployHash = SA.latestDeployHash state.program.canvasID
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let body, code, headers, _erroreturnType =
-              Legacy.HttpclientV2.http_call_with_code
-                true
-                url
-                []
-                Httpclient.GET
-                []
-                ""
+            let! body, headers, code = getV2 url
             let headers =
               headers
-              |> List.map (fun (k, v) -> (k, String.trim v))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Content-Length"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Transfer-Encoding"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (String.trim k = ""))
-              |> List.filter (fun (k, v) -> not (String.trim v = ""))
+              |> List.map (fun (k, v) -> (k, v.Trim()))
+              |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
+              |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
+              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "" "" 0) }
 
 
     { name = fn "StaticAssets" "serveLatest" 1
       parameters = [ Param.make "file" TStr "" ]
-      returnType = TResult
+      returnType = TResult(THttpResponse(TBytes), TStr)
       description = "Return the specified file from the latest deploy"
       fn =
         (function
@@ -323,28 +387,18 @@ let fns : List<BuiltInFn> =
           uply {
             let! deployHash = SA.latestDeployHash state.program.canvasID
             let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let body, code, headers, _erroreturnType =
-              Legacy.HttpclientV2.http_call_with_code
-                true
-                url
-                []
-                Httpclient.GET
-                []
-                ""
+            let! body, headers, code = getV2 url
             let headers =
               headers
-              |> List.map (fun (k, v) -> (k, String.trim v))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Content-Length"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Transfer-Encoding"))
-              |> List.filter (fun (k, v) ->
-                not (String.is_substring k "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (String.trim k = ""))
-              |> List.filter (fun (k, v) -> not (String.trim v = ""))
+              |> List.map (fun (k, v) -> (k, v.Trim()))
+              |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
+              |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
+              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             return DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
