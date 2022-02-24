@@ -137,10 +137,10 @@ let makeHttpCall
         // dynamically upgraded)
         req.Version <- System.Net.HttpVersion.Version20
 
-        /// If present, extracts username/password from URI and passes along as Basic Auth
-        ///
-        /// e.g. expecting form http://user:password@www.contoso.com/index.htm
-        /// Note that an actual auth header will overwrite this
+        // If present, extracts username/password from URI and passes along as Basic Auth
+        //
+        // e.g. expecting form http://user:password@www.contoso.com/index.htm
+        // Note that an actual auth header will overwrite this
         if uri.UserInfo <> "" then
           let authString =
             // UserInfo is escaped during parsing, but shouldn't actually isn't
