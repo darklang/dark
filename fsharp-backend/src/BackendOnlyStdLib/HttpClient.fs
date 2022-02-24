@@ -94,7 +94,7 @@ exception InvalidEncodingException of int
 
 // CLEANUP add dark-specific user-agent
 /// Uses an internal .NET HttpClient to make a request
-/// and process response into a Dark HttpResult response
+/// and process response into a HttpResult response
 let makeHttpCall
   (rawBytes : bool)
   (url : string)
