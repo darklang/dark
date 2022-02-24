@@ -1291,17 +1291,15 @@ test("feature_flag_in_function", async ({ page }) => {
       ".autocomplete-item.fluid-selected.valid",
       "test_admin/stdlib/Test::one_v1Any",
     );
-    await page.pause();
-    // await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
 
-    // // this await confirms that we can get a live value in the editor
+    // this await confirms that we can get a live value in the editor
+    await page.click(".execution-button");
+    await expectContainsText(page, ".return-value", "0");
 
-    // await page.click(".execution-button");
-    // await expectContainsText(page, ".return-value", "0");
-
-    // // check if we can get a result from the bwd endpoint
-    // let response = await get(page, bwdUrl(testInfo, url));
-    // expect(response).toBe("0");
+    // check if we can get a result from the bwd endpoint
+    let response = await get(page, bwdUrl(testInfo, url));
+    expect(response).toBe("0");
   });
 
   test("fluid_show_docs_for_command_on_selected_code", async ({ page }) => {
