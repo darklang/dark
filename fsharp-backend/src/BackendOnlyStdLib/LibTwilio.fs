@@ -10,12 +10,9 @@ module Canvas = LibBackend.Canvas
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Twilio" "sendText" 0
@@ -64,7 +61,7 @@ let fns : List<BuiltInFn> =
             (DObj Map.empty)
             headers
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       // Deprecated due to using encodeBasicAuthBroken
       deprecated = DeprecatedBecause "bad unicode support" }
@@ -113,6 +110,6 @@ let fns : List<BuiltInFn> =
             (DObj Map.empty)
             headers
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
