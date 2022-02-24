@@ -52,7 +52,7 @@ If you're trying to eliminate a flaky test that is hard to reproduce, use `--rep
 
 By default, the integration tests are run against the F# backend.
 
-If you'd like to run against the F# backend, use `--ocaml`
+If you'd like to run against the OCaml backend, use `--ocaml`
 
 ## Troubleshooting
 
