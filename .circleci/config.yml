@@ -443,7 +443,7 @@ jobs:
           name: Run integration tests
           command: |
             scripts/run-fsharp-server --published
-            scripts/devcontainer/_wait-until-server-ready
+            scripts/devcontainer/_wait-until-server-ready --use-apiserver
             integration-tests/run.sh --concurrency=3 --retry --pattern="`cat test-pattern`"
             rm test-pattern
 

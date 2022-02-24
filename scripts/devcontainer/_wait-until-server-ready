@@ -3,8 +3,22 @@
 
 set -euo pipefail
 
+base_url="$DARK_CONFIG_STATIC_HOST"
+
+for cmd in "$@"; do
+  case $cmd in
+    --use-apiserver )
+      base_url="$DARK_CONFIG_APISERVER_STATIC_HOST"
+      ;;
+    * )
+      usage
+      exit 1
+      ;;
+  esac
+done
+
 function wait_for {
-  test_url="http://${DARK_CONFIG_STATIC_HOST}/$1"
+  test_url="http://${base_url}/$1"
   count=0
   until curl --output /dev/null --silent --show-error --head --fail "${test_url}"; do
       ((count++)) && ((count==60)) && exit 1
