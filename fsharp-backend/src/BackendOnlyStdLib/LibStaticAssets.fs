@@ -188,7 +188,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "StaticAssets" "fetch" 1) }
 
 
     { name = fn "StaticAssets" "fetch" 1
@@ -374,7 +374,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "StaticAssets" "serveLatest" 1) }
 
 
     { name = fn "StaticAssets" "serveLatest" 1
