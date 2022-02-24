@@ -56,7 +56,8 @@ let fns : List<BuiltInFn> =
             let accountID = state.program.accountID
 
             do!
-              // WHATISTHIS See client/src/Entry.ml for context about the "_"
+              // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
+              // but we don't need a 3rd one for workers
               EventQueue.enqueue canvasName canvasID accountID "WORKER" name "_" data
 
             return data

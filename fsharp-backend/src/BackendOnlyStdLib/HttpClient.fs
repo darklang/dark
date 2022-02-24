@@ -235,8 +235,8 @@ let httpCall'
             $"HTTP/{response.Version} {code} {response.ReasonPhrase}"
 
         let headers =
-          HttpHeaders.convertHeaders response.Headers
-          @ HttpHeaders.convertHeaders response.Content.Headers
+          HttpHeaders.fromAspNetHeaders response.Headers
+          @ HttpHeaders.fromAspNetHeaders response.Content.Headers
 
         // CLEANUP The OCaml version automatically made this lowercase for
         // http2. That's a weird experience for users, as they don't have

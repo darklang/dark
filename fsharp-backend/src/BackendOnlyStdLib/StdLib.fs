@@ -10,7 +10,6 @@ module RT = LibExecution.RuntimeTypes
 
 let fn = RT.FQFnName.stdlibFnName
 
-// WHATISTHIS
 let renames =
   [ fn "DB" "query" 3, fn "DB" "queryExactFields" 0
     fn "DB" "query" 2, fn "DB" "query" 3 // don't know why these are the same

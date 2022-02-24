@@ -1739,7 +1739,7 @@ module HttpHeaders =
     |> Option.map (fun (k, v) -> v)
 
   /// Convert .NET HttpHeaders into Dark-style headers
-  let convertHeaders (headers : AspHeaders) : T =
+  let fromAspNetHeaders (headers : AspHeaders) : T =
     headers
     |> Seq.map Tuple2.fromKeyValuePair
     |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
