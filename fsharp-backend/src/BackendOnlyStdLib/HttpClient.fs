@@ -93,7 +93,7 @@ let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
 exception InvalidEncodingException of int
 
 // CLEANUP add dark-specific user-agent
-/// Uses an internal .NET HttpClient to make a requst
+/// Uses an internal .NET HttpClient to make a request
 /// and process response into a Dark HttpResult response
 let makeHttpCall
   (rawBytes : bool)
