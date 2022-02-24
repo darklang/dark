@@ -1,3 +1,4 @@
+/// (deprecated) v2 StdLib functions in the HttpClient module
 module BackendOnlyStdLib.LibHttpClient2
 
 open System.Threading.Tasks

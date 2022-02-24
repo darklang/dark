@@ -1,7 +1,6 @@
+/// v5 StdLib functions in the HttpClient module
 module BackendOnlyStdLib.LibHttpClient5
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open System.Net.Http
 
 open Prelude

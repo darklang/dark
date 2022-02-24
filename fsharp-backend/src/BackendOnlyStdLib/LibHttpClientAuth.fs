@@ -1,8 +1,6 @@
+/// StdLib HttpClient Auth functions
 module BackendOnlyStdLib.LibHttpClientAuth
 
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
 open FSharpPlus
 
 open LibExecution.RuntimeTypes
@@ -14,7 +12,9 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-// This is deprecated in favor of [encodeBasicAuth u p] due to using non-unicode append
+/// Base64-encodes username/password combination for basic authentication
+///
+/// Deprecated in favor of [encodeBasicAuth u p] due to using non-unicode append
 let encodeBasicAuthBroken (u : string) (p : string) : string =
   let input : byte [] =
     if u.Contains("-") then
@@ -28,7 +28,7 @@ let encodeBasicAuthBroken (u : string) (p : string) : string =
 
   $"Basic {Base64.defaultEncodeToString input}"
 
-
+/// Base64-encodes username/password combination for basic authentication
 let encodeBasicAuth (u : string) (p : string) : string =
   let input : byte [] =
     if u.Contains("-") then
@@ -54,7 +54,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       sqlSpec = NotYetImplementedTODO
       deprecated = ReplacedBy(fn "HttpClient" "basicAuth" 1) }
-
 
     { name = fn "HttpClient" "basicAuth" 1
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]

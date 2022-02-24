@@ -1,8 +1,9 @@
+/// StdLib functions for cryptography
+///
+/// Computes hashes such as sha256, md5, etc.
 module BackendOnlyStdLib.LibCrypto
 
 open System
-open System.Threading.Tasks
-open System.Numerics
 open System.Security.Cryptography
 
 open LibExecution.RuntimeTypes

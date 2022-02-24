@@ -1,8 +1,5 @@
+/// StdLib functions to work with Twilio, namely supporting SMS communicationd
 module BackendOnlyStdLib.LibTwilio
-
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -75,11 +72,12 @@ let fns : List<BuiltInFn> = []
 //               headers
 //         | _ ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
+//   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated =
 //       true
 //       (* Deprecated due to using Libhttpclient.encode_basic_auth_broken *) }
+//
 // ; { name = fn "Twilio" "sendText" 1
 //   ; parameters =
 //       [ Param.make "accountSID" TStr
@@ -135,7 +133,7 @@ let fns : List<BuiltInFn> = []
 //               headers
 //         | _ ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
+//   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = NotDeprecated } ]
 //

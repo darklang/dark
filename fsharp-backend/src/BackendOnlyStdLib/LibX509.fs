@@ -1,8 +1,6 @@
+/// StdLib functions to work with X.509 public keys
 module BackendOnlyStdLib.LibX509
 
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
 open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates
 

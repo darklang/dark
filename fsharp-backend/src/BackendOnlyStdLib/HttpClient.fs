@@ -1,6 +1,5 @@
+/// HttpClient used by LibHttpClient5 StdLib functions
 module BackendOnlyStdLib.HttpClient
-
-// HttpClient used by LibHttpClient5 standard libraries
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -83,17 +82,9 @@ let httpClient : HttpClient =
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
-// Convert .NET HttpHeaders into Dark-style headers
-let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
-  headers
-  |> Seq.map Tuple2.fromKeyValuePair
-  |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-  |> Seq.toList
-
 exception InvalidEncodingException of int
 
-// CLEANUP add dark-specific user-agent
-let makeHttpCall
+let httpCall'
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
@@ -104,6 +95,8 @@ let makeHttpCall
   task {
     try
       let uri = System.Uri(url, System.UriKind.Absolute)
+
+      // currently we only support http(s) requests
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return Error { url = url; code = 0; error = "Unsupported protocol" }
       else
@@ -114,13 +107,16 @@ let makeHttpCall
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
+
         let queryString =
           // Remove leading '?'
           if uri.Query = "" then "" else uri.Query.Substring 1
+
         reqUri.Query <-
           DvalReprExternal.queryToEncodedString (
             queryParams @ DvalReprExternal.parseQueryString queryString
           )
+
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -138,6 +134,7 @@ let makeHttpCall
             let userInfo = System.Uri.UnescapeDataString uri.UserInfo
             // Handle usernames with no colon
             if userInfo.Contains(":") then userInfo else userInfo + ":"
+
           req.Headers.Authorization <-
             Headers.AuthenticationHeaderValue(
               "Basic",
@@ -158,6 +155,7 @@ let makeHttpCall
         // headers
         let defaultHeaders =
           Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
+
         Map reqHeaders
         |> Map.mergeFavoringRight defaultHeaders
         |> Map.iter (fun k v ->
@@ -237,7 +235,8 @@ let makeHttpCall
             $"HTTP/{response.Version} {code} {response.ReasonPhrase}"
 
         let headers =
-          convertHeaders response.Headers @ convertHeaders response.Content.Headers
+          HttpHeaders.fromAspNetHeaders response.Headers
+          @ HttpHeaders.fromAspNetHeaders response.Content.Headers
 
         // CLEANUP The OCaml version automatically made this lowercase for
         // http2. That's a weird experience for users, as they don't have
@@ -275,6 +274,8 @@ let makeHttpCall
       return Error { url = url; code = code; error = e.Message }
   }
 
+/// Uses an internal .NET HttpClient to make a request
+/// and process response into an HttpResult
 let rec httpCall
   (count : int)
   (rawBytes : bool)
@@ -298,7 +299,7 @@ let rec httpCall
     if (count > 50) then
       return Error { url = url; code = 0; error = "Too many redirects" }
     else
-      let! response = makeHttpCall rawBytes url queryParams method reqHeaders reqBody
+      let! response = httpCall' rawBytes url queryParams method reqHeaders reqBody
 
       match response with
       | Ok result when result.code >= 300 && result.code < 400 ->

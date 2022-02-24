@@ -490,7 +490,6 @@ let main _ =
     LibExecution.Init.init "BwdServer"
     LibExecutionStdLib.Init.init "BwdServer"
     (LibBackend.Init.init "BwdServer" false).Result
-    BackendOnlyStdLib.Init.init "BwdServer"
     LibRealExecution.Init.init "BwdServer"
     HttpMiddleware.Init.init "BwdServer"
     run ()
