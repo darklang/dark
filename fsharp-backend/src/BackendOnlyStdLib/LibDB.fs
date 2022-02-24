@@ -1,4 +1,4 @@
-/// (deprecated) Library functions for accessing and manipulating user datastores
+/// (deprecated) StdLib functions for accessing and manipulating user datastores
 module BackendOnlyStdLib.LibDB
 
 open Prelude

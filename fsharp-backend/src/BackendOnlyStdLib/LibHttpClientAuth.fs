@@ -1,4 +1,4 @@
-/// Library functions under the HttpClient module supporting Auth.
+/// StdLib HttpClient Auth functions
 module BackendOnlyStdLib.LibHttpClientAuth
 
 open FSharpPlus

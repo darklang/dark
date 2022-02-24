@@ -1,4 +1,4 @@
-/// (deprecated) Library functions in the form "HttpClient::xy_v4"
+/// (deprecated) v4 StdLib functions in the HttpClient module
 module BackendOnlyStdLib.LibHttpClient4
 
 open LibExecution.RuntimeTypes

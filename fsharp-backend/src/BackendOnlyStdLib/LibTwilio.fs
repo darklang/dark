@@ -1,4 +1,4 @@
-/// Library functions to work with Twilio, namely supporting SMS communicationd
+/// StdLib functions to work with Twilio, namely supporting SMS communicationd
 module BackendOnlyStdLib.LibTwilio
 
 open LibExecution.RuntimeTypes

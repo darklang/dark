@@ -1,4 +1,4 @@
-/// Library functions to work with X.509 public keys
+/// StdLib functions to work with X.509 public keys
 module BackendOnlyStdLib.LibX509
 
 open System.Security.Cryptography

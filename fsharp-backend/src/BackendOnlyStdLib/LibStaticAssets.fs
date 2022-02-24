@@ -1,4 +1,4 @@
-/// Library functions to manage and retrieve static assets of Dark users
+/// StdLib functions to manage and retrieve static assets of Dark users
 module BackendOnlyStdLib.LibStaticAssets
 
 open LibExecution.RuntimeTypes

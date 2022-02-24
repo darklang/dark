@@ -1,8 +1,6 @@
-/// Library functions for internal use by Dark processes
+/// StdLib functions for building Dark functionality via Dark canvases
+/// instead of the ApiServer or other means
 module BackendOnlyStdLib.LibDarkInternal
-
-// WHATISTHIS why does this module exist in F#, but not OCaml?
-// are these in preparation for migrating data?
 
 open System.Threading.Tasks
 
@@ -81,7 +79,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    // fetch email addresses of Dark users who aren't Dark employees
     { name = fn "DarkInternal" "endUsers" 0
       parameters = []
       returnType = TList varA
@@ -103,7 +100,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    // WHATISTHIS
     { name = fn "DarkInternal" "checkAllCanvases" 0
       parameters = []
       returnType = TNull

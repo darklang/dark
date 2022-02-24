@@ -1,4 +1,4 @@
-/// (deprecated) Library functions in the form "HttpClient::xy_v2"
+/// (deprecated) v2 StdLib functions in the HttpClient module
 module BackendOnlyStdLib.LibHttpClient2
 
 open System.Threading.Tasks

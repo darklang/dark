@@ -1,4 +1,4 @@
-/// Library functions in the form "HttpClient::xy_v5"
+/// v5 StdLib functions in the HttpClient module
 module BackendOnlyStdLib.LibHttpClient5
 
 open System.Net.Http

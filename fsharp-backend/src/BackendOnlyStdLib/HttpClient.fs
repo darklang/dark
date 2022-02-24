@@ -82,14 +82,6 @@ let httpClient : HttpClient =
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
-/// Convert .NET HttpHeaders into Dark-style headers
-/// WHATISTHIS what makes a header "dark-style"?
-let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
-  headers
-  |> Seq.map Tuple2.fromKeyValuePair
-  |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-  |> Seq.toList
-
 exception InvalidEncodingException of int
 
 // CLEANUP add dark-specific user-agent
@@ -137,10 +129,7 @@ let makeHttpCall
         // dynamically upgraded)
         req.Version <- System.Net.HttpVersion.Version20
 
-        // If present, extracts username/password from URI and passes along as Basic Auth
-        //
-        // e.g. expecting form http://user:password@www.contoso.com/index.htm
-        // Note that an actual auth header will overwrite this
+        // username and password - note that an actual auth header will overwrite this
         if uri.UserInfo <> "" then
           let authString =
             // UserInfo is escaped during parsing, but shouldn't actually isn't
@@ -155,7 +144,7 @@ let makeHttpCall
               System.Convert.ToBase64String(UTF8.toBytes authString)
             )
 
-        // Write content to request body if relevant
+        // content
         let utf8 = System.Text.Encoding.UTF8
         match reqBody with
         | FormContent s ->
@@ -166,7 +155,7 @@ let makeHttpCall
         | NoContent -> req.Content <- new ByteArrayContent [||]
 
 
-        // Set the request's headers
+        // headers
         let defaultHeaders =
           Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
 
@@ -193,7 +182,7 @@ let makeHttpCall
               req.Content.Headers.Remove(k) |> ignore<bool>
               req.Content.Headers.Add(k, v))
 
-        // Send the request
+        // send request
         use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
@@ -249,7 +238,8 @@ let makeHttpCall
             $"HTTP/{response.Version} {code} {response.ReasonPhrase}"
 
         let headers =
-          convertHeaders response.Headers @ convertHeaders response.Content.Headers
+          HttpHeaders.convertHeaders response.Headers
+          @ HttpHeaders.convertHeaders response.Content.Headers
 
         // CLEANUP The OCaml version automatically made this lowercase for
         // http2. That's a weird experience for users, as they don't have

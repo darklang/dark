@@ -1,4 +1,4 @@
-/// Library functions to encode, verify, and extract details from JWTs
+/// StdLib functions to encode, verify, and extract details from JWTs
 module BackendOnlyStdLib.LibJwt
 
 open System.Security.Cryptography

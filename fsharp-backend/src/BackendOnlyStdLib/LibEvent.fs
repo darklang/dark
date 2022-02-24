@@ -1,4 +1,4 @@
-/// Library functions for emitting events
+/// StdLib functions for emitting events
 ///
 /// Those events are handled by Workers
 module BackendOnlyStdLib.LibEvent

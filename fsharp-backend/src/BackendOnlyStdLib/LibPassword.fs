@@ -1,4 +1,4 @@
-/// Library functions to hash and compare Passwords of Dark users
+/// StdLib functions to hash and compare Passwords of Dark users
 module BackendOnlyStdLib.LibPassword
 
 open LibExecution.RuntimeTypes

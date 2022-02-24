@@ -1,4 +1,4 @@
-/// Library functions for accessing and manipulating user datastores
+/// StdLib functions for accessing and manipulating user datastores
 module BackendOnlyStdLib.LibDB2
 
 open Prelude

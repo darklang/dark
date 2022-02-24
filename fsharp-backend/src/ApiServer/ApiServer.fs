@@ -198,7 +198,6 @@ let main _ =
     LibExecution.Init.init "ApiServer"
     LibExecutionStdLib.Init.init "ApiServer"
     (LibBackend.Init.init "ApiServer" true).Result
-    BackendOnlyStdLib.Init.init "ApiServer"
     LibRealExecution.Init.init "ApiServer"
     run ()
     0
