@@ -1,6 +1,5 @@
+/// HttpClient used by LibHttpClient5 standard library functions
 module BackendOnlyStdLib.HttpClient
-
-// HttpClient used by LibHttpClient5 standard libraries
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -83,7 +82,8 @@ let httpClient : HttpClient =
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
-// Convert .NET HttpHeaders into Dark-style headers
+/// Convert .NET HttpHeaders into Dark-style headers
+/// WHATISTHIS what makes a header "dark-style"?
 let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
   headers
   |> Seq.map Tuple2.fromKeyValuePair
@@ -93,6 +93,8 @@ let convertHeaders (headers : AspHeaders) : HttpHeaders.T =
 exception InvalidEncodingException of int
 
 // CLEANUP add dark-specific user-agent
+/// Uses an internal .NET HttpClient to make a requst
+/// and process response into a Dark HttpResult response
 let makeHttpCall
   (rawBytes : bool)
   (url : string)
@@ -104,6 +106,8 @@ let makeHttpCall
   task {
     try
       let uri = System.Uri(url, System.UriKind.Absolute)
+
+      // currently we only support http(s) requests
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return Error { url = url; code = 0; error = "Unsupported protocol" }
       else
@@ -114,13 +118,16 @@ let makeHttpCall
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
+
         let queryString =
           // Remove leading '?'
           if uri.Query = "" then "" else uri.Query.Substring 1
+
         reqUri.Query <-
           DvalReprExternal.queryToEncodedString (
             queryParams @ DvalReprExternal.parseQueryString queryString
           )
+
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -131,6 +138,7 @@ let makeHttpCall
         req.Version <- System.Net.HttpVersion.Version20
 
         // username and password - note that an actual auth header will overwrite this
+        // WHATISTHIS
         if uri.UserInfo <> "" then
           let authString =
             // UserInfo is escaped during parsing, but shouldn't actually isn't
@@ -138,13 +146,14 @@ let makeHttpCall
             let userInfo = System.Uri.UnescapeDataString uri.UserInfo
             // Handle usernames with no colon
             if userInfo.Contains(":") then userInfo else userInfo + ":"
+
           req.Headers.Authorization <-
             Headers.AuthenticationHeaderValue(
               "Basic",
               System.Convert.ToBase64String(UTF8.toBytes authString)
             )
 
-        // content
+        // Write content to request body if relevant
         let utf8 = System.Text.Encoding.UTF8
         match reqBody with
         | FormContent s ->
@@ -155,9 +164,10 @@ let makeHttpCall
         | NoContent -> req.Content <- new ByteArrayContent [||]
 
 
-        // headers
+        // Set the request's headers
         let defaultHeaders =
           Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
+
         Map reqHeaders
         |> Map.mergeFavoringRight defaultHeaders
         |> Map.iter (fun k v ->
@@ -181,7 +191,7 @@ let makeHttpCall
               req.Content.Headers.Remove(k) |> ignore<bool>
               req.Content.Headers.Add(k, v))
 
-        // send request
+        // Send the request
         use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
@@ -275,6 +285,8 @@ let makeHttpCall
       return Error { url = url; code = code; error = e.Message }
   }
 
+/// Wraps around `makeHttpCall`, handling redirects
+/// WHATISTHIS maybe a rename to makeHttpCallWithRedirects
 let rec httpCall
   (count : int)
   (rawBytes : bool)

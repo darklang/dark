@@ -1,8 +1,5 @@
+/// Library functions to manage and retrieve static assets of Dark users
 module BackendOnlyStdLib.LibStaticAssets
-
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
 
 open LibExecution.RuntimeTypes
 open Prelude

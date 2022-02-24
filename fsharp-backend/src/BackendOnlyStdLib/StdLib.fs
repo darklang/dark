@@ -1,16 +1,16 @@
+/// Functions that can only be run on the backend
+///
+/// Aggregates functions in other modules
 module BackendOnlyStdLib.StdLib
-
-// Functions that can only be run on the backend
 
 // CLEANUP - some of these functions can be run on the client too after the switch to
 // F#, esp LibJwt, LibCrypto and LibX509, plus at least some of LibHttpClient*
-
-open Prelude
 
 module RT = LibExecution.RuntimeTypes
 
 let fn = RT.FQFnName.stdlibFnName
 
+// WHATISTHIS
 let renames =
   [ fn "DB" "query" 3, fn "DB" "queryExactFields" 0
     fn "DB" "query" 2, fn "DB" "query" 3 // don't know why these are the same

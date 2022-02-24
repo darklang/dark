@@ -1,7 +1,6 @@
+/// Library functions in the form "HttpClient::xy_v5"
 module BackendOnlyStdLib.LibHttpClient5
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open System.Net.Http
 
 open Prelude

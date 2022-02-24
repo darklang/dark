@@ -1,3 +1,4 @@
+/// (deprecated) Library functions in the form "HttpClient::xy_v1"
 module BackendOnlyStdLib.LibHttpClient1
 
 open System.Net.Http

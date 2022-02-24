@@ -1,3 +1,4 @@
+/// (deprecated) Library functions in the form "HttpClient::xy_v3"
 module BackendOnlyStdLib.LibHttpClient3
 
 open System.Threading.Tasks

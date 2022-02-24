@@ -1,10 +1,5 @@
+/// Library functions to hash and compare Passwords of Dark users
 module BackendOnlyStdLib.LibPassword
-
-open System
-open System.Threading.Tasks
-open System.Numerics
-open System.Security.Cryptography
-open FSharp.Control.Tasks
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -46,10 +41,9 @@ let fns : List<BuiltInFn> =
           |> DPassword
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
 
     { name = fn "Password" "check" 0
       parameters =
@@ -65,6 +59,6 @@ let fns : List<BuiltInFn> =
           |> DBool
           |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

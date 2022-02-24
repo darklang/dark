@@ -1,3 +1,4 @@
+/// (deprecated) Library functions for accessing and manipulating user datastores
 module BackendOnlyStdLib.LibDB
 
 open Prelude

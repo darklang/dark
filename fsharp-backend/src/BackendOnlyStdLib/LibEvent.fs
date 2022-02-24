@@ -1,8 +1,7 @@
+/// Library functions for emitting events
+///
+/// Those events are handled by Workers
 module BackendOnlyStdLib.LibEvent
-
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -38,10 +37,9 @@ let fns : List<BuiltInFn> =
             return data
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "emit" 0) }
-
+      deprecated = ReplacedBy(fn "" "emit" 1) }
 
     { name = fn "" "emit" 1
       parameters = [ Param.make "event" varA ""; Param.make "Name" TStr "" ]
@@ -51,17 +49,17 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ data; DStr name ] ->
           uply {
-            // See client/src/Entry.ml for the "_"
             let canvasID = state.program.canvasID
             let canvasName = state.program.canvasName
             let accountID = state.program.accountID
 
             do!
+              // WHATISTHIS See client/src/Entry.ml for context about the "_"
               EventQueue.enqueue canvasName canvasID accountID "WORKER" name "_" data
 
             return data
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

@@ -1,12 +1,12 @@
+/// (deprecated) Library functions in the form "HttpClient::xy_v0"
 module BackendOnlyStdLib.LibHttpClient0
 
 open System.Net.Http
 
-open Prelude
-open LibExecution
 open LibExecution.RuntimeTypes
+open Prelude
 
-
+/// Legacy "json" serialization of DVals
 module PrettyRequestJson =
   // This was a terrible format, I'm not even sure why this is called json
   let rec toPrettyRequestJson (dv : Dval) : string =
@@ -14,6 +14,7 @@ module PrettyRequestJson =
       let nl = "\n" + String.replicate indent " "
       let inl = "\n" + String.replicate (indent + 2) " "
       let indent = indent + 2
+
       match dv with
       | DFnVal _ -> "block"
       | DIncomplete _ -> "<incomplete: <incomplete>>"
