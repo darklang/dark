@@ -48,11 +48,11 @@ If you're trying to eliminate a flaky test that is hard to reproduce, use `--rep
 
 `./scripts/run-in-docker ./integration-tests/run.sh`
 
-### Run Against F#
+### Run Against OCaml
 
-By default, the integration tests are run against the OCaml backend.
+By default, the integration tests are run against the F# backend.
 
-If you'd like to run against the F# backend, use `--ocaml`
+If you'd like to run against the OCaml backend, use `--ocaml`
 
 ## Troubleshooting
 
@@ -151,5 +151,3 @@ button in the browser, which runs the testing function for the test
   - videos, traces, and console logs from the test executions
 
 - `backend/test_appdata`
-
-  -
