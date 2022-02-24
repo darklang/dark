@@ -1,4 +1,4 @@
 # BackendOnlyStdLib
 
-Houses Dark Functions which need to be run on the backend, due to their connection to the DB,
+Dark Functions which need to be run on the backend, due to their connection to the DB,
 queues, external internet, etc.
