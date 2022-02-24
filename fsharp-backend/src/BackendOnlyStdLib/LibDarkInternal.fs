@@ -68,9 +68,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 
 let fns : List<BuiltInFn> =
-  [
-    // WHATISTHIS
-    { name = fn "DarkInternal" "checkAccess" 0
+  [ { name = fn "DarkInternal" "checkAccess" 0
       parameters = []
       returnType = TNull
       description = "TODO"
