@@ -84,10 +84,7 @@ let httpClient : HttpClient =
 
 exception InvalidEncodingException of int
 
-// CLEANUP add dark-specific user-agent
-/// Uses an internal .NET HttpClient to make a request
-/// and process response into a HttpResult response
-let makeHttpCall
+let httpCall'
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
@@ -277,8 +274,8 @@ let makeHttpCall
       return Error { url = url; code = code; error = e.Message }
   }
 
-/// Wraps around `makeHttpCall`, handling redirects
-/// WHATISTHIS maybe a rename to makeHttpCallWithRedirects
+/// Uses an internal .NET HttpClient to make a request
+/// and process response into an HttpResult
 let rec httpCall
   (count : int)
   (rawBytes : bool)
@@ -302,7 +299,7 @@ let rec httpCall
     if (count > 50) then
       return Error { url = url; code = 0; error = "Too many redirects" }
     else
-      let! response = makeHttpCall rawBytes url queryParams method reqHeaders reqBody
+      let! response = httpCall' rawBytes url queryParams method reqHeaders reqBody
 
       match response with
       | Ok result when result.code >= 300 && result.code < 400 ->
