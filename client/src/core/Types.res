@@ -1472,6 +1472,8 @@ and variantTest =
   StubVariant
   | NgrokVariant
   | LeftPartialVariant
+  // CLEANUP remove after F# migration
+  | FsharpBackend
 
 /* ----------------------------- */
 /* FeatureFlags */

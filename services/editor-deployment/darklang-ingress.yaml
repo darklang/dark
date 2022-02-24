@@ -19,24 +19,17 @@ spec:
     # see what works.
     - http:
         paths:
-          # No slash at the end
-          - path: /a/trydarkfsharp
+          # Testing so that any user can use these
+          - path: /a-testing-fsharp/*
             pathType: ImplementationSpecific
             backend:
               service:
                 name: apiserver-service
                 port:
                   number: 80
-          # Slash at the end and things after it
-          - path: /a/trydarkfsharp/*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: apiserver-service
-                port:
-                  number: 80
-          # Api
-          - path: /api/trydarkfsharp/*
+
+          # Api - CLEANUP remove
+          - path: /api-testing-fsharp/*
             pathType: ImplementationSpecific
             backend:
               service:
