@@ -30,7 +30,14 @@ let availableAdminVariants: list<variantTest> = list{NgrokVariant}
 let activeCSSClasses = (m: model): string =>
   m.tests |> List.map(~f=toCSSClass) |> String.join(~sep=" ")
 
-let useFSharpBackend = (m: model): bool => List.member(~value=FsharpBackend, m.tests)
+let apiRoot = (m: model): string => {
+  let useFSharp = List.member(~value=FsharpBackend, m.tests)
+  if useFSharp {
+    "/api-testing-fsharp/"
+  } else {
+    "/api/"
+  }
+}
 
 let enabledVariantTests = (isAdmin: bool): list<variantTest> => {
   /* admins have these enabled by default, but can opt-out via query param */
