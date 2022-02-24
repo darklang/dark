@@ -638,6 +638,7 @@ and fetchResult =
 
 and fetchContext = {
   canvasName: string,
+  apiRoot: string,
   csrfToken: string,
   origin: string,
 }

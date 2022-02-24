@@ -8,12 +8,7 @@ let apiCallNoParams = (
   ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): Tea.Cmd.t<msg> => {
-  let root = if VariantTesting.useFSharpBackend(m) {
-    "/api-testing-fsharp/"
-  } else {
-    "/api/"
-  }
-  let url = root ++ (Tea.Http.encodeUri(m.canvasName) ++ endpoint)
+  let url = VariantTesting.apiRoot(m) ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = Tea.Http.request({
     method': "POST",
     headers: list{
@@ -64,11 +59,12 @@ let apiCall = (
   ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): Tea.Cmd.t<msg> => {
+  let url = VariantTesting.apiRoot(m) ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
     decoder,
     m.csrfToken,
-    "/api/" ++ (Tea.Http.encodeUri(m.canvasName) ++ endpoint),
+    url,
     encoder(params),
   )
 

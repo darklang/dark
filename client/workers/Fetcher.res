@@ -90,10 +90,11 @@ let fetch_ = (
   )
 }
 
-let fetch = (context: Types.fetchContext, request: Types.fetchRequest) =>
+let fetch = (context: Types.fetchContext, request: Types.fetchRequest) => {
+  let urlRoot = context.origin ++ context.apiRoot ++ context.canvasName
   switch request {
   | TraceFetch(gdtp) =>
-    let url = context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_trace_data"))
+    let url = urlRoot ++ "/get_trace_data"
 
     fetch_(
       ~decoder=Decoders.getTraceDataAPIResult,
@@ -105,7 +106,7 @@ let fetch = (context: Types.fetchContext, request: Types.fetchRequest) =>
       Encoders.getTraceDataAPIParams(gdtp),
     )
   | DbStatsFetch(dbsParams) =>
-    let url = context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_db_stats"))
+    let url = urlRoot ++ "/get_db_stats"
 
     fetch_(
       ~decoder=Decoders.dbStatsAPIResult,
@@ -117,7 +118,7 @@ let fetch = (context: Types.fetchContext, request: Types.fetchRequest) =>
       Encoders.dbStatsAPIParams(dbsParams),
     )
   | WorkerStatsFetch(workerParams) =>
-    let url = context.origin ++ ("/api/" ++ (context.canvasName ++ "/get_worker_stats"))
+    let url = urlRoot ++ "/get_worker_stats"
 
     fetch_(
       ~decoder=Decoders.workerStatsAPIResult,
@@ -129,6 +130,7 @@ let fetch = (context: Types.fetchContext, request: Types.fetchRequest) =>
       Encoders.workerStatsAPIParams(workerParams),
     )
   }
+}
 
 let () = onmessage(self, e => {
   let (context, request) = e["data"]
