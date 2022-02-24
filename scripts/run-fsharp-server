@@ -36,9 +36,6 @@ QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 EXECHOST_EXE="${EXECHOST_BINPATH}/ExecHost"
 TUNNEL_DAEMON_EXE="containers/tunnel2/tunnel2-daemon"
 
-echo "exechost exe..."
-ls $EXECHOST_EXE
-
 # Stop the server processes
 echo "Stopping servers"
 sudo pkill -f "ApiServer" || true
