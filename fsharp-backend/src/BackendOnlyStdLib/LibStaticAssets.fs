@@ -1,9 +1,11 @@
 /// StdLib functions to manage and retrieve static assets of Dark users
 module BackendOnlyStdLib.LibStaticAssets
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open LibExecution.RuntimeTypes
 open Prelude
-open LibExecution.RuntimeTypes
 
 module SA = LibBackend.StaticAssets
 module Errors = LibExecution.Errors
@@ -12,7 +14,7 @@ let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 open System.IO
 open System.IO.Compression
@@ -67,7 +69,7 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
       use req = new HttpRequestMessage(HttpMethod.Get, url)
       let! response = httpClient.SendAsync req
       let code = int response.StatusCode
-      let headers = response.Headers |> HttpClient.convertHeaders
+      let headers = response.Headers |> HttpHeaders.fromAspNetHeaders
       let! body = response.Content.ReadAsByteArrayAsync()
       if code < 200 || code >= 300 then
         return
@@ -92,7 +94,7 @@ let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
       use req = new HttpRequestMessage(HttpMethod.Get, url)
       let! response = httpClient.SendAsync req
       let code = int response.StatusCode
-      let headers = response.Headers |> HttpClient.convertHeaders
+      let headers = response.Headers |> HttpHeaders.fromAspNetHeaders
       let! body = response.Content.ReadAsByteArrayAsync()
       return body, headers, code
     with
