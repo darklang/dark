@@ -283,8 +283,7 @@ D-REMOVED */
         // If anything writes to stderr, treat it as a critical exception. The underlying runtime writes
         // to stderr if a truly critical problem occurs outside .NET code. Note that .NET unhandled
         // exceptions also reach this, but via a different code path - see dotNetCriticalError below.
-        // FSTODO: add rollbar to error handler
-        console.error(line);
+        self.postMessage({ type: "blazorError", err: line });
         // D-REMOVED: blazor thing
         // showErrorNotification();
       };
@@ -838,8 +837,7 @@ D-REMOVED */
     // BootConfig.ts
     // =======================
     const onError = err => {
-      // FSTODO: add rollbar to error handler
-      console.error(err);
+      self.postMessage({ type: "blazorError", err: err });
     };
 
     function bootConfig(onReady) {
@@ -896,6 +894,9 @@ D-REMOVED */
       self.onmessage = msg => {
         messageHandler(msg.data);
       };
+      self.onerror = msg => {
+        self.postMessage({ type: "blazorError", err: msg });
+      }
       // Send a message to indicate initialization complete
       self.postMessage("darkWebWorkerInitializedMessage");
     };
@@ -912,14 +913,16 @@ D-REMOVED */
     let hashReplacements = '${JSON.stringify(hashReplacements)}';
     self.onmessage = (${workerDef})(appRoot, hashReplacements)`;
 
-  const initWorker = function (initCallback, onMessageCallback) {
+  const initWorker = function (initCallback, onMessageCallback, onErrorCallback) {
     const blob = new Blob([inlineWorker], {
       type: "application/javascript",
     });
     worker = new Worker(URL.createObjectURL(blob));
 
     worker.onmessage = function (ev) {
-      if (ev.data === "darkWebWorkerInitializedMessage") {
+      if (ev.data.type === "blazorError") {
+        onErrorCallback(ev.data.err);
+      } else if (ev.data === "darkWebWorkerInitializedMessage") {
         initCallback();
       } else {
         onMessageCallback(ev);
