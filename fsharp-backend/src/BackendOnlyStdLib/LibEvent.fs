@@ -29,10 +29,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ data; DStr space; DStr name ] ->
           uply {
-            // See client/src/Entry.ml for the "_" WHATISTHIS
             let canvasID = state.program.canvasID
             let canvasName = state.program.canvasName
             let accountID = state.program.accountID
+
+            // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
+            // but we don't need a 3rd one for workers
             do! EventQueue.enqueue canvasName canvasID accountID space name "_" data
             return data
           }
