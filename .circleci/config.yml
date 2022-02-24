@@ -442,7 +442,7 @@ jobs:
       - run:
           name: Run integration tests
           command: |
-            scripts/run-backend-server
+            scripts/run-fsharp-server
             scripts/devcontainer/_wait-until-server-ready
             integration-tests/run.sh --concurrency=3 --retry --pattern="`cat test-pattern`"
             rm test-pattern
