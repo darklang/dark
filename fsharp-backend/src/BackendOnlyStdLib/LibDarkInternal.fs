@@ -54,7 +54,6 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
     })
 
 
-/// WHATISTHIS
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   internalFn (function
     | state, [ DUuid canvasID; DStr handlerName ] ->
