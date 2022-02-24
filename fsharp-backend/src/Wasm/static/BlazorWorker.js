@@ -896,7 +896,7 @@ D-REMOVED */
       };
       self.onerror = msg => {
         self.postMessage({ type: "blazorError", err: msg });
-      }
+      };
       // Send a message to indicate initialization complete
       self.postMessage("darkWebWorkerInitializedMessage");
     };
@@ -913,7 +913,11 @@ D-REMOVED */
     let hashReplacements = '${JSON.stringify(hashReplacements)}';
     self.onmessage = (${workerDef})(appRoot, hashReplacements)`;
 
-  const initWorker = function (initCallback, onMessageCallback, onErrorCallback) {
+  const initWorker = function (
+    initCallback,
+    onMessageCallback,
+    onErrorCallback,
+  ) {
     const blob = new Blob([inlineWorker], {
       type: "application/javascript",
     });

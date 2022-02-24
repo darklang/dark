@@ -269,7 +269,7 @@ window.Dark = {
       window.Dark.analysis.lastRun = new Date();
     },
     errorCallback: function (error) {
-      window.onerror("Blazor worker failure", error)
+      window.onerror("Blazor worker failure", error);
     },
     initialized: false,
     requestAnalysis: function (params) {
@@ -314,7 +314,11 @@ window.Dark = {
 
       // Only load when asked for
       if (!window.Dark.analysis.wasmUseOcaml) {
-        window.BlazorWorker.initWorker(initializedCallback, analysis.callback, analysis.errorCallback);
+        window.BlazorWorker.initWorker(
+          initializedCallback,
+          analysis.callback,
+          analysis.errorCallback,
+        );
       }
     },
   },
