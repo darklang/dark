@@ -151,5 +151,3 @@ button in the browser, which runs the testing function for the test
   - videos, traces, and console logs from the test executions
 
 - `backend/test_appdata`
-
-  -
