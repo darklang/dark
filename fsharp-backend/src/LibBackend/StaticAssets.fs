@@ -253,15 +253,18 @@ let latestDeployHash (canvasID : CanvasID) : Task<string> =
 //   ; url = url canvas_id deploy_hash `Short
 //   ; last_update
 //   ; status = Deployed }
-//
+
 
 let allDeploysInCanvas
   (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   : Task<List<StaticDeploy>> =
   Sql.query
-    "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys
-    WHERE canvas_id=@canvasID ORDER BY created_at DESC LIMIT 25"
+    "SELECT deploy_hash, created_at, live_at
+     FROM static_asset_deploys
+     WHERE canvas_id=@canvasID
+     ORDER BY created_at
+     DESC LIMIT 25"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read ->
     let deployHash = read.string "deploy_hash"
@@ -272,6 +275,6 @@ let allDeploysInCanvas
       | None -> Deploying, read.instant "created_at"
 
     { deployHash = deployHash
-      url = url canvasName canvasID deployHash Short
+      url = url canvasName deployHash Short
       status = status
       lastUpdate = lastUpdate })
