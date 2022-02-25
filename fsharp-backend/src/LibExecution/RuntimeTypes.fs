@@ -699,7 +699,7 @@ type Toplevel =
     | TLType t -> t.tlid
 
 module Secret =
-  type T = { secretName : string; secretValue : string }
+  type T = { name : string; value : string }
 
 
 // ------------

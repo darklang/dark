@@ -10,7 +10,7 @@ open RuntimeTypes
 let globalsFor (state : ExecutionState) : Symtable =
   let secrets =
     state.program.secrets
-    |> List.map (fun (s : Secret.T) -> (s.secretName, DStr s.secretValue))
+    |> List.map (fun (s : Secret.T) -> (s.name, DStr s.value))
     |> Map.ofList
 
   let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
