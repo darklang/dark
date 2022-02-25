@@ -76,6 +76,11 @@
  let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" XY in
  DB.query_v3 { x = "bar" } XY) = [{ x = "bar"; y = "foo" }]
 
+[test.queryExactFields works] with DB XY
+(let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" XY in
+ let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" XY in
+ DB.queryExactFields { x = "bar" } XY) = [{ x = "bar"; y = "foo" }]
+
 
 // DB.get_v1
 [test.db.get_v1 returns nothing given empty store] with DB X
@@ -235,6 +240,12 @@
  let three = DB.set_v1 { x = "bar"; sortBy = 2  } "three" SortedX in
  DB.queryWithKey_v2 { x = "bar" } SortedX) = { two = { x = "bar"; sortBy = 1}; three = { x = "bar"; sortBy = 2} }
 
+[test.db.queryExactFieldsWithKey_v0 works] with DB SortedX
+(let one = DB.set_v1 { x = "foo"; sortBy = 0 } "one" SortedX in
+ let two = DB.set_v1 { x = "bar"; sortBy = 1  } "two" SortedX in
+ let three = DB.set_v1 { x = "bar"; sortBy = 2  } "three" SortedX in
+ DB.queryExactFieldsWithKey_v0 { x = "bar" } SortedX) = { two = { x = "bar"; sortBy = 1}; three = { x = "bar"; sortBy = 2} }
+
 
 // DB.queryOne
 [test.db.queryOne_v1 works] with DB X
@@ -249,6 +260,20 @@
 (let one = DB.set_v1 { x = "foo" } "one" X in
  let two = DB.set_v1 { x = "foo" } "two" X in
  DB.queryOne_v1 { x = "foo" } X) = Nothing
+
+
+[test.db.queryOne_v2 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOne_v2 { x = "foo" } X) = Just { x = "foo" }
+
+[test.db.queryOne_v2 returns nothing if none] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOne_v2 { x = "bar" } X) = Nothing
+
+[test.db.queryOne_v2 returns nothing if many] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "foo" } "two" X in
+ DB.queryOne_v2 { x = "foo" } X) = Nothing
 
 
 // DB.queryOneWithKey
@@ -325,6 +350,74 @@ DB.count X = 0
  let _ = DB.set_v1 { x = "baz" } "three" X in
  let _ = DB.set_v1 { x = "fiz" } "four" X in
  DB.count X) = 4
+
+
+[test.db.delete_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete is DEPRECATED"
+
+[test.db.delete_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete_v0 was removed from Dark"
+
+[test.db.deleteAll_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.deleteAll_v0 X = Test.typeError_v0 "DB::deleteAll is DEPRECATED"
+
+[test.db.deleteAll_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.deleteAll_v0 X = Test.typeError_v0 "DB::deleteAll_v0 was removed from Dark"
+
+[test.db.fetchAll_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.fetchAll_v0 X = Test.typeError_v0 "DB::fetchAll is DEPRECATED"
+
+[test.db.fetchAll_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.fetchAll_v0 X = Test.typeError_v0 "DB::fetchAll_v0 was removed from Dark"
+
+[test.db.fetchBy_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.fetchBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchBy is DEPRECATED"
+
+[test.db.fetchBy_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.fetchBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchBy_v0 was removed from Dark"
+
+[test.db.fetchOneBy_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.fetchOneBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchOneBy is DEPRECATED"
+
+[test.db.fetchOneBy_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.fetchOneBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchOneBy_v0 was removed from Dark"
+
+[test.db.fetchByMany_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.fetchByMany_v0 "a" X = Test.typeError_v0 "DB::fetchByMany is DEPRECATED"
+
+[test.db.fetchByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.fetchByMany_v0 "a" X = Test.typeError_v0 "DB::fetchByMany_v0 was removed from Dark"
+
+[test.db.fetchOneByMany_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.fetchOneByMany_v0 "a" X = Test.typeError_v0 "DB::fetchOneByMany is DEPRECATED"
+
+[test.db.fetchOneByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.fetchOneByMany_v0 "a" X = Test.typeError_v0 "DB::fetchOneByMany_v0 was removed from Dark"
+
+[test.db.keys_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.keys_v0 X = Test.typeError_v0 "DB::keys is DEPRECATED"
+
+[test.db.keys_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.keys_v0 X = Test.typeError_v0 "DB::keys_v0 was removed from Dark"
+
+[test.db.insert_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert is DEPRECATED"
+
+[test.db.insert_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert_v0 was removed from Dark"
+
+[test.db.schema_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.schema_v0 X = Test.typeError_v0 "DB::schema is DEPRECATED"
+
+[test.db.schema_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.schema_v0 X = Test.typeError_v0 "DB::schema_v0 was removed from Dark"
+
+[test.db.update_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.update_v0 "a" X = Test.typeError_v0 "DB::update is DEPRECATED"
+
+[test.db.update_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
+
 
 // ------------
 // SqlCompiler queries
