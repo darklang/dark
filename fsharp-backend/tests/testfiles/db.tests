@@ -1,3 +1,8 @@
+// ------------
+// Set up databases for use in tests
+//
+// e.g. DB "x" has column "x" of type "Str"
+// ------------
 [db.X { "x" : "Str" }]
 [db.Insensitive { "cOlUmNnAmE" : "Str" }]
 [db.XY { "x" : "Str", "y": "Str" }]
@@ -58,15 +63,63 @@
 
 
 // DB.set
-[test.db set does upsert] with DB X
+[test.db.set does upsert] with DB X
 (let old = DB.set_v1 { x = "foo" } "hello" X in
  let newval = DB.set_v1 { x = "bar" } "hello" X in
  DB.getAllWithKeys_v1 X) = [["hello"; { x = "bar"}]]
 
 
-// DB.get
-[test.db get returns nothing] with DB X
+// DB.get_v1
+[test.db.get_v1 returns nothing given empty store] with DB X
 ( DB.get_v1 "lol" X) = Nothing
+
+[test.db.get_v1 returns nothing given invalid key] with DB X
+(let _ = DB.set_v1 { x = "foo" } "key" X in
+ DB.get_v1 "lol" X) = Nothing
+
+[test.db.get_v1 returns value given one entry] with DB X
+(let _ = DB.set_v1 { x = "foo" } "key" X in
+ DB.get_v1 "key" X) = Just { x = "foo" }
+
+[test.db.get_v1 returns correct value given reassigned entry] with DB X
+(let _ = DB.set_v1 { x = "foo" } "key" X in
+ let _ = DB.set_v1 { x = "bar" } "key" X in
+ DB.get_v1 "key" X) = Just { x = "bar" }
+
+[test.db.get_v1 returns value given multiple entries] with DB X
+(let _ = DB.set_v1 { x = "pancake" } "key1" X in
+ let _ = DB.set_v1 { x = "waffle" } "key2" X in
+ let _ = DB.set_v1 { x = "scone" } "key3" X in
+ DB.get_v1 "key2" X) = Just { x = "waffle" }
+
+// DB.get_v2
+[test.db.get_v2 returns nothing given empty store] with DB X
+( DB.get_v2 "lol" X) = Nothing
+
+[test.db.get_v2 returns nothing given invalid key] with DB X
+(let _ = DB.set_v1 { x = "foo" } "key" X in
+ DB.get_v2 "lol" X) = Nothing
+
+[test.db.get_v2 returns value given one entry] with DB X
+(let _ = DB.set_v1 { x = "foo" } "key" X in
+ DB.get_v2 "key" X) = Just { x = "foo" }
+
+[test.db.get_v2 returns correct value given reassigned entry] with DB X
+(let _ = DB.set_v1 { x = "foo" } "key" X in
+ let _ = DB.set_v1 { x = "bar" } "key" X in
+ DB.get_v2 "key" X) = Just { x = "bar" }
+
+[test.db.get_v2 returns value given multiple entries] with DB X
+(let _ = DB.set_v1 { x = "pancake" } "key1" X in
+ let _ = DB.set_v1 { x = "waffle" } "key2" X in
+ let _ = DB.set_v1 { x = "scone" } "key3" X in
+ DB.get_v2 "key2" X) = Just { x = "waffle" }
+
+
+// DB.add_v0
+[test.db.add_v0 works] with DB X
+(let _ = DB.add_v0 { x = "pancake" } X in
+ DB.getAll_v3 X) = [{ x = "pancake" }]
 
 
 // DB.getAll
