@@ -14,11 +14,11 @@
 // ------------
 // Roundtripping Functions
 // ------------
-[test.dbnullroundtrip] with DB X
+[test.db null roundtrip] with DB X
 (let _ = DB.set_v1 { x = null } "hello" X in
  DB.get_v1_ster "hello" X) = { x = null }
 
-[test.db case insensitive roundtrip] with DB Insensitive
+[test.db roundtrip case insensitive] with DB Insensitive
 (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
  DB.get_v1_ster "hello" Insensitive) = { cOlUmNnAmE = "some value" }
 
@@ -42,6 +42,21 @@
 (DB.set_v1 { x = "x"; col = "v" } "i" X) = Test.typeError_v0 "Found but did not expect: [col]"
 
 
+// ------------
+// Setting values
+// ------------
+
+// DB.set
+[test.db.set does upsert] with DB X
+(let old = DB.set_v1 { x = "foo" } "hello" X in
+ let newval = DB.set_v1 { x = "bar" } "hello" X in
+ DB.getAllWithKeys_v1 X) = [["hello"; { x = "bar"}]]
+
+// DB.add_v0
+[test.db.add_v0 works] with DB X
+(let _ = DB.add_v0 { x = "pancake" } X in
+ DB.getAll_v3 X) = [{ x = "pancake" }]
+
 
 // ------------
 // Exact field queries
@@ -60,13 +75,6 @@
 (let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" XY in
  let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" XY in
  DB.query_v3 { x = "bar" } XY) = [{ x = "bar"; y = "foo" }]
-
-
-// DB.set
-[test.db.set does upsert] with DB X
-(let old = DB.set_v1 { x = "foo" } "hello" X in
- let newval = DB.set_v1 { x = "bar" } "hello" X in
- DB.getAllWithKeys_v1 X) = [["hello"; { x = "bar"}]]
 
 
 // DB.get_v1
@@ -92,6 +100,7 @@
  let _ = DB.set_v1 { x = "scone" } "key3" X in
  DB.get_v1 "key2" X) = Just { x = "waffle" }
 
+
 // DB.get_v2
 [test.db.get_v2 returns nothing given empty store] with DB X
 ( DB.get_v2 "lol" X) = Nothing
@@ -116,10 +125,7 @@
  DB.get_v2 "key2" X) = Just { x = "waffle" }
 
 
-// DB.add_v0
-[test.db.add_v0 works] with DB X
-(let _ = DB.add_v0 { x = "pancake" } X in
- DB.getAll_v3 X) = [{ x = "pancake" }]
+
 
 
 // DB.getAll
@@ -304,6 +310,21 @@
 [test.db.deleteAll_v1 works] with DB X
 (let delete = DB.deleteAll_v1 X in
  DB.getAll_v1 X) = []
+
+
+[test.db.count works when empty] with DB X
+DB.count X = 0
+
+[test.db.count works with single entry] with DB X
+(let _ = DB.set_v1 { x = "foo" } "one" X in
+ DB.count X) = 1
+
+[test.db.count works with multiple entries] with DB X
+(let _ = DB.set_v1 { x = "foo" } "one" X in
+ let _ = DB.set_v1 { x = "bar" } "two" X in
+ let _ = DB.set_v1 { x = "baz" } "three" X in
+ let _ = DB.set_v1 { x = "fiz" } "four" X in
+ DB.count X) = 4
 
 // ------------
 // SqlCompiler queries
