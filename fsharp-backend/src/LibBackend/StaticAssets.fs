@@ -13,10 +13,6 @@ open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 
-// let pp_gcloud_err (err : Gcloud.Auth.error) : string =
-//   Gcloud.Auth.pp_error Format.str_formatter err ;
-//   Format.flush_str_formatter ()
-
 type DeployStatus =
   | Deploying
   | Deployed
@@ -56,7 +52,7 @@ type StaticDeploy =
 //       Lwt_result.fail (`GcloudAuthError (pp_gcloud_err x))
 
 
-let appHash (canvasName : CanvasName.T) (canvasID : CanvasID) : string =
+let appHash (canvasName : CanvasName.T) : string =
   // enough of a hash to make this not easily discoverable
   $"{canvasName}SOME SALT HERE{LibService.Config.envDisplayName}"
   |> sha1digest
@@ -69,41 +65,40 @@ type UrlType =
   | Short
   | Long
 
-let url
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  (deployHash : string)
-  (t : UrlType)
-  : string =
+let url (canvasName : CanvasName.T) (deployHash : string) (t : UrlType) : string =
   let domain =
     match t with
     | Short -> ".darksa.com"
     | Long -> ".darkstaticassets.com"
 
-  let apphash = appHash canvasName canvasID
+  let apphash = appHash canvasName
 
-  $"https://{canvasName}{domain}/{apphash}/deployHash"
+  $"https://{canvasName}{domain}/{apphash}/{deployHash}"
 
-// (* TODO [polish] could instrument this to error on bad deploy hash, maybe also
-//  * unknown file *)
-// let url_for (canvas_id : Uuidm.t) (deploy_hash : string) variant (file : string)
-//     : string =
-//   url canvas_id deploy_hash variant ^ "/" ^ file
-//
-//
-// let latest_deploy_hash (canvas_id : Uuidm.t) : string =
-//   let branch = "main" in
-//   Db.fetch_one
-//     ~name:"select latest deploy hash"
-//     ~subject:(Uuidm.to_string canvas_id)
-//     "SELECT deploy_hash FROM static_asset_deploys
-//     WHERE canvas_id=$1 AND branch=$2 AND live_at IS NOT NULL
-//     ORDER BY created_at desc
-//     LIMIT 1"
-//     ~params:[Uuid canvas_id; String branch]
-//   |> List.hd_exn
-//
-//
+// TODO [polish] could instrument this to error on bad deploy hash, maybe also
+// unknown file
+let urlFor
+  (canvasName : CanvasName.T)
+  (deployHash : string)
+  (variant : UrlType)
+  (file : string)
+  : string =
+  url canvasName deployHash variant + "/" + file
+
+
+let latestDeployHash (canvasID : CanvasID) : Task<string> =
+  let branch = "main" in
+
+  Sql.query
+    "SELECT deploy_hash FROM static_asset_deploys
+       WHERE canvas_id=@canvasID AND branch=@branch AND live_at IS NOT NULL
+       ORDER BY created_at desc
+       LIMIT 1"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "branch", Sql.string branch ]
+  |> Sql.executeRowAsync (fun read -> read.string "deploy_hash")
+
+
+
 // let upload_to_bucket
 //     (filename : string)
 //     (body : string)
@@ -258,15 +253,18 @@ let url
 //   ; url = url canvas_id deploy_hash `Short
 //   ; last_update
 //   ; status = Deployed }
-//
+
 
 let allDeploysInCanvas
   (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   : Task<List<StaticDeploy>> =
   Sql.query
-    "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys
-    WHERE canvas_id=@canvasID ORDER BY created_at DESC LIMIT 25"
+    "SELECT deploy_hash, created_at, live_at
+     FROM static_asset_deploys
+     WHERE canvas_id=@canvasID
+     ORDER BY created_at
+     DESC LIMIT 25"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read ->
     let deployHash = read.string "deploy_hash"
@@ -277,6 +275,6 @@ let allDeploysInCanvas
       | None -> Deploying, read.instant "created_at"
 
     { deployHash = deployHash
-      url = url canvasName canvasID deployHash Short
+      url = url canvasName deployHash Short
       status = status
       lastUpdate = lastUpdate })

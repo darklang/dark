@@ -334,9 +334,8 @@ let updateCorsSetting
   |> Sql.executeStatementAsync
 
 
-// let url_for (id : Uuidm.t) : string =
-//   let canvas_name = name_for_id id in
-//   "http://" ^ canvas_name ^ "." ^ Config.public_domain
+let urlFor (canvasName : CanvasName.T) : string =
+  $"https://{canvasName}.{Config.publicDomain}"
 
 
 // -------------------------
