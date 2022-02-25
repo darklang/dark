@@ -70,6 +70,7 @@ let isLatestOpRequest
 // the full oplist across the network from Postgres to the OCaml boxes,
 // and similarly they don't have to apply the full history of the canvas
 // in memory before they can execute the code.
+/// Loads all cached top-levels given
 let loadOnlyRenderedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
