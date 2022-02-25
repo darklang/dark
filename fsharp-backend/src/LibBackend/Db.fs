@@ -53,7 +53,7 @@ module Sql =
     | list ->
       Exception.raiseInternal $"Too many results, expected 0 or 1" [ "actual", list ]
 
-  // FSTODO do a better job of naming these
+  // TODO do a better job of naming these
   let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
     task {
       match! Sql.executeAsync (fun read -> read.NpgsqlReader.GetBoolean 0) props with
