@@ -16,7 +16,7 @@ open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
-// FSTODO inline this file into canvas
+// TODO inline this file into canvas
 
 // --------------------------------------------------------
 // Moved from op.ml as it touches the DB *)
@@ -309,7 +309,5 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
       cronName = read.string "handler_name"
       interval =
         read.string "modifier"
-        // FSTODO: this is new behaviour, so add a test
-        // we can save empty strings here, but we shouldn't be fetching them
         |> PT.Handler.CronInterval.parse
         |> Option.unwrapUnsafe })
