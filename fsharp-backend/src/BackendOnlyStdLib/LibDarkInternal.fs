@@ -402,7 +402,10 @@ that's already taken, returns an error."
             uply {
               let username = UserName.create username
               do! Account.setAdmin admin username
-              // FSTODO: report to rollbar
+              LibService.Rollbar.notify
+                state.executionID
+                "setAdmin called"
+                [ "username", username; "admin", admin ]
               Analytics.identifyUser state.executionID username
               return DNull
             }
