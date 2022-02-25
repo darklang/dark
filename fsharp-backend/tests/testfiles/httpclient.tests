@@ -30,23 +30,53 @@ HttpClient.basicAuth_v1 "" "-" = { Authorization = "Basic Oi0=" }
 HttpClient.basicAuth_v1 ":" "" = { Authorization = "Basic Ojo=" }
 HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
 
-HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Invalid URI" // FSHARPONLY
-
 // -----------------------
 // Tests which should try to hit the actual internet
 // -----------------------
 
-// FSTODO: add these tests for all versions
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The request was aborted." // FSHARPONLY
 
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connection could not be established, see inner exception." // FSHARPONLY
 
+HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
 // -----------------------
 // Tests for invalid URLs which shouldnt try the internet at all
 // -----------------------
+
+HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Invalid URI" // FSHARPONLY
+
 HttpClient.get_v5 "/just-a-path" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v5 "/just-a-path" {} {} = Error "Unsupported protocol" // FSHARPONLY
 
