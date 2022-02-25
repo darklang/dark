@@ -866,8 +866,7 @@ module Convert =
       description = p.description
       optional = false
       // is only ever empty list and it's no longer used in F# backend
-      block_args = []
-    }
+      block_args = [] }
 
   let pt2ocamlUserFunction (p : PT.UserFunction.T) : ORT.user_fn<ORT.fluidExpr> =
     { tlid = p.tlid
