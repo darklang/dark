@@ -16,14 +16,13 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Twilio" "sendText" 0
-
       parameters =
         [ Param.make "accountSID" TStr ""
           Param.make "authToken" TStr ""
           Param.make "fromNumber" TStr ""
           Param.make "toNumber" TStr ""
           Param.make "body" TStr "" ]
-      returnType = TDict(varA)
+      returnType = TDict varA
       description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
       fn =
@@ -65,6 +64,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       // Deprecated due to using encodeBasicAuthBroken
       deprecated = DeprecatedBecause "bad unicode support" }
+
+
     { name = fn "Twilio" "sendText" 1
       parameters =
         [ Param.make "accountSID" TStr ""
@@ -72,7 +73,7 @@ let fns : List<BuiltInFn> =
           Param.make "fromNumber" TStr ""
           Param.make "toNumber" TStr ""
           Param.make "body" TStr "" ]
-      returnType = varA
+      returnType = TDict varA
       description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
       fn =
