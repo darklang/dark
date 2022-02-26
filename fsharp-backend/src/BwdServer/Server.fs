@@ -123,6 +123,7 @@ let textPlain = Some "text/plain; charset=utf-8"
 
 
 type System.IO.Pipelines.PipeWriter with
+
   [<System.Runtime.CompilerServices.Extension>]
   member this.WriteAsync(bytes : byte array) : Task =
     task {
@@ -301,7 +302,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let! canvas = Canvas.loadHttpHandlers meta requestPath searchMethod
 
       // Filter down canvas' handlers to those (hopefully only one) that match
-      let pages = Routing.filterMatchingHandlers requestPath (Map.values canvas.handlers)
+      let pages =
+        Routing.filterMatchingHandlers requestPath (Map.values canvas.handlers)
 
       match pages with
       // matching handler found - process normally
@@ -327,7 +329,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
             FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-              TI.storeEvent canvas.meta.id traceID ("HTTP", requestPath, method) request)
+              TI.storeEvent
+                canvas.meta.id
+                traceID
+                ("HTTP", requestPath, method)
+                request)
 
           // Send to Pusher - Do not resolve task, send this into the ether
           let notifyHook (touchedTLIDs : List<tlid>) : unit =
