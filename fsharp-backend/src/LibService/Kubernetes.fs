@@ -73,7 +73,7 @@ let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder 
         // a port was not supported)
         endpoints
           .MapHealthChecks(path, taggedWith tag)
-          .RequireHost($"bwdserver-healthcheck")
+          .RequireHost($"gce-ingress-healthcheck")
         |> ignore<IEndpointConventionBuilder>
       addHealthCheck livenessPath livenessTag
       addHealthCheck startupPath startupTag
