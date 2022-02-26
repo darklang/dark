@@ -316,7 +316,7 @@ let addTelemetry
 
 
 /// <summary>
-/// Returns a (random?) executionID used to tie together everything
+/// Returns an executionID used to tie together everything
 /// that happens within a BWD request
 /// </summary>
 /// <remarks>

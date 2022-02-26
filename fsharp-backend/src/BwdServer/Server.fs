@@ -1,3 +1,9 @@
+/// The webserver for builtwithdark.com, often referred to as "BWD."
+///
+/// All Dark programs are hosted with BWD - our grand-users hit this server, and BWD handles the requests.
+/// So, BWD is what handles the "handlers" of a Dark program.
+///
+/// It uses ASP.NET directly, instead of a web framework, so we can tune the exact behaviour of headers and such.
 module BwdServer.Server
 
 open FSharp.Control.Tasks
@@ -231,9 +237,11 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
 // Urls
 // ---------------
 
-/// Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
-/// or X-Forwarded-Proto: https.
 /// Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto.
+///
+/// Proxies that terminate HTTPs should give us
+/// - X-Forwarded-Proto: http
+/// - or X-Forwarded-Proto: https.
 let canonicalizeURL (toHttps : bool) (url : string) =
   if toHttps then
     let uri = System.UriBuilder url
@@ -260,6 +268,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
+
       let! meta =
         // Extra task CE is to make sure the exception is caught
         task {
@@ -274,6 +283,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
+      let url : string =
+        let isHttps =
+          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
+        ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
+
       LibService.Telemetry.addTags [ "canvas.name", canvasName
                                      "canvas.id", meta.id
                                      "canvas.ownerID", meta.owner
@@ -283,16 +297,15 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       // and leave it to middleware to say what it wants to do with that
       let searchMethod = if method = "HEAD" then "GET" else method
 
-      let! c = Canvas.loadHttpHandlers meta requestPath searchMethod
+      /// Canvas to process request against,
+      /// with enough loaded to handle this request
+      let! canvas = Canvas.loadHttpHandlers meta requestPath searchMethod
 
-      let url : string =
-        let isHttps =
-          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
-        ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
-
-      let pages = Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
+      // Filter down canvas' handlers to those (hopefully only one) that match
+      let pages = Routing.filterMatchingHandlers requestPath (Map.values canvas.handlers)
 
       match pages with
+      // matching handler found - process normally
       | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
         LibService.Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
@@ -307,17 +320,17 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
           // and entirely into code in some middleware
-          let! corsSetting = Canvas.fetchCORSSetting c.meta.id
+          let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
 
-          let program = Canvas.toProgram c
+          let program = Canvas.toProgram canvas
           let expr = expr.toRuntimeType ()
 
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
             FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-              TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request)
+              TI.storeEvent canvas.meta.id traceID ("HTTP", requestPath, method) request)
 
-          // Send to pusher - Do not resolve task, send this into the ether
+          // Send to Pusher - Do not resolve task, send this into the ether
           let notifyHook (touchedTLIDs : List<tlid>) : unit =
             Pusher.pushNewTraceID executionID meta.id traceID touchedTLIDs
 
@@ -345,15 +358,19 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | None -> // vars didnt parse
           // FSTODO: store event trace?
           return! unmatchedRouteResponse ctx requestPath route
+
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
+
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let! corsSetting = Canvas.fetchCORSSetting c.meta.id
+        let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
         let reqHeaders = getHeaders ctx
         match Middleware.optionsResponse reqHeaders corsSetting with
         | Some response -> do! writeResponseToContext ctx response
         | None -> ()
         return ctx
+
+      // no matching route found - store as 404
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
@@ -408,6 +425,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         Some(ctx.Items["canvasName"] :?> CanvasName.T)
       with
       | _ -> None
+
     let username =
       try
         canvasName
@@ -415,17 +433,21 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
           canvasName |> Account.ownerNameFromCanvasName |> fun on -> on.toUserName ())
       with
       | _ -> None
+
     let id =
       try
         Some(ctx.Items["canvasOwnerID"] :?> UserID)
       with
       | _ -> None
+
     let metadata =
       canvasName
       |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
       |> Option.defaultValue []
+
     let person : (LibService.Rollbar.AspNet.Person) =
       { id = id; username = username; email = None }
+
     (person, metadata)
 
   LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None

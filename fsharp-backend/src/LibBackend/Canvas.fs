@@ -35,7 +35,7 @@ let canvasIDForCanvasName
                       "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
-
+/// Fetch high-level metadata for a canvas
 let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
@@ -46,13 +46,17 @@ let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   }
 
 
-
-// This includes just a subset of the key program data. It is rare that all of
-// the data for a canvas will be loaded. In addition, there is other canvas
-// data which is meaningful, such as Cors info, oplists, creation date. These
-// can be fetched separately. (Oplists in particular are omitted as it can be
-// very tricky to pass this data around safely (esp in regards to loading and
-// saving).)
+/// <summary>
+/// Canvas data - contains metadata along with basic handlers, DBs, etc.
+/// </summary>
+/// <remarks>
+/// This includes just a subset of the key program data. It is rare that all of
+/// the data for a canvas will be loaded. In addition, there is other canvas
+/// data which is meaningful, such as CORS info, oplists, creation date. These
+/// can be fetched separately. (Oplists in particular are omitted as it can be
+/// very tricky to pass this data around safely (esp in regards to loading and
+/// saving).)
+/// </remarks>
 type T =
   { meta : Meta
     handlers : Map<tlid, PT.Handler.T>
