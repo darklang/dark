@@ -99,7 +99,6 @@ let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
 
 /// Reads a static (Dark) favicon image
 let favicon : Lazy<ReadOnlyMemory<byte>> =
-  // TODO: allow for users to customize favicon
   lazy
     (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png"
      |> ReadOnlyMemory)
