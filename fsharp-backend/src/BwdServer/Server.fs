@@ -215,8 +215,14 @@ let unmatchedRouteResponse
 // ---------------
 // HttpsRedirect
 // ---------------
+
+let isHttps (ctx : HttpContext) =
+  // requests aren't actually https in production. The load balancer terminates https
+  // and forwards the details using headers
+  getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
+
 let shouldRedirect (ctx : HttpContext) : bool =
-  LibBackend.Config.useHttps && not ctx.Request.IsHttps
+  LibBackend.Config.useHttps && not (isHttps ctx)
 
 let httpsRedirect (ctx : HttpContext) : HttpContext =
   // adapted from https://github.com/aspnet/BasicMiddleware/blob/master/src/Microsoft.AspNetCore.HttpsPolicy/HttpsRedirectionMiddleware.cs
@@ -290,10 +296,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       let! c = Canvas.loadHttpHandlers meta requestPath searchMethod
 
-      let url : string =
-        let isHttps =
-          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
-        ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
+      let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
 
       let pages = Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
 
