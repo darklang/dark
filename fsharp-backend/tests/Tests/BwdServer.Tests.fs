@@ -6,7 +6,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Net.Sockets
-open System.Text.RegularExpressions
+open System.Text.Json
 
 open Prelude
 open Tablecloth
@@ -301,8 +301,12 @@ let t filename =
           Expect.isFalse true "LENGTH substitution not done on request"
 
         let host = $"{meta.name}.builtwithdark.localhost:{port}"
+        let canvasName = string meta.name
         let request =
-          test.request |> replaceByteStrings "HOST" host |> Http.setHeadersToCRLF
+          test.request
+          |> replaceByteStrings "HOST" host
+          |> replaceByteStrings "CANVAS" canvasName
+          |> Http.setHeadersToCRLF
 
 
         do! stream.WriteAsync(request, 0, request.Length)
@@ -341,6 +345,7 @@ let t filename =
           |> Option.unwrapUnsafe
           |> List.toArray
           |> replaceByteStrings "HOST" host
+          |> replaceByteStrings "CANVAS" canvasName
           |> Http.setHeadersToCRLF
 
         // Parse and normalize the response

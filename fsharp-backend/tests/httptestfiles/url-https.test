@@ -20,4 +20,4 @@ Server: darklang // FSHARPONLY
 Connection: keep-alive
 Content-Length: LENGTH
 
-"https://test-bwdserver-url-https.builtwithdark.localhost/a"
+"https://CANVAS.builtwithdark.localhost/a"

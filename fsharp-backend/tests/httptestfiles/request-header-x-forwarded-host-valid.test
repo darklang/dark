@@ -20,5 +20,5 @@ Connection: keep-alive
 Content-Length: LENGTH
 
 { "h": "myhost.darklang.com",
-  "u": "http://test-bwdserver-request-header-x-forwarded-host-valid.builtwithdark.localhost/"
+  "u": "http://CANVAS.builtwithdark.localhost/"
 }

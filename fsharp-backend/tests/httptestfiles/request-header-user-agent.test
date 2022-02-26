@@ -25,6 +25,6 @@ Content-Length: LENGTH
   "connection": "keep-alive", // FSHARPONLY
   "content-type": "text/plain",
   "date": "Sun, 08 Nov 2020 15:38:01 GMT",
-  "host": "test-bwdserver-request-header-user-agent.builtwithdark.localhost",
+  "host": "CANVAS.builtwithdark.localhost",
   "user-agent": "test"
 }
