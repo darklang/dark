@@ -1,9 +1,5 @@
 module BwdServer.Server
 
-// This is the webserver for builtwithdark.com. It uses ASP.NET directly,
-// instead of a web framework, so we can tune the exact behaviour of headers
-// and such.
-
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
@@ -41,12 +37,22 @@ module FireAndForget = LibService.FireAndForget
 // ---------------
 // Read from HttpContext
 // ---------------
+
+let getHeader (hs : IHeaderDictionary) (name : string) : string option =
+  match hs.TryGetValue name with
+  | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
+  | false, _ -> None
+
+/// Reads the incoming headers and simplifies into a list of key*value pairs
 let getHeaders (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
   |> Seq.map Tuple2.fromKeyValuePair
   |> Seq.map (fun (k, v) -> (k, v.ToArray() |> Array.toList |> String.concat ","))
   |> Seq.toList
 
+/// Reads the incoming query parameters and simplifies into a list of key*values pairs
+///
+/// (multiple query params may be present with the same key)
 let getQuery (ctx : HttpContext) : List<string * List<string>> =
   ctx.Request.Query
   |> Seq.map Tuple2.fromKeyValuePair
@@ -63,8 +69,7 @@ let getQuery (ctx : HttpContext) : List<string * List<string>> =
      |> String.split ","))
   |> Seq.toList
 
-open System.Buffers
-
+/// Reads the incoming request body as a byte array
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
     // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
@@ -78,27 +83,22 @@ let getBody (ctx : HttpContext) : Task<byte array> =
   }
 
 
-
-// ---------------
-// Headers
-// ---------------
-let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-  ctx.Response.Headers[ name ] <- StringValues([| value |])
-
-let getHeader (hs : IHeaderDictionary) (name : string) : string option =
-  match hs.TryGetValue name with
-  | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
-  | false, _ -> None
-
-
 // ---------------
 // Responses
 // ---------------
+
+/// Sets the response header
+let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+  ctx.Response.Headers[ name ] <- StringValues([| value |])
+
+/// Reads a static (Dark) favicon image
 let favicon : Lazy<ReadOnlyMemory<byte>> =
+  // TODO: allow for users to customize favicon
   lazy
     (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png"
      |> ReadOnlyMemory)
 
+/// Handles a request for favicon.ico, returning static Dark icon
 let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
   task {
     // NB: we're sending back a png, not an ico - this is deliberate,
@@ -114,12 +114,10 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
   }
 
 
-
 let textPlain = Some "text/plain; charset=utf-8"
 
 
 type System.IO.Pipelines.PipeWriter with
-
   [<System.Runtime.CompilerServices.Extension>]
   member this.WriteAsync(bytes : byte array) : Task =
     task {
@@ -133,15 +131,12 @@ let writeResponseToContext
   : Task<unit> =
   task {
     ctx.Response.StatusCode <- response.statusCode
-    List.iter (fun (k, v) -> setHeader ctx k v) response.headers
+    response.headers |> List.iter (fun (k, v) -> setHeader ctx k v)
     ctx.Response.ContentLength <- int64 response.body.Length
     if ctx.Request.Method <> "HEAD" then
       // TODO: benchmark - this is apparently faster than streams
       do! ctx.Response.BodyWriter.WriteAsync(response.body)
   }
-
-
-
 
 let standardResponse
   (ctx : HttpContext)
@@ -236,9 +231,9 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
 // Urls
 // ---------------
 
-// Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
-// or X-Forwarded-Proto: https.
-// Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto.
+/// Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
+/// or X-Forwarded-Proto: https.
+/// Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto.
 let canonicalizeURL (toHttps : bool) (url : string) =
   if toHttps then
     let uri = System.UriBuilder url
@@ -252,9 +247,9 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
-// ---------------
-// Handle builtwithdark request
-// ---------------
+/// ---------------
+/// Handle builtwithdark request
+/// ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     let executionID = LibService.Telemetry.executionID ()
