@@ -20,5 +20,5 @@ Connection: keep-alive
 Content-Length: LENGTH
 
 { "h": "not-really!allowed;in'this header",
-  "u": "http://test-bwdserver-request-header-x-forwarded-host-invalid.builtwithdark.localhost/"
+  "u": "http://CANVAS.builtwithdark.localhost/"
 }
