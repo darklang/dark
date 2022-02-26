@@ -19,7 +19,7 @@ spec:
     - host: trydarkfsharp.builtwithdark.com
       http:
         paths:
-          - path: /first-only-one-very-specific-path-to-ensure-this-doesnt-go-wrong
+          - path: /*
             pathType: ImplementationSpecific
             backend:
               service:
