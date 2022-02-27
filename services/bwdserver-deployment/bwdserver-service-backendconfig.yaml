@@ -5,8 +5,8 @@ metadata:
   namespace: default
 spec:
   # A backendconfig allows us to configure how a load balancer talks to a service.
+  # There is one healthcheck per node (VM) to add it to the service.
   healthCheck:
-    # Lets see how this goes for now
     requestPath: "/k8s/livenessProbe"
     type: HTTP
     port: 30112 # the nodeport from bwdserver-service
