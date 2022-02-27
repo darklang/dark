@@ -372,7 +372,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
             let request =
               Middleware.createRequest false url reqHeaders reqQuery reqBody
-            TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request)
+            TI.storeEvent meta.id traceID ("HTTP", requestPath, method) request)
 
           return! unmatchedRouteResponse ctx requestPath route
 
