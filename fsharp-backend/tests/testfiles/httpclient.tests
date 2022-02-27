@@ -125,6 +125,7 @@ HttpClient.get_v1 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Tes
 HttpClient.get_v0 "http://us👨‍👩‍👧‍👦er@google.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v0 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 
+// TODO simplify below tests - no match on left needed
 (match HttpClient.get_v5 "http://localhost" {} {} with | Error e -> e.body) = "Service not ready"
 (match HttpClient.get_v4 "http://localhost" {} {} with | Error e -> e.body) = "Service not ready"
 HttpClient.get_v3 "http://localhost" {} {} = Test.typeError_v0  "Bad HTTP response (503) in call to http://localhost"
@@ -181,6 +182,7 @@ HttpClient.get_v5 "file://localhost//etc/passwd" {} {} = Error "Unsupported prot
 
 // FSTODO add test for empty content (the None value to http_call) in get_v0
 
+// FSTODO add v0-v4 versions of this test
 [test.http2]
 (let response = HttpClient.get_v5_ster "https://httpbin.org/status/200" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "date" in

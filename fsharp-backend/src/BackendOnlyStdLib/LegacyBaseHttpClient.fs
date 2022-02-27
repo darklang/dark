@@ -377,7 +377,9 @@ let makeHttpCall
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage message }
     | :? System.UriFormatException ->
-      return Error { url = url; code = 0; error = prependInternalErrorMessage "Invalid URI" }
+      return
+        Error
+          { url = url; code = 0; error = prependInternalErrorMessage "Invalid URI" }
     | :? IOException as e ->
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
