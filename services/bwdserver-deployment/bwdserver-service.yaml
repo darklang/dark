@@ -19,4 +19,4 @@ spec:
       name: bwdserver-healthcheck-port
       port: 11002
       targetPort: 11002
-      nodePort: 31002 # For the healthcheck in bwdserver-service-backendconfig
+      nodePort: 30112 # For the healthcheck in bwdserver-service-backendconfig

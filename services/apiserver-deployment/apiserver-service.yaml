@@ -19,4 +19,4 @@ spec:
       name: apiserver-healthcheck-port
       port: 9002
       targetPort: 9002
-      nodePort: 30002 # For the healthcheck in apiserver-service-backendconfig
+      nodePort: 30092 # For the healthcheck in apiserver-service-backendconfig

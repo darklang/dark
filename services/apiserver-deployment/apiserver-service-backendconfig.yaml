@@ -5,16 +5,18 @@ metadata:
   namespace: default
 spec:
   # A backendconfig allows us to configure how a load balancer talks to a service.
+  # There is one healthcheck per node (VM) to add it to the service.
   healthCheck:
-    # The default / returns a 301, so don't use that.
     requestPath: "/k8s/livenessProbe"
     type: HTTP
-    port: 30002 # the nodeport from apiserver-service
+    port: 30092 # the nodeport from apiserver-service
     # Host is not allowed here, but it has been manually set on this healthcheck so
-    # that the server can recognize this is a healthcheck and not a granduser request
+    # that the server can recognize this is a healthcheck an API call
     # host: gce-ingress-healthcheck
+    healthyThreshold: 1
+    unhealthyThreshold: 1
   logging:
     # Changing this setting didn't seem to do anything - I needed to Edit it in the
     # GCP web console (or presumably using the gcloud command line utilily)
     # Note that only a change is status is logged.
-    enable: false
+    enable: true
