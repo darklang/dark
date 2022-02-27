@@ -315,11 +315,17 @@ let addTelemetry
   |> fun b -> b.SetSampler(sampler)
 
 
-// An execution ID was an int64 ID in the OCaml version, but since we're using
-// OpenTelemetry from the start, we use the Trace ID instead. This should be used to
-// create a TraceID for anywhere there's a thread and a trace available. The
-// execution ID should be constant no matter when this is called in a thread, but for
-// safety, call it at the top and pass it down.
+/// <summary>
+/// Returns an executionID used to tie together everything
+/// that happens within a BWD request
+/// </summary>
+/// <remarks>
+/// An execution ID was an int64 ID in the OCaml version, but since we're using
+/// OpenTelemetry from the start, we use the Trace ID instead. This should be used to
+/// create a TraceID for anywhere there's a thread and a trace available. The
+/// execution ID should be constant no matter when this is called in a thread, but for
+/// safety, call it at the top and pass it down.
+/// </remarks>
 let executionID () = ExecutionID(string System.Diagnostics.Activity.Current.TraceId)
 
 module Console =
