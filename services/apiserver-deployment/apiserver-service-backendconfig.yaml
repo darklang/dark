@@ -9,7 +9,7 @@ spec:
     # The default / returns a 301, so don't use that.
     requestPath: "/k8s/livenessProbe"
     type: HTTP
-    port: 30002 # the nodeport from apiserver-service
+    port: 30092 # the nodeport from apiserver-service
     # Host is not allowed here, but it has been manually set on this healthcheck so
     # that the server can recognize this is a healthcheck and not a granduser request
     # host: gce-ingress-healthcheck
