@@ -160,7 +160,6 @@ let rollbarCtxToMetadata
 let configureApp (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
-  // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> fun app ->
        LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()

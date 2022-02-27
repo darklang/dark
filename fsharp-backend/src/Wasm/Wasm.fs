@@ -192,7 +192,7 @@ module Eval =
         |> Lazy.force
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
-      // FSTODO: get packages from caller
+      // TODO: get packages from caller
       let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
       let dvalResults, traceDvalFn = Exe.traceDvals ()
       let functionResults = traceData.function_results

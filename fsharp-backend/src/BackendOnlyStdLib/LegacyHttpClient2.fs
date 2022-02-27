@@ -24,6 +24,13 @@ module RT = RuntimeTypes
 
 let incorrectArgs = Errors.incorrectArgs
 
+/// Used in both Ok and Error cases
+let responseType =
+  TRecord [ "body", TVariable "responseBody"
+            "headers", TDict TStr
+            "raw", TStr
+            "code", TInt ]
+
 let sendRequest
   (uri : string)
   (verb : HttpMethod)

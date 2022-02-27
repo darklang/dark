@@ -15,7 +15,7 @@ type Oplist = List<int>
 // Passthrough whether an op is new or not
 type OpWithNewness = bool * PT.Op
 
-// fstodo: test
+// FSTODO: test
 let preprocess (ops : List<OpWithNewness>) : List<OpWithNewness> =
   // The client can add undopoints when it chooses. When we get an undo,
   // we go back to the previous undopoint for that TL.

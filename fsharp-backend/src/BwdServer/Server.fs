@@ -307,12 +307,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         // TODO: I think we could put this into the middleware
         let routeVars = Routing.routeInputVars route requestPath
 
+        let! reqBody = getBody ctx
+        let reqHeaders = getHeaders ctx
+        let reqQuery = getQuery ctx
+
         match routeVars with
         | Some routeVars ->
-          let! reqBody = getBody ctx
-          let reqHeaders = getHeaders ctx
-          let reqQuery = getQuery ctx
-
           // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
           // and entirely into code in some middleware
           let! corsSetting = Canvas.fetchCORSSetting c.meta.id
@@ -351,7 +351,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           return ctx
 
         | None -> // vars didnt parse
-          // FSTODO: store event trace?
+          FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
+            let request =
+              Middleware.createRequest false url reqHeaders reqQuery reqBody
+            TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request)
+
           return! unmatchedRouteResponse ctx requestPath route
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx

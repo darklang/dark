@@ -72,8 +72,7 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   // migrations work properly. Structured like this so that hopefully we
   // only have to remove this small part.
   let defaultKeys = db.cols |> List.map (fun (k, _) -> (k, RT.DNull)) |> Map
-  // FSTODO: which is overwriting here?
-  let merged = FSharpPlus.Map.union pObj defaultKeys
+  let merged = Map.mergeFavoringLeft pObj defaultKeys
   // </HACK 2>
   let typeChecked = typeCheck db merged
   RT.DObj typeChecked

@@ -932,11 +932,11 @@ type Toplevel =
 
 module Secret =
   type T =
-    { secretName : string
-      secretValue : string }
+    { name : string
+      value : string }
 
     member this.toRuntimeType() : RT.Secret.T =
-      { secretName = this.secretName; secretValue = this.secretValue }
+      { name = this.name; value = this.value }
 
 
 type DeprecatedMigrationKind = | DeprecatedMigrationKind

@@ -331,8 +331,8 @@ let parseJson (s : string) : JToken =
 
 /// Parses header or payload of a JWT, transforming results into a Dval
 let ofJson (str : string) : Result<Dval, string> =
-  // FSTODO: there doesn't seem to be a good reason that we use JSON.NET here,
-  // might be better to switch to System.Text.Json
+  // We cannot change this to use System.Text.Json because STJ does not
+  // allow "raw infinity"
   let rec convert (j : JToken) =
     match j.Type with
     | JTokenType.Integer -> DInt(j.Value<int64>())

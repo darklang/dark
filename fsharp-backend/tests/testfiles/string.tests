@@ -515,7 +515,7 @@ String.toUppercase_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 String.toUppercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.toUppercase_v1 "ჾ" = "Ჾ"
 
-// FSTODO: There are two types of unicode case "mapping" (conversion), "simple"
+// TODO: There are two types of unicode case "mapping" (conversion), "simple"
 // and "full". .NET supports simple mapping, which maps a single character to a
 // single character. It does not support "full" mapping, which maps a single
 // character to multiple characters. OCaml does correctly support this however,

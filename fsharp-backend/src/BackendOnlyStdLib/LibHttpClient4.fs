@@ -13,8 +13,8 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 
-let returnTypeOk = TVariable "result"
-let returnTypeErr = TVariable "error" // FSTODO
+let returnTypeOk = LegacyHttpClient2.responseType
+let returnTypeErr = LegacyHttpClient2.responseType
 let returnType = TResult(returnTypeOk, returnTypeErr)
 
 let parameters =

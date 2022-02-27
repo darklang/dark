@@ -723,11 +723,9 @@ module Convert =
       Exception.raiseInternal "Characters not supported" [ "id", id; "c", c ]
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
-      let (s, w, f) = readFloat d
-      // CLEANUP: doesn't support -0.5
-      let w = if s = Positive then string w else $"-{w}"
-      // FSTODO: don't drop the sign and test
-      ORT.EFloat(id, w, string f)
+      let (sign, whole, fraction) = readFloat d
+      let whole = if sign = Positive then string whole else $"-{whole}"
+      ORT.EFloat(id, whole, string fraction)
     | RT.EBool (id, b) -> ORT.EBool(id, b)
     | RT.ENull id -> ORT.ENull id
     | RT.EVariable (id, var) -> ORT.EVariable(id, var)
@@ -867,8 +865,8 @@ module Convert =
       tipe = option2bo p.typeID (Option.map pt2ocamlTipe p.typ)
       description = p.description
       optional = false
-      block_args = [] // FSTODO
-    }
+      // is only ever empty list and it's no longer used in F# backend
+      block_args = [] }
 
   let pt2ocamlUserFunction (p : PT.UserFunction.T) : ORT.user_fn<ORT.fluidExpr> =
     { tlid = p.tlid

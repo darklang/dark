@@ -438,9 +438,15 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
       let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
       let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
       let c = empty meta
-      // FSTODO: where are secrets loaded
 
-      return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
+      let! secrets = LibBackend.Secret.getCanvasSecrets meta.id
+      let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
+
+      return
+        { c with secrets = secrets }
+        |> addToplevels fastLoadedTLs
+        |> addOps uncachedOplists []
+        |> verify
     with
     | e -> return Exception.reraiseAsPageable "canvas load failed" e
   }

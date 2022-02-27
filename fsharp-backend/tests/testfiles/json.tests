@@ -74,8 +74,6 @@ JSON.parse_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" 
 JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"} // OCAMLONLY
 JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
-// FSTODO dress up these errors messages, don't just put them straight out
-
 [tests.parse_v1]
 JSON.parse_v1 "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
 JSON.parse_v1 "[97.8, -2, false, true, -0.0]" = Ok [97.8, -2, false, true, -0.0]
