@@ -29,16 +29,20 @@ open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module Exe = LibExecution.Execution
-module Interpreter = LibExecution.Interpreter
+
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
+
 module Middleware = HttpMiddleware.MiddlewareV0
 module Resp = HttpMiddleware.ResponseV0
+
 module FireAndForget = LibService.FireAndForget
+module Kubernetes = LibService.Kubernetes
+module Rollbar = LibService.Rollbar
+module Telemetry = LibService.Telemetry
 
 // ---------------
 // Read from HttpContext
@@ -294,10 +298,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
         ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
 
-      LibService.Telemetry.addTags [ "canvas.name", canvasName
-                                     "canvas.id", meta.id
-                                     "canvas.ownerID", meta.owner
-                                     "trace_id", traceID ]
+      Telemetry.addTags [ "canvas.name", canvasName
+                          "canvas.id", meta.id
+                          "canvas.ownerID", meta.owner
+                          "trace_id", traceID ]
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
       // and leave it to middleware to say what it wants to do with that
@@ -434,9 +438,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         return e.Reraise()
     })
 
-  let rollbarCtxToMetadata
-    (ctx : HttpContext)
-    : LibService.Rollbar.AspNet.Person * Metadata =
+  let rollbarCtxToMetadata (ctx : HttpContext) : Rollbar.Person * Metadata =
     let canvasName =
       try
         Some(ctx.Items["canvasName"] :?> CanvasName.T)
@@ -462,24 +464,21 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
       |> Option.defaultValue []
 
-    let person : (LibService.Rollbar.AspNet.Person) =
-      { id = id; username = username; email = None }
+    let person : Rollbar.Person = { id = id; username = username; email = None }
 
     (person, metadata)
 
-  LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
+  Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> LibService.Kubernetes.configureApp healthCheckPort
+  |> Kubernetes.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> LibService.Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
-  |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> LibService.Telemetry.AspNet.addTelemetryToServices
-       "BwdServer"
-       LibService.Telemetry.TraceDBQueries
+  |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
+  |> Rollbar.AspNet.addRollbarToServices
+  |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
 let noLogger (builder : ILoggingBuilder) : unit =
@@ -493,11 +492,11 @@ let webserver
   (httpPort : int)
   (healthCheckPort : int)
   : WebApplication =
-  let hcUrl = LibService.Kubernetes.url healthCheckPort
+  let hcUrl = Kubernetes.url healthCheckPort
 
   let builder = WebApplication.CreateBuilder()
   configureServices builder.Services
-  LibService.Kubernetes.registerServerTimeout builder.WebHost
+  Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
   |> fun wh -> wh.ConfigureLogging(loggerSetup)
@@ -529,4 +528,4 @@ let main _ =
     run ()
     0
   with
-  | e -> LibService.Rollbar.lastDitchBlockAndPage "error starting bwdserver" e
+  | e -> Rollbar.lastDitchBlockAndPage "error starting bwdserver" e

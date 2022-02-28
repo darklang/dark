@@ -84,7 +84,9 @@ let createState
 
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       let metadata = extraMetadata state @ metadata
-      LibService.Rollbar.sendException state.executionID metadata exn
+      let person : LibService.Rollbar.Person =
+        { id = Some state.program.accountID; username = None; email = None }
+      LibService.Rollbar.sendException state.executionID person metadata exn
 
 
     return

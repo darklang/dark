@@ -144,12 +144,12 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
 
 let rollbarCtxToMetadata
   (ctx : HttpContext)
-  : (LibService.Rollbar.AspNet.Person * Metadata) =
+  : (LibService.Rollbar.Person * Metadata) =
   let person =
     try
       loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
     with
-    | _ -> LibService.Rollbar.AspNet.emptyPerson
+    | _ -> LibService.Rollbar.emptyPerson
   let canvas =
     try
       string (loadCanvasInfo ctx).name

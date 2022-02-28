@@ -18,7 +18,11 @@ let fireAndForgetTask
       return ()
     with
     | e ->
-      Rollbar.sendException executionID [ "fire-and-forget", name ] e
+      Rollbar.sendException
+        executionID
+        Rollbar.emptyPerson
+        [ "fire-and-forget", name ]
+        e
       return ()
   }
   |> ignore<Task<unit>>

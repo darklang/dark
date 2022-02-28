@@ -142,7 +142,7 @@ let runKubernetesServer
   let app = builder.Build()
   Rollbar.AspNet.addRollbarToApp
     app
-    (fun _ -> Rollbar.AspNet.emptyPerson, [])
+    (fun _ -> Rollbar.emptyPerson, [])
     (Some startupPath)
 
   |> fun app -> app.UseRouting()
