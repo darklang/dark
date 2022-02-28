@@ -313,7 +313,7 @@ window.Dark = {
       };
 
       // Only load when asked for
-      if (!window.Dark.analysis.wasmUseOcaml) {
+      if (!window.Dark.analysis.useOcaml) {
         window.BlazorWorker.initWorker(
           initializedCallback,
           analysis.callback,
@@ -323,12 +323,12 @@ window.Dark = {
     },
   },
   analysis: {
-    wasmUseOcaml: (function () {
+    useOcaml: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("wasm-use-ocaml");
+      return urlParams.get("use-ocaml-analysis");
     })(),
     requestAnalysis: function (params) {
-      if (!window.Dark.analysis.wasmUseOcaml) {
+      if (!window.Dark.analysis.useOcaml) {
         window.Dark.fsharpAnalysis.requestAnalysis(params);
       } else {
         window.Dark.ocamlAnalysis.requestAnalysis(params);
