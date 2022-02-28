@@ -16,7 +16,7 @@ CONCURRENCY=1
 RETRIES=0
 REPEAT=1 # repeat allows us to repeat individual tests many times to check for edge cases
 BASE_URL="http://darklang.localhost:9000"
-BWD_BASE_URL=".builtwithdark.lvh.me:9000"
+BWD_BASE_URL=".builtwithdark.localhost:11000"
 BROWSER="chromium"
 
 for i in "$@"
