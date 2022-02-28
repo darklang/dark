@@ -8,6 +8,7 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module Telemetry = LibService.Telemetry
+module Rollbar = LibService.Rollbar
 
 let shutdown = ref false
 
@@ -20,7 +21,7 @@ let run () : Task<unit> =
       with
       | e ->
         // If there's an exception, alert and continue
-        LibService.Rollbar.sendException (ExecutionID "cronchecker") e
+        Rollbar.sendException (ExecutionID "cronchecker") Rollbar.emptyPerson [] e
       do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
     return ()
   }

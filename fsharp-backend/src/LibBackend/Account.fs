@@ -39,7 +39,7 @@ type UserInfoAndCreatedAt =
     id : UserID
     createdAt : NodaTime.Instant }
 
-let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.AspNet.Person =
+let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
   { id = Some ui.id; email = Some ui.email; username = Some ui.username }
 
 

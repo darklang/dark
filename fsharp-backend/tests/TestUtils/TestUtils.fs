@@ -301,12 +301,12 @@ let executionStateFor
     // catch them much closer to where they happen (usually in the function
     // definition)
     let rec exceptionReporter : RT.ExceptionReporter =
-      fun executionID (exn : exn) ->
+      fun (state : RT.ExecutionState) metadata (exn : exn) ->
         let message = exn.Message
         let stackTrace = exn.StackTrace
-        let metadata = Exception.toMetadata exn
+        let metadata = Exception.toMetadata exn @ metadata
         let inner = exn.InnerException
-        if inner <> null then (exceptionReporter executionID inner) else ()
+        if inner <> null then (exceptionReporter state metadata inner) else ()
         testContext.exceptionReports <-
           (executionID, message, stackTrace, metadata)
           :: testContext.exceptionReports

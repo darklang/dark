@@ -107,7 +107,7 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
 
 // When a function has been removed (rarely happens but does happen occasionally)
 let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
-  state.notify state.executionID "function removed" [ "fnName", fnName ]
+  state.notify state "function removed" [ "fnName", fnName ]
   Ply(DError(SourceNone, $"{fnName} was removed from Dark"))
 
 // When you have a fakeval, you typically just want to return it.

@@ -68,13 +68,34 @@ let createState
 
     let! libraries = Lazy.force libraries
 
+    let extraMetadata (state : RT.ExecutionState) : Metadata =
+      [ "tlid", tlid
+        "traceID", traceID
+        "touchedTLIDs", touchedTLIDs
+        "executingFnName", state.executingFnName
+        "callstack", state.callstack
+        "canvas", state.program.canvasName
+        "canvasID", state.program.canvasID
+        "accountID", state.program.accountID ]
+
+    let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
+      let metadata = extraMetadata state @ metadata
+      LibService.Rollbar.notify state.executionID msg metadata
+
+    let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+      let metadata = extraMetadata state @ metadata
+      let person : LibService.Rollbar.Person =
+        { id = Some state.program.accountID; username = None; email = None }
+      LibService.Rollbar.sendException state.executionID person metadata exn
+
+
     return
       (Exe.createState
         executionID
         libraries
         tracing
-        LibService.Rollbar.sendException
-        LibService.Rollbar.notify
+        sendException
+        notify
         tlid
         program,
        touchedTLIDs)
