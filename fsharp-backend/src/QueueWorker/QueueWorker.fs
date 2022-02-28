@@ -170,6 +170,7 @@ let run () : Task<unit> =
         | Error (e) ->
           LibService.Rollbar.sendException
             (Telemetry.executionID ())
+            []
             (PageableException("Unhandled exception bubbled to queue worker", e))
       with
       | e ->
@@ -177,6 +178,7 @@ let run () : Task<unit> =
         // continue
         LibService.Rollbar.sendException
           (Telemetry.executionID ())
+          []
           (PageableException("Unhandled exception bubbled to run", e))
 
   }

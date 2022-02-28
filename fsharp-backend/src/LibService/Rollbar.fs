@@ -290,11 +290,18 @@ let exceptionWhileProcessingException
       | _ -> ()
 
 
-let sendException (executionID : ExecutionID) (e : exn) : unit =
+/// Sends exception to Rollbar and also to Telemetry (honeycomb). The error is titled
+/// after the exception message - to change it wrap it in another exception. However,
+/// it's better to keep the existing exception and add extra context via metadata.
+let sendException
+  (executionID : ExecutionID)
+  (metadata : Metadata)
+  (e : exn)
+  : unit =
   try
     print $"rollbar: {e.Message}"
     print e.StackTrace
-    let metadata = Exception.toMetadata e
+    let metadata = Exception.toMetadata e @ metadata
     printMetadata metadata
     Telemetry.addException e
     let custom = createState executionID metadata

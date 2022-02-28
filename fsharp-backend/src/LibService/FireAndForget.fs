@@ -18,9 +18,7 @@ let fireAndForgetTask
       return ()
     with
     | e ->
-      Rollbar.sendException
-        executionID
-        (InternalException($"Fire and forget: {name} failed", [], e))
+      Rollbar.sendException executionID [ "fire-and-forget", name ] e
       return ()
   }
   |> ignore<Task<unit>>
