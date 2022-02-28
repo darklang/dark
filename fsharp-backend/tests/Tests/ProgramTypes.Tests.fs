@@ -79,6 +79,15 @@ let parseTests =
                  function_ = "sendText"
                  version = 0 }
            ))
+          ("dark/stdlib/Twitter::sendText",
+           Some(
+             Package
+               { owner = "dark"
+                 package = "stdlib"
+                 module_ = "Twitter"
+                 function_ = "sendText"
+                 version = 0 }
+           ))
           ("paul56/random/Rand56om::string20_v57",
            Some(
              Package

@@ -9,9 +9,13 @@
   `scripts/format format` to format otherwise. Unformatted files fail in CI.
 
 - imports should be ordered:
-  - first the `Prelude` library and `tablecloth`
-  - then stdlib and language builtins
+  - First stdlib and language builtins
+  - Then the `Prelude` library and `tablecloth`
   - then other Dark modules
+
+## Names
+
+- Avoid use of `foo`, `bar`, and `baz` in names (including as sample data in tests).
 
 ## Comments
 
@@ -37,7 +41,7 @@
 
 - you can only use Tasks (aka `Ply`) once. Using it a second time is undefined.
 
-## Creating types
+### Creating types
 
 When creating a type:
 
