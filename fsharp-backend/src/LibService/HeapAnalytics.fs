@@ -21,7 +21,9 @@ type TrackPayload =
   { identity : string
     app_id : string
     event : string
-    timestamp : NodaTime.Instant
+    // Setting this type as a string gives us more control over how this serializes
+    // as JSON
+    timestamp : string
     properties : Map<string, string> }
 
 type Type =
@@ -101,7 +103,9 @@ let trackBody
     |> Map.add "canvas_id" (string canvasID)
 
   { identity = string owner
-    timestamp = timestamp
+    // heap API doesn't like submilliseconds, which the json encoding produces.
+    // Stringifying here prevents this.
+    timestamp = string timestamp
     event = event
     app_id = Config.heapioId
     properties = properties }
