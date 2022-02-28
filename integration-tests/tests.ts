@@ -8,8 +8,10 @@ import {
 import fs from "fs";
 
 const BASE_URL = process.env.BASE_URL || "http://darklang.localhost:9000";
+const BWD_BASE_URL = process.env.BWD_BASE_URL || ".builtwithdark.lvh.me:9000";
 const options = {
   baseURL: BASE_URL,
+  bwdBaseURL: BWD_BASE_URL
 };
 test.use(options);
 
@@ -232,7 +234,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   function bwdUrl(testInfo: TestInfo, path: string) {
     return (
-      "http://test-" + testInfo.title + ".builtwithdark.lvh.me:8000" + path
+      "http://test-" + testInfo.title + options.bwdBaseURL + path
     );
   }
 
