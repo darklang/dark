@@ -42,6 +42,31 @@
 (DB.set_v1 { x = "x"; col = "v" } "i" X) = Test.typeError_v0 "Found but did not expect: [col]"
 
 
+
+// ------------
+// Schema
+// ------------
+[test.db.schema_v0 does not exist for ocaml OCAMLONLY] with DB X
+DB.schema_v0 X = Test.typeError_v0 "DB::schema is DEPRECATED"
+
+[test.db.schema_v0 does not exist for fsharp FSHARPONLY] with DB X
+DB.schema_v0 X = Test.typeError_v0 "DB::schema_v0 was removed from Dark"
+
+[test.db.schemaFields_v1 works for db with one field] with DB X
+DB.schemaFields_v1 X = ["x"]
+
+[test.db.schemaFields_v1 works for db with multiple fields] with DB XY
+DB.schemaFields_v1 XY = ["x", "y"]
+
+[test.db.schema_v1 works for db with one field] with DB X
+DB.schema_v1 X = { x = "Str" }
+
+[test.db.schema_v1 works for db with multiple fields] with DB SortedX
+DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
+
+
+
+
 // ------------
 // Setting values
 // ------------
@@ -128,8 +153,6 @@
  let _ = DB.set_v1 { x = "waffle" } "key2" X in
  let _ = DB.set_v1 { x = "scone" } "key3" X in
  DB.get_v2 "key2" X) = Just { x = "waffle" }
-
-
 
 
 
@@ -270,10 +293,24 @@
 (let one = DB.set_v1 { x = "foo" } "one" X in
  DB.queryOne_v2 { x = "bar" } X) = Nothing
 
-[test.db.queryOne_v2 returns nothing if many] with DB X
+[test.db.queryOne_v2 returns correct if many] with DB X
 (let one = DB.set_v1 { x = "foo" } "one" X in
  let two = DB.set_v1 { x = "foo" } "two" X in
  DB.queryOne_v2 { x = "foo" } X) = Nothing
+
+
+[test.db.queryOne_v3 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOne_v3 X (fun v -> v.x = "foo")) = Just { x = "foo" }
+
+[test.db.queryOne_v3 returns nothing if none match] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOne_v3 X (fun v -> v.x = "bar")) = Nothing
+
+[test.db.queryOne_v3 returns correct if many] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "foo" } "two" X in
+ DB.queryOne_v3 X (fun v -> v.x = "bar")) = Nothing
 
 
 // DB.queryOneWithKey
@@ -405,12 +442,6 @@ DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert is DEPRECATED"
 
 [test.db.insert_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert_v0 was removed from Dark"
-
-[test.db.schema_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.schema_v0 X = Test.typeError_v0 "DB::schema is DEPRECATED"
-
-[test.db.schema_v0 does not exist for fsharp FSHARPONLY] with DB X
-DB.schema_v0 X = Test.typeError_v0 "DB::schema_v0 was removed from Dark"
 
 [test.db.update_v0 does not exist for ocaml OCAMLONLY] with DB X
 DB.update_v0 "a" X = Test.typeError_v0 "DB::update is DEPRECATED"
@@ -572,16 +603,16 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 // ------------
 // Other query functions
 // ------------
-// queryOne
-[test.queryOne works - multiple] with DB Person
+// queryOne_v4
+[test.queryOne_v4 works - multiple] with DB Person
 (let _ = prepFriends null in
  DB.queryOne_v4 Person (fun p -> p.human)) = Nothing
 
-[test.queryOne works - none] with DB Person
+[test.queryOne_v4 works - none] with DB Person
 (let _ = prepFriends null in
  DB.queryOne_v4 Person (fun p -> p.name = "bob")) = Nothing
 
-[test.queryOne works - one] with DB Person
+[test.queryOne_v4 works - one] with DB Person
 (let _ = prepFriends null in
  (DB.queryOne_v4 Person (fun p -> p.name = "Rachel"))
  |> Option.map_v0 (fun v -> v.name)) = Just "Rachel"
