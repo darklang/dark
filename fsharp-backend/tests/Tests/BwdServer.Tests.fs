@@ -6,7 +6,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Net.Sockets
-open System.Text.RegularExpressions
+open System.Text.Json
 
 open Prelude
 open Tablecloth
@@ -18,6 +18,7 @@ module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
 
 open TestUtils.TestUtils
+open System.Text.Json
 
 type Server =
   | OCaml
@@ -26,6 +27,7 @@ type Server =
 type Test =
   { handlers : List<string * string * string>
     cors : Option<string>
+    secrets : List<string * string>
     customDomain : Option<string>
     request : byte array
     response : byte array }
@@ -83,6 +85,7 @@ let parseTest (bytes : byte array) : Test =
   let emptyTest =
     { handlers = []
       cors = None
+      secrets = []
       customDomain = None
       request = [||]
       response = [||] }
@@ -93,6 +96,17 @@ let parseTest (bytes : byte array) : Test =
       let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
       match asString with
       | Regex "\[cors (\S+)]" [ cors ] -> (Limbo, { result with cors = Some cors })
+      | Regex "\[secrets (\S+)]" [ secrets ] ->
+        let secrets =
+          secrets
+          |> String.split ","
+          |> List.map (fun secret ->
+            match secret |> String.split ":" with
+            | [ key; value ] -> key, value
+            | _ ->
+              Exception.raiseInternal $"Could not parse secret" [ "secret", secret ])
+
+        (Limbo, { result with secrets = secrets @ result.secrets })
       | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
         (Limbo, { result with customDomain = Some customDomain })
       | "[request]" -> (InRequest, result)
@@ -228,6 +242,12 @@ let t filename =
     | Some cd -> do! Routing.addCustomDomain cd meta.name
     | None -> ()
 
+    // Secrets
+    do!
+      test.secrets
+      |> List.map (fun (name, value) -> LibBackend.Secret.insert meta.id name value)
+      |> Task.WhenAll
+
     let normalizeActualHeaders
       (hs : (string * string) list)
       : (string * string) list =
@@ -281,8 +301,12 @@ let t filename =
           Expect.isFalse true "LENGTH substitution not done on request"
 
         let host = $"{meta.name}.builtwithdark.localhost:{port}"
+        let canvasName = string meta.name
         let request =
-          test.request |> replaceByteStrings "HOST" host |> Http.setHeadersToCRLF
+          test.request
+          |> replaceByteStrings "HOST" host
+          |> replaceByteStrings "CANVAS" canvasName
+          |> Http.setHeadersToCRLF
 
 
         do! stream.WriteAsync(request, 0, request.Length)
@@ -321,6 +345,7 @@ let t filename =
           |> Option.unwrapUnsafe
           |> List.toArray
           |> replaceByteStrings "HOST" host
+          |> replaceByteStrings "CANVAS" canvasName
           |> Http.setHeadersToCRLF
 
         // Parse and normalize the response
@@ -345,9 +370,11 @@ let t filename =
 
         match asJson with
         | Some (aJson, eJson) ->
+          let serialize (json : JsonDocument) =
+            LibExecution.DvalReprExternal.writePrettyJson json.WriteTo
           Expect.equal
-            (actual.status, aHeaders, string aJson)
-            (expected.status, eHeaders, string eJson)
+            (actual.status, aHeaders, serialize aJson)
+            (expected.status, eHeaders, serialize eJson)
             $"({server} as json)"
         | None ->
           match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with

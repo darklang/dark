@@ -35,7 +35,7 @@ let canvasIDForCanvasName
                       "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
-
+/// Fetch high-level metadata for a canvas
 let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
@@ -46,13 +46,17 @@ let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   }
 
 
-
-// This includes just a subset of the key program data. It is rare that all of
-// the data for a canvas will be loaded. In addition, there is other canvas
-// data which is meaningful, such as Cors info, oplists, creation date. These
-// can be fetched separately. (Oplists in particular are omitted as it can be
-// very tricky to pass this data around safely (esp in regards to loading and
-// saving).)
+/// <summary>
+/// Canvas data - contains metadata along with basic handlers, DBs, etc.
+/// </summary>
+/// <remarks>
+/// This includes just a subset of the key program data. It is rare that all of
+/// the data for a canvas will be loaded. In addition, there is other canvas
+/// data which is meaningful, such as CORS info, oplists, creation date. These
+/// can be fetched separately. (Oplists in particular are omitted as it can be
+/// very tricky to pass this data around safely (esp in regards to loading and
+/// saving).)
+/// </remarks>
 type T =
   { meta : Meta
     handlers : Map<tlid, PT.Handler.T>
@@ -334,9 +338,8 @@ let updateCorsSetting
   |> Sql.executeStatementAsync
 
 
-// let url_for (id : Uuidm.t) : string =
-//   let canvas_name = name_for_id id in
-//   "http://" ^ canvas_name ^ "." ^ Config.public_domain
+let urlFor (canvasName : CanvasName.T) : string =
+  $"https://{canvasName}.{Config.publicDomain}"
 
 
 // -------------------------
@@ -439,9 +442,15 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
       let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
       let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
       let c = empty meta
-      // FSTODO: where are secrets loaded
 
-      return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
+      let! secrets = LibBackend.Secret.getCanvasSecrets meta.id
+      let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
+
+      return
+        { c with secrets = secrets }
+        |> addToplevels fastLoadedTLs
+        |> addOps uncachedOplists []
+        |> verify
     with
     | e -> return Exception.reraiseAsPageable "canvas load failed" e
   }

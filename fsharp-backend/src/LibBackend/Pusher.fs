@@ -1,3 +1,4 @@
+/// Module supporting Pusher.com usage
 module LibBackend.Pusher
 
 open System.Threading.Tasks

@@ -10,6 +10,7 @@ let toVariantTest = (s: string): option<variantTest> =>
   | "stub" => Some(StubVariant)
   | "localhost-assets" => Some(NgrokVariant)
   | "lpartial" => Some(LeftPartialVariant)
+  | "fsharp-backend" => Some(FsharpBackend)
   | _ => None
   }
 
@@ -19,6 +20,7 @@ let nameOf = (vt: variantTest): string =>
   | StubVariant => "stub"
   | NgrokVariant => "localhost-assets"
   | LeftPartialVariant => "lpartial"
+  | FsharpBackend => "fsharp-backend"
   }
 
 let toCSSClass = (vt: variantTest): string => nameOf(vt) ++ "-variant"
@@ -27,6 +29,15 @@ let availableAdminVariants: list<variantTest> = list{NgrokVariant}
 
 let activeCSSClasses = (m: model): string =>
   m.tests |> List.map(~f=toCSSClass) |> String.join(~sep=" ")
+
+let apiRoot = (m: model): string => {
+  let useFSharp = List.member(~value=FsharpBackend, m.tests)
+  if useFSharp {
+    "/api-testing-fsharp/"
+  } else {
+    "/api/"
+  }
+}
 
 let enabledVariantTests = (isAdmin: bool): list<variantTest> => {
   /* admins have these enabled by default, but can opt-out via query param */

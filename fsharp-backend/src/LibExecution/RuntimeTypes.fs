@@ -699,7 +699,7 @@ type Toplevel =
     | TLType t -> t.tlid
 
 module Secret =
-  type T = { secretName : string; secretValue : string }
+  type T = { name : string; value : string }
 
 
 // ------------
@@ -830,7 +830,7 @@ and LoadFnArguments = tlid -> List<DvalMap * NodaTime.Instant>
 
 and StoreFnArguments = tlid -> DvalMap -> Task<unit>
 
-// Every part of a user's program
+/// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
     canvasName : CanvasName.T
@@ -840,7 +840,7 @@ and ProgramContext =
     userTypes : Map<string * int, UserType.T>
     secrets : List<Secret.T> }
 
-// Set of callbacks used to trace the interpreter
+/// Set of callbacks used to trace the interpreter
 and Tracing =
   { traceDval : TraceDval
     traceTLID : TraceTLID

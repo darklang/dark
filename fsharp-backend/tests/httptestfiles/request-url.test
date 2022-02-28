@@ -19,4 +19,4 @@ Server: darklang // FSHARPONLY
 Connection: keep-alive
 Content-Length: LENGTH
 
-"http://test-bwdserver-request-url.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,,"
+"http://CANVAS.builtwithdark.localhost/user/test?param1=2,x=%5Basd,5%5D,,&param2=67246&param3&param4=&param2=again&,,"

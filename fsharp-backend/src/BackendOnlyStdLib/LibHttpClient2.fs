@@ -1,3 +1,4 @@
+/// (deprecated) v2 StdLib functions in the HttpClient module
 module BackendOnlyStdLib.LibHttpClient2
 
 open System.Threading.Tasks
@@ -16,7 +17,7 @@ let fn = FQFnName.stdlibFnName
 let varA = TVariable "a"
 
 let returnTypeOk = TVariable "result"
-let returnTypeErr = TVariable "error" // FSTODO
+let returnTypeErr = TStr
 let returnType = TResult(returnTypeOk, returnTypeErr)
 
 let parameters =

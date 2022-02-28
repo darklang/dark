@@ -1723,6 +1723,8 @@ module CanvasName =
 
 
 module HttpHeaders =
+  type AspHeaders = System.Net.Http.Headers.HttpHeaders
+
   // We include these here as the _most_ basic http header types and functionality.
   // Anything even remotely more complicated should be put next to where it's used,
   // as historically we've gotten a lot wrong here and needed to make changes that we
@@ -1735,6 +1737,13 @@ module HttpHeaders =
     |> List.tryFind (fun ((k : string), (_ : string)) ->
       String.equalsCaseInsensitive headerName k)
     |> Option.map (fun (k, v) -> v)
+
+  /// Convert .NET HttpHeaders into Dark-style headers
+  let fromAspNetHeaders (headers : AspHeaders) : T =
+    headers
+    |> Seq.map Tuple2.fromKeyValuePair
+    |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
+    |> Seq.toList
 
 
 let id (x : int) : id = uint64 x

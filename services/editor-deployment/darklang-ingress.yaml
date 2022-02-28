@@ -15,28 +15,21 @@ spec:
   rules:
     # See
     # https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress
-    # These rules are intended to enable one user onto the new F# backend, while we
+    # These rules are intended to enable anyone to test out the F# backend, while we
     # see what works.
     - http:
         paths:
-          # No slash at the end
-          - path: /a/trydarkfsharp
+          # Testing so that any user can use these
+          - path: /a-testing-fsharp/*
             pathType: ImplementationSpecific
             backend:
               service:
                 name: apiserver-service
                 port:
                   number: 80
-          # Slash at the end and things after it
-          - path: /a/trydarkfsharp/*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: apiserver-service
-                port:
-                  number: 80
-          # Api
-          - path: /api/trydarkfsharp/*
+
+          # Api - CLEANUP remove
+          - path: /api-testing-fsharp/*
             pathType: ImplementationSpecific
             backend:
               service:

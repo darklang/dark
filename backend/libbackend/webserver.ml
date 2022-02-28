@@ -363,7 +363,7 @@ let result_to_response
     ~(req : CRequest.t)
     (result : RTT.dval) =
   let maybe_infer_cors headers =
-    (* Add the Access-Control-ALlow-Origin, if it doens't exist
+    (* Add the Access-Control-Allow-Origin, if it doens't exist
        and if infer_cors_header tells us to. *)
     infer_cors_header
       (Header.get (CRequest.headers req) "Origin")

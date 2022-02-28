@@ -1,3 +1,4 @@
+/// (deprecated) v1 StdLib functions in the HttpClient module
 module BackendOnlyStdLib.LibHttpClient1
 
 open System.Net.Http

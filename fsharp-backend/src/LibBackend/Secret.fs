@@ -13,9 +13,9 @@ open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 
-type Secret = { name : string; value : string }
+module PT = LibExecution.ProgramTypes
 
-let getCanvasSecrets (canvasID : CanvasID) : Task<List<Secret>> =
+let getCanvasSecrets (canvasID : CanvasID) : Task<List<PT.Secret.T>> =
   Sql.query
     "SELECT secret_name, secret_value
      FROM secrets

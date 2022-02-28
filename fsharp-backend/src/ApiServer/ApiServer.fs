@@ -67,11 +67,17 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
     let handler = jsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
+    // CLEANUP remove - these are for testing only
+    let testingRoute = $"/api-testing-fsharp/{{canvasName}}/{name}"
+    addRoute "POST" testingRoute std perm handler
 
   let apiOption name perm f =
     let handler = (jsonOptionHandler f)
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
+    // CLEANUP remove - these are for testing only
+    let testingRoute = $"/api-testing-fsharp/{{canvasName}}/{name}"
+    addRoute "POST" testingRoute std perm handler
 
   addRoute "GET" "/login" html None Login.loginPage
   addRoute "POST" "/login" html None Login.loginHandler
@@ -82,13 +88,18 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   builder.MapGet("/check-apiserver", checkApiserver) |> ignore<IRouteBuilder>
 
   addRoute "GET" "/a/{canvasName}" html R (htmlHandler Ui.uiHandler)
+  // CLEANUP remove - this are for testing only
+  addRoute "GET" "/a-testing-fsharp/{canvasName}" html R (htmlHandler Ui.uiHandler)
 
   // For internal testing - please don't test this out, it might page me
-  addRoute "GET" "/a/{canvasName}/trigger-exception" std R (fun ctx ->
+  let exceptionFn (ctx : HttpContext) =
     let userInfo = loadUserInfo ctx
-    Exception.raiseInternal "triggered test exception" [ "user", userInfo.username ])
-  api "add_op" RW AddOps.addOp
+    Exception.raiseInternal "triggered test exception" [ "user", userInfo.username ]
+  addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
+  // CLEANUP remove - this are for testing only
+  addRoute "GET" "/a-testing-fsharp/{canvasName}/trigger-exception" std R exceptionFn
 
+  api "add_op" RW AddOps.addOp
   api "all_traces" R Traces.AllTraces.fetchAll
   api "delete_404" RW F404s.Delete.delete
   api "delete_secret" RW Secrets.Delete.delete
@@ -149,7 +160,6 @@ let rollbarCtxToMetadata
 let configureApp (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
-  // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> fun app ->
        LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()
@@ -198,7 +208,6 @@ let main _ =
     LibExecution.Init.init "ApiServer"
     LibExecutionStdLib.Init.init "ApiServer"
     (LibBackend.Init.init "ApiServer" true).Result
-    BackendOnlyStdLib.Init.init "ApiServer"
     LibRealExecution.Init.init "ApiServer"
     run ()
     0

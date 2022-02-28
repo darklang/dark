@@ -275,37 +275,15 @@ let testUiReturnsTheSame =
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
       |> Set
 
-    let mutable notImplementedCount = 0
-
-    let filtered
-      (myFns : List<Functions.FunctionMetadata>)
-      : List<Functions.FunctionMetadata> =
-      List.filter
-        (fun fn ->
-          if Set.contains (PT.FQFnName.parse fn.name) builtins then
-            true
-          else
-            print $"Not yet implemented: {fn.name}"
-            notImplementedCount <- notImplementedCount + 1
-            false)
-        myFns
-
-    // FSTODO: Here we test that the metadata for all the APIs is the same.
-    // Since we don't yet support all the tests, we just filter to the ones we
-    // do support for now. Before shipping, we obviously need to support them
-    // all.
-    let filteredOCamlFns = filtered ocfns
-
     print $"Implemented fns  : {Map.count fns}"
     print $"Excluding F#-only: {Set.length builtins}"
     print $"Fns in OCaml api : {List.length ocfns}"
     print $"Fns in F# api    : {List.length fcfns}"
-    print $"Missing fns      : {notImplementedCount}"
 
     List.iter2
       (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
       fcfns
-      filteredOCamlFns
+      ocfns
   }
 
 type ApiResponse<'a> = Task<'a * System.Net.HttpStatusCode * Map<string, string>>
@@ -709,7 +687,7 @@ let localOnlyTests =
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
       [ testUiReturnsTheSame
-        // FSTODO add_ops
+        // TODO add_ops
         testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
         testDelete404s
         testExecuteFunction
@@ -731,7 +709,6 @@ let localOnlyTests =
 
   testSequencedGroup "local" (testList "local" tests)
 
-// FSTODO: this should be on the *TEST* api server, not the dev one
 let permissions =
   testMany2Task
     "check apiserver permissions"

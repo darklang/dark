@@ -371,13 +371,15 @@ let makeHttpCall
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
       let message =
         if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
-          "Unsupported protocol"
+          prependInternalErrorMessage "Unsupported protocol"
         else
-          e.Message
+          prependInternalErrorMessage e.Message
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage message }
     | :? System.UriFormatException ->
-      return Error { url = url; code = 0; error = "Invalid URI" }
+      return
+        Error
+          { url = url; code = 0; error = prependInternalErrorMessage "Invalid URI" }
     | :? IOException as e ->
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }

@@ -191,7 +191,6 @@ let main _ : int =
     LibExecution.Init.init "QueueWorker"
     LibExecutionStdLib.Init.init "QueueWorker"
     (LibBackend.Init.init "QueueWorker" false).Result
-    BackendOnlyStdLib.Init.init "QueueWorker"
     LibRealExecution.Init.init "QueueWorker"
 
     // we need to stop taking things if we're told to stop by k8s

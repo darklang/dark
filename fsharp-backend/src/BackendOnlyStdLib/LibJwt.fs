@@ -1,7 +1,7 @@
+/// StdLib functions to encode, verify, and extract details from JWTs
 module BackendOnlyStdLib.LibJwt
 
 open System.Security.Cryptography
-open System.Text
 
 open LibExecution.RuntimeTypes
 open Prelude
@@ -191,7 +191,7 @@ module Legacy =
     toString' v j
     v.ToArray() |> UTF8.ofBytesUnsafe
 
-
+/// Forms signed JWT given payload, extra header, and key
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
   let header =
     extraHeaders
@@ -228,6 +228,9 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
 
   body + "." + signature
 
+/// Verifies the signature of, and extracts data from, a JWT
+///
+/// Deprecated in favor of equivalent v1 function
 let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
   match Seq.toList (String.split "." token) with
   | [ header; payload; signature ] ->
@@ -263,6 +266,7 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
     | e -> None
   | _ -> None
 
+/// Verifies the signature of, and extracts data from, a JWT
 let verifyAndExtractV1
   (key : RSA)
   (token : string)
@@ -314,6 +318,7 @@ let verifyAndExtractV1
 open Newtonsoft.Json
 open Newtonsoft.Json.Linq
 
+/// Parses header or payload of a JWT
 let parseJson (s : string) : JToken =
   let reader = new JsonTextReader(new System.IO.StringReader(s))
   let jls = JsonLoadSettings()
@@ -324,9 +329,10 @@ let parseJson (s : string) : JToken =
   reader.DateParseHandling <- DateParseHandling.None
   JToken.ReadFrom(reader)
 
+/// Parses header or payload of a JWT, transforming results into a Dval
 let ofJson (str : string) : Result<Dval, string> =
-  // FSTODO: there doesn't seem to be a good reason that we use JSON.NET here,
-  // might be better to switch to STJ
+  // We cannot change this to use System.Text.Json because STJ does not
+  // allow "raw infinity"
   let rec convert (j : JToken) =
     match j.Type with
     | JTokenType.Integer -> DInt(j.Value<int64>())
@@ -383,7 +389,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "signAndEncode" 1) }
 
-
     { name = fn "JWT" "signAndEncodeWithHeaders" 0
       parameters =
         [ Param.make "pemPrivKey" TStr ""
@@ -401,7 +406,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "signAndEncodeWithHeaders" 1) }
 
-
     { name = fn "JWT" "signAndEncode" 1
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TResult(varB, varErr)
@@ -418,7 +422,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
-
 
     { name = fn "JWT" "signAndEncodeWithHeaders" 1
       parameters =
@@ -439,7 +442,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
-
 
     { name = fn "JWT" "verifyAndExtract" 0
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
@@ -474,7 +476,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "verifyAndExtract" 1) }
-
 
     { name = fn "JWT" "verifyAndExtract" 1
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]

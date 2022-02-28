@@ -34,7 +34,6 @@ let main _ : int =
     LibExecution.Init.init "CronChecker"
     LibExecutionStdLib.Init.init "CronChecker"
     (LibBackend.Init.init "CronChecker" false).Result
-    BackendOnlyStdLib.Init.init "CronChecker"
     LibRealExecution.Init.init "CronChecker"
 
     Telemetry.Console.loadTelemetry "CronChecker" Telemetry.DontTraceDBQueries

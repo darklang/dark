@@ -1,11 +1,10 @@
+/// StdLib functions for building Dark functionality via Dark canvases
+/// instead of the ApiServer or other means
 module BackendOnlyStdLib.LibDarkInternal
 
 open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
 
 open Npgsql.FSharp
-open Npgsql
 open LibBackend.Db
 
 open Prelude
@@ -26,8 +25,10 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-// Apply this to function to wrap that function in an  that checks
-// permissions for the dark internal functions and logs status.
+/// Wraps an internal Lib function
+/// and ensures that the appropriate permissions are in place
+///
+/// Also reports usage to telemetry
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, args) ->
     uply {
@@ -71,10 +72,9 @@ let fns : List<BuiltInFn> =
       returnType = TNull
       description = "TODO"
       fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
 
     { name = fn "DarkInternal" "endUsers" 0
       parameters = []
@@ -93,37 +93,34 @@ let fns : List<BuiltInFn> =
               return result |> List.map DStr |> DList
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
 
     { name = fn "DarkInternal" "checkAllCanvases" 0
       parameters = []
       returnType = TNull
       description = "TODO"
       fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause "oldinternal" }
-
 
     { name = fn "DarkInternal" "migrateAllCanvases" 0
       parameters = []
       returnType = TNull
       description = "REMOVED"
       fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause "oldinternal" }
-
 
     { name = fn "DarkInternal" "cleanupOldTraces" 0
       parameters = []
       returnType = TNull
       description = "Deprecated, use v1"
       fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTraces" 0) }
 
@@ -136,7 +133,7 @@ let fns : List<BuiltInFn> =
         internalFn (function
           | state, [] -> Ply(DFloat 0.0)
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTracesForCanvas" 1) }
 
@@ -150,7 +147,7 @@ let fns : List<BuiltInFn> =
         internalFn (function
           | state, [ DUuid canvas_id ] -> Ply(DFloat 0.0)
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = DeprecatedBecause "old internal" }
 
@@ -167,7 +164,7 @@ let fns : List<BuiltInFn> =
           //  | Ok _ -> Ply(DBool true)
           //  | Error _ -> Ply(DBool false))
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       // CLEANUP should be marked deprecated
       deprecated = NotDeprecated }
@@ -185,7 +182,7 @@ let fns : List<BuiltInFn> =
           //  | Ok () -> DResult(Ok DNull)
           //  | Error msg -> DResult(Error(DStr msg)))
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
     // deprecated = DeprecatedBecause "old internal" } CLEANUP
@@ -217,7 +214,7 @@ let fns : List<BuiltInFn> =
               | Error msg -> return Exception.raiseGrandUser msg
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "upsertUser" 1) }
 
@@ -245,7 +242,7 @@ that's already taken, returns an error."
               | Error msg -> return Exception.raiseGrandUser msg
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "insertUser" 2) }
 
@@ -285,7 +282,7 @@ that's already taken, returns an error."
               return DResult(Ok(DStr ""))
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -319,7 +316,7 @@ that's already taken, returns an error."
               | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -342,7 +339,7 @@ that's already taken, returns an error."
                 |> DOption
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "getUser" 1) }
 
@@ -366,7 +363,7 @@ that's already taken, returns an error."
                 |> DOption
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -390,7 +387,7 @@ that's already taken, returns an error."
                 |> DOption
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -405,12 +402,15 @@ that's already taken, returns an error."
             uply {
               let username = UserName.create username
               do! Account.setAdmin admin username
-              // FSTODO: report to rollbar
+              LibService.Rollbar.notify
+                state.executionID
+                "setAdmin called"
+                [ "username", username; "admin", admin ]
               Analytics.identifyUser state.executionID username
               return DNull
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -427,7 +427,7 @@ that's already taken, returns an error."
               return users |> List.map string |> List.map DStr |> DList
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -443,7 +443,7 @@ that's already taken, returns an error."
             let! hosts = Serialize.currentHosts ()
             return hosts |> List.map DStr |> DList
           })
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -463,7 +463,7 @@ that's already taken, returns an error."
               return cs |> List.map string |> List.map DStr |> DList
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -477,7 +477,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr canvas_name; DStr tlid ] -> Ply DNull
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -492,7 +492,7 @@ that's already taken, returns an error."
             (* Removed, no longer useful now that you can copy from Fluid *)
             Ply(DStr "")
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -514,7 +514,7 @@ that's already taken, returns an error."
           // |> List.map (fun h -> DStr(Libexecution.Types.string_of_id h.tlid))
           // |> fun l -> DList l
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -535,7 +535,7 @@ that's already taken, returns an error."
           // |> List.map (fun fn -> DStr(Libexecution.Types.string_of_id fn.tlid))
           // |> fun l -> DList l
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -549,7 +549,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr host; DStr tlid ] -> Ply DNull
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -577,7 +577,7 @@ that's already taken, returns an error."
               | e -> return DError(SourceNone, Exception.toDeveloperMessage e)
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -625,7 +625,7 @@ that's already taken, returns an error."
                 return s |> DOption |> Ok |> DResult
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -649,7 +649,7 @@ that's already taken, returns an error."
               return dbTLIDs |> List.map DStr |> DList
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -664,7 +664,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr host; DStr tlid_str ] -> Ply DNull
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -675,7 +675,7 @@ that's already taken, returns an error."
       description =
         "Returns {{Just <var events>}}, where <var events> is the most recent stored events for the <param tlid> if it is a handler or {{Nothing}} if it is not."
       fn = internalFn (fun (_, _) -> Ply DNull)
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -689,7 +689,7 @@ that's already taken, returns an error."
       returnType = TResult(varA, TStr)
       description = "Pushes an event to Stroller"
       fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "pushStrollerEvent" 1) }
 
@@ -714,7 +714,7 @@ that's already taken, returns an error."
              with
              | e -> Ply(DResult(Error(e |> string |> DStr))))
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -732,7 +732,7 @@ that's already taken, returns an error."
               | Some session -> return DResult(Ok(DStr(string session.username)))
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -752,7 +752,7 @@ that's already taken, returns an error."
               | e -> return DOption None
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -779,7 +779,7 @@ that's already taken, returns an error."
                   |> DOption
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated
 
@@ -824,7 +824,7 @@ that's already taken, returns an error."
               return result |> resultToDval
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -848,7 +848,7 @@ that's already taken, returns an error."
                 |> DObj
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -871,7 +871,7 @@ that's already taken, returns an error."
                 |> DObj
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -891,7 +891,7 @@ that's already taken, returns an error."
               | None -> return DStr ""
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -921,7 +921,7 @@ that's already taken, returns an error."
             Telemetry.addEvent name (("level", level) :: args)
             Ply result
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -935,7 +935,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr host; DStr tlid ] -> Ply DNull
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -949,7 +949,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr host; DStr tlid ] -> Ply DNull
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -963,7 +963,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr fnname ] -> Ply DNull
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -996,7 +996,7 @@ that's already taken, returns an error."
             |> DList
             |> Ply
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1010,7 +1010,7 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr host ] -> Ply DNull
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1027,7 +1027,7 @@ that's already taken, returns an error."
               return rules |> List.map EventQueue.SchedulingRule.toDval |> DList
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1046,7 +1046,7 @@ that's already taken, returns an error."
               return rules |> List.map EventQueue.SchedulingRule.toDval |> DList
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1058,7 +1058,7 @@ that's already taken, returns an error."
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
       fn = modifySchedule EventQueue.blockWorker
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1070,7 +1070,7 @@ that's already taken, returns an error."
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
       fn = modifySchedule EventQueue.unblockWorker
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1098,7 +1098,7 @@ that's already taken, returns an error."
                 return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DarkInternal" "newSessionForUsername" 1) }
 
@@ -1135,7 +1135,7 @@ that's already taken, returns an error."
                 return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1156,7 +1156,7 @@ that's already taken, returns an error."
               return DInt count
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1219,7 +1219,7 @@ human-readable data."
                 |> DObj
             }
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -1236,7 +1236,7 @@ human-readable data."
               "DarkInternal::raiseInternalException"
               [ "arg", arg ]
           | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
