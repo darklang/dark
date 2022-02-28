@@ -68,8 +68,10 @@ let createState
 
     let! libraries = Lazy.force libraries
 
-    let metadataForState (state : RT.ExecutionState) : Metadata =
+    let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
+        "traceID", traceID
+        "touchedTLIDs", touchedTLIDs
         "executingFnName", state.executingFnName
         "callstack", state.callstack
         "canvas", state.program.canvasName
@@ -77,11 +79,11 @@ let createState
         "accountID", state.program.accountID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
-      let metadata = metadataForState state @ metadata
+      let metadata = extraMetadata state @ metadata
       LibService.Rollbar.notify state.executionID msg metadata
 
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
-      let metadata = metadataForState state @ metadata
+      let metadata = extraMetadata state @ metadata
       LibService.Rollbar.sendException state.executionID metadata exn
 
 
