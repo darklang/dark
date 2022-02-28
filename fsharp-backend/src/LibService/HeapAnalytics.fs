@@ -70,11 +70,15 @@ let heapioEvent
 
       let! result = client.SendAsync(requestMessage)
       if result.StatusCode <> System.Net.HttpStatusCode.OK then
-        let! body = result.Content.ReadAsStringAsync()
+        let! responseBody = result.Content.ReadAsStringAsync()
         Rollbar.sendError
           executionID
           "heapio-apierror"
-          [ "body", body; "statusCode", result.StatusCode ]
+          [ "response", responseBody
+            "request", body
+            "url", url
+            "authentication", authenticationString
+            "statusCode", result.StatusCode ]
       return ()
     })
 
