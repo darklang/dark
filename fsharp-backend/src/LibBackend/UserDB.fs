@@ -94,15 +94,13 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TStr, RT.DStr _ -> value
         | RT.TBool, RT.DBool _ -> value
         | RT.TDate, RT.DDate _ -> value
+        // CLEANUP use the inner type
         | RT.TList _, RT.DList _ -> value
-        // FSTODO
-        // | RT.TDbList _, RT.DList _ ->
-        //     value
         | RT.TPassword, RT.DPassword _ -> value
         | RT.TUuid, RT.DUuid _ -> value
         | RT.TDict _, RT.DObj _ -> value
         | RT.TRecord _, RT.DObj _ -> value
-        | _, RT.DNull -> value (* allow nulls for now *)
+        | _, RT.DNull -> value // allow nulls for now
         | expectedType, valueOfActualType ->
           Errors.throw (Errors.typeErrorMsg key expectedType valueOfActualType))
       obj
