@@ -678,16 +678,20 @@ let loadJsonFromDisk (root : Config.Root) (c : Meta) : List<tlid * PT.Oplist> =
 
 let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
   task {
-    let oplists =
-      meta
-      |> loadJsonFromDisk Config.Testdata
-      |> List.map (fun (tlid, oplist) ->
-        let tl =
-          let oplist = fromOplist meta [] oplist
-          let tls = toplevels oplist
-          let dtls = deletedToplevels oplist
-          (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
-        (tlid, oplist, tl, NotDeleted))
+    try
+        meta
+        |> loadJsonFromDisk Config.Testdata
+        |> List.map (fun (tlid, oplist) ->
+          let tl =
+            let oplist = fromOplist meta [] oplist
+            let tls = toplevels oplist
+            let dtls = deletedToplevels oplist
+            (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
+          (tlid, oplist, tl, NotDeleted))
+      with
+      | ex ->
+        debuG "Couldn't find test file - assuming empty oplists" meta
+        []
 
     do! saveTLIDs meta oplists
     return ()
