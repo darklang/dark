@@ -58,8 +58,6 @@ let typToApiString (typ : RT.DType) : string =
   | RT.THttpResponse _ -> "Response"
   | RT.TDB _ -> "Datastore"
   | RT.TDate -> "Date"
-  // | TDbList tipe ->
-  //     "[" ^ tipe_to_string tipe ^ "]"
   | RT.TPassword -> "Password"
   | RT.TUuid -> "UUID"
   | RT.TOption _ -> "Option"
@@ -67,13 +65,6 @@ let typToApiString (typ : RT.DType) : string =
   | RT.TResult _ -> "Result"
   | RT.TUserType (name, _) -> name
   | RT.TBytes -> "Bytes"
-// | TDeprecated1
-// | TDeprecated2
-// | TDeprecated3
-// | TDeprecated4 _
-// | TDeprecated5 _
-// | TDeprecated6 ->
-// Exception.internal "Deprecated type"
 
 let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
   { name =

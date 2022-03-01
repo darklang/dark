@@ -180,16 +180,95 @@ HttpClient.get_v3 "file://localhost//etc/passwd" {} {} = Test.typeError_v0 "Inte
 HttpClient.get_v4 "file://localhost//etc/passwd" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
 HttpClient.get_v5 "file://localhost//etc/passwd" {} {} = Error "Unsupported protocol"
 
-// FSTODO add test for empty content (the None value to http_call) in get_v0
-
-// FSTODO add v0-v4 versions of this test
-[test.http2]
+[test.http2 v5]
 (let response = HttpClient.get_v5_ster "https://httpbin.org/status/200" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = ""
      code = 200
      error = ""
+     headers =
+      {
+        ``HTTP/2 200`` = ""
+        ``access-control-allow-credentials`` = "true"
+        ``access-control-allow-origin`` = "*"
+        ``content-length`` = "0"
+        ``content-type`` = "text/html; charset=utf-8"
+        server = "gunicorn/19.9.0"
+      }
+     raw = ""}
+
+[test.http2 v4]
+(let response = HttpClient.get_v4_ster "https://httpbin.org/status/200" {} {} in
+ let respHeaders = response.headers |> Dict.remove_v0 "date" in
+ Dict.set_v0 response "headers" respHeaders) =
+   { body = ""
+     code = 200
+     headers =
+      {
+        ``HTTP/2 200`` = ""
+        ``access-control-allow-credentials`` = "true"
+        ``access-control-allow-origin`` = "*"
+        ``content-length`` = "0"
+        ``content-type`` = "text/html; charset=utf-8"
+        server = "gunicorn/19.9.0"
+      }
+     raw = ""}
+
+[test.http2 v3]
+(let response = HttpClient.get_v3_ster "https://httpbin.org/status/200" {} {} in
+ let respHeaders = response.headers |> Dict.remove_v0 "date" in
+ Dict.set_v0 response "headers" respHeaders) =
+   { body = ""
+     code = 200
+     headers =
+      {
+        ``HTTP/2 200`` = ""
+        ``access-control-allow-credentials`` = "true"
+        ``access-control-allow-origin`` = "*"
+        ``content-length`` = "0"
+        ``content-type`` = "text/html; charset=utf-8"
+        server = "gunicorn/19.9.0"
+      }
+     raw = ""}
+
+[test.http2 v2]
+(let response = HttpClient.get_v2_ster "https://httpbin.org/status/200" {} {} in
+ let respHeaders = response.headers |> Dict.remove_v0 "date" in
+ Dict.set_v0 response "headers" respHeaders) =
+   { body = ""
+     headers =
+      {
+        ``HTTP/2 200`` = ""
+        ``access-control-allow-credentials`` = "true"
+        ``access-control-allow-origin`` = "*"
+        ``content-length`` = "0"
+        ``content-type`` = "text/html; charset=utf-8"
+        server = "gunicorn/19.9.0"
+      }
+     raw = ""}
+
+[test.http2 v1]
+(let response = HttpClient.get_v1 "https://httpbin.org/status/200" {} {} in
+ let respHeaders = response.headers |> Dict.remove_v0 "date" in
+ Dict.set_v0 response "headers" respHeaders) =
+   { body = ""
+     headers =
+      {
+        ``HTTP/2 200`` = ""
+        ``access-control-allow-credentials`` = "true"
+        ``access-control-allow-origin`` = "*"
+        ``content-length`` = "0"
+        ``content-type`` = "text/html; charset=utf-8"
+        server = "gunicorn/19.9.0"
+      }
+     raw = ""}
+
+[test.http2 v0]
+(let response = HttpClient.get_v0 "https://httpbin.org/status/200" {} {} {} in
+ let respHeaders = response.headers |> Dict.remove_v0 "date" in
+ Dict.set_v0 response "headers" respHeaders) =
+   { body = ""
      headers =
       {
         ``HTTP/2 200`` = ""

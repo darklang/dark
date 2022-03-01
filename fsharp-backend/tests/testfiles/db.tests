@@ -4,6 +4,7 @@
 // e.g. DB "x" has column "x" of type "Str"
 // ------------
 [db.X { "x" : "Str" }]
+[db.Lists { "strs" : "[Str]" , "ints" : "[Int]" }]
 [db.Insensitive { "cOlUmNnAmE" : "Str" }]
 [db.XY { "x" : "Str", "y": "Str" }]
 [db.SortedX { "x" : "Str", "sortBy": "Int" }]
@@ -33,6 +34,10 @@
 (let i = Uuid.generate_v0 in
  let _ = DB.set_v1 { uu = i } "test" Uuid in
  (List.head_v0 (DB.getAll_v2 Uuid)).uu = i) = true
+
+[test.db roundtrip lists] with DB Lists
+(let _ = DB.set_v1 { strs = ["str1"; "str2"]; ints = [-1,6,0]} "lists" Lists in
+ DB.get_v1_ster "lists" Lists) = { strs = ["str1"; "str2"]; ints = [-1,6,0]}
 
 
 // ------------

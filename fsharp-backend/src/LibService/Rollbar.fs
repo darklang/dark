@@ -351,13 +351,12 @@ let sendException
 /// call to make sure this exception gets sent. Use for startup and other places where
 /// the process is intended to end after this call. Do not use this in general code,
 /// as it blocks. Returns an int as the process will exit immediately after.
-let lastDitchBlockAndPage (msg : string) (inner : exn) : int =
+let lastDitchBlockAndPage (msg : string) (e : exn) : int =
   try
-    let e = PageableException(msg, inner)
     print $"last ditch rollbar: {msg}"
-    print inner.Message
-    print inner.StackTrace
-    // FSTODO: handle SystemInitializationException with a .Inner
+    print e.Message
+    print e.StackTrace
+    let e = PageableException(msg, e)
     let metadata = Exception.toMetadata e
     Telemetry.addException e
     let custom = createCustom (ExecutionID "last ditch") metadata
@@ -371,7 +370,7 @@ let lastDitchBlockAndPage (msg : string) (inner : exn) : int =
     (-1)
   with
   | processingException ->
-    exceptionWhileProcessingException inner processingException
+    exceptionWhileProcessingException e processingException
     // Pause so that the exceptions can send
     Task.Delay(10000).Wait()
     (-1)
