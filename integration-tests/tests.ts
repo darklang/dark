@@ -1066,8 +1066,6 @@ test("feature_flag_in_function", async ({ page }) => {
     await gotoHash(page, testInfo, "fn=602952746");
     const timestamp = Date.now();
 
-    await page.pause();
-
     await page.click(".id-1276585567");
     // clicking twice in hopes of making the test more stable
     await page.click(".id-1276585567");
