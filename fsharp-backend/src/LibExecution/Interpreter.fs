@@ -10,7 +10,7 @@ open RuntimeTypes
 let globalsFor (state : ExecutionState) : Symtable =
   let secrets =
     state.program.secrets
-    |> List.map (fun (s : Secret.T) -> (s.secretName, DStr s.secretValue))
+    |> List.map (fun (s : Secret.T) -> (s.name, DStr s.value))
     |> Map.ofList
 
   let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
@@ -727,7 +727,7 @@ and execFn
                 )
         with
         | Errors.FakeValFoundInQuery dv ->
-          state.notify state.executionID "fakeval found in query" [ "dval", dv ]
+          state.notify state "fakeval found in query" [ "dval", dv ]
           return dv
         | Errors.DBQueryException e ->
           return (Dval.errStr (Errors.queryCompilerErrorTemplate + e))
@@ -755,13 +755,18 @@ and execFn
               let msg = Errors.incorrectArgsMsg (fn.name) p actual
               return (Dval.errSStr sourceID msg)
         | Errors.StdlibException (Errors.FakeDvalFound dv) ->
-          state.notify state.executionID "fakedval found" [ "dval", dv ]
+          state.notify state "fakedval found" [ "dval", dv ]
           return dv
         | e ->
           // CLEANUP could we show the user the execution id here?
           state.reportException
-            state.executionID
-            (InternalException("An exception was caught in fncall", e))
+            state
+            [ "context", "An exception was caught in fncall"
+              "fn", fnDesc
+              "args", args
+              "callerID", id
+              "isInPipe", isInPipe ]
+            e
           // The GrandUser doesn't get to see DErrors, so it's safe to include this
           // value and show it to the Dark Developer
           return Dval.errSStr sourceID (Exception.toDeveloperMessage e)

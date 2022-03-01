@@ -43,7 +43,7 @@ module Insert =
         return
           { secrets =
               List.map
-                (fun (s : LibBackend.Secret.Secret) ->
+                (fun (s : PT.Secret.T) ->
                   { secret_name = s.name; secret_value = s.value })
                 secrets }
       with
@@ -83,7 +83,7 @@ module Delete =
       return
         { secrets =
             List.map
-              (fun (s : LibBackend.Secret.Secret) ->
+              (fun (s : PT.Secret.T) ->
                 { secret_name = s.name; secret_value = s.value })
               secrets }
     }

@@ -699,7 +699,7 @@ type Toplevel =
     | TLType t -> t.tlid
 
 module Secret =
-  type T = { secretName : string; secretValue : string }
+  type T = { name : string; value : string }
 
 
 // ------------
@@ -830,7 +830,7 @@ and LoadFnArguments = tlid -> List<DvalMap * NodaTime.Instant>
 
 and StoreFnArguments = tlid -> DvalMap -> Task<unit>
 
-// Every part of a user's program
+/// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
     canvasName : CanvasName.T
@@ -840,7 +840,7 @@ and ProgramContext =
     userTypes : Map<string * int, UserType.T>
     secrets : List<Secret.T> }
 
-// Set of callbacks used to trace the interpreter
+/// Set of callbacks used to trace the interpreter
 and Tracing =
   { traceDval : TraceDval
     traceTLID : TraceTLID
@@ -861,9 +861,9 @@ and Libraries =
   { stdlib : Map<FQFnName.T, BuiltInFn>
     packageFns : Map<FQFnName.T, Package.Fn> }
 
-and ExceptionReporter = ExecutionID -> exn -> unit
+and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
-and Notifier = ExecutionID -> string -> Metadata -> unit
+and Notifier = ExecutionState -> string -> Metadata -> unit
 
 // All state used while running a program
 and ExecutionState =
@@ -890,14 +890,14 @@ and ExecutionState =
     onExecutionPath : bool }
 
 let consoleReporter : ExceptionReporter =
-  fun executionID (exn : exn) ->
+  fun state (metadata : Metadata) (exn : exn) ->
+    let metadata = metadata @ Exception.toMetadata exn
     print
-      $"An error was reported in the runtime ({executionID}):  \n  {exn.Message}\n{exn.StackTrace}\n  {Exception.toMetadata exn}\n\n"
+      $"An error was reported in the runtime ({state.executionID}):  \n  {exn.Message}\n{exn.StackTrace}\n  {metadata}\n\n"
 
 let consoleNotifier : Notifier =
-  fun executionID msg tags ->
-    print
-      $"A notification happened in the runtime ({executionID}):\n  {msg}\n  {tags}\n\n"
+  fun state msg tags ->
+    print $"A notification happened in the runtime ({state}):\n  {msg}\n  {tags}\n\n"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name

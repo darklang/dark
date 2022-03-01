@@ -12,11 +12,15 @@ type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 open Prelude
 open LibExecution
+open LibExecution.RuntimeTypes
 open LibBackend
 open VendoredTablecloth
 
+module Errors = LibExecution.Errors
 
 module RT = RuntimeTypes
+
+let incorrectArgs = Errors.incorrectArgs
 
 type HttpResult =
   { body : byte []
@@ -25,7 +29,6 @@ type HttpResult =
     error : string }
 
 type ClientError = { url : string; error : string; code : int }
-
 
 
 // -------------------------
@@ -340,3 +343,153 @@ let rec httpCall
         | _ -> return response
       | _ -> return response
   }
+
+// Header utility functions, deliberately kept separate from the Http
+// Middleware, as we want to be able to change them separately.
+
+let hasFormHeader (headers : HttpHeaders.T) : bool =
+  headers
+  |> HttpHeaders.get "content-type"
+  |> Option.map Tablecloth.String.toLowercase = Some
+                                                  "application/x-www-form-urlencoded"
+
+let hasJsonHeader (headers : HttpHeaders.T) : bool =
+  // CLEANUP: don't use contains for this
+  HttpHeaders.get "content-type" headers
+  |> Option.map (fun s -> s.Contains "application/json")
+  |> Option.defaultValue false
+
+let hasTextHeader (headers : HttpHeaders.T) : bool =
+  // CLEANUP: don't use contains for this
+  HttpHeaders.get "content-type" headers
+  |> Option.map (fun s -> s.Contains "text/plain")
+  |> Option.defaultValue false
+
+
+let guessContentType (body : Dval option) : string =
+  match body with
+  | Some dv ->
+    match dv with
+    (* TODO: DBytes? *)
+    // Do nothing to strings; users can set the header if they have opinions
+    | DStr _ -> "text/plain; charset=utf-8"
+    // Otherwise, jsonify (this is the 'easy' API afterall), regardless of
+    // headers passed. This makes a little more sense than you might think on
+    // first glance, due to the interaction with the above `DStr` case. Note that
+    // this handles all non-DStr dvals.
+    | _ -> "application/json; charset=utf-8"
+  // If we were passed an empty body, we need to ensure a Content-Type was set, or
+  // else helpful intermediary load balancers will set the Content-Type to something
+  // they've plucked out of the ether, which is distinctfully non-helpful and also
+  // non-deterministic *)
+  | None -> "text/plain; charset=utf-8"
+
+
+// Encodes [body] as a UTF-8 string, safe for sending across the internet! Uses
+// the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
+// how to encode said body. Returns a tuple of the encoded body, and the passed headers that
+// have potentially had a Content-Type added to them based on the magic decision we've made.
+let encodeRequestBody (body : Dval option) (headers : HttpHeaders.T) : Content =
+  match body with
+  | Some dv ->
+    match dv with
+    // CLEANUP support DBytes
+    | DStr s ->
+      // Do nothing to strings, ever. The reasoning here is that users do not
+      // expect any magic to happen to their raw strings. It's also the only real
+      // way (barring Bytes) to support users doing their _own_ encoding (say,
+      // jsonifying themselves and passing the Content-Type header manually).
+      //
+      // CLEANUP find a place for all the notion links
+      // See:
+      // https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9
+      // for more information. *)
+      StringContent s
+    // CLEANUP if there is a charset here, it uses json encoding
+    | DObj _ when hasFormHeader headers ->
+      match DvalReprExternal.toFormEncoding dv with
+      | Ok content -> FormContent(content)
+      | Error msg -> Exception.raiseDeveloper msg
+    | dv when hasTextHeader headers ->
+      StringContent(DvalReprExternal.toEnduserReadableTextV0 dv)
+    | _ -> // hasJsonHeader
+      StringContent(DvalReprExternal.toPrettyMachineJsonStringV1 dv)
+  | None -> NoContent
+
+/// Used in both Ok and Error cases
+let responseType =
+  TRecord [ "body", TVariable "responseBody"
+            "headers", TDict TStr
+            "raw", TStr
+            "code", TInt
+            "error", TStr ]
+
+let sendRequest
+  (uri : string)
+  (verb : HttpMethod)
+  (reqBody : Dval option)
+  (query : Dval)
+  (reqHeaders : Dval)
+  : Ply<Dval> =
+  uply {
+    let query = DvalReprExternal.toQuery query |> Exception.unwrapResultDeveloper
+
+    // Headers
+    let encodedReqHeaders =
+      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+    let contentType =
+      HttpHeaders.get "content-type" encodedReqHeaders
+      |> Option.defaultValue (guessContentType reqBody)
+    let reqHeaders =
+      Map encodedReqHeaders |> Map.add "Content-Type" contentType |> Map.toList
+    let encodedReqBody = encodeRequestBody reqBody reqHeaders
+
+    match! httpCall 0 false uri query verb reqHeaders encodedReqBody with
+    | Ok response ->
+      let body = UTF8.ofBytesOpt response.body
+      let parsedResponseBody =
+        // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
+        if false then // HttpHeaders.hasFormHeader response.headers
+          try
+            DvalReprExternal.ofQueryString (Option.unwrapUnsafe body)
+          with
+          | _ -> DStr "form decoding error"
+        elif hasJsonHeader response.headers then
+          try
+            DvalReprExternal.unsafeOfUnknownJsonV0 (Option.unwrapUnsafe body)
+          with
+          | _ -> DStr "json decoding error"
+        else
+          body |> Option.defaultValue "utf-8 decoding error" |> DStr
+
+      let parsedResponseHeaders =
+        response.headers
+        |> List.map (fun (k, v) -> (String.trim k, DStr(String.trim v)))
+        |> List.filter (fun (k, _) -> String.length k > 0)
+        |> Map.ofList
+        |> DObj // in old version, this was Dval.obj, however we want to allow duplicates
+
+      let obj =
+        Dval.obj [ ("body", parsedResponseBody)
+                   ("headers", parsedResponseHeaders)
+                   ("raw", body |> Option.defaultValue "utf-8 decoding error" |> DStr)
+                   ("code", DInt(int64 response.code))
+                   ("error", DStr response.error) ]
+      if response.code >= 200 && response.code <= 299 then
+        return DResult(Ok obj)
+      else
+        return DResult(Error obj)
+    | Error err -> return DResult(Error(DStr err.error))
+  }
+
+
+let call (method : HttpMethod) =
+  (function
+  | _, [ DStr uri; body; query; headers ] ->
+    sendRequest uri method (Some body) query headers
+  | _ -> incorrectArgs ())
+
+let callNoBody (method : HttpMethod) : BuiltInFnSig =
+  (function
+  | _, [ DStr uri; query; headers ] -> sendRequest uri method None query headers
+  | _ -> incorrectArgs ())

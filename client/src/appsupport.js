@@ -309,7 +309,6 @@ window.Dark = {
       };
       // Only load when asked for
       if (window.Dark.analysis.useBlazor) {
-        // FSTODO: make default
         window.BlazorWorker.initWorker(initializedCallback, analysis.callback);
       }
     },

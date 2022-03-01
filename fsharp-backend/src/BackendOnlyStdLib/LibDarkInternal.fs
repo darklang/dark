@@ -402,7 +402,10 @@ that's already taken, returns an error."
             uply {
               let username = UserName.create username
               do! Account.setAdmin admin username
-              // FSTODO: report to rollbar
+              LibService.Rollbar.notify
+                state.executionID
+                "setAdmin called"
+                [ "username", username; "admin", admin ]
               Analytics.identifyUser state.executionID username
               return DNull
             }
@@ -1087,11 +1090,11 @@ that's already taken, returns an error."
                 return DResult(Ok(DStr session.sessionKey))
               with
               | e ->
-                let attrs =
+                let metadata =
                   [ "username", username :> obj
-                    "fn", "DarkInternal::newSessionForUserName" ]
-                let e = InternalException("Failed to create session", attrs, e)
-                LibService.Rollbar.sendException state.executionID e
+                    "fn", "DarkInternal::newSessionForUserName"
+                    "error", "failed to create session" ]
+                state.reportException state metadata e
                 return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())
@@ -1124,11 +1127,11 @@ that's already taken, returns an error."
                   )
               with
               | e ->
-                let attrs =
+                let metadata =
                   [ "username", username :> obj
-                    "fn", "DarkInternal::newSessionForUserName" ]
-                let e = InternalException("Failed to create session", attrs, e)
-                LibService.Rollbar.sendException state.executionID e
+                    "fn", "DarkInternal::newSessionForUserName"
+                    "error", "failed to create session" ]
+                state.reportException state metadata e
                 return DResult(Error(DStr "Failed to create session"))
             }
           | _ -> incorrectArgs ())

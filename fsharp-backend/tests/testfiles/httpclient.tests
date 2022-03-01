@@ -30,47 +30,159 @@ HttpClient.basicAuth_v1 "" "-" = { Authorization = "Basic Oi0=" }
 HttpClient.basicAuth_v1 ":" "" = { Authorization = "Basic Ojo=" }
 HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
 
-HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Invalid URI" // FSHARPONLY
-
 // -----------------------
 // Tests which should try to hit the actual internet
 // -----------------------
 
-// FSTODO: add these tests for all versions
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The request was aborted." // FSHARPONLY
 
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connection could not be established, see inner exception." // FSHARPONLY
 
+HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
+HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+
+HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
+HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+
 // -----------------------
 // Tests for invalid URLs which shouldnt try the internet at all
 // -----------------------
+
+HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Invalid URI" // FSHARPONLY
+
+HttpClient.get_v4 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v4 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
+
+HttpClient.get_v3 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v3 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
+
+HttpClient.get_v2 "{ ] nonsense ^#( :" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v2 "{ ] nonsense ^#( :" {} {} = Error "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
+
+HttpClient.get_v1 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v1 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
+
+HttpClient.get_v0 "{ ] nonsense ^#( :" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v0 "{ ] nonsense ^#( :" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
+
+
 HttpClient.get_v5 "/just-a-path" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v5 "/just-a-path" {} {} = Error "Unsupported protocol" // FSHARPONLY
+
+HttpClient.get_v4 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v4 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
+
+HttpClient.get_v3 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v3 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
+
+HttpClient.get_v2 "/just-a-path" {} {} = Error "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v2 "/just-a-path" {} {} = Error "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
+
+HttpClient.get_v1 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v1 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
+
+HttpClient.get_v0 "/just-a-path" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v0 "/just-a-path" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
 
 // No F# version as these work in F#
 HttpClient.get_v5 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v4 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v4 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v3 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v3 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v2 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v2 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v1 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v1 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
+HttpClient.get_v0 "http://us👨‍👩‍👧‍👦er@google.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
+HttpClient.get_v0 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 
+// TODO simplify below tests - no match on left needed
 (match HttpClient.get_v5 "http://localhost" {} {} with | Error e -> e.body) = "Service not ready"
+(match HttpClient.get_v4 "http://localhost" {} {} with | Error e -> e.body) = "Service not ready"
+HttpClient.get_v3 "http://localhost" {} {} = Test.typeError_v0  "Bad HTTP response (503) in call to http://localhost"
+HttpClient.get_v2 "http://localhost" {} {} = Error  "Bad HTTP response (503) in call to http://localhost"
+HttpClient.get_v1 "http://localhost" {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://localhost"
+HttpClient.get_v0 "http://localhost" {} {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://localhost"
+
 (match HttpClient.get_v5 "http://127.0.0.1" {} {} with | Error e -> e.body) = "Service not ready"
+(match HttpClient.get_v4 "http://127.0.0.1" {} {} with | Error e -> e.body) = "Service not ready"
+HttpClient.get_v3 "http://127.0.0.1" {} {} =  Test.typeError_v0  "Bad HTTP response (503) in call to http://127.0.0.1"
+HttpClient.get_v2 "http://127.0.0.1" {} {} =  Error  "Bad HTTP response (503) in call to http://127.0.0.1"
+HttpClient.get_v1 "http://127.0.0.1" {} {} =  Test.typeError_v0  "Bad HTTP response (503) in call to http://127.0.0.1"
+HttpClient.get_v0 "http://127.0.0.1" {} {} {} =  Test.typeError_v0  "Bad HTTP response (503) in call to http://127.0.0.1"
+
 (match HttpClient.get_v5 "http://0" {} {} with | Error e -> e.body) = "Service not ready"
+(match HttpClient.get_v4 "http://0" {} {} with | Error e -> e.body) = "Service not ready"
+HttpClient.get_v3 "http://0" {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://0"
+HttpClient.get_v2 "http://0" {} {} = Error "Bad HTTP response (503) in call to http://0"
+HttpClient.get_v1 "http://0" {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://0"
+HttpClient.get_v0 "http://0" {} {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://0"
+
 (match HttpClient.get_v5 "http://0.0.0.0" {} {} with | Error e -> e.body) = "Service not ready"
+(match HttpClient.get_v4 "http://0.0.0.0" {} {} with | Error e -> e.body) = "Service not ready"
+HttpClient.get_v3 "http://0.0.0.0" {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://0.0.0.0"
+HttpClient.get_v2 "http://0.0.0.0" {} {} = Error "Bad HTTP response (503) in call to http://0.0.0.0"
+HttpClient.get_v1 "http://0.0.0.0" {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://0.0.0.0"
+HttpClient.get_v0 "http://0.0.0.0" {} {} {} = Test.typeError_v0 "Bad HTTP response (503) in call to http://0.0.0.0"
+
 HttpClient.get_v5 "ftp://speedtest.tele2.net/1KB.zip" {} {} = Error "Unsupported protocol"
+HttpClient.get_v4 "ftp://speedtest.tele2.net/1KB.zip" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v3 "ftp://speedtest.tele2.net/1KB.zip" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v2 "ftp://speedtest.tele2.net/1KB.zip" {} {} = Error "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v1 "ftp://speedtest.tele2.net/1KB.zip" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v0 "ftp://speedtest.tele2.net/1KB.zip" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+
 HttpClient.get_v5 "file:///etc/passwd" {} {} = Error "Unsupported protocol"
+HttpClient.get_v4 "file:///etc/passwd" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v3 "file:///etc/passwd" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v2 "file:///etc/passwd" {} {} = Error "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v1 "file:///etc/passwd" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v0 "file:///etc/passwd" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
 
 // Before we limited the protocols for curl, .info.error was "",
 // since Httpclient.http_call checked for a 2xx HTTP code. But the file
 // contents ended up in the error message. Now we've restricted the URL
 // protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
 // is even sent.
-HttpClient.get_v0 "file://localhost//etc/passwd" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // OCAMLONLY
+HttpClient.get_v0 "file://localhost//etc/passwd" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v1 "file://localhost//etc/passwd" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v2 "file://localhost//etc/passwd" {} {} = Error "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v3 "file://localhost//etc/passwd" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
+HttpClient.get_v4 "file://localhost//etc/passwd" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol"
 HttpClient.get_v5 "file://localhost//etc/passwd" {} {} = Error "Unsupported protocol"
 
 // FSTODO add test for empty content (the None value to http_call) in get_v0
 
+// FSTODO add v0-v4 versions of this test
 [test.http2]
 (let response = HttpClient.get_v5_ster "https://httpbin.org/status/200" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "date" in
@@ -88,4 +200,3 @@ HttpClient.get_v5 "file://localhost//etc/passwd" {} {} = Error "Unsupported prot
         server = "gunicorn/19.9.0"
       }
      raw = ""}
-

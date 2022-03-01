@@ -20,7 +20,7 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 
 let returnTypeOk = TVariable "result"
-let returnTypeErr = TVariable "error" // FSTODO
+let returnTypeErr = TStr
 let returnType = TResult(returnTypeOk, returnTypeErr)
 
 let parameters =

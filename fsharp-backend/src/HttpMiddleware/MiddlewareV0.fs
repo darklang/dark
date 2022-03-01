@@ -75,8 +75,7 @@ let optionsResponse
   // "origin", the originating origin, and "access-control-request-headers",
   // which is the list of headers the javascript would like to use.
 
-  // FSTODO
-  // (Ordinary GETs and some POSTs get handled in result_to_response, above,
+  // (Ordinary GETs and some POSTs get handled in addCorsHeaders, above,
   // without an OPTIONS).
 
   // Our strategy here is: if it's from an allowed origin (i.e., in the canvas

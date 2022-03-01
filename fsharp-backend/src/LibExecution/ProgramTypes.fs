@@ -46,6 +46,9 @@ module FQFnName =
     | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ owner; package; module_; name; version ] ->
       RT.FQFnName.packageFqName owner package module_ name (int version)
+    | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$"
+            [ owner; package; module_; name ] ->
+      RT.FQFnName.packageFqName owner package module_ name 0
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ module_; name; version ] ->
       RT.FQFnName.stdlibFqName module_ name (int version)
@@ -932,11 +935,11 @@ type Toplevel =
 
 module Secret =
   type T =
-    { secretName : string
-      secretValue : string }
+    { name : string
+      value : string }
 
     member this.toRuntimeType() : RT.Secret.T =
-      { secretName = this.secretName; secretValue = this.secretValue }
+      { name = this.name; value = this.value }
 
 
 type DeprecatedMigrationKind = | DeprecatedMigrationKind

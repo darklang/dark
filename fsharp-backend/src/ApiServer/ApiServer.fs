@@ -144,12 +144,12 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
 
 let rollbarCtxToMetadata
   (ctx : HttpContext)
-  : (LibService.Rollbar.AspNet.Person * Metadata) =
+  : (LibService.Rollbar.Person * Metadata) =
   let person =
     try
       loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
     with
-    | _ -> LibService.Rollbar.AspNet.emptyPerson
+    | _ -> LibService.Rollbar.emptyPerson
   let canvas =
     try
       string (loadCanvasInfo ctx).name
@@ -160,7 +160,6 @@ let rollbarCtxToMetadata
 let configureApp (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
-  // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> fun app ->
        LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()

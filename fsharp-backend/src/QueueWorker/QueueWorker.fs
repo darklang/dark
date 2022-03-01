@@ -18,6 +18,7 @@ module RealExecution = LibRealExecution.RealExecution
 module Canvas = LibBackend.Canvas
 
 module Telemetry = LibService.Telemetry
+module Rollbar = LibService.Rollbar
 
 let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
   task {
@@ -168,15 +169,19 @@ let run () : Task<unit> =
         | Ok None -> do! Task.Delay 1000
         | Ok (Some _) -> return ()
         | Error (e) ->
-          LibService.Rollbar.sendException
+          Rollbar.sendException
             (Telemetry.executionID ())
+            Rollbar.emptyPerson
+            []
             (PageableException("Unhandled exception bubbled to queue worker", e))
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
-        LibService.Rollbar.sendException
+        Rollbar.sendException
           (Telemetry.executionID ())
+          Rollbar.emptyPerson
+          []
           (PageableException("Unhandled exception bubbled to run", e))
 
   }

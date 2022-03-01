@@ -127,6 +127,5 @@ module AllTraces =
         |> Task.flatten
         |> Task.map List.concat
 
-      // FSTODO pageable
       return { traces = hTraces @ ufTraces }
     }

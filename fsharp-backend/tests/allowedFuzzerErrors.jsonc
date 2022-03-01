@@ -4,9 +4,9 @@
   //"functionToTest": "String::base64Decode",
   "knownDifferingFunctions": [
     // These use a different sort order in OCaml
-    "List::sort", // FSTODO
-    "List::sortBy", // FSTODO
-    // Known formatting differences FSTODO
+    "List::sort",
+    "List::sortBy",
+    // Known formatting differences
     "Object::toJSON",
     "Object::toJSON_v1",
     "Dict::toJSON",
@@ -26,7 +26,7 @@
     // and we don't guarantee which one wins
     "List::uniqueBy",
     // Returns a DError on invalid UTF-8 strings, while F# returns a Result.Error
-    "JSON::parse_v1"
+    "JSON::parse_v1" // FSTODO make signature the same
   ],
   "knownErrors": [
     [
@@ -188,13 +188,13 @@
       "Expecting .* to return .*"
     ],
     [
-      // FSTODO: could be worded much better - not clear that this is the lambda function
+      // TODO: could be worded much better - not clear that this is the lambda function
       ".*",
       "Expected `.*` to return a result",
       "Expected the function to return `(?<arg>.*)`, but the result was .*"
     ],
     [
-      // FSTODO: are there parameters here we could improve
+      // TODO: are there parameters here we could improve
       ".*",
       "Expected `(?<arg>.*)` to return a .*, but it returned `.*`",
       "Expected the argument `(?<arg>.*)` passed to `.*` to return .*. However, it returned `.*` for the input `.*`."

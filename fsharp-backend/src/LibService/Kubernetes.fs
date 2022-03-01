@@ -74,7 +74,7 @@ let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder 
         // a port was not supported)
         endpoints
           .MapHealthChecks(path, taggedWith tag)
-          .RequireHost($"bwdserver-healthcheck")
+          .RequireHost($"gce-ingress-healthcheck")
         |> ignore<IEndpointConventionBuilder>
       addHealthCheck livenessPath livenessTag
       addHealthCheck startupPath startupTag
@@ -143,7 +143,7 @@ let runKubernetesServer
   let app = builder.Build()
   Rollbar.AspNet.addRollbarToApp
     app
-    (fun _ -> Rollbar.AspNet.emptyPerson, [])
+    (fun _ -> Rollbar.emptyPerson, [])
     (Some startupPath)
 
   |> fun app -> app.UseRouting()

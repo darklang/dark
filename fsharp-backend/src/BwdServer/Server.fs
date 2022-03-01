@@ -1,8 +1,10 @@
+/// The webserver for builtwithdark.com, often referred to as "BWD."
+///
+/// All Dark programs are hosted with BWD - our grand-users hit this server, and BWD handles the requests.
+/// So, BWD is what handles the "handlers" of a Dark program.
+///
+/// It uses ASP.NET directly, instead of a web framework, so we can tune the exact behaviour of headers and such.
 module BwdServer.Server
-
-// This is the webserver for builtwithdark.com. It uses ASP.NET directly,
-// instead of a web framework, so we can tune the exact behaviour of headers
-// and such.
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -27,26 +29,40 @@ open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module Exe = LibExecution.Execution
-module Interpreter = LibExecution.Interpreter
+
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
+
 module Middleware = HttpMiddleware.MiddlewareV0
 module Resp = HttpMiddleware.ResponseV0
+
 module FireAndForget = LibService.FireAndForget
+module Kubernetes = LibService.Kubernetes
+module Rollbar = LibService.Rollbar
+module Telemetry = LibService.Telemetry
 
 // ---------------
 // Read from HttpContext
 // ---------------
+
+let getHeader (hs : IHeaderDictionary) (name : string) : string option =
+  match hs.TryGetValue name with
+  | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
+  | false, _ -> None
+
+/// Reads the incoming headers and simplifies into a list of key*value pairs
 let getHeaders (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
   |> Seq.map Tuple2.fromKeyValuePair
   |> Seq.map (fun (k, v) -> (k, v.ToArray() |> Array.toList |> String.concat ","))
   |> Seq.toList
 
+/// Reads the incoming query parameters and simplifies into a list of key*values pairs
+///
+/// (multiple query params may be present with the same key)
 let getQuery (ctx : HttpContext) : List<string * List<string>> =
   ctx.Request.Query
   |> Seq.map Tuple2.fromKeyValuePair
@@ -63,8 +79,7 @@ let getQuery (ctx : HttpContext) : List<string * List<string>> =
      |> String.split ","))
   |> Seq.toList
 
-open System.Buffers
-
+/// Reads the incoming request body as a byte array
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
     // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
@@ -78,27 +93,21 @@ let getBody (ctx : HttpContext) : Task<byte array> =
   }
 
 
-
-// ---------------
-// Headers
-// ---------------
-let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-  ctx.Response.Headers[ name ] <- StringValues([| value |])
-
-let getHeader (hs : IHeaderDictionary) (name : string) : string option =
-  match hs.TryGetValue name with
-  | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
-  | false, _ -> None
-
-
 // ---------------
 // Responses
 // ---------------
+
+/// Sets the response header
+let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+  ctx.Response.Headers[ name ] <- StringValues([| value |])
+
+/// Reads a static (Dark) favicon image
 let favicon : Lazy<ReadOnlyMemory<byte>> =
   lazy
     (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png"
      |> ReadOnlyMemory)
 
+/// Handles a request for favicon.ico, returning static Dark icon
 let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
   task {
     // NB: we're sending back a png, not an ico - this is deliberate,
@@ -112,7 +121,6 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
       ctx.Response.BodyWriter.WriteAsync(memory)
     return ctx
   }
-
 
 
 let textPlain = Some "text/plain; charset=utf-8"
@@ -133,15 +141,12 @@ let writeResponseToContext
   : Task<unit> =
   task {
     ctx.Response.StatusCode <- response.statusCode
-    List.iter (fun (k, v) -> setHeader ctx k v) response.headers
+    response.headers |> List.iter (fun (k, v) -> setHeader ctx k v)
     ctx.Response.ContentLength <- int64 response.body.Length
     if ctx.Request.Method <> "HEAD" then
       // TODO: benchmark - this is apparently faster than streams
       do! ctx.Response.BodyWriter.WriteAsync(response.body)
   }
-
-
-
 
 let standardResponse
   (ctx : HttpContext)
@@ -215,8 +220,14 @@ let unmatchedRouteResponse
 // ---------------
 // HttpsRedirect
 // ---------------
+
+let isHttps (ctx : HttpContext) =
+  // requests aren't actually https in production. The load balancer terminates https
+  // and forwards the details using headers
+  getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
+
 let shouldRedirect (ctx : HttpContext) : bool =
-  LibBackend.Config.useHttps && not ctx.Request.IsHttps
+  LibBackend.Config.useHttps && not (isHttps ctx)
 
 let httpsRedirect (ctx : HttpContext) : HttpContext =
   // adapted from https://github.com/aspnet/BasicMiddleware/blob/master/src/Microsoft.AspNetCore.HttpsPolicy/HttpsRedirectionMiddleware.cs
@@ -236,9 +247,11 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
 // Urls
 // ---------------
 
-// Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
-// or X-Forwarded-Proto: https.
-// Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto.
+/// Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto.
+///
+/// Proxies that terminate HTTPs should give us
+/// - X-Forwarded-Proto: http
+/// - or X-Forwarded-Proto: https.
 let canonicalizeURL (toHttps : bool) (url : string) =
   if toHttps then
     let uri = System.UriBuilder url
@@ -252,9 +265,9 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
-// ---------------
-// Handle builtwithdark request
-// ---------------
+/// ---------------
+/// Handle builtwithdark request
+/// ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     let executionID = LibService.Telemetry.executionID ()
@@ -265,6 +278,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
+
       let! meta =
         // Extra task CE is to make sure the exception is caught
         task {
@@ -279,50 +293,61 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
-      LibService.Telemetry.addTags [ "canvas.name", canvasName
-                                     "canvas.id", meta.id
-                                     "canvas.ownerID", meta.owner
-                                     "trace_id", traceID ]
-
-      // redirect HEADs to GET. We pass the actual HEAD method to the engine,
-      // and leave it to middleware to say what it wants to do with that
-      let searchMethod = if method = "HEAD" then "GET" else method
-
-      let! c = Canvas.loadHttpHandlers meta requestPath searchMethod
-
       let url : string =
         let isHttps =
           getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
         ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
 
-      let pages = Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
+      Telemetry.addTags [ "canvas.name", canvasName
+                          "canvas.id", meta.id
+                          "canvas.ownerID", meta.owner
+                          "trace_id", traceID ]
+
+      // redirect HEADs to GET. We pass the actual HEAD method to the engine,
+      // and leave it to middleware to say what it wants to do with that
+      let searchMethod = if method = "HEAD" then "GET" else method
+
+      /// Canvas to process request against,
+      /// with enough loaded to handle this request
+      let! canvas = Canvas.loadHttpHandlers meta requestPath searchMethod
+
+      let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
+
+      // Filter down canvas' handlers to those (hopefully only one) that match
+      let pages =
+        Routing.filterMatchingHandlers requestPath (Map.values canvas.handlers)
 
       match pages with
+      // matching handler found - process normally
       | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
         LibService.Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
         let routeVars = Routing.routeInputVars route requestPath
 
+        let! reqBody = getBody ctx
+        let reqHeaders = getHeaders ctx
+        let reqQuery = getQuery ctx
+
         match routeVars with
         | Some routeVars ->
-          let! reqBody = getBody ctx
-          let reqHeaders = getHeaders ctx
-          let reqQuery = getQuery ctx
-
           // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
           // and entirely into code in some middleware
-          let! corsSetting = Canvas.fetchCORSSetting c.meta.id
+          let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
 
-          let program = Canvas.toProgram c
+          let program = Canvas.toProgram canvas
           let expr = expr.toRuntimeType ()
 
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
             FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-              TI.storeEvent c.meta.id traceID ("HTTP", requestPath, method) request)
+              TI.storeEvent
+                canvas.meta.id
+                traceID
+                ("HTTP", requestPath, method)
+                request)
 
-          // Send to pusher - Do not resolve task, send this into the ether
+          // Send to Pusher - Do not resolve task, send this into the ether
           let notifyHook (touchedTLIDs : List<tlid>) : unit =
             Pusher.pushNewTraceID executionID meta.id traceID touchedTLIDs
 
@@ -348,17 +373,25 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           return ctx
 
         | None -> // vars didnt parse
-          // FSTODO: store event trace?
+          FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
+            let request =
+              Middleware.createRequest false url reqHeaders reqQuery reqBody
+            TI.storeEvent meta.id traceID ("HTTP", requestPath, method) request)
+
           return! unmatchedRouteResponse ctx requestPath route
+
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
+
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let! corsSetting = Canvas.fetchCORSSetting c.meta.id
+        let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
         let reqHeaders = getHeaders ctx
         match Middleware.optionsResponse reqHeaders corsSetting with
         | Some response -> do! writeResponseToContext ctx response
         | None -> ()
         return ctx
+
+      // no matching route found - store as 404
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
@@ -405,14 +438,13 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         return e.Reraise()
     })
 
-  let rollbarCtxToMetadata
-    (ctx : HttpContext)
-    : LibService.Rollbar.AspNet.Person * Metadata =
+  let rollbarCtxToMetadata (ctx : HttpContext) : Rollbar.Person * Metadata =
     let canvasName =
       try
         Some(ctx.Items["canvasName"] :?> CanvasName.T)
       with
       | _ -> None
+
     let username =
       try
         canvasName
@@ -420,32 +452,33 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
           canvasName |> Account.ownerNameFromCanvasName |> fun on -> on.toUserName ())
       with
       | _ -> None
+
     let id =
       try
         Some(ctx.Items["canvasOwnerID"] :?> UserID)
       with
       | _ -> None
+
     let metadata =
       canvasName
       |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
       |> Option.defaultValue []
-    let person : (LibService.Rollbar.AspNet.Person) =
-      { id = id; username = username; email = None }
+
+    let person : Rollbar.Person = { id = id; username = username; email = None }
+
     (person, metadata)
 
-  LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
+  Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> LibService.Kubernetes.configureApp healthCheckPort
+  |> Kubernetes.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> LibService.Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
-  |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> LibService.Telemetry.AspNet.addTelemetryToServices
-       "BwdServer"
-       LibService.Telemetry.TraceDBQueries
+  |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
+  |> Rollbar.AspNet.addRollbarToServices
+  |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
 let noLogger (builder : ILoggingBuilder) : unit =
@@ -459,11 +492,11 @@ let webserver
   (httpPort : int)
   (healthCheckPort : int)
   : WebApplication =
-  let hcUrl = LibService.Kubernetes.url healthCheckPort
+  let hcUrl = Kubernetes.url healthCheckPort
 
   let builder = WebApplication.CreateBuilder()
   configureServices builder.Services
-  LibService.Kubernetes.registerServerTimeout builder.WebHost
+  Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
   |> fun wh -> wh.ConfigureLogging(loggerSetup)
@@ -495,4 +528,4 @@ let main _ =
     run ()
     0
   with
-  | e -> LibService.Rollbar.lastDitchBlockAndPage "error starting bwdserver" e
+  | e -> Rollbar.lastDitchBlockAndPage "error starting bwdserver" e

@@ -16,7 +16,7 @@ open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
-// FSTODO inline this file into canvas
+// TODO inline this file into canvas
 
 // --------------------------------------------------------
 // Moved from op.ml as it touches the DB *)
@@ -70,6 +70,7 @@ let isLatestOpRequest
 // the full oplist across the network from Postgres to the OCaml boxes,
 // and similarly they don't have to apply the full history of the canvas
 // in memory before they can execute the code.
+/// Loads all cached top-levels given
 let loadOnlyRenderedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
@@ -308,7 +309,5 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
       cronName = read.string "handler_name"
       interval =
         read.string "modifier"
-        // FSTODO: this is new behaviour, so add a test
-        // we can save empty strings here, but we shouldn't be fetching them
         |> PT.Handler.CronInterval.parse
         |> Option.unwrapUnsafe })

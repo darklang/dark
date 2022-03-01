@@ -1,8 +1,5 @@
 module Benchmark
 
-// A benchmark executable to measure the performance of Dark code. See --help to see
-// options.
-
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
@@ -17,6 +14,7 @@ module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 
+/// Creates/returns a "benchmark" ProgramContext for testing
 let programContext () : Task<RT.ProgramContext> =
   task {
     let! c = TestUtils.TestUtils.initializeTestCanvas "benchmark"
@@ -30,6 +28,7 @@ let programContext () : Task<RT.ProgramContext> =
         userTypes = Map.empty }
   }
 
+/// Run an expression against the F# backend
 let runFSharp
   (program : RT.ProgramContext)
   (traceID : System.Guid)
@@ -42,6 +41,11 @@ let runFSharp
     return! (Interpreter.eval state symtable expr) |> Ply.TplPrimitives.runPlyAsTask
   }
 
+
+/// Benchmarks an expression against the F# backend,
+/// "warming up" the server with several executions
+/// before timing results and printing average execution
+/// time
 let runFSharpBenchmark
   (expr : RT.Expr)
   (iterations : uint)
@@ -72,7 +76,7 @@ let runFSharpBenchmark
   }
 
 
-
+/// Run an expression against the F# backend
 let runOCaml (expr : PT.Expr) : Task<float * RT.Dval> =
   task {
     let! program = programContext ()
@@ -86,6 +90,10 @@ let runOCaml (expr : PT.Expr) : Task<float * RT.Dval> =
         []
   }
 
+/// Benchmarks an expression against the OCaml backend,
+/// "warming up" the server with several executions
+/// before timing results and printing average execution
+/// time
 let runOCamlBenchmark
   (expr : PT.Expr)
   (iterations : uint)
@@ -112,7 +120,9 @@ let runOCamlBenchmark
 
 
 
-
+/// Given a file, parses as Dark expression,
+/// and benchmarks against both OCaml and F# backends,
+/// printing results
 let runBenchmark
   (filename : string)
   (iterations : uint)

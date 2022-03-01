@@ -15,3 +15,5 @@ spec:
     - ports:
         - protocol: TCP
           port: http-proxy-port
+        - protocol: TCP
+          port: 9002

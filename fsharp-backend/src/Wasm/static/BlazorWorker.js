@@ -283,7 +283,6 @@ D-REMOVED */
         // If anything writes to stderr, treat it as a critical exception. The underlying runtime writes
         // to stderr if a truly critical problem occurs outside .NET code. Note that .NET unhandled
         // exceptions also reach this, but via a different code path - see dotNetCriticalError below.
-        // FSTODO: add rollbar to error handler
         console.error(line);
         // D-REMOVED: blazor thing
         // showErrorNotification();
@@ -838,7 +837,6 @@ D-REMOVED */
     // BootConfig.ts
     // =======================
     const onError = err => {
-      // FSTODO: add rollbar to error handler
       console.error(err);
     };
 
