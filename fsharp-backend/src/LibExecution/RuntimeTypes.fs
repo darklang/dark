@@ -1,31 +1,30 @@
+/// The core types and functions used by the Dark language's runtime. These
+/// are not idential to the serialized types or the types used in the Editor,
+/// as those have unique constraints (typically, backward compatibility or
+/// continuous delivery).
 module LibExecution.RuntimeTypes
 
-// The core types and functions used by the Dark language's runtime. These are
-// not idential to the serialized types or the types used in the Editor, as
-// those have unique constraints (typically, backward compatibility or
-// continuous delivery).
-//
 // The design of these types is intended to accomodate the unique design of
 // Dark, that it's being run sometimes in an editor and sometimes in
 // production, etc.
-//
+
 // This typically represents our most accurate representation of the language
 // as it is today, however, slight variations of these types are expected to
-// exist in other places representing different constraints, such as how we've
-// put something in some kind of storage, sending it to some API, etc. Those
-// types will always be converted to these types for execution.
-
+// exist in other places representing different constraints, such as how
+// we've put something in some kind of storage, sending it to some API, etc.
+// Those types will always be converted to these types for execution.
+//
 // The reason these are distinct formats from the serialized types is that
 // those types are very difficult to change, while we want this to be
-// straightforward to change.  So we transform any serialized formats into this
-// one for running. We remove any "syntactic sugar" (editor/display only
+// straightforward to change. So we transform any serialized formats into
+// this one for running. We remove any "syntactic sugar" (editor/display only
 // features).
-
+//
 // These formats should never be serialized/deserialized, that defeats the
-// purpose. If you need to save data of this format, create a set of new types
-// and convert this type into them. (even if they are identical).
+// purpose. If you need to save data of this format, create a set of new
+// types and convert this type into them. (even if they are identical).
 // CLEANUP: we probably do serialize Dvals though :(
-
+//
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
 
@@ -41,6 +40,7 @@ module J = Prelude.Json
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
+  /// Standard Library Function Name
   type StdlibFnName =
     { module_ : string
       function_ : string
@@ -87,6 +87,7 @@ module FQFnName =
         ->
         true
       | _ -> false
+
     member this.isInternalFn() : bool =
       match this with
       | Stdlib std -> std.module_ = "DarkInternal"
@@ -142,10 +143,10 @@ module FQFnName =
     assert_ "version can't be negative" (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
-  let binopFnName (op : string) : StdlibFnName = stdlibFnName "" op 0
-
   let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
     Stdlib(stdlibFnName module_ function_ version)
+
+  let binopFnName (op : string) : StdlibFnName = stdlibFnName "" op 0
 
   let binopFqName (op : string) : T = stdlibFqName "" op 0
 
@@ -169,25 +170,38 @@ module DDateTime =
   let toIsoString (d : T) : string = (toInstant d).toIsoString ()
 
 
-// This Expr is the AST, expressing what the user sees in their editor.
+/// The AST, expressing what the user sees in their editor.
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
-  | EFloat of id * double // first string might have a sign in it
+  | EFloat of id * double // first string might have a sign in it <- what?
   | ENull of id
   | EBlank of id
+
+  /// Composed of binding name, expression, and ???
   | ELet of id * string * Expr * Expr
+
+  /// Composed of condition, expr if true, and expr if false
   | EIf of id * Expr * Expr * Expr
+
+  /// Composed of a parameters * the expression itself
   | ELambda of id * List<id * string> * Expr
+
+  /// ?
   | EFieldAccess of id * Expr * string
+
   | EVariable of id * string
-  // This is a function call, the first expression is the value of the function.
+
+  /// This is a function call, the first expression is the value of the function.
   | EApply of id * Expr * List<Expr> * IsInPipe * SendToRail
+
   | EPartial of id * Expr
-  // Since functions aren't real values in the symbol table, we look them up directly
+
+  /// Since functions aren't real values in the symbol table, we look them up directly
   | EFQFnValue of id * FQFnName.T
+
   | EList of id * List<Expr>
   | ERecord of id * List<string * Expr>
   | EConstructor of id * string * List<Expr>
@@ -222,7 +236,6 @@ and Pattern =
   | PNull of id
   | PBlank of id
 
-// Runtime values
 type DvalMap = Map<string, Dval>
 
 and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : Expr }
@@ -243,53 +256,66 @@ and Dval =
   | DNull
   | DStr of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
+
   (* compound types *)
   | DList of List<Dval>
   | DObj of DvalMap
   | DFnVal of FnValImpl
-  // a DError represents something that shouldn't have happened in the engine,
-  // that should have been reported elsewhere. It's usually a type error of
-  // some kind, but occasionally we'll paint ourselves into a corner and need
-  // to represent a runtime error using this.
+
+  /// Represents something that shouldn't have happened in the engine,
+  /// that should have been reported elsewhere. It's usually a type error of
+  /// some kind, but occasionally we'll paint ourselves into a corner and need
+  /// to represent a runtime error using this.
   | DError of DvalSource * string
-  // A DIncomplete represents incomplete computation, whose source is
-  // always a Blank. When the code runs into a blank, it must return
-  // incomplete because the code is not finished. An incomplete value
-  // results in a 500 because it is a developer error.
-  //
-  // Propagating DIncompletes is straightforward: any computation
-  // relying on an incomplete must itself be incomplete.
-  //
-  // Some examples:
-  // - calling a function with an incomplete as a parameter is an
-  //   incomplete function call.
-  // - an if statement with an incomplete in the cond must be incomplete.
-  //
-  // But computation that doesn't rely on the incomplete value can
-  // ignore it:
-  //
-  // - an if statement which with a blank in the ifbody and a
-  //   complete expression in the elsebody will execute just fine if
-  //   cond is false. It has not hit any part of the program that is
-  //   being worked on.
-  //
-  // - a list with blanks in it can just ignore the blanks.
-  // - an incomplete in a list should be filtered out, because the
-  //   program has not been completed, and so that list entry just
-  //   doesn't "exist" yet.
-  // - incompletes in keys or values of objects cause the entire row
-  //   to be ignored.
+
+  /// <summary>
+  /// A DIncomplete represents incomplete computation, whose source is
+  /// always a Blank. When the code runs into a blank, it must return
+  /// incomplete because the code is not finished. An incomplete value
+  /// results in a 500 because it is a developer error.
+  /// </summary>
+  ///
+  /// <remarks>
+  /// Propagating DIncompletes is straightforward: any computation
+  /// relying on an incomplete must itself be incomplete.
+  ///
+  /// Some examples:
+  /// - calling a function with an incomplete as a parameter is an
+  ///   incomplete function call.
+  /// - an if statement with an incomplete in the cond must be incomplete.
+  ///
+  /// But computation that doesn't rely on the incomplete value can
+  /// ignore it:
+  ///
+  /// - an if statement which with a blank in the ifbody and a
+  ///   complete expression in the elsebody will execute just fine if
+  ///   cond is false. It has not hit any part of the program that is
+  ///   being worked on.
+  ///
+  /// - a list with blanks in it can just ignore the blanks.
+  /// - an incomplete in a list should be filtered out, because the
+  ///   program has not been completed, and so that list entry just
+  ///   doesn't "exist" yet.
+  /// - incompletes in keys or values of objects cause the entire row
+  ///   to be ignored.
+  /// </remarks>
   | DIncomplete of DvalSource
-  // DErrorRail represents a value which has been sent over to the
-  // errorrail. Because the computation is happening on the errorrail,
-  // no other computation occurs.
-  //
-  // In all cases, we can consider it equivalent to goto
-  // end_of_function.
-  //
-  // - an if with an derrorrail in an subexpression is a derrorrail
-  // -  a list containing a derrorrail is a derrorail
+
+  /// <summary>
+  /// DErrorRail represents a value which has been sent over to the
+  /// errorrail. Because the computation is happening on the errorrail,
+  /// no other computation occurs.
+  /// </summary>
+  ///
+  /// <remarks>
+  /// In all cases, we can consider it equivalent to goto
+  /// end_of_function.
+  ///
+  /// - an if with an derrorrail in an subexpression is a derrorrail
+  /// -  a list containing a derrorrail is a derrorail
+  /// </remarks>
   | DErrorRail of Dval
+
   // user types: awaiting a better type system
   | DHttpResponse of DHTTP
   | DDB of string
@@ -304,6 +330,7 @@ and DvalTask = Ply<Dval>
 
 and Symtable = Map<string, Dval>
 
+/// Dark runtime type
 and DType =
   | TInt
   | TFloat
@@ -364,9 +391,9 @@ and DType =
 
 
 
-// Record the source of an incomplete or error. Would be useful to add more
-// information later, such as the iteration count that let to this, or
-// something like a stack trace
+/// Record the source of an incomplete or error. Would be useful to add more
+/// information later, such as the iteration count that let to this, or
+/// something like a stack trace
 and DvalSource =
   | SourceNone
   | SourceID of tlid * id
@@ -388,6 +415,7 @@ and Param =
     : Param =
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
+/// Functions for working with Dark runtime expressions
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
@@ -412,6 +440,7 @@ module Expr =
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _) -> id
 
+/// Functions for working with Dark patterns
 module Pattern =
   let toID (pat : Pattern) : id =
     match pat with
@@ -425,12 +454,12 @@ module Pattern =
     | PBlank id
     | PConstructor (id, _, _) -> id
 
-
+/// Functions for working with Dark runtime values
 module Dval =
-  // A Fake Dval is some control-flow that's modelled in the interpreter as a
-  // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
-  // it instead of operating on it, including when they're put in a list, in a
-  // value, in a record, as a parameter to a function, etc.
+  /// A Fake Dval is some control-flow that's modelled in the interpreter as a
+  /// Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
+  /// it instead of operating on it, including when they're put in a list, in a
+  /// value, in a record, as a parameter to a function, etc.
   let isFake (dv : Dval) : bool =
     match dv with
     | DError _ -> true
@@ -463,6 +492,7 @@ module Dval =
     | DObj obj -> Ok(Map.toList obj)
     | _ -> Error "expecting str"
 
+  /// Gets the Dark runtime type from a runtime value
   let rec toType (dv : Dval) : DType =
     let any = TVariable "a"
 
@@ -493,12 +523,17 @@ module Dval =
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
 
-  // In OCaml, we had simpler types so we could just call toType and compare.
-  // But now we have nested types so they need to be checked deeper. Note:
-  // there is also "real" type checking elsewhere - this should be unified.
-  // Note, this is primarily used to figure out which argument has ALREADY not
-  // matched the actual runtime parameter type of the called function. So more
-  // accuracy is better, as the runtime is perfectly accurate.
+  /// <summary>
+  /// Checks if a runtime's value matches a given type
+  /// </summary>
+  /// <remarks>
+  /// In OCaml, we had simpler types so we could just call toType and compare.
+  /// But now we have nested types so they need to be checked deeper. Note:
+  /// there is also "real" type checking elsewhere - this should be unified.
+  /// Note, this is primarily used to figure out which argument has ALREADY not
+  /// matched the actual runtime parameter type of the called function. So more
+  /// accuracy is better, as the runtime is perfectly accurate.
+  /// </summary>
   let rec typeMatches (typ : DType) (dv : Dval) : bool =
     match (dv, typ) with
     | _, TVariable _ -> true
@@ -720,49 +755,72 @@ module Package =
       tlid : tlid }
 
 
-// The runtime needs to know whether to save a function's results when it
-// runs. Pure functions that can be run on the client do not need to have
-// their results saved.
-// In addition, some functions can be run without side-effects; to give
-// the user a good experience, we can run them as soon as they are added.
-// this includes Date::now and Int::random, as well as
+/// <summary>
+/// Used to mark whether a function can be run on the client rather than backend.
+/// </summary>
+/// <remarks>
+/// The runtime needs to know whether to save a function's results when it
+/// runs. Pure functions that can be run on the client do not need to have
+/// their results saved.
+/// In addition, some functions can be run without side-effects; to give
+/// the user a good experience, we can run them as soon as they are added.
+/// this includes Date::now and Int::random.
+/// </remarks>
 type Previewable =
-  // Do not need to be saved, can be recalculated in JS
+  /// Do not need to be saved, can be recalculated in JS
   | Pure
-  // Save their results. We can preview these safely
+
+  /// Save their results. We can preview these safely
   | ImpurePreviewable
-  // Save their results, cannot be safely previewed
+
+  /// Save their results, cannot be safely previewed
   | Impure
 
+/// Used to mark whether a function has been deprecated, and if so,
+/// details about possible replacements/alternatives, and reasoning
 type Deprecation =
   | NotDeprecated
-  // The exact same function is available under a new, preferred name
+
+  /// The exact same function is available under a new, preferred name
   | RenamedTo of FQFnName.StdlibFnName
-  // This has been deprecated and has a replacement we can suggest
+
+  /// This has been deprecated and has a replacement we can suggest
   | ReplacedBy of FQFnName.StdlibFnName
-  // This has been deprecated and not replaced, provide a message for the user
+
+  /// This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of string
 
+/// Used to mark whether a function has an equivalent that can be
+/// used within a Postgres query.
 type SqlSpec =
-  // This can be implemented by we haven't yet
+  /// Can be implemented, but we haven't yet
   | NotYetImplementedTODO
-  // This is not a function which can be queried
+
+  /// This is not a function which can be queried
   | NotQueryable
-  // This is a query function (it can't be called inside a query, but it's argument can be a query)
+
+  /// A query function (it can't be called inside a query, but its argument can be a query)
   | QueryFunction
-  // This can be implemented by a builtin postgres 9.6 operator with 1 arg (eg `@ x`)
+
+  /// Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
   | SqlUnaryOp of string
-  // This can be implemented by a builtin postgres 9.6 operator with 2 args (eg `x + y`)
+
+  /// Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
   | SqlBinOp of string
-  // This can be implemented by a builtin postgres 9.6 function
+
+  /// Can be implemented by a given builtin postgres 9.6 function
   | SqlFunction of string
-  // This can be implemented by a builtin postgres 9.6 function with extra arguments that go first
+
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
   | SqlFunctionWithPrefixArgs of string * List<string>
-  // This can be implemented by a builtin postgres 9.6 function with extra arguments that go last
+
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
   | SqlFunctionWithSuffixArgs of string * List<string>
-  // This can be implemented by this callback that receives 1 SQLified-string argument
-// | SqlCallback of (string -> string)
-  // This can be implemented by this callback that receives 2 SQLified-string argument
+
+  // Can be implemented by given callback that receives 1 SQLified-string argument
+  // | SqlCallback of (string -> string)
+
+  /// Can be implemented by given callback that receives 2 SQLified-string argument
   | SqlCallback2 of (string -> string -> string)
 
   member this.isQueryable() : bool =
@@ -777,6 +835,7 @@ type SqlSpec =
     | SqlFunctionWithSuffixArgs _
     | SqlCallback2 _ -> true
 
+/// A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
     parameters : List<Param>
@@ -785,11 +844,17 @@ type BuiltInFn =
     previewable : Previewable
     deprecated : Deprecation
     sqlSpec : SqlSpec
+
+    // TODO: reevaluate usefulness of below comment. at least rephrase.
     // Functions can be run in JS if they have an implementation in this
     // LibExecution. Functions whose implementation is in LibBackend can only be
     // implemented on the server.
-    // May throw an exception, though we're trying to get them to never throw exceptions.
+
+    /// <remarks>
+    /// May throw an exception, though we're trying to get them to never throw exceptions.
+    /// </remarks>
     fn : BuiltInFnSig }
+
 
 and Fn =
   { name : FQFnName.T
@@ -799,10 +864,14 @@ and Fn =
     previewable : Previewable
     deprecated : Deprecation
     sqlSpec : SqlSpec
+    // TODO: reevaluate usefulness of below comment. at least rephrase.
     // Functions can be run in JS if they have an implementation in this
     // LibExecution. Functions whose implementation is in LibBackend can only be
     // implemented on the server.
-    // May throw an exception, though we're trying to get them to never throw exceptions.
+
+    /// <remarks>
+    /// May throw an exception, though we're trying to get them to never throw exceptions.
+    /// </remarks>
     fn : FnImpl }
 
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
@@ -850,13 +919,13 @@ and Tracing =
     storeFnArguments : StoreFnArguments
     realOrPreview : RealOrPreview }
 
-// Used for testing
+/// Used for testing
 and TestContext =
   { mutable sideEffectCount : int
     mutable exceptionReports : List<ExecutionID * string * string * Metadata>
     postTestExecutionHook : TestContext -> Dval -> unit }
 
-// Non-user-specific functionality needed to run code
+/// Non-user-specific functionality needed to run code
 and Libraries =
   { stdlib : Map<FQFnName.T, BuiltInFn>
     packageFns : Map<FQFnName.T, Package.Fn> }
@@ -865,28 +934,44 @@ and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
 and Notifier = ExecutionState -> string -> Metadata -> unit
 
-// All state used while running a program
+/// All state used while running a program
 and ExecutionState =
   { libraries : Libraries
     tracing : Tracing
     program : ProgramContext
     test : TestContext
-    // Allow reporting exceptions
+
+    /// Called to report exceptions
     reportException : ExceptionReporter
-    // Notify that something of interest (that isn't an exception) has happened.
-    // Useful for tracking behaviour we want to deprecate, understanding what users
-    // are doing, etc.
+
+    /// Called to notify that something of interest (that isn't an exception)
+    /// has happened.
+    ///
+    /// Useful for tracking behaviour we want to deprecate, understanding what
+    /// users are doing, etc.
     notify : Notifier
-    // TLID of the currently executing handler/fn
+
+    /// TLID of the currently executing handler/fn
     tlid : tlid
+
     executionID : ExecutionID
+
     executingFnName : Option<FQFnName.T>
-    // Used for recursion detection in the editor. In the editor, we call all
-    // paths to show live values, but with recursion that causes infinite
-    // recursion.
+
+    /// <summary>
+    /// Callstack of functions that have been called as part of execution
+    /// </summary>
+    ///
+    /// <remarks>
+    /// Used for recursion detection in the editor.
+    /// In the editor, we call all paths to show live values,
+    /// but with recursion that causes infinite recursion.
+    /// </remarks>
     callstack : Set<FQFnName.T>
-    // Whether the currently executing code is really being executed (as
-    // opposed to being executed for traces)
+
+    /// Whether the currently executing code is really being executed
+    /// (as opposed to being executed for traces)
+    /// TODO: find a better word than 'executed' above. Generally clarify meaning.
     onExecutionPath : bool }
 
 let consoleReporter : ExceptionReporter =
@@ -944,13 +1029,13 @@ let packageFnToFn (fn : Package.Fn) : Fn =
 // renamed fns
 // -------------------------
 
-// To cut down on the amount of code, when we rename a function and make no other
-// changes, we don't duplicate it. Instead, we rename it and add the rename to this
-// list. At startup, the renamed functions are created and added to the list.
-
-// Renames is old name first, new name second. The new one should still be in the
-// codebase, the old one should not. If a function is renamed multiple times, add the
-// latest rename first.
+/// To cut down on the amount of code, when we rename a function and make no other
+/// changes, we don't duplicate it. Instead, we rename it and add the rename to this
+/// list. At startup, the renamed functions are created and added to the list.
+///
+/// Renames is old name first, new name second. The new one should still be in the
+/// codebase, the old one should not. If a function is renamed multiple times, add the
+/// latest rename first.
 let renameFunctions
   (renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName>)
   (existing : List<BuiltInFn>)

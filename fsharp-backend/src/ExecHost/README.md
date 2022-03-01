@@ -7,6 +7,3 @@ for one off tasks. To start with, the one-off tasks are:
 
 - run migrations
 - emergency login if auth provider is down
-
-
-_how_ do you access this in prod? do you ssh into some server and ___?

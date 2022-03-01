@@ -1,7 +1,5 @@
+/// The types that are serialized for the program
 module LibExecution.ProgramTypes
-
-// These are the types that are serialized for the program.
-
 
 open Prelude
 open VendoredTablecloth
@@ -80,7 +78,7 @@ module FQFnName =
 
 
 
-// Expressions - the main part of the language.
+/// Expressions - the main part of the language.
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
@@ -343,7 +341,7 @@ and Pattern =
 
 
 
-
+// TODO: this seems to be redundant with separate Shortcuts.fs file
 module Shortcuts =
 
   let rec toStringRepr (e : Expr) : string =
@@ -748,6 +746,7 @@ module Handler =
   // We need to keep the IDs around until we get rid of them on the client
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
+  // is "Spec" short for something? specification?
   type Spec =
     | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids

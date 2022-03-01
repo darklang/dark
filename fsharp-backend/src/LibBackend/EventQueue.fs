@@ -211,7 +211,6 @@ let logQueueSize
   }
 
 
-/// TODO comment
 let enqueue
   (canvasName : CanvasName.T)
   (canvasID : CanvasID)

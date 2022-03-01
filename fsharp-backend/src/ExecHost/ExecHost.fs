@@ -1,4 +1,3 @@
-
 /// A command to run common tasks in production. Note that most tasks could/should
 /// be run by creating new functions in LibDarkInternal instead. This should be
 /// used for cases where that is not appropriate.
@@ -26,7 +25,7 @@ let listMigrations (executionID : ExecutionID) : unit =
   LibBackend.Migrations.migrationsToRun ()
   |> List.iter (fun name -> print $" - {name}")
 
-/// Given a username, returns a cookie to use
+/// Given a username, returns a cookie to use to access Canvases
 ///
 /// Mostly available for when Auth0 is down
 let emergencyLogin (username : string) : Task<unit> =
@@ -60,7 +59,8 @@ let triggerRollbar (executionID : ExecutionID) : unit =
   let e = new System.Exception($"{prefix} sendException exception")
   Rollbar.sendException executionID Rollbar.emptyPerson tags e
 
-/// ?
+/// Send a message to Rollbar that should result in a Page (notification)
+/// going out
 let triggerPagingRollbar () : int =
   // This one pages
   let prefix = "execHost test: "

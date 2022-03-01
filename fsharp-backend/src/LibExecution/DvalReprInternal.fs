@@ -1,16 +1,20 @@
+/// <summary>
+/// Ways of converting Dvals to/from strings, to be used exclusively internally.
+///
+/// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
+/// etc.
+/// </summary>
+/// <remarks>
+/// We're trying to get rid of JSON.NET. However, these format have saved millions
+/// of values using them, so we need to do a migration from the old serialization
+/// to a new one.
+/// </remarks>
 module LibExecution.DvalReprInternal
-
-// Ways of converting Dvals to strings, to be used exclusively internally. That is,
-// they should not be used in libraries, in the BwdServer, in HttpClient, etc.
 
 open Prelude
 open VendoredTablecloth
 
 open RuntimeTypes
-
-// We're trying to get rid of JSON.NET. However, these format have saved millions of
-// values using them, so we need to do a migration from the old serialization to a
-// new one.
 
 open Newtonsoft.Json
 open Newtonsoft.Json.Linq
@@ -165,7 +169,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   | JNull -> DNull
   | JString s -> DStr s
   | JList l ->
-    // We shouldnt have saved dlist that have incompletes or error rails but we might have
+    // We shouldn't have saved dlist that have incompletes or error rails, but we might have
     l |> List.map convert |> Dval.list
   | JObject fields ->
     let fields = fields |> List.sortBy (fun (k, _) -> k)
@@ -444,7 +448,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
     | JNull -> DNull
     | JString s -> DStr s
     | JList l ->
-      // We shouldnt have saved dlist that have incompletes or error rails but we might have
+      // We shouldn't have saved dlist that have incompletes or error rails, but we might have
       l |> List.map convert |> Dval.list
     | JObject fields ->
       let fields = fields |> List.sortBy (fun (k, _) -> k)

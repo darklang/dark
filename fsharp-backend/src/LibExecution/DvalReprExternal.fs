@@ -1,3 +1,4 @@
+/// Ways of converting Dvals to/from strings, with external use allowed
 module LibExecution.DvalReprExternal
 
 // Printing Dvals is more complicated than you'd expect. Different situations
@@ -282,9 +283,9 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   reprfn dval
 
-// For passing to Dark functions that operate on JSON, such as the JWT fns.
-// This turns Option and Result into plain values, or null/error. String-like
-// values are rendered as string. Redacts passwords.
+/// For passing to Dark functions that operate on JSON, such as the JWT fns.
+/// This turns Option and Result into plain values, or null/error. String-like
+/// values are rendered as string. Redacts passwords.
 let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
   let writeOCamlFloatValue (f : float) =
@@ -353,10 +354,10 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
     // CLEANUP: rather than using a mutable byte array, should this be a readonly span?
     w.WriteStringValue(System.Convert.ToBase64String bytes)
 
-// When sending json back to the user, or via a HTTP API, attempt to convert
-// everything into reasonable json, in the absence of a schema. This turns
-// Option and Result into plain values, or null/error. String-like values are
-// rendered as string. Redacts passwords.
+/// When sending json back to the user, or via a HTTP API, attempt to convert
+/// everything into reasonable json, in the absence of a schema. This turns
+/// Option and Result into plain values, or null/error. String-like values are
+/// rendered as string. Redacts passwords.
 let toPrettyMachineJsonStringV1 (dval : Dval) : string =
   writePrettyJson (fun w -> toPrettyMachineJsonV1 w dval)
 
@@ -365,9 +366,9 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 // Other formats
 // -------------------------
 
-// For printing something for the developer to read, as a live-value, error
-// message, etc. This will faithfully represent the code, textually. Redacts
-// passwords. Customers should not come to rely on this format.
+/// For printing something for the developer to read, as a live-value, error
+/// message, etc. This will faithfully represent the code, textually. Redacts
+/// passwords. Customers should not come to rely on this format.
 let rec toDeveloperReprV0 (dv : Dval) : string =
   let rec toRepr_ (indent : int) (dv : Dval) : string =
     let makeSpaces len = "".PadRight(len, ' ')

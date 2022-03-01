@@ -15,7 +15,6 @@ module Telemetry = LibService.Telemetry
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-// TODO move to prelude?
 
 // sumPairs folds over the list [l] with function [f], summing the
 // values of the returned (int * int) tuple from each call
@@ -53,7 +52,7 @@ let convertInterval (interval : PT.Handler.CronInterval) : NodaTime.Period =
 
 type NextExecution =
   { scheduledRunAt : Option<NodaTime.Instant>
-   // why does this need interval?
+    /// The interval is copied to this record for logging only
     interval : Option<NodaTime.Period> }
 
 let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
@@ -101,7 +100,6 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     | Some check ->
       use span = Telemetry.child "cron.enqueue" []
 
-      // TODO: rename to shouldEnqueueCrons or similiar
       if Config.triggerCrons then
         do!
           EventQueue.enqueue
@@ -156,7 +154,6 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
 /// A tuple of (# crons checked * # crons scheduled)
 /// </returns
 let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * int> =
-  // TODO: consider changing type to {| CronsChecked; CronsEnqueued |}
   task {
     use _span = Telemetry.child "check_and_schedule_work_for_crons" []
     let! enqueuedCrons = crons |> Task.mapInParallel checkAndScheduleWorkForCron

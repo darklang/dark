@@ -1,7 +1,12 @@
+/// <summary>
+/// Header utilities for HttpMiddleware
+/// </summary>
+///
+/// <remarks>
+/// Deliberately kept separate from HttpClientHeaders,
+/// which may need to work differently at some point
+/// </remarks>
 module HttpMiddleware.HeadersV0
-
-// Header utilities for HttpMiddleware. Deliberately kept separate from
-// HttpClientHeaders, which may need to work differently at some point
 
 open Prelude
 open LibExecution.VendoredTablecloth

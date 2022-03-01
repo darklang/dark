@@ -1,6 +1,5 @@
+/// Functions related to Accounts/Users
 module LibBackend.Account
-
-// Functions related to Accounts/Users
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
