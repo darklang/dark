@@ -1,9 +1,8 @@
+/// Setup and utilities for using Telemetry.
+/// This is where we do tracing/OpenTelemetry/Honeycomb
 module LibService.Telemetry
 
-// Setup and utilities for using Telemetry. This is where we do
-// tracing/OpenTelemetry/Honeycomb
-//
-// Note names are confusing in .Net. Here is a good rundown.
+// Note names are confusing in .NET. Here is a good rundown.
 // https://github.com/open-telemetry/opentelemetry-dotnet/issues/947
 //
 // This is a functional-ish API over the built-in .NET tracing/OpenTelemetry

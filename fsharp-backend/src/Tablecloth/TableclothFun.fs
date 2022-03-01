@@ -1,6 +1,5 @@
+/// Functions for working with functions.
 module Tablecloth.Fun
-
-// Functions for working with functions.
 
 let identity a = a
 

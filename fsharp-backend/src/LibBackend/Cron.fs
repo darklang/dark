@@ -15,7 +15,7 @@ module Telemetry = LibService.Telemetry
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-
+// TODO move to prelude?
 
 // sumPairs folds over the list [l] with function [f], summing the
 // values of the returned (int * int) tuple from each call
@@ -53,6 +53,7 @@ let convertInterval (interval : PT.Handler.CronInterval) : NodaTime.Period =
 
 type NextExecution =
   { scheduledRunAt : Option<NodaTime.Instant>
+   // why does this need interval?
     interval : Option<NodaTime.Period> }
 
 let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
@@ -91,15 +92,16 @@ let recordExecution (cron : CronScheduleData) : Task<unit> =
   |> Sql.executeStatementAsync
 
 
-// Check if a given cron spec should execute now, and if so, enqueue it.
-//
-// Returns true/false whether the cron was enqueued, so we can count it later
+/// Check if a given cron spec should execute now, and if so, enqueue it.
+///
+/// Returns true/false whether the cron was enqueued, so we can count it later
 let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
   task {
     match! executionCheck cron with
     | Some check ->
       use span = Telemetry.child "cron.enqueue" []
 
+      // TODO: rename to shouldEnqueueCrons or similiar
       if Config.triggerCrons then
         do!
           EventQueue.enqueue
@@ -147,11 +149,14 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     | None -> return false
   }
 
-// Given a list of [cron_schedule_data] records, check which ones are due to
-// run, and enqueue them.
-//
-// Returns a tuple of the number of crons (checked * scheduled) *)
+/// Given a list of [cron_schedule_data] records,
+/// check which ones are due to run, and enqueue them.
+///
+/// <returns>
+/// A tuple of (# crons checked * # crons scheduled)
+/// </returns
 let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * int> =
+  // TODO: consider changing type to {| CronsChecked; CronsEnqueued |}
   task {
     use _span = Telemetry.child "check_and_schedule_work_for_crons" []
     let! enqueuedCrons = crons |> Task.mapInParallel checkAndScheduleWorkForCron
@@ -160,9 +165,9 @@ let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * in
   }
 
 
-// checkAndScheduleWorkForAllCrons iterates through every (non-deleted)
-// cron toplevel_oplist and checks to see if it should be executed, enqueuing
-// work to execute it if necessary.
+/// Iterates through every (non-deleted) cron toplevel_oplist
+/// and checks to see if it should be executed, enqueuing
+/// work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
     use _span = Telemetry.child "checkAndScheduleWorkForAllCrons" []

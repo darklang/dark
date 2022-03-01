@@ -1,8 +1,7 @@
+/// Kubernetes configuration, managing ASP.NET healthchecks, and other endpoints from
+/// the k8s control plane.
+/// See https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks
 module LibService.Kubernetes
-
-// Kubernetes configuration, managing ASP.NET healthchecks, and other endpoints from
-// the k8s control plane.
-// See https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -13,7 +12,6 @@ open Microsoft.AspNetCore.Diagnostics.HealthChecks
 open Microsoft.AspNetCore.Hosting
 
 open Microsoft.Extensions.Diagnostics.HealthChecks
-
 
 let url (port : int) : string = $"http://*:{port}"
 
@@ -44,15 +42,18 @@ let configureServices
   : IServiceCollection =
   // each healthcheck is tagged according to the probes it is used in
   let allProbes = [| livenessTag; readinessTag; startupTag |]
+
   let healthChecksBuilder =
     services
       .AddHealthChecks()
       .AddNpgSql(DBConnection.connectionString, tags = allProbes)
+
   healthChecks
   |> List.iter (fun hc ->
     let tags = hc.probeTypes |> List.map string |> List.toArray
     healthChecksBuilder.AddAsyncCheck(hc.name, hc.checkFn, tags = tags)
     |> ignore<IHealthChecksBuilder>)
+
   services
 
 let livenessPath = "/k8s/livenessProbe"
@@ -125,9 +126,9 @@ let registerServerTimeout (b : IWebHostBuilder) : unit =
   b.UseShutdownTimeout(System.TimeSpan.FromSeconds(28.0))
   |> ignore<IWebHostBuilder>
 
-// Run an asp.net server that provides the healthcheck and shutdown endpoints. This
-// is for services which need to be managed but do not have http servers of their
-// own.
+/// Run an ASP.NET server that provides the healthcheck and shutdown endpoints. This
+/// is for services which need to be managed but do not have HTTP servers of their
+/// own.
 let runKubernetesServer
   (serviceName : string)
   (healthChecks : List<HealthCheck>)
