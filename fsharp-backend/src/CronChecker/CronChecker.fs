@@ -41,8 +41,8 @@ let main _ : int =
 
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =
-        Telemetry.addEvent "Shutting down" []
-        shouldShutdown.Value <- true
+      Telemetry.addEvent "Shutting down" []
+      shouldShutdown.Value <- true
 
     LibService.Kubernetes.runKubernetesServer
       "CronChecker"

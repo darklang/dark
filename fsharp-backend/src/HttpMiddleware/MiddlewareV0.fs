@@ -59,7 +59,7 @@ let inferCorsOriginHeader
     // Otherwise: there was a supplied origin and it's not in the setting.
     // return "null" explicitly
     | Some _, Some _ -> Some "null"
-    
+
   header
 
 let addCorsHeaders
