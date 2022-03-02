@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+trap ctrl_c INT
+
+function ctrl_c() {
+  killall -9 Tests
+  exit 1
+}
+
+sudo killall legacy_serializtion_server.exe || true
+sudo killall legacy_fuzzing_server.exe || true
+sudo killall ocamltestserver.exe || true
+sudo killall server.exe || true
+killall -9 Tests || true
+
+EXE=Build/out/DataTests/Debug/net6.0/linux-x64/DataTests
+
+# No migrations
+
+# These scripts run in the docker container. When this script is run from in the
+# container, these scripts and the spawned processes stay running. this is helpful if
+# you want to run the debugger in VSCode. However, if the script is run from the
+# Docker host, they do not stay running, and then tests fail because the tests can't
+# connect to these servers.
+./scripts/run-backend-server
+./scripts/run-ocaml-legacy-server
+
+cd fsharp-backend
+"${EXE}" --no-spinner "${@}"
