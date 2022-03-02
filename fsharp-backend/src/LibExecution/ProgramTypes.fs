@@ -697,7 +697,6 @@ type DType =
         | "url" -> Some(TDbList TStr)
         | _ -> None
 
-      // FSTODO add a test with a list type in a DB schema
       if String.startsWith "[" str && String.endsWith "]" str then
         str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
       else

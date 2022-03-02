@@ -14,8 +14,8 @@ spec:
   rules:
     # See
     # https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress
-    # These rules are intended to enable one user onto the new F# backend, while we
-    # see what works.
+    # These rules are intended to enable just the users who opt in to the new F#
+    # backend, while we see what works.
     - host: trydarkfsharp.builtwithdark.com
       http:
         paths:
@@ -26,5 +26,16 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+    - host: luolong.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
   tls:
     - secretName: builtwithdark.com-tls

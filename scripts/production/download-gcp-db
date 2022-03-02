@@ -14,19 +14,29 @@ FILENAME="${GSFILENAME//gs:\/\/download-gcp-db\//}"
 LOGFILE="${FILENAME}.log"
 
 ###########################
+echo "Downloading $GSFILENAME contents"
+###########################
+gsutil cp "$GSFILENAME" "$FILENAME"
+
+###########################
 echo "Dropping existing DB $DB (killing existing connections)"
 ###########################
 killall psql || true
 killall server.exe || true
 killall queue_worker.exe || true
 killall cron_checker.exe || true
+killall Tests.exe || true
+killall ApiServer.exe || true
+killall BwdServer.exe || true
+killall QueueWorker.exe || true
+killall CronChecker.exe || true
 dropdb --if-exists $DB
 createdb "$DB"
 
 ###########################
-echo "Loading DB $DB (logging to $LOGFILE)"
+echo "Applying $DB (logging to $LOGFILE)"
 ###########################
 # There are some permission statements for cloudsql that are not relevant
-gsutil cp "$GSFILENAME" - | gunzip --stdout | grep -v cloudsql | pv | psql -d "$DB" > "$LOGFILE"
+cat "$FILENAME" | gunzip --keep --stdout | grep -v cloudsql | pv | psql -d "$DB" > "$LOGFILE"
 
 echo "Done"
