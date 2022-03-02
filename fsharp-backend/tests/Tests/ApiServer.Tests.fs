@@ -30,17 +30,36 @@ type Server =
 
 let ident = Fun.identity
 
-type User = { client : HttpClient; csrf : string }
+type Client = { http : HttpClient; csrf : string }
 
-type U = Lazy<Task<User>>
+type C = Lazy<Task<Client>>
 
 let portFor (server : Server) : int =
   match server with
   | OCaml -> 8000 // nginx for the ocaml server is on port 8000
   | FSharp -> LibService.Config.apiServerNginxPort
 
+let forceLogin (username : UserName.T) : Task<Client> =
+  task {
+    let! user = LibBackend.Account.getUser username // validate user exists
+    let user = Exception.unwrapOptionInternal "" [] user
+    let! authData = LibBackend.Session.insert username
+    let cookie =
+      System.Net.Cookie(
+        "__session",
+        authData.sessionKey,
+        "",
+        LibBackend.Config.cookieDomain
+      )
+    let messageHandler = new SocketsHttpHandler()
+    messageHandler.CookieContainer.Add(cookie)
+    let client = new HttpClient(messageHandler, true)
+    client.Timeout <- System.TimeSpan.FromSeconds 60.0
+    return { http = client; csrf = authData.csrfToken }
+  }
+
 // login as test user and return the csrfToken (the cookies are stored in httpclient)
-let login (username : string) (password : string) : Task<User> =
+let login (username : string) (password : string) : Task<Client> =
   task {
     let client = new HttpClient()
     client.Timeout <- System.TimeSpan.FromSeconds 1
@@ -69,58 +88,59 @@ let login (username : string) (password : string) : Task<User> =
       match loginContent with
       | Regex "const csrfToken = \"(.*?)\";" [ token ] -> token
       | _ ->
+        print loginContent
         Exception.raiseInternal
           $"could not find csrfToken"
           [ "loginContent", loginContent ]
 
-    return { client = client; csrf = csrfToken }
+    return { http = client; csrf = csrfToken }
   }
 
-let testUser = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
-let testAdminUser = lazy (login "test_admin" "fVm2CUePzGKCwoEQQdNJktUQ")
+let testClient = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+let testAdminClient = lazy (login "test_admin" "fVm2CUePzGKCwoEQQdNJktUQ")
 
-let loggedOutUser () =
+let loggedOutClient () =
   lazy
     (let handler = new HttpClientHandler(AllowAutoRedirect = false)
      let client = new HttpClient(handler)
      client.Timeout <- System.TimeSpan.FromSeconds 1
-     let user = { client = client; csrf = "" }
+     let user = { http = client; csrf = "" }
      Task.FromResult user)
 
 
 
 let getAsync
   (server : Server)
-  (user : U)
+  (client : C)
   (path : string)
   : Task<HttpResponseMessage> =
   task {
-    let! user = Lazy.force user
+    let! client = Lazy.force client
     let port = portFor server
     let url = $"http://darklang.localhost:{port}{path}"
     use message = new HttpRequestMessage(HttpMethod.Get, url)
-    message.Headers.Add("X-CSRF-Token", user.csrf)
+    message.Headers.Add("X-CSRF-Token", client.csrf)
 
-    return! user.client.SendAsync(message)
+    return! client.http.SendAsync(message)
   }
 
 let postAsync
   (server : Server)
-  (user : U)
+  (client : C)
   (path : string)
   (body : string)
   : Task<HttpResponseMessage> =
   task {
-    let! user = Lazy.force user
+    let! client = Lazy.force client
     let port = portFor server
     let url = $"http://darklang.localhost:{port}{path}"
     use message = new HttpRequestMessage(HttpMethod.Post, url)
-    message.Headers.Add("X-CSRF-Token", user.csrf)
+    message.Headers.Add("X-CSRF-Token", client.csrf)
 
     message.Content <-
       new StringContent(body, System.Text.Encoding.UTF8, "application/json")
 
-    return! user.client.SendAsync(message)
+    return! client.http.SendAsync(message)
   }
 
 let deserialize<'a> (str : string) : 'a = Json.OCamlCompatible.deserialize<'a> str
@@ -131,10 +151,10 @@ let noBody () = ""
 
 
 
-let getInitialLoad (user : U) : Task<InitialLoad.T> =
+let getInitialLoad (client : C) : Task<InitialLoad.T> =
   task {
     let! (o : HttpResponseMessage) =
-      postAsync OCaml user $"/api/test/initial_load" ""
+      postAsync OCaml client $"/api/test/initial_load" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -143,13 +163,23 @@ let getInitialLoad (user : U) : Task<InitialLoad.T> =
 
 
 
-let testUiReturnsTheSame =
-  testTask "ui returns the same" {
+let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
+  task {
+    let! (o : HttpResponseMessage) =
+      try
+        getAsync OCaml client $"/a/{canvas}/"
+      with
+      | e ->
+        Exception.raiseInternal "exception getting ocaml data" [ "canvas", canvas ] e
 
-    let! (o : HttpResponseMessage) = getAsync OCaml testUser "/a/test"
-    let! (f : HttpResponseMessage) = getAsync FSharp testUser "/a/test"
+    let! (f : HttpResponseMessage) =
+      try
+        getAsync FSharp client $"/a/{canvas}/"
+      with
+      | e ->
+        Exception.raiseInternal "exception getting fs data" [ "canvas", canvas ] e
 
-    Expect.equal o.StatusCode f.StatusCode ""
+    Expect.equal o.StatusCode f.StatusCode $"status code in {canvas}"
 
     let! oc = o.Content.ReadAsStringAsync()
     let! fc = f.Content.ReadAsStringAsync()
@@ -275,11 +305,6 @@ let testUiReturnsTheSame =
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
       |> Set
 
-    print $"Implemented fns  : {Map.count fns}"
-    print $"Excluding F#-only: {Set.length builtins}"
-    print $"Fns in OCaml api : {List.length ocfns}"
-    print $"Fns in F# api    : {List.length fcfns}"
-
     List.iter2
       (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
       fcfns
@@ -297,7 +322,7 @@ let postApiTestCase
   : ApiResponse<'a> =
   task {
     let! (response : HttpResponseMessage) =
-      postAsync server testUser $"/api/test/{api}" body
+      postAsync server testClient $"/api/test/{api}" body
 
     let! content = response.Content.ReadAsStringAsync()
 
@@ -371,7 +396,7 @@ let testPostApi
 let testGetTraceData =
   testTask "get_trace is the same" {
     let! (o : HttpResponseMessage) =
-      postAsync OCaml testUser $"/api/test/all_traces" ""
+      postAsync OCaml testClient $"/api/test/all_traces" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -406,7 +431,7 @@ let testGetTraceData =
 
 let testDBStats =
   testTask "db_stats is the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
+    let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
 
     let dbs =
       initialLoad.toplevels
@@ -446,7 +471,7 @@ let testExecuteFunction =
 
 let testTriggerHandler =
   testTask "trigger_handler behaves the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
+    let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
 
     let handlerTLID =
       initialLoad.toplevels
@@ -479,7 +504,7 @@ let testTriggerHandler =
 
 let testWorkerStats =
   testTask "worker_stats is the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
+    let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
 
     do!
       initialLoad.toplevels
@@ -510,7 +535,7 @@ let testInsertDeleteSecrets =
 
     let getSecret () : Task<Option<string>> =
       task {
-        let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
+        let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
 
         return
           initialLoad.secrets
@@ -571,7 +596,7 @@ let testDelete404s =
     let get404s () : Task<List<TI.F404>> =
       task {
         let! (o : HttpResponseMessage) =
-          postAsync OCaml testUser $"/api/test/get_404s" ""
+          postAsync OCaml testClient $"/api/test/get_404s" ""
 
         Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
         let! body = o.Content.ReadAsStringAsync()
@@ -604,14 +629,14 @@ let testDelete404s =
 
     let insert404 server : Task<unit> =
       task {
-        let! user = Lazy.force testUser
+        let! client = Lazy.force testClient
         let port =
           match server with
           | OCaml -> 8000
           | FSharp -> LibService.Config.bwdServerNginxPort
         let url = $"http://test.builtwithdark.localhost:{port}{path}"
         use message = new HttpRequestMessage(HttpMethod.Get, url)
-        let! result = user.client.SendAsync(message)
+        let! result = client.http.SendAsync(message)
         Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
 
         // assert 404 added
@@ -681,12 +706,16 @@ let localOnlyTests =
                 LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
               | other -> other)
               p.body })
+  let ui =
+    testTask "ui returns the same" {
+      return! testUiReturnsTheSame testClient (CanvasName.create "test")
+    }
   let tests =
     if System.Environment.GetEnvironmentVariable "CI" = null then
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
-      [ testUiReturnsTheSame
+      [ ui
         // TODO add_ops
         testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
         testDelete404s
@@ -698,7 +727,6 @@ let localOnlyTests =
         testWorkerStats
         testInitialLoadReturnsTheSame
         testInsertDeleteSecrets
-        // FSTODO reenable
         // testPostApi "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
         // TODO upload_package
         testTriggerHandler
@@ -712,36 +740,37 @@ let localOnlyTests =
 let permissions =
   testMany2Task
     "check apiserver permissions"
-    (fun (user : U) (username : string) ->
+    (fun (testClient : C) (username : string) ->
       task {
-        let! (uiResp : HttpResponseMessage) = getAsync FSharp user $"/a/{username}"
+        let! (uiResp : HttpResponseMessage) =
+          getAsync FSharp testClient $"/a/{username}"
 
         let! (apiResp : HttpResponseMessage) =
-          postAsync FSharp user $"/api/{username}/initial_load" ""
+          postAsync FSharp testClient $"/api/{username}/initial_load" ""
 
         return (int uiResp.StatusCode, int apiResp.StatusCode)
       })
     // test user can access their canvases (and sample)
-    [ (testUser, "test", (200, 200))
-      (testUser, "test-something", (200, 200))
-      (testUser, "sample", (200, 200))
-      (testUser, "sample-something", (200, 200))
-      (testUser, "test_admin", (401, 401))
-      (testUser, "test_admin-something", (401, 401))
+    [ (testClient, "test", (200, 200))
+      (testClient, "test-something", (200, 200))
+      (testClient, "sample", (200, 200))
+      (testClient, "sample-something", (200, 200))
+      (testClient, "test_admin", (401, 401))
+      (testClient, "test_admin-something", (401, 401))
       // admin user can access everything
-      (testAdminUser, "test", (200, 200))
-      (testAdminUser, "test-something", (200, 200))
-      (testAdminUser, "test_admin", (200, 200))
-      (testAdminUser, "test_admin-something", (200, 200))
-      (testAdminUser, "sample", (200, 200))
-      (testAdminUser, "sample-something", (200, 200))
+      (testAdminClient, "test", (200, 200))
+      (testAdminClient, "test-something", (200, 200))
+      (testAdminClient, "test_admin", (200, 200))
+      (testAdminClient, "test_admin-something", (200, 200))
+      (testAdminClient, "sample", (200, 200))
+      (testAdminClient, "sample-something", (200, 200))
       // logged out user can access nothing
-      (loggedOutUser (), "test", (302, 401))
-      (loggedOutUser (), "test-something", (302, 401))
-      (loggedOutUser (), "test_admin", (302, 401))
-      (loggedOutUser (), "test_admin-something", (302, 401))
-      (loggedOutUser (), "sample", (302, 401))
-      (loggedOutUser (), "sample-something", (302, 401)) ]
+      (loggedOutClient (), "test", (302, 401))
+      (loggedOutClient (), "test-something", (302, 401))
+      (loggedOutClient (), "test_admin", (302, 401))
+      (loggedOutClient (), "test_admin-something", (302, 401))
+      (loggedOutClient (), "sample", (302, 401))
+      (loggedOutClient (), "sample-something", (302, 401)) ]
 
 
 let cookies =
