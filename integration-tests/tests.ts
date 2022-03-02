@@ -752,8 +752,13 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.waitForSelector(".return-value");
 
-    const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
-    await expectContainsText(page, ".return-value", expectedText);
+    try { // F# text
+      const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
+      await expectContainsText(page, ".return-value", expectedText);
+    } catch { // OCaml text
+      const expectedText = "This trace returns: <Error: The second param (2.) is a Float, but + only works on Ints.>";
+      await expectContainsText(page, ".return-value", expectedText);
+    }
   });
 
   test("function_version_renders", async ({ page }) => {
