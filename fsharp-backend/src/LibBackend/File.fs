@@ -76,6 +76,10 @@ let tryReadFile (root : Config.Root) (f : string) : string option =
   else
     None
 
+let writefile (root : Config.Root) (f : string) (contents : string) : unit =
+  let f = checkFilename root Write f
+  System.IO.File.WriteAllText(f, contents)
+
 // let writefile root (f : string) (str : string) : unit =
 //   let f = check_filename root Write f in
 //   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
