@@ -1704,8 +1704,9 @@ module CanvasName =
     // more hyphens allowed
     let canvasRegex = "[-_a-z0-9]+"
     let userNameRegex = UserName.allowedPattern
-    // CLEANUP disallow canvas names like "username-"
-    // This is complicated because users have canvas names like "username-"
+    // CLEANUP disallow canvas names like "username-" or "word--other"
+    // This is complicated because users have canvas names like "username-", though
+    // none have any content there.
     let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
 
     if String.length name > 64 then
@@ -1714,7 +1715,7 @@ module CanvasName =
       Ok name
     else
       Error
-        $"Invalid canvas name '{name}', can only contain roman lettets, digits, and '-' or '_'"
+        $"Invalid canvas name '{name}', can only contain roman letters, digits, and '-' or '_'"
 
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
