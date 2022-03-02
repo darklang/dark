@@ -341,7 +341,6 @@ and Pattern =
 
 
 
-// TODO: this seems to be redundant with separate Shortcuts.fs file
 module Shortcuts =
 
   let rec toStringRepr (e : Expr) : string =

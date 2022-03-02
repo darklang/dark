@@ -4,7 +4,7 @@
 /// about backward compatibility. Tablecloth is still very much in flux, so
 /// we want to avoid using it in case something happens that breaks lots of things.
 ///
-/// Our rule for is to not use Tablecloth in LibExecution.
+/// Our rule is to not use Tablecloth in LibExecution.
 ///
 /// However, we do want things to be consistent, so we directly import
 /// functions that we want to use here.

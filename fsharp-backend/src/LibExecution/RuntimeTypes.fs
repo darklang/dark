@@ -176,11 +176,17 @@ type Expr =
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
-  | EFloat of id * double // first string might have a sign in it <- what?
+  | EFloat of id * double
   | ENull of id
   | EBlank of id
 
-  /// Composed of binding name, expression, and ???
+  /// Composed of binding name, the bound expression,
+  /// and the expression that follows, where the bound value is available
+  ///
+  /// <code>
+  /// let str = expr1
+  /// expr2
+  /// </code>
   | ELet of id * string * Expr * Expr
 
   /// Composed of condition, expr if true, and expr if false
@@ -189,7 +195,11 @@ type Expr =
   /// Composed of a parameters * the expression itself
   | ELambda of id * List<id * string> * Expr
 
-  /// ?
+  /// Composed of:
+  /// - an expression resulting in a value that contains a field
+  /// - the name of the field to acceess
+  ///
+  /// <code>someExpr.fieldName</code>
   | EFieldAccess of id * Expr * string
 
   | EVariable of id * string
@@ -392,7 +402,7 @@ and DType =
 
 
 /// Record the source of an incomplete or error. Would be useful to add more
-/// information later, such as the iteration count that let to this, or
+/// information later, such as the iteration count that led to this, or
 /// something like a stack trace
 and DvalSource =
   | SourceNone
@@ -845,10 +855,8 @@ type BuiltInFn =
     deprecated : Deprecation
     sqlSpec : SqlSpec
 
-    // TODO: reevaluate usefulness of below comment. at least rephrase.
-    // Functions can be run in JS if they have an implementation in this
-    // LibExecution. Functions whose implementation is in LibBackend can only be
-    // implemented on the server.
+    // Functions can be run in JS if they have an implementation in BackendOnlyStdlib.
+    // Functions whose implementation is in LibBackend can only be implemented on the server.
 
     /// <remarks>
     /// May throw an exception, though we're trying to get them to never throw exceptions.
@@ -864,10 +872,9 @@ and Fn =
     previewable : Previewable
     deprecated : Deprecation
     sqlSpec : SqlSpec
-    // TODO: reevaluate usefulness of below comment. at least rephrase.
-    // Functions can be run in JS if they have an implementation in this
-    // LibExecution. Functions whose implementation is in LibBackend can only be
-    // implemented on the server.
+
+    // Functions can be run in JS if they have an implementation in BackendOnlyStdlib.
+    // Functions whose implementation is in LibBackend can only be implemented on the server.
 
     /// <remarks>
     /// May throw an exception, though we're trying to get them to never throw exceptions.
@@ -970,8 +977,7 @@ and ExecutionState =
     callstack : Set<FQFnName.T>
 
     /// Whether the currently executing code is really being executed
-    /// (as opposed to being executed for traces)
-    /// TODO: find a better word than 'executed' above. Generally clarify meaning.
+    /// (as opposed to being previewed for traces)
     onExecutionPath : bool }
 
 let consoleReporter : ExceptionReporter =

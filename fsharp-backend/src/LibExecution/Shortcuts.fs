@@ -68,7 +68,7 @@ let rec toStringRepr (e : Expr) : string =
   | EList (_, exprs) ->
     let exprs = List.map r exprs |> String.concat "; "
     $"eList [{exprs}]"
-  | _ -> $"Bored now: {e}" // should we finish this? TODO check usages
+  | _ -> $"Bored now: {e}"
 // | EIf (_, cond, thenExpr, elseExpr) -> R.EIf(id, r cond, r thenExpr, r elseExpr)
 // | EPartial (_, _, oldExpr)
 // | ERightPartial (_, _, oldExpr)
