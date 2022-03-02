@@ -268,10 +268,14 @@ window.Dark = {
 
       window.Dark.analysis.lastRun = new Date();
     },
+    errorCallback: function (error) {
+      window.onerror("Blazor worker failure", error);
+    },
     initialized: false,
     requestAnalysis: function (params) {
       const analysis = window.Dark.fsharpAnalysis;
       const worker = window.BlazorWorker;
+
       if (!analysis.initialized) {
         console.log("BlazorWorker not loaded yet");
         setTimeout(function () {
@@ -307,19 +311,24 @@ window.Dark = {
         console.log("Blazor loaded");
         analysis.initialized = true;
       };
+
       // Only load when asked for
-      if (window.Dark.analysis.useBlazor) {
-        window.BlazorWorker.initWorker(initializedCallback, analysis.callback);
+      if (!window.Dark.analysis.useOcaml) {
+        window.BlazorWorker.initWorker(
+          initializedCallback,
+          analysis.callback,
+          analysis.errorCallback,
+        );
       }
     },
   },
   analysis: {
-    useBlazor: (function () {
+    useOcaml: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("use-blazor");
+      return urlParams.get("use-ocaml-analysis");
     })(),
     requestAnalysis: function (params) {
-      if (window.Dark.analysis.useBlazor) {
+      if (!window.Dark.analysis.useOcaml) {
         window.Dark.fsharpAnalysis.requestAnalysis(params);
       } else {
         window.Dark.ocamlAnalysis.requestAnalysis(params);
