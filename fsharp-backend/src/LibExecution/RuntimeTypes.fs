@@ -854,13 +854,6 @@ type BuiltInFn =
     previewable : Previewable
     deprecated : Deprecation
     sqlSpec : SqlSpec
-
-    // Functions can be run in JS if they have an implementation in BackendOnlyStdlib.
-    // Functions whose implementation is in LibBackend can only be implemented on the server.
-
-    /// <remarks>
-    /// May throw an exception, though we're trying to get them to never throw exceptions.
-    /// </remarks>
     fn : BuiltInFnSig }
 
 
@@ -873,8 +866,8 @@ and Fn =
     deprecated : Deprecation
     sqlSpec : SqlSpec
 
-    // Functions can be run in JS if they have an implementation in BackendOnlyStdlib.
-    // Functions whose implementation is in LibBackend can only be implemented on the server.
+    // Functions can be run in JS if they have an implementation in LibExecution.
+    // Functions whose implementation is in BackendOnlyStdLib can only be implemented on the server.
 
     /// <remarks>
     /// May throw an exception, though we're trying to get them to never throw exceptions.
