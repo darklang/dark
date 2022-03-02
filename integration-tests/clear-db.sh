@@ -40,7 +40,7 @@ SCRIPT+="INSERT INTO packages_v0 (tlid, user_id, package, module, fnname,
 version, description, body, return_type, parameters, author_id, deprecated,
 updated_at, created_at) VALUES
 ( '4186046771064433369', (SELECT id FROM accounts WHERE username = 'test_admin'), 'stdlib',
-'Test', 'one', 0, '', decode('/NlqdxJcXNMXOgH9v2pBKQYBMAo=', 'base64')::bytea, 'Any',
+'Test', 'one', 1, '', decode('/NlqdxJcXNMXOgH9v2pBKQYBMAo=', 'base64')::bytea, 'Any',
 '[]'::jsonb,
 (SELECT id FROM accounts WHERE username = 'test_admin'), False, now(), now());";
 run_sql "$SCRIPT";

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+function wait_for {
+  test_url="http://${DARK_CONFIG_APISERVER_STATIC_HOST}/$1"
+  count=0
+  until curl --output /dev/null --silent --show-error --head --fail "${test_url}"; do
+      ((count++)) && ((count==60)) && exit 1
+      printf "waiting for %s at %s\n" "$1" "$test_url"
+      sleep 1
+  done
+}
+
+wait_for analysis.js
+wait_for app.js
+wait_for appsupport.js
+wait_for app.css

@@ -41,11 +41,10 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
     f
 
 
-// let file_exists root f : bool =
-//   let f = check_filename root Check f in
-//   Sys.file_exists f = Yes
-//
-//
+let fileExists root f : bool =
+  let f = checkFilename root Check f
+  System.IO.File.Exists f
+
 // let mkdir root dir : unit =
 //   let dir = check_filename root Dir dir in
 //   Unix.mkdir_p dir
@@ -71,6 +70,11 @@ let readfile (root : Config.Root) (f : string) : string =
 let readfileBytes (root : Config.Root) (f : string) : byte [] =
   f |> checkFilename root Read |> System.IO.File.ReadAllBytes
 
+let tryReadFile (root : Config.Root) (f : string) : string option =
+  if fileExists root f then
+    f |> checkFilename root Read |> System.IO.File.ReadAllText |> Some
+  else
+    None
 
 // let writefile root (f : string) (str : string) : unit =
 //   let f = check_filename root Write f in
