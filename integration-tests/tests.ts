@@ -132,10 +132,13 @@ test.describe.parallel("Integration Tests", async () => {
       username = "test_admin";
     }
 
+    username = "dark";
+
     await page.goto(url, { waitUntil: "networkidle" });
     await prepSettings(page, testInfo);
     await page.type("#username", username);
-    await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
+    //await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
+    await page.type("#password", "what");
     await page.click("text=Login");
     await page.waitForSelector("#finishIntegrationTest");
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
@@ -756,7 +759,7 @@ test("feature_flag_in_function", async ({ page }) => {
       const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
     } catch { // OCaml text
-      const expectedText = "This trace returns: <Error: The second param (2.) is a Float, but + only works on Ints.>";
+      const expectedText = "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
     }
   });
