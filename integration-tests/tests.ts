@@ -132,13 +132,10 @@ test.describe.parallel("Integration Tests", async () => {
       username = "test_admin";
     }
 
-    username = "dark";
-
     await page.goto(url, { waitUntil: "networkidle" });
     await prepSettings(page, testInfo);
     await page.type("#username", username);
-    //await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
-    await page.type("#password", "what");
+    await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
     await page.click("text=Login");
     await page.waitForSelector("#finishIntegrationTest");
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
