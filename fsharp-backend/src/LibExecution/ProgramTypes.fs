@@ -744,7 +744,6 @@ module Handler =
   // We need to keep the IDs around until we get rid of them on the client
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
-  // is "Spec" short for something? specification?
   type Spec =
     | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
