@@ -3,15 +3,15 @@ import {
   expect,
   ConsoleMessage,
   Page,
+  Locator,
   TestInfo,
+  TestFixture,
 } from "@playwright/test";
 import fs from "fs";
 
-const BASE_URL = process.env.BASE_URL || "http://darklang.localhost:9000";
-const BWD_BASE_URL = process.env.BWD_BASE_URL || ".builtwithdark.localhost:11000";
+const BASE_URL = process.env.BASE_URL || "http://darklang.localhost:8000";
 const options = {
   baseURL: BASE_URL,
-  bwdBaseURL: BWD_BASE_URL
 };
 test.use(options);
 
@@ -131,7 +131,6 @@ test.describe.parallel("Integration Tests", async () => {
     if (testname.match(/_as_admin/)) {
       username = "test_admin";
     }
-
     await page.goto(url, { waitUntil: "networkidle" });
     await prepSettings(page, testInfo);
     await page.type("#username", username);
@@ -234,7 +233,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   function bwdUrl(testInfo: TestInfo, path: string) {
     return (
-      "http://test-" + testInfo.title + options.bwdBaseURL + path
+      "http://test-" + testInfo.title + ".builtwithdark.lvh.me:8000" + path
     );
   }
 
@@ -751,8 +750,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await awaitAnalysis(page, timestamp);
 
     await page.waitForSelector(".return-value");
-
-    const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
+    const expectedText = "but + only works on Ints.";
     await expectContainsText(page, ".return-value", expectedText);
   });
 
@@ -1198,7 +1196,6 @@ test("feature_flag_in_function", async ({ page }) => {
 
     let expected = "Click Play to execute function";
     await page.click(".id-753586717");
-
     // Ensure the anaysis has completed
     await expectContainsText(page, ".live-value.loaded", expected);
     // test logic in IntegrationTest.ml; we load it here because we need an
@@ -1230,49 +1227,48 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.waitForSelector(".error-panel.show");
   }
 
-  // FSTODO
-  // // this tests:
-  // // - happy path upload
-  // // - upload fails b/c the db already has a fn with this name + version
-  // // - upload fails b/c the version we're trying to upload is too low (eg, if you
-  // // already have a v1, you can't upload a v0)
-  // test("upload_pkg_fn_as_admin", async ({ page }, testInfo) => {
-  //   // upload v1/2/3 depending whether this is test run 1/2/3
-  //   const tlid = testInfo.retry + 1;
+  // this tests:
+  // - happy path upload
+  // - upload fails b/c the db already has a fn with this name + version
+  // - upload fails b/c the version we're trying to upload is too low (eg, if you
+  // already have a v1, you can't upload a v0)
+  test("upload_pkg_fn_as_admin", async ({ page }, testInfo) => {
+    // upload v1/2/3 depending whether this is test run 1/2/3
+    const tlid = testInfo.retry + 1;
 
-  //   // it should succeed, it's a new package_fn
-  //   await upload_pkg_for_tlid(page, testInfo, tlid);
+    // it should succeed, it's a new package_fn
+    await upload_pkg_for_tlid(page, testInfo, tlid);
 
-  //   await expectExactText(
-  //     page,
-  //     ".error-panel.show",
-  //     "Successfully uploaded functionDismiss",
-  //   );
-  //   await page.click(".dismissBtn");
+    await expectExactText(
+      page,
+      ".error-panel.show",
+      "Successfully uploaded functionDismiss",
+    );
+    await page.click(".dismissBtn");
 
-  //   // attempting to upload v0 should fail, because we already have a version
-  //   // greater than 0 in the db
-  //   await upload_pkg_for_tlid(page, testInfo, 0);
-  //   // this failureMsg2 is the same as failureMsg above, because its text dpends
-  //   // on the latest version (and the next valid version of the fn), not the
-  //   // version you tried to upload
-  //   const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expectExactText(page, ".error-panel.show", failureMsg2);
-  //   await page.click(".dismissBtn");
+    // attempting to upload v0 should fail, because we already have a version
+    // greater than 0 in the db
+    await upload_pkg_for_tlid(page, testInfo, 0);
+    // this failureMsg2 is the same as failureMsg above, because its text dpends
+    // on the latest version (and the next valid version of the fn), not the
+    // version you tried to upload
+    const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+      tlid + 1
+    }? (UploadFnAPICallback)Dismiss`;
+    await expectExactText(page, ".error-panel.show", failureMsg2);
+    await page.click(".dismissBtn");
 
-  //   // second (attempted) upload should fail, as we've already uploaded this
-  //   await upload_pkg_for_tlid(page, testInfo, tlid);
-  //   const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expectExactText(page, ".error-panel.show", failureMsg);
-  //   await page.click(".dismissBtn");
+    // second (attempted) upload should fail, as we've already uploaded this
+    await upload_pkg_for_tlid(page, testInfo, tlid);
+    const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+      tlid + 1
+    }? (UploadFnAPICallback)Dismiss`;
+    await expectExactText(page, ".error-panel.show", failureMsg);
+    await page.click(".dismissBtn");
 
-  //   // CLEANUP: this is a hack to get the test to pass, but really the errors should be cleared up
-  //   clearMessages(testInfo);
-  // });
+    // CLEANUP: this is a hack to get the test to pass, but really the errors should be cleared up
+    clearMessages(testInfo);
+  });
 
   test("use_pkg_fn", async ({ page }, testInfo) => {
     const attempt = testInfo.retry + 1;
@@ -1281,7 +1277,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await gotoAST(page);
     await awaitAnalysisLoad(testInfo);
 
-    // this await confirms that test_admin/stdlib/Test::one_v1 is in fact
+    // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
     // in the autocomplete
     let before = Date.now();
     await page.type("#active-editor", "test_admin");
@@ -1289,11 +1285,12 @@ test("feature_flag_in_function", async ({ page }) => {
     await expectExactText(
       page,
       ".autocomplete-item.fluid-selected.valid",
-      "test_admin/stdlib/Test::one_v1Any",
+      "test_admin/stdlib/Test::one_v0Any",
     );
     await page.keyboard.press("Enter");
 
     // this await confirms that we can get a live value in the editor
+
     await page.click(".execution-button");
     await expectContainsText(page, ".return-value", "0");
 
@@ -1557,12 +1554,6 @@ test("feature_flag_in_function", async ({ page }) => {
     await expectContainsText(page, returnValue, "farewell Dorian Gray");
   });
 
-  // Given a Handler that references a package Function,
-  // navigating to that Handler should work,
-  // and show a visual reference to the Function.
-  //
-  // At that point, we should be able to navigate to the Function,
-  // and then back to our Handler.
   test("package_function_references_work", async ({ page }, testInfo) => {
     const repl = ".toplevel.tl-92595864";
     const refersTo = ".ref-block.refers-to.pkg-fn";
@@ -1571,20 +1562,16 @@ test("feature_flag_in_function", async ({ page }) => {
     // Start at this specific repl handler
     await gotoHash(page, testInfo, "handler=92595864");
     await page.waitForSelector(repl);
-
-    // Test that the handler we navigated to
-    // has a reference to a package manager function
+    // Test that the handler we navigated to has a reference to a package manager function
     await page.waitForSelector(refersTo);
     await expectExactText(
       page,
       ".ref-block.refers-to .fnheader",
-      "test_admin/stdlib/Test::one_v1",
+      "test_admin/stdlib/Test::one_v0",
     );
-
-    // Clicking on it should bring us to that package function
     await page.click(refersTo);
+    // Clicking on it should bring us to that function
     await page.waitForSelector(".toplevel .pkg-fn-toplevel");
-
     // which should contain a reference to where we just came from
     await page.waitForSelector(usedIn);
     await expectExactText(page, usedIn, "REPLpkgFnTest");

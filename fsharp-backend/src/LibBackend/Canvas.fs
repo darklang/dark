@@ -651,21 +651,14 @@ let saveTLIDs
 
 let jsonFilename (name : string) = $"{name}.json"
 
-/// Load a json-serialized canvas from disk
-///
-/// If file not found, returns empty oplist
-let tryLoadJsonFromDisk
-  (root : Config.Root)
-  (c : Meta)
-  : List<tlid * PT.Oplist> option =
+let loadJsonFromDisk (root : Config.Root) (c : Meta) : List<tlid * PT.Oplist> =
   string c.name
   |> jsonFilename
-  |> File.tryReadFile root
-  |> Option.map (fun json ->
-    json
-    |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
-    |> OT.Convert.ocamlOplist2PT
-    |> Op.oplist2TLIDOplists)
+  |> File.readfile root
+  |> Json.Vanilla.deserialize<OT.oplist<OT.RuntimeT.fluidExpr>>
+  |> OT.Convert.ocamlOplist2PT
+  |> Op.oplist2TLIDOplists
+
 
 
 // let save_json_to_disk ~root (filename : string) (ops : Types.tlid_oplists) :
@@ -686,19 +679,15 @@ let tryLoadJsonFromDisk
 let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
   task {
     let oplists =
-      let tls = meta |> tryLoadJsonFromDisk Config.Testdata
-
-      match tls with
-      | Some tls ->
-        tls
-        |> List.map (fun (tlid, oplist) ->
-          let tl =
-            let oplist = fromOplist meta [] oplist
-            let tls = toplevels oplist
-            let dtls = deletedToplevels oplist
-            (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
-          (tlid, oplist, tl, NotDeleted))
-      | None -> []
+      meta
+      |> loadJsonFromDisk Config.Testdata
+      |> List.map (fun (tlid, oplist) ->
+        let tl =
+          let oplist = fromOplist meta [] oplist
+          let tls = toplevels oplist
+          let dtls = deletedToplevels oplist
+          (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
+        (tlid, oplist, tl, NotDeleted))
 
     do! saveTLIDs meta oplists
     return ()

@@ -41,9 +41,9 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
     f
 
 
-let fileExists root f : bool =
-  let f = checkFilename root Check f
-  System.IO.File.Exists f
+// let file_exists root f : bool =
+//   let f = check_filename root Check f in
+//   Sys.file_exists f = Yes
 //
 //
 // let mkdir root dir : unit =
@@ -67,12 +67,6 @@ let lsdir (root : Config.Root) (dir : string) : string list =
 
 let readfile (root : Config.Root) (f : string) : string =
   f |> checkFilename root Read |> System.IO.File.ReadAllText
-
-let tryReadFile (root : Config.Root) (f : string) : string option =
-  if fileExists root f then
-    f |> checkFilename root Read |> System.IO.File.ReadAllText |> Some
-  else
-    None
 
 let readfileBytes (root : Config.Root) (f : string) : byte [] =
   f |> checkFilename root Read |> System.IO.File.ReadAllBytes
