@@ -1,14 +1,6 @@
 # How the integration tests work
 
-##### (Updated Feb, 2022)
-
-## Setup
-
-Ensure your host machine is able to access http://lvh.me.
-
-We use this domain as 'localhost' isn't a fully-qualified domain name. See https://nickjanetakis.com/blog/ngrok-lvhme-nipio-a-trilogy-for-local-development-and-testing#lvh-me.
-
-If it isn't accessible by default, you can use Google's DNS server (8.8.8.8).
+##### (Updated Oct 30, 2021)
 
 ## Running
 
@@ -36,8 +28,6 @@ If you want to debug a test, run the tests
 with `--debug`:
 `./integration-tests/run.sh --debug --pattern='my_test_name'`
 
-Note: debugging will not work if executing within the devcontainer, as the host's display server is not available. Run the tests from your host machine for debugging.
-
 ### Defeat flaky tests
 
 If you're trying to eliminate a flaky test that is hard to reproduce, use `--repeat`:
@@ -47,12 +37,6 @@ If you're trying to eliminate a flaky test that is hard to reproduce, use `--rep
 ### In the container
 
 `./scripts/run-in-docker ./integration-tests/run.sh`
-
-### Run Against OCaml
-
-By default, the integration tests are run against the F# backend.
-
-If you'd like to run against the OCaml backend, use `--ocaml`
 
 ## Troubleshooting
 
@@ -149,5 +133,3 @@ button in the browser, which runs the testing function for the test
 - `rundir/integration-tests/`
 
   - videos, traces, and console logs from the test executions
-
-- `backend/test_appdata`

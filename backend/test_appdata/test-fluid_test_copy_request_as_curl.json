@@ -9,7 +9,7 @@
       "ast": [
         "EFnCall",
         753586717,
-        "HttpClient::post_v5",
+        "HttpClient::post_v4",
         [
           [ "EString", 805471466, "https://foo.com" ],
           [ "EString", 733590776, "some body" ],
