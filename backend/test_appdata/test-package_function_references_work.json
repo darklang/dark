@@ -9,7 +9,7 @@
       "ast": [
         "EFnCall",
         503886666,
-        "test_admin/stdlib/Test::one_v0",
+        "test_admin/stdlib/Test::one_v1",
         [],
         [ "NoRail" ]
       ],
