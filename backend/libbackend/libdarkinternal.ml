@@ -1573,4 +1573,19 @@ human-readable data."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::raiseInternalException"]
+    ; infix_names = []
+    ; parameters = [ par "argument" TAny ~d:"Added as a tag" ]
+    ; return_type = TNull
+    ; description =
+        "Raise an internal exception inside Dark. This is intended to test exceptions
+        and exception tracking, not for any real use."
+    ; func =
+        internal_fn (function
+            | _, [arg] ->
+                Exception.internal "internal exception"
+            | args ->
+                fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

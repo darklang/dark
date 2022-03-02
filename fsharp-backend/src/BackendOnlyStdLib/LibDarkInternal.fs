@@ -1223,6 +1223,7 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn "DarkInternal" "raiseInternalException" 0
       parameters = [ Param.make "argument" varA "Added as a tag" ]
       returnType = TNull
@@ -1240,4 +1241,33 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
-    ]
+
+    { name = fn "DarkInternal" "getHandlerTraces" 0
+      parameters =
+        [ Param.make "canvas_id" TUuid ""
+          Param.make "tlid" TStr ""
+          Param.make "count" TInt "" ]
+      returnType = TList varA
+      description = "Get the most recent [count] traces for the handler"
+      fn =
+        internalFn (function
+          | _, _ -> Ply(DInt 0))
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "copyToplevelTraces" 0
+      parameters =
+        [ Param.make "canvas_id" TUuid ""
+          Param.make "tlid" TStr ""
+          Param.make "traces" (TList varA) ""
+          Param.make "count" TInt "" ]
+      returnType = TInt
+      description = "Doesn't exist anymore"
+      fn =
+        internalFn (function
+          | _, _ -> Ply(DInt 0))
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
