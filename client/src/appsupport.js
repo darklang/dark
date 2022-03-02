@@ -325,8 +325,7 @@ window.Dark = {
   analysis: {
     useOcaml: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      const useFsharpAnalysis = urlParams.get("use-fsharp-analysis") == "true";
-      return !useFsharpAnalysis;
+      return urlParams.get("use-ocaml-analysis");
     })(),
     requestAnalysis: function (params) {
       if (!window.Dark.analysis.useOcaml) {

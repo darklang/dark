@@ -752,13 +752,8 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.waitForSelector(".return-value");
 
-    try { // F# text
-      const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
-      await expectContainsText(page, ".return-value", expectedText);
-    } catch { // OCaml text
-      const expectedText = "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
-      await expectContainsText(page, ".return-value", expectedText);
-    }
+    const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
+    await expectContainsText(page, ".return-value", expectedText);
   });
 
   test("function_version_renders", async ({ page }) => {
