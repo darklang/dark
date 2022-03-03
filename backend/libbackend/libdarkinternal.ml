@@ -1576,7 +1576,7 @@ human-readable data."
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::raiseInternalException"]
     ; infix_names = []
-    ; parameters = [ par "argument" TAny ~d:"Added as a tag" ]
+    ; parameters = [par "argument" TAny ~d:"Added as a tag"]
     ; return_type = TNull
     ; description =
         "Raise an internal exception inside Dark. This is intended to test exceptions
