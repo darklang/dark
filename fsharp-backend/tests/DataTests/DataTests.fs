@@ -38,7 +38,6 @@ let shouldRun (canvasName : CanvasName.T) : bool =
   && not (cn.ToString().Contains("__"))
 
 let forEachCanvas
-  (name : string)
   (cd : CheckpointData)
   (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
   : Task<unit> =
@@ -49,40 +48,43 @@ let forEachCanvas
       let! users = LibBackend.Account.getUsers ()
       let! (results : List<unit>) =
         users
-        |> Task.mapInParallel (fun username ->
+        |> Task.mapSequentially (fun username ->
           task {
             if Set.contains (string username) cd.users then
               print $"already completed: {username}"
               return [ () ]
             else
-              do! userSemaphor.WaitAsync()
-              print $"start u: {username}"
-              let! user = LibBackend.Account.getUser username
-              let client = Tests.ApiServer.forceLogin username
-              let user = Exception.unwrapOptionInternal "" [] user
-              let! canvases = LibBackend.Account.ownedCanvases user.id
-              let! result =
-                canvases
-                |> List.filter shouldRun
-                |> Task.mapInParallel (fun canvasName ->
-                  task {
-                    // do! canvasSemaphore.WaitAsync()
-                    print $"start c: {canvasName}"
-                    let! result = fn (lazy client) canvasName
-                    print $"done  c: {canvasName}"
-                    // canvasSemaphore.Release() |> ignore<int>
-                    return result
-                  })
-              print $"done u:  {username}"
-              cd.users <- Set.add cd.users (string username)
-              saveCheckpointData cd
-              userSemaphor.Release() |> ignore<int>
-              return result
+              try
+                do! userSemaphor.WaitAsync()
+                print $"start u: {username}"
+                let! user = LibBackend.Account.getUser username
+                let client = Tests.ApiServer.forceLogin username
+                let user = Exception.unwrapOptionInternal "" [] user
+                let! canvases = LibBackend.Account.ownedCanvases user.id
+                let! result =
+                  canvases
+                  |> List.filter shouldRun
+                  |> Task.mapSequentially (fun canvasName ->
+                    task {
+                      // do! canvasSemaphore.WaitAsync()
+                      print $"start c: {canvasName}"
+                      let! result = fn (lazy client) canvasName
+                      print $"done  c: {canvasName}"
+                      // canvasSemaphore.Release() |> ignore<int>
+                      return result
+                    })
+                print $"done u:  {username}"
+                cd.users <- Set.add cd.users (string username)
+                saveCheckpointData cd
+                return result
+              finally
+                userSemaphor.Release() |> ignore<int>
           })
         |> Task.map List.flatten
       return ()
     with
     | e ->
+      print "outer error found"
       saveCheckpointData cd
       e.Reraise()
   }
@@ -108,13 +110,11 @@ let main args =
     new System.ConsoleCancelEventHandler(handler)
   )
   try
-    (forEachCanvas
-      "ui tests"
-      checkpointData
-      Tests.ApiServer.testInitialLoadReturnsTheSame)
+    (forEachCanvas checkpointData Tests.ApiServer.testInitialLoadReturnsTheSame)
       .Result
   with
   | e ->
+    print "exiting"
     print e.Message
     print (Exception.toMetadata e |> string)
     e.StackTrace

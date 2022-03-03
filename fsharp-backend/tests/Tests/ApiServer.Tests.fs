@@ -322,7 +322,7 @@ let postApiTestCase
         content |> deserialize |> canonicalizeBody
       with
       | e ->
-        print $"Error deserializing {server}: \n{content}"
+        print $"Error deserializing {server} in {canvasName}: \n{content}"
         e.Reraise()
 
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
@@ -678,7 +678,9 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
     let canonicalizeToplevel (tl : ORT.toplevel) =
       match tl.data with
       // We dont have migrations anymore
-      | ORT.DB db -> { tl with data = ORT.DB { db with old_migrations = [] } }
+      | ORT.DB db ->
+        { tl with
+            data = ORT.DB { db with old_migrations = []; active_migration = None } }
       | ORT.Handler h ->
         { tl with
             data =
@@ -686,8 +688,13 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                 { h with
                     ast = canonicalizeAst h.ast
                     spec =
-                      // We don't have these anymore
                       { h.spec with
+                          name =
+                            // Both forms exist, probably not a big deal
+                            match h.spec.name with
+                            | OT.Filled (id, "") -> OT.Blank id
+                            | other -> other
+                          // We don't have these anymore
                           types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
     let canonicalizeUserFn (uf : ORT.user_fn<ORT.fluidExpr>) =
       { uf with
@@ -700,7 +707,6 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                     // CLEANUP remove optional
                     (fun p -> { p with optional = false })
                     uf.metadata.parameters } }
-
 
     { v with
         toplevels =
@@ -719,6 +725,8 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
           v.deleted_user_functions
           |> List.sortBy (fun uf -> uf.tlid)
           |> List.map canonicalizeUserFn
+        user_tipes = v.user_tipes |> List.sortBy (fun ut -> ut.tlid)
+        deleted_user_tipes = v.deleted_user_tipes |> List.sortBy (fun ut -> ut.tlid)
         canvas_list = v.canvas_list |> List.sort
         assets =
           v.assets
