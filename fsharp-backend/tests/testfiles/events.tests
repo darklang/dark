@@ -1,0 +1,26 @@
+[test.getQueue works FSHARPONLY] with Worker TestWorker
+Test.getQueue_v0 "TestWorker" = [] // FSHARPONLY
+
+[test.emit_v0 works FSHARPONLY] with Worker TestWorker
+(let _ = emit_v0 "value" "_" "TestWorker" in
+ let queue = Test.getQueue_v0 "TestWorker" in
+ queue) = ["value"]
+
+[test.emit_v1 works FSHARPONLY] with Worker TestWorker
+(let _ = emit_v1 "value" "TestWorker" in
+ let queue = Test.getQueue_v0 "TestWorker" in
+ queue) = ["value"]
+
+[test.emit_v0 works with mixed values FSHARPONLY] with Worker TestWorker
+(let _ = emit_v0 "value" "_" "TestWorker" in
+ let _ = emit_v0 1 "_" "TestWorker" in
+ let _ = emit_v0 {``Fruits`` = ["apple", "banana"] } "_" "TestWorker" in
+ let queue = Test.getQueue_v0 "TestWorker" in
+ queue) = ["value", 1, { ``Fruits`` = ["apple", "banana"] }]
+
+[test.emit_v1 works with mixed values FSHARPONLY] with Worker TestWorker
+(let _ = emit_v1 "value" "TestWorker" in
+ let _ = emit_v1 1 "TestWorker" in
+ let _ = emit_v1 {``Fruits`` = ["apple", "banana"] } "TestWorker" in
+ let queue = Test.getQueue_v0 "TestWorker" in
+ queue) = ["value", 1, { ``Fruits`` = ["apple", "banana"] }]

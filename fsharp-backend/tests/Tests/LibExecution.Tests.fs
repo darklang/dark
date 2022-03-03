@@ -1,6 +1,7 @@
 module Tests.LibExecution
 
-// Create test cases from .tests files in the tests/stdlib dir
+// Create test cases from .tests files in the tests/testfiles dir
+// A readme in that same directory exists to explain usage.
 
 open Expecto
 
@@ -24,6 +25,7 @@ let t
   (code : string)
   (dbs : List<PT.DB.T>)
   (functions : Map<string, PT.UserFunction.T>)
+  (workers : List<string>)
   : Test =
   let name = $"{comment} ({code})"
 
@@ -34,11 +36,40 @@ let t
       try
         let! owner = owner
         let! meta =
+          let workersNeedSetUp = workers <> []
+
           // Little optimization to skip the DB sometimes
-          if initializeDB then
+          if initializeDB || workersNeedSetUp then
             initializeCanvasForOwner owner name
           else
             createCanvasForOwner owner name
+
+        let workersWithIds = workers |> List.map (fun w -> w, (gid ()))
+
+        let ops =
+          workersWithIds
+          |> List.map (fun (worker, tlid) ->
+            PT.SetHandler(
+              tlid,
+              testPos,
+              { tlid = tlid
+                pos = testPos
+                ast = PT.Expr.EBlank(gid ())
+                spec =
+                  PT.Handler.Worker(
+                    worker,
+                    { moduleID = gid (); nameID = gid (); modifierID = gid () }
+                  ) }
+            ))
+
+        let c = LibBackend.Canvas.empty meta |> LibBackend.Canvas.addOps ops []
+
+        let oplists =
+          workersWithIds
+          |> List.map (fun (_w, tlid) ->
+            tlid, ops, PT.TLHandler c.handlers[tlid], LibBackend.Canvas.NotDeleted)
+
+        do! LibBackend.Canvas.saveTLIDs meta oplists
 
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
@@ -118,7 +149,8 @@ type TestInfo =
   { name : string
     recording : bool
     code : string
-    dbs : List<PT.DB.T> }
+    dbs : List<PT.DB.T>
+    workers : List<string> }
 
 type TestGroup = { name : string; tests : List<Test>; dbs : List<PT.DB.T> }
 
@@ -151,7 +183,8 @@ let fileTests () : Test =
   |> Array.filter ((<>) ".gitattributes")
   |> Array.map (fun file ->
     let filename = System.IO.Path.GetFileName file
-    let emptyTest = { recording = false; name = ""; dbs = []; code = "" }
+    let emptyTest =
+      { recording = false; name = ""; dbs = []; code = ""; workers = [] }
 
     let emptyFn =
       { recording = false; name = ""; parameters = []; code = ""; tlid = id 7 }
@@ -181,6 +214,7 @@ let fileTests () : Test =
             currentTest.code
             currentTest.dbs
             functions
+            currentTest.workers
 
         allTests <- allTests @ [ newTestCase ]
 
@@ -227,6 +261,7 @@ let fileTests () : Test =
       | Regex @"^\[tests\.(.*)\]$" [ name ] ->
         finish ()
         currentGroup <- { currentGroup with name = name }
+
       // [db] declaration
       | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
         finish ()
@@ -251,6 +286,8 @@ let fileTests () : Test =
               |> Map.values }
 
         dbs <- Map.add name db dbs
+
+
       // [function] declaration
       | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
         finish ()
@@ -271,6 +308,7 @@ let fileTests () : Test =
             name = name
             parameters = parameters
             code = "" }
+
       // [test] with DB indicator
       | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
         finish ()
@@ -281,6 +319,17 @@ let fileTests () : Test =
 
         currentTest <-
           { currentTest with name = $"{name} (line {i})"; recording = true }
+
+      // [test] with Worker indicator
+      | Regex @"^\[test\.(.*)\] with Worker (.*)$" [ name; workerName ] ->
+        finish ()
+
+        currentTest <-
+          { currentTest with
+              name = $"{name} (line {i})"
+              recording = true
+              workers = [ workerName ] }
+
       // [test] indicator (no DB)
       | Regex @"^\[test\.(.*)\]$" [ name ] ->
         finish ()
@@ -307,11 +356,20 @@ let fileTests () : Test =
             code
             currentGroup.dbs
             functions
+            currentTest.workers
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
         let initializeDB = filename = "internal.tests" || currentGroup.dbs <> []
-        let test = t owner initializeDB $"line {i}" code currentGroup.dbs functions
+        let test =
+          t
+            owner
+            initializeDB
+            $"line {i}"
+            code
+            currentGroup.dbs
+            functions
+            currentTest.workers
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 
