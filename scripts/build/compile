@@ -769,7 +769,7 @@ def ignore(filename):
     if i in filename:
       return True
   # ocaml build temporary
-  if filename[-10:-8] == "/C":
+  if filename[-10:-8] == "/C" and filename[-3:] != ".fs":
     return True
   # emacs thing
   if "/.#" in filename:
