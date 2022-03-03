@@ -35,6 +35,7 @@ let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   | PT.Handler.HTTP _ -> sampleRequestInputVars
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
+  | PT.Handler.UnknownHandler _ -> []
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _ -> sampleEventInputVars
 
@@ -80,6 +81,7 @@ let savedInputVars
     withR @ bound
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
+  | PT.Handler.UnknownHandler _ -> []
   | PT.Handler.REPL _ -> []
   | PT.Handler.OldWorker _ -> []
 

@@ -800,8 +800,16 @@ module Convert =
     | PT.Handler.OldWorker (workerName, name, ids) ->
       { ``module`` = string2bo ids.moduleID workerName
         name = string2bo ids.nameID name
-        modifier = string2bo ids.modifierID "_"
+        modifier = Blank ids.modifierID
         types = types }
+    | PT.Handler.UnknownHandler (name, modifier, ids) ->
+      { ``module`` = Blank ids.moduleID
+        name = string2bo ids.nameID name
+        modifier = string2bo ids.modifierID modifier
+        types = types }
+
+
+
 
   let pt2ocamlHandler (p : PT.Handler.T) : ORT.HandlerT.handler<ORT.fluidExpr> =
     { tlid = p.tlid; ast = pt2ocamlExpr p.ast; spec = pt2ocamlSpec p.spec }

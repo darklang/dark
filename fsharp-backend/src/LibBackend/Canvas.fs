@@ -585,6 +585,7 @@ let saveTLIDs
             | PT.Handler.Worker _
             | PT.Handler.OldWorker _
             | PT.Handler.Cron _
+            | PT.Handler.UnknownHandler _
             | PT.Handler.REPL _ ->
               Some(spec.module' (), spec.name (), spec.modifier ())
           | PT.TLDB _

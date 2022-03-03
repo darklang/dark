@@ -754,6 +754,8 @@ module Handler =
     | OldWorker of modulename : string * name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
+    // If there's no module
+    | UnknownHandler of name : string * modifier : string * ids : ids
 
     member this.toRuntimeType() : RT.Handler.Spec =
       match this with
@@ -763,6 +765,7 @@ module Handler =
       | Cron (name, interval, _ids) ->
         RT.Handler.Cron(name, interval |> Option.map (fun i -> i.toRuntimeType ()))
       | REPL (name, _ids) -> RT.Handler.REPL(name)
+      | UnknownHandler (_name, _modifier, _ids) -> RT.Handler.UnknownHandler
 
     member this.name() =
       match this with
@@ -771,6 +774,7 @@ module Handler =
       | OldWorker (_modulename, name, _ids) -> name
       | Cron (name, interval, _ids) -> name
       | REPL (name, _ids) -> name
+      | UnknownHandler (name, _modifier, _ids) -> name
 
     member this.modifier() =
       match this with
@@ -780,6 +784,7 @@ module Handler =
       | Cron (_name, interval, _ids) ->
         interval |> Option.map string |> Option.defaultValue ""
       | REPL (_name, _ids) -> "_"
+      | UnknownHandler (name, modifier, ids) -> modifier
 
     member this.module'() =
       match this with
@@ -788,6 +793,7 @@ module Handler =
       | OldWorker (modulename, _name, _ids) -> modulename
       | Cron _ -> "CRON" // CLEANUP the DB relies on the casing
       | REPL _ -> "REPL"
+      | UnknownHandler (name, modifier, ids) -> ""
 
     member this.complete() : bool =
       match this with
@@ -799,6 +805,7 @@ module Handler =
       | Cron ("", _, _) -> false
       | Cron (_, None, _) -> false
       | REPL ("", _) -> false
+      | UnknownHandler _ -> false
       | _ -> true
 
     // Same as a TraceInput.EventDesc
