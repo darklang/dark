@@ -11,8 +11,8 @@ open Tablecloth
 
 open LibService.Exception
 
-type CheckpointData = { mutable uiUsernames : Set<string> }
-let testedFilename = "dataloadtest.json"
+type CheckpointData = { mutable users : Set<string> }
+let testedFilename = "datatests.json"
 
 let loadCheckpointData () =
   try
@@ -21,7 +21,7 @@ let loadCheckpointData () =
   with
   | e ->
     print "No test file found"
-    { uiUsernames = Set [] }
+    { users = Set [] }
 
 let saveCheckpointData (tested : CheckpointData) : unit =
   print "saving to test file"
@@ -37,17 +37,21 @@ let shouldRun (canvasName : CanvasName.T) : bool =
   && not (cn.ToString().Contains("--"))
   && not (cn.ToString().Contains("__"))
 
-let dataValidatorTests (cd : CheckpointData) : Task<unit> =
+let forEachCanvas
+  (name : string)
+  (cd : CheckpointData)
+  (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
+  : Task<unit> =
   task {
     try
       let userSemaphor = new System.Threading.SemaphoreSlim(20)
-      let canvasSemaphore = new System.Threading.SemaphoreSlim(20)
+      // let canvasSemaphore = new System.Threading.SemaphoreSlim(20)
       let! users = LibBackend.Account.getUsers ()
       let! (results : List<unit>) =
         users
         |> Task.mapInParallel (fun username ->
           task {
-            if Set.contains (string username) cd.uiUsernames then
+            if Set.contains (string username) cd.users then
               print $"already completed: {username}"
               return [ () ]
             else
@@ -62,16 +66,15 @@ let dataValidatorTests (cd : CheckpointData) : Task<unit> =
                 |> List.filter shouldRun
                 |> Task.mapInParallel (fun canvasName ->
                   task {
-                    do! canvasSemaphore.WaitAsync()
+                    // do! canvasSemaphore.WaitAsync()
                     print $"start c: {canvasName}"
-                    let! result =
-                      Tests.ApiServer.testUiReturnsTheSame (lazy client) canvasName
+                    let! result = fn (lazy client) canvasName
                     print $"done  c: {canvasName}"
-                    canvasSemaphore.Release() |> ignore<int>
+                    // canvasSemaphore.Release() |> ignore<int>
                     return result
                   })
               print $"done u:  {username}"
-              cd.uiUsernames <- Set.add cd.uiUsernames (string username)
+              cd.users <- Set.add cd.users (string username)
               saveCheckpointData cd
               userSemaphor.Release() |> ignore<int>
               return result
@@ -85,20 +88,13 @@ let dataValidatorTests (cd : CheckpointData) : Task<unit> =
   }
 
 
-open Microsoft.Extensions.Hosting
-
 [<EntryPoint>]
 let main args =
-  let builder =
-    Host
-      .CreateDefaultBuilder(args)
-      .ConfigureServices(fun _ -> ())
-      .UseConsoleLifetime(fun options -> ())
-      .Build()
   let checkpointData = loadCheckpointData ()
-  let handler obj args = saveCheckpointData checkpointData
+  let handler _ _ = saveCheckpointData checkpointData
   System.Console.CancelKeyPress.AddHandler(
     new System.ConsoleCancelEventHandler(handler)
   )
-  (dataValidatorTests checkpointData).Result
+  (forEachCanvas "ui tests" checkpointData Tests.ApiServer.testUiReturnsTheSame)
+    .Result
   0
