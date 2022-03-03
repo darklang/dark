@@ -479,6 +479,7 @@ module UTF8 =
 
 // Base64 comes in various flavors, typically URLsafe (has '-' and '_' with no
 // padding) or regular (has + and / and has '=' padding at the end)
+// FSTODO: remove uses of System.Convert.ToBase64String
 module Base64 =
 
   type Base64UrlEncoded = Base64UrlEncoded of string
