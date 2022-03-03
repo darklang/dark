@@ -1,5 +1,5 @@
 [test.getQueue works FSHARPONLY] with Worker TestWorker
-Test.getQueue_v0 "TestWorker" = [] // FSHARPONLY
+Test.getQueue_v0 "TestWorker" = []
 
 [test.emit_v0 works FSHARPONLY] with Worker TestWorker
 (let _ = emit_v0 "value" "_" "TestWorker" in
