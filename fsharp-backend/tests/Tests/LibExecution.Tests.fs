@@ -15,6 +15,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module Exe = LibExecution.Execution
+module Canvas = LibBackend.Canvas
 
 open TestUtils.TestUtils
 
@@ -62,14 +63,14 @@ let t
                   ) }
             ))
 
-        let c = LibBackend.Canvas.empty meta |> LibBackend.Canvas.addOps ops []
+        let c = Canvas.empty meta |> Canvas.addOps ops []
 
         let oplists =
           workersWithIds
           |> List.map (fun (_w, tlid) ->
-            tlid, ops, PT.TLHandler c.handlers[tlid], LibBackend.Canvas.NotDeleted)
+            tlid, ops, PT.TLHandler c.handlers[tlid], Canvas.NotDeleted)
 
-        do! LibBackend.Canvas.saveTLIDs meta oplists
+        do! Canvas.saveTLIDs meta oplists
 
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
