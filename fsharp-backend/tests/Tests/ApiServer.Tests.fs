@@ -675,9 +675,10 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
   let deserialize v = Json.OCamlCompatible.deserialize<InitialLoad.T> v
 
   let canonicalize (v : InitialLoad.T) : InitialLoad.T =
-    let clearTypes (tl : ORT.toplevel) =
+    let canonicalizeToplevel (tl : ORT.toplevel) =
       match tl.data with
-      | ORT.DB _ -> tl
+      // We dont have migrations anymore
+      | ORT.DB db -> { tl with data = ORT.DB { db with old_migrations = [] } }
       | ORT.Handler h ->
         { tl with
             data =
@@ -685,16 +686,19 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                 { h with
                     ast = canonicalizeAst h.ast
                     spec =
+                      // We don't have these anymore
                       { h.spec with
                           types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
 
     { v with
         toplevels =
-          v.toplevels |> List.sortBy (fun tl -> tl.tlid) |> List.map clearTypes
+          v.toplevels
+          |> List.sortBy (fun tl -> tl.tlid)
+          |> List.map canonicalizeToplevel
         deleted_toplevels =
           v.deleted_toplevels
           |> List.sortBy (fun tl -> tl.tlid)
-          |> List.map clearTypes
+          |> List.map canonicalizeToplevel
         user_functions =
           v.user_functions
           |> List.sortBy (fun uf -> uf.tlid)
