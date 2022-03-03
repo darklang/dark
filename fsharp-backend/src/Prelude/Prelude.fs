@@ -1704,7 +1704,6 @@ module CanvasName =
     // more hyphens allowed
     let canvasRegex = "[-_a-z0-9]+"
     let userNameRegex = UserName.allowedPattern
-    // CLEANUP disallow canvas names like "username-" or "word--other"
     // This is complicated because users have canvas names like "username-", though
     // none have any content there.
     let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"

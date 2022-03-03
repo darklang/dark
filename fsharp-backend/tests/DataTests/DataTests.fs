@@ -11,88 +11,94 @@ open Tablecloth
 
 open LibService.Exception
 
-type Tested = { mutable uiTestedUsernames : Set<string> }
+type CheckpointData = { mutable uiUsernames : Set<string> }
 let testedFilename = "dataloadtest.json"
 
-let loadTested () =
+let loadCheckpointData () =
   try
     LibBackend.File.readfile LibBackend.Config.NoCheck testedFilename
-    |> Json.Vanilla.deserialize<Tested>
+    |> Json.Vanilla.deserialize<CheckpointData>
   with
   | e ->
     print "No test file found"
-    { uiTestedUsernames = Set [] }
+    { uiUsernames = Set [] }
 
-let saveTested (tested : Tested) : unit =
+let saveCheckpointData (tested : CheckpointData) : unit =
+  print "saving to test file"
   tested
   |> Json.Vanilla.prettySerialize
   |> LibBackend.File.writefile LibBackend.Config.NoCheck testedFilename
 
-let dataValidatorTests () : Task<unit> =
-  task {
-    let tested = loadTested ()
-    try
+/// Skip if it's something we verify is allowed
+let shouldRun (canvasName : CanvasName.T) : bool =
+  let cn = string canvasName
+  not (String.endsWith "-" (string cn))
+  && not (String.endsWith "_" (string cn))
+  && not (cn.ToString().Contains("--"))
+  && not (cn.ToString().Contains("__"))
 
+let dataValidatorTests (cd : CheckpointData) : Task<unit> =
+  task {
+    try
+      let userSemaphor = new System.Threading.SemaphoreSlim(20)
+      let canvasSemaphore = new System.Threading.SemaphoreSlim(20)
       let! users = LibBackend.Account.getUsers ()
       let! (results : List<unit>) =
         users
-        |> Task.mapSequentially (fun username ->
+        |> Task.mapInParallel (fun username ->
           task {
-            print $"start u: {username}"
-            if Set.contains (string username) tested.uiTestedUsernames then
+            if Set.contains (string username) cd.uiUsernames then
               print $"already completed: {username}"
               return [ () ]
             else
+              do! userSemaphor.WaitAsync()
+              print $"start u: {username}"
               let! user = LibBackend.Account.getUser username
               let client = Tests.ApiServer.forceLogin username
               let user = Exception.unwrapOptionInternal "" [] user
               let! canvases = LibBackend.Account.ownedCanvases user.id
               let! result =
                 canvases
-                |> List.filter (fun cn ->
-                  not (String.endsWith "-" (string cn))
-                  && not (cn.ToString().Contains("--")))
+                |> List.filter shouldRun
                 |> Task.mapInParallel (fun canvasName ->
                   task {
+                    do! canvasSemaphore.WaitAsync()
                     print $"start c: {canvasName}"
                     let! result =
                       Tests.ApiServer.testUiReturnsTheSame (lazy client) canvasName
                     print $"done  c: {canvasName}"
+                    canvasSemaphore.Release() |> ignore<int>
                     return result
                   })
               print $"done u:  {username}"
-              tested.uiTestedUsernames <-
-                Set.add tested.uiTestedUsernames (string username)
+              cd.uiUsernames <- Set.add cd.uiUsernames (string username)
+              saveCheckpointData cd
+              userSemaphor.Release() |> ignore<int>
               return result
           })
         |> Task.map List.flatten
       return ()
     with
     | e ->
-      saveTested tested
+      saveCheckpointData cd
       e.Reraise()
   }
 
-let tests =
-  testList
-    "tests"
-    [ testTask "data-validator" { do! dataValidatorTests () }
-      // testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
-      // testDelete404s
-      // testExecuteFunction
-      // testPostApi "get_404s" "" (deserialize<F404s.List.T>) ident
-      // testDBStats
-      // testGetTraceData
-      // testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
-      // testWorkerStats
-      // testInitialLoadReturnsTheSame
-      // testInsertDeleteSecrets
-      // testPostApi "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
-      // testTriggerHandler
-      // FSTODO worker_schedule
-      ]
 
-
+open Microsoft.Extensions.Hosting
 
 [<EntryPoint>]
-let main args = runTestsWithCLIArgs [] args tests
+let main args =
+  let builder =
+    Host
+      .CreateDefaultBuilder(args)
+      .ConfigureServices(fun _ -> ())
+      .UseConsoleLifetime(fun options -> ())
+      .Build()
+  let checkpointData = loadCheckpointData ()
+  let handler obj args = saveCheckpointData checkpointData
+  System.Console.CancelKeyPress.AddHandler(
+    new System.ConsoleCancelEventHandler(handler)
+  )
+  (dataValidatorTests checkpointData).Result
+  0
