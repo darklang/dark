@@ -96,18 +96,6 @@ let login (username : string) (password : string) : Task<Client> =
     return { http = client; csrf = csrfToken }
   }
 
-let testClient = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
-let testAdminClient = lazy (login "test_admin" "fVm2CUePzGKCwoEQQdNJktUQ")
-
-let loggedOutClient () =
-  lazy
-    (let handler = new HttpClientHandler(AllowAutoRedirect = false)
-     let client = new HttpClient(handler)
-     client.Timeout <- System.TimeSpan.FromSeconds 1
-     let user = { http = client; csrf = "" }
-     Task.FromResult user)
-
-
 
 let getAsync
   (server : Server)
@@ -151,10 +139,10 @@ let noBody () = ""
 
 
 
-let getInitialLoad (client : C) : Task<InitialLoad.T> =
+let getInitialLoad (client : C) (canvasName : CanvasName.T) : Task<InitialLoad.T> =
   task {
     let! (o : HttpResponseMessage) =
-      postAsync OCaml client $"/api/test/initial_load" ""
+      postAsync OCaml client $"/api/{canvasName}/initial_load" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -314,6 +302,8 @@ let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
 type ApiResponse<'a> = Task<'a * System.Net.HttpStatusCode * Map<string, string>>
 
 let postApiTestCase
+  (client : C)
+  (canvasName : CanvasName.T)
   (server : Server)
   (api : string)
   (body : string)
@@ -322,7 +312,7 @@ let postApiTestCase
   : ApiResponse<'a> =
   task {
     let! (response : HttpResponseMessage) =
-      postAsync server testClient $"/api/test/{api}" body
+      postAsync server client $"/api/{canvasName}/{api}" body
 
     let! content = response.Content.ReadAsStringAsync()
 
@@ -358,6 +348,8 @@ let postApiTestCase
   }
 
 let postApiTestCases
+  (client : C)
+  (canvasName : CanvasName.T)
   (api : string)
   (body : string)
   (deserialize : string -> 'a)
@@ -365,10 +357,10 @@ let postApiTestCases
   : Task<unit> =
   task {
     let! (oContent, oStatus, oHeaders) as o =
-      postApiTestCase OCaml api body deserialize canonicalizeBody
+      postApiTestCase client canvasName OCaml api body deserialize canonicalizeBody
 
     let! (fContent, fStatus, fHeaders) as f =
-      postApiTestCase FSharp api body deserialize canonicalizeBody
+      postApiTestCase client canvasName FSharp api body deserialize canonicalizeBody
 
     let () =
       if oStatus <> fStatus then
@@ -383,20 +375,22 @@ let postApiTestCases
   }
 
 let testPostApi
+  (client : C)
+  (canvasName : CanvasName.T)
   (api : string)
   (body : string)
   (deserialize : string -> 'a)
   (canonicalizeBody : 'a -> 'a)
   : Test =
   testTask $"{api} API returns same" {
-    return! postApiTestCases api body deserialize canonicalizeBody
+    return! postApiTestCases client canvasName api body deserialize canonicalizeBody
   }
 
 
-let testGetTraceData =
+let testGetTraceData (client : C) (canvasName : CanvasName.T) =
   testTask "get_trace is the same" {
     let! (o : HttpResponseMessage) =
-      postAsync OCaml testClient $"/api/test/all_traces" ""
+      postAsync OCaml client $"/api/test/all_traces" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -420,6 +414,8 @@ let testGetTraceData =
           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
           do!
             postApiTestCases
+              client
+              canvasName
               "get_trace_data"
               (serialize ps)
               (deserialize<Traces.TraceData.T>)
@@ -429,9 +425,9 @@ let testGetTraceData =
       |> Task.flatten
   }
 
-let testDBStats =
+let testDBStats (client : C) (canvasName : CanvasName.T) =
   testTask "db_stats is the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
+    let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
 
     let dbs =
       initialLoad.toplevels
@@ -442,13 +438,15 @@ let testDBStats =
 
     return!
       postApiTestCases
+        client
+        canvasName
         "get_db_stats"
         (serialize dbs)
         (deserialize<DBs.DBStats.T>)
         ident
   }
 
-let testExecuteFunction =
+let testExecuteFunction (client : C) (canvasName : CanvasName.T) =
   testTask "execute_function behaves the same" {
     let tlid = gid ()
 
@@ -461,6 +459,8 @@ let testExecuteFunction =
 
     return!
       postApiTestCases
+        client
+        canvasName
         "execute_function"
         (serialize body)
         (deserialize<Execution.Function.T>)
@@ -469,9 +469,9 @@ let testExecuteFunction =
           { r with touched_tlids = List.filter ((<>) tlid) r.touched_tlids })
   }
 
-let testTriggerHandler =
+let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
   testTask "trigger_handler behaves the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
+    let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
 
     let handlerTLID =
       initialLoad.toplevels
@@ -479,7 +479,7 @@ let testTriggerHandler =
       |> Tuple2.first
       |> List.filterMap (fun h ->
         // This test won't succeed unless you manually go to
-        // http://darklang.localhost:9000/a/test and add a POST http handler with the
+        // http://darklang.localhost:9000/a/{canvasName} and add a POST http handler with the
         // path below
         match h.spec with
         | PT.Handler.HTTP ("/a-test-handler/:user", "POST", _) -> Some h.tlid
@@ -494,6 +494,8 @@ let testTriggerHandler =
 
     return!
       postApiTestCases
+        client
+        canvasName
         "trigger_handler"
         (serialize body)
         (deserialize<Execution.Handler.T>)
@@ -502,9 +504,9 @@ let testTriggerHandler =
 
 
 
-let testWorkerStats =
+let testWorkerStats (client : C) (canvasName : CanvasName.T) =
   testTask "worker_stats is the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
+    let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
 
     do!
       initialLoad.toplevels
@@ -516,6 +518,8 @@ let testWorkerStats =
         | _ -> None)
       |> List.map (fun tlid ->
         postApiTestCases
+          client
+          canvasName
           "get_worker_stats"
           (serialize ({ tlid = tlid } : Workers.WorkerStats.Params))
           (deserialize<Workers.WorkerStats.T>)
@@ -523,7 +527,7 @@ let testWorkerStats =
       |> Task.flatten
   }
 
-let testInsertDeleteSecrets =
+let testInsertDeleteSecrets (client : C) (canvasName : CanvasName.T) =
   testTask "insert_secrets is the same" {
     let secretName = $"MY_SPECIAL_SECRET_{randomString 5}"
     let secretVal = randomString 32
@@ -535,7 +539,7 @@ let testInsertDeleteSecrets =
 
     let getSecret () : Task<Option<string>> =
       task {
-        let! (initialLoad : InitialLoad.T) = getInitialLoad testClient
+        let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
 
         return
           initialLoad.secrets
@@ -549,6 +553,8 @@ let testInsertDeleteSecrets =
       task {
         let! (_, status, _) =
           postApiTestCase
+            client
+            canvasName
             FSharp
             "delete_secret"
             (serialize deleteParam)
@@ -565,6 +571,8 @@ let testInsertDeleteSecrets =
       task {
         let! result =
           postApiTestCase
+            client
+            canvasName
             server
             "insert_secret"
             (serialize insertParam)
@@ -590,13 +598,13 @@ let testInsertDeleteSecrets =
     Expect.equal fResponse oResponse "compare responses"
   }
 
-let testDelete404s =
+let testDelete404s (client : C) (canvasName : CanvasName.T) =
   testTask "delete_404s is the same" {
 
     let get404s () : Task<List<TI.F404>> =
       task {
         let! (o : HttpResponseMessage) =
-          postAsync OCaml testClient $"/api/test/get_404s" ""
+          postAsync OCaml client $"/api/{canvasName}/get_404s" ""
 
         Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
         let! body = o.Content.ReadAsStringAsync()
@@ -621,6 +629,8 @@ let testDelete404s =
 
     let delete404 (server : Server) : ApiResponse<F404s.Delete.T> =
       postApiTestCase
+        client
+        canvasName
         server
         "delete_404"
         (serialize deleteParam)
@@ -629,12 +639,12 @@ let testDelete404s =
 
     let insert404 server : Task<unit> =
       task {
-        let! client = Lazy.force testClient
+        let! client = Lazy.force client
         let port =
           match server with
           | OCaml -> 8000
           | FSharp -> LibService.Config.bwdServerNginxPort
-        let url = $"http://test.builtwithdark.localhost:{port}{path}"
+        let url = $"http://{canvasName}.builtwithdark.localhost:{port}{path}"
         use message = new HttpRequestMessage(HttpMethod.Get, url)
         let! result = client.http.SendAsync(message)
         Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
@@ -664,7 +674,7 @@ let testDelete404s =
 
 
 
-let testInitialLoadReturnsTheSame =
+let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
   let deserialize v = Json.OCamlCompatible.deserialize<InitialLoad.T> v
 
 
@@ -691,7 +701,7 @@ let testInitialLoadReturnsTheSame =
         canvas_list = v.canvas_list |> List.sort
         creation_date = v.creation_date.truncate () }
 
-  testPostApi "initial_load" "" deserialize canonicalize
+  testPostApi client canvasName "initial_load" "" deserialize canonicalize
 
 let localOnlyTests =
   let canonicalizePackages (ps : Packages.List.T) : Packages.List.T =
@@ -706,36 +716,55 @@ let localOnlyTests =
                 LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
               | other -> other)
               p.body })
-  let ui =
-    testTask "ui returns the same" {
-      return! testUiReturnsTheSame testClient (CanvasName.create "test")
-    }
+
   let tests =
     if System.Environment.GetEnvironmentVariable "CI" = null then
+      let c = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+      let cn = CanvasName.create "test"
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
-      [ ui
+      [ testTask "" { return! testUiReturnsTheSame c cn }
+        testInitialLoadReturnsTheSame c cn
         // TODO add_ops
-        testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
-        testDelete404s
-        testExecuteFunction
-        testPostApi "get_404s" "" (deserialize<F404s.List.T>) ident
-        testDBStats
-        testGetTraceData
-        testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
-        testWorkerStats
-        testInitialLoadReturnsTheSame
-        testInsertDeleteSecrets
-        // testPostApi "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
+        testPostApi c cn "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
+        testDelete404s c cn
+        testExecuteFunction c cn
+        testPostApi c cn "get_404s" "" (deserialize<F404s.List.T>) ident
+        testDBStats c cn
+        testGetTraceData c cn
+        testPostApi c cn "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
+        testWorkerStats c cn
+        testInsertDeleteSecrets c cn
+        testPostApi
+          c
+          cn
+          "packages"
+          ""
+          (deserialize<Packages.List.T>)
+          canonicalizePackages
         // TODO upload_package
-        testTriggerHandler
+        testTriggerHandler c cn
         // FSTODO worker_schedule
         ]
     else
       []
 
   testSequencedGroup "local" (testList "local" tests)
+
+let testClient = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+let testAdminClient = lazy (login "test_admin" "fVm2CUePzGKCwoEQQdNJktUQ")
+
+let loggedOutClient () =
+  lazy
+    (let handler = new HttpClientHandler(AllowAutoRedirect = false)
+     let client = new HttpClient(handler)
+     client.Timeout <- System.TimeSpan.FromSeconds 1
+     let user = { http = client; csrf = "" }
+     Task.FromResult user)
+
+
+
 
 let permissions =
   testMany2Task
