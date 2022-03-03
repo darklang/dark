@@ -689,6 +689,18 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                       // We don't have these anymore
                       { h.spec with
                           types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
+    let canonicalizeUserFn (uf : ORT.user_fn<ORT.fluidExpr>) =
+      { uf with
+          ast = canonicalizeAst uf.ast
+          metadata =
+            { uf.metadata with
+                parameters =
+                  List.map
+                    // Unclear how anyone got this set to optional
+                    // CLEANUP remove optional
+                    (fun p -> { p with optional = false })
+                    uf.metadata.parameters } }
+
 
     { v with
         toplevels =
@@ -702,11 +714,11 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
         user_functions =
           v.user_functions
           |> List.sortBy (fun uf -> uf.tlid)
-          |> List.map (fun uf -> { uf with ast = canonicalizeAst uf.ast })
+          |> List.map canonicalizeUserFn
         deleted_user_functions =
           v.deleted_user_functions
           |> List.sortBy (fun uf -> uf.tlid)
-          |> List.map (fun uf -> { uf with ast = canonicalizeAst uf.ast })
+          |> List.map canonicalizeUserFn
         canvas_list = v.canvas_list |> List.sort
         assets =
           v.assets
