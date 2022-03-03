@@ -75,6 +75,8 @@ module FQFnName =
           "Bad format in one word function name"
           [ "fnName", fnName ]
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
+    // CLEANUP there are functions with capital letters in the DB!
+    | Regex "^([A-Z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
 
 
