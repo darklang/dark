@@ -12,6 +12,7 @@ open Tablecloth
 open Prelude
 open Prelude.Tablecloth
 open TestUtils.TestUtils
+open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -322,7 +323,7 @@ let postApiTestCase
       with
       | e ->
         print $"Error deserializing {server}: \n{content}"
-        reraise ()
+        e.Reraise()
 
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
       let clear str =
@@ -347,13 +348,13 @@ let postApiTestCase
 
   }
 
-let postApiTestCases
-  (client : C)
-  (canvasName : CanvasName.T)
+let postApiTest
   (api : string)
   (body : string)
   (deserialize : string -> 'a)
   (canonicalizeBody : 'a -> 'a)
+  (client : C)
+  (canvasName : CanvasName.T)
   : Task<unit> =
   task {
     let! (oContent, oStatus, oHeaders) as o =
@@ -374,23 +375,11 @@ let postApiTestCases
     Expect.equal fHeaders oHeaders "headers"
   }
 
-let testPostApi
-  (client : C)
-  (canvasName : CanvasName.T)
-  (api : string)
-  (body : string)
-  (deserialize : string -> 'a)
-  (canonicalizeBody : 'a -> 'a)
-  : Test =
-  testTask $"{api} API returns same" {
-    return! postApiTestCases client canvasName api body deserialize canonicalizeBody
-  }
-
 
 let testGetTraceData (client : C) (canvasName : CanvasName.T) =
-  testTask "get_trace is the same" {
+  task {
     let! (o : HttpResponseMessage) =
-      postAsync OCaml client $"/api/test/all_traces" ""
+      postAsync OCaml client $"/api/{canvasName}/all_traces" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -404,7 +393,7 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
               |> Tuple2.mapSecond (fun td ->
                 { td with timestamp = td.timestamp.truncate () }) })
 
-    do!
+    let! (_ : List<unit>) =
       body
       |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
@@ -413,20 +402,21 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
         task {
           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
           do!
-            postApiTestCases
-              client
-              canvasName
+            postApiTest
               "get_trace_data"
               (serialize ps)
               (deserialize<Traces.TraceData.T>)
               canonicalize
+              client
+              canvasName
         })
-
       |> Task.flatten
+
+    return ()
   }
 
-let testDBStats (client : C) (canvasName : CanvasName.T) =
-  testTask "db_stats is the same" {
+let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
+  task {
     let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
 
     let dbs =
@@ -437,40 +427,39 @@ let testDBStats (client : C) (canvasName : CanvasName.T) =
       |> fun tlids -> ({ tlids = tlids } : DBs.DBStats.Params)
 
     return!
-      postApiTestCases
-        client
-        canvasName
+      postApiTest
         "get_db_stats"
         (serialize dbs)
         (deserialize<DBs.DBStats.T>)
         ident
-  }
-
-let testExecuteFunction (client : C) (canvasName : CanvasName.T) =
-  testTask "execute_function behaves the same" {
-    let tlid = gid ()
-
-    let (body : Execution.Function.Params) =
-      { tlid = tlid
-        trace_id = System.Guid.NewGuid()
-        caller_id = gid ()
-        args = [ ORT.DInt 5L; ORT.DInt 6L ]
-        fnname = "Int::add" }
-
-    return!
-      postApiTestCases
         client
         canvasName
-        "execute_function"
-        (serialize body)
-        (deserialize<Execution.Function.T>)
-        // New version includes the tlid of the caller
-        (fun (r : Execution.Function.T) ->
-          { r with touched_tlids = List.filter ((<>) tlid) r.touched_tlids })
   }
 
+
+let testExecuteFunction (client : C) (canvasName : CanvasName.T) : Task<unit> =
+  let tlid = gid ()
+
+  let (body : Execution.Function.Params) =
+    { tlid = tlid
+      trace_id = System.Guid.NewGuid()
+      caller_id = gid ()
+      args = [ ORT.DInt 5L; ORT.DInt 6L ]
+      fnname = "Int::add" }
+
+  postApiTest
+    "execute_function"
+    (serialize body)
+    (deserialize<Execution.Function.T>)
+    // New version includes the tlid of the caller
+    (fun (r : Execution.Function.T) ->
+      { r with touched_tlids = List.filter ((<>) tlid) r.touched_tlids })
+    client
+    canvasName
+
+
 let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
-  testTask "trigger_handler behaves the same" {
+  task {
     let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
 
     let handlerTLID =
@@ -493,22 +482,22 @@ let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
         trace_id = System.Guid.NewGuid() }
 
     return!
-      postApiTestCases
-        client
-        canvasName
+      postApiTest
         "trigger_handler"
         (serialize body)
         (deserialize<Execution.Handler.T>)
         ident
+        client
+        canvasName
   }
 
 
 
-let testWorkerStats (client : C) (canvasName : CanvasName.T) =
-  testTask "worker_stats is the same" {
+let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
+  task {
     let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
 
-    do!
+    let! (_ : List<unit>) =
       initialLoad.toplevels
       |> Convert.ocamlToplevel2PT
       |> Tuple2.first
@@ -517,18 +506,19 @@ let testWorkerStats (client : C) (canvasName : CanvasName.T) =
         | PT.Handler.Worker _ -> Some h.tlid
         | _ -> None)
       |> List.map (fun tlid ->
-        postApiTestCases
-          client
-          canvasName
+        postApiTest
           "get_worker_stats"
           (serialize ({ tlid = tlid } : Workers.WorkerStats.Params))
           (deserialize<Workers.WorkerStats.T>)
-          ident)
+          ident
+          client
+          canvasName)
       |> Task.flatten
+    return ()
   }
 
 let testInsertDeleteSecrets (client : C) (canvasName : CanvasName.T) =
-  testTask "insert_secrets is the same" {
+  task {
     let secretName = $"MY_SPECIAL_SECRET_{randomString 5}"
     let secretVal = randomString 32
 
@@ -599,7 +589,7 @@ let testInsertDeleteSecrets (client : C) (canvasName : CanvasName.T) =
   }
 
 let testDelete404s (client : C) (canvasName : CanvasName.T) =
-  testTask "delete_404s is the same" {
+  task {
 
     let get404s () : Task<List<TI.F404>> =
       task {
@@ -672,11 +662,17 @@ let testDelete404s (client : C) (canvasName : CanvasName.T) =
   }
 
 
-
+let canonicalizeAst (e : OT.RuntimeT.fluidExpr) =
+  LibExecution.OCamlTypesAst.preTraversal
+    (function
+    // This is a random number so make it zero so they can be compared
+    | LibExecution.OCamlTypes.RuntimeT.EPipeTarget _ as p ->
+      LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
+    | other -> other)
+    e
 
 let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
   let deserialize v = Json.OCamlCompatible.deserialize<InitialLoad.T> v
-
 
   let canonicalize (v : InitialLoad.T) : InitialLoad.T =
     let clearTypes (tl : ORT.toplevel) =
@@ -687,6 +683,7 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
             data =
               ORT.Handler
                 { h with
+                    ast = canonicalizeAst h.ast
                     spec =
                       { h.spec with
                           types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
@@ -698,24 +695,26 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
           v.deleted_toplevels
           |> List.sortBy (fun tl -> tl.tlid)
           |> List.map clearTypes
+        user_functions =
+          v.user_functions
+          |> List.sortBy (fun uf -> uf.tlid)
+          |> List.map (fun uf -> { uf with ast = canonicalizeAst uf.ast })
+        deleted_user_functions =
+          v.deleted_user_functions
+          |> List.sortBy (fun uf -> uf.tlid)
+          |> List.map (fun uf -> { uf with ast = canonicalizeAst uf.ast })
         canvas_list = v.canvas_list |> List.sort
+        assets =
+          v.assets
+          |> List.map (fun a -> { a with last_update = a.last_update.truncate () })
         creation_date = v.creation_date.truncate () }
 
-  testPostApi client canvasName "initial_load" "" deserialize canonicalize
+  postApiTest "initial_load" "" deserialize canonicalize client canvasName
+
 
 let localOnlyTests =
   let canonicalizePackages (ps : Packages.List.T) : Packages.List.T =
-    ps
-    |> List.map (fun p ->
-      { p with
-          body =
-            LibExecution.OCamlTypesAst.preTraversal
-              (function
-              // This is a random number so make it zero so they can be compared
-              | LibExecution.OCamlTypes.RuntimeT.EPipeTarget _ ->
-                LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
-              | other -> other)
-              p.body })
+    ps |> List.map (fun p -> { p with body = canonicalizeAst p.body })
 
   let tests =
     if System.Environment.GetEnvironmentVariable "CI" = null then
@@ -724,29 +723,31 @@ let localOnlyTests =
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
-      [ testTask "" { return! testUiReturnsTheSame c cn }
-        testInitialLoadReturnsTheSame c cn
+      [ "ui", testUiReturnsTheSame
+        "initial load", testInitialLoadReturnsTheSame
         // TODO add_ops
-        testPostApi c cn "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
-        testDelete404s c cn
-        testExecuteFunction c cn
-        testPostApi c cn "get_404s" "" (deserialize<F404s.List.T>) ident
-        testDBStats c cn
-        testGetTraceData c cn
-        testPostApi c cn "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
-        testWorkerStats c cn
-        testInsertDeleteSecrets c cn
-        testPostApi
-          c
-          cn
-          "packages"
-          ""
-          (deserialize<Packages.List.T>)
-          canonicalizePackages
+        ("all traces",
+         postApiTest "all_traces" "" (deserialize<Traces.AllTraces.T>) ident)
+        "execute_function", testExecuteFunction
+        "get 404s", postApiTest "get_404s" "" (deserialize<F404s.List.T>) ident
+        "db stats", testDBStats
+        "get trace data", testGetTraceData
+        "get unlocked_dbs",
+        postApiTest "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
+        "worker_stats", testWorkerStats
+        "secrets", testInsertDeleteSecrets
+        ("packages",
+         postApiTest
+           "packages"
+           ""
+           (deserialize<Packages.List.T>)
+           canonicalizePackages)
+        "trigger handker", testTriggerHandler
+        "delete 404s", testDelete404s
         // TODO upload_package
-        testTriggerHandler c cn
         // FSTODO worker_schedule
         ]
+      |> List.map (fun (name, fn) -> testTask name { return! fn c cn })
     else
       []
 
