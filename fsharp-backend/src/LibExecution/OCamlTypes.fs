@@ -677,7 +677,11 @@ module Convert =
           // Some things were named wrong in OCaml
           $"{name}_v0"
         else
-          string name |> String.replace "_v0" ""
+          match name with
+          | RT.FQFnName.Stdlib _
+          | RT.FQFnName.User _ -> string name |> String.replace "_v0" ""
+          // Keep the _v0 here
+          | RT.FQFnName.Package _ -> string name
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
