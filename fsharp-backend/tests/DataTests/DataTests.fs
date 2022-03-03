@@ -98,6 +98,10 @@ let main args =
   HttpMiddleware.Init.init "Tests"
   TestUtils.Init.init "Tests"
 
+  LibService.Telemetry.Console.loadTelemetry
+    "DataTests"
+    LibService.Telemetry.DontTraceDBQueries
+
   let checkpointData = loadCheckpointData ()
   let handler _ _ = saveCheckpointData checkpointData
   System.Console.CancelKeyPress.AddHandler(
