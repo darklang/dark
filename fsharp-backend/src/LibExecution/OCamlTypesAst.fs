@@ -39,12 +39,8 @@ let traverse (f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
 
 
 let rec preTraversal (f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
-  let r = preTraversal f in
-  let expr = f expr in
-  traverse r expr
+  traverse (preTraversal f) (f expr)
 
 
 let rec postTraversal (f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
-  let r = postTraversal f in
-  let result = traverse r expr
-  f result
+  f (traverse (postTraversal f) expr)
