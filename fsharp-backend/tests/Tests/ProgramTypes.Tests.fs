@@ -45,8 +45,10 @@ let parseTests =
         [ ("", p "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3")
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
           ("", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1")
+          ("no v0", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E")
           ("", Stdlib { module_ = ""; function_ = "toString"; version = 0 })
           ("", User "someUserFn")
+          ("capital letter", User "SomeUserFn") // CLEANUP shouldn't be needed
           ("", p "String::toInt_v1")
           ("", Stdlib { module_ = ""; function_ = "++"; version = 0 })
           ("", Stdlib { module_ = ""; function_ = "+"; version = 0 })

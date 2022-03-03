@@ -97,6 +97,7 @@ module FQFnName =
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
+  let deprecatedFnnamePat = @"^([A-Za-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
 
   let packageFnName
     (owner : string)
@@ -127,7 +128,11 @@ module FQFnName =
     Package(packageFnName owner package module_ function_ version)
 
   let userFnName (fnName : string) : UserFnName =
-    assertRe "function name must match" fnnamePat fnName
+    try
+      assertRe "function name must match" fnnamePat fnName
+    with
+    | _ -> assertRe "function name must match 2" deprecatedFnnamePat fnName
+
     fnName
 
   let userFqName (fnName : string) = User(userFnName fnName)
