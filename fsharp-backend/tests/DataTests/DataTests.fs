@@ -90,11 +90,36 @@ let forEachCanvas
 
 [<EntryPoint>]
 let main args =
+  LibService.Init.init "Tests"
+  LibExecution.Init.init "Tests"
+  LibExecutionStdLib.Init.init "Tests"
+  (LibBackend.Init.init "Tests" true).Result
+  LibRealExecution.Init.init "Tests"
+  HttpMiddleware.Init.init "Tests"
+  TestUtils.Init.init "Tests"
+
   let checkpointData = loadCheckpointData ()
   let handler _ _ = saveCheckpointData checkpointData
   System.Console.CancelKeyPress.AddHandler(
     new System.ConsoleCancelEventHandler(handler)
   )
-  (forEachCanvas "ui tests" checkpointData Tests.ApiServer.testUiReturnsTheSame)
-    .Result
+  try
+    (forEachCanvas
+      "ui tests"
+      checkpointData
+      Tests.ApiServer.testInitialLoadReturnsTheSame)
+      .Result
+  with
+  | e ->
+    print e.Message
+    print (Exception.toMetadata e |> string)
+    e.StackTrace
+    |> FsRegEx.replace
+         "at Prelude.Task.foldSequentially@1475-20.Invoke(Unit unitVar0) in /home/dark/app/fsharp-backend/src/Prelude/Prelude.fs:line 1475"
+         ""
+    |> FsRegEx.replace
+         "at Ply.TplPrimitives.ContinuationStateMachine`1.System-Runtime-CompilerServices-IAsyncStateMachine-MoveNext()"
+         ""
+    |> print
+
   0
