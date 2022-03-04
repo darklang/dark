@@ -84,7 +84,7 @@ let loadOnlyRenderedTLIDs
   // handlers that were touched between the addition of the
   // `rendered_oplist_cache` column and the addition of the `deleted` column.
   Sql.query
-    "SELECT tipe, rendered_oplist_cache, pos FROM toplevel_oplists
+    "SELECT tlid, tipe, rendered_oplist_cache, pos FROM toplevel_oplists
       WHERE canvas_id = @canvasID
       AND tlid = ANY (@tlids)
       AND deleted IS FALSE
@@ -95,9 +95,29 @@ let loadOnlyRenderedTLIDs
            OR tipe = 'user_tipe'::toplevel_type)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read ->
-    (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
+    (read.int "tlid",
+     read.string "tipe",
+     read.bytea "rendered_oplist_cache",
+     read.stringOrNone "pos"))
   |> Task.bind (fun list ->
-    list |> List.map OCamlInterop.toplevelBin2Json |> Task.flatten)
+    list
+    |> List.map (fun (tlid, typ, data, pos) ->
+
+      let pos () =
+        pos
+        |> Option.map Json.OCamlCompatible.deserialize<pos>
+        |> Option.unwrap { x = 0; y = 0 }
+      match typ with
+      | "db" -> OCamlInterop.dbBin2Json data (pos ()) |> Task.map PT.TLDB
+      | "handler" ->
+        OCamlInterop.handlerBin2Json data (pos ()) |> Task.map PT.TLHandler
+      | "user_tipe" -> OCamlInterop.userTypeBin2Json data |> Task.map PT.TLType
+      | "user_function" -> OCamlInterop.userFnBin2Json data |> Task.map PT.TLFunction
+      | _ ->
+        Exception.raiseInternal
+          "Invalid tipe for toplevel"
+          [ "type", typ; "tlid", tlid; "canvas_id", canvasID ])
+    |> Task.flatten)
 
 
 let fetchReleventTLIDsForHTTP
