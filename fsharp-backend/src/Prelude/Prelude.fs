@@ -1196,7 +1196,7 @@ module Json =
       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
       // This is a potential vulnerability
       settings.TypeNameHandling <- TypeNameHandling.None
-      settings.MaxDepth <- System.Nullable() // null indicates infinite
+      settings.MaxDepth <- 1024
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
       settings.Converters.Add(TLIDConverter())
