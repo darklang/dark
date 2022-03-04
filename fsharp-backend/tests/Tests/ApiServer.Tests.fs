@@ -689,6 +689,12 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                     ast = canonicalizeAst h.ast
                     spec =
                       { h.spec with
+                          modifier =
+                            // Found some workers with blank modifiers
+                            match h.spec.``module``, h.spec.modifier with
+                            | OT.Filled (_, "WORKER"), OT.Blank id ->
+                              OT.Filled(id, "_")
+                            | _, other -> other
                           name =
                             // Both forms exist, probably not a big deal
                             match h.spec.name with
