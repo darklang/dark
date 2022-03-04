@@ -29,4 +29,6 @@ EXE=Build/out/DataTests/Debug/net6.0/linux-x64/DataTests
 ./scripts/run-ocaml-legacy-server
 
 cd fsharp-backend
+
+DARK_CONFIG_TELEMETRY_EXPORTER=none \
 "${EXE}" --no-spinner "${@}"
