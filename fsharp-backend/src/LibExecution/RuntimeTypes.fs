@@ -97,7 +97,6 @@ module FQFnName =
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
-  let deprecatedFnnamePat = @"^([A-Za-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
 
   let packageFnName
     (owner : string)
@@ -109,7 +108,7 @@ module FQFnName =
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
-    assertRe "function name must match" fnnamePat function_
+    assertRe "package function name must match" fnnamePat function_
     assert_ "version can't be negative" (version >= 0)
 
     { owner = owner
@@ -128,12 +127,11 @@ module FQFnName =
     Package(packageFnName owner package module_ function_ version)
 
   let userFnName (fnName : string) : UserFnName =
-    try
-      assertRe "function name must match" fnnamePat fnName
-    with
-    | _ -> assertRe "function name must match 2" deprecatedFnnamePat fnName
-
+    // CLEANUP we would like to enable this, but some users in our DB have functions
+    // named with weird characters, such as a url.
+    // assertRe "user function name must match" fnnamePat fnName
     fnName
+
 
   let userFqName (fnName : string) = User(userFnName fnName)
 
@@ -143,7 +141,7 @@ module FQFnName =
     (version : int)
     : StdlibFnName =
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
-    assertRe "function name must match" fnnamePat function_
+    assertRe "stdlib function name must match" fnnamePat function_
     assert_ "version can't be negative" (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 

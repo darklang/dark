@@ -42,6 +42,7 @@ module FQFnName =
           "emit_v1" ]
 
   let parse (fnName : string) : T =
+    // These should match up with the regexes in RuntimeTypes
     match fnName with
     | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ owner; package; module_; name; version ] ->
@@ -75,8 +76,10 @@ module FQFnName =
           "Bad format in one word function name"
           [ "fnName", fnName ]
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
-    // CLEANUP there are functions with capital letters in the DB!
-    | Regex "^([A-Z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
+    // CLEANUP People have the most ridiculous names in userFunctions. One user had a
+    // fully qualified url in there! Ridiculous. This needs a data cleanup before it
+    // can be removed.
+    | Regex "^(.*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
 
 
