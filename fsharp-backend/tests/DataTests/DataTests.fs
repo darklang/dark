@@ -11,7 +11,7 @@ open Tablecloth
 
 open LibService.Exception
 
-type CheckpointData = { mutable users : Set<string> }
+type CheckpointData = { mutable complete : Set<string>; ignored : Set<string> }
 let testedFilename = "datatests.json"
 
 let loadCheckpointData () =
@@ -21,7 +21,7 @@ let loadCheckpointData () =
   with
   | e ->
     print "No test file found"
-    { users = Set [] }
+    { complete = Set []; ignored = Set [] }
 
 let saveCheckpointData (tested : CheckpointData) : unit =
   print "saving to test file"
@@ -57,19 +57,23 @@ let catchException (cd : CheckpointData) (e : exn) =
 
 
 let forEachCanvas
+  (users : int)
+  (canvases : int)
   (cd : CheckpointData)
   (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
   : Task<unit> =
   task {
-    let userSemaphor = new System.Threading.SemaphoreSlim(20)
-    // let canvasSemaphore = new System.Threading.SemaphoreSlim(20)
+    let userSemaphor = new System.Threading.SemaphoreSlim(users)
+    let canvasSemaphore = new System.Threading.SemaphoreSlim(canvases)
     let! users = LibBackend.Account.getUsers ()
     let! (results : List<unit>) =
       users
       |> Task.mapInParallel (fun username ->
         task {
-          if Set.contains (string username) cd.users then
-            print $"already completed: {username}"
+          if Set.contains (string username) cd.complete then
+            return [ () ]
+          elif Set.contains (string username) cd.ignored then
+            print $"ignoring {username}"
             return [ () ]
           else
             try
@@ -82,26 +86,27 @@ let forEachCanvas
               let! result =
                 canvases
                 |> List.filter shouldRun
-                |> Task.mapSequentially (fun canvasName ->
+                |> Task.mapInParallel (fun canvasName ->
                   task {
-                    // do! canvasSemaphore.WaitAsync()
-                    print $"start c: {canvasName}"
+                    do! canvasSemaphore.WaitAsync()
+                    print
+                      $"                                            start c: {canvasName}"
                     try
                       let! result = fn (lazy client) canvasName
-                      print $"done  c: {canvasName}"
-                      // canvasSemaphore.Release() |> ignore<int>
+                      print
+                        $"                                            done  c: {canvasName}"
+                      canvasSemaphore.Release() |> ignore<int>
                       return result
                     with
                     | e -> catchException cd e
                   })
-              print $"done u:  {username}"
-              cd.users <- Set.add cd.users (string username)
+              print $"DONE u:  {username}"
+              cd.complete <- Set.add cd.complete (string username)
               saveCheckpointData cd
               userSemaphor.Release() |> ignore<int>
               return result
             with
             | e ->
-              userSemaphor.Release() |> ignore<int>
               catchException cd e
               return [ () ]
         })
@@ -129,8 +134,22 @@ let main args =
   System.Console.CancelKeyPress.AddHandler(
     new System.ConsoleCancelEventHandler(handler)
   )
+  let userCount =
+    try
+      (int args[1])
+    with
+    | _ -> 1
+  let canvasCount =
+    try
+      (int args[2])
+    with
+    | _ -> 20
   try
-    (forEachCanvas checkpointData Tests.ApiServer.testInitialLoadReturnsTheSame)
+    (forEachCanvas
+      userCount
+      canvasCount
+      checkpointData
+      Tests.ApiServer.testInitialLoadReturnsTheSame)
       .Result
   with
   | e -> catchException checkpointData e
