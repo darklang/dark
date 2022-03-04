@@ -351,7 +351,10 @@ module Convert =
     | ORT.EString (id, str) -> PT.EString(id, str)
     | ORT.EFloat (id, w, f) ->
       let sign, whole =
-        if w[0] = '-' then (Negative, String.dropLeft 1 w) else Positive, w
+        if w.Length > 0 && w[0] = '-' then
+          (Negative, String.dropLeft 1 w)
+        else
+          Positive, w
       PT.EFloat(id, sign, whole, f)
     | ORT.EBool (id, b) -> PT.EBool(id, b)
     | ORT.ENull id -> PT.ENull id
