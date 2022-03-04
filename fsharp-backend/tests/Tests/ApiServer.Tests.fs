@@ -668,6 +668,18 @@ let canonicalizeAst (e : OT.RuntimeT.fluidExpr) =
     // This is a random number so make it zero so they can be compared
     | LibExecution.OCamlTypes.RuntimeT.EPipeTarget _ as p ->
       LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
+    // This is inconsistent in stored code
+    | LibExecution.OCamlTypes.RuntimeT.EFnCall (id, name, args, ster) ->
+      LibExecution.OCamlTypes.RuntimeT.EFnCall(
+        id,
+        name |> String.replace "_v0" "",
+        args,
+        ster
+      )
+    | LibExecution.OCamlTypes.RuntimeT.EInteger (id, i) ->
+      // CLEANUP some values have '+' in them
+      let i = if i.Length > 0 && i[0] = '+' then i.Substring(1) else i
+      LibExecution.OCamlTypes.RuntimeT.EInteger(id, i)
     | other -> other)
     e
 
@@ -690,11 +702,12 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                     spec =
                       { h.spec with
                           modifier =
-                            // Found some workers with blank modifiers
+                            // Found some workers, repls, etc, with blank modifiers,
+                            // or non-blank modifiers left over from a long time ago
                             match h.spec.``module``, h.spec.modifier with
-                            | OT.Filled (_, "WORKER"), OT.Blank id
-                            | OT.Filled (_, "REPL"), OT.Blank id ->
+                            | OT.Filled (_, "NOTIFY"), OT.Filled (id, _) ->
                               OT.Filled(id, "_")
+                            | OT.Filled (_, _), OT.Blank id -> OT.Filled(id, "_")
                             | _, other -> other
                           name =
                             // Both forms exist, probably not a big deal
@@ -716,6 +729,12 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                           // CLEANUP remove optional
                           optional = false
                           // Not supposed to be possible
+                          tipe =
+                            match p.tipe with
+                            // CLEANUP can't believe this is still here
+                            | OT.Filled (id, OT.TDeprecated4 _) ->
+                              OT.Filled(id, OT.TAny)
+                            | other -> other
                           name =
                             match p.name with
                             | OT.Filled (id, "") -> OT.Blank id
