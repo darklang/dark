@@ -37,56 +37,76 @@ let shouldRun (canvasName : CanvasName.T) : bool =
   && not (cn.ToString().Contains("--"))
   && not (cn.ToString().Contains("__"))
 
+let catchException (cd : CheckpointData) (e : exn) =
+  try
+    print "exiting"
+    saveCheckpointData cd
+    print e.Message
+    print (Exception.toMetadata e |> string)
+    e.StackTrace
+    |> FsRegEx.replace
+         "at Prelude.Task.foldSequentially@1475-20.Invoke(Unit unitVar0) in /home/dark/app/fsharp-backend/src/Prelude/Prelude.fs:line 1475"
+         ""
+    |> FsRegEx.replace
+         "at Ply.TplPrimitives.ContinuationStateMachine`1.System-Runtime-CompilerServices-IAsyncStateMachine-MoveNext()"
+         ""
+    |> print
+  finally
+    System.Environment.Exit(-1)
+
+
+
 let forEachCanvas
   (cd : CheckpointData)
   (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
   : Task<unit> =
   task {
-    try
-      let userSemaphor = new System.Threading.SemaphoreSlim(20)
-      // let canvasSemaphore = new System.Threading.SemaphoreSlim(20)
-      let! users = LibBackend.Account.getUsers ()
-      let! (results : List<unit>) =
-        users
-        |> Task.mapSequentially (fun username ->
-          task {
-            if Set.contains (string username) cd.users then
-              print $"already completed: {username}"
-              return [ () ]
-            else
-              try
-                do! userSemaphor.WaitAsync()
-                print $"start u: {username}"
-                let! user = LibBackend.Account.getUser username
-                let client = Tests.ApiServer.forceLogin username
-                let user = Exception.unwrapOptionInternal "" [] user
-                let! canvases = LibBackend.Account.ownedCanvases user.id
-                let! result =
-                  canvases
-                  |> List.filter shouldRun
-                  |> Task.mapSequentially (fun canvasName ->
-                    task {
-                      // do! canvasSemaphore.WaitAsync()
-                      print $"start c: {canvasName}"
+    let userSemaphor = new System.Threading.SemaphoreSlim(20)
+    // let canvasSemaphore = new System.Threading.SemaphoreSlim(20)
+    let! users = LibBackend.Account.getUsers ()
+    let! (results : List<unit>) =
+      users
+      |> Task.mapInParallel (fun username ->
+        task {
+          if Set.contains (string username) cd.users then
+            print $"already completed: {username}"
+            return [ () ]
+          else
+            try
+              do! userSemaphor.WaitAsync()
+              print $"start u: {username}"
+              let! user = LibBackend.Account.getUser username
+              let client = Tests.ApiServer.forceLogin username
+              let user = Exception.unwrapOptionInternal "" [] user
+              let! canvases = LibBackend.Account.ownedCanvases user.id
+              let! result =
+                canvases
+                |> List.filter shouldRun
+                |> Task.mapSequentially (fun canvasName ->
+                  task {
+                    // do! canvasSemaphore.WaitAsync()
+                    print $"start c: {canvasName}"
+                    try
                       let! result = fn (lazy client) canvasName
                       print $"done  c: {canvasName}"
                       // canvasSemaphore.Release() |> ignore<int>
                       return result
-                    })
-                print $"done u:  {username}"
-                cd.users <- Set.add cd.users (string username)
-                saveCheckpointData cd
-                return result
-              finally
-                userSemaphor.Release() |> ignore<int>
-          })
-        |> Task.map List.flatten
-      return ()
-    with
-    | e ->
-      print "outer error found"
-      saveCheckpointData cd
-      e.Reraise()
+                    with
+                    | e -> catchException cd e
+                  })
+              print $"done u:  {username}"
+              cd.users <- Set.add cd.users (string username)
+              saveCheckpointData cd
+              userSemaphor.Release() |> ignore<int>
+              return result
+            with
+            | e ->
+              userSemaphor.Release() |> ignore<int>
+              catchException cd e
+              return [ () ]
+        })
+      |> Task.map List.flatten
+    return ()
   }
 
 
@@ -113,17 +133,5 @@ let main args =
     (forEachCanvas checkpointData Tests.ApiServer.testInitialLoadReturnsTheSame)
       .Result
   with
-  | e ->
-    print "exiting"
-    print e.Message
-    print (Exception.toMetadata e |> string)
-    e.StackTrace
-    |> FsRegEx.replace
-         "at Prelude.Task.foldSequentially@1475-20.Invoke(Unit unitVar0) in /home/dark/app/fsharp-backend/src/Prelude/Prelude.fs:line 1475"
-         ""
-    |> FsRegEx.replace
-         "at Ply.TplPrimitives.ContinuationStateMachine`1.System-Runtime-CompilerServices-IAsyncStateMachine-MoveNext()"
-         ""
-    |> print
-
+  | e -> catchException checkpointData e
   0
