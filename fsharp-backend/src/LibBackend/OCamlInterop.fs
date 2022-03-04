@@ -185,18 +185,6 @@ let userTypeBin2Json (data : byte array) : Task<PT.UserType.T> =
   |> Task.map Convert.ocamlUserType2PT
 
 
-let toplevelBin2Json
-  ((data, pos) : (byte array * string option))
-  : Task<PT.Toplevel> =
-  let pos =
-    pos
-    |> Option.map Json.OCamlCompatible.deserialize<pos>
-    |> Option.unwrap { x = 0; y = 0 }
-  data
-  |> bytesToStringReq "bs/toplevel_bin2json"
-  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.Convert.BSTypes.tl>
-  |> Task.map (Convert.ocamlBinarySerializationToplevel2PT pos)
-
 let handlerJson2Bin (h : PT.Handler.T) : Task<byte array> =
   h
   |> Convert.pt2ocamlHandler
