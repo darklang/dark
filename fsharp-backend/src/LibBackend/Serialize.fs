@@ -95,14 +95,13 @@ let loadOnlyRenderedTLIDs
            OR tipe = 'user_tipe'::toplevel_type)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read ->
-    (read.int "tlid",
+    (read.int64 "tlid",
      read.string "tipe",
      read.bytea "rendered_oplist_cache",
      read.stringOrNone "pos"))
   |> Task.bind (fun list ->
     list
     |> List.map (fun (tlid, typ, data, pos) ->
-
       let pos () =
         pos
         |> Option.map Json.OCamlCompatible.deserialize<pos>
