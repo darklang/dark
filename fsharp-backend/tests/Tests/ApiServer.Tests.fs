@@ -692,7 +692,8 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
                           modifier =
                             // Found some workers with blank modifiers
                             match h.spec.``module``, h.spec.modifier with
-                            | OT.Filled (_, "WORKER"), OT.Blank id ->
+                            | OT.Filled (_, "WORKER"), OT.Blank id
+                            | OT.Filled (_, "REPL"), OT.Blank id ->
                               OT.Filled(id, "_")
                             | _, other -> other
                           name =
