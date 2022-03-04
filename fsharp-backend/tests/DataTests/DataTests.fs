@@ -9,19 +9,27 @@ open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 
-open LibService.Exception
+module Account = LibBackend.Account
 
-type CheckpointData = { mutable complete : Set<string>; ignored : Set<string> }
+type CheckpointData =
+  { mutable complete : Set<string>
+    skipForNow : Set<string>
+    broken : Set<string> }
+
 let testedFilename = "datatests.json"
 
-let loadCheckpointData () =
+let loadCheckpointData () : CheckpointData =
   try
     LibBackend.File.readfile LibBackend.Config.NoCheck testedFilename
     |> Json.Vanilla.deserialize<CheckpointData>
   with
   | e ->
-    print "No test file found"
-    { complete = Set []; ignored = Set [] }
+    print "No test file found or test file error"
+    print e.Message
+    print (Exception.toMetadata e |> string)
+    print e.StackTrace
+    System.Environment.Exit(-1)
+    Unchecked.defaultof<CheckpointData>
 
 let saveCheckpointData (tested : CheckpointData) : unit =
   print "saving to test file"
@@ -30,12 +38,15 @@ let saveCheckpointData (tested : CheckpointData) : unit =
   |> LibBackend.File.writefile LibBackend.Config.NoCheck testedFilename
 
 /// Skip if it's something we verify is allowed
-let shouldRun (canvasName : CanvasName.T) : bool =
+let shouldRun (cd : CheckpointData) (canvasName : CanvasName.T) : bool =
   let cn = string canvasName
-  not (String.endsWith "-" (string cn))
-  && not (String.endsWith "_" (string cn))
-  && not (cn.ToString().Contains("--"))
-  && not (cn.ToString().Contains("__"))
+  not (String.endsWith "-" cn)
+  && not (String.endsWith "_" cn)
+  && not (cn.Contains("--"))
+  && not (cn.Contains("__"))
+  && not (Set.contains cn cd.complete)
+  && not (Set.contains cn cd.skipForNow)
+  && not (Set.contains cn cd.broken)
 
 let catchException (cd : CheckpointData) (e : exn) =
   try
@@ -57,60 +68,34 @@ let catchException (cd : CheckpointData) (e : exn) =
 
 
 let forEachCanvas
-  (users : int)
-  (canvases : int)
+  (canvasConcurrency : int)
   (cd : CheckpointData)
   (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
   : Task<unit> =
   task {
-    let userSemaphor = new System.Threading.SemaphoreSlim(users)
-    let canvasSemaphore = new System.Threading.SemaphoreSlim(canvases)
-    let! users = LibBackend.Account.getUsers ()
-    let! (results : List<unit>) =
-      users
-      |> Task.mapInParallel (fun username ->
+    let semaphore = new System.Threading.SemaphoreSlim(canvasConcurrency)
+    let! canvases = LibBackend.Serialize.getAllCanvases ()
+    let! (result : List<unit>) =
+      canvases
+      |> List.filter (shouldRun cd)
+      |> Task.mapInParallel (fun canvasName ->
         task {
-          if Set.contains (string username) cd.complete then
-            return [ () ]
-          elif Set.contains (string username) cd.ignored then
-            print $"ignoring {username}"
-            return [ () ]
-          else
-            try
-              do! userSemaphor.WaitAsync()
-              print $"start u: {username}"
-              let! user = LibBackend.Account.getUser username
-              let client = Tests.ApiServer.forceLogin username
-              let user = Exception.unwrapOptionInternal "" [] user
-              let! canvases = LibBackend.Account.ownedCanvases user.id
-              let! result =
-                canvases
-                |> List.filter shouldRun
-                |> Task.mapInParallel (fun canvasName ->
-                  task {
-                    do! canvasSemaphore.WaitAsync()
-                    print
-                      $"                                            start c: {canvasName}"
-                    try
-                      let! result = fn (lazy client) canvasName
-                      print
-                        $"                                            done  c: {canvasName}"
-                      canvasSemaphore.Release() |> ignore<int>
-                      return result
-                    with
-                    | e -> catchException cd e
-                  })
-              print $"DONE u:  {username}"
-              cd.complete <- Set.add cd.complete (string username)
-              saveCheckpointData cd
-              userSemaphor.Release() |> ignore<int>
-              return result
-            with
-            | e ->
-              catchException cd e
-              return [ () ]
+          do! semaphore.WaitAsync()
+          let username = (Account.ownerNameFromCanvasName canvasName).toUserName ()
+          let! user = Account.getUser username
+          let client = Tests.ApiServer.forceLogin username
+          let user = Exception.unwrapOptionInternal "" [] user
+          print $"start c: {canvasName}"
+          try
+            let! result = fn (lazy client) canvasName
+            print $"done  c: {canvasName}"
+            cd.complete <- Set.add cd.complete (string canvasName)
+            semaphore.Release() |> ignore<int>
+            saveCheckpointData cd
+            return result
+          with
+          | e -> catchException cd e
         })
-      |> Task.map List.flatten
     return ()
   }
 
@@ -134,20 +119,14 @@ let main args =
   System.Console.CancelKeyPress.AddHandler(
     new System.ConsoleCancelEventHandler(handler)
   )
-  let userCount =
+  let concurrency =
     try
       (int args[1])
-    with
-    | _ -> 1
-  let canvasCount =
-    try
-      (int args[2])
     with
     | _ -> 20
   try
     (forEachCanvas
-      userCount
-      canvasCount
+      concurrency
       checkpointData
       Tests.ApiServer.testInitialLoadReturnsTheSame)
       .Result

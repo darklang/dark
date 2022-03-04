@@ -286,6 +286,9 @@ let currentHosts () : Task<string list> =
       hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort
   }
 
+let getAllCanvases () : Task<List<CanvasName.T>> =
+  currentHosts () |> Task.map (List.map CanvasName.create)
+
 let tierOneHosts () : List<CanvasName.T> =
   [ "ian-httpbin"
     "paul-slackermuse"
