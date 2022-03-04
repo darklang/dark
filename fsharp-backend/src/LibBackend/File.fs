@@ -29,9 +29,9 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
          || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
          || (not (dir.EndsWith "/")) |> debug "dir no slash"
          || f.EndsWith "etc/passwd" |> debug "etc"
-         (* being used wrong *)
+         // being used wrong
          || f.EndsWith "//" |> debug "double slash"
-         (* check for irregular file *)
+         // check for irregular file
          || (mode = Read
              && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
              && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
@@ -79,9 +79,3 @@ let tryReadFile (root : Config.Root) (f : string) : string option =
 let writefile (root : Config.Root) (f : string) (contents : string) : unit =
   let f = checkFilename root Write f
   System.IO.File.WriteAllText(f, contents)
-
-// let writefile root (f : string) (str : string) : unit =
-//   let f = check_filename root Write f in
-//   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
-//   Unix.with_file perm:0600 flags f (fun desc ->
-//       ignore (Unix.write desc buf:(Bytes.of_string str)))
