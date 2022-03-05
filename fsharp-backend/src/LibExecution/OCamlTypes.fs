@@ -400,13 +400,15 @@ module Convert =
         nameID = bo2ID o.name
         modifierID = bo2ID o.modifier }
 
-    match bo2String o.``module``, bo2String o.name, bo2String o.modifier with
-    | "HTTP", route, method -> PT.Handler.HTTP(route, method, ids)
-    | "WORKER", name, _ -> PT.Handler.Worker(name, ids)
-    | "CRON", name, interval ->
+    match o.``module``, bo2String o.name, bo2String o.modifier with
+    | Filled (_, "HTTP"), route, method -> PT.Handler.HTTP(route, method, ids)
+    | Filled (_, "WORKER"), name, _ -> PT.Handler.Worker(name, ids)
+    | Filled (_, "CRON"), name, interval ->
       PT.Handler.Cron(name, PT.Handler.CronInterval.parse interval, ids)
-    | "REPL", name, _ -> PT.Handler.REPL(name, ids)
-    | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
+    | Filled (_, "REPL"), name, _ -> PT.Handler.REPL(name, ids)
+    | Filled (_, workerName), name, _ -> PT.Handler.OldWorker(workerName, name, ids)
+    | Partial (_, _), name, modifier
+    | Blank _, name, modifier -> PT.Handler.UnknownHandler(name, modifier, ids)
 
   let ocamlHandler2PT
     (pos : pos)
