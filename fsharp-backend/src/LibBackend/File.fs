@@ -76,6 +76,26 @@ let tryReadFile (root : Config.Root) (f : string) : string option =
   else
     None
 
-let writefile (root : Config.Root) (f : string) (contents : string) : unit =
+open LibService.Exception
+
+let rec writefile (root : Config.Root) (f : string) (contents : string) : unit =
   let f = checkFilename root Write f
-  System.IO.File.WriteAllText(f, contents)
+
+  // First write to a temp file, then copy atomically. Do this as we've lost our data
+  // a few times.
+  let tempFilename = System.IO.Path.GetTempFileName()
+  System.IO.File.WriteAllText(tempFilename, contents)
+
+  // We might not be the only one trying to copy here, and .NET won't let us
+  // overwrite it if something else is. So try again.
+  let mutable success = false
+  let mutable count = 0
+  while success = false && count < 10 do
+    try
+      System.IO.File.Move(tempFilename, f, true)
+      success <- true
+    with
+    | e ->
+      count <- count + 1
+      if count > 10 then e.Reraise() else ()
+      ()
