@@ -62,7 +62,10 @@ let catchException (cd : CheckpointData) (e : exn) =
          "at Ply.TplPrimitives.ContinuationStateMachine`1.System-Runtime-CompilerServices-IAsyncStateMachine-MoveNext()"
          ""
     |> print
-  finally
+    System.Environment.Exit(-1)
+  with
+  | e ->
+    print $"exception in catch exception: {e.Message}"
     System.Environment.Exit(-1)
 
 
@@ -90,11 +93,13 @@ let forEachCanvas
             let! result = fn (lazy client) canvasName
             print $"done  c: {canvasName}"
             cd.complete <- Set.add cd.complete (string canvasName)
-            semaphore.Release() |> ignore<int>
             saveCheckpointData cd
+            semaphore.Release() |> ignore<int>
             return result
           with
-          | e -> catchException cd e
+          | e ->
+            print $"                failed at {canvasName}"
+            catchException cd e
         })
     return ()
   }
