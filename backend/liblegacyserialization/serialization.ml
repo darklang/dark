@@ -47,7 +47,6 @@ let expr_tlid_pair_bin2json (str : string) : string =
   bin2json BS.expr_tlid_pair_of_binary_string BS.expr_tlid_pair_to_yojson str
 
 
-
 (* ----------------------- *)
 (* Convert JSON to binary for F# *)
 (* ----------------------- *)
