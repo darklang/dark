@@ -888,7 +888,7 @@ module Json =
             (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
         )
       let options = JsonSerializerOptions()
-      options.MaxDepth <- 128 // Default 64
+      options.MaxDepth <- System.Int32.MaxValue // infinite
       // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(TLIDConverter())
       options.Converters.Add(PasswordConverter())
@@ -1196,7 +1196,7 @@ module Json =
       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
       // This is a potential vulnerability
       settings.TypeNameHandling <- TypeNameHandling.None
-      settings.MaxDepth <- 1024
+      settings.MaxDepth <- System.Int32.MaxValue // infinite
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
       settings.Converters.Add(TLIDConverter())
