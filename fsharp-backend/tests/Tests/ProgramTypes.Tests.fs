@@ -45,8 +45,10 @@ let parseTests =
         [ ("", p "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3")
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
           ("", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1")
+          ("no v0", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E")
           ("", Stdlib { module_ = ""; function_ = "toString"; version = 0 })
           ("", User "someUserFn")
+          ("capital letter", User "SomeUserFn") // CLEANUP shouldn't be needed
           ("", p "String::toInt_v1")
           ("", Stdlib { module_ = ""; function_ = "++"; version = 0 })
           ("", Stdlib { module_ = ""; function_ = "+"; version = 0 })
@@ -97,13 +99,16 @@ let parseTests =
                  function_ = "string20"
                  version = 57 }
            ))
-          ("twitter::sendText_v0", None)
-          ("Twitter::send/Text_v0", None)
-          ("Dark/stdlib/Twitter::send/text_v0", None)
-          ("dark/stDlib/Twitter::send/text_v0", None)
-          ("dark/stDlib/Twitter::send/text_v0", None)
-          ("d+ark/stDlib/Twitter::send/text_v0", None)
-          ("paul56/ra*ndom/Rand56om::string20_v57", None) ] ]
+          // CLEANUP these are all parsed as user functions now. We should get rid of
+          // parsing and this will be much better
+          // ("twitter::sendText_v0", None)
+          // ("Twitter::send/Text_v0", None)
+          // ("Dark/stdlib/Twitter::send/text_v0", None)
+          // ("dark/stDlib/Twitter::send/text_v0", None)
+          // ("dark/stDlib/Twitter::send/text_v0", None)
+          // ("d+ark/stDlib/Twitter::send/text_v0", None)
+          // ("paul56/ra*ndom/Rand56om::string20_v57", None)
+          ] ]
 
 
 

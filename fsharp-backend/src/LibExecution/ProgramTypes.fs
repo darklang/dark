@@ -42,6 +42,7 @@ module FQFnName =
           "emit_v1" ]
 
   let parse (fnName : string) : T =
+    // These should match up with the regexes in RuntimeTypes
     match fnName with
     | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ owner; package; module_; name; version ] ->
@@ -75,6 +76,10 @@ module FQFnName =
           "Bad format in one word function name"
           [ "fnName", fnName ]
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
+    // CLEANUP People have the most ridiculous names in userFunctions. One user had a
+    // fully qualified url in there! Ridiculous. This needs a data cleanup before it
+    // can be removed.
+    | Regex "^(.*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
 
 
@@ -751,9 +756,14 @@ module Handler =
     | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
     // Deprecated but still supported form
+    // CLEANUP: convert these into regular workers (change module name to WORKER,
+    // check if they're unique first though)
     | OldWorker of modulename : string * name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
+    // If there's no module
+    // CLEANUP: convert these into repl and get rid of this case
+    | UnknownHandler of name : string * modifier : string * ids : ids
 
     member this.toRuntimeType() : RT.Handler.Spec =
       match this with
@@ -763,6 +773,7 @@ module Handler =
       | Cron (name, interval, _ids) ->
         RT.Handler.Cron(name, interval |> Option.map (fun i -> i.toRuntimeType ()))
       | REPL (name, _ids) -> RT.Handler.REPL(name)
+      | UnknownHandler (_name, _modifier, _ids) -> RT.Handler.UnknownHandler
 
     member this.name() =
       match this with
@@ -771,6 +782,7 @@ module Handler =
       | OldWorker (_modulename, name, _ids) -> name
       | Cron (name, interval, _ids) -> name
       | REPL (name, _ids) -> name
+      | UnknownHandler (name, _modifier, _ids) -> name
 
     member this.modifier() =
       match this with
@@ -780,6 +792,7 @@ module Handler =
       | Cron (_name, interval, _ids) ->
         interval |> Option.map string |> Option.defaultValue ""
       | REPL (_name, _ids) -> "_"
+      | UnknownHandler (name, modifier, ids) -> modifier
 
     member this.module'() =
       match this with
@@ -788,6 +801,7 @@ module Handler =
       | OldWorker (modulename, _name, _ids) -> modulename
       | Cron _ -> "CRON" // CLEANUP the DB relies on the casing
       | REPL _ -> "REPL"
+      | UnknownHandler (name, modifier, ids) -> ""
 
     member this.complete() : bool =
       match this with
@@ -799,6 +813,7 @@ module Handler =
       | Cron ("", _, _) -> false
       | Cron (_, None, _) -> false
       | REPL ("", _) -> false
+      | UnknownHandler _ -> false
       | _ -> true
 
     // Same as a TraceInput.EventDesc

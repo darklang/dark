@@ -479,6 +479,7 @@ module UTF8 =
 
 // Base64 comes in various flavors, typically URLsafe (has '-' and '_' with no
 // padding) or regular (has + and / and has '=' padding at the end)
+// FSTODO: remove uses of System.Convert.ToBase64String
 module Base64 =
 
   type Base64UrlEncoded = Base64UrlEncoded of string
@@ -886,12 +887,14 @@ module Json =
           unionEncoding =
             (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
         )
-      // CLEANUP we can put these converters on the type or property if appropriate.
       let options = JsonSerializerOptions()
+      options.MaxDepth <- System.Int32.MaxValue // infinite
+      // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(TLIDConverter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
       options.Converters.Add(fsharpConverter)
+
       options
 
     let _options = getOptions ()
@@ -1193,6 +1196,7 @@ module Json =
       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
       // This is a potential vulnerability
       settings.TypeNameHandling <- TypeNameHandling.None
+      settings.MaxDepth <- System.Int32.MaxValue // infinite
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
       settings.Converters.Add(TLIDConverter())
@@ -1704,8 +1708,8 @@ module CanvasName =
     // more hyphens allowed
     let canvasRegex = "[-_a-z0-9]+"
     let userNameRegex = UserName.allowedPattern
-    // CLEANUP disallow canvas names like "username-"
-    // This is complicated because users have canvas names like "username-"
+    // This is complicated because users have canvas names like "username-", though
+    // none have any content there.
     let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
 
     if String.length name > 64 then
@@ -1714,7 +1718,7 @@ module CanvasName =
       Ok name
     else
       Error
-        $"Invalid canvas name '{name}', can only contain roman lettets, digits, and '-' or '_'"
+        $"Invalid canvas name '{name}', can only contain roman letters, digits, and '-' or '_'"
 
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors

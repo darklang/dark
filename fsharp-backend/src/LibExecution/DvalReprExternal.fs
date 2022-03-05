@@ -43,6 +43,7 @@ let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
 let jsonDocumentOptions : JsonDocumentOptions =
   let mutable options = new JsonDocumentOptions()
   options.CommentHandling <- JsonCommentHandling.Skip
+  options.MaxDepth <- System.Int32.MaxValue // infinite
   options
 
 let parseJson (s : string) : JsonDocument =

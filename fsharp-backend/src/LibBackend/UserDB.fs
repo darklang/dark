@@ -471,7 +471,7 @@ let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
 // -------------------------
 
 let create (tlid : tlid) (name : string) (pos : pos) : PT.DB.T =
-  { tlid = tlid; pos = pos; name = name; nameID = gid (); cols = []; version = 0 }
+  { tlid = tlid; pos = pos; name = name; nameID = tlid; cols = []; version = 0 }
 
 
 let create2 (tlid : tlid) (name : string) (pos : pos) (nameID : id) : PT.DB.T =

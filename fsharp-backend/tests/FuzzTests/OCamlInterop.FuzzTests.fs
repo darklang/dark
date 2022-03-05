@@ -121,33 +121,12 @@ let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   |> result
   .=. pair
 
-let binaryHandlerRoundtrip (a : PT.Handler.T) : bool =
-  let h = PT.TLHandler a
-
-  h
-  |> toplevelToCachedBinary
-  |> result
-  |> (fun bin -> bin, None)
-  |> toplevelBin2Json
-  |> result
-  .=. h
-
-let binaryToplevelRoundtrip (tl : PT.Toplevel) : bool =
-  tl
-  |> toplevelToCachedBinary
-  |> result
-  |> (fun bin -> bin, None)
-  |> toplevelBin2Json
-  |> result
-  .=. tl
-
 let tests =
   let tp f = tpwg typeof<Generator> f
 
   testList
     "OcamlInterop"
-    [ tp "roundtripping OCamlInteropBinaryHandler" binaryHandlerRoundtrip
-      tp "roundtripping OCamlInteropBinaryExpr" binaryExprRoundtrip
+    [ tp "roundtripping OCamlInteropBinaryExpr" binaryExprRoundtrip
       tp "roundtripping OCamlInteropYojsonHandler" yojsonHandlerRoundtrip
       tp "roundtripping OCamlInteropYojsonExpr" yojsonExprRoundtrip ]
 

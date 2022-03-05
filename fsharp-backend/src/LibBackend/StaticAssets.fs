@@ -56,7 +56,7 @@ let appHash (canvasName : CanvasName.T) : string =
   // enough of a hash to make this not easily discoverable
   $"{canvasName}SOME SALT HERE{LibService.Config.envDisplayName}"
   |> sha1digest
-  |> System.Convert.ToBase64String
+  |> Base64.urlEncodeToString
   |> String.removeSuffix "="
   |> String.toLowercase
   |> String.take 63

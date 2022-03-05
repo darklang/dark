@@ -62,6 +62,7 @@ let isLatestOpRequest
 // --------------------------------------------------------
 // Load serialized data from the DB
 // --------------------------------------------------------
+module OT = LibExecution.OCamlTypes
 
 // This is a special `load_*` function that specifically loads toplevels
 // via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
@@ -84,7 +85,7 @@ let loadOnlyRenderedTLIDs
   // handlers that were touched between the addition of the
   // `rendered_oplist_cache` column and the addition of the `deleted` column.
   Sql.query
-    "SELECT tipe, rendered_oplist_cache, pos FROM toplevel_oplists
+    "SELECT tlid, tipe, rendered_oplist_cache, pos FROM toplevel_oplists
       WHERE canvas_id = @canvasID
       AND tlid = ANY (@tlids)
       AND deleted IS FALSE
@@ -95,9 +96,86 @@ let loadOnlyRenderedTLIDs
            OR tipe = 'user_tipe'::toplevel_type)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read ->
-    (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
+    (read.int64 "tlid",
+     read.string "tipe",
+     read.bytea "rendered_oplist_cache",
+     read.stringOrNone "pos"))
   |> Task.bind (fun list ->
-    list |> List.map OCamlInterop.toplevelBin2Json |> Task.flatten)
+
+    // At this point, we need to take all the binary data and send it to the legacy
+    // server. We want to make sure that we get all the data before we start parsing
+    // it, as otherwise we would timeout the http requests while parsing early
+    // responses. This happened a lot for bigger canvases.
+    //
+    // Ideally we would make one http request to do that, but we would need to send
+    // over some text (type, pos, etc) along with binary data, and then put in some
+    // structure so we can parse it at the other end, which seems very hard.
+    //
+    // So instead we just do all the http requests in parallel ("in parallel" is
+    // funny since there's only one single-threaded server in the pod, but we may
+    // change that if we can't get this fast enough). Then we do the json parsing in
+    // parallel afterwards, when all the http requests are done. That way if they're
+    // slow they won't timeout the requests.
+    list
+    |> List.map (fun (tlid, typ, data, pos) ->
+      task {
+        let! json =
+          match typ with
+          | "db" -> OCamlInterop.bytesToStringReq "bs/db_bin2json" data
+          | "handler" -> OCamlInterop.bytesToStringReq "bs/handler_bin2json" data
+          | "user_tipe" -> OCamlInterop.bytesToStringReq "bs/user_tipe_bin2json" data
+          | "user_function" ->
+            OCamlInterop.bytesToStringReq "bs/user_fn_bin2json" data
+          | _ ->
+            Exception.raiseInternal
+              "Invalid tipe for toplevel"
+              [ "type", typ; "tlid", tlid; "canvas_id", canvasID ]
+        return (tlid, typ, json, pos)
+      })
+    |> (fun list ->
+      task {
+        let! results = Task.flatten list
+        return!
+          results
+          |> List.map (fun (tlid, typ, json, pos) ->
+            task {
+              let pos () =
+                try
+                  pos
+                  |> Option.map Json.OCamlCompatible.deserialize<pos>
+                  |> Option.unwrap { x = 0; y = 0 }
+                with
+                | e -> { x = 0; y = 0 }
+              return
+                match typ with
+                | "handler" ->
+                  json
+                  |> Json.OCamlCompatible.deserialize<OT.RuntimeT.HandlerT.handler<OT.RuntimeT.fluidExpr>>
+                  |> OT.Convert.ocamlHandler2PT (pos ())
+                  |> PT.TLHandler
+                | "db" ->
+                  json
+                  |> Json.OCamlCompatible.deserialize<OT.RuntimeT.DbT.db<OT.RuntimeT.fluidExpr>>
+                  |> OT.Convert.ocamlDB2PT (pos ())
+                  |> PT.TLDB
+                | "user_function" ->
+                  json
+                  |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_fn<OT.RuntimeT.fluidExpr>>
+                  |> OT.Convert.ocamlUserFunction2PT
+                  |> PT.TLFunction
+                | "user_tipe" ->
+                  json
+                  |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_tipe>
+                  |> OT.Convert.ocamlUserType2PT
+                  |> PT.TLType
+                | _ ->
+                  Exception.raiseInternal
+                    "Invalid tipe for toplevel"
+                    [ "type", typ; "tlid", tlid; "canvas_id", canvasID ]
+            })
+          |> Task.flatten
+      }))
+
 
 
 let fetchReleventTLIDsForHTTP
@@ -265,6 +343,9 @@ let currentHosts () : Task<string list> =
     return
       hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort
   }
+
+let getAllCanvases () : Task<List<CanvasName.T>> =
+  currentHosts () |> Task.map (List.map CanvasName.create)
 
 let tierOneHosts () : List<CanvasName.T> =
   [ "ian-httpbin"

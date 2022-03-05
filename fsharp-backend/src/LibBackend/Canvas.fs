@@ -242,7 +242,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.SetExpr (tlid, id, e) ->
       // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
       // applyToAllToplevels (TL.set_expr id e) tlid c
-      Exception.raiseInternal "setexpr" []
+      c
     | PT.DeleteTL tlid -> deleteToplevel tlid c
     | PT.MoveTL (tlid, pos) -> moveToplevel tlid pos c
     | PT.SetFunction user_fn -> setFunction user_fn c
@@ -585,6 +585,7 @@ let saveTLIDs
             | PT.Handler.Worker _
             | PT.Handler.OldWorker _
             | PT.Handler.Cron _
+            | PT.Handler.UnknownHandler _
             | PT.Handler.REPL _ ->
               Some(spec.module' (), spec.name (), spec.modifier ())
           | PT.TLDB _

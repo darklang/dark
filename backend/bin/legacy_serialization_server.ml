@@ -75,8 +75,6 @@ let server () =
                     Some BS.expr_bin2json
                 | "expr_tlid_pair_bin2json" ->
                     Some BS.expr_tlid_pair_bin2json
-                | "toplevel_bin2json" ->
-                    Some BS.toplevel_bin2json
                 | "user_fn_json2bin" ->
                     Some BS.user_fn_json2bin
                 | "user_tipe_json2bin" ->

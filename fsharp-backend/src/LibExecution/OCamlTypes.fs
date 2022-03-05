@@ -351,7 +351,10 @@ module Convert =
     | ORT.EString (id, str) -> PT.EString(id, str)
     | ORT.EFloat (id, w, f) ->
       let sign, whole =
-        if w[0] = '-' then (Negative, String.dropLeft 1 w) else Positive, w
+        if w.Length > 0 && w[0] = '-' then
+          (Negative, String.dropLeft 1 w)
+        else
+          Positive, w
       PT.EFloat(id, sign, whole, f)
     | ORT.EBool (id, b) -> PT.EBool(id, b)
     | ORT.ENull id -> PT.ENull id
@@ -397,13 +400,15 @@ module Convert =
         nameID = bo2ID o.name
         modifierID = bo2ID o.modifier }
 
-    match bo2String o.``module``, bo2String o.name, bo2String o.modifier with
-    | "HTTP", route, method -> PT.Handler.HTTP(route, method, ids)
-    | "WORKER", name, _ -> PT.Handler.Worker(name, ids)
-    | "CRON", name, interval ->
+    match o.``module``, bo2String o.name, bo2String o.modifier with
+    | Filled (_, "HTTP"), route, method -> PT.Handler.HTTP(route, method, ids)
+    | Filled (_, "WORKER"), name, _ -> PT.Handler.Worker(name, ids)
+    | Filled (_, "CRON"), name, interval ->
       PT.Handler.Cron(name, PT.Handler.CronInterval.parse interval, ids)
-    | "REPL", name, _ -> PT.Handler.REPL(name, ids)
-    | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
+    | Filled (_, "REPL"), name, _ -> PT.Handler.REPL(name, ids)
+    | Filled (_, workerName), name, _ -> PT.Handler.OldWorker(workerName, name, ids)
+    | Partial (_, _), name, modifier
+    | Blank _, name, modifier -> PT.Handler.UnknownHandler(name, modifier, ids)
 
   let ocamlHandler2PT
     (pos : pos)
@@ -677,7 +682,11 @@ module Convert =
           // Some things were named wrong in OCaml
           $"{name}_v0"
         else
-          string name |> String.replace "_v0" ""
+          match name with
+          | RT.FQFnName.Stdlib _
+          | RT.FQFnName.User _ -> string name |> String.replace "_v0" ""
+          // Keep the _v0 here
+          | RT.FQFnName.Package _ -> string name
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
@@ -800,8 +809,16 @@ module Convert =
     | PT.Handler.OldWorker (workerName, name, ids) ->
       { ``module`` = string2bo ids.moduleID workerName
         name = string2bo ids.nameID name
-        modifier = string2bo ids.modifierID "_"
+        modifier = Blank ids.modifierID
         types = types }
+    | PT.Handler.UnknownHandler (name, modifier, ids) ->
+      { ``module`` = Blank ids.moduleID
+        name = string2bo ids.nameID name
+        modifier = string2bo ids.modifierID modifier
+        types = types }
+
+
+
 
   let pt2ocamlHandler (p : PT.Handler.T) : ORT.HandlerT.handler<ORT.fluidExpr> =
     { tlid = p.tlid; ast = pt2ocamlExpr p.ast; spec = pt2ocamlSpec p.spec }
