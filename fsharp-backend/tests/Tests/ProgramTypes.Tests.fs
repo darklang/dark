@@ -99,13 +99,16 @@ let parseTests =
                  function_ = "string20"
                  version = 57 }
            ))
-          ("twitter::sendText_v0", None)
-          ("Twitter::send/Text_v0", None)
-          ("Dark/stdlib/Twitter::send/text_v0", None)
-          ("dark/stDlib/Twitter::send/text_v0", None)
-          ("dark/stDlib/Twitter::send/text_v0", None)
-          ("d+ark/stDlib/Twitter::send/text_v0", None)
-          ("paul56/ra*ndom/Rand56om::string20_v57", None) ] ]
+          // CLEANUP these are all parsed as user functions now. We should get rid of
+          // parsing and this will be much better
+          // ("twitter::sendText_v0", None)
+          // ("Twitter::send/Text_v0", None)
+          // ("Dark/stdlib/Twitter::send/text_v0", None)
+          // ("dark/stDlib/Twitter::send/text_v0", None)
+          // ("dark/stDlib/Twitter::send/text_v0", None)
+          // ("d+ark/stDlib/Twitter::send/text_v0", None)
+          // ("paul56/ra*ndom/Rand56om::string20_v57", None)
+          ] ]
 
 
 

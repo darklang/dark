@@ -98,6 +98,8 @@ module FQFnName =
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
 
+  let userFnNamePat = @"^.*$"
+
   let packageFnName
     (owner : string)
     (package : string)
@@ -129,7 +131,7 @@ module FQFnName =
   let userFnName (fnName : string) : UserFnName =
     // CLEANUP we would like to enable this, but some users in our DB have functions
     // named with weird characters, such as a url.
-    // assertRe "user function name must match" fnnamePat fnName
+    assertRe "user function name must match" userFnNamePat fnName
     fnName
 
 
