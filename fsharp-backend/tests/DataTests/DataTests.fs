@@ -40,11 +40,7 @@ let saveCheckpointData (tested : CheckpointData) : unit =
 /// Skip if it's something we verify is allowed
 let shouldRun (cd : CheckpointData) (canvasName : CanvasName.T) : bool =
   let cn = string canvasName
-  not (String.endsWith "-" cn)
-  && not (String.endsWith "_" cn)
-  && not (cn.Contains("--"))
-  && not (cn.Contains("__"))
-  && not (Set.contains cn cd.complete)
+  not (Set.contains cn cd.complete)
   && not (Set.contains cn cd.skipForNow)
   && not (Set.contains cn cd.broken)
 
