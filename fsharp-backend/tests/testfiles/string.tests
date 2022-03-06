@@ -88,7 +88,12 @@ String.foreach_v1 "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟
 String.foreach_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.foreach_v1 "abcdef" (fun x -> blank) = blank
 
-//String.fromChar_v1 'a' = "a"
+// fromChar
+String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark" // FSHARPONLY
+String.fromChar_v0 ("1" |> String.toChar_v1) = Test.typeError "This function no longer exists." // OCAMLONLY
+String.fromChar_v1 'a' = "a" // FSHARPONLY
+String.fromChar_v1 ("1" |> String.toChar_v1) = Test.typeError "String::fromChar_v1 was called with the wrong type to parameter: c" // OCAMLONLY
+
 
 String.base64Decode_v0 "random string" = Test.typeError_v0 "Not a valid base64 string"
 String.base64Decode_v0 "illegal chars&@:" = Test.typeError_v0 "Not a valid base64 string"
@@ -324,13 +329,22 @@ String.slugify_v2 ":;<=>?@" = ""
 String.slugify_v2 "[\\]^_`" = "-"
 String.slugify_v2 "{|}~\x7F" = ""
 
+// toList and fromList
+String.fromList_v0 [] = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
+String.fromList_v0 [] = Test.typeError_v0 "String::fromList was removed from Dark" // FSHARPONLY
+String.toList_v0 "" = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
+String.toList_v0 "" = Test.typeError_v0 "String::toList was removed from Dark" // FSHARPONLY
+
 String.fromList_v1 [] = ""
-("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "This function no longer exists.") // OCAMLONLY
-("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "String::fromList was removed from Dark") // FSHARPONLY
-("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
-("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
+String.fromList_v1 ['a'] = "a" // FSHARPONLY
+String.fromList_v1 ["a"] = Test.typeError_v0 "expected a char" // OCAMLONLY
+String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`" // FSHARPONLY
 String.fromList_v1 [6] = Test.typeError_v0 "expected a char" // OCAMLONLY
 String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`" // FSHARPONLY
+String.toList_v1 "" = []
+String.toList_v1 "ab" = ['a', 'b']
+("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
+("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
 
 String.split_v0 "hello😄world" "😄" = [ "hello", "world" ]
 String.split_v0 "hello&&&&world" "&&&&" = [ "hello", "world" ]
@@ -790,4 +804,3 @@ String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 (let _ = Test.resetSideEffectCounter_v0 "foreach" in
  let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 "foreach" false) in
  Test.sideEffectCount_v0 "foreach") = 8
-
