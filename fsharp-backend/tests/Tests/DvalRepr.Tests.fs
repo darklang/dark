@@ -333,6 +333,18 @@ module Password =
       doesRedact
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+      doesRedact "Json.OCamlCompatible.serialize" Json.OCamlCompatible.serialize
+      doesRedact "Json.Vanilla.serialize" Json.Vanilla.serialize
+      // These test that serializing via ocaml types will also omit the password.
+      // This wasn't the case because these types are used for two contradictory
+      // purposes: to communicate with the legacy server (where redacting passwords
+      // is bad), and to comminucate with the client (where redacting is good)
+      doesRedact "ocaml Json.OCamlCompatible.serialize" (fun dv ->
+        dv
+        |> LibExecution.OCamlTypes.Convert.rt2ocamlDval
+        |> Json.OCamlCompatible.serialize)
+      doesRedact "ocaml Json.Vanilla.serialize" (fun dv ->
+        dv |> LibExecution.OCamlTypes.Convert.rt2ocamlDval |> Json.Vanilla.serialize)
       ()
     }
 
@@ -374,8 +386,8 @@ module Password =
             |> Json.Vanilla.deserialize
 
           Expect.equal
-            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             password
+            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
 
         }
@@ -386,9 +398,18 @@ module Password =
             |> Json.OCamlCompatible.deserialize
 
           Expect.equal
-            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             password
+            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
+        }
+        test "ocamlcompatible without redaction" {
+          let expectedPassword = RT.DPassword(Password(UTF8.toBytes "some password"))
+          let password =
+            expectedPassword
+            |> Json.OCamlCompatible.legacySerialize
+            |> Json.OCamlCompatible.legacyDeserialize
+
+          Expect.equal password expectedPassword "should not be redacted"
         } ]
 
 

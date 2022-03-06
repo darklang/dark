@@ -103,9 +103,6 @@ let legacyBytesReq (endpoint : string) (data : byte array) : Task<byte array> =
     return! content.ReadAsByteArrayAsync()
   }
 
-let serialize (v : 'a) : byte array =
-  v |> Json.OCamlCompatible.serialize |> UTF8.toBytes
-
 let stringToBytesReq (endpoint : string) (str : string) : Task<byte array> =
   str |> UTF8.toBytes |> legacyBytesReq endpoint
 
@@ -119,14 +116,22 @@ let stringToDvalReq (endpoint : string) (str : string) : Task<RT.Dval> =
   str
   |> UTF8.toBytes
   |> legacyStringReq endpoint
-  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Task.map (Json.OCamlCompatible.legacyDeserialize<OCamlTypes.RuntimeT.dval>)
   |> Task.map Convert.ocamlDval2rt
 
 let dvalToStringReq (endpoint : string) (dv : RT.Dval) : Task<string> =
-  dv |> Convert.rt2ocamlDval |> serialize |> legacyStringReq endpoint
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.OCamlCompatible.legacySerialize
+  |> UTF8.toBytes
+  |> legacyStringReq endpoint
 
 let dvalListToStringReq (endpoint : string) (l : List<RT.Dval>) : Task<string> =
-  l |> List.map Convert.rt2ocamlDval |> serialize |> legacyStringReq endpoint
+  l
+  |> List.map Convert.rt2ocamlDval
+  |> Json.OCamlCompatible.legacySerialize
+  |> UTF8.toBytes
+  |> legacyStringReq endpoint
 
 
 // Binary deserialization functions

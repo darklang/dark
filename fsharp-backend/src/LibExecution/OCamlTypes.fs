@@ -230,7 +230,7 @@ module RuntimeT =
     | DResp of (dhttp * dval)
     | DDB of string
     | DDate of RT.DDateTime.T
-    | DPassword of byte array // We dont use this path for testing, see DvalReprExternal.Tests
+    | DPassword of Password // We dont use this path for testing, see DvalReprExternal.Tests
     | DUuid of System.Guid
     | DOption of optionT
     | DCharacter of string
@@ -1037,7 +1037,7 @@ module Convert =
     | RT.DDate d -> ORT.DDate d
     | RT.DDB name -> ORT.DDB name
     | RT.DUuid uuid -> ORT.DUuid uuid
-    | RT.DPassword (Password bytes) -> ORT.DPassword bytes
+    | RT.DPassword pw -> ORT.DPassword pw
     | RT.DHttpResponse (RT.Redirect url) -> ORT.DResp(ORT.Redirect url, c RT.DNull)
     | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
       ORT.DResp(ORT.Response(int64 code, headers), c hdv)
@@ -1077,7 +1077,7 @@ module Convert =
     | ORT.DDate d -> RT.DDate d
     | ORT.DDB name -> RT.DDB name
     | ORT.DUuid uuid -> RT.DUuid uuid
-    | ORT.DPassword bytes -> RT.DPassword(Password bytes)
+    | ORT.DPassword pw -> RT.DPassword pw
     | ORT.DResp (ORT.Redirect url, _) -> RT.DHttpResponse(RT.Redirect url)
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
       RT.DHttpResponse(RT.Response(code, headers, c hdv))
