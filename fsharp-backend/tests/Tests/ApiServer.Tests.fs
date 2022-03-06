@@ -20,6 +20,7 @@ module OT = LibExecution.OCamlTypes
 module ORT = OT.RuntimeT
 module Convert = LibExecution.OCamlTypes.Convert
 module TI = LibBackend.TraceInputs
+module Canvas = LibBackend.Canvas
 
 type AuthData = LibBackend.Session.AuthData
 
@@ -417,20 +418,20 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
 
 let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
+    let! canvas = Canvas.getMeta canvasName
 
-    let dbs =
-      initialLoad.toplevels
-      |> Convert.ocamlToplevel2PT
-      |> Tuple2.second
+    let! canvasWithJustDBs = Canvas.loadAllDBs canvas
+    let parameters =
+      canvasWithJustDBs.dbs
+      |> Map.values
       |> List.map (fun db -> db.tlid)
       |> fun tlids -> ({ tlids = tlids } : DBs.DBStats.Params)
 
     return!
       postApiTest
         "get_db_stats"
-        (serialize dbs)
-        (deserialize<DBs.DBStats.T>)
+        (serialize parameters)
+        deserialize<DBs.DBStats.T>
         ident
         client
         canvasName
