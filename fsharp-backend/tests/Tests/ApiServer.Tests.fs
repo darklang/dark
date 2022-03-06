@@ -496,15 +496,17 @@ let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
 
 let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
+    let! canvas = Canvas.getMeta canvasName
+
+    let! canvasWithJustWorkers = Canvas.loadAllWorkers canvas
 
     let! (_ : List<unit>) =
-      initialLoad.toplevels
-      |> Convert.ocamlToplevel2PT
-      |> Tuple2.first
+      canvasWithJustWorkers.handlers
+      |> Map.values
       |> List.filterMap (fun h ->
         match h.spec with
         | PT.Handler.Worker _ -> Some h.tlid
+        | PT.Handler.OldWorker _ -> Some h.tlid
         | _ -> None)
       |> List.map (fun tlid ->
         postApiTest

@@ -236,6 +236,18 @@ let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
+let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
+  Sql.query
+    "SELECT tlid FROM toplevel_oplists
+     WHERE canvas_id = @canvasID
+       AND tipe = 'handler'::toplevel_type
+       AND module <> 'CRON'
+       AND module <> 'REPL'
+       AND module <> 'HTTP'"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
+
 let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevel_oplists
