@@ -37,18 +37,16 @@ let t
       try
         let! owner = owner
         let! meta =
-          let workersNeedSetUp = workers <> []
-
           // Little optimization to skip the DB sometimes
-          if initializeDB || workersNeedSetUp then
+          if initializeDB then
             initializeCanvasForOwner owner name
           else
             createCanvasForOwner owner name
 
-        let workersWithIds = workers |> List.map (fun w -> w, (gid ()))
+        let workersWithIDs = workers |> List.map (fun w -> w, (gid ()))
 
         let ops =
-          workersWithIds
+          workersWithIDs
           |> List.map (fun (worker, tlid) ->
             PT.SetHandler(
               tlid,
@@ -66,7 +64,7 @@ let t
         let c = Canvas.empty meta |> Canvas.addOps ops []
 
         let oplists =
-          workersWithIds
+          workersWithIDs
           |> List.map (fun (_w, tlid) ->
             tlid, ops, PT.TLHandler c.handlers[tlid], Canvas.NotDeleted)
 
@@ -205,7 +203,10 @@ let fileTests () : Test =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
 
     let finish () =
-      let initializeDB = filename = "internal.tests" || currentTest.dbs <> []
+      let initializeDB =
+        filename = "internal.tests"
+        || currentTest.dbs <> []
+        || currentTest.workers <> []
       if currentTest.recording then
         let newTestCase =
           t

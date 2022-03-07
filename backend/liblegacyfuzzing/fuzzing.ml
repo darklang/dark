@@ -1,6 +1,7 @@
 open Core_kernel
 open Libexecution
 module Db = Libbackend_basics.Db
+module Event_queue = Libbackend_basics.Event_queue
 
 let of_internal_queryable_v0 (str : string) : string =
   let dval = Dval.of_internal_queryable_v0 str in
@@ -418,6 +419,23 @@ let fns : Types.RuntimeT.fn list =
                 "DELETE from ACCOUNTS WHERE username = $1"
                 ~params:[String (Unicode_string.to_string username)] ;
               DNull
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::getQueue"]
+    ; infix_names = []
+    ; parameters = [Lib.par "eventname" TStr]
+    ; return_type = TList
+    ; description = "Fetch a queue (test only)"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr eventname] ->
+              Event_queue.testing_get_queue
+                state.canvas_id
+                (Unicode_string.to_string eventname)
+              |> DList
           | args ->
               Lib.fail args)
     ; preview_safety = Safe

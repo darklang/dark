@@ -254,6 +254,27 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
       result)
 
 
+(* Fetches (only) the values stored in a queue,
+   only to be used for writing tests *)
+let testing_get_queue canvas_id (event_name : string) =
+  Db.fetch
+    ~name:"get_queue"
+    "SELECT e.value
+      FROM events AS e
+      JOIN canvases AS c ON e.canvas_id = c.id
+      WHERE c.id = $1
+        AND e.name = $2
+      ORDER BY e.id ASC"
+    ~params:[Uuid canvas_id; String event_name]
+  |> List.map ~f:(fun l ->
+         match l with
+         | [value] ->
+             value |> Dval.of_internal_roundtrippable_v0
+         | _ ->
+             Exception.internal
+               "bad format from EventQueue.testing_get_queue#testing_get_queue")
+
+
 (* TESTS ONLY *)
 (* schedule_all bypasses actual scheduling logic and is meant only for allowing
  * testing without running the queue-scheduler process *)

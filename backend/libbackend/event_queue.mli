@@ -48,6 +48,8 @@ val put_back :
 
 val finish : transaction -> t -> unit
 
+val testing_get_queue : Uuidm.t -> string -> RuntimeT.dval list
+
 val schedule_all : unit -> unit
 
 module Scheduling_rule : sig
