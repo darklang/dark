@@ -19,6 +19,36 @@ module Canvas = LibBackend.Canvas
 
 open TestUtils.TestUtils
 
+let setUpWorkers meta workers =
+  task {
+    let workersWithIDs = workers |> List.map (fun w -> w, (gid ()))
+
+    let ops =
+      workersWithIDs
+      |> List.map (fun (worker, tlid) ->
+        PT.SetHandler(
+          tlid,
+          testPos,
+          { tlid = tlid
+            pos = testPos
+            ast = PT.Expr.EBlank(gid ())
+            spec =
+              PT.Handler.Worker(
+                worker,
+                { moduleID = gid (); nameID = gid (); modifierID = gid () }
+              ) }
+        ))
+
+    let c = Canvas.empty meta |> Canvas.addOps ops []
+
+    let oplists =
+      workersWithIDs
+      |> List.map (fun (_w, tlid) ->
+        tlid, ops, PT.TLHandler c.handlers[tlid], Canvas.NotDeleted)
+
+    do! Canvas.saveTLIDs meta oplists
+  }
+
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
   (initializeDB : bool)
@@ -43,32 +73,8 @@ let t
           else
             createCanvasForOwner owner name
 
-        let workersWithIDs = workers |> List.map (fun w -> w, (gid ()))
-
-        let ops =
-          workersWithIDs
-          |> List.map (fun (worker, tlid) ->
-            PT.SetHandler(
-              tlid,
-              testPos,
-              { tlid = tlid
-                pos = testPos
-                ast = PT.Expr.EBlank(gid ())
-                spec =
-                  PT.Handler.Worker(
-                    worker,
-                    { moduleID = gid (); nameID = gid (); modifierID = gid () }
-                  ) }
-            ))
-
-        let c = Canvas.empty meta |> Canvas.addOps ops []
-
-        let oplists =
-          workersWithIDs
-          |> List.map (fun (_w, tlid) ->
-            tlid, ops, PT.TLHandler c.handlers[tlid], Canvas.NotDeleted)
-
-        do! Canvas.saveTLIDs meta oplists
+        if workers <> [] then
+          do! setUpWorkers meta workers
 
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
