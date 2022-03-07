@@ -773,10 +773,23 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
 
   postApiTest "initial_load" "" deserialize canonicalize client canvasName
 
+let testAllTraces =
+  // In a number of cases, these tests fail because the old backend didn't like a
+  // handler and substituted a default trace, but the new backend found a trace. The
+  // new behaviour seems better.
+  postApiTest "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
 
-let localOnlyTests =
+let testGetUnlockedDBs =
+  postApiTest "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
+
+let testPackages =
   let canonicalizePackages (ps : Packages.List.T) : Packages.List.T =
     ps |> List.map (fun p -> { p with body = canonicalizeAst p.body })
+  postApiTest "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
+
+let test404s = postApiTest "get_404s" "" (deserialize<F404s.List.T>) ident
+
+let localOnlyTests =
 
   let tests =
     if System.Environment.GetEnvironmentVariable "CI" = null then
@@ -788,23 +801,16 @@ let localOnlyTests =
       [ "ui", testUiReturnsTheSame
         "initial load", testInitialLoadReturnsTheSame
         // TODO add_ops
-        ("all traces",
-         postApiTest "all_traces" "" (deserialize<Traces.AllTraces.T>) ident)
+        "all traces", testAllTraces
         "execute_function", testExecuteFunction
-        "get 404s", postApiTest "get_404s" "" (deserialize<F404s.List.T>) ident
+        "get 404s", test404s
         "db stats", testDBStats
         "get trace data", testGetTraceData
-        "get unlocked_dbs",
-        postApiTest "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
+        "get unlocked_dbs", testGetUnlockedDBs
         "worker_stats", testWorkerStats
         "secrets", testInsertDeleteSecrets
-        ("packages",
-         postApiTest
-           "packages"
-           ""
-           (deserialize<Packages.List.T>)
-           canonicalizePackages)
-        "trigger handker", testTriggerHandler
+        "packages", testPackages
+        "trigger handler", testTriggerHandler
         "delete 404s", testDelete404s
         // TODO upload_package
         // FSTODO worker_schedule
