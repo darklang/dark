@@ -73,8 +73,7 @@ let t
           else
             createCanvasForOwner owner name
 
-        if workers <> [] then
-          do! setUpWorkers meta workers
+        if workers <> [] then do! setUpWorkers meta workers
 
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
