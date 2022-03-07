@@ -1,12 +1,11 @@
+/// A command to run common tasks in production. Note that most tasks could/should
+/// be run by creating new functions in LibDarkInternal instead. This should be
+/// used for cases where that is not appropriate.
+///
+/// Based on https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-10-creating-an-exec-host-deployment-for-running-one-off-commands/
+///
+/// Run with `ExecHost --help` for usage
 module ExecHost
-
-// A command to run common tasks in production. Note that most tasks could/should be
-// run by creating new functions in LibDarkInternal instead. This should be used for
-// cases where that is not appropriate.
-
-// Based on https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-10-creating-an-exec-host-deployment-for-running-one-off-commands/
-
-// Run with `ExecHost --help` for usage
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -26,7 +25,9 @@ let listMigrations (executionID : ExecutionID) : unit =
   LibBackend.Migrations.migrationsToRun ()
   |> List.iter (fun name -> print $" - {name}")
 
-
+/// Given a username, returns a cookie to use to access Canvases
+///
+/// Mostly available for when Auth0 is down
 let emergencyLogin (username : string) : Task<unit> =
   task {
     print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
@@ -43,6 +44,7 @@ let emergencyLogin (username : string) : Task<unit> =
     return ()
   }
 
+/// Send multiple messages to Rollbar, to ensure our usage is generally OK
 let triggerRollbar (executionID : ExecutionID) : unit =
   let tags = [ "int", 6 :> obj; "string", "string"; "float", -0.6; "bool", true ]
   let prefix = "execHost test: "
@@ -57,6 +59,8 @@ let triggerRollbar (executionID : ExecutionID) : unit =
   let e = new System.Exception($"{prefix} sendException exception")
   Rollbar.sendException executionID Rollbar.emptyPerson tags e
 
+/// Send a message to Rollbar that should result in a Page (notification)
+/// going out
 let triggerPagingRollbar () : int =
   // This one pages
   let prefix = "execHost test: "
@@ -77,7 +81,7 @@ let help () : unit =
 
 let run (executionID : ExecutionID) (args : string []) : Task<int> =
   task {
-    // Track calls to the this
+    // Track calls to this
     use _ = Telemetry.createRoot "ExecHost run"
     Telemetry.addTags [ "args", args ]
     Rollbar.notify executionID "execHost called" [ "args", String.concat "," args ]

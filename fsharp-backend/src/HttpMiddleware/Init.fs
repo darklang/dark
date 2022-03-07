@@ -1,6 +1,5 @@
+/// Initialize HttpMiddleware
 module HttpMiddleware.Init
-
-// Initialize HttpMiddleware
 
 open Prelude
 

@@ -1,7 +1,5 @@
+/// The types that are serialized for the program
 module LibExecution.ProgramTypes
-
-// These are the types that are serialized for the program.
-
 
 open Prelude
 open VendoredTablecloth
@@ -85,7 +83,7 @@ module FQFnName =
 
 
 
-// Expressions - the main part of the language.
+/// Expressions - the main part of the language.
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
@@ -345,7 +343,6 @@ and Pattern =
     | PCharacter _, _
     | PNull _, _
     | PBlank _, _ -> false
-
 
 
 

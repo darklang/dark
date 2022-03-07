@@ -1,6 +1,5 @@
+/// Reusable errors and messages used mostly in the standard library
 module LibExecution.Errors
-
-// Reusable errors and messages used mostly in the standard library
 
 open Prelude
 open RuntimeTypes
@@ -11,21 +10,21 @@ open RuntimeTypes
 
 type StdlibError =
   | IncorrectArgs
-  // When we encounter a fakeDval, this exception allows us to jump out of the
-  // computation immediately, and the caller can return the dval. This is useful
-  // for jumping out of folds and other complicated constructs.
+  /// When we encounter a fakeDval, this exception allows us to jump out of the
+  /// computation immediately, and the caller can return the dval. This is useful
+  /// for jumping out of folds and other complicated constructs.
   | FakeDvalFound of Dval
   | StringError of string
 
-// Error made in a standard library call. This allows us to call them when we
-// don't have the information to make a RuntimeException, and they are
-// converted to runtimeExceptions at the call site.
+/// Error made in a standard library call. This allows us to call them when we
+/// don't have the information to make a RuntimeException, and they are
+/// converted to runtimeExceptions at the call site.
 exception StdlibException of StdlibError
 
-// Error in DB::query when we don't support something yet
+/// Error in DB::query when we don't support something yet
 exception DBQueryException of string
 
-// Error in DB::query when there's a fakeval in the query
+/// Error in DB::query when there's a fakeval in the query
 exception FakeValFoundInQuery of Dval
 
 
@@ -47,13 +46,13 @@ let expectedLambdaValue
   $"Expected `{fnName}` to return {expected}, but it returned `{actual}`"
 
 
-// Used for values which are outside the range of expected values for some
-// reason. Really, any function using this should have a Result type instead.
+/// Used for values which are outside the range of expected values for some
+/// reason. Really, any function using this should have a Result type instead.
 let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string =
   let actual = DvalReprExternal.toDeveloperReprV0 dv
   $"Expected the argument `{paramName}` to be {expected}, but it was `{actual}`"
 
-// Used for lists which contain invalid values for some reason.
+/// Used for lists which contain invalid values for some reason.
 let argumentMemberWasnt (typ : DType) (paramName : string) (dv : Dval) : string =
   let actual = DvalReprExternal.toDeveloperReprV0 dv
   let typ = DvalReprExternal.typeToDeveloperReprV0 typ
@@ -74,7 +73,8 @@ let typeErrorMsg (colName : string) (expected : DType) (actual : Dval) : string 
 // ------------------
 let throw (str : string) : 'a = raise (StdlibException(StringError str))
 
-// When a function in called with the wrong number of arguments. Used in almost every function signature.
+/// When a function in called with the wrong number of arguments.
+/// Used in almost every function signature.
 let incorrectArgs () = raise (StdlibException IncorrectArgs)
 
 let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
@@ -105,10 +105,10 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   + $"a {expectedTypeRepr}.{conversionMsg}"
 
 
-// When a function has been removed (rarely happens but does happen occasionally)
+/// When a function has been removed (rarely happens but does happen occasionally)
 let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
   state.notify state "function removed" [ "fnName", fnName ]
   Ply(DError(SourceNone, $"{fnName} was removed from Dark"))
 
-// When you have a fakeval, you typically just want to return it.
+/// When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (StdlibException(FakeDvalFound dv))

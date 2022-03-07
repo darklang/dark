@@ -1,4 +1,5 @@
-﻿module LibExecution.Interpreter
+﻿/// Interprets Dark expressions resulting in (tasks of) Dvals
+module LibExecution.Interpreter
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -14,6 +15,7 @@ let globalsFor (state : ExecutionState) : Symtable =
     |> Map.ofList
 
   let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
+
   Map.mergeFavoringLeft secrets dbs
 
 
@@ -24,8 +26,13 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 
 
 // fsharplint:disable FL0039
+
+/// Interprets an expression and reduces to a Dark value
+/// (or task that should result in such)
 let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
-  // Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
+  // Design doc for execution results and previews:
+  // https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
+  // TODO document is either gone or hidden behind login
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
@@ -400,6 +407,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
   }
 
+/// Interprets an expression and reduces to a Dark value
+/// (or task that should result in such)
 and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   uply {
     let! (result : Dval) = eval' state st e
@@ -407,7 +416,7 @@ and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     return result
   }
 
-// Unwrap the dval, which we expect to be a function, and error if it's not
+/// Unwrap the dval, which we expect to be a function, and error if it's not
 and applyFn
   (state : ExecutionState)
   (id : id)

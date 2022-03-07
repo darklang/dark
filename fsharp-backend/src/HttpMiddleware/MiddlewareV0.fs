@@ -1,6 +1,9 @@
+/// V0 of the Dark HTTP Middleware.
+///
+/// Designed to move as much of the Http framework into "user space"
+/// (or something which could potentially be user space in the future)
+/// as possible.
 module HttpMiddleware.MiddlewareV0
-
-// V0 of the Dark HTTP Middleware. Designed to move as much of the Http framework into "user space" (or something which could potentially be user space in the future) as possible.
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -32,24 +35,31 @@ let inferCorsOriginHeader
     [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
 
   let header =
-    match (originHeader, corsSetting) with
+    match originHeader, corsSetting with
+
     // if there's no explicit canvas setting, allow common localhosts
     | Some origin, None when List.contains origin defaultOrigins -> Some origin
+
     // if there's no explicit canvas setting and no default match, fall back to "*"
     | _, None -> Some "*"
+
     // If there's a "*" in the setting, always use it.
-    // This is help as a debugging aid since users will always see
+    // This is helpful as a debugging aid since users will always see
     // Access-Control-Allow-Origin: * in their browsers, even if the
     // request has no Origin.
     | _, Some Canvas.AllOrigins -> Some "*"
+
     // if there's no supplied origin, don't set the header at all.
     | None, _ -> None
+
     // Return the origin if and only if it's in the setting
     | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
       Some origin
+
     // Otherwise: there was a supplied origin and it's not in the setting.
     // return "null" explicitly
     | Some _, Some _ -> Some "null"
+
   header
 
 let addCorsHeaders

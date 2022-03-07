@@ -1,14 +1,19 @@
+/// Collection of helpful "shortcut" functions to create Dark values quickly
 module LibExecution.Shortcuts
 
 open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
-// Returns a string representation of an expr using shortcuts. This makes it
-// useful for creating test cases and similar.
+/// Returns a string representation of an expr using shortcuts.
+/// This makes it useful for creating test cases and similar.
 let rec toStringRepr (e : Expr) : string =
   let r (v : Expr) = $"{toStringRepr v}"
+
+  /// Wrap in parens
   let pr (v : Expr) = $"({toStringRepr v})" // parenthesized repr
+
+  /// Wrap in quotes
   let q (v : string) = $"\"{v}\""
 
   match e with

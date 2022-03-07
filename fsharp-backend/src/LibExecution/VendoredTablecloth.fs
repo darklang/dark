@@ -1,10 +1,14 @@
+/// A forked subset of Tablecloth
+///
+/// Kept separate from Tablecloth as, in LibExecution, we want to be very careful
+/// about backward compatibility. Tablecloth is still very much in flux, so
+/// we want to avoid using it in case something happens that breaks lots of things.
+///
+/// Our rule is to not use Tablecloth in LibExecution.
+///
+/// However, we do want things to be consistent, so we directly import
+/// functions that we want to use here.
 module LibExecution.VendoredTablecloth
-
-// In LibExecution, we want to be really careful about backwards compatibility. As
-// Tablecloth is still very much in flux, we want to avoid using it in case something
-// happens that breaks lots of things. So we have a rule to not use Tablecloth in
-// LibExecution. However, we do want things to be consistent, so we directly import
-// functions that we want to use here.
 
 module Map =
   let keys (map : Map<'k, 'v>) : List<'k> =

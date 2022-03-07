@@ -6,7 +6,6 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.VendoredTablecloth
 open LibExecution.RuntimeTypes
-open LibExecution.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors

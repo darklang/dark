@@ -1,6 +1,5 @@
+/// Types used during program analysis/traces
 module LibExecution.AnalysisTypes
-
-// Types used during program analysis/traces
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -40,6 +39,7 @@ type TraceData =
 
 type Trace = TraceID * TraceData
 
+// CLEANUP
 // The option was removed to make it compatible with the OCaml version of the
 // API. Although OCaml also wraps this with an option, the
 // yojson_deriving_ppx-generated serialized automatically unwraps options. We

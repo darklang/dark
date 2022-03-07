@@ -5,7 +5,7 @@ open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
-// Returns `Ok ()` if no errors, or `Error list` otherwise
+/// Returns `Ok ()` if no errors, or `Error list` otherwise
 let combineErrorsUnit (l : List<Result<'ok, 'err>>) : Result<unit, List<'err>> =
   List.fold
     (Ok())
