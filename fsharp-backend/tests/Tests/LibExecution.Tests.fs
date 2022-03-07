@@ -51,7 +51,7 @@ let setUpWorkers meta workers =
 
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
-  (initializeDB : bool)
+  (initializeCanvas : bool)
   (comment : string)
   (code : string)
   (dbs : List<PT.DB.T>)
@@ -68,7 +68,7 @@ let t
         let! owner = owner
         let! meta =
           // Little optimization to skip the DB sometimes
-          if initializeDB then
+          if initializeCanvas then
             initializeCanvasForOwner owner name
           else
             createCanvasForOwner owner name
@@ -208,7 +208,7 @@ let fileTests () : Test =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
 
     let finish () =
-      let initializeDB =
+      let initializeCanvas =
         filename = "internal.tests"
         || currentTest.dbs <> []
         || currentTest.workers <> []
@@ -216,7 +216,7 @@ let fileTests () : Test =
         let newTestCase =
           t
             owner
-            initializeDB
+            initializeCanvas
             currentTest.name
             currentTest.code
             currentTest.dbs
@@ -354,11 +354,11 @@ let fileTests () : Test =
         currentFn <- { currentFn with code = currentFn.code + "\n" + line }
       // 1-line test
       | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
-        let initializeDB = filename = "internal.tests" || currentGroup.dbs <> []
+        let initializeCanvas = filename = "internal.tests" || currentGroup.dbs <> []
         let test =
           t
             owner
-            initializeDB
+            initializeCanvas
             $"{comment} (line {i})"
             code
             currentGroup.dbs
@@ -367,11 +367,11 @@ let fileTests () : Test =
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
-        let initializeDB = filename = "internal.tests" || currentGroup.dbs <> []
+        let initializeCanvas = filename = "internal.tests" || currentGroup.dbs <> []
         let test =
           t
             owner
-            initializeDB
+            initializeCanvas
             $"line {i}"
             code
             currentGroup.dbs
