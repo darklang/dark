@@ -392,7 +392,9 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
             trace =
               t.trace
               |> Tuple2.mapSecond (fun td ->
-                { td with timestamp = td.timestamp.truncate () }) })
+                { td with
+                    timestamp = td.timestamp.truncate ()
+                    input = td.input |> List.sortBy (fun (k, v) -> k) }) })
 
     let! (_ : List<unit>) =
       body
