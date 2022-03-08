@@ -15,7 +15,7 @@ let knownGood =
        OCamlInterop.Queryable.tests
        DvalRepr.EndUserReadable.tests
        DvalRepr.Hashing.tests
-       DvalRepr.tests
+       DvalRepr.DeveloperRepr.tests
        HttpClient.tests
        Json.PrettyMachineJson.tests
        Json.LibJwtJson.tests

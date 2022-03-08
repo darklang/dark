@@ -16,27 +16,29 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 
 let tpwg = testPropertyWithGenerator
 
-type Generator =
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.string ())
+module DeveloperRepr =
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.fromGen (Generators.string ())
 
-  // The format here is only used for errors so it doesn't matter all the
-  // much. These are places where we've manually checked the differing
-  // outputs are fine.
+    // The format here is only used for errors so it doesn't matter all the
+    // much. These are places where we've manually checked the differing
+    // outputs are fine.
 
-  static member Dval() : Arbitrary<RT.Dval> =
-    Arb.Default.Derive()
-    |> Arb.filter (function
-      | RT.DFnVal _ -> false
-      | RT.DFloat 0.0 -> false
-      | RT.DFloat infinity -> false
-      | _ -> true)
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter (function
+        | RT.DFnVal _ -> false
+        | RT.DFloat 0.0 -> false
+        | RT.DFloat infinity -> false
+        | _ -> true)
 
-let equalsOCaml (dv : RT.Dval) : bool =
-  DvalReprExternal.toDeveloperReprV0 dv
-  .=. (OCamlInterop.toDeveloperRepr dv).Result
+  let equalsOCaml (dv : RT.Dval) : bool =
+    DvalReprExternal.toDeveloperReprV0 dv
+    .=. (OCamlInterop.toDeveloperRepr dv).Result
 
-let tests =
-  testList "toDeveloperRepr" [ tpwg typeof<Generator> "roundtripping" equalsOCaml ]
+  let tests =
+    testList "toDeveloperRepr" [ tpwg typeof<Generator> "roundtripping" equalsOCaml ]
 
 module EndUserReadable =
   type Generator =
