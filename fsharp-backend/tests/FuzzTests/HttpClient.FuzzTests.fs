@@ -53,7 +53,7 @@ let dvalToQuery (l : List<string * RT.Dval>) : bool =
 
 let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
-  (DvalReprExternal.toFormEncoding dv).ToString()
+  (DvalReprExternal.toFormEncoding dv |> Result.unwrapUnsafe)
   .=. (OCamlInterop.dvalToFormEncoding dv).Result
 
 let queryStringToParams (s : string) : bool =
