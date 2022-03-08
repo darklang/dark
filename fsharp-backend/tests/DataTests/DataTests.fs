@@ -10,6 +10,10 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module Account = LibBackend.Account
+module Canvas = LibBackend.Canvas
+module Execution = LibExecution.Execution
+module RT = LibExecution.RuntimeTypes
+module PT = LibExecution.ProgramTypes
 
 type CheckpointData =
   { mutable complete : Set<string>
@@ -71,15 +75,18 @@ let catchException
 
 
 
+
+
+/// Iterate through all canvases, running `fn` and storing thhe results
 let forEachCanvas
-  (canvasConcurrency : int)
+  (concurrency : int)
   (filename : string)
   (failOnError : bool)
   (cd : CheckpointData)
-  (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
+  (fn : CanvasName.T -> Task<unit>)
   : Task<unit> =
   task {
-    let semaphore = new System.Threading.SemaphoreSlim(canvasConcurrency)
+    let semaphore = new System.Threading.SemaphoreSlim(concurrency)
     let! canvases = LibBackend.Serialize.getAllCanvases ()
     let! (result : List<unit>) =
       canvases
@@ -87,13 +94,9 @@ let forEachCanvas
       |> Task.mapInParallel (fun canvasName ->
         task {
           do! semaphore.WaitAsync()
-          let username = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-          let! user = Account.getUser username
-          let client = Tests.ApiServer.forceLogin username
-          let user = Exception.unwrapOptionInternal "" [] user
           print $"start c: {canvasName}"
           try
-            let! result = fn (lazy client) canvasName
+            let! result = fn canvasName
             print $"done  c: {canvasName}"
             cd.complete <- Set.add cd.complete (string canvasName)
             saveCheckpointData filename cd
@@ -109,6 +112,108 @@ let forEachCanvas
         })
     return ()
   }
+
+
+/// Iterate through all canvases passing in an appropriate HTTP client
+let forEachCanvasWithClient
+  (concurrency : int)
+  (filename : string)
+  (failOnError : bool)
+  (cd : CheckpointData)
+  (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
+  =
+  forEachCanvas concurrency filename failOnError cd (fun canvasName ->
+    let username = (Account.ownerNameFromCanvasName canvasName).toUserName ()
+    let client = lazy (Tests.ApiServer.forceLogin username)
+    fn client canvasName)
+
+/// Iterate through all canvases and all DBs in those canvases
+let loadAllUserData
+  (concurrency : int)
+  (filename : string)
+  (failOnError : bool)
+  (cd : CheckpointData)
+  =
+  forEachCanvas concurrency filename failOnError cd (fun canvasName ->
+    task {
+      let! meta = Canvas.getMeta canvasName
+      let! c = Canvas.loadAllDBs meta
+      let dbs =
+        c.dbs
+        |> Map.values
+        |> List.map (fun db -> db.name, PT.DB.toRuntimeType db)
+        |> Map
+      let! state = TestUtils.TestUtils.executionStateFor meta dbs Map.empty
+      let! (result : List<unit>) =
+        dbs
+        |> Map.values
+        |> List.map (fun (db : RT.DB.T) ->
+          uply {
+            let code = $"DB.getAllWithKeys_v2 {db.name}"
+            let ast = FSharpToExpr.parsePTExpr code
+            let! actual =
+              LibExecution.Execution.executeExpr
+                state
+                (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) dbs)
+                (ast.toRuntimeType ())
+
+            // For this to work, we need to make PasswordBytes.to_yojson return
+            // [`String (Bytes.to_string bytes)]
+            let! expected =
+              LibBackend.OCamlInterop.execute
+                state.program.accountID
+                state.program.canvasID
+                ast
+                Map.empty
+                (Map.values c.dbs)
+                []
+            let expected =
+              match expected with
+              | RT.DError (source, str) ->
+                RT.DError(source, TestUtils.TestUtils.parseOCamlError str)
+              | other -> other
+
+            // The values should be the same
+            Expect.equal actual expected "getAll should be the same equal"
+
+            match expected with
+            | RT.DObj map ->
+              let dvals = Map.values map
+              dvals
+              |> List.iter (fun dv ->
+                Expect.equal (Json.PrettyMachineJson.equalsOCaml dv) true ""
+                Expect.equal (Json.PrettyResponseJson.equalsOCaml dv) true ""
+                Expect.equal (Json.PrettyRequestJson.equalsOCaml dv) true ""
+                Expect.equal (Json.LibJwtJson.equalsOCaml dv) true ""
+                Expect.equal (Json.LibJwtJson.roundtripV1 dv) true ""
+                Expect.equal (Json.LibJwtJson.roundtripV0 dv) true ""
+                Expect.equal (DvalRepr.DeveloperRepr.equalsOCaml dv) true ""
+                Expect.equal (DvalRepr.EndUserReadable.equalsOCaml dv) true ""
+                Expect.equal (OCamlInterop.Queryable.v1Roundtrip dv) true ""
+                Expect.equal (OCamlInterop.Queryable.isInteroperableV1 dv) true ""
+                Expect.equal (OCamlInterop.Roundtrippable.roundtrip dv) true ""
+                Expect.equal
+                  (OCamlInterop.Roundtrippable.isInteroperableV0 dv)
+                  true
+                  ""
+                Expect.equal (DvalRepr.Hashing.equalsOCamlV0 dvals) true ""
+                Expect.equal (DvalRepr.Hashing.equalsOCamlV1 dvals) true "")
+              let list = map |> Map.toList
+              Expect.equal (HttpClient.dvalToUrlStringExn list) true ""
+              Expect.equal (HttpClient.dvalToQuery list) true ""
+              Expect.equal (HttpClient.dvalToFormEncoding list) true ""
+            | _ -> ()
+
+            return ()
+          }
+          |> Ply.toTask)
+        |> Task.flatten
+
+      let fn cn = task { return () }
+
+      return! fn canvasName
+    })
+
 
 
 [<EntryPoint>]
@@ -137,13 +242,7 @@ let main args =
   )
 
   try
-    (forEachCanvas
-      concurrency
-      filename
-      failOnError
-      checkpointData
-      Tests.ApiServer.testGetTraceData)
-      .Result
+    (loadAllUserData concurrency filename failOnError checkpointData).Result
   with
   | e -> catchException filename true checkpointData e
   0
