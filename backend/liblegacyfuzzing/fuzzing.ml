@@ -274,9 +274,11 @@ let fns : Types.RuntimeT.fn list =
         InProcess
           (function
           | _, [DStr s] ->
-            (match Unicode_string.characters s with
-            | [c] -> c |> DCharacter |> OptJust |> DOption
-            | _ -> DOption OptNothing)
+            ( match Unicode_string.characters s with
+            | [c] ->
+                c |> DCharacter |> OptJust |> DOption
+            | _ ->
+                DOption OptNothing )
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
