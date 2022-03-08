@@ -491,6 +491,13 @@ let loadAllDBs (meta : Meta) : Task<T> =
     return! loadFrom LiveToplevels meta tlids
   }
 
+/// Returns a best guess at all workers (excludes what it knows not to be a worker)
+let loadAllWorkers (meta : Meta) : Task<T> =
+  task {
+    let! tlids = Serialize.fetchTLIDsForAllWorkers meta.id
+    return! loadFrom LiveToplevels meta tlids
+  }
+
 let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id

@@ -1055,7 +1055,7 @@ module Json =
       override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
         writer.WriteValue(value)
 
-    type PasswordConverter() =
+    type RedactedPasswordConverter() =
       inherit JsonConverter<Password>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
@@ -1065,26 +1065,42 @@ module Json =
       override _.WriteJson
         (
           writer : JsonWriter,
-          value : Password,
+          _ : Password,
           _ : JsonSerializer
         ) : unit =
         writer.WriteValue("Redacted")
 
+    type NonRedactedPasswordConverter() =
+      inherit JsonConverter<Password>()
+      // Corresponds to the PasswordBytes serializers in OCaml
+      override _.ReadJson(reader : JsonReader, _, v, _, _) =
+        reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode |> Password
+
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          (Password bytes) : Password,
+          _ : JsonSerializer
+        ) =
+        bytes |> Base64.urlEncodeToString |> writer.WriteValue
+
+
     type OCamlRawBytesConverter() =
       inherit JsonConverter<byte array>()
-      // the url-safe version of base64. It's not appropriate for all byte
-      // arrays, but I think this is the only user. If not, we'll need to add a
-      // RawBytes type.
+      // Corresponds to the RawBytes serializers in OCaml, and generates the url-safe
+      // version of base64. It's not appropriate for all byte arrays, but I think
+      // this is the only user. If not, we'll need to add a RawBytes type.
       override _.ReadJson(reader : JsonReader, _, v, _, _) =
         reader.Value :?> string |> Base64.fromUrlEncoded |> Base64.decode
 
       override _.WriteJson
         (
           writer : JsonWriter,
-          value : byte [],
+          bytes : byte array,
           _ : JsonSerializer
         ) =
-        value |> Base64.urlEncodeToString |> writer.WriteValue
+        bytes |> Base64.urlEncodeToString |> writer.WriteValue
+
 
 
     // We don't use this at the moment
@@ -1190,7 +1206,8 @@ module Json =
         | _ -> writer.WriteValue value
 
 
-    let getSettings () =
+    let getSettings (redactPasswords : bool) =
+      // Do NOT redact passwords when calling the legacyServer
       let settings = JsonSerializerSettings()
       // This might be a potential vulnerability, turn it off anyway
       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
@@ -1199,8 +1216,11 @@ module Json =
       settings.MaxDepth <- System.Int32.MaxValue // infinite
       // dont deserialize date-looking string as dates
       settings.DateParseHandling <- DateParseHandling.None
+      if redactPasswords then
+        settings.Converters.Add(RedactedPasswordConverter())
+      else
+        settings.Converters.Add(NonRedactedPasswordConverter())
       settings.Converters.Add(TLIDConverter())
-      settings.Converters.Add(PasswordConverter())
       settings.Converters.Add(LocalDateTimeConverter())
       settings.Converters.Add(FSharpListConverter())
       settings.Converters.Add(OCamlOptionConverter())
@@ -1210,22 +1230,35 @@ module Json =
       settings.Converters.Add(FSharpTupleConverter()) // gets tripped up so put last
       settings
 
-    let _settings = getSettings ()
+    let _settings = getSettings true
+    let _legacySettings = getSettings false
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
       // supports the type, not the best one
       _settings.Converters.Insert(0, c)
+      _legacySettings.Converters.Insert(0, c)
 
     let prettySerialize (data : 'a) : string =
-      let settings = getSettings ()
+      let settings = getSettings true
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
     let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
 
+    /// Serialize WITHOUT redacting passwords. Only used for communicating to the
+    /// legacy server, where passwords in Dvals not be redacted because we want to
+    /// interoperate on real values. This is only needed for fuzzing, as we don't
+    /// translate Dvals in the ordinary course of business.
+    let legacySerialize (data : 'a) : string =
+      JsonConvert.SerializeObject(data, _legacySettings)
+
+    let legacyDeserialize<'a> (json : string) : 'a =
+      JsonConvert.DeserializeObject<'a>(json, _legacySettings)
+
     let deserialize<'a> (json : string) : 'a =
       JsonConvert.DeserializeObject<'a>(json, _settings)
+
 
 
 

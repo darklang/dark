@@ -20,6 +20,7 @@ module OT = LibExecution.OCamlTypes
 module ORT = OT.RuntimeT
 module Convert = LibExecution.OCamlTypes.Convert
 module TI = LibBackend.TraceInputs
+module Canvas = LibBackend.Canvas
 
 type AuthData = LibBackend.Session.AuthData
 
@@ -391,7 +392,9 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
             trace =
               t.trace
               |> Tuple2.mapSecond (fun td ->
-                { td with timestamp = td.timestamp.truncate () }) })
+                { td with
+                    timestamp = td.timestamp.truncate ()
+                    input = td.input |> List.sortBy (fun (k, v) -> k) }) })
 
     let! (_ : List<unit>) =
       body
@@ -417,20 +420,20 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
 
 let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
+    let! canvas = Canvas.getMeta canvasName
 
-    let dbs =
-      initialLoad.toplevels
-      |> Convert.ocamlToplevel2PT
-      |> Tuple2.second
+    let! canvasWithJustDBs = Canvas.loadAllDBs canvas
+    let parameters =
+      canvasWithJustDBs.dbs
+      |> Map.values
       |> List.map (fun db -> db.tlid)
       |> fun tlids -> ({ tlids = tlids } : DBs.DBStats.Params)
 
     return!
       postApiTest
         "get_db_stats"
-        (serialize dbs)
-        (deserialize<DBs.DBStats.T>)
+        (serialize parameters)
+        deserialize<DBs.DBStats.T>
         ident
         client
         canvasName
@@ -495,15 +498,17 @@ let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
 
 let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad client canvasName
+    let! canvas = Canvas.getMeta canvasName
+
+    let! canvasWithJustWorkers = Canvas.loadAllWorkers canvas
 
     let! (_ : List<unit>) =
-      initialLoad.toplevels
-      |> Convert.ocamlToplevel2PT
-      |> Tuple2.first
+      canvasWithJustWorkers.handlers
+      |> Map.values
       |> List.filterMap (fun h ->
         match h.spec with
         | PT.Handler.Worker _ -> Some h.tlid
+        | PT.Handler.OldWorker _ -> Some h.tlid
         | _ -> None)
       |> List.map (fun tlid ->
         postApiTest
@@ -770,10 +775,23 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
 
   postApiTest "initial_load" "" deserialize canonicalize client canvasName
 
+let testAllTraces =
+  // In a number of cases, these tests fail because the old backend didn't like a
+  // handler and substituted a default trace, but the new backend found a trace. The
+  // new behaviour seems better.
+  postApiTest "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
 
-let localOnlyTests =
+let testGetUnlockedDBs =
+  postApiTest "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
+
+let testPackages =
   let canonicalizePackages (ps : Packages.List.T) : Packages.List.T =
     ps |> List.map (fun p -> { p with body = canonicalizeAst p.body })
+  postApiTest "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
+
+let test404s = postApiTest "get_404s" "" (deserialize<F404s.List.T>) ident
+
+let localOnlyTests =
 
   let tests =
     if System.Environment.GetEnvironmentVariable "CI" = null then
@@ -785,23 +803,16 @@ let localOnlyTests =
       [ "ui", testUiReturnsTheSame
         "initial load", testInitialLoadReturnsTheSame
         // TODO add_ops
-        ("all traces",
-         postApiTest "all_traces" "" (deserialize<Traces.AllTraces.T>) ident)
+        "all traces", testAllTraces
         "execute_function", testExecuteFunction
-        "get 404s", postApiTest "get_404s" "" (deserialize<F404s.List.T>) ident
+        "get 404s", test404s
         "db stats", testDBStats
         "get trace data", testGetTraceData
-        "get unlocked_dbs",
-        postApiTest "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
+        "get unlocked_dbs", testGetUnlockedDBs
         "worker_stats", testWorkerStats
         "secrets", testInsertDeleteSecrets
-        ("packages",
-         postApiTest
-           "packages"
-           ""
-           (deserialize<Packages.List.T>)
-           canonicalizePackages)
-        "trigger handker", testTriggerHandler
+        "packages", testPackages
+        "trigger handler", testTriggerHandler
         "delete 404s", testDelete404s
         // TODO upload_package
         // FSTODO worker_schedule
