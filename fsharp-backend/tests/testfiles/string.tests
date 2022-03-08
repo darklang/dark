@@ -90,9 +90,13 @@ String.foreach_v1 "abcdef" (fun x -> blank) = blank
 
 // fromChar
 String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark" // FSHARPONLY
-String.fromChar_v0 ("1" |> String.toChar_v1) = Test.typeError "This function no longer exists." // OCAMLONLY
+String.fromChar_v0 (c "1") = Test.typeError "This function no longer exists." // OCAMLONLY
 String.fromChar_v1 'a' = "a" // FSHARPONLY
-String.fromChar_v1 ("1" |> String.toChar_v1) = Test.typeError "String::fromChar_v1 was called with the wrong type to parameter: c" // OCAMLONLY
+String.fromChar_v1 (c "1") = "1"
+String.fromChar_v1 (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
+String.fromChar_v1 (c "🏳️‍⚧️‍️") = "🏳️‍⚧️‍️"
+String.fromChar_v1 (c "👱🏾") = "👱🏾"
+String.fromChar_v1 (c "Z̤͔ͧ̑̓") = "Z̤͔ͧ̑̓"
 
 
 String.base64Decode_v0 "random string" = Test.typeError_v0 "Not a valid base64 string"
@@ -336,15 +340,20 @@ String.toList_v0 "" = Test.typeError_v0 "This function no longer exists." // OCA
 String.toList_v0 "" = Test.typeError_v0 "String::toList was removed from Dark" // FSHARPONLY
 
 String.fromList_v1 [] = ""
-String.fromList_v1 ['a'] = "a" // FSHARPONLY
+String.fromList_v1 [c "a"] = "a"
+String.fromList_v1 [c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 String.fromList_v1 ["a"] = Test.typeError_v0 "expected a char" // OCAMLONLY
 String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`" // FSHARPONLY
 String.fromList_v1 [6] = Test.typeError_v0 "expected a char" // OCAMLONLY
 String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`" // FSHARPONLY
 String.toList_v1 "" = []
 String.toList_v1 "ab" = ['a', 'b']
+String.toList_v1 "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
+String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c "Z̤͔ͧ̑̓", c "ä͖̭̈̇", c "lͮ̒ͫ", c "ǧ̗͚̚", c "o̙̔ͮ̇͐̇" ]
+String.toList_v1 "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" = [c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓"]
 ("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
 ("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
+("👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" |> String.toList_v1 |> String.fromList_v1) = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
 String.split_v0 "hello😄world" "😄" = [ "hello", "world" ]
 String.split_v0 "hello&&&&world" "&&&&" = [ "hello", "world" ]
