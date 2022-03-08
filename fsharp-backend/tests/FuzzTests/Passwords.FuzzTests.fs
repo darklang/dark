@@ -17,9 +17,6 @@ open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = LibBackend.OCamlInterop
-module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
 module G = Generators
 
 let tpwg = testPropertyWithGenerator
