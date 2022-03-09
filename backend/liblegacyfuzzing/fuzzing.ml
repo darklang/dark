@@ -1,5 +1,6 @@
 open Core_kernel
 open Libexecution
+open Types.RuntimeT
 module Db = Libbackend_basics.Db
 
 let of_internal_queryable_v0 (str : string) : string =
@@ -262,6 +263,24 @@ let fns : Types.RuntimeT.fn list =
     ; description = "Return a NaN"
     ; func =
         InProcess (function _, [] -> DFloat Float.nan | args -> Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::toChar"]
+    ; infix_names = []
+    ; parameters = [Lib.par "c" TStr]
+    ; return_type = TOption
+    ; description = "Turns a string of length 1 into a character"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+            ( match Unicode_string.characters s with
+            | [c] ->
+                c |> DCharacter |> OptJust |> DOption
+            | _ ->
+                DOption OptNothing )
+          | args ->
+              Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Test::infinity"]
