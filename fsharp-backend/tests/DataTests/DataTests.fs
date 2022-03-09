@@ -175,35 +175,6 @@ let loadAllUserData
 
             // The values should be the same
             Expect.equal actual expected "getAll should be the same equal"
-
-            match expected with
-            | RT.DObj map ->
-              let dvals = Map.values map
-              dvals
-              |> List.iter (fun dv ->
-                Expect.equal (Json.PrettyMachineJson.equalsOCaml dv) true ""
-                Expect.equal (Json.PrettyResponseJson.equalsOCaml dv) true ""
-                Expect.equal (Json.PrettyRequestJson.equalsOCaml dv) true ""
-                Expect.equal (Json.LibJwtJson.equalsOCaml dv) true ""
-                Expect.equal (Json.LibJwtJson.roundtripV1 dv) true ""
-                Expect.equal (Json.LibJwtJson.roundtripV0 dv) true ""
-                Expect.equal (DvalRepr.DeveloperRepr.equalsOCaml dv) true ""
-                Expect.equal (DvalRepr.EndUserReadable.equalsOCaml dv) true ""
-                Expect.equal (OCamlInterop.Queryable.v1Roundtrip dv) true ""
-                Expect.equal (OCamlInterop.Queryable.isInteroperableV1 dv) true ""
-                Expect.equal (OCamlInterop.Roundtrippable.roundtrip dv) true ""
-                Expect.equal
-                  (OCamlInterop.Roundtrippable.isInteroperableV0 dv)
-                  true
-                  ""
-                Expect.equal (DvalRepr.Hashing.equalsOCamlV0 dvals) true ""
-                Expect.equal (DvalRepr.Hashing.equalsOCamlV1 dvals) true "")
-              let list = map |> Map.toList
-              Expect.equal (HttpClient.dvalToUrlStringExn list) true ""
-              Expect.equal (HttpClient.dvalToQuery list) true ""
-              Expect.equal (HttpClient.dvalToFormEncoding list) true ""
-            | _ -> ()
-
             return ()
           }
           |> Ply.toTask)
