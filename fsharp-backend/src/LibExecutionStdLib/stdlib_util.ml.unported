@@ -29,39 +29,3 @@ let isostring_of_date_basic_datetime (d : Time.t) : string =
   Digit_string_helpers.write_2_digit_int buf ~pos:2 parts.min ;
   Digit_string_helpers.write_2_digit_int buf ~pos:4 parts.sec ;
   Date.to_string_iso8601_basic date ^ "T" ^ Bytes.to_string buf ^ "Z"
-
-
-(* [http_date_string_of_date date] returns [date] as a string in the
- * format described here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Date
- * which is used for things like the Date header and the format for Expires in a cookie
- *)
-let http_date_string_of_date (date : Time.t) : string =
-  let date, sec = Time.to_date_ofday ~zone:Time.Zone.utc date in
-  let parts = Time.Ofday.to_parts sec in
-  let day_name =
-    match Date.day_of_week date with
-    | Sun ->
-        "Sun"
-    | Mon ->
-        "Mon"
-    | Tue ->
-        "Tue"
-    | Wed ->
-        "Wed"
-    | Thu ->
-        "Thu"
-    | Fri ->
-        "Fri"
-    | Sat ->
-        "Sat"
-  in
-  let month_name = date |> Date.month |> Month.to_string in
-  Format.sprintf
-    "%s, %02d %s %04d %02d:%02d:%02d GMT"
-    day_name
-    (Date.day date)
-    month_name
-    (Date.year date)
-    parts.hr
-    parts.min
-    parts.sec
