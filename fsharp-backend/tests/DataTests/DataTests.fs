@@ -105,10 +105,10 @@ module CD =
 let catchException (failOnError : bool) (e : exn) =
   try
     if failOnError then print "exiting" else print "error found"
-    CD.saveCheckpointData ()
     print e.Message
     print (Exception.toMetadata e |> string)
     if failOnError then
+      CD.saveCheckpointData ()
       e.StackTrace
       |> FsRegEx.replace
            "at Prelude.Task.foldSequentially@1475-20.Invoke(Unit unitVar0) in /home/dark/app/fsharp-backend/src/Prelude/Prelude.fs:line 1475"
@@ -153,7 +153,7 @@ let forEachCanvas
           | e ->
             print $"                failed at {canvasName}"
             catchException failOnError e
-            // if catchException exits, so that before saving
+            // if catchException exits, do that before saving
             CD.markErroring canvasName
             semaphore.Release() |> ignore<int>
         })
@@ -277,7 +277,7 @@ let main args =
   )
 
   try
-    (loadAllQueueData concurrency failOnError).Result
+    (loadAllTraceData concurrency failOnError).Result
     CD.saveCheckpointData ()
   with
   | e -> catchException true e
