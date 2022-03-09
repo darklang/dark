@@ -401,7 +401,7 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
       body
       |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
-      |> List.map (fun (tlid, traceID) ->
+      |> Task.mapInParallel (fun (tlid, traceID) ->
         task {
           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
           do!
@@ -412,8 +412,8 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
               canonicalize
               client
               canvasName
+          return ()
         })
-      |> Task.flatten
 
     return ()
   }
