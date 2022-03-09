@@ -20,12 +20,3 @@ module Digit_string_helpers = struct
     let tens = _return_tens_and_write_ones bytes ~pos:(pos + 1) int in
     write_1_digit_int bytes ~pos tens
 end
-
-let isostring_of_date_basic_datetime (d : Time.t) : string =
-  let date, sec = Time.to_date_ofday ~zone:Time.Zone.utc d in
-  let parts = Time.Ofday.to_parts sec in
-  let buf = Bytes.create (2 + 2 + 2) in
-  Digit_string_helpers.write_2_digit_int buf ~pos:0 parts.hr ;
-  Digit_string_helpers.write_2_digit_int buf ~pos:2 parts.min ;
-  Digit_string_helpers.write_2_digit_int buf ~pos:4 parts.sec ;
-  Date.to_string_iso8601_basic date ^ "T" ^ Bytes.to_string buf ^ "Z"
