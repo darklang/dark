@@ -80,6 +80,8 @@ String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
 String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
 String.endsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷"= true
 
+String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark" // FSHARPONLY
+String.foreach_v0 "a string" (fun x -> x) = Test.typeError "This function no longer exists." // OCAMLONLY
 String.foreach_v1 "a string" (fun x -> x) = "a string"
 String.foreach_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 String.foreach_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
