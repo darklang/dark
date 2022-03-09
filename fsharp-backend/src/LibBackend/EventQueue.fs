@@ -317,7 +317,7 @@ let fetchAllQueueItems (canvasName : CanvasName.T) : Task<List<string>> =
        FROM events AS e, canvases as c
       WHERE c.name = @canvasName
         AND c.id = e.canvas_id
-      ORDER BY e.id ASC"
+        AND (status = 'new' OR status = 'scheduled')"
   |> Sql.parameters [ "canvasName", canvasName |> string |> Sql.string ]
   |> Sql.executeAsync (fun read -> read.string "value")
 
