@@ -310,6 +310,18 @@ let dequeue () : Task<Option<T>> =
             delay = delay }
   }
 
+
+let fetchAllQueueItems (canvasName : CanvasName.T) : Task<List<string>> =
+  Sql.query
+    "SELECT e.value
+       FROM events AS e, canvases as c
+      WHERE c.name = @canvasName
+        AND c.id = e.canvas_id
+      ORDER BY e.id ASC"
+  |> Sql.parameters [ "canvasName", canvasName |> string |> Sql.string ]
+  |> Sql.executeAsync (fun read -> read.string "value")
+
+
 /// Fetches (only) the values stored in a queue,
 /// only to be used for writing tests
 let testingGetQueue canvasID eventName =

@@ -400,7 +400,6 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
       body
       |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
-      |> List.take 5 // lets not get carried away
       |> List.map (fun (tlid, traceID) ->
         task {
           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
