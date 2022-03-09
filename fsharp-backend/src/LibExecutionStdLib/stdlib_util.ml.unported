@@ -65,16 +65,3 @@ let http_date_string_of_date (date : Time.t) : string =
     parts.hr
     parts.min
     parts.sec
-
-
-(* Merge both maps, picking the value from the second argument if the key
- * exists in both *)
-let merge_right =
-  Map.merge ~f:(fun ~key v ->
-      match v with
-      | `Left v ->
-          Some v
-      | `Right v ->
-          Some v
-      | `Both (v1, v2) ->
-          Some v2)
