@@ -848,10 +848,11 @@ module DB =
       version = db.version
       cols =
         List.filterMap
-          (fun c ->
-            match c.typ with
-            | Some t -> Some(c.name, t.toRuntimeType ())
-            | None -> None)
+          (fun (c : Col) ->
+            match c.name, c.typ with
+            | _, None
+            | "", _ -> None
+            | _, Some t -> Some(c.name, t.toRuntimeType ()))
           db.cols }
 
 module UserType =
