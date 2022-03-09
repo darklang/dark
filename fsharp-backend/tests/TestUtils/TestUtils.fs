@@ -239,7 +239,7 @@ let testUserType
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
-let testDBCol (name : string) (typ : Option<PT.DType>) : PT.DB.Col =
+let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
 
 let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =

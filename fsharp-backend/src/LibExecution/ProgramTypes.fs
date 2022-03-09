@@ -832,7 +832,7 @@ module Handler =
         spec = this.spec.toRuntimeType () }
 
 module DB =
-  type Col = { name : string; typ : Option<DType>; nameID : id; typeID : id }
+  type Col = { name : Option<string>; typ : Option<DType>; nameID : id; typeID : id }
 
   type T =
     { tlid : tlid
@@ -850,9 +850,8 @@ module DB =
         List.filterMap
           (fun (c : Col) ->
             match c.name, c.typ with
-            | _, None
-            | "", _ -> None
-            | _, Some t -> Some(c.name, t.toRuntimeType ()))
+            | Some n, Some t -> Some(n, t.toRuntimeType ())
+            | _ -> None)
           db.cols }
 
 module UserType =
