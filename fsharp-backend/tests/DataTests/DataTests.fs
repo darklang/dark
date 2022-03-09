@@ -8,6 +8,7 @@ open Expecto
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
+open TestUtils.TestUtils
 
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
@@ -15,16 +16,31 @@ module Execution = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 
-type CheckpointData =
-  { mutable complete : Set<string>
-    mutable erroring : Set<string>
+type CDict() =
+  inherit System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
+  member this.has(str : string) : bool = this.ContainsKey(str)
+  member this.add(str : string) : unit = this.TryAdd(str, true) |> ignore<bool> // false if already exists, which is fine
+  static member create(strs : Set<string>) : CDict =
+    let result = CDict()
+    Set.iter (fun str -> result.TryAdd(str, true) |> ignore<bool>) strs
+    result
+
+type SerializedCheckpointData =
+  { complete : Set<string>
+    erroring : Set<string>
     broken : Set<string> }
+
+type CheckpointData = { complete : CDict; erroring : CDict; broken : Set<string> }
 
 
 let loadCheckpointData (filename : string) : CheckpointData =
   try
-    LibBackend.File.readfile LibBackend.Config.NoCheck filename
-    |> Json.Vanilla.deserialize<CheckpointData>
+    let scd =
+      LibBackend.File.readfile LibBackend.Config.NoCheck filename
+      |> Json.Vanilla.deserialize<SerializedCheckpointData>
+    { complete = CDict.create scd.complete
+      erroring = CDict.create scd.erroring
+      broken = scd.broken }
   with
   | e ->
     print "No test file found or test file error"
@@ -36,15 +52,19 @@ let loadCheckpointData (filename : string) : CheckpointData =
 
 let saveCheckpointData (filename : string) (tested : CheckpointData) : unit =
   print "saving to test file"
-  tested
+  let cd : SerializedCheckpointData =
+    { complete = tested.complete.Keys |> Set
+      broken = tested.broken
+      erroring = tested.erroring.Keys |> Set }
+  cd
   |> Json.Vanilla.prettySerialize
   |> LibBackend.File.writefile LibBackend.Config.NoCheck filename
 
 /// Skip if it's something we verify is allowed
 let shouldRun (cd : CheckpointData) (canvasName : CanvasName.T) : bool =
   let cn = string canvasName
-  not (Set.contains cn cd.complete)
-  && not (Set.contains cn cd.erroring)
+  not (cd.complete.has (cn))
+  && not (cd.erroring.has cn)
   && not (Set.contains cn cd.broken)
 
 let catchException
@@ -98,7 +118,7 @@ let forEachCanvas
           try
             let! result = fn canvasName
             print $"done  c: {canvasName}"
-            cd.complete <- Set.add cd.complete (string canvasName)
+            cd.complete.add (string canvasName)
             saveCheckpointData filename cd
             semaphore.Release() |> ignore<int>
             return result
@@ -107,7 +127,7 @@ let forEachCanvas
             print $"                failed at {canvasName}"
             catchException filename failOnError cd e
             // if catchException exits, so that before saving
-            cd.erroring <- Set.add cd.erroring (string canvasName)
+            cd.erroring.add (string canvasName)
             semaphore.Release() |> ignore<int>
         })
     return ()
@@ -186,6 +206,44 @@ let loadAllUserData
     })
 
 
+/// Iterate through all canvases and load all data from the queue
+let loadAllQueueData
+  (concurrency : int)
+  (filename : string)
+  (failOnError : bool)
+  (cd : CheckpointData)
+  =
+  forEachCanvas concurrency filename failOnError cd (fun canvasName ->
+    task {
+      let! dvalStrs = LibBackend.EventQueue.fetchAllQueueItems canvasName
+      let! (_ : List<unit>) =
+        dvalStrs
+        |> List.map (fun dvalStr ->
+          task {
+            let fsharpDval =
+              LibExecution.DvalReprInternal.ofInternalRoundtrippableV0 dvalStr
+            let! ocamlDval =
+              LibBackend.OCamlInterop.ofInternalRoundtrippableV0 dvalStr
+            return Expect.equalDval fsharpDval ocamlDval ""
+          })
+        |> Task.flatten
+      return ()
+    })
+
+
+let loadAllTraceData
+  (concurrency : int)
+  (filename : string)
+  (failOnError : bool)
+  (cd : CheckpointData)
+  =
+  forEachCanvasWithClient
+    concurrency
+    filename
+    failOnError
+    cd
+    (fun client canvasName -> Tests.ApiServer.testGetTraceData client canvasName)
+
 
 [<EntryPoint>]
 let main args =
@@ -213,7 +271,7 @@ let main args =
   )
 
   try
-    (loadAllUserData concurrency filename failOnError checkpointData).Result
+    (loadAllQueueData concurrency filename failOnError checkpointData).Result
   with
   | e -> catchException filename true checkpointData e
   0
