@@ -55,6 +55,12 @@ that these tests need to be isolated and that's much slower)
 `[test.name] with DB MyDB` indicates that the following lines, up until
 the next test indicator, are all a single test named "name", and should be
 parsed as one. The DB previously defined as MyDB is available to the test.
+Cannot be used with `with Worker MyWorker` syntax.
+
+`[test.name] with Worker MyWorker` indicates that the following lines, up
+until the next test indicator, are all a single test named "name", and should
+be parsed as one. The Worker MyWorker is available to the test, without
+prior setup required. Cannot be used with `with DB MyDb` syntax.
 
 `[fn.name argnames]` creates a function which is available to all subsequent
 tests. The following lines are part of the function body (until we hit

@@ -215,4 +215,20 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "getQueue" 0
+      parameters = [ Param.make "eventName" TStr "" ]
+      returnType = TList TStr
+      description = "Fetch a queue (test only)"
+      fn =
+        (function
+        | state, [ DStr eventName ] ->
+          uply {
+            let canvasID = state.program.canvasID
+            let! results = LibBackend.EventQueue.testingGetQueue canvasID eventName
+            return DList results
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]

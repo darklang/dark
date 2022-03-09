@@ -308,10 +308,28 @@ let dequeue () : Task<Option<T>> =
             name = name
             modifier = modifier
             delay = delay }
-
-
-
   }
+
+/// Fetches (only) the values stored in a queue,
+/// only to be used for writing tests
+let testingGetQueue canvasID eventName =
+  task {
+    let! result =
+      Sql.query
+        "SELECT e.value
+      FROM events AS e
+      JOIN canvases AS c ON e.canvas_id = c.id
+      WHERE c.id = @canvasID
+        AND e.name = @eventName
+      ORDER BY e.id ASC"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "eventName", Sql.string eventName ]
+      |> Sql.executeAsync (fun read -> (read.string "value"))
+
+    return
+      result |> List.map (LibExecution.DvalReprInternal.ofInternalRoundtrippableV0)
+  }
+
 // schedule_all bypasses actual scheduling logic and is meant only for allowing
 // testing without running the queue-scheduler process
 let testingScheduleAll () : Task<unit> =
