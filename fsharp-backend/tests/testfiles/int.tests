@@ -113,6 +113,21 @@ Int.lessThanOrEqualTo_v0 -100 22544 = true
 Int.lessThanOrEqualTo_v0 -999 -9999 = false
 Int.lessThanOrEqualTo_v0 -8888 -8888 = true
 
+Int.lessThan_v0 6 8 = true
+Int.lessThan_v0 10 1 = false
+Int.lessThan_v0 0 1 = true
+Int.lessThan_v0 1 0 = false
+Int.lessThan_v0 -100 22544 = true
+Int.lessThan_v0 -999 -9999 = false
+Int.lessThan_v0 -8888 -8888 = false
+6 < 8 = true
+10 < 1 = false
+0 < 1 = true
+1 < 0 = false
+-100 < 22544 = true
+-999 < -9999 = false
+-8888 < -8888 = false
+
 Int.sqrt_v0 4 = 2.0
 Int.sqrt_v0 100 = 10.0
 Int.sqrt_v0 86 = 9.273618495495704
@@ -120,6 +135,15 @@ Int.sqrt_v0 86 = 9.273618495495704
 Int.toFloat_v0 2 = 2.0
 Int.toFloat_v0 955656 = 955656.0
 Int.toFloat_v0 -10 = -10.0
+
+Int.add_v0 10 9 = 19
+Int.add_v0 88 9 = 97
+Int.add_v0 -1 2 = 1
+Int.add_v0 1 0 = 1
+Int.add_v0 -55 55 = 0
+
+-2000 + 1950 = -50
+-1993 + 2000 = 7
 
 Int.subtract_v0 10 9 = 1
 Int.subtract_v0 88 9 = 79
