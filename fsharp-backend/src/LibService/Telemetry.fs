@@ -261,7 +261,6 @@ type DarkSampler() =
   let keep = SamplingResult(SamplingDecision.RecordAndSample)
   let _drop = SamplingResult(SamplingDecision.Drop)
 
-  // WHATISTHIS these fns are unused - do we need to keep them around?
   let getInt (name : string) (map : Map<string, obj>) : Option<int> =
     try
       match Map.get name map with

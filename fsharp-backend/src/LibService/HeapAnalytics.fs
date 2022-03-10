@@ -95,7 +95,7 @@ let emitEvent
     })
 
 /// Collects data to be sent in a Heap event
-let makeEventBody
+let makeTrackEventBody
   (executionID : ExecutionID)
   (event : string)
   (owner : UserID)
@@ -134,7 +134,7 @@ let track
   (metadata : Map<string, string>)
   : unit =
   let body =
-    makeEventBody executionID event owner canvasName canvasID metadata
+    makeTrackEventBody executionID event owner canvasName canvasID metadata
     |> JsonContent.Create
 
   emitEvent executionID Track body
