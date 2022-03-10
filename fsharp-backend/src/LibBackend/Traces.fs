@@ -60,7 +60,7 @@ let savedInputVars
   : AT.InputVars =
   match h.spec with
   | PT.Handler.HTTP (route, method, _) ->
-    let withR = [ ("request", event) ] in
+    let withR = [ ("request", event) ]
 
     let bound =
       if route <> "" then

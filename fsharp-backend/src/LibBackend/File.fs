@@ -1,3 +1,4 @@
+/// Helpers to work with files on disk
 module LibBackend.File
 
 // This makes extra careful that we're only accessing files where we expect to

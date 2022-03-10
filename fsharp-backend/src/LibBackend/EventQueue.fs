@@ -401,7 +401,7 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
         let v =
           match r.ruleType with
           | SchedulingRule.RuleType.Block -> WorkerStates.Blocked
-          | SchedulingRule.RuleType.Pause -> WorkerStates.Paused in
+          | SchedulingRule.RuleType.Pause -> WorkerStates.Paused
 
         Map.add r.handlerName v states)
   }

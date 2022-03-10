@@ -1,3 +1,4 @@
+/// Provides central place to fetch known configuration values
 module LibBackend.Config
 
 open LibService.ConfigDsl
@@ -26,7 +27,7 @@ let serializationDir = "${backendDir}serialization/"
 let completedTestDir = $"{runDir}completed_tests/"
 
 // -------------------------
-// Configurable dirs *)
+// Configurable dirs
 // -------------------------
 let templatesDir = absoluteDir "DARK_CONFIG_TEMPLATES_DIR"
 
@@ -37,7 +38,7 @@ let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 let binRootDir = absoluteDir "DARK_CONFIG_BIN_ROOT_DIR"
 
 // -------------------------
-// Web configuration *)
+// Web configuration
 // -------------------------
 let apiServerServeStaticContent = bool "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT"
 

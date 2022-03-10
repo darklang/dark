@@ -1,6 +1,5 @@
+/// Analytics functions for users
 module LibBackend.Analytics
-
-// Analytics functions for users
 
 module Account = LibBackend.Account
 
@@ -55,7 +54,7 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
       // If we wanted to harden this later, we could List.filter the
       // heapio_metadata yojson
       let payload = Map(payload @ Map.toList heapioMetadata)
-      LibService.HeapAnalytics.identifyUser
+      LibService.HeapAnalytics.emitIdentifyUserEvent
         executionID
         userInfoAndCreatedAt.id
         payload

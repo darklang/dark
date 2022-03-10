@@ -75,8 +75,8 @@ let setUserAccess
     |> Sql.executeStatementAsync
 
 
-// Returns a list of (username, permission) pairs for a given auth_domain,
-// denoting who has been granted access to a given domain
+/// Returns a list of (username, permission) pairs for a given auth_domain,
+/// denoting who has been granted access to a given domain
 let grantsFor (ownerName : OwnerName.T) : Task<List<UserName.T * Permission>> =
   Sql.query
     "SELECT user_.username, permission FROM access
@@ -89,8 +89,8 @@ let grantsFor (ownerName : OwnerName.T) : Task<List<UserName.T * Permission>> =
     read.string "permission" |> Permission.parse)
 
 
-// Returns a list of (organization name, permission) pairs for a given username,
-// denoting which organizations the user has been granted permissions towards
+/// Returns a list of (organization name, permission) pairs for a given username,
+/// denoting which organizations the user has been granted permissions towards
 let orgsFor (username : UserName.T) : Task<List<OrgName.T * Permission>> =
   Sql.query
     "SELECT org.username, permission
@@ -103,8 +103,8 @@ let orgsFor (username : UserName.T) : Task<List<OrgName.T * Permission>> =
     read.string "username" |> OrgName.create,
     read.string "permission" |> Permission.parse)
 
-// If a user has a DB row indicating granted access to this auth_domain,
-// find it.
+/// If a user has a DB row indicating granted access to this auth_domain,
+/// find it.
 let grantedPermission
   (username : UserName.T)
   (ownerName : OwnerName.T)
@@ -121,7 +121,7 @@ let grantedPermission
     read.string "permission" |> Permission.parse)
 
 
-// If a user is an admin they get write on everything.
+/// If a user is an admin they get write on everything.
 let adminPermission (username : UserName.T) : Task<Option<Permission>> =
   task {
     let! isAdmin = Account.isAdmin username
@@ -130,11 +130,11 @@ let adminPermission (username : UserName.T) : Task<Option<Permission>> =
 
 // We special-case some users, so they have access to particular shared canvases
 let specialCases : List<OwnerName.T * UserName.T> =
-  [ (OwnerName.create "pixelkeet", UserName.create "laxels")
-    (OwnerName.create "rootvc", UserName.create "adam")
-    (OwnerName.create "rootvc", UserName.create "lee")
-    (OwnerName.create "talkhiring", UserName.create "harris")
-    (OwnerName.create "talkhiring", UserName.create "anson") ]
+  [ OwnerName.create "pixelkeet", UserName.create "laxels"
+    OwnerName.create "rootvc", UserName.create "adam"
+    OwnerName.create "rootvc", UserName.create "lee"
+    OwnerName.create "talkhiring", UserName.create "harris"
+    OwnerName.create "talkhiring", UserName.create "anson" ]
 
 
 let specialCasePermission
@@ -170,6 +170,7 @@ let permission
       (fun () -> task { return samplePermission owner })
       (fun () -> task { return! grantedPermission username owner })
       (fun () -> task { return! adminPermission username }) ]
+      
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
   List.fold

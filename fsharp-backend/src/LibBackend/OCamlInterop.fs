@@ -1,15 +1,16 @@
+/// <summary> Provides interop with our OCaml backend. </summary>
+///
+/// <remarks>
+/// Programs are stored using an OCaml-only serialization format, so we have to
+/// call OCaml code to fetch it and save it. We send binary code which we get
+/// from the DB, convert it to OCaml types, then json convert it to get it back
+/// into F#. At that point we convert it to these types, and potentially convert
+/// it to the runtime types to run it.
+///
+/// We also use these types to convert to the types the API uses, which are
+/// typically direct deserializations of these types.
+/// </remarks>
 module LibBackend.OCamlInterop
-
-// Interoperation functions with OCaml.
-
-// Programs are stored using an OCaml-only serialization format, so we have to
-// call OCaml code to fetch it and save it.  We send binary code which we get
-// from the DB, convert it to OCaml types, then json convert it to get it back
-// into F#. At that point we convert it to these types, and potentially convert
-// it to the runtime types to run it.
-
-// We also use these types to convert to the types the API uses, which are
-// typically direct deserializations of these types.
 
 
 open System.Threading.Tasks
@@ -45,6 +46,7 @@ let client =
      client.Timeout <- System.TimeSpan.FromSeconds 5
      client)
 
+/// Make a request to the legacy OCaml server
 let legacyReq
   (endpoint : string)
   (data : byte array)
@@ -52,6 +54,8 @@ let legacyReq
   task {
     // CLEANUP I can't figure out HttpClient auto-instrumentation, so let's do it manually
     use _span = LibService.Telemetry.child "legacyReq" [ "endpoint", endpoint ]
+
+    // prep request
     let host, port =
       if endpoint.StartsWith("bs") then
         (LibService.Config.legacySerializationServerHost,
@@ -70,9 +74,11 @@ let legacyReq
 
     message.Content <- new System.Net.Http.ByteArrayContent(data)
 
+    // get response
     let! response = client.Force().SendAsync(message)
     LibService.Telemetry.addTag "statuscode" response.StatusCode
 
+    // handle and return response
     if response.StatusCode = System.Net.HttpStatusCode.OK then
       ()
     else if response.StatusCode = System.Net.HttpStatusCode.BadRequest then
@@ -228,6 +234,7 @@ let toplevelToCachedBinary (toplevel : PT.Toplevel) : Task<byte array> =
 // These are only here for fuzzing. We should not be fetching dvals via the
 // OCaml runtime, but always via HTTP or via the DB.
 // ---------------------------
+
 let ofInternalQueryableV1 (str : string) : Task<RT.Dval> =
   stringToDvalReq "fuzzing/of_internal_queryable_v1" str
 

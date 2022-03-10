@@ -240,8 +240,8 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
     let! handlers = getHandlersForCanvas canvasID
 
     let matchEvent h event : bool =
-      let space, requestPath, modifier, _ts, _ = event in
-      let hSpace, hName, hModifier = h in
+      let space, requestPath, modifier, _ts, _ = event
+      let hSpace, hName, hModifier = h
 
       Routing.requestPathMatchesRoute hName requestPath
       && hModifier = modifier

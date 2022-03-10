@@ -57,13 +57,13 @@ let preprocess (ops : List<OpWithNewness>) : List<OpWithNewness> =
         | _, PT.TLSavepoint sptlid when tlid = sptlid -> false
         | _ -> true
 
-      let after = List.dropWhile notSavepoint ops in
-      let before = List.takeWhile notSavepoint ops in
+      let after = List.dropWhile notSavepoint ops
+      let before = List.takeWhile notSavepoint ops
       // if the canvas is older than the new Savepoints, then its
       // possible to undo to a point with no Savepoints anymore
       let newBefore = List.filter (fun (_, o : PT.Op) -> Op.tlidOf o <> tlid) before
 
-      let newAfter = after |> List.tail |> Option.defaultValue [] in
+      let newAfter = after |> List.tail |> Option.defaultValue []
       // drop savepoint
       newBefore @ newAfter
     | _ -> op :: ops)
