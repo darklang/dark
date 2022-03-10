@@ -54,7 +54,6 @@ let cookieOptionsFor (ctx : HttpContext) =
 
 /// API endpoint to log out of a User's session
 let logout : HttpHandler =
-  // FSTODO: test logout when logged in, and when logged out
   (fun (ctx : HttpContext) ->
     // TODO move these into config urls
     task {
