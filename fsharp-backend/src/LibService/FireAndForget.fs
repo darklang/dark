@@ -7,6 +7,8 @@ open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 
+/// Execute a function in the backgorund,
+/// ignoring any results and forwarding exceptions to Rollbar
 let fireAndForgetTask
   (executionID : ExecutionID)
   (name : string)

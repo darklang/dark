@@ -1,15 +1,20 @@
+/// TODO - why is this separate from the Config.fs in LibBackend?
 module LibService.Config
 
 open ConfigDsl
 
 let envDisplayName = string "DARK_CONFIG_ENV_DISPLAY_NAME"
 
-// If the GIT_COMMIT is in the environment, use that as the build hash.
-// Otherwise, set it to the env name so that it's constant.
-//
-// We intentionally bypass our DSL here as `GIT_COMMIT` is not set by our
-// config system but as part of the production container build process, and is
-// not available in dev mode.
+/// <summary>
+/// If the GIT_COMMIT is in the environment, use that as the build hash.
+/// Otherwise, set it to the env name so that it's constant.
+/// </summary>
+///
+/// <remarks>
+/// We intentionally bypass our DSL here as `GIT_COMMIT` is not set by our
+/// config system but as part of the production container build process, and is
+/// not available in dev mode.
+/// </remarks>
 let buildHash : string =
   match getEnv "GIT_COMMIT" with
   | Some s -> s
@@ -19,6 +24,7 @@ let rootDir = absoluteDir "DARK_CONFIG_ROOT_DIR"
 
 // Provided by k8s, used in rollbar
 let hostName = getEnv "HOSTNAME" |> Option.defaultValue "none"
+
 
 // --------------------
 // rollbar
@@ -30,6 +36,7 @@ let rollbarServerAccessToken =
 let rollbarEnabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
 
 let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
+
 
 // -------------------------
 // Heap
@@ -80,6 +87,7 @@ let legacySerializationServerHost =
 let croncheckerKubernetesPort = int "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT"
 let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
 
+
 // --------------------
 // db
 // --------------------
@@ -107,8 +115,9 @@ let postgresSettings : PostgresConfig =
     password = pgPassword
     poolSize = pgPoolSize }
 
+
 // --------------------
-// getting started canvas
+// 'getting started' canvas
 // --------------------
 let gettingStartedCanvasName = string "DARK_CONFIG_GETTING_STARTED_CANVAS_NAME"
 
