@@ -321,7 +321,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
          w.writeArray (fun () -> writeDval rdv)))
   | DBytes bytes ->
     // Note that the OCaml version uses the non-url-safe b64 encoding here
-    bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
+    bytes |> Base64.defaultEncodeToString |> wrapStringValue "bytes"
 
 
 

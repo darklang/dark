@@ -247,7 +247,7 @@ let makeHttpCall
           req.Headers.Authorization <-
             Headers.AuthenticationHeaderValue(
               "Basic",
-              System.Convert.ToBase64String(UTF8.toBytes authString)
+              Base64.defaultEncodeToString (UTF8.toBytes authString)
             )
 
         // content
