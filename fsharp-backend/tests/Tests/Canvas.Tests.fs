@@ -113,7 +113,8 @@ let testDbCreateWithOrblankName =
         name = name
         nameID = nameID
         version = 0
-        cols = [ { name = ""; nameID = colNameID; typ = None; typeID = colTypeID } ] }
+        cols =
+          [ { name = None; nameID = colNameID; typ = None; typeID = colTypeID } ] }
 
     let ops =
       [ PT.CreateDBWithBlankOr(dbid, pos, nameID, name)

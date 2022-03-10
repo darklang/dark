@@ -25,6 +25,11 @@ let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
     storeFnArguments = storeNoFnArguments
     realOrPreview = realOrPreview }
 
+let noTestContext : RT.TestContext =
+  { sideEffectCount = 0
+    exceptionReports = []
+    postTestExecutionHook = fun _ _ -> () }
+
 let createState
   (executionID : ExecutionID)
   (libraries : RT.Libraries)
@@ -37,10 +42,7 @@ let createState
   { libraries = libraries
     tracing = tracing
     program = program
-    test =
-      { sideEffectCount = 0
-        exceptionReports = []
-        postTestExecutionHook = fun _ _ -> () }
+    test = noTestContext
     reportException = reportException
     notify = notify
     executionID = executionID

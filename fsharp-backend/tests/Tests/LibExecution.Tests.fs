@@ -286,7 +286,7 @@ let fileTests () : Test =
                 let typ =
                   PT.DType.parse v
                   |> Exception.unwrapOptionInternal "Cannot parse type" []
-                ({ name = k
+                ({ name = if k = "" then None else Some k
                    nameID = gid ()
                    typ = if v = "" then None else Some typ
                    typeID = gid () } : PT.DB.Col))

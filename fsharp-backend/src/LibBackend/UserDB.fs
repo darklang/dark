@@ -481,10 +481,12 @@ let renameDB (n : string) (db : PT.DB.T) : PT.DB.T = { db with name = n }
 
 let addCol colid typeid (db : PT.DB.T) : PT.DB.T =
   { db with
-      cols = db.cols @ [ { name = ""; typ = None; nameID = colid; typeID = typeid } ] }
+      cols =
+        db.cols @ [ { name = None; typ = None; nameID = colid; typeID = typeid } ] }
 
-let setColName id name (db : PT.DB.T) : PT.DB.T =
+let setColName (id : id) (name : string) (db : PT.DB.T) : PT.DB.T =
   let set (col : PT.DB.Col) =
+    let name = if name = "" then None else Some name
     if col.nameID = id then { col with name = name } else col
 
   { db with cols = List.map set db.cols }

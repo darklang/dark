@@ -456,7 +456,7 @@ module Convert =
 
   let ocamlDBCol2PT ((name, tipe) : ORT.DbT.col) : PT.DB.Col =
     { nameID = bo2ID name
-      name = bo2String name
+      name = bo2Option name
       typ = bo2Option tipe |> Option.map ocamlTipe2PT
       typeID = bo2ID tipe }
 
@@ -851,7 +851,7 @@ module Convert =
     | PT.TBytes -> TBytes
 
   let pt2ocamlDBCol (p : PT.DB.Col) : ORT.DbT.col =
-    (string2bo p.nameID p.name, option2bo p.typeID (Option.map pt2ocamlTipe p.typ))
+    (option2bo p.nameID p.name, option2bo p.typeID (Option.map pt2ocamlTipe p.typ))
 
   let pt2ocamlDB (p : PT.DB.T) : ORT.DbT.db<ORT.fluidExpr> =
     { tlid = p.tlid

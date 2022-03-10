@@ -669,7 +669,7 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
         debugFn ()
         debuG "fsharp (actual) is not normalized" (debugDval actual)
         return false
-      elif dvalEquality actual expected then
+      elif Expect.dvalEquality actual expected then
         return true
       else
         match actual, expected with

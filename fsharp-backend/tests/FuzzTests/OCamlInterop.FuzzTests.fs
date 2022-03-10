@@ -155,7 +155,7 @@ module Roundtrippable =
     dv
     |> DvalReprInternal.toInternalRoundtrippableV0
     |> DvalReprInternal.ofInternalRoundtrippableV0
-    |> dvalEquality dv
+    |> Expect.dvalEquality dv
 
   let isInteroperableV0 dv =
     if containsPassword dv then
@@ -166,7 +166,7 @@ module Roundtrippable =
         OCamlInterop.ofInternalRoundtrippableV0
         DvalReprInternal.toInternalRoundtrippableV0
         DvalReprInternal.ofInternalRoundtrippableV0
-        dvalEquality
+        Expect.dvalEquality
         dv
 
   let tests =
@@ -195,7 +195,7 @@ module Queryable =
     dvm
     |> DvalReprInternal.toInternalQueryableV1
     |> DvalReprInternal.ofInternalQueryableV1
-    |> dvalEquality (RT.DObj dvm)
+    |> Expect.dvalEquality (RT.DObj dvm)
 
   let isInteroperableV1 (dv : RT.Dval) =
     // redacted passwords are created on the OCaml side and hard to remove
@@ -211,7 +211,7 @@ module Queryable =
         | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
         | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
         DvalReprInternal.ofInternalQueryableV1
-        dvalEquality
+        Expect.dvalEquality
         (RT.DObj dvm)
 
   let tests =

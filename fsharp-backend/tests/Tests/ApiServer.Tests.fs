@@ -308,22 +308,23 @@ let postApiTestCase
   (canvasName : CanvasName.T)
   (server : Server)
   (api : string)
-  (body : string)
+  (requestBody : string)
   (deserialize : string -> 'a)
   (canonicalizeBody : 'a -> 'a)
   : ApiResponse<'a> =
   task {
     let! (response : HttpResponseMessage) =
-      postAsync server client $"/api/{canvasName}/{api}" body
+      postAsync server client $"/api/{canvasName}/{api}" requestBody
 
-    let! content = response.Content.ReadAsStringAsync()
+    let! responseBody = response.Content.ReadAsStringAsync()
 
-    let (body : 'a) =
+    let (result : 'a) =
       try
-        content |> deserialize |> canonicalizeBody
+        responseBody |> deserialize |> canonicalizeBody
       with
       | e ->
-        print $"Error deserializing {server} in {canvasName}: \n{content}"
+        print
+          $"Error deserializing {server} in {canvasName}/{api} with body\n\n{requestBody}\n\n and response\n\n{responseBody}"
         e.Reraise()
 
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
@@ -345,7 +346,7 @@ let postApiTestCase
       |> Map
 
     let headers = headerMap response.Headers
-    return (body, response.StatusCode, headers)
+    return (result, response.StatusCode, headers)
 
   }
 
@@ -400,8 +401,7 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
       body
       |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
-      |> List.take 5 // lets not get carried away
-      |> List.map (fun (tlid, traceID) ->
+      |> Task.mapInParallel (fun (tlid, traceID) ->
         task {
           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
           do!
@@ -412,8 +412,8 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
               canonicalize
               client
               canvasName
+          return ()
         })
-      |> Task.flatten
 
     return ()
   }

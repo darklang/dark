@@ -28,7 +28,7 @@ let toStringTest (bytes : byte []) : bool =
       let! actual =
         LibExecution.Execution.executeExpr state symtable (ast.toRuntimeType ())
 
-      if dvalEquality actual expected then return true else return false
+      if Expect.dvalEquality actual expected then return true else return false
     }
   t.Result
 
