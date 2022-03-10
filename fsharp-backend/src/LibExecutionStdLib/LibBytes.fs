@@ -16,7 +16,11 @@ let fns : List<BuiltInFn> =
         "Base64URL encodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
       fn =
         (function
-        | _, [ DBytes bytes ] -> Base64.urlEncodeToString bytes |> DStr |> Ply
+        | _, [ DBytes bytes ] ->
+          // Differs from Base64.encodeToUrlSafe as this version has padding
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+          |> DStr
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -655,7 +655,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
-          // Inlined version of Base64.urlEncodeToString
+          // Inlined version of Base64.urlEncodeToString, except
           defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
           |> DStr
           |> Ply
@@ -720,6 +720,7 @@ let fns : List<BuiltInFn> =
 
           let bytes = sha384Hash.ComputeHash(data)
 
+          // Deliberately keep padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
@@ -742,6 +743,7 @@ let fns : List<BuiltInFn> =
 
           let bytes = sha384Hash.ComputeHash(data)
 
+          // Deliberately keep padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
@@ -764,6 +766,7 @@ let fns : List<BuiltInFn> =
 
           let bytes = sha256Hash.ComputeHash(data)
 
+          // Deliberately keep padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
