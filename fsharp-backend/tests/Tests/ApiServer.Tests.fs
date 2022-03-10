@@ -815,7 +815,7 @@ let localOnlyTests =
         "trigger handler", testTriggerHandler
         "delete 404s", testDelete404s
         // TODO upload_package
-        // FSTODO worker_schedule
+        // worker_schedule tested by hand
         ]
       |> List.map (fun (name, fn) -> testTask name { return! fn c cn })
     else
