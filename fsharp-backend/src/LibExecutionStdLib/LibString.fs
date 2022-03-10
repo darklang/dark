@@ -654,7 +654,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-          s |> UTF8.toBytes |> Base64.urlEncodeToString |> DStr |> Ply
+          let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
+          // Inlined version of Base64.urlEncodeToString
+          defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
+          |> DStr
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -712,10 +716,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           let sha384Hash = SHA384.Create()
-          s
-          |> System.Text.Encoding.UTF8.GetBytes
-          |> sha384Hash.ComputeHash
-          |> Base64.urlEncodeToString
+          let data = System.Text.Encoding.UTF8.GetBytes(s)
+
+          let bytes = sha384Hash.ComputeHash(data)
+
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
@@ -733,10 +738,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           let sha384Hash = SHA384.Create()
-          s
-          |> System.Text.Encoding.UTF8.GetBytes
-          |> sha384Hash.ComputeHash
-          |> Base64.urlEncodeToString
+          let data = System.Text.Encoding.UTF8.GetBytes(s)
+
+          let bytes = sha384Hash.ComputeHash(data)
+
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
@@ -754,10 +760,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           let sha256Hash = SHA256.Create()
-          s
-          |> System.Text.Encoding.UTF8.GetBytes
-          |> sha256Hash.ComputeHash
-          |> Base64.urlEncodeToString
+          let data = System.Text.Encoding.UTF8.GetBytes(s)
+
+          let bytes = sha256Hash.ComputeHash(data)
+
+          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
         | _ -> incorrectArgs ())
