@@ -170,7 +170,7 @@ let permission
       (fun () -> task { return samplePermission owner })
       (fun () -> task { return! grantedPermission username owner })
       (fun () -> task { return! adminPermission username }) ]
-      
+
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
   List.fold
