@@ -752,8 +752,8 @@ let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
           |> List.sortBy (fun tl -> tl.tlid)
           |> List.map canonicalizeToplevel
         deleted_toplevels = []
-        // FSTODO: sometimes deleted_toplevels are missed from cached, and so don't get loaded by initial_load.
-        // Decide what to do with these.
+        // sometimes deleted_toplevels are missed from cached, and so don't get loaded by initial_load.
+        // Not the end of the world tbh
         // v.deleted_toplevels
         // |> List.sortBy (fun tl -> tl.tlid)
         // |> List.map canonicalizeToplevel
@@ -815,7 +815,7 @@ let localOnlyTests =
         "trigger handler", testTriggerHandler
         "delete 404s", testDelete404s
         // TODO upload_package
-        // FSTODO worker_schedule
+        // worker_schedule tested by hand
         ]
       |> List.map (fun (name, fn) -> testTask name { return! fn c cn })
     else

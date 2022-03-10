@@ -1234,7 +1234,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await page.waitForSelector(".error-panel.show");
   }
 
-  // FSTODO
+  // CLEANUP add this back or replace it with a different package manager situation
   // // this tests:
   // // - happy path upload
   // // - upload fails b/c the db already has a fn with this name + version

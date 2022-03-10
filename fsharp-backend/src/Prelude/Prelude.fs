@@ -479,7 +479,6 @@ module UTF8 =
 
 // Base64 comes in various flavors, typically URLsafe (has '-' and '_' with no
 // padding) or regular (has + and / and has '=' padding at the end)
-// FSTODO: remove uses of System.Convert.ToBase64String
 module Base64 =
 
   type Base64UrlEncoded = Base64UrlEncoded of string
@@ -494,17 +493,13 @@ module Base64 =
       | UrlEncoded (Base64UrlEncoded s) -> s
       | DefaultEncoded (Base64DefaultEncoded s) -> s
 
-  // Convert to string with default base64 encoding
+  /// Encodes to base64 strings (using '+' and '/'), with padding. The result is not url-safe.
   let defaultEncodeToString (input : byte array) : string =
     System.Convert.ToBase64String input
 
   // Convert to base64 string
   let encode (input : byte array) : T =
     input |> defaultEncodeToString |> Base64DefaultEncoded |> DefaultEncoded
-
-  // Convert to string with url-flavored base64 encoding
-
-
 
   // type-safe wrapper for an already-encoded urlEncoded string
   let fromUrlEncoded (string : string) : T = string |> Base64UrlEncoded |> UrlEncoded
@@ -536,6 +531,7 @@ module Base64 =
       else if length % 4 = 3 then $"{initial}="
       else initial
 
+  /// Encodes to url-safe base64 strings (using '-' and '_'), with no padding
   let urlEncodeToString (input : byte array) : string =
     input |> encode |> asUrlEncodedString
 

@@ -353,7 +353,7 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
          writeDval dv))
   | DBytes bytes ->
     // CLEANUP: rather than using a mutable byte array, should this be a readonly span?
-    w.WriteStringValue(System.Convert.ToBase64String bytes)
+    w.WriteStringValue(Base64.defaultEncodeToString bytes)
 
 /// When sending json back to the user, or via a HTTP API, attempt to convert
 /// everything into reasonable json, in the absence of a schema. This turns
@@ -430,7 +430,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
     | DErrorRail dv -> "ErrorRail: " + toRepr_ indent dv
-    | DBytes bytes -> bytes |> System.Convert.ToBase64String
+    | DBytes bytes -> Base64.defaultEncodeToString bytes
 
   toRepr_ 0 dv
 
