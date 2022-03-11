@@ -12,6 +12,7 @@ open TestUtils.TestUtils
 
 module Account = LibBackend.Account
 module Serialize = LibBackend.Serialize
+module BinarySerialization = LibBackend.BinarySerialization
 module Canvas = LibBackend.Canvas
 module Execution = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
@@ -255,26 +256,11 @@ open MessagePack
 open MessagePack.Resolvers
 open MessagePack.FSharp
 
-let init () : unit =
-  let resolver =
-    Resolvers.CompositeResolver.Create(
-      FSharpResolver.Instance,
-      StandardResolver.Instance,
-      NativeGuidResolver.Instance,
-      ContractlessStandardResolver.Instance
-    )
-  let options = MessagePackSerializerOptions.Standard.WithResolver(resolver)
-  MessagePackSerializer.DefaultOptions <- options
-
-
-let serialize (data : 'a) : byte [] = MessagePackSerializer.Serialize<'a> data
-
-
-
-let deserialize<'a> (bytes : byte []) : 'a =
-  MessagePackSerializer.Deserialize<'a> bytes
-
-let validate (expected : 'a when 'a : equality) =
+let validate
+  (expected : 'a)
+  (serialize : 'a -> byte [])
+  (deserialize : byte [] -> 'a)
+  =
   // serialize
   let serializeWatch = System.Diagnostics.Stopwatch()
   serializeWatch.Start()
@@ -286,7 +272,7 @@ let validate (expected : 'a when 'a : equality) =
   // deserialize
   let deserializeWatch = System.Diagnostics.Stopwatch()
   deserializeWatch.Start()
-  let (actual : 'a) = deserialize<'a> (bytes)
+  let actual = deserialize bytes
   deserializeWatch.Stop()
   debuG "deserialize time" deserializeWatch.ElapsedMilliseconds
 
@@ -304,7 +290,13 @@ let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Stop()
     debuG "load time" loadWatch.ElapsedMilliseconds
     debuG "rendered items" (List.length expected)
-    return validate expected
+    expected
+    |> List.iter (fun v ->
+      validate
+        v
+        BinarySerialization.serializeToplevel
+        BinarySerialization.deserializeToplevel)
+    return ()
   }
 
 let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
@@ -315,7 +307,13 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Stop()
     debuG "load time" loadWatch.ElapsedMilliseconds
     debuG "oplist load items" (List.length expected)
-    return validate expected
+    expected
+    |> List.iter (fun (tlid, v) ->
+      validate
+        v
+        BinarySerialization.serializeOplist
+        BinarySerialization.deserializeOplist)
+    return ()
   }
 
 
@@ -333,7 +331,7 @@ let main args =
     "DataTests"
     LibService.Telemetry.DontTraceDBQueries
 
-  init ()
+  BinarySerialization.init ()
 
   let fn (canvasName : CanvasName.T) : Task<unit> =
     task {
