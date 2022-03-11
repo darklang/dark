@@ -5,14 +5,11 @@ module LibBackend.CanvasClone
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open LibBackend.Db
-
 open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module ProgramTypesAst = LibExecution.ProgramTypesAst
 
 let isOpThatCreatesToplevel (op : PT.Op) : bool =
   match op with
@@ -89,14 +86,14 @@ let updateHostsInOp
       $"://{string canvas}.{Config.bwdServerContentHost}"
     String.replace (host oldHost) (host newHost) str
   let rec updateHostsInPattern (pattern : PT.Pattern) : PT.Pattern =
-    PT.PatternTraversal.post
+    ProgramTypesAst.patternPostTraversal
       (function
       | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
       | pat -> pat)
       pattern
   Op.astOf op
   |> Option.map (
-    PT.ExprTraversal.pre (function
+    ProgramTypesAst.preTraversal (function
       | PT.EString (id, str) -> PT.EString(id, replaceHost str)
       | PT.EMatch (id, cond, branches) ->
         let newBranches =
