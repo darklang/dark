@@ -218,7 +218,6 @@ let fetch_all_tlids ~(canvas_id : Uuidm.t) () : Types.tlid list =
              Exception.internal "Shape of per_tlid oplists")
 
 
-
 let save_toplevel_oplist
     ~(binary_repr : string option)
     ~(tlid : Types.tlid)
