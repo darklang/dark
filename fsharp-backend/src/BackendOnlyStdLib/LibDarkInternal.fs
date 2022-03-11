@@ -639,6 +639,8 @@ that's already taken, returns an error."
           | _, [ DStr host ] ->
             uply {
               let! dbTLIDs =
+                // CLEANUP what is idescription? autocomplete on id?
+                // CLEANUP stop calling things host
                 Sql.query
                   "SELECT tlid
                      FROM toplevel_oplists
