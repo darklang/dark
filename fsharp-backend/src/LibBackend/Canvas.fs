@@ -399,26 +399,31 @@ let loadOplists
   (tlids : List<tlid>)
   : Task<List<tlid * PT.Oplist>> =
   let query =
+    // CLEANUP stop loading ocaml data
     match loadAmount with
     | LiveToplevels ->
-      "SELECT tlid, data FROM toplevel_oplists
+      "SELECT tlid, data, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
             AND deleted IS NOT TRUE"
     | IncludeDeletedToplevels ->
-      "SELECT tlid, data FROM toplevel_oplists
+      "SELECT tlid, data, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)"
 
   Sql.query query
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "data"))
+  |> Sql.executeAsync (fun read ->
+    (read.tlid "tlid", read.bytea "data", read.byteaOrNone "oplist"))
   |> Task.bind (fun list ->
     list
-    |> Task.mapWithConcurrency 2 (fun (tlid, data) ->
+    |> Task.mapWithConcurrency 2 (fun (tlid, ocamlSerialized, fsharpSerialized) ->
       task {
-        let! oplist = OCamlInterop.oplistOfBinary data
-        return (tlid, oplist)
+        match fsharpSerialized with
+        | Some oplist -> return (tlid, BinarySerialization.deserializeOplist oplist)
+        | None ->
+          let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
+          return (tlid, oplist)
       }))
 
 
@@ -611,16 +616,20 @@ let saveTLIDs
           | PT.TLType _ -> None
           | PT.TLFunction _ -> None
 
-        let! oplist = OCamlInterop.oplistToBinary oplist
-        let! oplistCache = OCamlInterop.toplevelToCachedBinary tl
+        // CLEANUP stop saving the ocaml binary
+        let! ocamlOplist = OCamlInterop.oplistToBinary oplist
+        let! ocamlOplistCache = OCamlInterop.toplevelToCachedBinary tl
+        let fsharpOplist = BinarySerialization.serializeOplist oplist
+        let fsharpOplistCache = BinarySerialization.serializeToplevel tl
 
         return!
           Sql.query
             "INSERT INTO toplevel_oplists
                   (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
-                   rendered_oplist_cache, deleted, pos)
+                   rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
                   VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                          @module, @modifier, @data, @renderedOplistCache, @deleted, @pos)
+                          @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
+                          @oplist, @oplistCache)
                   ON CONFLICT (canvas_id, tlid) DO UPDATE
                   SET account_id = @accountID,
                       digest = @digest,
@@ -631,7 +640,9 @@ let saveTLIDs
                       data = @data,
                       rendered_oplist_cache = @renderedOplistCache,
                       deleted = @deleted,
-                      pos = @pos"
+                      pos = @pos,
+                      oplist = @oplist,
+                      oplist_cache = @oplistCache"
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
@@ -640,10 +651,12 @@ let saveTLIDs
                               "name", Sql.stringOrNone name
                               "module", Sql.stringOrNone module_
                               "modifier", Sql.stringOrNone modifier
-                              "data", Sql.bytea oplist
-                              "renderedOplistCache", Sql.bytea oplistCache
+                              "data", Sql.bytea ocamlOplist
+                              "renderedOplistCache", Sql.bytea ocamlOplistCache
                               "deleted", Sql.bool deleted
-                              "pos", Sql.jsonbOrNone pos ]
+                              "pos", Sql.jsonbOrNone pos
+                              "oplist", Sql.bytea fsharpOplist
+                              "oplistCache", Sql.bytea fsharpOplistCache ]
           |> Sql.executeStatementAsync
       })
     |> List.map (fun t -> t : Task)

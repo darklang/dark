@@ -1526,21 +1526,27 @@ module Task =
   let mapInParallel (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
     List.map f list |> flatten
 
+  /// Call [f v], after claiming the passed semaphore. Releases the semaphore when done
+  let execWithSemaphore
+    (semaphore : System.Threading.SemaphoreSlim)
+    (f : 'a -> Task<'b>)
+    (v : 'a)
+    : Task<'b> =
+    task {
+      try
+        do! semaphore.WaitAsync()
+        return! f v
+      finally
+        semaphore.Release() |> ignore<int>
+    }
+
   let mapWithConcurrency
     (concurrencyCount : int)
     (f : 'a -> Task<'b>)
     (list : List<'a>)
     : Task<List<'b>> =
     let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
-    let f =
-      (fun x ->
-        task {
-          try
-            do! semaphore.WaitAsync()
-            return! f x
-          finally
-            semaphore.Release() |> ignore<int>
-        })
+    let f = execWithSemaphore semaphore f
     List.map f list |> flatten
 
   let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
