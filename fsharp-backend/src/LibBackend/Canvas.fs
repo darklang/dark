@@ -362,27 +362,6 @@ let empty (meta : Meta) : T =
 let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
-
-// let load_without_tls host : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
-//
-//
-// let load_only_tlids ~tlids host (newops : Types.oplist) :
-//     (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
-//
-//
-// (* Same as `load_only_tlids` but filters out deleted tlids via
-//  * the denormalized `deleted` attributed on toplevel_oplists *)
-// let load_only_undeleted_tlids ~tlids host (newops : Types.oplist) :
-//     (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
-
-
-
 type LoadAmount =
   | LiveToplevels
   | IncludeDeletedToplevels
@@ -507,17 +486,6 @@ let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id
     return! loadFrom LiveToplevels meta (tlids @ dbTLIDs)
   }
-
-
-
-
-// let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   load_from_cache
-//     ~tlids:(Serialize.fetch_relevant_tlids_for_cron_checker ~canvas_id ())
-//     host
-//     owner
 
 type Deleted =
   | Deleted
@@ -747,127 +715,6 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
 //   let file = json_filename host in
 //   save_json_to_disk ~root:Testdata file c.ops ;
 //   file
-//
-//
-// (* --------------- *)
-// (* Validate canvases *)
-// (* --------------- *)
-//
-// (* This is a little broad, since we could limit it to tlids, but good enough
-//  * for now. At time of writing, these all have the duplicate DB problem. *)
-// let known_invalid_hosts =
-//   Tc.StrSet.from_list
-//     [ "danbowles"
-//     ; "danwetherald"
-//     ; "ellen-dbproblem18"
-//     ; "ellen-preview"
-//     ; "ellen-stltrialrun"
-//     ; "ellen-trinity" ]
-//
-//
-// let all_hosts () : string list =
-//   List.filter (Serialize.current_hosts ()) ~f:(fun host ->
-//       not (Tc.StrSet.member known_invalid_hosts ~value:host))
-//
-//
-// let is_valid_op op : bool = not (Op.is_deprecated op)
-//
-// let validate_host host : (unit, string) Result.t =
-//   try
-//     match load_all host [] with
-//     | Ok c ->
-//         let all_ops = !c.ops |> Op.tlid_oplists2oplist in
-//         let ops_valid =
-//           if Tc.List.all all_ops ~f:is_valid_op
-//           then Ok ()
-//           else Error "Ops are not valid"
-//         in
-//         let cache_valid =
-//           try
-//             let tlids =
-//               all_ops
-//               |> List.map ~f:Op.tlidOf
-//               |> List.dedup_and_sort ~compare:compare_tlid
-//             in
-//             load_tlids_from_cache ~tlids host
-//             |> Tc.Result.map_error String.concat
-//             |> Tc.Result.map (fun _ -> ())
-//           with e -> Error "couldn't load cache"
-//         in
-//         Tc.Result.combine [ops_valid; cache_valid]
-//         |> Tc.Result.map (fun _ -> ())
-//     | Error errs ->
-//         Error ("can't load " ^ host ^ ":\n" ^ Tc.String.join ~sep:", " errs)
-//   with e -> Error ("Invalid canvas " ^ host ^ ":\n" ^ Exception.to_string e)
-//
-//
-// let validate_all_hosts () : unit =
-//   all_hosts ()
-//   |> List.map ~f:validate_host
-//   |> Tc.Result.combine
-//   |> Tc.Result.map (fun _ -> ())
-//   |> Result.ok_or_Exception.raiseInternal
-
-
-// just load, don't save -- also don't validate the ops don't have deprecate ops (via
-// validate_op or validate_host). This function is used on startup so it will prevent
-// a deploy from succeeding. We don't want to prevent deploys because someone forgot
-// a deprecatedop in a tier 1 canvas somewhere
-let checkTierOneHosts () : Task<unit> =
-  if Config.checkTierOneHosts then
-    Serialize.tierOneHosts ()
-    |> Task.iterInParallel (fun host ->
-      task {
-        let! meta = getMeta host
-        let! (_ : T) = loadAll meta
-        return ()
-      })
-  else
-    Task.FromResult()
-
-
-//
-// let migrate_host (_host : string) : (string, unit) Tc.Result.t =
-//   try
-//     Ok ()
-//     (*   let canvas_id = id_for_name host in *)
-//     (*   Serialize.fetch_all_tlids ~canvas_id () *)
-//     (*   |> List.map ~f:(fun tlid -> *)
-//     (*          Serialize.transactionally_migrate_oplist *)
-//     (*            ~canvas_id *)
-//     (*            ~tlid *)
-//     (*            ~host *)
-//     (*            ~handler_f:migrate_handler *)
-//     (*            ~db_f:migrate_db *)
-//     (*            ~user_fn_f:migrate_user_function *)
-//     (*            ~user_tipe_f:migrate_user_tipe *)
-//     (*            ~oplist_f:(List.map ~f:migrate_op) *)
-//     (*            ()) *)
-//     (*   |> Tc.Result.combine *)
-//     (*   |> Tc.Result.map (fun _ -> ()) *)
-//   with e -> Error (Exception.to_string e)
-//
-//
-// let migrate_all_hosts () =
-//   List.iter (all_hosts ()) ~f:(fun host ->
-//       migrate_host host |> Result.ok_or_Exception.raiseInternal)
-//
-//
-// let write_shape_data () =
-//   if Config.should_write_shape_data
-//   then
-//     File.writefile
-//       ~root:Serialization
-//       Binary_serialization.digest
-//       Binary_serialization.shape_string
-//   else ()
-//
-//
-// let time (fn : unit -> 'a) : float * 'a =
-//   let start = Unix.gettimeofday () in
-//   let a = fn () in
-//   let elapsed = (Unix.gettimeofday () -. start) *. 1000.0 in
-//   (elapsed, a)
 
 
 let toProgram (c : T) : RT.ProgramContext =
