@@ -116,7 +116,7 @@ let loadOnlyRenderedTLIDs
     // parallel afterwards, when all the http requests are done. That way if they're
     // slow they won't timeout the requests.
     list
-    |> List.map (fun (tlid, typ, data, pos) ->
+    |> Task.mapWithConcurrency 5 (fun (tlid, typ, data, pos) ->
       task {
         let! json =
           match typ with
@@ -133,10 +133,10 @@ let loadOnlyRenderedTLIDs
       })
     |> (fun list ->
       task {
-        let! results = Task.flatten list
+        let! results = list
         return!
           results
-          |> List.map (fun (tlid, typ, json, pos) ->
+          |> Task.mapWithConcurrency 20 (fun (tlid, typ, json, pos) ->
             task {
               let pos () =
                 try
@@ -172,7 +172,6 @@ let loadOnlyRenderedTLIDs
                     "Invalid tipe for toplevel"
                     [ "type", typ; "tlid", tlid; "canvas_id", canvasID ]
             })
-          |> Task.flatten
       }))
 
 

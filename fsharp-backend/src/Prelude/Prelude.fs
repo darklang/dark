@@ -1526,6 +1526,23 @@ module Task =
   let mapInParallel (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
     List.map f list |> flatten
 
+  let mapWithConcurrency
+    (concurrencyCount : int)
+    (f : 'a -> Task<'b>)
+    (list : List<'a>)
+    : Task<List<'b>> =
+    let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
+    let f =
+      (fun x ->
+        task {
+          try
+            do! semaphore.WaitAsync()
+            return! f x
+          finally
+            semaphore.Release() |> ignore<int>
+        })
+    List.map f list |> flatten
+
   let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
     task {
       let! filtered =

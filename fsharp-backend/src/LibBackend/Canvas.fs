@@ -415,12 +415,11 @@ let loadOplists
   |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "data"))
   |> Task.bind (fun list ->
     list
-    |> List.map (fun (tlid, data) ->
+    |> Task.mapWithConcurrency 2 (fun (tlid, data) ->
       task {
         let! oplist = OCamlInterop.oplistOfBinary data
         return (tlid, oplist)
-      })
-    |> Task.flatten)
+      }))
 
 
 let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task<T> =
