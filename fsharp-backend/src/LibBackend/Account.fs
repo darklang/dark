@@ -47,7 +47,7 @@ let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
 // **********************
 
 let validateEmail (email : string) : Result<unit, string> =
-  (* just checking it's roughly the shape of an email *)
+  // just checking it's roughly the shape of an email
   let reString = "^.+@.+\\..+$"
 
   if FsRegEx.isMatch reString email then
@@ -60,8 +60,8 @@ let validateAccount (account : Account) : Result<unit, string> =
   UserName.newUserAllowed (string account.username)
   |> Result.and_ (validateEmail account.email)
 
-// Passwords set here are only valid locally, production uses auth0 to check
-// access
+// Passwords set here are only valid locally;
+// production uses Auth0 to check access
 let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>> =
   task {
     match validateAccount account with
@@ -116,6 +116,7 @@ let insertUser
       let analyticsMetadata = analyticsMetadata |> Option.unwrap Map.empty
 
       try
+        // insert
         do!
           Sql.query
             "INSERT INTO accounts
@@ -134,7 +135,9 @@ let insertUser
                                    analyticsMetadata
                                )) ]
           |> Sql.executeStatementAsync
-        let! exists =
+
+        // verify insert worked
+        let! accountExists =
           // CLEANUP: if this was added with a different email/name/etc this won't pick it up
           Sql.query
             "SELECT TRUE from ACCOUNTS
@@ -147,7 +150,8 @@ let insertUser
                               "email", Sql.string email
                               ("password", Sql.string (string Password.invalid)) ]
           |> Sql.executeExistsAsync
-        if exists then
+
+        if accountExists then
           return Ok()
         else
           return

@@ -87,7 +87,7 @@ let urlFor
 
 
 let latestDeployHash (canvasID : CanvasID) : Task<string> =
-  let branch = "main" in
+  let branch = "main"
 
   Sql.query
     "SELECT deploy_hash FROM static_asset_deploys

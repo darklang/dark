@@ -80,10 +80,10 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
 
 // TODO: Unify with Type_checker.ml
 and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
-  let cols = Map.ofList db.cols in
-  let tipeKeys = cols |> Map.keys |> Set.ofList in
-  let objKeys = obj |> Map.keys |> Set.ofList in
-  let sameKeys = tipeKeys = objKeys in
+  let cols = Map.ofList db.cols
+  let tipeKeys = cols |> Map.keys |> Set.ofList
+  let objKeys = obj |> Map.keys |> Set.ofList
+  let sameKeys = tipeKeys = objKeys
 
   if sameKeys then
     Map.mapWithIndex
@@ -105,14 +105,14 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
           Errors.throw (Errors.typeErrorMsg key expectedType valueOfActualType))
       obj
   else
-    let missingKeys = Set.difference tipeKeys objKeys in
+    let missingKeys = Set.difference tipeKeys objKeys
 
     let missingMsg =
       "Expected but did not find: ["
       + (missingKeys |> Set.toList |> String.concat ", ")
       + "]"
 
-    let extraKeys = Set.difference objKeys tipeKeys in
+    let extraKeys = Set.difference objKeys tipeKeys
 
     let extraMsg =
       "Found but did not expect: ["

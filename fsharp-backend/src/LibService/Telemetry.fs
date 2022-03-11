@@ -2,7 +2,7 @@
 /// This is where we do tracing/OpenTelemetry/Honeycomb
 module LibService.Telemetry
 
-// Note names are confusing in .NET. Here is a good rundown.
+// Note that names are confusing in .NET. Here is a good rundown.
 // https://github.com/open-telemetry/opentelemetry-dotnet/issues/947
 //
 // This is a functional-ish API over the built-in .NET tracing/OpenTelemetry
@@ -125,9 +125,11 @@ let addEvent (name : string) (tags : Metadata) : unit =
     )
   span.AddEvent(event) |> ignore<Span.T>
 
-// Add a notification. You can find these in Honeycomb by searching for name =
-// 'notification'. This is used for anything out of the ordinary which should be
-// inspected.
+/// <summary>Add a notification.</summary>
+/// <remarks>
+/// You can find these in Honeycomb by searching for name = 'notification'.
+/// This is used for anything out of the ordinary which should be inspected.
+/// </remarks>
 let notify (name : string) (tags : Metadata) : unit =
   let span = Span.current ()
   let tagCollection = System.Diagnostics.ActivityTagsCollection()
@@ -140,7 +142,6 @@ let notify (name : string) (tags : Metadata) : unit =
       tagCollection
     )
   span.AddEvent(event) |> ignore<Span.T>
-
 
 
 let addException (e : exn) : unit =
@@ -156,7 +157,6 @@ let addException (e : exn) : unit =
 
 
 
-
 // Call, passing with serviceName for this service, such as "ApiServer"
 let init (serviceName : string) : unit =
   print "Configuring Telemetry"
@@ -165,15 +165,23 @@ let init (serviceName : string) : unit =
     System.Diagnostics.ActivityIdFormat.W3C
 
   Internal._source <- new System.Diagnostics.ActivitySource($"Dark")
+
   // We need all this or .NET will create null Activities
   // https://github.com/dotnet/runtime/issues/45070
-  let activityListener = new System.Diagnostics.ActivityListener()
-  activityListener.ShouldListenTo <- fun s -> true
-  activityListener.SampleUsingParentId <-
-    // If we use AllData instead of AllDataAndActivities, the http span won't be recorded
-    fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
-  activityListener.Sample <-
-    fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
+  let activityListener =
+    let al = new System.Diagnostics.ActivityListener()
+
+    al.ShouldListenTo <- fun s -> true
+
+    al.SampleUsingParentId <-
+      // If we use AllData instead of AllDataAndActivities, the http span won't be recorded
+      fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
+
+    al.Sample <-
+      fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
+
+    al
+
   System.Diagnostics.ActivitySource.AddActivityListener(activityListener)
 
   // Allow exceptions to be associated with the right span (the one in which they're created)
@@ -183,8 +191,10 @@ let init (serviceName : string) : unit =
       // if they make it to the top they'll get a stacktrace. So let's not do
       // stacktraces until we learn we need them
       addException e)
+
   // Ensure there is always a root span
   Span.root $"Starting {serviceName}" |> ignore<Span.T>
+
   print " Configured Telemetry"
 
 
@@ -221,6 +231,7 @@ let configureAspNetCore
             )
           with
           | _ -> ""
+
         activity
         |> Span.addTags [ "meta.type", "http_request"
                           "meta.server_version", Config.buildHash
@@ -241,13 +252,15 @@ let configureAspNetCore
   options.Enrich <- enrich
   options.RecordException <- true
 
+/// A sampler is used to reduce the number of events, to not overwhelm the results.
+/// In our case, we want to control costs too - we only have 1.5B honeycomb events
+/// per month, and it's easy to use them very quickly in a loop
 type DarkSampler() =
-  // A sampler is used to reduce the number of events, to not overwhelm the results.
-  // In our case, we want to control costs too - we only have 1.5B honeycomb events
-  // per month, and it's easy to use them very quickly in a loop
   inherit OpenTelemetry.Trace.Sampler()
+
   let keep = SamplingResult(SamplingDecision.RecordAndSample)
-  let drop = SamplingResult(SamplingDecision.Drop)
+  let _drop = SamplingResult(SamplingDecision.Drop)
+
   let getInt (name : string) (map : Map<string, obj>) : Option<int> =
     try
       match Map.get name map with
@@ -256,6 +269,7 @@ type DarkSampler() =
       | None -> None
     with
     | _ -> None
+
   let getFloat (name : string) (map : Map<string, obj>) : Option<float> =
     try
       match Map.get name map with
@@ -274,7 +288,7 @@ type DarkSampler() =
     with
     | _ -> None
 
-  override this.ShouldSample(p : SamplingParameters inref) : SamplingResult =
+  override this.ShouldSample(_p : SamplingParameters inref) : SamplingResult =
     // This turned out to be useless for the initial need (trimming short DB queries)
     keep
 
@@ -327,14 +341,17 @@ let addTelemetry
 /// </remarks>
 let executionID () = ExecutionID(string System.Diagnostics.Activity.Current.TraceId)
 
+
+
 module Console =
-  // For webservers, tracing is added by ASP.NET middlewares. For non-webservers, we
-  // also need to add tracing. This does that.
+  /// For webservers, tracing is added by ASP.NET middlewares.
+  /// For non-webservers, we also need to add tracing. This does that.
   let loadTelemetry (serviceName : string) (traceDBQueries : TraceDBQueries) : unit =
     Sdk.CreateTracerProviderBuilder()
     |> addTelemetry serviceName traceDBQueries
     |> fun tp -> tp.Build()
     |> ignore<TracerProvider>
+
     // Create a default root span, to ensure that one exists. This span will not be
     // cleaned up, and therefor it will not be printed in real-time (and you won't be
     // able to find it in honeycomb). Instead, start a new root for each "action"

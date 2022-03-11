@@ -160,7 +160,7 @@ let rec lambdaToSql
   (expr : Expr)
   : string * List<string * SqlValue> =
   let lts (typ : DType) (e : Expr) =
-    lambdaToSql fns symtable paramName dbFields typ e in
+    lambdaToSql fns symtable paramName dbFields typ e
 
   // We don't have good string escaping facilities here, plus it was always a bit dangerous to have string escaoing as we night miss one.
   let vars = ref Map.empty
@@ -339,7 +339,7 @@ let partiallyEvaluate
 
     // This is a copy of Ast.postTraversal, made to  work with uplys
     let rec postTraversal (expr : Expr) : Ply.Ply<Expr> =
-      let r = postTraversal in
+      let r = postTraversal
 
       uply {
         let! result =

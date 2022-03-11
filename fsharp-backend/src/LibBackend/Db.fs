@@ -13,7 +13,7 @@ module RT = LibExecution.RuntimeTypes
 
 module Sql =
 
-  // Open a database [transaction] and run [f],in it
+  /// Open a database [transaction] and run given fn against it
   let withTransaction (f : unit -> Task<'a>) : Task<'a> =
     task {
       let connection = LibService.DBConnection.connect () |> Sql.createConnection

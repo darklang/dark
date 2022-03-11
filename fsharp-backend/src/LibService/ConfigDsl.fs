@@ -1,10 +1,9 @@
+/// Parsers for environment variables
 module LibService.ConfigDsl
 
 open Tablecloth
 
-// Parsers for env vars
-
-let getEnv (name : string) : Option<string> =
+let getEnv (name : string) : string option =
   let var = System.Environment.GetEnvironmentVariable name
   if var = null then None else Some var
 
@@ -54,7 +53,7 @@ let intOption (name : string) : int option =
   | None -> None
   | Some s -> Some(int s)
 
-// Give a list of choices and values to return if the choice is found
+/// Give a list of choices and values to return if the choice is found
 let stringChoice name (options : (string * 'a) list) : 'a =
   let v = getEnvExn name |> lowercase name
 

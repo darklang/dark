@@ -54,7 +54,7 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
 // in there, because we don't have any UI for inspecting history, nor do we
 // store timestamps or edited-by-user for ops ("git blame").
 let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
-  let mutable encounteredCreateOp = false in
+  let mutable encounteredCreateOp = false
 
   List.reverse ops
   |> List.takeWhile (fun op ->

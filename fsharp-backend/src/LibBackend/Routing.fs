@@ -116,11 +116,12 @@ let filterInvalidHandlerMatches
     handlers
 
 
-// From left-to-right segment-wise, we say that concrete is more specific
-// than wild is more specific than empty *)
+// From left-to-right segment-wise, we say:
+// - concrete is more specific than wild
+// - wild is more specific than empty
 let rec compareRouteSpecificity (left : string list) (right : string list) : int =
-  let isWild s = String.startsWith ":" s in
-  let isConcrete s = not (isWild s) in
+  let isWild s = String.startsWith ":" s
+  let isConcrete s = not (isWild s)
 
   match (left, right) with
   | [], [] -> 0
@@ -155,6 +156,7 @@ let filterMatchingHandlersBySpecificity
     // in our comparison function) but my brain really didn't like that and found
     // it confusing.
     |> List.rev
+
   // orderedPages is ordered most-specific to least-specific, so pluck the
   // most specific and return it along with all others of its specificity *)
   match orderedPages with

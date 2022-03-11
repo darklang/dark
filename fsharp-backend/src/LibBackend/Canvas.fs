@@ -292,7 +292,7 @@ let verify (c : T) : T =
 let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   let oldops = List.map (fun op -> (false, op)) oldops
   let newops = List.map (fun op -> (true, op)) newops
-  let reducedOps = Undo.preprocess (oldops @ newops) in
+  let reducedOps = Undo.preprocess (oldops @ newops)
   List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
 let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =

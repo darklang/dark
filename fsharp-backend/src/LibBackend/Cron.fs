@@ -57,7 +57,7 @@ type NextExecution =
 
 let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
   task {
-    let now = NodaTime.Instant.now () in
+    let now = NodaTime.Instant.now ()
 
     match! lastRanAt cron with
     | None ->
