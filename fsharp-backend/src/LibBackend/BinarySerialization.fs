@@ -15,8 +15,6 @@ open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
-// TODO inline this file into canvas
-
 open MessagePack
 open MessagePack.Resolvers
 open MessagePack.FSharp
@@ -24,7 +22,7 @@ open MessagePack.FSharp
 // Serializers sometimes throw at runtime if the setup is not right. We do not
 // currently know of a way to statically ensure these run. As a result, we don't
 // expose the generic serialization functions, only functions for specific types that
-// are tested (that is, they have unit tests!) and are known to work
+// are tested (that is, they have unit tests!) and are known to work.
 
 let internalSerialize (data : 'a) : byte [] =
   MessagePackSerializer.Serialize<'a> data

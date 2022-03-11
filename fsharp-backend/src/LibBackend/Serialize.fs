@@ -172,7 +172,7 @@ let loadOnlyRenderedTLIDs
     // over some text (type, pos, etc) along with binary data, and then put in some
     // structure so we can parse it at the other end, which seems very hard.
     //
-    // Instead we just limit it to 2 threads at a time does the
+    // Instead we just limit it to 2 threads at a time.
     let semaphore = new System.Threading.SemaphoreSlim(2)
     return!
       data
