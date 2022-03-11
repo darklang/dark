@@ -749,6 +749,7 @@ module Handler =
   // We need to keep the IDs around until we get rid of them on the client
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
+  [<MessagePack.MessagePackObject>]
   type Spec =
     | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
@@ -959,6 +960,13 @@ type DeprecatedMigrationKind = | DeprecatedMigrationKind
 ///
 /// "Op" is an abbreviation for Operation,
 /// and is preferred throughout code and documentation.
+
+
+open MessagePack
+open MessagePack.Resolvers
+open MessagePack.FSharp
+
+[<MessagePackObject>]
 type Op =
   | SetHandler of tlid * pos * Handler.T
   | CreateDB of tlid * pos * string
