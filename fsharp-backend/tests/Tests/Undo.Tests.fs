@@ -13,7 +13,6 @@ module Canvas = LibBackend.Canvas
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
-module S = PT.Shortcuts
 
 let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 

@@ -22,8 +22,6 @@ module G = Generators
 
 let tpwg = testPropertyWithGenerator
 
-open LibExecution.ProgramTypes.Shortcuts
-
 let filterFloat (f : float) : bool =
   match f with
   | System.Double.PositiveInfinity -> false
@@ -561,7 +559,7 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
     task {
       let! meta = initializeTestCanvas "ExecutePureFunction"
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
-      let fnArgList = List.map (fun (name, _) -> eVar name) args
+      let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
       let ast = PT.EFnCall(gid (), RT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
       let st = Map.ofList args

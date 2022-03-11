@@ -12,7 +12,6 @@ open TestUtils.TestUtils
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module PT = LibExecution.ProgramTypes
-module S = PT.Shortcuts
 module CanvasClone = LibBackend.CanvasClone
 module Account = LibBackend.Account
 
