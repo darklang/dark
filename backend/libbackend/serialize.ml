@@ -328,8 +328,8 @@ let save_toplevel_oplist
   Db.run
     ~name:"save per tlid oplist"
     "INSERT INTO toplevel_oplists
-    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted, pos)
-    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11, $12)
+    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
+    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11, $12, NULL, NULL)
     ON CONFLICT (canvas_id, tlid) DO UPDATE
     SET account_id = $2,
         digest = $4,
@@ -340,7 +340,9 @@ let save_toplevel_oplist
         data = $9,
         rendered_oplist_cache = $10,
         deleted = $11,
-        pos = $12;
+        pos = $12,
+        oplist = NULL,
+        oplist_cache = NULL;
         "
     ~params:
       [ Uuid canvas_id
