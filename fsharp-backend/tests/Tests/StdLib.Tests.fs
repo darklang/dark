@@ -14,6 +14,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
@@ -23,14 +24,14 @@ let equalsOCaml =
   testMany
     "equalsOCaml"
     (FuzzTests.ExecutePureFunctions.equalsOCaml)
-    [ ((RT.FQFnName.stdlibFnName "List" "fold" 0,
+    [ ((PTParser.FQFnName.stdlibFnName "List" "fold" 0,
         [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
           RT.DList []
           RT.DFnVal(
             RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
           ) ]),
        true)
-      ((RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
+      ((PTParser.FQFnName.stdlibFnName "Result" "fromOption" 0,
         [ RT.DOption(
             Some(
               RT.DFnVal(
@@ -43,7 +44,7 @@ let equalsOCaml =
           )
           RT.DStr "s" ]),
        true)
-      ((RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
+      ((PTParser.FQFnName.stdlibFnName "Result" "fromOption" 0,
         [ RT.DOption(
             Some(
               RT.DFnVal(
@@ -73,7 +74,7 @@ let oldFunctionsAreDeprecated =
 
     fns
     |> List.iter (fun fn ->
-      let key = string { fn.name with version = 0 }
+      let key = RT.FQFnName.StdlibFnName.toString { fn.name with version = 0 }
 
       if fn.deprecated = RT.NotDeprecated then
         counts.Value <-

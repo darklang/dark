@@ -36,7 +36,8 @@ type FunctionMetadata =
 let fsharpOnlyFns : Lazy<Set<string>> =
   lazy
     ([] // LibExecutionStdLib.LibMiddleware.fns
-     |> List.map (fun (fn : RT.BuiltInFn) -> string fn.name)
+     |> List.map (fun (fn : RT.BuiltInFn) ->
+       RT.FQFnName.StdlibFnName.toString fn.name)
      |> Set)
 
 
@@ -70,7 +71,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
   { name =
       // CLEANUP: this is difficult to change in OCaml, but is trivial in F# (we
       // should just be able to remove this line with no other change)
-      let n = string fn.name
+      let n = RT.FQFnName.StdlibFnName.toString fn.name
 
       if n = "DB::add" then "DB::add_v0"
       else if n = "JSON::parse" then "JSON::parse_v0"
@@ -95,7 +96,11 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
   |> List.filter (fun fn ->
-    not (Set.contains (string fn.name) (Lazy.force fsharpOnlyFns)))
+    not (
+      Set.contains
+        (RT.FQFnName.StdlibFnName.toString fn.name)
+        (Lazy.force fsharpOnlyFns)
+    ))
   |> List.map convertFn
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize

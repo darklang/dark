@@ -36,7 +36,7 @@ let store
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                         "traceID", Sql.uuid traceID
                         "tlid", Sql.tlid tlid
-                        "fnName", Sql.string (string fnDesc)
+                        "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
                         "id", Sql.id id
                         ("hash",
                          arglist

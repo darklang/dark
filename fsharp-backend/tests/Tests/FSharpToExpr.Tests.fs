@@ -6,6 +6,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
@@ -30,7 +31,7 @@ let parserTests =
             PT.EVariable(id, "x"),
             PT.EFnCall(
               id,
-              PT.FQFnName.stdlibFqName "List" "map" 0,
+              PTParser.FQFnName.stdlibFqName "List" "map" 0,
               [ (PT.EPipeTarget id); PT.EInteger(id, 5) ],
               PT.NoRail
             ),
@@ -42,10 +43,10 @@ let parserTests =
         "(5 + 3) == 8"
         (PT.EBinOp(
           id,
-          PT.FQFnName.stdlibFqName "" "==" 0,
+          PTParser.FQFnName.stdlibFqName "" "==" 0,
           PT.EBinOp(
             id,
-            PT.FQFnName.stdlibFqName "" "+" 0,
+            PTParser.FQFnName.stdlibFqName "" "+" 0,
             PT.EInteger(id, 5),
             PT.EInteger(id, 3),
             PT.NoRail

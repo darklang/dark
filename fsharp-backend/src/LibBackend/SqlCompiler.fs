@@ -181,7 +181,7 @@ let rec lambdaToSql
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
     match Map.get name fns with
     | Some fn ->
-      typecheck (string name) fn.returnType expectedType
+      typecheck (FQFnName.toString name) fn.returnType expectedType
 
       let argSqls, sqlVars =
         let paramCount = List.length fn.parameters
@@ -193,7 +193,7 @@ let rec lambdaToSql
           |> (fun (sqls, vars) -> (sqls, List.concat vars))
         else
           error
-            $"{fn.name} has {paramCount} functions but we have {argCount} arguments"
+            $"{FQFnName.StdlibFnName.toString fn.name} has {paramCount} functions but we have {argCount} arguments"
 
       match fn, argSqls with
       | { sqlSpec = SqlBinOp op }, [ argL; argR ] -> $"({argL} {op} {argR})", sqlVars
@@ -208,10 +208,11 @@ let rec lambdaToSql
         let argSql = argSqls @ fnArgs |> String.concat ", "
         $"({fnName} ({argSql}))", sqlVars
       | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] -> $"({fn arg1 arg2})", sqlVars
-      | fn, args -> error $"This function ({name}) is not yet implemented"
+      | fn, args ->
+        error $"This function ({FQFnName.toString name}) is not yet implemented"
     | None ->
       error
-        $"Only builtin functions can be used in queries right now; {name} is not a builtin function"
+        $"Only builtin functions can be used in queries right now; {FQFnName.toString name} is not a builtin function"
   | EVariable (_, varname) ->
     match Map.get varname symtable with
     | Some dval ->

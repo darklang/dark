@@ -41,7 +41,9 @@ let testCronSanity =
     let oplists = [ handlerOp h ]
 
     do!
-      Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
+      Canvas.saveTLIDs
+        meta
+        [ (h.tlid, oplists, PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = meta.id
@@ -65,7 +67,7 @@ let testCronJustRan =
     do!
       Canvas.saveTLIDs
         meta
-        [ (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted) ]
+        [ (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = meta.id

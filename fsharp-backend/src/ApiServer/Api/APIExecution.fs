@@ -10,6 +10,7 @@ open Tablecloth
 open Http
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
@@ -60,7 +61,7 @@ module Function =
         RealExe.createState executionID p.trace_id p.tlid program
 
       t.next "execute-function"
-      let fnname = p.fnname |> PT.FQFnName.parse
+      let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
       let! result = Exe.executeFunction state p.caller_id args fnname
 
       t.next "get-unlocked"

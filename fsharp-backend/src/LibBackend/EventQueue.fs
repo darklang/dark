@@ -342,7 +342,7 @@ let testingGetQueue canvasID eventName =
       ORDER BY e.id ASC"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                           "eventName", Sql.string eventName ]
-      |> Sql.executeAsync (fun read -> (read.string "value"))
+      |> Sql.executeAsync (fun read -> read.string "value")
 
     return
       result |> List.map (LibExecution.DvalReprInternal.ofInternalRoundtrippableV0)

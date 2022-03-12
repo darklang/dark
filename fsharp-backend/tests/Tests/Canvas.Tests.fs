@@ -12,6 +12,7 @@ open TestUtils.TestUtils
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module CanvasClone = LibBackend.CanvasClone
 module Account = LibBackend.Account
 
@@ -27,7 +28,10 @@ let testDBOplistRoundtrip : Test =
     let oplist =
       [ PT.UndoTL db.tlid; PT.RedoTL db.tlid; PT.UndoTL db.tlid; PT.RedoTL db.tlid ]
 
-    do! Canvas.saveTLIDs meta [ (db.tlid, oplist, PT.TLDB db, Canvas.NotDeleted) ]
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (db.tlid, oplist, PT.Toplevel.TLDB db, Canvas.NotDeleted) ]
     let! ops = Canvas.loadOplists Canvas.LiveToplevels meta.id [ db.tlid ]
     Expect.equal ops [ (db.tlid, oplist) ] "db oplist roundtrip"
   }
@@ -42,9 +46,12 @@ let testHttpOplistRoundtrip =
     do!
       Canvas.saveTLIDs
         meta
-        [ (handler.tlid, oplist, PT.TLHandler handler, Canvas.NotDeleted) ]
+        [ (handler.tlid, oplist, PT.Toplevel.TLHandler handler, Canvas.NotDeleted) ]
     let! (c2 : Canvas.T) =
-      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
     Expect.equal (c2.handlers[handler.tlid]) handler "Handlers should be equal"
   }
 
@@ -58,11 +65,17 @@ let testHttpOplistLoadsUserTypes =
     do!
       Canvas.saveTLIDs
         meta
-        [ (handler.tlid, [ hop handler ], PT.TLHandler handler, Canvas.NotDeleted)
-          (typ.tlid, [ PT.SetType typ ], PT.TLType typ, Canvas.NotDeleted) ]
+        [ (handler.tlid,
+           [ hop handler ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.NotDeleted)
+          (typ.tlid, [ PT.SetType typ ], PT.Toplevel.TLType typ, Canvas.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
-      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
     Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
   }
 
@@ -78,17 +91,29 @@ let testHttpLoadIgnoresDeletedFns =
     do!
       Canvas.saveTLIDs
         meta
-        [ (handler.tlid, [ hop handler ], PT.TLHandler handler, Canvas.NotDeleted)
-          (f.tlid, [ PT.SetFunction f ], PT.TLFunction f, Canvas.NotDeleted) ]
+        [ (handler.tlid,
+           [ hop handler ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.NotDeleted)
+          (f.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted) ]
     // TLIDs are saved in parallel, so do them in separate calls
     do!
       Canvas.saveTLIDs
         meta
-        [ (f.tlid, [ PT.DeleteFunction f.tlid ], PT.TLFunction f, Canvas.Deleted)
-          (f2.tlid, [ PT.SetFunction f2 ], PT.TLFunction f2, Canvas.NotDeleted) ]
+        [ (f.tlid,
+           [ PT.DeleteFunction f.tlid ],
+           PT.Toplevel.TLFunction f,
+           Canvas.Deleted)
+          (f2.tlid,
+           [ PT.SetFunction f2 ],
+           PT.Toplevel.TLFunction f2,
+           Canvas.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
-      Canvas.loadHttpHandlers meta (handler.spec.name ()) (handler.spec.modifier ())
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
 
     Expect.equal c2.handlers[handler.tlid] handler "handler is loaded "
     Expect.equal c2.userFunctions.Count 1 "only one function is loaded from cache"
@@ -155,7 +180,7 @@ let testSetHandlerAfterDelete =
     do!
       Canvas.saveTLIDs
         meta
-        [ (h1.tlid, [ op1; op2 ], PT.TLHandler h1, Canvas.Deleted) ]
+        [ (h1.tlid, [ op1; op2 ], PT.Toplevel.TLHandler h1, Canvas.Deleted) ]
 
     let! (c2 : Canvas.T) = Canvas.loadAll meta
 
@@ -167,7 +192,7 @@ let testSetHandlerAfterDelete =
     do!
       Canvas.saveTLIDs
         meta
-        [ (h2.tlid, [ op3 ], PT.TLHandler h2, Canvas.NotDeleted) ]
+        [ (h2.tlid, [ op3 ], PT.Toplevel.TLHandler h2, Canvas.NotDeleted) ]
 
     let! (c3 : Canvas.T) = Canvas.loadAll meta
 
@@ -190,7 +215,7 @@ let testSetFunctionAfterDelete =
     do!
       Canvas.saveTLIDs
         meta
-        [ (f1.tlid, [ op1; op2 ], PT.TLFunction f1, Canvas.Deleted) ]
+        [ (f1.tlid, [ op1; op2 ], PT.Toplevel.TLFunction f1, Canvas.Deleted) ]
 
     let! (c2 : Canvas.T) = Canvas.loadAll meta
 
@@ -202,7 +227,7 @@ let testSetFunctionAfterDelete =
     do!
       Canvas.saveTLIDs
         meta
-        [ (f2.tlid, [ op3 ], PT.TLFunction f2, Canvas.NotDeleted) ]
+        [ (f2.tlid, [ op3 ], PT.Toplevel.TLFunction f2, Canvas.NotDeleted) ]
 
     let! (c3 : Canvas.T) = Canvas.loadAll meta
 
@@ -226,9 +251,9 @@ let testLoadAllDBs =
     do!
       Canvas.saveTLIDs
         meta
-        [ (dbid1, ops1, PT.TLDB c1.deletedDBs[dbid1], Canvas.Deleted)
-          (dbid2, ops2, PT.TLDB c1.dbs[dbid2], Canvas.NotDeleted)
-          (dbid3, ops3, PT.TLDB c1.dbs[dbid3], Canvas.NotDeleted) ]
+        [ (dbid1, ops1, PT.Toplevel.TLDB c1.deletedDBs[dbid1], Canvas.Deleted)
+          (dbid2, ops2, PT.Toplevel.TLDB c1.dbs[dbid2], Canvas.NotDeleted)
+          (dbid3, ops3, PT.Toplevel.TLDB c1.dbs[dbid3], Canvas.NotDeleted) ]
 
     let! (c2 : Canvas.T) = Canvas.loadAll meta
     let ids = Map.values c2.dbs |> List.map (fun db -> db.tlid) |> Set
@@ -264,8 +289,8 @@ let testCanvasVerificationDuplicationCreationOffDisk =
     do!
       Canvas.saveTLIDs
         meta
-        [ (dbid1, ops1, PT.TLDB c1.dbs[dbid1], Canvas.NotDeleted)
-          (dbid2, ops2, PT.TLDB c1.dbs[dbid2], Canvas.NotDeleted) ]
+        [ (dbid1, ops1, PT.Toplevel.TLDB c1.dbs[dbid1], Canvas.NotDeleted)
+          (dbid2, ops2, PT.Toplevel.TLDB c1.dbs[dbid2], Canvas.NotDeleted) ]
 
     // CLEANUP: i'm not sure that it works or that it tests what it's supposed to test
     try

@@ -9,6 +9,7 @@ open Tablecloth
 open LibBackend.Db
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module EQ = LibBackend.EventQueue
@@ -82,7 +83,8 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                 let h =
                   c.handlers
                   |> Map.values
-                  |> List.filter (fun h -> Some desc = h.spec.toEventDesc ())
+                  |> List.filter (fun h ->
+                    Some desc = PTParser.Handler.Spec.toEventDesc h.spec)
                   |> List.head
 
 

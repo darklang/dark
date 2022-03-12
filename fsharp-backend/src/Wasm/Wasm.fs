@@ -10,6 +10,7 @@ module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
@@ -46,7 +47,7 @@ module ClientInterop =
     | OT.Partial (id, str) -> (name, OT.Partial(id, str))
     | OT.Filled (id, tipe) ->
       let typ =
-        PT.DType.parse tipe
+        PTParser.DType.parse tipe
         |> Exception.unwrapOptionInternal "cannot parse col" [ "type", tipe ]
         |> OT.Convert.pt2ocamlTipe
       (name, (OT.Filled(id, typ)))
@@ -142,7 +143,7 @@ module Eval =
 
     results
     |> List.filterMap (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
-      if string fnName = rFnName
+      if RT.FQFnName.toString fnName = rFnName
          && callerID = rCallerID
          && hash = ((Map.tryFind hashVersion hashes) |> Option.unwrapUnsafe) then
         Some dval

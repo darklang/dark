@@ -11,6 +11,7 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 let parse (input) : SynExpr =
@@ -137,13 +138,15 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Const (SynConst.String (s, _, _), _) -> PT.EString(id, s)
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
     let op = Map.get ident.idText ops |> Option.unwrapUnsafe
-    let name = RT.FQFnName.stdlibFqName "" op 0
+    let name = PTParser.FQFnName.stdlibFqName "" op 0
     PT.EBinOp(id, name, placeholder, placeholder, PT.NoRail)
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
-    let name = RT.FQFnName.stdlibFqName "Int" "negate" 0
+    let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [], PT.NoRail)
-  | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
-    PT.EFnCall(id, PT.FQFnName.parse ident.idText, [], PT.NoRail)
+  | SynExpr.Ident ident when
+    Set.contains ident.idText PTParser.FQFnName.oneWordFunctions
+    ->
+    PT.EFnCall(id, PTParser.FQFnName.parse ident.idText, [], PT.NoRail)
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
   | SynExpr.Ident ident when ident.idText = "blank" -> PT.EBlank id
@@ -183,7 +186,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
           $"Bad format in function name"
           [ "name", fnName.idText ]
 
-    PT.EFnCall(gid (), PT.FQFnName.parse name, [], ster)
+    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
     let obj1 =
       PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
@@ -331,7 +334,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | PT.EPipe (id, arg1, arg2, rest) as pipe ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
     | PT.EVariable (id, name) ->
-      PT.EFnCall(id, PT.FQFnName.parse name, [ c arg ], PT.NoRail)
+      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.NoRail)
     | e ->
       Exception.raiseInternal
         "Unsupported expression in app"

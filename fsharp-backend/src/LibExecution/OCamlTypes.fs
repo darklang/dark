@@ -20,6 +20,7 @@ open VendoredTablecloth
 module PT = LibExecution.ProgramTypes
 module RT = RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 type id = uint64
 
@@ -362,9 +363,14 @@ module Convert =
     | ORT.EVariable (id, var) -> PT.EVariable(id, var)
     | ORT.EFieldAccess (id, obj, fieldname) -> PT.EFieldAccess(id, r obj, fieldname)
     | ORT.EFnCall (id, name, args, ster) ->
-      PT.EFnCall(id, PT.FQFnName.parse name, List.map r args, ocamlSter2PT ster)
+      PT.EFnCall(
+        id,
+        PTParser.FQFnName.parse name,
+        List.map r args,
+        ocamlSter2PT ster
+      )
     | ORT.EBinOp (id, name, arg1, arg2, ster) ->
-      PT.EBinOp(id, PT.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
+      PT.EBinOp(id, PTParser.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
     | ORT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
     | ORT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
     | ORT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -405,7 +411,7 @@ module Convert =
     | Filled (_, "HTTP"), route, method -> PT.Handler.HTTP(route, method, ids)
     | Filled (_, "WORKER"), name, _ -> PT.Handler.Worker(name, ids)
     | Filled (_, "CRON"), name, interval ->
-      PT.Handler.Cron(name, PT.Handler.CronInterval.parse interval, ids)
+      PT.Handler.Cron(name, PTParser.Handler.CronInterval.parse interval, ids)
     | Filled (_, "REPL"), name, _ -> PT.Handler.REPL(name, ids)
     | Filled (_, workerName), name, _ -> PT.Handler.OldWorker(workerName, name, ids)
     | Partial (_, _), name, modifier
@@ -591,12 +597,12 @@ module Convert =
   let ocamlBinarySerializationToplevel2PT
     (pos : pos)
     (tl : BSTypes.tl)
-    : PT.Toplevel =
+    : PT.Toplevel.T =
     match tl with
-    | BSTypes.Handler h -> PT.TLHandler(ocamlHandler2PT pos h)
-    | BSTypes.DB db -> PT.TLDB(ocamlDB2PT pos db)
-    | BSTypes.UserType ut -> PT.TLType(ocamlUserType2PT ut)
-    | BSTypes.UserFn uf -> PT.TLFunction(ocamlUserFunction2PT uf)
+    | BSTypes.Handler h -> PT.Toplevel.TLHandler(ocamlHandler2PT pos h)
+    | BSTypes.DB db -> PT.Toplevel.TLDB(ocamlDB2PT pos db)
+    | BSTypes.UserType ut -> PT.Toplevel.TLType(ocamlUserType2PT ut)
+    | BSTypes.UserFn uf -> PT.Toplevel.TLFunction(ocamlUserFunction2PT uf)
 
 
 
@@ -678,22 +684,26 @@ module Convert =
     | PT.EVariable (id, var) -> ORT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) -> ORT.EFieldAccess(id, r obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
+      let nameStr = name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString
       let name =
-        if string name = "JSON::parse" || string name = "DB::add" then
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
           // Some things were named wrong in OCaml
-          $"{name}_v0"
+          $"{nameStr}_v0"
         else
           match name with
-          | RT.FQFnName.Stdlib _
-          | RT.FQFnName.User _ -> string name |> String.replace "_v0" ""
+          | PT.FQFnName.Stdlib _
+          | PT.FQFnName.User _ -> nameStr |> String.replace "_v0" ""
           // Keep the _v0 here
-          | RT.FQFnName.Package _ -> string name
+          | PT.FQFnName.Package _ -> nameStr
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
       ORT.EBinOp(
         id,
-        name |> string |> String.replace "_v0" "",
+        name
+        |> PT2RT.FQFnName.toRT
+        |> RT.FQFnName.toString
+        |> String.replace "_v0" "",
         r arg1,
         r arg2,
         pt2ocamlSter ster
@@ -760,12 +770,13 @@ module Convert =
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
       ORT.EFeatureFlag(id, "flag", r cond, r caseA, r caseB)
     | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.NotInPipe, rail) ->
+      let nameStr = name |> RT.FQFnName.toString
       let name =
-        if string name = "JSON::parse" || string name = "DB::add" then
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
           // Some things were named wrong in OCaml
-          $"{name}_v0"
+          $"{nameStr}_v0"
         else
-          string name |> String.replace "_v0" ""
+          nameStr |> String.replace "_v0" ""
 
 
       ORT.EFnCall(id, name, List.map r args, rt2ocamlSter rail)
@@ -949,29 +960,29 @@ module Convert =
     List.map pt2ocamlOp list
 
   let pt2ocamlToplevels
-    (toplevels : Map<tlid, PT.Toplevel>)
+    (toplevels : Map<tlid, PT.Toplevel.T>)
     : ORT.toplevels * ORT.user_fn<ORT.fluidExpr> list * ORT.user_tipe list =
     toplevels
     |> Map.values
     |> List.ofSeq
     |> List.fold ([], [], []) (fun (tls, ufns, uts) tl ->
       match tl with
-      | PT.TLHandler h ->
+      | PT.Toplevel.TLHandler h ->
         let ocamlHandler = pt2ocamlHandler h
 
         let ocamlTL : ORT.toplevel =
           { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
 
         tls @ [ ocamlTL ], ufns, uts
-      | PT.TLDB db ->
+      | PT.Toplevel.TLDB db ->
         let ocamlDB = pt2ocamlDB db
 
         let ocamlTL : ORT.toplevel =
           { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
 
         tls @ [ ocamlTL ], ufns, uts
-      | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
-      | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
+      | PT.Toplevel.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
+      | PT.Toplevel.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
   let ocamlPackageManagerParameter2PT
     (o : PackageManager.parameter)

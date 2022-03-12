@@ -9,6 +9,7 @@ open Prelude.Tablecloth
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 open LibBackend.Routing

@@ -13,12 +13,14 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module S = LibExecution.Shortcuts
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
 module TypeChecker = LibExecution.TypeChecker
 
 
 open TestUtils.TestUtils
+module S = TestUtils.RTShortcuts
 
 
 let testBasicTypecheckWorks : Test =
@@ -31,7 +33,7 @@ let testBasicTypecheckWorks : Test =
       libraries
       |> Lazy.force
       |> fun l -> l.stdlib
-      |> Map.get (PT.FQFnName.parse fn)
+      |> Map.get (PTParser.FQFnName.parse fn |> PT2RT.FQFnName.toRT)
       |> Option.unwrapUnsafe
       |> RT.builtInFnToFn
 

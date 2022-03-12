@@ -196,7 +196,7 @@ let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
     let ocfns =
       List.map
         (fun (fn : Functions.FunctionMetadata) ->
-          match string fn.name with
+          match fn.name with
           | "assoc" ->
             { fn with
                 description = "Returns a copy of `dict` with the `key` set to `val`."

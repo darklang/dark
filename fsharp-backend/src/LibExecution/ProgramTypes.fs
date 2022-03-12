@@ -1,85 +1,34 @@
-/// The types that are serialized for the program
+/// The types that are serialized for the program. This file only contains things
+/// needed for binary serialization to store in the DB, and nearly all other
+/// functionality is in other modules.
 module LibExecution.ProgramTypes
 
 open Prelude
-open VendoredTablecloth
 
-// Used for conversion functions
-module RT = RuntimeTypes
-
+/// A Fully-Qualified Function Name
+/// Includes package, module, and version information where relevant.
 module FQFnName =
-  type T = RT.FQFnName.T
-  type StdlibFnName = RT.FQFnName.StdlibFnName
-  type PackageFnName = RT.FQFnName.PackageFnName
-  type UserFnName = RT.FQFnName.UserFnName
 
-  let packageFnName = RT.FQFnName.packageFnName
-  let userFnName = RT.FQFnName.userFnName
-  let stdlibFnName = RT.FQFnName.stdlibFnName
-  let packageFqName = RT.FQFnName.packageFqName
-  let userFqName = RT.FQFnName.userFqName
-  let stdlibFqName = RT.FQFnName.stdlibFqName
+  /// Standard Library Function Name
+  type StdlibFnName = { module_ : string; function_ : string; version : int }
 
-  let oneWordFunctions =
-    Set [ "toString"
-          "toRepr"
-          "equals"
-          "notEquals"
-          "assoc"
-          "dissoc"
-          "toForm"
-          "emit"
-          "toString_v0"
-          "toRepr_v0"
-          "equals_v0"
-          "notEquals_v0"
-          "assoc_v0"
-          "dissoc_v0"
-          "toForm_v0"
-          "emit_v0"
-          "emit_v1" ]
+  /// A UserFunction is a function written by a Developer in their canvas
+  type UserFnName = string
 
-  let parse (fnName : string) : T =
-    // These should match up with the regexes in RuntimeTypes
-    match fnName with
-    | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
-            [ owner; package; module_; name; version ] ->
-      RT.FQFnName.packageFqName owner package module_ name (int version)
-    | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$"
-            [ owner; package; module_; name ] ->
-      RT.FQFnName.packageFqName owner package module_ name 0
-    | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
-            [ module_; name; version ] ->
-      RT.FQFnName.stdlibFqName module_ name (int version)
-    | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
-            [ module_; name; version ] ->
-      RT.FQFnName.stdlibFqName module_ name (int version)
-    | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
-      RT.FQFnName.stdlibFqName module_ name 0
-    | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
-      RT.FQFnName.stdlibFqName "" name (int version)
-    | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] ->
-      RT.FQFnName.stdlibFqName "Date" name 0
-    | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0
-    | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
-      RT.FQFnName.stdlibFqName "" name (int version)
-    // don't accidentally parse these as userFns
-    | v when Set.contains v oneWordFunctions ->
-      match v with
-      | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
-        RT.FQFnName.stdlibFqName "" name (int version)
-      | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0
-      | _ ->
-        Exception.raiseInternal
-          "Bad format in one word function name"
-          [ "fnName", fnName ]
-    | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
-    // CLEANUP People have the most ridiculous names in userFunctions. One user had a
-    // fully qualified url in there! Ridiculous. This needs a data cleanup before it
-    // can be removed.
-    | Regex "^(.*)$" [ name ] -> RT.FQFnName.userFqName name
-    | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
+  /// The name of a function in the package manager
+  type PackageFnName =
+    { owner : string
+      package : string
+      module_ : string
+      function_ : string
+      version : int }
 
+  type T =
+    | User of UserFnName
+    | Stdlib of StdlibFnName
+    | Package of PackageFnName
+
+/// Patterns - used for pattern matching in a match statement
 type Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
@@ -91,6 +40,8 @@ type Pattern =
   | PNull of id
   | PBlank of id
 
+/// Whether a function's result is unwrapped automatically (and, in the case of
+/// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
 type SendToRail =
   | Rail
   | NoRail
@@ -100,6 +51,8 @@ type Expr =
   | EInteger of id * int64
   | EBool of id * bool
   | EString of id * string
+  /// A character is an Extended Grapheme Cluster (hence why we use a string). This
+  /// is equivalent to one screen-visible "character" in Unicode.
   | ECharacter of id * string
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
@@ -151,62 +104,10 @@ type DType =
   | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
-  // This allows you to build up a record to eventually be the right shape.
-  // | TRecordWithFields of List<string * DType>
-  // | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-  // | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-
-  static member parse(str : string) : Option<DType> =
-    let any = TVariable "a"
-
-    match String.toLowercase str with
-    | "any" -> Some any
-    | "int" -> Some TInt
-    | "integer" -> Some TInt
-    | "float" -> Some TFloat
-    | "bool" -> Some TBool
-    | "boolean" -> Some TBool
-    | "nothing" -> Some TNull
-    | "character"
-    | "char" -> Some TChar
-    | "str" -> Some TStr
-    | "string" -> Some TStr
-    | "list" -> Some(TList any)
-    | "obj" -> Some(TDict any)
-    | "block" -> Some(TFn([ TVariable "a" ], TVariable "b"))
-    | "incomplete" -> Some TIncomplete
-    | "error" -> Some TError
-    | "response" -> Some(THttpResponse any)
-    | "datastore" -> Some(TDB any)
-    | "date" -> Some TDate
-    | "password" -> Some TPassword
-    | "uuid" -> Some TUuid
-    | "option" -> Some(TOption any)
-    | "errorrail" -> Some TErrorRail
-    | "result" -> Some(TResult(TVariable "a", TVariable "b"))
-    | "dict" -> Some(TDict any)
-    | _ ->
-      let parseListTyp (listTyp : string) : Option<DType> =
-        match String.toLowercase listTyp with
-        | "str" -> Some(TDbList TStr)
-        | "string" -> Some(TDbList TStr)
-        | "int" -> Some(TDbList TInt)
-        | "integer" -> Some(TDbList TInt)
-        | "float" -> Some(TDbList TFloat)
-        | "bool" -> Some(TDbList TBool)
-        | "boolean" -> Some(TDbList TBool)
-        | "password" -> Some(TDbList TPassword)
-        | "uuid" -> Some(TDbList TUuid)
-        | "dict" -> Some(TDbList(TDict any))
-        | "date" -> Some(TDbList TDate)
-        | "title" -> Some(TDbList TStr)
-        | "url" -> Some(TDbList TStr)
-        | _ -> None
-
-      if String.startsWith "[" str && String.endsWith "]" str then
-        str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
-      else
-        None
+// This allows you to build up a record to eventually be the right shape.
+// | TRecordWithFields of List<string * DType>
+// | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+// | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
 
 
 module Handler =
@@ -217,27 +118,6 @@ module Handler =
     | EveryHour
     | Every12Hours
     | EveryMinute
-
-    override this.ToString() : string =
-      match this with
-      | EveryDay -> "Daily"
-      | EveryWeek -> "Weekly"
-      | EveryFortnight -> "Fortnightly"
-      | EveryHour -> "Every 1hr"
-      | Every12Hours -> "Every 12hrs"
-      | EveryMinute -> "Every 1min"
-
-    static member parse(modifier : string) : Option<CronInterval> =
-      match String.toLowercase modifier with
-      | "daily" -> Some EveryDay
-      | "weekly" -> Some EveryWeek
-      | "fortnightly" -> Some EveryFortnight
-      | "every 1hr" -> Some EveryHour
-      | "every 12hrs" -> Some Every12Hours
-      | "every 1min" -> Some EveryMinute
-      | _ -> None
-
-
 
   // We need to keep the IDs around until we get rid of them on the client
   type ids = { moduleID : id; nameID : id; modifierID : id }
@@ -255,54 +135,6 @@ module Handler =
     // If there's no module
     // CLEANUP: convert these into repl and get rid of this case
     | UnknownHandler of name : string * modifier : string * ids : ids
-
-    member this.name() =
-      match this with
-      | HTTP (route, _method, _ids) -> route
-      | Worker (name, _ids) -> name
-      | OldWorker (_modulename, name, _ids) -> name
-      | Cron (name, interval, _ids) -> name
-      | REPL (name, _ids) -> name
-      | UnknownHandler (name, _modifier, _ids) -> name
-
-    member this.modifier() =
-      match this with
-      | HTTP (_route, method, _ids) -> method
-      | Worker (_name, _ids) -> "_"
-      | OldWorker (_modulename, _name, _ids) -> "_"
-      | Cron (_name, interval, _ids) ->
-        interval |> Option.map string |> Option.defaultValue ""
-      | REPL (_name, _ids) -> "_"
-      | UnknownHandler (name, modifier, ids) -> modifier
-
-    member this.module'() =
-      match this with
-      | HTTP _ -> "HTTP"
-      | Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
-      | OldWorker (modulename, _name, _ids) -> modulename
-      | Cron _ -> "CRON" // CLEANUP the DB relies on the casing
-      | REPL _ -> "REPL"
-      | UnknownHandler (name, modifier, ids) -> ""
-
-    member this.complete() : bool =
-      match this with
-      | HTTP ("", _, _) -> false
-      | HTTP (_, "", _) -> false
-      | Worker ("", _) -> false
-      | OldWorker ("", _, _) -> false
-      | OldWorker (_, "", _) -> false
-      | Cron ("", _, _) -> false
-      | Cron (_, None, _) -> false
-      | REPL ("", _) -> false
-      | UnknownHandler _ -> false
-      | _ -> true
-
-    // Same as a TraceInput.EventDesc
-    member this.toEventDesc() : Option<string * string * string> =
-      if this.complete () then
-        Some(this.module' (), this.name (), this.modifier ())
-      else
-        None
 
   type T = { tlid : tlid; pos : pos; ast : Expr; spec : Spec }
 
@@ -349,29 +181,22 @@ module UserFunction =
       infix : bool
       body : Expr }
 
-type Toplevel =
-  | TLHandler of Handler.T
-  | TLDB of DB.T
-  | TLFunction of UserFunction.T
-  | TLType of UserType.T
+module Toplevel =
+  type T =
+    | TLHandler of Handler.T
+    | TLDB of DB.T
+    | TLFunction of UserFunction.T
+    | TLType of UserType.T
 
-  member this.toTLID() : tlid =
-    match this with
+  let toTLID (tl : T) : tlid =
+    match tl with
     | TLHandler h -> h.tlid
     | TLDB db -> db.tlid
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
 
-  member this.toDBTypeString() =
-    match this with
-    | TLDB _ -> "db"
-    | TLHandler _ -> "handler"
-    | TLFunction _ -> "user_function"
-    | TLType _ -> "user_tipe"
-
 module Secret =
   type T = { name : string; value : string }
-
 
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
 
@@ -379,13 +204,7 @@ type DeprecatedMigrationKind = | DeprecatedMigrationKind
 ///
 /// "Op" is an abbreviation for Operation,
 /// and is preferred throughout code and documentation.
-
-
-open MessagePack
-open MessagePack.Resolvers
-open MessagePack.FSharp
-
-[<MessagePackObject>]
+[<MessagePack.MessagePackObject>]
 type Op =
   | SetHandler of tlid * pos * Handler.T
   | CreateDB of tlid * pos * string
@@ -421,6 +240,7 @@ type Op =
 type Oplist = List<Op>
 type TLIDOplists = List<tlid * Oplist>
 
+// Not actually serialized
 module Package =
   type Parameter = { name : string; typ : DType; description : string }
 

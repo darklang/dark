@@ -9,6 +9,8 @@ open TestUtils.TestUtils
 open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module G = FuzzTests.Utils.Generators
 
@@ -41,10 +43,10 @@ type Generator =
               let! module_ = modName
               let! function_ = fnName
               let! version = G.nonNegativeInt ()
-              return PT.FQFnName.stdlibFqName module_ function_ version
+              return PTParser.FQFnName.stdlibFqName module_ function_ version
             }
 
-          let user = Gen.map PT.FQFnName.userFqName fnName
+          let user = Gen.map PTParser.FQFnName.userFqName fnName
 
           let package =
             gen {
@@ -55,16 +57,24 @@ type Generator =
               let! version = G.nonNegativeInt ()
 
               return
-                PT.FQFnName.packageFqName owner package module_ function_ version
+                PTParser.FQFnName.packageFqName
+                  owner
+                  package
+                  module_
+                  function_
+                  version
             }
 
           Gen.oneof [ stdlib; user; package ] }
 
   static member RTFQFnName() : Arbitrary<RT.FQFnName.T> =
     { new Arbitrary<RT.FQFnName.T>() with
-        member x.Generator = Generator.PTFQFnName().Generator }
+        member x.Generator =
+          Generator.PTFQFnName().Generator |> Gen.map PT2RT.FQFnName.toRT }
 
-let ptRoundtrip (a : PT.FQFnName.T) : bool = string a |> PT.FQFnName.parse .=. a
+let ptRoundtrip (a : PT.FQFnName.T) : bool =
+  a |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString |> PTParser.FQFnName.parse
+  .=. a
 
 let tests =
   testList "PT.FQFnName" [ tpwg typeof<Generator> "roundtripping" ptRoundtrip ]

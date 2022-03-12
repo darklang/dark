@@ -11,7 +11,7 @@ open TestUtils.TestUtils
 
 open LibExecution.RuntimeTypes
 
-module Shortcuts = LibExecution.Shortcuts
+module Shortcuts = TestUtils.RTShortcuts
 
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
@@ -42,7 +42,7 @@ let testFilterSlash =
     let! meta = initializeTestCanvas "test-filter_slash"
     let route = "/:rest"
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // make irrelevant request
     let t1 = System.Guid.NewGuid()
@@ -64,7 +64,7 @@ let testRouteVariablesWorkWithStoredEvents =
     // set up handler
     let httpRoute = "/some/:vars/:and/such"
     let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event that matches the handler
     let t1 = System.Guid.NewGuid()
@@ -100,7 +100,7 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards =
 
     // set up handler
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event
     let t1 = System.Guid.NewGuid()

@@ -17,6 +17,7 @@ open Tablecloth
 open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 
 let isLatestOpRequest
@@ -68,7 +69,7 @@ let deserializeOCamlSerializedToplevel
   (typ : string)
   (ocamlSerialized : byte [])
   (pos : Option<string>)
-  : Task<PT.Toplevel> =
+  : Task<PT.Toplevel.T> =
   let deserializePos (pos : Option<string>) : pos =
     try
       pos
@@ -84,7 +85,7 @@ let deserializeOCamlSerializedToplevel
         json
         |> Json.OCamlCompatible.deserialize<OT.RuntimeT.DbT.db<OT.RuntimeT.fluidExpr>>
         |> OT.Convert.ocamlDB2PT (deserializePos pos)
-        |> PT.TLDB
+        |> PT.Toplevel.TLDB
     }
   | "handler" ->
     task {
@@ -93,7 +94,7 @@ let deserializeOCamlSerializedToplevel
         json
         |> Json.OCamlCompatible.deserialize<OT.RuntimeT.HandlerT.handler<OT.RuntimeT.fluidExpr>>
         |> OT.Convert.ocamlHandler2PT (deserializePos pos)
-        |> PT.TLHandler
+        |> PT.Toplevel.TLHandler
     }
   | "user_tipe" ->
     task {
@@ -103,7 +104,7 @@ let deserializeOCamlSerializedToplevel
         json
         |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_tipe>
         |> OT.Convert.ocamlUserType2PT
-        |> PT.TLType
+        |> PT.Toplevel.TLType
     }
   | "user_function" ->
     task {
@@ -112,7 +113,7 @@ let deserializeOCamlSerializedToplevel
         json
         |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_fn<OT.RuntimeT.fluidExpr>>
         |> OT.Convert.ocamlUserFunction2PT
-        |> PT.TLFunction
+        |> PT.Toplevel.TLFunction
     }
   | _ ->
     Exception.raiseInternal "Invalid tipe for toplevel" [ "type", typ; "tlid", tlid ]
@@ -130,7 +131,7 @@ let deserializeOCamlSerializedToplevel
 let loadOnlyRenderedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
-  : Task<List<PT.Toplevel>> =
+  : Task<List<PT.Toplevel.T>> =
   task {
     // We specifically only load where `deleted` IS FALSE (even though the column
     // is nullable). This means we will not load undeleted handlers from the
@@ -413,5 +414,5 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
       cronName = read.string "handler_name"
       interval =
         read.string "modifier"
-        |> PT.Handler.CronInterval.parse
+        |> PTParser.Handler.CronInterval.parse
         |> Option.unwrapUnsafe })

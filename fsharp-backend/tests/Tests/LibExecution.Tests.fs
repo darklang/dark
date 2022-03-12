@@ -14,6 +14,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Canvas = LibBackend.Canvas
@@ -45,7 +46,7 @@ let setUpWorkers meta workers =
     let oplists =
       workersWithIDs
       |> List.map (fun (_w, tlid) ->
-        tlid, ops, PT.TLHandler c.handlers[tlid], Canvas.NotDeleted)
+        tlid, ops, PT.Toplevel.TLHandler c.handlers[tlid], Canvas.NotDeleted)
 
     do! Canvas.saveTLIDs meta oplists
   }
@@ -285,7 +286,7 @@ let fileTests () : Test =
               |> Json.Vanilla.deserialize<Map<string, string>>
               |> Map.mapWithIndex (fun k v ->
                 let typ =
-                  PT.DType.parse v
+                  PTParser.DType.parse v
                   |> Exception.unwrapOptionInternal "Cannot parse type" []
                 ({ name = if k = "" then None else Some k
                    nameID = gid ()

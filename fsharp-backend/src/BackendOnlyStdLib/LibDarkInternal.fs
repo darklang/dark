@@ -981,7 +981,7 @@ that's already taken, returns an error."
             state.libraries.stdlib
             |> Map.toList
             |> List.filter (fun (key, data) ->
-              (not (key.isInternalFn ())) && data.deprecated = NotDeprecated)
+              (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)
             |> List.map (fun (key, data) ->
               let alist =
                 let returnType = DvalReprExternal.typeToBCTypeName data.returnType
@@ -990,7 +990,7 @@ that's already taken, returns an error."
                   |> List.map (fun p ->
                     Dval.obj [ ("name", DStr p.name)
                                ("type", DStr(DvalReprExternal.typeToBCTypeName p.typ)) ])
-                [ ("name", DStr(string key))
+                [ ("name", DStr(FQFnName.toString key))
                   ("documentation", DStr data.description)
                   ("parameters", DList parameters)
                   ("returnType", DStr returnType) ]

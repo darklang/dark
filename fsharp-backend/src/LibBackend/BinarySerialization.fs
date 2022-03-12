@@ -30,8 +30,8 @@ let internalSerialize (data : 'a) : byte [] =
 let internalDeserialize<'a> (bytes : byte []) : 'a =
   MessagePackSerializer.Deserialize<'a> bytes
 
-let serializeToplevel (tl : PT.Toplevel) : byte [] = internalSerialize tl
-let deserializeToplevel (data : byte []) : PT.Toplevel = internalDeserialize data
+let serializeToplevel (tl : PT.Toplevel.T) : byte [] = internalSerialize tl
+let deserializeToplevel (data : byte []) : PT.Toplevel.T = internalDeserialize data
 
 let serializeOplist (oplist : PT.Oplist) : byte [] = internalSerialize oplist
 

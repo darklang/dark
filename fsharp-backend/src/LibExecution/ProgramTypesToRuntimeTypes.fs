@@ -8,6 +8,26 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
+module FQFnName =
+  module PackageFnName =
+    let toRT (name : PT.FQFnName.PackageFnName) : RT.FQFnName.PackageFnName =
+      { owner = name.owner
+        package = name.package
+        module_ = name.module_
+        function_ = name.function_
+        version = name.version }
+
+  module StdlibFnName =
+    let toRT (name : PT.FQFnName.StdlibFnName) : RT.FQFnName.StdlibFnName =
+      { module_ = name.module_; function_ = name.function_; version = name.version }
+
+  let toRT (fqfn : PT.FQFnName.T) : RT.FQFnName.T =
+    match fqfn with
+    | PT.FQFnName.User u -> RT.FQFnName.User u
+    | PT.FQFnName.Stdlib fn -> RT.FQFnName.Stdlib(StdlibFnName.toRT fn)
+    | PT.FQFnName.Package p -> RT.FQFnName.Package(PackageFnName.toRT p)
+
+
 module SendToRail =
   let toRT (ster : PT.SendToRail) : RT.SendToRail =
     match ster with
@@ -47,7 +67,7 @@ module Expr =
     | PT.EFnCall (id, name, args, ster) ->
       RT.EApply(
         id,
-        RT.EFQFnValue(gid (), name),
+        RT.EFQFnValue(gid (), FQFnName.toRT name),
         List.map toRT args,
         RT.NotInPipe,
         SendToRail.toRT ster
@@ -79,7 +99,7 @@ module Expr =
           | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs, rail) ->
             RT.EApply(
               id,
-              RT.EFQFnValue(ptID, name),
+              RT.EFQFnValue(ptID, FQFnName.toRT name),
               prev :: List.map toRT exprs,
               RT.InPipe pipeID,
               SendToRail.toRT rail
@@ -88,7 +108,7 @@ module Expr =
           | PT.EBinOp (id, name, PT.EPipeTarget ptID, expr2, rail) ->
             RT.EApply(
               id,
-              RT.EFQFnValue(ptID, name),
+              RT.EFQFnValue(ptID, FQFnName.toRT name),
               [ prev; toRT expr2 ],
               RT.InPipe pipeID,
               SendToRail.toRT rail
@@ -220,12 +240,12 @@ module UserFunction =
       body = Expr.toRT f.body }
 
 module Toplevel =
-  let toRT (tl : PT.Toplevel) : RT.Toplevel =
+  let toRT (tl : PT.Toplevel.T) : RT.Toplevel.T =
     match tl with
-    | PT.TLHandler h -> RT.TLHandler(Handler.toRT h)
-    | PT.TLDB db -> RT.TLDB(DB.toRT db)
-    | PT.TLFunction f -> RT.TLFunction(UserFunction.toRT f)
-    | PT.TLType t -> RT.TLType(UserType.toRT t)
+    | PT.Toplevel.TLHandler h -> RT.Toplevel.TLHandler(Handler.toRT h)
+    | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
+    | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT f)
+    | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT t)
 
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T = { name = s.name; value = s.value }
@@ -236,7 +256,7 @@ module Package =
       { name = p.name; typ = DType.toRT p.typ; description = p.description }
 
   let toRT (f : PT.Package.Fn) : RT.Package.Fn =
-    { name = f.name
+    { name = FQFnName.PackageFnName.toRT f.name
       body = Expr.toRT f.body
       parameters = List.map Parameter.toRT f.parameters
       returnType = DType.toRT f.returnType

@@ -12,6 +12,8 @@ open Tablecloth
 open Db
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
 module Convert = OT.Convert
@@ -331,14 +333,20 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
               function_ = fnname
               version = version }
           use _span =
-            LibService.Telemetry.child "decode package binary" [ "fn", string name ]
+            LibService.Telemetry.child
+              "decode package binary"
+              [ "fn",
+                name
+                |> PT2RT.FQFnName.PackageFnName.toRT
+                |> RT.FQFnName.PackageFnName.toString
+                :> obj ]
           let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
 
           return
             ({ name = name
                body = expr
                returnType =
-                 PT.DType.parse returnType
+                 PTParser.DType.parse returnType
                  |> Exception.unwrapOptionInternal
                       "Cannot parse returnType"
                       [ "type", returnType ]

@@ -12,10 +12,10 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <!-- actual execution -->
     <Compile Include="VendoredTablecloth.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
-    <Compile Include="Shortcuts.fs" />
     <Compile Include="DvalReprInternal.fs" />
     <Compile Include="DvalReprExternal.fs" />
     <Compile Include="Errors.fs" />
@@ -23,7 +23,9 @@
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
+    <!-- getting types in and out -->
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="ProgramTypesParser.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <Compile Include="OCamlTypes.fs" />

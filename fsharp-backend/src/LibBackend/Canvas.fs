@@ -13,6 +13,7 @@ open Tablecloth
 open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OT = LibExecution.OCamlTypes
@@ -71,35 +72,36 @@ type T =
     deletedUserTypes : Map<tlid, PT.UserType.T>
     secrets : Map<string, PT.Secret.T> }
 
-let addToplevel (tl : PT.Toplevel) (c : T) : T =
-  let tlid = tl.toTLID ()
+let addToplevel (tl : PT.Toplevel.T) (c : T) : T =
+  let tlid = PT.Toplevel.toTLID tl
 
   match tl with
-  | PT.TLHandler h -> { c with handlers = Map.add tlid h c.handlers }
-  | PT.TLDB db -> { c with dbs = Map.add tlid db c.dbs }
-  | PT.TLType t -> { c with userTypes = Map.add tlid t c.userTypes }
-  | PT.TLFunction f -> { c with userFunctions = Map.add tlid f c.userFunctions }
+  | PT.Toplevel.TLHandler h -> { c with handlers = Map.add tlid h c.handlers }
+  | PT.Toplevel.TLDB db -> { c with dbs = Map.add tlid db c.dbs }
+  | PT.Toplevel.TLType t -> { c with userTypes = Map.add tlid t c.userTypes }
+  | PT.Toplevel.TLFunction f ->
+    { c with userFunctions = Map.add tlid f c.userFunctions }
 
-let addToplevels (tls : PT.Toplevel list) (canvas : T) : T =
+let addToplevels (tls : PT.Toplevel.T list) (canvas : T) : T =
   List.fold canvas (fun c tl -> addToplevel tl c) tls
 
-let toplevels (c : T) : Map<tlid, PT.Toplevel> =
+let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   let map f l = Map.map f l |> Map.toSeq
 
-  [ map PT.TLHandler c.handlers
-    map PT.TLDB c.dbs
-    map PT.TLType c.userTypes
-    map PT.TLFunction c.userFunctions ]
+  [ map PT.Toplevel.TLHandler c.handlers
+    map PT.Toplevel.TLDB c.dbs
+    map PT.Toplevel.TLType c.userTypes
+    map PT.Toplevel.TLFunction c.userFunctions ]
   |> Seq.concat
   |> Map
 
-let deletedToplevels (c : T) : Map<tlid, PT.Toplevel> =
+let deletedToplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   let map f l = Map.map f l |> Map.toSeq
 
-  [ map PT.TLHandler c.deletedHandlers
-    map PT.TLDB c.deletedDBs
-    map PT.TLType c.deletedUserTypes
-    map PT.TLFunction c.deletedUserFunctions ]
+  [ map PT.Toplevel.TLHandler c.deletedHandlers
+    map PT.Toplevel.TLDB c.deletedDBs
+    map PT.Toplevel.TLType c.deletedUserTypes
+    map PT.Toplevel.TLFunction c.deletedUserFunctions ]
   |> Seq.concat
   |> Map
 
@@ -224,12 +226,12 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
       applyToDB (UserDB.setColName id name) tlid c
     | PT.SetDBColType (tlid, id, tipe) ->
       let typ =
-        PT.DType.parse tipe
+        PTParser.DType.parse tipe
         |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
       applyToDB (UserDB.setColType id typ) tlid c
     | PT.ChangeDBColType (tlid, id, tipe) ->
       let typ =
-        PT.DType.parse tipe
+        PTParser.DType.parse tipe
         |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
       applyToDB (UserDB.setColType id typ) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
@@ -415,8 +417,7 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
       // load
       let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids
 
-      let fastLoadedTLIDs =
-        List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
+      let fastLoadedTLIDs = List.map PT.Toplevel.toTLID fastLoadedTLs
 
       let notLoadedTLIDs =
         List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
@@ -492,34 +493,37 @@ type Deleted =
   | Deleted
   | NotDeleted
 
-let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel> =
+let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   let handler () =
     Map.tryFind tlid c.handlers
-    |> Option.map (fun h -> (NotDeleted, PT.TLHandler h))
+    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLHandler h))
 
   let deletedHandler () =
     Map.tryFind tlid c.deletedHandlers
-    |> Option.map (fun h -> (Deleted, PT.TLHandler h))
+    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLHandler h))
 
-  let db () = Map.tryFind tlid c.dbs |> Option.map (fun h -> (NotDeleted, PT.TLDB h))
+  let db () =
+    Map.tryFind tlid c.dbs |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLDB h))
 
   let deletedDB () =
-    Map.tryFind tlid c.deletedDBs |> Option.map (fun h -> (Deleted, PT.TLDB h))
+    Map.tryFind tlid c.deletedDBs
+    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLDB h))
 
   let userFunction () =
     Map.tryFind tlid c.userFunctions
-    |> Option.map (fun h -> (NotDeleted, PT.TLFunction h))
+    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLFunction h))
 
   let deletedUserFunction () =
     Map.tryFind tlid c.deletedUserFunctions
-    |> Option.map (fun h -> (Deleted, PT.TLFunction h))
+    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLFunction h))
 
   let userType () =
-    Map.tryFind tlid c.userTypes |> Option.map (fun h -> (NotDeleted, PT.TLType h))
+    Map.tryFind tlid c.userTypes
+    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLType h))
 
   let deletedUserType () =
     Map.tryFind tlid c.deletedUserTypes
-    |> Option.map (fun h -> (Deleted, PT.TLType h))
+    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLType h))
 
   handler ()
   |> Option.orElseWith deletedHandler
@@ -535,7 +539,7 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel> =
 // calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
   (meta : Meta)
-  (oplists : List<tlid * PT.Oplist * PT.Toplevel * Deleted>)
+  (oplists : List<tlid * PT.Oplist * PT.Toplevel.T * Deleted>)
   : Task =
   try
     // Use ops rather than just set of toplevels, because toplevels may
@@ -554,23 +558,27 @@ let saveTLIDs
 
         let routingNames =
           match tl with
-          | PT.TLHandler ({ spec = spec }) ->
+          | PT.Toplevel.TLHandler ({ spec = spec }) ->
             match spec with
             | PT.Handler.HTTP _ ->
               Some(
-                spec.module' (),
-                Routing.routeToPostgresPattern (spec.name ()),
-                spec.modifier ()
+                PTParser.Handler.Spec.toModule spec,
+                Routing.routeToPostgresPattern (PTParser.Handler.Spec.toName spec),
+                PTParser.Handler.Spec.toModifier spec
               )
             | PT.Handler.Worker _
             | PT.Handler.OldWorker _
             | PT.Handler.Cron _
             | PT.Handler.UnknownHandler _
             | PT.Handler.REPL _ ->
-              Some(spec.module' (), spec.name (), spec.modifier ())
-          | PT.TLDB _
-          | PT.TLType _
-          | PT.TLFunction _ -> None
+              Some(
+                PTParser.Handler.Spec.toModule spec,
+                PTParser.Handler.Spec.toName spec,
+                PTParser.Handler.Spec.toModifier spec
+              )
+          | PT.Toplevel.TLDB _
+          | PT.Toplevel.TLType _
+          | PT.Toplevel.TLFunction _ -> None
 
         let (module_, name, modifier) =
           match routingNames with
@@ -580,10 +588,10 @@ let saveTLIDs
 
         let pos =
           match tl with
-          | PT.TLHandler ({ pos = pos })
-          | PT.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
-          | PT.TLType _ -> None
-          | PT.TLFunction _ -> None
+          | PT.Toplevel.TLHandler ({ pos = pos })
+          | PT.Toplevel.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
+          | PT.Toplevel.TLType _ -> None
+          | PT.Toplevel.TLFunction _ -> None
 
         // CLEANUP stop saving the ocaml binary
         let! ocamlOplist = OCamlInterop.oplistToBinary oplist
@@ -616,7 +624,7 @@ let saveTLIDs
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
                               "digest", Sql.string (OCamlInterop.digest ())
-                              "typ", Sql.string (tl.toDBTypeString ())
+                              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
                               "name", Sql.stringOrNone name
                               "module", Sql.stringOrNone module_
                               "modifier", Sql.stringOrNone modifier
