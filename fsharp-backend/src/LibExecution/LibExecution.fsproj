@@ -25,6 +25,7 @@
     <Compile Include="Execution.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="ProgramTypesAst.fs" />
+    <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <Compile Include="OCamlTypes.fs" />
     <Compile Include="OCamlTypesAst.fs" />
     <Compile Include="Init.fs" />

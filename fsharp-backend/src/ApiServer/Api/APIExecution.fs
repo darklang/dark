@@ -13,6 +13,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Convert = LibExecution.OCamlTypes.Convert
 
@@ -106,7 +107,7 @@ module Handler =
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
       let program = Canvas.toProgram c
-      let expr = c.handlers[ p.tlid ].ast.toRuntimeType ()
+      let expr = c.handlers[p.tlid].ast |> PT2RT.Expr.toRT
 
       t.next "load-execution-state"
       let! state, touchedTLIDs =

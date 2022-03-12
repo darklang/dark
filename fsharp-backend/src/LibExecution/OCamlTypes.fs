@@ -19,6 +19,7 @@ open VendoredTablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type id = uint64
 
@@ -1066,7 +1067,7 @@ module Convert =
         RT.Lambda
           { parameters = args.``params``
             symtable = Map.map c args.symtable
-            body = args.body |> ocamlExpr2PT |> fun x -> x.toRuntimeType () }
+            body = args.body |> ocamlExpr2PT |> PT2RT.Expr.toRT }
       )
     | ORT.DIncomplete ORT.SourceNone -> RT.DIncomplete RT.SourceNone
     | ORT.DIncomplete (ORT.SourceId (tlid, id)) ->

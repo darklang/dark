@@ -9,6 +9,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
@@ -170,19 +171,19 @@ module Eval =
           userFns =
             userFns
             |> List.map OT.Convert.ocamlUserFunction2PT
-            |> List.map PT.UserFunction.toRuntimeType
+            |> List.map PT2RT.UserFunction.toRT
             |> List.map (fun fn -> fn.name, fn)
             |> Map
           userTypes =
             userTypes
             |> List.map OT.Convert.ocamlUserType2PT
-            |> List.map PT.UserType.toRuntimeType
+            |> List.map PT2RT.UserType.toRT
             |> List.map (fun t -> (t.name, t.version), t)
             |> Map
           dbs =
             dbs
             |> List.map (OT.Convert.ocamlDB2PT { x = 0; y = 0 })
-            |> List.map PT.DB.toRuntimeType
+            |> List.map PT2RT.DB.toRT
             |> List.map (fun t -> t.name, t)
             |> Map
           secrets = [] }
@@ -213,7 +214,7 @@ module Eval =
           tlid
           program
 
-      let ast = (expr |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
+      let ast = expr |> OT.Convert.ocamlExpr2PT |> PT2RT.Expr.toRT
       let inputVars = Map traceData.input
       let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
 

@@ -10,6 +10,7 @@ open LibBackend.Db
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module EQ = LibBackend.EventQueue
 module TI = LibBackend.TraceInputs
 module Execution = LibExecution.Execution
@@ -117,7 +118,9 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                   let symtable = Map.ofList [ ("event", event.value) ]
 
                   let! result =
-                    Execution.executeHandler state symtable (h.ast.toRuntimeType ())
+                    h.ast
+                    |> PT2RT.Expr.toRT
+                    |> Execution.executeHandler state symtable
 
                   Pusher.pushNewTraceID
                     executionID

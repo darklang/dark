@@ -15,6 +15,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type DBStat = { count : int; example : Option<RT.Dval * string> }
 
@@ -29,7 +30,7 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
     Map.get tlid c.dbs |> Option.map (fun db -> (tlid, db)))
   |> List.map (fun (tlid, db) ->
     task {
-      let db = PT.DB.toRuntimeType db
+      let db = PT2RT.DB.toRT db
       // CLEANUP this is a lot of reqs
       let! count = UserDB.statsCount canvasID ownerID db
       let! example = UserDB.statsPluck canvasID ownerID db

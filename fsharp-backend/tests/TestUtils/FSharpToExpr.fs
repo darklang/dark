@@ -365,4 +365,6 @@ let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
   | _ -> true, convert ast, PT.EBool(gid (), true)
 
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
-let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType ()
+
+let parseRTExpr (code : string) : RT.Expr =
+  parsePTExpr code |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT

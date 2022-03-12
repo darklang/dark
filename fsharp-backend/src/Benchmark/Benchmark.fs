@@ -8,6 +8,7 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RealExe = LibRealExecution.RealExecution
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
@@ -133,7 +134,7 @@ let runBenchmark
     let! code =
       System.IO.File.ReadAllTextAsync $"src/Benchmark/benchmarks/{filename}"
     let ptExpr = FSharpToExpr.parsePTExpr code
-    let rtExpr = ptExpr.toRuntimeType ()
+    let rtExpr = PT2RT.Expr.toRT ptExpr
     do! runOCamlBenchmark ptExpr iterations warmUpCount
     do! runFSharpBenchmark rtExpr iterations warmUpCount
     return ()

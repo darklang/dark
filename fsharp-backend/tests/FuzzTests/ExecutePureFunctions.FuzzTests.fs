@@ -17,6 +17,7 @@ open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module G = Generators
 
@@ -568,8 +569,7 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
 
       let! state = executionStateFor meta Map.empty Map.empty
 
-      let! actual =
-        LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())
+      let! actual = LibExecution.Execution.executeExpr state st (PT2RT.Expr.toRT ast)
 
       // Error messages are not required to be directly the same between
       // old and new implementations. However, this can hide errors, so we

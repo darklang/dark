@@ -14,6 +14,7 @@ open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OT = LibExecution.OCamlTypes
 module Telemetry = LibService.Telemetry
 
@@ -722,22 +723,22 @@ let toProgram (c : T) : RT.ProgramContext =
   let dbs =
     c.dbs
     |> Map.values
-    |> List.map (fun db -> (db.name, PT.DB.toRuntimeType db))
+    |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
     |> Map.ofList
 
   let userFns =
     c.userFunctions
     |> Map.values
-    |> List.map (fun f -> (f.name, PT.UserFunction.toRuntimeType f))
+    |> List.map (fun f -> (f.name, PT2RT.UserFunction.toRT f))
     |> Map.ofList
 
   let userTypes =
     c.userTypes
     |> Map.values
-    |> List.map (fun t -> ((t.name, t.version), PT.UserType.toRuntimeType t))
+    |> List.map (fun t -> ((t.name, t.version), PT2RT.UserType.toRT t))
     |> Map.ofList
 
-  let secrets = (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
+  let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
   { accountID = c.meta.owner
     canvasName = c.meta.name

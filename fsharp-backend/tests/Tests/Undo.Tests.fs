@@ -12,6 +12,7 @@ open TestUtils.TestUtils
 module Canvas = LibBackend.Canvas
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
 let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
@@ -52,7 +53,7 @@ let testUndo : Test =
         let c = Canvas.fromOplist meta [] ops
         let! state = executionStateFor meta Map.empty Map.empty
         let h = Map.get tlid c.handlers |> Option.unwrapUnsafe
-        return! Exe.executeExpr state Map.empty (h.ast.toRuntimeType ())
+        return! Exe.executeExpr state Map.empty (PT2RT.Expr.toRT h.ast)
       }
 
     let! v = exe ops

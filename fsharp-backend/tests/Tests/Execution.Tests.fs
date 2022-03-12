@@ -17,6 +17,7 @@ module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
@@ -62,8 +63,7 @@ let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
-    let fn =
-      testUserFn name [] (PT.EInteger(gid (), 5)) |> PT.UserFunction.toRuntimeType
+    let fn = testUserFn name [] (PT.EInteger(gid (), 5)) |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor meta Map.empty fns
 
@@ -180,8 +180,7 @@ let testRecursionInEditor : Test =
         )
       )
 
-    let recurse =
-      testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
+    let recurse = testUserFn "recurse" [ "i" ] fnExpr |> PT2RT.UserFunction.toRT
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
     let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 

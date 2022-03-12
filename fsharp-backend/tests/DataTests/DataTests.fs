@@ -17,6 +17,7 @@ module Canvas = LibBackend.Canvas
 module Execution = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type CDict() =
   inherit System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
@@ -181,10 +182,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
       let! meta = Canvas.getMeta canvasName
       let! c = Canvas.loadAllDBs meta
       let dbs =
-        c.dbs
-        |> Map.values
-        |> List.map (fun db -> db.name, PT.DB.toRuntimeType db)
-        |> Map
+        c.dbs |> Map.values |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map
       let! state = TestUtils.TestUtils.executionStateFor meta dbs Map.empty
       let! (result : List<unit>) =
         dbs
@@ -197,7 +195,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
               LibExecution.Execution.executeExpr
                 state
                 (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) dbs)
-                (ast.toRuntimeType ())
+                (PT2RT.Expr.toRT ast)
 
             // For this to work, we need to make PasswordBytes.to_yojson return
             // [`String (Bytes.to_string bytes)]

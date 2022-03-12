@@ -192,106 +192,9 @@ type Expr =
       (* exhaustiveness check *)
       false
 
-
-
-  member this.toRuntimeType() : RT.Expr =
-    let r (v : Expr) = v.toRuntimeType ()
-
-    match this with
-    | EBlank id -> RT.EBlank id
-    | ECharacter (id, char) -> RT.ECharacter(id, char)
-    | EInteger (id, num) -> RT.EInteger(id, num)
-    | EString (id, str) -> RT.EString(id, str)
-    | EFloat (id, sign, whole, fraction) ->
-      RT.EFloat(id, makeFloat sign whole fraction)
-    | EBool (id, b) -> RT.EBool(id, b)
-    | ENull id -> RT.ENull id
-    | EVariable (id, var) -> RT.EVariable(id, var)
-    | EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
-    | EFnCall (id, name, args, ster) ->
-      RT.EApply(
-        id,
-        RT.EFQFnValue(gid (), name),
-        List.map r args,
-        RT.NotInPipe,
-        ster.toRuntimeType ()
-      )
-    | EBinOp (id, name, arg1, arg2, ster) ->
-      r (EFnCall(id, name, [ arg1; arg2 ], ster))
-    | ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
-    | ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
-    | EIf (id, cond, thenExpr, elseExpr) ->
-      RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | EPartial (id, _, oldExpr)
-    | ERightPartial (id, _, oldExpr)
-    | ELeftPartial (id, _, oldExpr) -> RT.EPartial(id, r oldExpr)
-    | EList (id, exprs) -> RT.EList(id, List.map r exprs)
-    | ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
-    | EPipe (pipeID, expr1, expr2, rest) ->
-      // Convert v |> fn1 a |> fn2 |> fn3 b c
-      // into fn3 (fn2 (fn1 v a)) b c
-      // This conversion should correspond to ast.ml:inject_param_and_execute
-      // from the OCaml interpreter
-      let inner = r expr1
-
-      List.fold
-        inner
-        (fun prev next ->
-          match next with
-          // TODO: support currying
-          | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
-            RT.EApply(
-              id,
-              RT.EFQFnValue(ptID, name),
-              prev :: List.map r exprs,
-              RT.InPipe pipeID,
-              rail.toRuntimeType ()
-            )
-          // TODO: support currying
-          | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
-            RT.EApply(
-              id,
-              RT.EFQFnValue(ptID, name),
-              [ prev; r expr2 ],
-              RT.InPipe pipeID,
-              rail.toRuntimeType ()
-            )
-          // If there's a hole, run the computation right through it as if it wasn't there
-          | EBlank _ -> prev
-          // Here, the expression evaluates to an FnValue. This is for eg variables containing values
-          | other ->
-            RT.EApply(
-              pipeID,
-              r other,
-              [ prev ],
-              RT.InPipe pipeID,
-              NoRail.toRuntimeType ()
-            ))
-        (expr2 :: rest)
-
-    | EConstructor (id, name, exprs) -> RT.EConstructor(id, name, List.map r exprs)
-    | EMatch (id, mexpr, pairs) ->
-      RT.EMatch(
-        id,
-        r mexpr,
-        List.map
-          ((Tuple2.mapFirst (fun (p : Pattern) -> p.toRuntimeType ()))
-           << (Tuple2.mapSecond r))
-          pairs
-      )
-    | EPipeTarget id -> Exception.raiseInternal "No EPipeTargets should remain" []
-    | EFeatureFlag (id, name, cond, caseA, caseB) ->
-      RT.EFeatureFlag(id, r cond, r caseA, r caseB)
-
-
 and SendToRail =
   | Rail
   | NoRail
-
-  member this.toRuntimeType() : RT.SendToRail =
-    match this with
-    | Rail -> RT.Rail
-    | NoRail -> RT.NoRail
 
 and Pattern =
   | PVariable of id * string
@@ -303,20 +206,6 @@ and Pattern =
   | PFloat of id * Sign * string * string
   | PNull of id
   | PBlank of id
-
-  member this.toRuntimeType() : RT.Pattern =
-    let r (v : Pattern) = v.toRuntimeType ()
-
-    match this with
-    | PVariable (id, str) -> RT.PVariable(id, str)
-    | PConstructor (id, name, pats) -> RT.PConstructor(id, name, List.map r pats)
-    | PInteger (id, i) -> RT.PInteger(id, i)
-    | PBool (id, b) -> RT.PBool(id, b)
-    | PCharacter (id, c) -> RT.PCharacter(id, c)
-    | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat s w f)
-    | PNull id -> RT.PNull id
-    | PBlank id -> RT.PBlank id
 
   member this.testEqualIgnoringIDs(other : Pattern) : bool =
     let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (b)
@@ -374,39 +263,6 @@ type DType =
   // | TRecordWithFields of List<string * DType>
   // | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
   // | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-
-  member this.toRuntimeType() : RT.DType =
-    match this with
-    | TInt -> RT.TInt
-    | TFloat -> RT.TFloat
-    | TBool -> RT.TBool
-    | TNull -> RT.TNull
-    | TStr -> RT.TStr
-    | TList typ -> RT.TList(typ.toRuntimeType ())
-    | TDict typ -> RT.TDict(typ.toRuntimeType ())
-    | TIncomplete -> RT.TIncomplete
-    | TError -> RT.TError
-    | THttpResponse typ -> RT.THttpResponse(typ.toRuntimeType ())
-    | TDB typ -> RT.TDB(typ.toRuntimeType ())
-    | TDate -> RT.TDate
-    | TChar -> RT.TChar
-    | TPassword -> RT.TPassword
-    | TUuid -> RT.TUuid
-    | TOption typ -> RT.TOption(typ.toRuntimeType ())
-    | TErrorRail -> RT.TErrorRail
-    | TUserType (name, version) -> RT.TUserType(name, version)
-    | TBytes -> RT.TBytes
-    | TResult (okType, errType) ->
-      RT.TResult(okType.toRuntimeType (), errType.toRuntimeType ())
-    | TVariable (name) -> RT.TVariable(name)
-    | TFn (paramTypes, returnType) ->
-      RT.TFn(
-        List.map (fun (pt : DType) -> pt.toRuntimeType ()) paramTypes,
-        returnType.toRuntimeType ()
-      )
-    | TRecord (rows) ->
-      RT.TRecord(List.map (fun (f, v : DType) -> f, v.toRuntimeType ()) rows)
-    | TDbList typ -> RT.TList(typ.toRuntimeType ())
 
   static member parse(str : string) : Option<DType> =
     let any = TVariable "a"
@@ -470,15 +326,6 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
-    member this.toRuntimeType() : RT.Handler.CronInterval =
-      match this with
-      | EveryDay -> RT.Handler.EveryDay
-      | EveryWeek -> RT.Handler.EveryWeek
-      | EveryFortnight -> RT.Handler.EveryFortnight
-      | EveryHour -> RT.Handler.EveryHour
-      | Every12Hours -> RT.Handler.Every12Hours
-      | EveryMinute -> RT.Handler.EveryMinute
-
     override this.ToString() : string =
       match this with
       | EveryDay -> "Daily"
@@ -516,16 +363,6 @@ module Handler =
     // If there's no module
     // CLEANUP: convert these into repl and get rid of this case
     | UnknownHandler of name : string * modifier : string * ids : ids
-
-    member this.toRuntimeType() : RT.Handler.Spec =
-      match this with
-      | HTTP (route, method, _ids) -> RT.Handler.HTTP(route, method)
-      | Worker (name, _ids) -> RT.Handler.Worker(name)
-      | OldWorker (modulename, name, _ids) -> RT.Handler.OldWorker(modulename, name)
-      | Cron (name, interval, _ids) ->
-        RT.Handler.Cron(name, interval |> Option.map (fun i -> i.toRuntimeType ()))
-      | REPL (name, _ids) -> RT.Handler.REPL(name)
-      | UnknownHandler (_name, _modifier, _ids) -> RT.Handler.UnknownHandler
 
     member this.name() =
       match this with
@@ -575,16 +412,8 @@ module Handler =
       else
         None
 
-  type T =
-    { tlid : tlid
-      pos : pos
-      ast : Expr
-      spec : Spec }
+  type T = { tlid : tlid; pos : pos; ast : Expr; spec : Spec }
 
-    member this.toRuntimeType() : RT.Handler.T =
-      { tlid = this.tlid
-        ast = this.ast.toRuntimeType ()
-        spec = this.spec.toRuntimeType () }
 
 module DB =
   type Col = { name : Option<string>; typ : Option<DType>; nameID : id; typeID : id }
@@ -596,18 +425,6 @@ module DB =
       name : string
       version : int
       cols : List<Col> }
-
-  let toRuntimeType (db : T) : RT.DB.T =
-    { tlid = db.tlid
-      name = db.name
-      version = db.version
-      cols =
-        List.filterMap
-          (fun (c : Col) ->
-            match c.name, c.typ with
-            | Some n, Some t -> Some(n, t.toRuntimeType ())
-            | _ -> None)
-          db.cols }
 
 module UserType =
   type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
@@ -621,24 +438,6 @@ module UserType =
       version : int
       definition : Definition }
 
-  let toRuntimeType (t : T) : RT.UserType.T =
-    let defToRuntimeType (d : Definition) : RT.UserType.Definition =
-      match d with
-      | Record fields ->
-        RT.UserType.UTRecord(
-          List.filterMap
-            (fun (rf : RecordField) ->
-              match rf.typ with
-              | Some t -> Some({ name = rf.name; typ = t.toRuntimeType () })
-              | None -> None)
-            fields
-        )
-
-    { tlid = t.tlid
-      name = t.name
-      version = t.version
-      definition = defToRuntimeType t.definition }
-
 module UserFunction =
   type Parameter =
     { name : string
@@ -646,11 +445,6 @@ module UserFunction =
       typ : Option<DType>
       typeID : id
       description : string }
-
-    member this.toRuntimeType() : RT.UserFunction.Parameter =
-      { name = this.name
-        typ = (Option.unwrap (TVariable "a") this.typ).toRuntimeType ()
-        description = this.description }
 
   type T =
     { tlid : tlid
@@ -662,15 +456,6 @@ module UserFunction =
       description : string
       infix : bool
       body : Expr }
-
-  let toRuntimeType (f : T) : RT.UserFunction.T =
-    { tlid = f.tlid
-      name = f.name
-      parameters = List.map (fun (p : Parameter) -> p.toRuntimeType ()) f.parameters
-      returnType = f.returnType.toRuntimeType ()
-      description = f.description
-      infix = f.infix
-      body = f.body.toRuntimeType () }
 
 type Toplevel =
   | TLHandler of Handler.T
@@ -685,13 +470,6 @@ type Toplevel =
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
 
-  member this.toRuntimeType() : RT.Toplevel =
-    match this with
-    | TLHandler h -> RT.TLHandler(h.toRuntimeType ())
-    | TLDB db -> RT.TLDB(DB.toRuntimeType db)
-    | TLFunction f -> RT.TLFunction(UserFunction.toRuntimeType f)
-    | TLType t -> RT.TLType(UserType.toRuntimeType t)
-
   member this.toDBTypeString() =
     match this with
     | TLDB _ -> "db"
@@ -700,12 +478,7 @@ type Toplevel =
     | TLType _ -> "user_tipe"
 
 module Secret =
-  type T =
-    { name : string
-      value : string }
-
-    member this.toRuntimeType() : RT.Secret.T =
-      { name = this.name; value = this.value }
+  type T = { name : string; value : string }
 
 
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
@@ -768,16 +541,3 @@ module Package =
       author : string
       deprecated : bool
       tlid : tlid }
-
-  let toRuntimeType (f : Fn) : RT.Package.Fn =
-    let paramToRuntimeType (p : Parameter) : RT.Package.Parameter =
-      { name = p.name; typ = p.typ.toRuntimeType (); description = p.description }
-
-    { name = f.name
-      body = f.body.toRuntimeType ()
-      parameters = List.map paramToRuntimeType f.parameters
-      returnType = f.returnType.toRuntimeType ()
-      description = f.description
-      author = f.author
-      deprecated = f.deprecated
-      tlid = f.tlid }

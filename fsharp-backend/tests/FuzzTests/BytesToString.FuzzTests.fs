@@ -10,6 +10,7 @@ open FuzzTests.Utils
 
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Generator =
   static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.string ())
@@ -26,7 +27,7 @@ let toStringTest (bytes : byte []) : bool =
 
       let! state = executionStateFor meta Map.empty Map.empty
       let! actual =
-        LibExecution.Execution.executeExpr state symtable (ast.toRuntimeType ())
+        LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
 
       if Expect.dvalEquality actual expected then return true else return false
     }

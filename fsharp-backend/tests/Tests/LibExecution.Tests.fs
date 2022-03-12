@@ -14,6 +14,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Canvas = LibBackend.Canvas
 
@@ -76,9 +77,9 @@ let t
         if workers <> [] then do! setUpWorkers meta workers
 
         let rtDBs =
-          (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
+          (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
 
-        let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
+        let rtFunctions = functions |> Map.map PT2RT.UserFunction.toRT
 
         let! state = executionStateFor meta rtDBs rtFunctions
 
@@ -90,7 +91,7 @@ let t
         let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
 
         let! expected =
-          Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
+          Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
         do! clearCanvasData meta.owner meta.name
 
@@ -127,7 +128,7 @@ let t
 
         if testFSharp then
           let! fsharpActual =
-            Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
+            Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualProg)
 
           let fsharpActual = normalizeDvalResult fsharpActual
 

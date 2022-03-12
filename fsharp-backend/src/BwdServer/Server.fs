@@ -29,6 +29,7 @@ open LibService.Exception
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
@@ -336,7 +337,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
 
           let program = Canvas.toProgram canvas
-          let expr = expr.toRuntimeType ()
+          let expr = PT2RT.Expr.toRT expr
 
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
