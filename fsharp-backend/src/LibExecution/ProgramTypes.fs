@@ -80,8 +80,20 @@ module FQFnName =
     | Regex "^(.*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
 
+type Pattern =
+  | PVariable of id * string
+  | PConstructor of id * string * List<Pattern>
+  | PInteger of id * int64
+  | PBool of id * bool
+  | PCharacter of id * string
+  | PString of id * string
+  | PFloat of id * Sign * string * string
+  | PNull of id
+  | PBlank of id
 
-
+type SendToRail =
+  | Rail
+  | NoRail
 
 /// Expressions - the main part of the language.
 type Expr =
@@ -112,126 +124,6 @@ type Expr =
   | EMatch of id * Expr * List<Pattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
-
-  member this.testEqualIgnoringIDs(other : Expr) : bool =
-    (* helpers for recursive calls *)
-    let eq (e : Expr) (e' : Expr) = e.testEqualIgnoringIDs (e')
-
-    let eqList l1 l2 = List.length l1 = List.length l2 && List.forall2 eq l1 l2
-
-    match this, other with
-    // expressions with no values
-    | ENull _, ENull _
-    | EBlank _, EBlank _
-    | EPipeTarget _, EPipeTarget _ -> true
-    // expressions with single string values
-    | EString (_, v), EString (_, v')
-    | ECharacter (_, v), ECharacter (_, v')
-    | EVariable (_, v), EVariable (_, v') -> v = v'
-    | EInteger (_, v), EInteger (_, v') -> v = v'
-    | EFloat (_, s, w, f), EFloat (_, s', w', f') -> s = s' && w = w' && f = f'
-    | EBool (_, v), EBool (_, v') -> v = v'
-    | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
-      lhs = lhs' && eq rhs rhs' && eq body body'
-    | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
-      eq con con' && eq thn thn' && eq els els'
-    | EList (_, l), EList (_, l') -> eqList l l'
-    | EFnCall (_, name, args, toRail), EFnCall (_, name', args', toRail') ->
-      name = name' && eqList args args' && toRail = toRail'
-    | EBinOp (_, name, lhs, rhs, toRail), EBinOp (_, name', lhs', rhs', toRail') ->
-      name = name' && eq lhs lhs' && eq rhs rhs' && toRail = toRail'
-    | ERecord (_, pairs), ERecord (_, pairs') ->
-      let sort = List.sortBy fst
-
-      List.forall2
-        (fun (k, v) (k', v') -> k = k' && eq v v')
-        (sort pairs)
-        (sort pairs')
-    | EFieldAccess (_, e, f), EFieldAccess (_, e', f') -> eq e e' && f = f'
-    | EPipe (_, e1, e2, l), EPipe (_, e1', e2', l') ->
-      eqList l l' && eq e1 e1' && eq e2 e2'
-    | EFeatureFlag (_, _, cond, old, knew), EFeatureFlag (_, _, cond', old', knew') ->
-      eq cond cond' && eq old old' && eq knew knew'
-    | EConstructor (_, s, ts), EConstructor (_, s', ts') -> s = s' && eqList ts ts'
-    | ERightPartial (_, str, e), ERightPartial (_, str', e')
-    | ELeftPartial (_, str, e), ELeftPartial (_, str', e')
-    | EPartial (_, str, e), EPartial (_, str', e') -> str = str' && eq e e'
-    | ELambda (_, vars, e), ELambda (_, vars', e') ->
-      eq e e' && List.forall2 (fun (_, v) (_, v') -> v = v') vars vars'
-    | EMatch (_, e, branches), EMatch (_, e', branches') ->
-      eq e e'
-      && List.forall2
-           (fun ((p, v) : Pattern * Expr) (p', v') ->
-             p.testEqualIgnoringIDs (p') && eq v v')
-           branches
-           branches'
-    | ENull _, _
-    | EBlank _, _
-    | EPipeTarget _, _
-    | EInteger _, _
-    | EString _, _
-    | ECharacter _, _
-    | EVariable _, _
-    | EBool _, _
-    | EFloat _, _
-    | ELet _, _
-    | EIf _, _
-    | EList _, _
-    | EFnCall _, _
-    | EBinOp _, _
-    | ERecord _, _
-    | EFieldAccess _, _
-    | EPipe _, _
-    | EFeatureFlag _, _
-    | EConstructor _, _
-    | ELeftPartial _, _
-    | ERightPartial _, _
-    | EPartial _, _
-    | ELambda _, _
-    | EMatch _, _ ->
-      (* exhaustiveness check *)
-      false
-
-and SendToRail =
-  | Rail
-  | NoRail
-
-and Pattern =
-  | PVariable of id * string
-  | PConstructor of id * string * List<Pattern>
-  | PInteger of id * int64
-  | PBool of id * bool
-  | PCharacter of id * string
-  | PString of id * string
-  | PFloat of id * Sign * string * string
-  | PNull of id
-  | PBlank of id
-
-  member this.testEqualIgnoringIDs(other : Pattern) : bool =
-    let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (b)
-
-    let eqList l1 l2 = List.length l1 = List.length l2 && List.forall2 eq l1 l2
-
-    match (this, other) with
-    | PVariable (_, name), PVariable (_, name') -> name = name'
-    | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
-      name = name' && eqList patterns patterns'
-    | PString (_, str), PString (_, str') -> str = str'
-    | PInteger (_, l), PInteger (_, l') -> l = l'
-    | PFloat (_, s, w, f), PFloat (_, s', w', f') -> (s, w, f) = (s', w', f')
-    | PBool (_, l), PBool (_, l') -> l = l'
-    | PCharacter (_, c), PCharacter (_, c') -> c = c'
-    | PNull (_), PNull (_) -> true
-    | PBlank (_), PBlank (_) -> true
-    | PVariable _, _
-    | PConstructor _, _
-    | PString _, _
-    | PInteger _, _
-    | PFloat _, _
-    | PBool _, _
-    | PCharacter _, _
-    | PNull _, _
-    | PBlank _, _ -> false
 
 type DType =
   | TInt

@@ -7,17 +7,13 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 let parserTests =
   let t name testStr expectedExpr =
     testTask name {
-      let source = FSharpToExpr.parse testStr
-      let actualProg = FSharpToExpr.convertToExpr source
-
-      return
-        (Expect.isTrue
-          (actualProg.testEqualIgnoringIDs expectedExpr)
-          $"{actualProg}\n\n=\n\n{expectedExpr}")
+      let actual = FSharpToExpr.parseRTExpr testStr
+      return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
     }
   let id = 0UL // since we're ignoring IDs, just use the same one everywhere
   testList
