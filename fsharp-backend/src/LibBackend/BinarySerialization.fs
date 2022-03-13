@@ -24,22 +24,7 @@ open MessagePack.FSharp
 // expose the generic serialization functions, only functions for specific types that
 // are tested (that is, they have unit tests!) and are known to work.
 
-let internalSerialize (data : 'a) : byte [] =
-  MessagePackSerializer.Serialize<'a> data
-
-let internalDeserialize<'a> (bytes : byte []) : 'a =
-  MessagePackSerializer.Deserialize<'a> bytes
-
-let serializeToplevel (tl : PT.Toplevel.T) : byte [] = internalSerialize tl
-let deserializeToplevel (data : byte []) : PT.Toplevel.T = internalDeserialize data
-
-let serializeOplist (oplist : PT.Oplist) : byte [] = internalSerialize oplist
-
-let deserializeOplist (data : byte []) : PT.Oplist = internalDeserialize data
-
-
-
-let init () : unit =
+let options =
   let resolver =
     Resolvers.CompositeResolver.Create(
       FSharpResolver.Instance,
@@ -47,5 +32,18 @@ let init () : unit =
       NativeGuidResolver.Instance,
       ContractlessStandardResolver.Instance
     )
-  let options = MessagePackSerializerOptions.Standard.WithResolver(resolver)
-  MessagePackSerializer.DefaultOptions <- options
+  MessagePackSerializerOptions.Standard.WithResolver(resolver)
+
+
+let internalSerialize (data : 'a) : byte [] =
+  MessagePackSerializer.Serialize<'a>(data, options)
+
+let internalDeserialize<'a> (bytes : byte []) : 'a =
+  MessagePackSerializer.Deserialize<'a>(bytes, options)
+
+let serializeToplevel (tl : PT.Toplevel.T) : byte [] = internalSerialize tl
+let deserializeToplevel (data : byte []) : PT.Toplevel.T = internalDeserialize data
+
+let serializeOplist (oplist : PT.Oplist) : byte [] = internalSerialize oplist
+
+let deserializeOplist (data : byte []) : PT.Oplist = internalDeserialize data
