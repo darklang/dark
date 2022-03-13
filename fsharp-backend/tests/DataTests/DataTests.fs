@@ -250,27 +250,14 @@ let loadAllTraceData (concurrency : int) (failOnError : bool) =
   forEachCanvasWithClient concurrency failOnError (fun client canvasName ->
     Tests.ApiServer.testGetTraceData client canvasName)
 
-let options =
-  let resolver =
-    MessagePack.Resolvers.CompositeResolver.Create(
-      MessagePack.FSharp.FSharpResolver.Instance,
-      MessagePack.Resolvers.StandardResolver.Instance
-    )
-  MessagePack
-    .MessagePackSerializerOptions
-    .Standard
-    .WithResolver(resolver)
-    .WithCompression(MessagePack.MessagePackCompression.Lz4BlockArray)
-
-let serialize (data : 'a) : byte [] =
-  MessagePack.MessagePackSerializer.Serialize<'a>(data, options)
-
-let deserialize<'a> (bytes : byte []) : 'a =
-  MessagePack.MessagePackSerializer.Deserialize<'a>(bytes, options)
 
 
-
-let validate (name : string) (expected : 'a) =
+let validate
+  (name : string)
+  (expected : 'a)
+  (serialize : 'a -> byte [])
+  (deserialize : byte [] -> 'a)
+  =
   try
     // serialize
     let serializeWatch = System.Diagnostics.Stopwatch()
@@ -301,9 +288,6 @@ let validate (name : string) (expected : 'a) =
     print e.StackTrace
     reraise ()
 
-
-
-
 let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
   task {
     let loadWatch = System.Diagnostics.Stopwatch()
@@ -312,7 +296,13 @@ let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Stop()
     debuG "legacyserver load time" loadWatch.ElapsedMilliseconds
     debuG "rendered items" (List.length expected)
-    expected |> List.iter (fun v -> validate "cached" v)
+    expected
+    |> List.iter (fun v ->
+      validate
+        "cached"
+        v
+        BinarySerialization.serializeToplevel
+        BinarySerialization.deserializeToplevel)
     return ()
   }
 
@@ -324,57 +314,15 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Stop()
     debuG "load time" loadWatch.ElapsedMilliseconds
     debuG "oplist load items" (List.length expected)
-    expected |> List.iter (fun (tlid, v) -> validate "oplists" v)
+    expected
+    |> List.iter (fun (tlid, v) ->
+      validate
+        "oplists"
+        v
+        BinarySerialization.serializeOplist
+        BinarySerialization.deserializeOplist)
     return ()
   }
-
-
-let expr =
-  LibBackend.File.readfile LibBackend.Config.NoCheck "test.elm"
-  |> FSharpToExpr.parsePTExpr
-
-
-let test : List<PT.Toplevel.T> =
-  let ids : PT.Handler.ids = { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
-  let http : PT.Handler.T =
-    let spec = PT.Handler.HTTP("/path", "GET", ids)
-    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
-  let worker : PT.Handler.T =
-    let spec = PT.Handler.Worker("name", ids)
-    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
-  let oldWorker : PT.Handler.T =
-    let spec = PT.Handler.OldWorker("MODULE", "name", ids)
-    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
-  let repl : PT.Handler.T =
-    let spec = PT.Handler.REPL("name", ids)
-    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
-  let cron1 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", None, ids)
-    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
-  let cron2 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
-    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
-  let unknown : PT.Handler.T =
-    let spec = PT.Handler.UnknownHandler("name", "", ids)
-    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
-  [ PT.Toplevel.TLHandler http
-    PT.Toplevel.TLHandler worker
-    PT.Toplevel.TLHandler cron1
-    PT.Toplevel.TLHandler cron2
-    PT.Toplevel.TLHandler repl
-    PT.Toplevel.TLHandler unknown
-    PT.Toplevel.TLHandler oldWorker ]
-
-type T = PT.Toplevel.T
-
-let v1 = 0
-
-let v2 = 0
-
-let v3 = 0
-
-let v4 = 0UL
-let v5 = test
 
 
 [<EntryPoint>]
@@ -401,27 +349,21 @@ let main args =
       return ()
     }
 
-  // let concurrency = int args[1]
-  // let filename = args[2]
-  // let failOnError = args[3] = "--fail"
-  // print $"Fail on error: {failOnError}"
+  let concurrency = int args[1]
+  let filename = args[2]
+  let failOnError = args[3] = "--fail"
+  print $"Fail on error: {failOnError}"
 
-  // CD.init filename
-  // let handler _ _ = CD.saveCheckpointData ()
-  // System.Console.CancelKeyPress.AddHandler(
-  //   new System.ConsoleCancelEventHandler(handler)
-  // )
+  CD.init filename
+  let handler _ _ = CD.saveCheckpointData ()
+  System.Console.CancelKeyPress.AddHandler(
+    new System.ConsoleCancelEventHandler(handler)
+  )
 
 
   try
-    validate "v1" v1
-    validate "v2" v2
-    validate "v3" v3
-    validate "v4" v4
-    validate "v5" v5
     (fn (CanvasName.create "paul-test-serialization")).Result
-    ()
-  // CD.saveCheckpointData ()
+    CD.saveCheckpointData ()
   with
   | e -> catchException true e
   0
