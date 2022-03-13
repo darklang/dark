@@ -254,10 +254,13 @@ let options =
   let resolver =
     MessagePack.Resolvers.CompositeResolver.Create(
       MessagePack.FSharp.FSharpResolver.Instance,
-      MessagePack.Resolvers.StandardResolver.Instance,
-      MessagePack.Resolvers.NativeGuidResolver.Instance
+      MessagePack.Resolvers.StandardResolver.Instance
     )
-  MessagePack.MessagePackSerializerOptions.Standard.WithResolver(resolver)
+  MessagePack
+    .MessagePackSerializerOptions
+    .Standard
+    .WithResolver(resolver)
+    .WithCompression(MessagePack.MessagePackCompression.Lz4BlockArray)
 
 let serialize (data : 'a) : byte [] =
   MessagePack.MessagePackSerializer.Serialize<'a>(data, options)
@@ -276,11 +279,16 @@ let validate (name : string) (expected : 'a) =
     serializeWatch.Stop()
     debuG $"{name} serialize time  " serializeWatch.ElapsedMilliseconds
     debuG $"{name} serialized size " (Array.length bytes)
+    let token = System.Threading.CancellationToken()
+
+    // print (
+    //   MessagePack.MessagePackSerializer.SerializeToJson(expected, options, token)
+    // )
 
     // deserialize
     let deserializeWatch = System.Diagnostics.Stopwatch()
     deserializeWatch.Start()
-    debuG $"{name} serialized" (UTF8.ofBytesWithReplacement bytes)
+    // debuG $"{name} serialized" (UTF8.ofBytesWithReplacement bytes)
     let actual = deserialize bytes
     deserializeWatch.Stop()
     debuG $"{name} deserialize time" deserializeWatch.ElapsedMilliseconds
@@ -324,7 +332,6 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
 let expr =
   LibBackend.File.readfile LibBackend.Config.NoCheck "test.elm"
   |> FSharpToExpr.parsePTExpr
-  |> debug "expr"
 
 
 let test : List<PT.Toplevel.T> =
