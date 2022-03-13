@@ -130,7 +130,7 @@ let testDbCreateWithOrblankName =
     let colNameID = gid ()
     let colTypeID = gid ()
     let name = "Books"
-    let pos = { x = 0; y = 0 }
+    let pos : PT.Position = { x = 0; y = 0 }
     let db : PT.DB.T =
       { tlid = dbid
         pos = pos
@@ -156,7 +156,7 @@ let testDbRename =
     let colNameID = gid ()
     let colTypeID = gid ()
     let name = "Books"
-    let pos = { x = 0; y = 0 }
+    let pos : PT.Position = { x = 0; y = 0 }
     let ops =
       [ PT.CreateDBWithBlankOr(dbid, pos, nameID, name)
         PT.AddDBCol(dbid, colNameID, colTypeID)

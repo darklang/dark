@@ -162,7 +162,7 @@ let createTestCanvas (name : string) : Task<Canvas.Meta> =
     return! createCanvasForOwner owner name
   }
 
-let testPos = { x = 0; y = 0 }
+let testPos : PT.Position = { x = 0; y = 0 }
 
 let testHttpRouteHandler
   (route : string)

@@ -424,7 +424,7 @@ module Convert =
     { tlid = o.tlid
       ast = ocamlExpr2PT o.ast
       spec = ocamlSpec2PT o.spec
-      pos = pos }
+      pos = { x = pos.y; y = pos.y } }
 
 
   let rec ocamlTipe2PT (o : tipe) : PT.DType =
@@ -471,7 +471,7 @@ module Convert =
     { tlid = o.tlid
       name = bo2String o.name
       nameID = bo2ID o.name
-      pos = pos
+      pos = { x = pos.x; y = pos.y }
       cols = List.map ocamlDBCol2PT o.cols
       version = int o.version }
 
@@ -518,13 +518,18 @@ module Convert =
   let ocamlOp2PT (o : op<ORT.fluidExpr>) : PT.Op =
     match o with
     | SetHandler (tlid, pos, handler) ->
-      PT.SetHandler(tlid, pos, ocamlHandler2PT pos handler)
-    | CreateDB (tlid, pos, name) -> PT.CreateDB(tlid, pos, name)
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      PT.SetHandler(tlid, position, ocamlHandler2PT pos handler)
+    | CreateDB (tlid, pos, name) ->
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      PT.CreateDB(tlid, position, name)
     | AddDBCol (tlid, id1, id2) -> PT.AddDBCol(tlid, id1, id2)
     | SetDBColName (tlid, id, name) -> PT.SetDBColName(tlid, id, name)
     | SetDBColType (tlid, id, string) -> PT.SetDBColType(tlid, id, string)
     | DeleteTL tlid -> PT.DeleteTL tlid
-    | MoveTL (tlid, pos) -> PT.MoveTL(tlid, pos)
+    | MoveTL (tlid, pos) ->
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      PT.MoveTL(tlid, position)
     | SetFunction fn -> PT.SetFunction(ocamlUserFunction2PT fn)
     | ChangeDBColName (tlid, id, string) -> PT.ChangeDBColName(tlid, id, string)
     | ChangeDBColType (tlid, id, string) -> PT.ChangeDBColType(tlid, id, string)
@@ -560,7 +565,8 @@ module Convert =
     | DeleteDBCol (tlid, id) -> PT.DeleteDBCol(tlid, id)
     | RenameDBname (tlid, string) -> PT.RenameDBname(tlid, string)
     | CreateDBWithBlankOr (tlid, pos, id, string) ->
-      PT.CreateDBWithBlankOr(tlid, pos, id, string)
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      PT.CreateDBWithBlankOr(tlid, position, id, string)
     | DeleteTLForever tlid -> PT.DeleteTLForever tlid
     | DeleteFunctionForever tlid -> PT.DeleteFunctionForever tlid
     | SetType tipe -> PT.SetType(ocamlUserType2PT tipe)
@@ -911,13 +917,18 @@ module Convert =
   let pt2ocamlOp (p : PT.Op) : op<ORT.fluidExpr> =
     match p with
     | PT.SetHandler (tlid, pos, handler) ->
+      let pos : pos = { x = pos.x; y = pos.y }
       SetHandler(tlid, pos, pt2ocamlHandler handler)
-    | PT.CreateDB (tlid, pos, name) -> CreateDB(tlid, pos, name)
+    | PT.CreateDB (tlid, pos, name) ->
+      let pos : pos = { x = pos.x; y = pos.y }
+      CreateDB(tlid, pos, name)
     | PT.AddDBCol (tlid, id1, id2) -> AddDBCol(tlid, id1, id2)
     | PT.SetDBColName (tlid, id, name) -> SetDBColName(tlid, id, name)
     | PT.SetDBColType (tlid, id, string) -> SetDBColType(tlid, id, string)
     | PT.DeleteTL tlid -> DeleteTL tlid
-    | PT.MoveTL (tlid, pos) -> MoveTL(tlid, pos)
+    | PT.MoveTL (tlid, pos) ->
+      let pos : pos = { x = pos.x; y = pos.y }
+      MoveTL(tlid, pos)
     | PT.SetFunction fn -> SetFunction(pt2ocamlUserFunction fn)
     | PT.ChangeDBColName (tlid, id, string) -> ChangeDBColName(tlid, id, string)
     | PT.ChangeDBColType (tlid, id, string) -> ChangeDBColType(tlid, id, string)
@@ -948,6 +959,7 @@ module Convert =
     | PT.DeleteDBCol (tlid, id) -> DeleteDBCol(tlid, id)
     | PT.RenameDBname (tlid, string) -> RenameDBname(tlid, string)
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
+      let pos : pos = { x = pos.x; y = pos.y }
       CreateDBWithBlankOr(tlid, pos, id, string)
     | PT.DeleteTLForever tlid -> DeleteTLForever tlid
     | PT.DeleteFunctionForever tlid -> DeleteFunctionForever tlid
@@ -971,14 +983,18 @@ module Convert =
         let ocamlHandler = pt2ocamlHandler h
 
         let ocamlTL : ORT.toplevel =
-          { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
+          { tlid = h.tlid
+            pos = { x = h.pos.x; y = h.pos.y }
+            data = ORT.Handler ocamlHandler }
 
         tls @ [ ocamlTL ], ufns, uts
       | PT.Toplevel.TLDB db ->
         let ocamlDB = pt2ocamlDB db
 
         let ocamlTL : ORT.toplevel =
-          { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
+          { tlid = db.tlid
+            pos = { x = db.pos.x; y = db.pos.y }
+            data = ORT.DB ocamlDB }
 
         tls @ [ ocamlTL ], ufns, uts
       | PT.Toplevel.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)

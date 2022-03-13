@@ -3,32 +3,78 @@
 /// functionality is in other modules.
 module LibExecution.ProgramTypes
 
-open Prelude
+type id = Prelude.id
+type tlid = Prelude.tlid
+type Sign = Prelude.Sign
+
+// Intro to MessagePack
+//
+// https://github.com/neuecc/MessagePack-CSharp
+// https://github.com/pocketberserker/MessagePack.FSharpExtensions
+//
+// If you forget to annotate a type (either DiscriminatedUnions/Enum/Variants or
+// Records) the serialized size will be much bigger and the serialize and deserialize
+// time will be higher
+//
+// Same thing if you omit `[<MessagePack.Key 1>]` from record keys. Do not omit even
+// one or the entire class is banjaxed.
+//
+// If you take the serialized bytes and run it through `UTF8.ofBytesWithReplacement`,
+// you should see that there are no extra strings apart from the actual strings in
+// the value. In particular, if you see lots of "Item" strings, you've done something
+// wrong. This is how DUs and records without the MessagePackObject annotation are
+// serialized.
+//
+//
+// TODO: try the lz4 feature on oplists, as they involve a lot of duplication
+
+[<MessagePack.MessagePackObject>]
+type Position =
+  { [<MessagePack.Key 0>]
+    x : int
+    [<MessagePack.Key 1>]
+    y : int }
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
 
   /// Standard Library Function Name
-  type StdlibFnName = { module_ : string; function_ : string; version : int }
+  [<MessagePack.MessagePackObject>]
+  type StdlibFnName =
+    { [<MessagePack.Key 0>]
+      module_ : string
+      [<MessagePack.Key 1>]
+      function_ : string
+      [<MessagePack.Key 2>]
+      version : int }
 
   /// A UserFunction is a function written by a Developer in their canvas
+  [<MessagePack.MessagePackObject>]
   type UserFnName = string
 
   /// The name of a function in the package manager
+  [<MessagePack.MessagePackObject>]
   type PackageFnName =
-    { owner : string
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
       package : string
+      [<MessagePack.Key 2>]
       module_ : string
+      [<MessagePack.Key 3>]
       function_ : string
+      [<MessagePack.Key 4>]
       version : int }
 
+  [<MessagePack.MessagePackObject>]
   type T =
     | User of UserFnName
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
 /// Patterns - used for pattern matching in a match statement
+[<MessagePack.MessagePackObject>]
 type Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
@@ -42,11 +88,13 @@ type Pattern =
 
 /// Whether a function's result is unwrapped automatically (and, in the case of
 /// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
+[<MessagePack.MessagePackObject>]
 type SendToRail =
   | Rail
   | NoRail
 
 /// Expressions - the main part of the language.
+[<MessagePack.MessagePackObject>]
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
@@ -111,6 +159,7 @@ type DType =
 
 
 module Handler =
+  [<MessagePack.MessagePackObject>]
   type CronInterval =
     | EveryDay
     | EveryWeek
@@ -120,7 +169,14 @@ module Handler =
     | EveryMinute
 
   // We need to keep the IDs around until we get rid of them on the client
-  type ids = { moduleID : id; nameID : id; modifierID : id }
+  [<MessagePack.MessagePackObject>]
+  type ids =
+    { [<MessagePack.Key 0>]
+      moduleID : id
+      [<MessagePack.Key 1>]
+      nameID : id
+      [<MessagePack.Key 2>]
+      modifierID : id }
 
   [<MessagePack.MessagePackObject>]
   type Spec =
@@ -134,42 +190,90 @@ module Handler =
     | REPL of name : string * ids : ids
     // If there's no module
     // CLEANUP: convert these into repl and get rid of this case
-    | UnknownHandler of name : string * modifier : string * ids : ids
+    | UnknownHandler of string * string * ids
 
-  type T = { tlid : tlid; pos : pos; ast : Expr; spec : Spec }
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      pos : Position
+      [<MessagePack.Key 2>]
+      ast : Expr
+      [<MessagePack.Key 3>]
+      spec : Spec }
 
 
 module DB =
-  type Col = { name : Option<string>; typ : Option<DType>; nameID : id; typeID : id }
-
-  type T =
-    { tlid : tlid
-      pos : pos
+  [<MessagePack.MessagePackObject>]
+  type Col =
+    { [<MessagePack.Key 0>]
+      name : Option<string>
+      [<MessagePack.Key 1>]
+      typ : Option<DType>
+      [<MessagePack.Key 2>]
       nameID : id
+      [<MessagePack.Key 3>]
+      typeID : id }
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      pos : Position
+      [<MessagePack.Key 2>]
+      nameID : id
+      [<MessagePack.Key 3>]
       name : string
+      [<MessagePack.Key 4>]
       version : int
+      [<MessagePack.Key 5>]
       cols : List<Col> }
 
 module UserType =
-  type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
+  [<MessagePack.MessagePackObject>]
+  type RecordField =
+    { [<MessagePack.Key 0>]
+      name : string
+      [<MessagePack.Key 1>]
+      typ : Option<DType>
+      [<MessagePack.Key 2>]
+      nameID : id
+      [<MessagePack.Key 3>]
+      typeID : id }
 
+  [<MessagePack.MessagePackObject>]
   type Definition = Record of List<RecordField>
 
+  [<MessagePack.MessagePackObject>]
   type T =
-    { tlid : tlid
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
       name : string
+      [<MessagePack.Key 2>]
       nameID : id
+      [<MessagePack.Key 3>]
       version : int
+      [<MessagePack.Key 4>]
       definition : Definition }
 
 module UserFunction =
+  [<MessagePack.MessagePackObject>]
   type Parameter =
-    { name : string
+    { [<MessagePack.Key 0>]
+      name : string
+      [<MessagePack.Key 1>]
       nameID : id
+      [<MessagePack.Key 2>]
       typ : Option<DType>
+      [<MessagePack.Key 3>]
       typeID : id
+      [<MessagePack.Key 4>]
       description : string }
 
+  [<MessagePack.MessagePackObject>]
   type T =
     { tlid : tlid
       name : string
@@ -182,6 +286,7 @@ module UserFunction =
       body : Expr }
 
 module Toplevel =
+  [<MessagePack.MessagePackObject>]
   type T =
     | TLHandler of Handler.T
     | TLDB of DB.T
@@ -196,7 +301,12 @@ module Toplevel =
     | TLType t -> t.tlid
 
 module Secret =
-  type T = { name : string; value : string }
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      name : string
+      [<MessagePack.Key 1>]
+      value : string }
 
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
 
@@ -206,13 +316,13 @@ type DeprecatedMigrationKind = | DeprecatedMigrationKind
 /// and is preferred throughout code and documentation.
 [<MessagePack.MessagePackObject>]
 type Op =
-  | SetHandler of tlid * pos * Handler.T
-  | CreateDB of tlid * pos * string
+  | SetHandler of tlid * Position * Handler.T
+  | CreateDB of tlid * Position * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
   | DeleteTL of tlid
-  | MoveTL of tlid * pos
+  | MoveTL of tlid * Position
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
   | ChangeDBColType of tlid * id * string
@@ -230,7 +340,7 @@ type Op =
   | DeleteDBCol of tlid * id
   | DeprecatedInitDBm of tlid * id * id * id * DeprecatedMigrationKind
   | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * pos * id * string
+  | CreateDBWithBlankOr of tlid * Position * id * string
   | DeleteTLForever of tlid
   | DeleteFunctionForever of tlid
   | SetType of UserType.T

@@ -202,7 +202,7 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
   { c with dbs = applyToMap tlid f c.dbs }
 
 
-let moveToplevel (tlid : tlid) (pos : pos) (c : T) : T =
+let moveToplevel (tlid : tlid) (pos : PT.Position) (c : T) : T =
   { c with
       handlers = applyToMap tlid (fun h -> { h with pos = pos }) c.handlers
       dbs = applyToMap tlid (fun db -> { db with pos = pos }) c.dbs }
