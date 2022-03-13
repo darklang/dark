@@ -1,7 +1,9 @@
+/// <summary>Serializing to the DB.</summary>
+/// <remarks>
+/// Serialization formats and binary conversions are stored elsewhere
+/// </remarks>
 module LibBackend.Serialize
 
-// Serializing to the DB. Serialization formats and binary conversions are
-// stored elsewhere
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -16,16 +18,13 @@ open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
-// TODO inline this file into canvas
 
-// --------------------------------------------------------
-// Moved from op.ml as it touches the DB *)
-// --------------------------------------------------------
 let isLatestOpRequest
   (clientOpCtrID : Option<string>)
   (opCtr : int)
   (canvasID : CanvasID)
   : Task<bool> =
+  // opctr is used to prevent earlier ops from overwriting later ones
   task {
     let clientOpCtrID =
       match clientOpCtrID with
@@ -375,11 +374,11 @@ type CronScheduleData =
     cronName : string
     interval : PT.Handler.CronInterval }
 
-// Fetch cron handlers from the DB. Active here means:
-// - a non-null interval field in the spec
-// - not deleted (When a CRON handler is deleted, we set (module, modifier,
-//   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
-//   ignores deleted CRONs.)
+/// Fetch cron handlers from the DB. Active here means:
+/// - a non-null interval field in the spec
+/// - not deleted (When a CRON handler is deleted, we set (module, modifier,
+///   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
+///   ignores deleted CRONs.)
 let fetchActiveCrons () : Task<List<CronScheduleData>> =
   Sql.query
     "SELECT canvas_id,

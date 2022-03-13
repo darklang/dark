@@ -57,6 +57,12 @@ let testUsernameValidationWorks =
       "myusername09", Ok "myusername09"
       "paul", Ok "paul" ]
 
+// Note: the term "banned" here doesn't refer to users who have
+// been necesarrily "banned" from Dark usage, but also apply to
+// "reserved" usernamed such as "admin" and "localhost".
+//
+// Elsewhere (presently in Prelude.fs), a list of 'banned' usernames
+// are defined.
 let testCannotCreateBannedUser =
   let bannedAccount () : Account.Account =
     { username = UserName.create "admin"

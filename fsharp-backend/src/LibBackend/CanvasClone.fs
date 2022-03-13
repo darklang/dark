@@ -48,11 +48,11 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.MoveTL _ -> false
 
 
-// [onlyOpsSinceLastSavepoint ops] When we clone a canvas, we sometimes
-// want to only copy over ops since the last toplevel definition (create) op - this erases
-// history, which is invisible and we don't really know at clone-time what's
-// in there, because we don't have any UI for inspecting history, nor do we
-// store timestamps or edited-by-user for ops ("git blame").
+/// When we clone a canvas, we sometimes
+/// want to only copy over ops since the last toplevel definition (create) op - this erases
+/// history, which is invisible and we don't really know at clone-time what's
+/// in there, because we don't have any UI for inspecting history, nor do we
+/// store timestamps or edited-by-user for ops ("git blame").
 let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
   let mutable encounteredCreateOp = false
 
@@ -66,12 +66,15 @@ let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
   |> List.reverse
 
 
-// [updateHostsInOp op oldHost newHost] Given an [op], and an
-// [oldHost] and a [newHost], update string literals from
-// the old to the new host. Say your canvas contains a string literal that is
-// (or contains) a url pointing to the [oldHost]
-// ("://oldhost.builtwithdark.com/stuff", or its localhost equivalent), the
-// [op] will be transformed to refer to the [newHost]
+/// <summary>
+/// Update string literals from the old to the new host.
+/// </summary>
+/// <remarks>
+/// Say your canvas contains a string literal that is (or contains)
+/// a url pointing to the `oldHost` ("://oldhost.builtwithdark.com/stuff",
+/// or its localhost equivalent), the `op` will be transformed
+/// to refer to the `newHost`
+/// </remarks>
 let updateHostsInOp
   (oldHost : CanvasName.T)
   (newHost : CanvasName.T)
@@ -106,13 +109,13 @@ let updateHostsInOp
   |> Option.unwrap op
 
 
-// Given two canvas names, clone TLs from one to the other.
-//   - returns an error if fromCanvas doesn't exist, or if toCanvas does
-//     ("don't clobber an existing canvas")
-//   - optionally removes history - only copies ops since the last TLSavepoint (per TL)
-//   - if there are string literals referring to the old canvas' url, rewrite them to
-//     refer to the new one (see updateHostsInOp)
-//   - runs in a DB transaction, so this should be all-or-nothing
+/// Given two canvas names, clone TLs from one to the other.
+/// - returns an error if fromCanvas doesn't exist, or if toCanvas does
+///   ("don't clobber an existing canvas")
+/// - optionally removes history - only copies ops since the last TLSavepoint (per TL)
+/// - if there are string literals referring to the old canvas' url, rewrite them to
+///   refer to the new one (see updateHostsInOp)
+/// - runs in a DB transaction, so this should be all-or-nothing
 let cloneCanvas
   (fromCanvasName : CanvasName.T)
   (toCanvasName : CanvasName.T)

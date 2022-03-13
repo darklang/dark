@@ -60,7 +60,7 @@ let forceLogin (username : UserName.T) : Task<Client> =
     return { http = client; csrf = authData.csrfToken }
   }
 
-// login as test user and return the csrfToken (the cookies are stored in httpclient)
+/// login as test user and return the csrfToken (the cookies are stored in httpclient)
 let login (username : string) (password : string) : Task<Client> =
   task {
     let client = new HttpClient()

@@ -1,3 +1,4 @@
+/// Fns used to compile Exprs into SQL queries
 module LibBackend.SqlCompiler
 
 open System.Threading.Tasks
@@ -75,8 +76,8 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
     let expected = DvalReprExternal.typeToDeveloperReprV0 expectedType
     error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
-// (* TODO: support character. And maybe lists and
-//  * bytes. Probably something can be done with options and results. *)
+// TODO: support character. And maybe lists and bytes.
+// Probably something can be done with options and results.
 let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
   if Dval.isFake dval then raise (Errors.FakeValFoundInQuery dval)
   typecheck name (Dval.toType dval) expectedType
@@ -149,8 +150,8 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (pattern : Expr) =
     Some args
   | _ -> None
 
-// Generate SQL from an Expr. This expects that all the hard stuff has been
-// removed by previous passes, and should only be called as the final pass.
+/// Generate SQL from an Expr. This expects that all the hard stuff has been
+/// removed by previous passes, and should only be called as the final pass.
 let rec lambdaToSql
   (fns : Map<FQFnName.T, BuiltInFn>)
   (symtable : DvalMap)
@@ -162,12 +163,13 @@ let rec lambdaToSql
   let lts (typ : DType) (e : Expr) =
     lambdaToSql fns symtable paramName dbFields typ e
 
-  // We don't have good string escaping facilities here, plus it was always a bit dangerous to have string escaoing as we night miss one.
+  // We don't have good string escaping facilities here,
+  // plus it was always a bit dangerous to have string-escaping as we might miss one.
   let vars = ref Map.empty
 
   match expr with
   // The correct way to handle null in SQL is "is null" or "is not null"
-  // rather than a comparison with null. *)
+  // rather than a comparison with null.
   | Fn "" "==" 0 [ ENull _; e ]
   | Fn "" "==" 0 [ e; ENull _ ] ->
     let sql, vars = lts TNull e
@@ -299,7 +301,7 @@ let partiallyEvaluate
   uply {
 
     // This isn't really a good implementation, but right now we only do
-    // straight-line code here, so it should work *)
+    // straight-line code here, so it should work
     let symtable = ref symtable
 
     let exec (expr : Expr) : Ply.Ply<Expr> =

@@ -44,18 +44,20 @@ let routeVariable (routeSegment : string) : string option =
   else
     None
 
+/// Extracts variables from a route
+///
+/// e.g. from "/user/:userid/card/:cardid", it returns ["userid"; "cardid"]
 let routeVariables (route : string) : string list =
   route |> splitUriPath |> Array.toList |> List.choose routeVariable
-
 
 
 let routeInputVars
   (route : string)
   (requestPath : string)
   : Option<List<string * RT.Dval>> =
-  let doBinding route path =
-    // We know route length = requestPath length
-    List.zip route path
+  let doBinding routeParts pathParts =
+    // We assume (handled elsewhere) that route length = requestPath length
+    List.zip routeParts pathParts
     |> List.fold (Some []) (fun acc (r, p) ->
       Option.bind
         (fun acc ->
@@ -116,9 +118,9 @@ let filterInvalidHandlerMatches
     handlers
 
 
-// From left-to-right segment-wise, we say:
-// - concrete is more specific than wild
-// - wild is more specific than empty
+/// From left-to-right segment-wise, we say:
+/// - concrete is more specific than wild
+/// - wild is more specific than empty
 let rec compareRouteSpecificity (left : string list) (right : string list) : int =
   let isWild s = String.startsWith ":" s
   let isConcrete s = not (isWild s)
@@ -131,16 +133,15 @@ let rec compareRouteSpecificity (left : string list) (right : string list) : int
   | l :: _, r :: _ when isWild l && isConcrete r -> -1
   | _ :: ls, _ :: rs -> compareRouteSpecificity ls rs
 
-
 let comparePageRouteSpecificity (left : PT.Handler.T) (right : PT.Handler.T) : int =
   compareRouteSpecificity
     (left.spec.name () |> splitUriPath |> Array.toList)
     (right.spec.name () |> splitUriPath |> Array.toList)
 
 
-// Takes a list of handlers that match a request's path, and filters the list
-// down to the list of handlers that match the request most specifically.
-// It looks purely at the handler's definition for its specificity relation.
+/// Takes a list of handlers that match a request's path, and filters the list
+/// down to the list of handlers that match the request most specifically.
+/// It looks purely at the handler's definition for its specificity relation.
 let filterMatchingHandlersBySpecificity
   (pages : List<PT.Handler.T>)
   : List<PT.Handler.T> =
@@ -158,7 +159,7 @@ let filterMatchingHandlersBySpecificity
     |> List.rev
 
   // orderedPages is ordered most-specific to least-specific, so pluck the
-  // most specific and return it along with all others of its specificity *)
+  // most specific and return it along with all others of its specificity
   match orderedPages with
   | [] -> []
   | [ a ] -> [ a ]

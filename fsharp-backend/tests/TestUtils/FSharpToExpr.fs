@@ -1,6 +1,5 @@
+/// Converts strings of F# into Dark. Used for testing.
 module FSharpToExpr
-
-// Converts strings of F# into Dark. Used for testing.
 
 open FSharp.Compiler
 open FSharp.Compiler.CodeAnalysis
@@ -56,7 +55,6 @@ let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
 
 let nameOrBlank (v : string) : string = if v = "___" then "" else v
-
 
 let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let c = convertToExpr

@@ -31,7 +31,7 @@ let testEventQueueRoundtrip =
     let! meta = initializeTestCanvas "event-queue-roundtrip"
 
     let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
-    let oplists = [ hop h ]
+    let oplists = [ handlerOp h ]
 
     do!
       Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
@@ -64,7 +64,7 @@ let testEventQueueIsFifo =
 
     do!
       ([ apple; banana ]
-       |> List.map (fun h -> (h.tlid, [ hop h ], PT.TLHandler h, Canvas.NotDeleted))
+       |> List.map (fun h -> (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
     let enqueue (name : string) (i : int64) =
@@ -108,7 +108,7 @@ let testGetWorkerSchedulesForCanvas =
 
     do!
       ([ apple; banana; cherry ]
-       |> List.map (fun h -> (h.tlid, [ hop h ], PT.TLHandler h, Canvas.NotDeleted))
+       |> List.map (fun h -> (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
     do! EQ.pauseWorker meta.id "apple"

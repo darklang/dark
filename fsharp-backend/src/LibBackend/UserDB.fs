@@ -1,6 +1,16 @@
+/// <summary>
+/// Supports anything relating to Datastores on a user canvas.
+/// Namely, this file is responsible for managing this user data, including CRUD and type checking.
+/// </summary>
+///
+/// <remarks>
+/// User data stores live within the `user_data` table, which is broken down by:
+/// - Dark version
+/// - canvas (by ID)
+/// - table/store ID
+/// - user version (version of the DB - incremented by any structural change to the store)
+/// </remarks>
 module LibBackend.UserDB
-
-// Anything relating to Datastores on a user canvas
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -78,7 +88,7 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   RT.DObj typeChecked
 
 
-// TODO: Unify with Type_checker.ml
+// TODO: Unify with TypeChecker.fs
 and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
   let cols = Map.ofList db.cols
   let tipeKeys = cols |> Map.keys |> Set.ofList
