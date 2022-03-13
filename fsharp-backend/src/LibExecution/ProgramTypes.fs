@@ -25,6 +25,9 @@ type Sign = Prelude.Sign
 // wrong. This is how DUs and records without the MessagePackObject annotation are
 // serialized.
 //
+// You can also use:
+// MessagePack.MessagePackSerializer.SerializeToJson(expected, options, token)
+//
 //
 // TODO: try the lz4 feature on oplists, as they involve a lot of duplication
 
@@ -126,6 +129,7 @@ type Expr =
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
 
+[<MessagePack.MessagePackObject>]
 type DType =
   | TInt
   | TFloat
@@ -275,14 +279,23 @@ module UserFunction =
 
   [<MessagePack.MessagePackObject>]
   type T =
-    { tlid : tlid
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
       name : string
+      [<MessagePack.Key 2>]
       nameID : id
+      [<MessagePack.Key 3>]
       parameters : List<Parameter>
+      [<MessagePack.Key 4>]
       returnType : DType
+      [<MessagePack.Key 5>]
       returnTypeID : id
+      [<MessagePack.Key 6>]
       description : string
+      [<MessagePack.Key 7>]
       infix : bool
+      [<MessagePack.Key 8>]
       body : Expr }
 
 module Toplevel =
@@ -308,6 +321,7 @@ module Secret =
       [<MessagePack.Key 1>]
       value : string }
 
+[<MessagePack.MessagePackObject>]
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
 
 /// An Operation on a Canvas
@@ -347,7 +361,9 @@ type Op =
   | DeleteType of tlid
   | DeleteTypeForever of tlid
 
+[<MessagePack.MessagePackObject>]
 type Oplist = List<Op>
+
 type TLIDOplists = List<tlid * Oplist>
 
 // Not actually serialized
