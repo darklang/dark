@@ -250,32 +250,48 @@ let loadAllTraceData (concurrency : int) (failOnError : bool) =
   forEachCanvasWithClient concurrency failOnError (fun client canvasName ->
     Tests.ApiServer.testGetTraceData client canvasName)
 
-open MessagePack
-open MessagePack.Resolvers
-open MessagePack.FSharp
+let options =
+  let resolver =
+    MessagePack.Resolvers.CompositeResolver.Create(
+      MessagePack.FSharp.FSharpResolver.Instance,
+      MessagePack.Resolvers.StandardResolver.Instance,
+      MessagePack.Resolvers.NativeGuidResolver.Instance
+    )
+  MessagePack.MessagePackSerializerOptions.Standard.WithResolver(resolver)
 
-let validate
-  (expected : 'a)
-  (serialize : 'a -> byte [])
-  (deserialize : byte [] -> 'a)
-  =
-  // serialize
-  let serializeWatch = System.Diagnostics.Stopwatch()
-  serializeWatch.Start()
-  let bytes = serialize expected
-  serializeWatch.Stop()
-  debuG "serialize time  " serializeWatch.ElapsedMilliseconds
-  debuG "serialized size " (Array.length bytes)
+let serialize (data : 'a) : byte [] =
+  MessagePack.MessagePackSerializer.Serialize<'a>(data, options)
 
-  // deserialize
-  let deserializeWatch = System.Diagnostics.Stopwatch()
-  deserializeWatch.Start()
-  let actual = deserialize bytes
-  deserializeWatch.Stop()
-  debuG "deserialize time" deserializeWatch.ElapsedMilliseconds
+let deserialize<'a> (bytes : byte []) : 'a =
+  MessagePack.MessagePackSerializer.Deserialize<'a>(bytes, options)
 
-  // test it
-  Expect.equal actual expected "same"
+
+
+let validate (name : string) (expected : 'a) =
+  try
+    // serialize
+    let serializeWatch = System.Diagnostics.Stopwatch()
+    serializeWatch.Start()
+    let bytes = serialize expected
+    serializeWatch.Stop()
+    debuG $"{name} serialize time  " serializeWatch.ElapsedMilliseconds
+    debuG $"{name} serialized size " (Array.length bytes)
+
+    // deserialize
+    let deserializeWatch = System.Diagnostics.Stopwatch()
+    deserializeWatch.Start()
+    debuG $"{name} serialized" (UTF8.ofBytesWithReplacement bytes)
+    let actual = deserialize bytes
+    deserializeWatch.Stop()
+    debuG $"{name} deserialize time" deserializeWatch.ElapsedMilliseconds
+
+    // test it
+    Expect.equal actual expected $"same: {name}"
+  with
+  | e ->
+    print e.Message
+    print e.StackTrace
+    reraise ()
 
 
 
@@ -286,14 +302,9 @@ let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Start()
     let! expected = Serialize.loadOnlyRenderedTLIDs meta.id tlids
     loadWatch.Stop()
-    debuG "load time" loadWatch.ElapsedMilliseconds
+    debuG "legacyserver load time" loadWatch.ElapsedMilliseconds
     debuG "rendered items" (List.length expected)
-    expected
-    |> List.iter (fun v ->
-      validate
-        v
-        BinarySerialization.serializeToplevel
-        BinarySerialization.deserializeToplevel)
+    expected |> List.iter (fun v -> validate "cached" v)
     return ()
   }
 
@@ -305,14 +316,58 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Stop()
     debuG "load time" loadWatch.ElapsedMilliseconds
     debuG "oplist load items" (List.length expected)
-    expected
-    |> List.iter (fun (tlid, v) ->
-      validate
-        v
-        BinarySerialization.serializeOplist
-        BinarySerialization.deserializeOplist)
+    expected |> List.iter (fun (tlid, v) -> validate "oplists" v)
     return ()
   }
+
+
+let expr =
+  LibBackend.File.readfile LibBackend.Config.NoCheck "test.elm"
+  |> FSharpToExpr.parsePTExpr
+  |> debug "expr"
+
+
+let test : List<PT.Toplevel.T> =
+  let ids : PT.Handler.ids = { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
+  let http : PT.Handler.T =
+    let spec = PT.Handler.HTTP("/path", "GET", ids)
+    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
+  let worker : PT.Handler.T =
+    let spec = PT.Handler.Worker("name", ids)
+    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
+  let oldWorker : PT.Handler.T =
+    let spec = PT.Handler.OldWorker("MODULE", "name", ids)
+    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
+  let repl : PT.Handler.T =
+    let spec = PT.Handler.REPL("name", ids)
+    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
+  let cron1 : PT.Handler.T =
+    let spec = PT.Handler.Cron("name", None, ids)
+    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
+  let cron2 : PT.Handler.T =
+    let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
+    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
+  let unknown : PT.Handler.T =
+    let spec = PT.Handler.UnknownHandler("name", "", ids)
+    { spec = spec; tlid = 0UL; ast = expr; pos = { x = 6; y = 6 } }
+  [ PT.Toplevel.TLHandler http
+    PT.Toplevel.TLHandler worker
+    PT.Toplevel.TLHandler cron1
+    PT.Toplevel.TLHandler cron2
+    PT.Toplevel.TLHandler repl
+    PT.Toplevel.TLHandler unknown
+    PT.Toplevel.TLHandler oldWorker ]
+
+type T = PT.Toplevel.T
+
+let v1 = 0
+
+let v2 = 0
+
+let v3 = 0
+
+let v4 = 0UL
+let v5 = test
 
 
 [<EntryPoint>]
@@ -329,8 +384,6 @@ let main args =
     "DataTests"
     LibService.Telemetry.DontTraceDBQueries
 
-  BinarySerialization.init ()
-
   let fn (canvasName : CanvasName.T) : Task<unit> =
     task {
       let! meta = Canvas.getMeta canvasName
@@ -341,20 +394,27 @@ let main args =
       return ()
     }
 
-  let concurrency = int args[1]
-  let filename = args[2]
-  let failOnError = args[3] = "--fail"
-  print $"Fail on error: {failOnError}"
+  // let concurrency = int args[1]
+  // let filename = args[2]
+  // let failOnError = args[3] = "--fail"
+  // print $"Fail on error: {failOnError}"
 
-  CD.init filename
-  let handler _ _ = CD.saveCheckpointData ()
-  System.Console.CancelKeyPress.AddHandler(
-    new System.ConsoleCancelEventHandler(handler)
-  )
+  // CD.init filename
+  // let handler _ _ = CD.saveCheckpointData ()
+  // System.Console.CancelKeyPress.AddHandler(
+  //   new System.ConsoleCancelEventHandler(handler)
+  // )
+
 
   try
-    (forEachCanvas concurrency failOnError fn).Result
-    CD.saveCheckpointData ()
+    validate "v1" v1
+    validate "v2" v2
+    validate "v3" v3
+    validate "v4" v4
+    validate "v5" v5
+    (fn (CanvasName.create "paul-test-serialization")).Result
+    ()
+  // CD.saveCheckpointData ()
   with
   | e -> catchException true e
   0
