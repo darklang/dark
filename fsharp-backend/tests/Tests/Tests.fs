@@ -29,6 +29,7 @@ let main (args : string array) : int =
     [ Tests.Account.tests
       Tests.ApiServer.tests
       Tests.Authorization.tests
+      Tests.BinarySerialization.tests
       Tests.BwdServer.tests
       Tests.Canvas.tests
       Tests.Cron.tests

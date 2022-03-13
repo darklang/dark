@@ -24,26 +24,41 @@ open MessagePack.FSharp
 // expose the generic serialization functions, only functions for specific types that
 // are tested (that is, they have unit tests!) and are known to work.
 
-let options =
-  let resolver =
-    Resolvers.CompositeResolver.Create(
-      FSharpResolver.Instance,
-      StandardResolver.Instance,
-      NativeGuidResolver.Instance,
-      ContractlessStandardResolver.Instance
-    )
-  MessagePackSerializerOptions.Standard.WithResolver(resolver)
+let resolver =
+  Resolvers.CompositeResolver.Create(
+    FSharpResolver.Instance,
+    StandardResolver.Instance
+  )
 
+let optionsWithoutZip = MessagePackSerializerOptions.Standard.WithResolver(resolver)
 
-let internalSerialize (data : 'a) : byte [] =
-  MessagePackSerializer.Serialize<'a>(data, options)
+let optionsWithZip =
+  MessagePack
+    .MessagePackSerializerOptions
+    .Standard
+    .WithResolver(resolver)
+    .WithCompression(MessagePack.MessagePackCompression.Lz4BlockArray)
 
-let internalDeserialize<'a> (bytes : byte []) : 'a =
-  MessagePackSerializer.Deserialize<'a>(bytes, options)
+let internalSerialize
+  (options : MessagePackSerializerOptions)
+  (data : 'a)
+  : byte [] =
+  MessagePack.MessagePackSerializer.Serialize<'a>(data, options)
 
-let serializeToplevel (tl : PT.Toplevel.T) : byte [] = internalSerialize tl
-let deserializeToplevel (data : byte []) : PT.Toplevel.T = internalDeserialize data
+let internalDeserialize<'a>
+  (options : MessagePackSerializerOptions)
+  (bytes : byte [])
+  : 'a =
+  MessagePack.MessagePackSerializer.Deserialize<'a>(bytes, options)
 
-let serializeOplist (oplist : PT.Oplist) : byte [] = internalSerialize oplist
+let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
+  internalSerialize optionsWithoutZip tl
 
-let deserializeOplist (data : byte []) : PT.Oplist = internalDeserialize data
+let deserializeToplevel (data : byte []) : PT.Toplevel.T =
+  internalDeserialize optionsWithoutZip data
+
+let serializeOplist (oplist : PT.Oplist) : byte [] =
+  internalSerialize optionsWithZip oplist
+
+let deserializeOplist (data : byte []) : PT.Oplist =
+  internalDeserialize optionsWithZip data

@@ -10,8 +10,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module S = TestUtils.RTShortcuts
 
-// TODO parsing function names from OCaml
-
 let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
