@@ -264,8 +264,8 @@ let validate
     serializeWatch.Start()
     let bytes = serialize expected
     serializeWatch.Stop()
-    debuG $"{name} serialize time  " serializeWatch.ElapsedMilliseconds
-    debuG $"{name} serialized size " (Array.length bytes)
+    // debuG $"{name} serialize time  " serializeWatch.ElapsedMilliseconds
+    // debuG $"{name} serialized size " (Array.length bytes)
     let token = System.Threading.CancellationToken()
 
     // print (
@@ -278,7 +278,7 @@ let validate
     // debuG $"{name} serialized" (UTF8.ofBytesWithReplacement bytes)
     let actual = deserialize bytes
     deserializeWatch.Stop()
-    debuG $"{name} deserialize time" deserializeWatch.ElapsedMilliseconds
+    // debuG $"{name} deserialize time" deserializeWatch.ElapsedMilliseconds
 
     // test it
     Expect.equal actual expected $"same: {name}"
@@ -294,8 +294,8 @@ let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Start()
     let! expected = Serialize.loadOnlyRenderedTLIDs meta.id tlids
     loadWatch.Stop()
-    debuG "legacyserver load time" loadWatch.ElapsedMilliseconds
-    debuG "rendered items" (List.length expected)
+    // debuG "legacyserver load time" loadWatch.ElapsedMilliseconds
+    // debuG "rendered items" (List.length expected)
     expected
     |> List.iter (fun v ->
       validate
@@ -312,8 +312,8 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
     loadWatch.Start()
     let! expected = Canvas.loadOplists Canvas.IncludeDeletedToplevels meta.id tlids
     loadWatch.Stop()
-    debuG "load time" loadWatch.ElapsedMilliseconds
-    debuG "oplist load items" (List.length expected)
+    // debuG "load time" loadWatch.ElapsedMilliseconds
+    // debuG "oplist load items" (List.length expected)
     expected
     |> List.iter (fun (tlid, v) ->
       validate
@@ -360,9 +360,8 @@ let main args =
     new System.ConsoleCancelEventHandler(handler)
   )
 
-
   try
-    (fn (CanvasName.create "paul-test-serialization")).Result
+    (forEachCanvas concurrency failOnError fn).Result
     CD.saveCheckpointData ()
   with
   | e -> catchException true e
