@@ -16,10 +16,6 @@ cd fsharp-backend
 Build/out/Tests/Debug/net6.0/linux-x64/Tests --regenerate-test-files
 cd ..
 
-tmpfile=$(mktemp)
-cat "$jsonfile" | jq . > "$tmpfile"
-mv "$tmpfile" "$jsonfile"
-
 echo -e "\n\nAfter: "
 sha1sum "$jsonfile"
 sha1sum "$binfile"
