@@ -39,26 +39,17 @@ let optionsWithZip =
     .WithResolver(resolver)
     .WithCompression(MessagePack.MessagePackCompression.Lz4BlockArray)
 
-let internalSerialize
-  (options : MessagePackSerializerOptions)
-  (data : 'a)
-  : byte [] =
-  MessagePack.MessagePackSerializer.Serialize<'a>(data, options)
-
-let internalDeserialize<'a>
-  (options : MessagePackSerializerOptions)
-  (bytes : byte [])
-  : 'a =
-  MessagePack.MessagePackSerializer.Deserialize<'a>(bytes, options)
-
 let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
-  internalSerialize optionsWithoutZip tl
+  MessagePack.MessagePackSerializer.Serialize(tl, optionsWithoutZip)
 
 let deserializeToplevel (data : byte []) : PT.Toplevel.T =
-  internalDeserialize optionsWithoutZip data
+  MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
 
 let serializeOplist (oplist : PT.Oplist) : byte [] =
-  internalSerialize optionsWithZip oplist
+  MessagePack.MessagePackSerializer.Serialize(oplist, optionsWithZip)
+
+let serializeOplistToJson (oplist : PT.Oplist) : string =
+  MessagePack.MessagePackSerializer.SerializeToJson(oplist, optionsWithZip)
 
 let deserializeOplist (data : byte []) : PT.Oplist =
-  internalDeserialize optionsWithZip data
+  MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip)
