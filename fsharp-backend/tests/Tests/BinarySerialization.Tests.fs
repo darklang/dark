@@ -6,8 +6,12 @@ open Prelude
 open Tablecloth
 open TestUtils.TestUtils
 
+module File = LibBackend.File
+module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
 module BinarySerialization = LibBackend.BinarySerialization
+
+
 
 let testExprString =
   " do
@@ -60,30 +64,46 @@ let testExpr =
 
 let testPos : PT.Position = { x = 6; y = 6 }
 
+let testHandlerIDs : PT.Handler.ids =
+  { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
+
+let testHttpHandler : PT.Handler.T =
+  let spec = PT.Handler.HTTP("/path", "GET", testHandlerIDs)
+  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+
+let testWorker : PT.Handler.T =
+  let spec = PT.Handler.Worker("name", testHandlerIDs)
+  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+
+let testOldWorker : PT.Handler.T =
+  let spec = PT.Handler.OldWorker("MODULE", "name", testHandlerIDs)
+  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+
+let testRepl : PT.Handler.T =
+  let spec = PT.Handler.REPL("name", testHandlerIDs)
+  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+
+let testCron1 : PT.Handler.T =
+  let spec = PT.Handler.Cron("name", None, testHandlerIDs)
+  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+
+let testCron2 : PT.Handler.T =
+  let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, testHandlerIDs)
+  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+
+let testUnknownHandler : PT.Handler.T =
+  let spec = PT.Handler.UnknownHandler("name", "", testHandlerIDs)
+  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+
+
 let testHandlers : List<PT.Handler.T> =
-  let ids : PT.Handler.ids = { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
-  let http : PT.Handler.T =
-    let spec = PT.Handler.HTTP("/path", "GET", ids)
-    { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
-  let worker : PT.Handler.T =
-    let spec = PT.Handler.Worker("name", ids)
-    { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
-  let oldWorker : PT.Handler.T =
-    let spec = PT.Handler.OldWorker("MODULE", "name", ids)
-    { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
-  let repl : PT.Handler.T =
-    let spec = PT.Handler.REPL("name", ids)
-    { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
-  let cron1 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", None, ids)
-    { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
-  let cron2 : PT.Handler.T =
-    let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
-    { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
-  let unknown : PT.Handler.T =
-    let spec = PT.Handler.UnknownHandler("name", "", ids)
-    { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
-  [ http; worker; cron1; cron2; repl; unknown; oldWorker ]
+  [ testHttpHandler
+    testWorker
+    testCron1
+    testCron2
+    testRepl
+    testUnknownHandler
+    testOldWorker ]
 
 let testType =
   PT.TRecord [ ("nested",
@@ -176,11 +196,9 @@ let testToplevels : List<PT.Toplevel.T> =
     List.map PT.Toplevel.TLType testUserTypes ]
   |> List.concat
 
-
-
-let roundtripTest =
+let toplevelRoundtripTest =
   testMany
-    "serializeProgramTypes"
+    "serializeToplevels"
     (fun tl ->
       tl
       |> BinarySerialization.serializeToplevel
@@ -188,5 +206,77 @@ let roundtripTest =
       |> (=) tl)
     (List.map (fun x -> x, true) testToplevels)
 
+let testOplist : PT.Oplist =
+  let id = gid ()
+  let tlid = gid ()
+  [ PT.SetHandler(testHttpHandler.tlid, testPos, testHttpHandler)
+    PT.CreateDB(tlid, testPos, "name")
+    PT.AddDBCol(tlid, id, id)
+    PT.SetDBColName(tlid, id, "name")
+    PT.SetDBColType(tlid, id, "int")
+    PT.DeleteTL tlid
+    PT.MoveTL(tlid, testPos)
+    PT.SetFunction(testFunctions[0])
+    PT.ChangeDBColName(tlid, id, "name")
+    PT.ChangeDBColType(tlid, id, "int")
+    PT.UndoTL tlid
+    PT.RedoTL tlid
+    PT.SetExpr(tlid, id, testExpr)
+    PT.TLSavepoint tlid
+    PT.DeleteFunction tlid
+    PT.CreateDBMigration(tlid, id, id, [ "fn", id, "str", id ])
+    PT.AddDBColToDBMigration(tlid, id, id)
+    PT.SetDBColNameInDBMigration(tlid, id, "newname")
+    PT.SetDBColTypeInDBMigration(tlid, id, "string")
+    PT.AbandonDBMigration tlid
+    PT.DeleteColInDBMigration(tlid, id)
+    PT.DeleteDBCol(tlid, id)
+    PT.DeprecatedInitDBm(tlid, id, id, id, PT.DeprecatedMigrationKind)
+    PT.RenameDBname(tlid, "newname")
+    PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
+    PT.DeleteTLForever tlid
+    PT.DeleteFunctionForever tlid
+    PT.SetType(testUserTypes[0])
+    PT.DeleteType tlid
+    PT.DeleteTypeForever tlid ]
 
-let tests = testList "BinarySerialization" [ roundtripTest ]
+let oplistRoundtripTest =
+  test "roundtrip oplists" {
+    let actual =
+      testOplist
+      |> BinarySerialization.serializeOplist
+      |> BinarySerialization.deserializeOplist
+    Expect.equal actual testOplist ""
+  }
+
+/// Generates test files for binary serialization. These files are used to prove that
+/// the binary serialization format did not change. We commit the output of these
+/// files and if it differs then something changed. If we make changes to the binary
+/// serialization format (or to the test cases), we regenerate the files instead and
+/// commit them. Regenerate using ./scripts/build/regenerate-test-files
+
+let testTestFiles =
+  test "check test files are correct" {
+    let expected = File.readfileBytes Config.Serialization "oplist-format.bin"
+    let actual = testOplist |> BinarySerialization.serializeOplist
+    Expect.equal actual expected "binary oplist"
+
+    let expected = File.readfile Config.Serialization "oplist-format.json"
+    let actual = testOplist |> BinarySerialization.serializeOplistToJson
+    Expect.equal actual expected "json oplist"
+  }
+
+
+let generateBinarySerializationTestFiles () : unit =
+  testOplist
+  |> BinarySerialization.serializeOplist
+  |> File.writefileBytes Config.Serialization "oplist-format.bin"
+
+  testOplist
+  |> BinarySerialization.serializeOplistToJson
+  |> File.writefile Config.Serialization "oplist-format.json"
+
+let tests =
+  testList
+    "BinarySerialization"
+    [ toplevelRoundtripTest; oplistRoundtripTest; testTestFiles ]
