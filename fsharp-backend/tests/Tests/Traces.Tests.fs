@@ -26,7 +26,7 @@ let testTraceIDsOfTlidsMatch : Test =
   test "traceIDs from tlids are as expected" {
     Expect.equal
       "e170d0d5-14de-530e-8dd0-a445aee7ca81"
-      (Traces.traceIDofTLID 325970458UL |> string) // Why is this the expected value? confused.
+      (Traces.traceIDofTLID 325970458UL |> string)
       "traceisasexpected"
 
     Expect.equal
