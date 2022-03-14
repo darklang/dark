@@ -1,6 +1,8 @@
 /// Converts strings of F# into Dark. Used for testing.
 module FSharpToExpr
 
+// refer to https://fsharp.github.io/fsharp-compiler-docs
+
 open FSharp.Compiler
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
@@ -77,6 +79,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       pFloat sign whole fraction
     | SynPat.Const (SynConst.String (s, _, _), _) -> pString s
     | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
+                        _,
                         _,
                         _,
                         SynArgPats.Pats args,
@@ -191,15 +194,15 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     eFieldAccess (eVar var.idText) (nameOrBlank field.idText)
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
     eFieldAccess (c expr) (nameOrBlank field.idText)
-  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), _, body, _, _) ->
+  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _, _) ->
     let rec extractVarsAndBody expr =
       match expr with
       // The 2nd param indicates this was part of a lambda
-      | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), _, body, _, _) ->
+      | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), body, _, _, _) ->
         let nestedVars, body = extractVarsAndBody body
         vars @ nestedVars, body
       // The 2nd param indicates this was not nested
-      | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), _, body, _, _) ->
+      | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), body, _, _, _) ->
         vars, body
       | SynExpr.Lambda _ ->
         Exception.raiseInternal "TODO: other types of lambda" [ "expr", expr ]
@@ -208,7 +211,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     let nestedVars, body = extractVarsAndBody body
     let vars = List.map convertLambdaVar (outerVars @ nestedVars)
     eLambda vars (c body)
-  | SynExpr.IfThenElse (_, _, cond, _, thenExpr, _, Some elseExpr, _, _, _, _) ->
+  | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
     eIf (c cond) (c thenExpr) (c elseExpr)
   // When we add patterns on the lhs of lets, the pattern below could be
   // expanded to use convertPat
@@ -225,8 +228,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                                     _,
                                     rhs,
                                     _,
+                                    _,
                                     _) ],
                       body,
+                      _,
                       _) -> eLet name.idText (c rhs) (c body)
   | SynExpr.LetOrUse (_,
                       _,
@@ -241,12 +246,14 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                                     _,
                                     rhs,
                                     _,
+                                    _,
                                     _) ],
                       body,
+                      _,
                       _) -> eLet "_" (c rhs) (c body)
-  | SynExpr.Match (_, cond, clauses, _) ->
+  | SynExpr.Match (_, _, cond, _, clauses, _) ->
     let convertClause
-      (SynMatchClause (pat, _, _, expr, _, _) : SynMatchClause)
+      (SynMatchClause (pat, _, expr, _, _, _) : SynMatchClause)
       : PT.Pattern * PT.Expr =
       (convertPattern pat, c expr)
 
@@ -254,7 +261,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Record (_, _, fields, _) ->
     fields
     |> List.map (function
-      | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
+      | SynExprRecordField ((LongIdentWithDots ([ name ], _), _), _, Some expr, _) ->
         (nameOrBlank name.idText, c expr)
       | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
     |> eRecord
