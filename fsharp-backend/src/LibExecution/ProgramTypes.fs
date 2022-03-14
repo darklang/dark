@@ -12,20 +12,30 @@ type Sign = Prelude.Sign
 // https://github.com/neuecc/MessagePack-CSharp
 // https://github.com/pocketberserker/MessagePack.FSharpExtensions
 //
-// Records should be annotated with `[<MessagePack.MessagePackObject>]`, and each
+// All types should be annotated with `[<MessagePack.MessagePackObject>]`, and each
 // field in the record should be annotated with `[<MessagePack.Key 0>]` (the zero
 // should be replaced with a unique sequential index):
 //
 // [<MessagePack.MessagePackObject>] type X = { [<MessagePack.Key 0>] x : int
 //
 // If you forget to annotate all parts of a type (or a type referred to by that type)
-// the serialized size will be much bigger and the serialization/deserialization time
-// will be higher.
+// the serializer will raise an exception.
 //
-// To check this, check the file backend/serialization/oplist-format.json for "Item"
-// -- if it contains the string then MessagePack couldn't use the optimized format
-// and is falling back to less-optimized format.
+// All "code" is Dark is serialized using these types and stored in the DB, and we
+// need to be very careful about changes to the types.
 //
+// The follow changes are known to be safe:
+// - adding a new variant at the end of an Enum
+// - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
+//
+// The following changes are known to be unsafe (and will require migrating data):
+// - adding a new variant to an Enum that is not at the end
+//
+// add a field to a record at the end
+// add a field to a record in the middle, making indexes ok
+// remove a field from a record
+// change the type of a variant
+// change the type of a record
 
 [<MessagePack.MessagePackObject>]
 type Position =
