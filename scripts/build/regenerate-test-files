@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+cd fsharp-backend && Build/out/Tests/Debug/net6.0/linux-x64/Tests --regenerate-test-files
+

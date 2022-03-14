@@ -17,14 +17,6 @@ let main (args : string array) : int =
   HttpMiddleware.Init.init "Tests"
   TestUtils.Init.init "Tests"
 
-  let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-  let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-  // CLEANUP For now, migrations are run by the ocaml process in run-fsharp-tests
-  // LibBackend.Migrations.init ()
-  let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-  Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
-  (LibBackend.Account.initTestAccounts ()).Wait()
-
   let tests =
     [ Tests.Account.tests
       Tests.ApiServer.tests
@@ -50,12 +42,22 @@ let main (args : string array) : int =
       Tests.Undo.tests
       Tests.UserDB.tests ]
 
-  // this does async stuff within it, so do not run it from a task/async
-  // context or it may hang
-  let exitCode = runTestsWithCLIArgs [] args (testList "tests" tests)
+  if args.Length = 1 && args[0] = "--regenerate-test-files" then
+    BinarySerialization.generateBinarySerializationTestFiles ()
+    0
+  else
+    let cancelationTokenSource = new System.Threading.CancellationTokenSource()
+    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
+    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
+    Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
+    (LibBackend.Account.initTestAccounts ()).Wait()
 
-  Prelude.NonBlockingConsole.wait () // flush stdout
-  cancelationTokenSource.Cancel()
-  bwdServerTestsTask.Wait()
-  httpClientTestsTask.Wait()
-  exitCode
+    // this does async stuff within it, so do not run it from a task/async
+    // context or it may hang
+    let exitCode = runTestsWithCLIArgs [] args (testList "tests" tests)
+
+    Prelude.NonBlockingConsole.wait () // flush stdout
+    cancelationTokenSource.Cancel()
+    bwdServerTestsTask.Wait()
+    httpClientTestsTask.Wait()
+    exitCode
