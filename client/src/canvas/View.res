@@ -14,7 +14,7 @@ let docsURL = "https://docs.darklang.com"
 
 let functionRefsURL = "https://ops-documentation.builtwithdark.com/?pretty=1"
 
-let keyboardRefsURL = "https://docs.darklang.com/keyboard-mapping"
+let keyboardRefsURL = "https://docs.darklang.com/reference/keyboard-mapping"
 
 let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
   let tlid = TL.id(tl)
