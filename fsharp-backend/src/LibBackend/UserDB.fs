@@ -8,7 +8,7 @@
 /// - Dark version
 /// - canvas (by ID)
 /// - table/store ID
-/// - user version (version of the DB - incremented by any structural change to the store)
+/// - user version (for when the users change the type being stored)
 /// </remarks>
 module LibBackend.UserDB
 

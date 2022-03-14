@@ -44,7 +44,7 @@ let push
   : unit =
   FireAndForget.fireAndForgetTask executionID $"pusher: {eventName}" (fun () ->
     task {
-      // TODO: handle messages over 10k (10k what? 10k bytes in size? does it fail after 10k (count) messages?)
+      // TODO: handle messages over 10k bytes
       // TODO: make channels private and end-to-end encrypted in order to add public canvases
       let client = Lazy.force pusherClient
       let channel = $"canvas_{canvasID}"

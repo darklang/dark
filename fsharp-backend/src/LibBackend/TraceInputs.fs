@@ -33,6 +33,9 @@ module RT = LibExecution.RuntimeTypes
 ///
 /// "Modifier" options differ based on space.
 /// e.g. HTTP handler may have "GET" modifier.
+///
+/// Handlers which don't have modifiers (e.g. repl, worker) nearly
+/// allways (but not actually alwasys) have `_` as their modifier.
 type EventDesc = string * string * string
 
 type EventRecord = string * string * string * NodaTime.Instant * AT.TraceID

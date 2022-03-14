@@ -164,26 +164,18 @@ module WorkerStates =
 /// <remarks>
 /// `host` is optional because we have it when we dequeue, but not enqueue.
 /// </remarks>
-///
-/// WHATISTHIS why do we have both 'name' and 'host'?
-/// is it anticipation of a queue existing in one canvas, but being used in another?
 let logQueueSize
   (queue_action : queue_action)
-
-  // better name ideas: anchorCanvas, or managedBy, or ownedBy.
-  // esp. useful if we switch to a "CanvasName of string" type here, rather than just string.
-  // then this could be `(managedBy: CanvasName option)`
-  (host : Option<string>)
-
+  (canvasName : Option<string>)
   (canvasID : CanvasID)
   (space : string)
-  (queueName : string)
+  (name : string)
   (modifier : string)
   : Task<unit> =
   task {
     use span = Telemetry.child "queue size" []
     let! host =
-      match host with
+      match canvasName with
       | Some host -> Task.FromResult(host)
       | None ->
         Sql.query "SELECT name FROM canvases WHERE id = @canvasID"
@@ -208,7 +200,7 @@ let logQueueSize
          AND space = @space AND name = @name AND modifier = @modifier"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                           "space", Sql.string space
-                          "name", Sql.string queueName
+                          "name", Sql.string name
                           "modifier", Sql.string modifier ]
       |> Sql.executeRowAsync (fun read -> read.int "count")
 
@@ -220,7 +212,7 @@ let logQueueSize
                         ("queue_action", string queue_action)
                         ("queue_canvas_id", canvasID)
                         ("queue_event_space", space)
-                        ("queue_event_name", queueName)
+                        ("queue_event_name", name)
                         ("queue_event_modifier", modifier) ]
   }
 
