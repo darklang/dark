@@ -22,20 +22,31 @@ type Sign = Prelude.Sign
 // the serializer will raise an exception.
 //
 // All "code" is Dark is serialized using these types and stored in the DB, and we
-// need to be very careful about changes to the types.
+// need to be very careful about changes to the types. "Safe" changes allow data
+// saved in files in the old format to continue to be read by the serializers for the
+// new format.
 //
 // The follow changes are known to be safe:
-// - adding a new variant at the end of an Enum
-// - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
 //
 // The following changes are known to be unsafe (and will require migrating data):
 // - adding a new variant to an Enum that is not at the end
+// - removing a variant in an Enum that is not at the end
+// - removing a variant from an Enum where that variant is stored somewhere
 //
-// add a field to a record at the end
-// add a field to a record in the middle, making indexes ok
-// remove a field from a record
-// change the type of a variant
-// change the type of a record
+// The following changes have not been tested but are assumed to be unsafe:
+// - adding a field to variant (eg add b to X(a,b))
+// - removing a field from a variant (eg remove b to X(a,b))
+//
+// Still to check:
+// - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
+// - renaming a variant in an Enum (even if that variant is used)
+// - reorder variants in an Enum
+// - add a field to a record at the end
+// - add a field to a record in the middle, making indexes ok
+// - remove a field from a record
+// - change the order of variants
+// - change the type of a variant
+// - change the type of a record
 
 [<MessagePack.MessagePackObject>]
 type Position =
