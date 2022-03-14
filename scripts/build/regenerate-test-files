@@ -3,11 +3,23 @@
 
 set -euo pipefail
 
+
+jsonfile=backend/serialization/oplist-format.json
+binfile=backend/serialization/oplist-format.bin
+
+echo "Before: "
+sha1sum "$jsonfile"
+sha1sum "$binfile"
+
+echo -e "\n\nRegenerating: "
 cd fsharp-backend
 Build/out/Tests/Debug/net6.0/linux-x64/Tests --regenerate-test-files
 cd ..
 
 tmpfile=$(mktemp)
-jsonfile=backend/serialization/oplist-format.json
 cat "$jsonfile" | jq . > "$tmpfile"
 mv "$tmpfile" "$jsonfile"
+
+echo -e "\n\nAfter: "
+sha1sum "$jsonfile"
+sha1sum "$binfile"

@@ -5,6 +5,8 @@ module Tests.All
 open Expecto
 open System.Threading.Tasks
 
+open Prelude
+
 module Telemetry = LibService.Telemetry
 
 [<EntryPoint>]
@@ -44,6 +46,7 @@ let main (args : string array) : int =
 
   if args.Length = 1 && args[0] = "--regenerate-test-files" then
     BinarySerialization.generateBinarySerializationTestFiles ()
+    print "Serialized to backend/serialization"
     0
   else
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()

@@ -11,89 +11,265 @@ module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
 module BinarySerialization = LibBackend.BinarySerialization
 
-
-
-let testExprString =
-  " do
-      let x1 = 5
-      let x2 = 6
-      let bool = true
-      let bool = false
-      let str = \"a string\"
-      let char = 'a'
-      let float = -6.5
-      let n = null
-      let b = blank
-      let i =
-        if Bool.isError_ster 6
-        then
-          if 5 <> 6
-          then 5 + 2
-          else (fun y -> 2 + y)
-        else
-          x.y + Int.add_v0 6 2 + [5;6;7]
-      let r =
-        { field = 5 |> (+) 2
-          constructor = Ok (Error (Just Nothing))
-        }
-      let m =
-        match Mod.function_v2 with
-        | Ok x -> v
-        | 5 -> 6
-        | true -> 7
-        | 'c' -> 'c'
-        | \"string\" -> \"string\"
-        | null -> null
-        | var -> 6 + var
-        | 5.6 -> 5.6
-        | blank -> 6
-      let f = flag \"test\" true 5 6
-      4"
-
-let nonStringTestExprs =
-  let e = PT.EInteger(gid (), 5)
-  PT.EList(
-    gid (),
-    [ PT.EPartial(gid (), "some 🤬 string", e)
-      PT.ERightPartial(gid (), "some 😭 string", e)
-      PT.ELeftPartial(gid (), "some 👨‍👩‍👧‍👦 string", e) ]
+/// The test values below are used to check the exact output of test file. So we need
+/// the test inputs to be consistent, which is why we never use `gid ()` below, or
+/// FSharpToExpr functions.
+let testExpr =
+  let e = PT.EInteger(34545UL, 5)
+  PT.ELet(
+    295510954UL,
+    "x1",
+    PT.EInteger(929452387UL, 5L),
+    PT.ELet(
+      620028536UL,
+      "x2",
+      PT.EInteger(452247642UL, 6L),
+      PT.ELet(
+        68205955UL,
+        "bool",
+        PT.EBool(43581311UL, true),
+        PT.ELet(
+          755798860UL,
+          "bool",
+          PT.EBool(97054530UL, false),
+          PT.ELet(
+            244891515UL,
+            "str",
+            PT.EString(446488682UL, "a string"),
+            PT.ELet(
+              537517627UL,
+              "char",
+              PT.ECharacter(1031176330UL, "a"),
+              PT.ELet(
+                399526184UL,
+                "float",
+                PT.EFloat(770715427UL, Negative, "6", "5"),
+                PT.ELet(
+                  975263310UL,
+                  "n",
+                  PT.ENull 923644248UL,
+                  PT.ELet(
+                    468988830UL,
+                    "b",
+                    PT.EBlank 133368677UL,
+                    PT.ELet(
+                      43886336UL,
+                      "i",
+                      PT.EIf(
+                        46231874UL,
+                        PT.EFnCall(
+                          898531080UL,
+                          PT.FQFnName.Stdlib
+                            { module_ = "Bool"; function_ = "isError"; version = 0 },
+                          [ PT.EInteger(160106123UL, 6L) ],
+                          PT.Rail
+                        ),
+                        PT.EIf(
+                          729246077UL,
+                          PT.EBinOp(
+                            94793109UL,
+                            PT.FQFnName.Stdlib
+                              { module_ = ""; function_ = "!="; version = 0 },
+                            PT.EInteger(264400705UL, 5L),
+                            PT.EInteger(335743639UL, 6L),
+                            PT.NoRail
+                          ),
+                          PT.EBinOp(
+                            775118986UL,
+                            PT.FQFnName.Stdlib
+                              { module_ = ""; function_ = "+"; version = 0 },
+                            PT.EInteger(803876589UL, 5L),
+                            PT.EInteger(219131014UL, 2L),
+                            PT.NoRail
+                          ),
+                          PT.ELambda(
+                            947647446UL,
+                            [ (180359194UL, "y") ],
+                            PT.EBinOp(
+                              140609068UL,
+                              PT.FQFnName.Stdlib
+                                { module_ = ""; function_ = "+"; version = 0 },
+                              PT.EInteger(450951790UL, 2L),
+                              PT.EVariable(402203255UL, "y"),
+                              PT.NoRail
+                            )
+                          )
+                        ),
+                        PT.EBinOp(
+                          265463935UL,
+                          PT.FQFnName.Stdlib
+                            { module_ = ""; function_ = "+"; version = 0 },
+                          PT.EBinOp(
+                            312092282UL,
+                            PT.FQFnName.Stdlib
+                              { module_ = ""; function_ = "+"; version = 0 },
+                            PT.EFieldAccess(
+                              974664608UL,
+                              PT.EVariable(1002893266UL, "x"),
+                              "y"
+                            ),
+                            PT.EFnCall(
+                              173079901UL,
+                              PT.FQFnName.Stdlib
+                                { module_ = "Int"; function_ = "add"; version = 0 },
+                              [ PT.EInteger(250221144UL, 6L)
+                                PT.EInteger(298149318UL, 2L) ],
+                              PT.NoRail
+                            ),
+                            PT.NoRail
+                          ),
+                          PT.EList(
+                            539797095UL,
+                            [ PT.EInteger(267797631UL, 5L)
+                              PT.EInteger(352138743UL, 6L)
+                              PT.EInteger(430871955UL, 7L) ]
+                          ),
+                          PT.NoRail
+                        )
+                      ),
+                      PT.ELet(
+                        831830073UL,
+                        "r",
+                        PT.ERecord(
+                          109539183UL,
+                          [ ("field",
+                             PT.EPipe(
+                               786862131UL,
+                               PT.EInteger(555880460UL, 5L),
+                               PT.EBinOp(
+                                 1021880969UL,
+                                 PT.FQFnName.Stdlib
+                                   { module_ = ""; function_ = "+"; version = 0 },
+                                 PT.EPipeTarget 936577032UL,
+                                 PT.EInteger(962393769UL, 2L),
+                                 PT.NoRail
+                               ),
+                               []
+                             ))
+                            ("constructor",
+                             PT.EConstructor(
+                               567764301UL,
+                               "Ok",
+                               [ PT.EConstructor(
+                                   646107057UL,
+                                   "Error",
+                                   [ PT.EConstructor(
+                                       689802831UL,
+                                       "Just",
+                                       [ PT.EConstructor(957916875UL, "Nothing", []) ]
+                                     ) ]
+                                 ) ]
+                             )) ]
+                        ),
+                        PT.ELet(
+                          745304029UL,
+                          "m",
+                          PT.EMatch(
+                            889712088UL,
+                            PT.EFnCall(
+                              203239466UL,
+                              PT.FQFnName.Stdlib
+                                { module_ = "Mod"
+                                  function_ = "function"
+                                  version = 2 },
+                              [],
+                              PT.NoRail
+                            ),
+                            [ (PT.PConstructor(
+                                1015986188UL,
+                                "Ok",
+                                [ PT.PVariable(334386852UL, "x") ]
+                               ),
+                               PT.EVariable(863810169UL, "v"))
+                              (PT.PInteger(928253813UL, 5L),
+                               PT.EInteger(342670561UL, 6L))
+                              (PT.PBool(435227293UL, true),
+                               PT.EInteger(232748650UL, 7L))
+                              (PT.PCharacter(387662539UL, "c"),
+                               PT.ECharacter(657848009UL, "c"))
+                              (PT.PString(491115870UL, "string"),
+                               PT.EString(820329949UL, "string"))
+                              (PT.PNull 701616052UL, PT.ENull 731162955UL)
+                              (PT.PVariable(722099983UL, "var"),
+                               PT.EBinOp(
+                                 275666765UL,
+                                 PT.FQFnName.Stdlib
+                                   { module_ = ""; function_ = "+"; version = 0 },
+                                 PT.EInteger(739193732UL, 6L),
+                                 PT.EVariable(880556562UL, "var"),
+                                 PT.NoRail
+                               ))
+                              (PT.PFloat(409097457UL, Positive, "5", "6"),
+                               PT.EFloat(131187958UL, Positive, "5", "6"))
+                              (PT.PBlank 858594159UL, PT.EInteger(135348705UL, 6L)) ]
+                          ),
+                          PT.ELet(
+                            927055617UL,
+                            "f",
+                            PT.EFeatureFlag(
+                              882488977UL,
+                              "test",
+                              PT.EBool(349352147UL, true),
+                              PT.EInteger(578528886UL, 5L),
+                              PT.EInteger(562930224UL, 6L)
+                            ),
+                            PT.EList(
+                              23423423UL,
+                              [ PT.EPartial(2949606UL, "some 🤬 string", e)
+                                PT.ERightPartial(9239755UL, "some 😭 string", e)
+                                PT.ELeftPartial(
+                                  234885UL,
+                                  "some 👨‍👩‍👧‍👦 string",
+                                  e
+                                ) ]
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
   )
 
-let testExpr =
-  PT.ELet(gid (), "v", FSharpToExpr.parsePTExpr testExprString, nonStringTestExprs)
 
 let testPos : PT.Position = { x = 6; y = 6 }
 
 let testHandlerIDs : PT.Handler.ids =
-  { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
+  { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
 let testHttpHandler : PT.Handler.T =
   let spec = PT.Handler.HTTP("/path", "GET", testHandlerIDs)
-  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+  { spec = spec; tlid = 92987663UL; ast = testExpr; pos = testPos }
 
 let testWorker : PT.Handler.T =
   let spec = PT.Handler.Worker("name", testHandlerIDs)
-  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+  { spec = spec; tlid = 19930486UL; ast = testExpr; pos = testPos }
 
 let testOldWorker : PT.Handler.T =
   let spec = PT.Handler.OldWorker("MODULE", "name", testHandlerIDs)
-  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+  { spec = spec; tlid = 10438664321UL; ast = testExpr; pos = testPos }
 
 let testRepl : PT.Handler.T =
   let spec = PT.Handler.REPL("name", testHandlerIDs)
-  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+  { spec = spec; tlid = 10395769302UL; ast = testExpr; pos = testPos }
 
 let testCron1 : PT.Handler.T =
   let spec = PT.Handler.Cron("name", None, testHandlerIDs)
-  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+  { spec = spec; tlid = 294906673UL; ast = testExpr; pos = testPos }
 
 let testCron2 : PT.Handler.T =
   let spec = PT.Handler.Cron("name", Some PT.Handler.Every12Hours, testHandlerIDs)
-  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+  { spec = spec; tlid = 199385766UL; ast = testExpr; pos = testPos }
 
 let testUnknownHandler : PT.Handler.T =
   let spec = PT.Handler.UnknownHandler("name", "", testHandlerIDs)
-  { spec = spec; tlid = 0UL; ast = testExpr; pos = testPos }
+  { spec = spec; tlid = 13633UL; ast = testExpr; pos = testPos }
 
 
 let testHandlers : List<PT.Handler.T> =
@@ -140,35 +316,38 @@ let testType =
 let testDB : List<PT.DB.T> =
   [ { tlid = 0UL
       pos = testPos
-      nameID = gid ()
+      nameID = 2399545UL
       name = "User"
       version = 0
       cols =
-        [ { name = None; typ = None; nameID = gid (); typeID = gid () }
-          { name = None; typ = Some PT.TInt; nameID = gid (); typeID = gid () }
-          { name = Some "name"; typ = None; nameID = gid (); typeID = gid () }
+        [ { name = None; typ = None; nameID = 2949054UL; typeID = 5929202UL }
+          { name = None; typ = Some PT.TInt; nameID = 20109857UL; typeID = 299063UL }
+          { name = Some "name"
+            typ = None
+            nameID = 28234232UL
+            typeID = 029985336UL }
           { name = Some "value"
             typ = Some testType
-            nameID = gid ()
-            typeID = gid () } ] } ]
+            nameID = 923982352UL
+            typeID = 289429232UL } ] } ]
 
 let testFunctions : List<PT.UserFunction.T> =
   [ { tlid = 0UL
       name = "myFunc"
-      nameID = gid ()
+      nameID = 1828332UL
       parameters =
         [ { name = "myparam1"
-            nameID = gid ()
+            nameID = 23824935UL
             typ = None
-            typeID = gid ()
+            typeID = 38284244UL
             description = "param1" }
           { name = "myparam2"
-            nameID = gid ()
+            nameID = 92837232UL
             typ = Some testType
-            typeID = gid ()
+            typeID = 239232UL
             description = "param1" } ]
       returnType = testType
-      returnTypeID = gid ()
+      returnTypeID = 23923423UL
       description = "function description"
       infix = false
       body = testExpr } ]
@@ -176,17 +355,17 @@ let testFunctions : List<PT.UserFunction.T> =
 let testUserTypes : List<PT.UserType.T> =
   [ { tlid = 0UL
       name = "User"
-      nameID = gid ()
+      nameID = 92930232UL
       version = 0
       definition =
         PT.UserType.Record [ { name = "prop1"
                                typ = None
-                               nameID = gid ()
-                               typeID = gid () }
+                               nameID = 923942342UL
+                               typeID = 3452342UL }
                              { name = "prop1"
                                typ = Some testType
-                               nameID = gid ()
-                               typeID = gid () } ] } ]
+                               nameID = 0698978UL
+                               typeID = 93494534UL } ] } ]
 
 
 let testToplevels : List<PT.Toplevel.T> =
@@ -207,8 +386,8 @@ let toplevelRoundtripTest =
     (List.map (fun x -> x, true) testToplevels)
 
 let testOplist : PT.Oplist =
-  let id = gid ()
-  let tlid = gid ()
+  let id = 923832423UL
+  let tlid = 94934534UL
   [ PT.SetHandler(testHttpHandler.tlid, testPos, testHttpHandler)
     PT.CreateDB(tlid, testPos, "name")
     PT.AddDBCol(tlid, id, id)
