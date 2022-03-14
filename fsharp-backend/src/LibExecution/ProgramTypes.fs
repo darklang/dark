@@ -7,29 +7,25 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-// Intro to MessagePack
+// The types in this files are serialized using MessagePack.
 //
 // https://github.com/neuecc/MessagePack-CSharp
 // https://github.com/pocketberserker/MessagePack.FSharpExtensions
 //
-// If you forget to annotate a type (either DiscriminatedUnions/Enum/Variants or
-// Records) the serialized size will be much bigger and the serialize and deserialize
-// time will be higher
+// Records should be annotated with `[<MessagePack.MessagePackObject>]`, and each
+// field in the record should be annotated with `[<MessagePack.Key 0>]` (the zero
+// should be replaced with a unique sequential index):
 //
-// Same thing if you omit `[<MessagePack.Key 1>]` from record keys. Do not omit even
-// one or the entire class is banjaxed.
+// [<MessagePack.MessagePackObject>] type X = { [<MessagePack.Key 0>] x : int
 //
-// If you take the serialized bytes and run it through `UTF8.ofBytesWithReplacement`,
-// you should see that there are no extra strings apart from the actual strings in
-// the value. In particular, if you see lots of "Item" strings, you've done something
-// wrong. This is how DUs and records without the MessagePackObject annotation are
-// serialized.
+// If you forget to annotate all parts of a type (or a type referred to by that type)
+// the serialized size will be much bigger and the serialization/deserialization time
+// will be higher.
 //
-// You can also use:
-// MessagePack.MessagePackSerializer.SerializeToJson(expected, options, token)
+// To check this, check the file backend/serialization/oplist-format.json for "Item"
+// -- if it contains the string then MessagePack couldn't use the optimized format
+// and is falling back to less-optimized format.
 //
-//
-// TODO: try the lz4 feature on oplists, as they involve a lot of duplication
 
 [<MessagePack.MessagePackObject>]
 type Position =
