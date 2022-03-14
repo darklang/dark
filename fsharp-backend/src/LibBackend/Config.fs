@@ -22,7 +22,7 @@ let testResultDir = $"{runDir}test_results/"
 
 let logDir = $"{runDir}logs/"
 
-let serializationDir = "${backendDir}serialization/"
+let serializationDir = $"{backendDir}serialization/"
 
 let completedTestDir = $"{runDir}completed_tests/"
 

@@ -3,5 +3,11 @@
 
 set -euo pipefail
 
-cd fsharp-backend && Build/out/Tests/Debug/net6.0/linux-x64/Tests --regenerate-test-files
+cd fsharp-backend
+Build/out/Tests/Debug/net6.0/linux-x64/Tests --regenerate-test-files
+cd ..
 
+tmpfile=$(mktemp)
+jsonfile=backend/serialization/oplist-format.json
+cat "$jsonfile" | jq . > "$tmpfile"
+mv "$tmpfile" "$jsonfile"
