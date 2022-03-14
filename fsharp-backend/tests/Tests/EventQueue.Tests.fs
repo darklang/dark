@@ -64,7 +64,8 @@ let testEventQueueIsFifo =
 
     do!
       ([ apple; banana ]
-       |> List.map (fun h -> (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
+       |> List.map (fun h ->
+         (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
     let enqueue (name : string) (i : int64) =
@@ -108,7 +109,8 @@ let testGetWorkerSchedulesForCanvas =
 
     do!
       ([ apple; banana; cherry ]
-       |> List.map (fun h -> (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
+       |> List.map (fun h ->
+         (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
     do! EQ.pauseWorker meta.id "apple"
