@@ -23,16 +23,9 @@ let eventNameOfOp (op : PT.Op) : string =
   | PT.ChangeDBColType _ -> "ChangeDBColType"
   | PT.UndoTL _ -> "UndoTL"
   | PT.RedoTL _ -> "RedoTL"
-  | PT.DeprecatedInitDBm _ -> "DeprecatedInitDbm"
   | PT.SetExpr _ -> "SetExpr"
   | PT.TLSavepoint _ -> "TLSavepoint"
   | PT.DeleteFunction _ -> "DeleteFunction"
-  | PT.CreateDBMigration _ -> "CreateDBMigration"
-  | PT.AddDBColToDBMigration _ -> "AddDBColToDBMigration"
-  | PT.SetDBColNameInDBMigration _ -> "SetDBColNameInDBMigration"
-  | PT.SetDBColTypeInDBMigration _ -> "SetDBColTypeInDBMigration"
-  | PT.AbandonDBMigration _ -> "AbandonDBMigration"
-  | PT.DeleteColInDBMigration _ -> "DeleteColInDBMigration"
   | PT.DeleteDBCol _ -> "DeleteDBCol"
   | PT.RenameDBname _ -> "RenameDBname"
   | PT.CreateDBWithBlankOr _ -> "CreateDBWithBlankOr"
@@ -58,7 +51,6 @@ let requiredContextToValidate (op : PT.Op) : RequiredContext =
   | PT.ChangeDBColName _ -> AllDatastores
   | PT.SetDBColType _ -> NoContext
   | PT.ChangeDBColType _ -> NoContext
-  | PT.DeprecatedInitDBm _ -> NoContext
   | PT.SetExpr _ -> NoContext
   | PT.TLSavepoint _ -> NoContext
   | PT.UndoTL _ ->
@@ -71,12 +63,6 @@ let requiredContextToValidate (op : PT.Op) : RequiredContext =
   | PT.MoveTL _ -> NoContext
   | PT.SetFunction _ -> NoContext
   | PT.DeleteFunction _ -> NoContext
-  | PT.CreateDBMigration _ -> NoContext
-  | PT.AddDBColToDBMigration _ -> NoContext
-  | PT.SetDBColNameInDBMigration _ -> NoContext
-  | PT.SetDBColTypeInDBMigration _ -> NoContext
-  | PT.AbandonDBMigration _ -> NoContext
-  | PT.DeleteColInDBMigration _ -> NoContext
   | PT.DeleteDBCol _ -> NoContext
   | PT.RenameDBname _ -> AllDatastores
   | PT.CreateDBWithBlankOr _ -> AllDatastores
@@ -115,7 +101,6 @@ let tlidOf (op : PT.Op) : tlid =
   | PT.ChangeDBColName (tlid, _, _) -> tlid
   | PT.SetDBColType (tlid, _, _) -> tlid
   | PT.ChangeDBColType (tlid, _, _) -> tlid
-  | PT.DeprecatedInitDBm (tlid, _, _, _, _) -> tlid
   | PT.SetExpr (tlid, _, _) -> tlid
   | PT.TLSavepoint tlid -> tlid
   | PT.UndoTL tlid -> tlid
@@ -124,12 +109,6 @@ let tlidOf (op : PT.Op) : tlid =
   | PT.MoveTL (tlid, _) -> tlid
   | PT.SetFunction f -> f.tlid
   | PT.DeleteFunction tlid -> tlid
-  | PT.CreateDBMigration (tlid, _, _, _) -> tlid
-  | PT.AddDBColToDBMigration (tlid, _, _) -> tlid
-  | PT.SetDBColNameInDBMigration (tlid, _, _) -> tlid
-  | PT.SetDBColTypeInDBMigration (tlid, _, _) -> tlid
-  | PT.AbandonDBMigration tlid -> tlid
-  | PT.DeleteColInDBMigration (tlid, _) -> tlid
   | PT.DeleteDBCol (tlid, _) -> tlid
   | PT.RenameDBname (tlid, _) -> tlid
   | PT.CreateDBWithBlankOr (tlid, _, _, _) -> tlid
@@ -164,13 +143,6 @@ let astOf (op : PT.Op) : PT.Expr option =
   | PT.DeleteFunction _
   | PT.ChangeDBColName (_, _, _)
   | PT.ChangeDBColType (_, _, _)
-  | PT.DeprecatedInitDBm (_, _, _, _, _)
-  | PT.CreateDBMigration (_, _, _, _)
-  | PT.AddDBColToDBMigration (_, _, _)
-  | PT.SetDBColNameInDBMigration (_, _, _)
-  | PT.SetDBColTypeInDBMigration (_, _, _)
-  | PT.DeleteColInDBMigration (_, _)
-  | PT.AbandonDBMigration _
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
   | PT.CreateDBWithBlankOr (_, _, _, _)
@@ -199,13 +171,6 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   | PT.DeleteFunction _
   | PT.ChangeDBColName (_, _, _)
   | PT.ChangeDBColType (_, _, _)
-  | PT.DeprecatedInitDBm (_, _, _, _, _)
-  | PT.CreateDBMigration (_, _, _, _)
-  | PT.AddDBColToDBMigration (_, _, _)
-  | PT.SetDBColNameInDBMigration (_, _, _)
-  | PT.SetDBColTypeInDBMigration (_, _, _)
-  | PT.DeleteColInDBMigration (_, _)
-  | PT.AbandonDBMigration _
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
   | PT.CreateDBWithBlankOr (_, _, _, _)
@@ -234,9 +199,6 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
     | PT.ChangeDBColName _
     | PT.ChangeDBColType _
     | PT.SetExpr _
-    | PT.CreateDBMigration _
-    | PT.SetDBColNameInDBMigration _
-    | PT.SetDBColTypeInDBMigration _
     | PT.UndoTL _
     | PT.RedoTL _
     | PT.TLSavepoint _
@@ -245,11 +207,7 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
     | PT.AddDBCol _
     | PT.SetDBColType _
     | PT.DeleteTL _
-    | PT.DeprecatedInitDBm _
     | PT.DeleteFunction _
-    | PT.AddDBColToDBMigration _
-    | PT.AbandonDBMigration _
-    | PT.DeleteColInDBMigration _
     | PT.DeleteDBCol _
     | PT.CreateDBWithBlankOr _
     | PT.DeleteTLForever _

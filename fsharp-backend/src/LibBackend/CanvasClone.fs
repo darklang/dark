@@ -32,14 +32,7 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.AddDBCol _
   | PT.SetDBColName _
   | PT.SetDBColType _
-  | PT.CreateDBMigration _
-  | PT.AddDBColToDBMigration _
-  | PT.SetDBColNameInDBMigration _
-  | PT.SetDBColTypeInDBMigration _
-  | PT.AbandonDBMigration _
-  | PT.DeleteColInDBMigration _
   | PT.TLSavepoint _
-  | PT.DeprecatedInitDBm _
   | PT.UndoTL _
   | PT.RedoTL _
   | PT.MoveTL _ -> false

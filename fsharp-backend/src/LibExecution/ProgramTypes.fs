@@ -327,8 +327,6 @@ module Toplevel =
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
 
-[<MessagePack.MessagePackObject>]
-type DeprecatedMigrationKind = | DeprecatedMigrationKind
 
 /// An Operation on a Canvas
 ///
@@ -351,14 +349,7 @@ type Op =
   | SetExpr of tlid * id * Expr
   | TLSavepoint of tlid
   | DeleteFunction of tlid
-  | CreateDBMigration of tlid * id * id * (string * id * string * id) list
-  | AddDBColToDBMigration of tlid * id * id
-  | SetDBColNameInDBMigration of tlid * id * string
-  | SetDBColTypeInDBMigration of tlid * id * string
-  | AbandonDBMigration of tlid
-  | DeleteColInDBMigration of tlid * id
   | DeleteDBCol of tlid * id
-  | DeprecatedInitDBm of tlid * id * id * id * DeprecatedMigrationKind
   | RenameDBname of tlid * string
   | CreateDBWithBlankOr of tlid * Position * id * string
   | DeleteTLForever of tlid

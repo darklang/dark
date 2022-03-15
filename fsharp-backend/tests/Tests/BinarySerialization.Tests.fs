@@ -403,14 +403,7 @@ let testOplist : PT.Oplist =
     PT.SetExpr(tlid, id, testExpr)
     PT.TLSavepoint tlid
     PT.DeleteFunction tlid
-    PT.CreateDBMigration(tlid, id, id, [ "fn", id, "str", id ])
-    PT.AddDBColToDBMigration(tlid, id, id)
-    PT.SetDBColNameInDBMigration(tlid, id, "newname")
-    PT.SetDBColTypeInDBMigration(tlid, id, "string")
-    PT.AbandonDBMigration tlid
-    PT.DeleteColInDBMigration(tlid, id)
     PT.DeleteDBCol(tlid, id)
-    PT.DeprecatedInitDBm(tlid, id, id, id, PT.DeprecatedMigrationKind)
     PT.RenameDBname(tlid, "newname")
     PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
     PT.DeleteTLForever tlid

@@ -515,67 +515,52 @@ module Convert =
       infix = o.metadata.infix
       body = ocamlExpr2PT o.ast }
 
-  let ocamlOp2PT (o : op<ORT.fluidExpr>) : PT.Op =
+  let ocamlOp2PT (o : op<ORT.fluidExpr>) : Option<PT.Op> =
     match o with
     | SetHandler (tlid, pos, handler) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.SetHandler(tlid, position, ocamlHandler2PT pos handler)
+      Some(PT.SetHandler(tlid, position, ocamlHandler2PT pos handler))
     | CreateDB (tlid, pos, name) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.CreateDB(tlid, position, name)
-    | AddDBCol (tlid, id1, id2) -> PT.AddDBCol(tlid, id1, id2)
-    | SetDBColName (tlid, id, name) -> PT.SetDBColName(tlid, id, name)
-    | SetDBColType (tlid, id, string) -> PT.SetDBColType(tlid, id, string)
-    | DeleteTL tlid -> PT.DeleteTL tlid
+      Some(PT.CreateDB(tlid, position, name))
+    | AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
+    | SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
+    | SetDBColType (tlid, id, string) -> Some(PT.SetDBColType(tlid, id, string))
+    | DeleteTL tlid -> Some(PT.DeleteTL tlid)
     | MoveTL (tlid, pos) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.MoveTL(tlid, position)
-    | SetFunction fn -> PT.SetFunction(ocamlUserFunction2PT fn)
-    | ChangeDBColName (tlid, id, string) -> PT.ChangeDBColName(tlid, id, string)
-    | ChangeDBColType (tlid, id, string) -> PT.ChangeDBColType(tlid, id, string)
-    | UndoTL tlid -> PT.UndoTL tlid
-    | RedoTL tlid -> PT.RedoTL tlid
-    | DeprecatedInitDbm (tlid, id1, id2, id3, kind) ->
-      PT.DeprecatedInitDBm(tlid, id1, id2, id3, PT.DeprecatedMigrationKind)
-    | SetExpr (tlid, id, e) -> PT.SetExpr(tlid, id, ocamlExpr2PT e)
-    | TLSavepoint tlid -> PT.TLSavepoint tlid
-    | DeleteFunction tlid -> PT.DeleteFunction tlid
-    | CreateDBMigration (tlid, id1, id2, rollingFns) ->
-      PT.CreateDBMigration(
-        tlid,
-        id1,
-        id2,
-        List.map
-          (fun (bo1, bo2) ->
-            let s1 = bo2String bo1
-            let id1 = bo2ID bo1
-            let s2 = bo2String bo2
-            let id2 = bo2ID bo2
-            (s1, id1, s2, id2))
-          rollingFns
-      )
-    | AddDBColToDBMigration (tlid, id1, id2) ->
-      PT.AddDBColToDBMigration(tlid, id1, id2)
-    | SetDBColNameInDBMigration (tlid, id, name) ->
-      PT.SetDBColNameInDBMigration(tlid, id, name)
-    | SetDBColTypeInDBMigration (tlid, id, tipe) ->
-      PT.SetDBColTypeInDBMigration(tlid, id, tipe)
-    | AbandonDBMigration tlid -> PT.AbandonDBMigration tlid
-    | DeleteColInDBMigration (tlid, id) -> PT.DeleteColInDBMigration(tlid, id)
-    | DeleteDBCol (tlid, id) -> PT.DeleteDBCol(tlid, id)
-    | RenameDBname (tlid, string) -> PT.RenameDBname(tlid, string)
+      Some(PT.MoveTL(tlid, position))
+    | SetFunction fn -> Some(PT.SetFunction(ocamlUserFunction2PT fn))
+    | ChangeDBColName (tlid, id, string) ->
+      Some(PT.ChangeDBColName(tlid, id, string))
+    | ChangeDBColType (tlid, id, string) ->
+      Some(PT.ChangeDBColType(tlid, id, string))
+    | UndoTL tlid -> Some(PT.UndoTL tlid)
+    | RedoTL tlid -> Some(PT.RedoTL tlid)
+    | DeprecatedInitDbm (tlid, id1, id2, id3, kind) -> None
+    | SetExpr (tlid, id, e) -> Some(PT.SetExpr(tlid, id, ocamlExpr2PT e))
+    | TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
+    | DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
+    | CreateDBMigration (tlid, id1, id2, rollingFns) -> None
+    | AddDBColToDBMigration (tlid, id1, id2) -> None
+    | SetDBColNameInDBMigration (tlid, id, name) -> None
+    | SetDBColTypeInDBMigration (tlid, id, tipe) -> None
+    | AbandonDBMigration tlid -> None
+    | DeleteColInDBMigration (tlid, id) -> None
+    | DeleteDBCol (tlid, id) -> Some(PT.DeleteDBCol(tlid, id))
+    | RenameDBname (tlid, string) -> Some(PT.RenameDBname(tlid, string))
     | CreateDBWithBlankOr (tlid, pos, id, string) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.CreateDBWithBlankOr(tlid, position, id, string)
-    | DeleteTLForever tlid -> PT.DeleteTLForever tlid
-    | DeleteFunctionForever tlid -> PT.DeleteFunctionForever tlid
-    | SetType tipe -> PT.SetType(ocamlUserType2PT tipe)
-    | DeleteType tlid -> PT.DeleteType tlid
-    | DeleteTypeForever tlid -> PT.DeleteTypeForever tlid
+      Some(PT.CreateDBWithBlankOr(tlid, position, id, string))
+    | DeleteTLForever tlid -> Some(PT.DeleteTLForever tlid)
+    | DeleteFunctionForever tlid -> Some(PT.DeleteFunctionForever tlid)
+    | SetType tipe -> Some(PT.SetType(ocamlUserType2PT tipe))
+    | DeleteType tlid -> Some(PT.DeleteType tlid)
+    | DeleteTypeForever tlid -> Some(PT.DeleteTypeForever tlid)
 
 
   let ocamlOplist2PT (list : oplist<ORT.fluidExpr>) : PT.Oplist =
-    List.map ocamlOp2PT list
+    List.filterMap ocamlOp2PT list
 
   let ocamlTLIDOplist2PT
     ((tlid, oplist) : tlid_oplist<ORT.fluidExpr>)
@@ -937,25 +922,6 @@ module Convert =
     | PT.SetExpr (tlid, id, e) -> SetExpr(tlid, id, pt2ocamlExpr e)
     | PT.TLSavepoint tlid -> TLSavepoint tlid
     | PT.DeleteFunction tlid -> DeleteFunction tlid
-    | PT.CreateDBMigration (tlid, id1, id2, rollingFns) ->
-      CreateDBMigration(
-        tlid,
-        id1,
-        id2,
-        List.map
-          (fun (s1, id1, s2, id2) -> (string2bo id1 s1, string2bo id2 s2))
-          rollingFns
-      )
-    | PT.AddDBColToDBMigration (tlid, id1, id2) ->
-      AddDBColToDBMigration(tlid, id1, id2)
-    | PT.SetDBColNameInDBMigration (tlid, id, name) ->
-      SetDBColNameInDBMigration(tlid, id, name)
-    | PT.SetDBColTypeInDBMigration (tlid, id, tipe) ->
-      SetDBColTypeInDBMigration(tlid, id, tipe)
-    | PT.AbandonDBMigration tlid -> AbandonDBMigration tlid
-    | PT.DeleteColInDBMigration (tlid, id) -> DeleteColInDBMigration(tlid, id)
-    | PT.DeprecatedInitDBm (tlid, id1, id2, id3, kind) ->
-      DeprecatedInitDbm(tlid, id1, id2, id3, RuntimeT.DbT.DeprecatedMigrationKind)
     | PT.DeleteDBCol (tlid, id) -> DeleteDBCol(tlid, id)
     | PT.RenameDBname (tlid, string) -> RenameDBname(tlid, string)
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->

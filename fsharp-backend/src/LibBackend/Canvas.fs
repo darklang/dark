@@ -235,13 +235,6 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
         |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
       applyToDB (UserDB.setColType id typ) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
-    | PT.DeprecatedInitDBm (tlid, id, rbid, rfid, kind) -> c
-    | PT.CreateDBMigration (tlid, rbid, rfid, cols) -> c
-    | PT.AddDBColToDBMigration (tlid, colid, typeid) -> c
-    | PT.SetDBColNameInDBMigration (tlid, id, name) -> c
-    | PT.SetDBColTypeInDBMigration (tlid, id, tipe) -> c
-    | PT.AbandonDBMigration tlid -> c
-    | PT.DeleteColInDBMigration (tlid, id) -> c
     | PT.SetExpr (tlid, id, e) ->
       // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
       // applyToAllToplevels (TL.set_expr id e) tlid c
