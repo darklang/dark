@@ -1,7 +1,7 @@
 /// Provides toString and fromString functions for program types
 ///
 /// We are moving to not needing parsers, but for now they are still necessary. They
-/// mostly convert to a format used in the database, or in the OCAml compatible
+/// mostly convert to a format used in the database, or in the OCaml compatible
 /// representation (spoken by the client and used in the API for example)
 module LibExecution.ProgramTypesParser
 
