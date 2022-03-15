@@ -1,6 +1,6 @@
+/// Conversion to/from Dark values to binary formats
 module LibBackend.BinarySerialization
 
-// Conversion to/from Dark values to binary formats
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
