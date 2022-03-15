@@ -151,40 +151,19 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     | None -> return false
   }
 
-/// Given a list of `CronScheduleData` records,
-/// check which ones are due to run, and enqueue them.
-///
-/// <returns>
-/// A tuple of (# crons checked * # crons scheduled)
-/// </returns
-let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * int> =
-  task {
-    use _span = Telemetry.child "check_and_schedule_work_for_crons" []
-    let! enqueuedCrons = crons |> Task.mapInParallel checkAndScheduleWorkForCron
-    let enqueuedCronCount = List.count Fun.identity enqueuedCrons
-    return (List.length crons, enqueuedCronCount)
-  }
-
-
 /// Iterates through every (non-deleted) cron `toplevel_oplist`
 /// and checks to see if it should be executed, enqueuing
 /// work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
     use _span = Telemetry.child "checkAndScheduleWorkForAllCrons" []
-    let! allCrons = Serialize.fetchActiveCrons ()
+    let! crons = Serialize.fetchActiveCrons ()
 
-    // Chunk the crons list so that we don't have to load thousands of
-    // canvases into memory/tasks at once
-    //
-    // 100 was chosen arbitrarily. Please update if data shows this is the wrong number.
-    let chunks = allCrons |> List.chunksOf 100
-    Telemetry.addTags [ ("crons.count", List.length allCrons)
-                        ("chunks.count", List.length chunks) ]
-
-    let! processed = Task.mapSequentially checkAndScheduleWorkForCrons chunks
-    let checkedCount, scheduled = sumPairs processed
-    Telemetry.addTags [ ("crons.checked", checkedCount)
-                        ("crons.scheduled", scheduled) ]
+    let concurrencyCount = LibService.Config.pgPoolSize
+    let! enqueuedCrons =
+      Task.mapWithConcurrency concurrencyCount checkAndScheduleWorkForCron crons
+    let enqueuedCronCount = List.count Fun.identity enqueuedCrons
+    Telemetry.addTags [ ("crons.checked", List.length crons)
+                        ("crons.scheduled", enqueuedCronCount) ]
     return ()
   }

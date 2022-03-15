@@ -96,7 +96,7 @@ type PostgresConfig =
     dbname : string
     user : string
     password : string
-    poolSize : string }
+    poolSize : int }
 
 let pgHost = string "DARK_CONFIG_DB_HOST"
 
@@ -106,7 +106,7 @@ let pgUser = string "DARK_CONFIG_DB_USER"
 
 let pgPassword = password "DARK_CONFIG_DB_PASSWORD"
 
-let pgPoolSize = password "DARK_CONFIG_DB_POOL_SIZE"
+let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
 
 let postgresSettings : PostgresConfig =
   { host = pgHost
