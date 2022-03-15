@@ -180,7 +180,8 @@ let loadOnlyRenderedTLIDs
       |> Task.mapInParallel
         (fun (tlid, typ, ocamlSerialized, fsharpSerialized, pos) ->
           match fsharpSerialized with
-          | Some tl -> Task.FromResult(BinarySerialization.deserializeToplevel tl)
+          | Some tl ->
+            Task.FromResult(BinarySerialization.deserializeToplevel tlid tl)
           | None ->
             Task.execWithSemaphore
               semaphore

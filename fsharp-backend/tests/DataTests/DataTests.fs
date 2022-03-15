@@ -298,11 +298,12 @@ let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
     // debuG "rendered items" (List.length expected)
     expected
     |> List.iter (fun v ->
+      let tlid = PT.Toplevel.toTLID v
       validate
         "cached"
         v
         BinarySerialization.serializeToplevel
-        BinarySerialization.deserializeToplevel)
+        (BinarySerialization.deserializeToplevel tlid))
     return ()
   }
 
@@ -319,8 +320,8 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
       validate
         "oplists"
         v
-        BinarySerialization.serializeOplist
-        BinarySerialization.deserializeOplist)
+        (BinarySerialization.serializeOplist tlid)
+        (BinarySerialization.deserializeOplist tlid))
     return ()
   }
 

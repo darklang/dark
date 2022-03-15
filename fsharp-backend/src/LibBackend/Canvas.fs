@@ -395,7 +395,8 @@ let loadOplists
     |> Task.mapWithConcurrency 2 (fun (tlid, ocamlSerialized, fsharpSerialized) ->
       task {
         match fsharpSerialized with
-        | Some oplist -> return (tlid, BinarySerialization.deserializeOplist oplist)
+        | Some oplist ->
+          return (tlid, BinarySerialization.deserializeOplist tlid oplist)
         | None ->
           let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
           return (tlid, oplist)
@@ -589,7 +590,7 @@ let saveTLIDs
         // CLEANUP stop saving the ocaml binary
         let! ocamlOplist = OCamlInterop.oplistToBinary oplist
         let! ocamlOplistCache = OCamlInterop.toplevelToCachedBinary tl
-        let fsharpOplist = BinarySerialization.serializeOplist oplist
+        let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
         let fsharpOplistCache = BinarySerialization.serializeToplevel tl
 
         return!

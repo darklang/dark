@@ -39,19 +39,33 @@ let optionsWithZip =
     .WithResolver(resolver)
     .WithCompression(MessagePack.MessagePackCompression.Lz4BlockArray)
 
+let wrapSerializationException (tlid : tlid) (f : unit -> 'a) : 'a =
+  try
+    f ()
+  with
+  | e ->
+    Exception.callExceptionCallback e
+    raise (InternalException("error deserializing toplevel", [ "tlid", tlid ], e))
+
 let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
-  MessagePack.MessagePackSerializer.Serialize(tl, optionsWithoutZip)
+  wrapSerializationException (PT.Toplevel.toTLID tl) (fun () ->
+    MessagePack.MessagePackSerializer.Serialize(tl, optionsWithoutZip))
 
-let deserializeToplevel (data : byte []) : PT.Toplevel.T =
-  MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-
-let serializeOplist (oplist : PT.Oplist) : byte [] =
-  MessagePack.MessagePackSerializer.Serialize(oplist, optionsWithZip)
+let deserializeToplevel (tlid : tlid) (data : byte []) : PT.Toplevel.T =
+  wrapSerializationException tlid (fun () ->
+    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip))
 
 
-let deserializeOplist (data : byte []) : PT.Oplist =
-  MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip)
+let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte [] =
+  wrapSerializationException tlid (fun () ->
+    MessagePack.MessagePackSerializer.Serialize(oplist, optionsWithZip))
+
+
+let deserializeOplist (tlid : tlid) (data : byte []) : PT.Oplist =
+  wrapSerializationException tlid (fun () ->
+    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip))
 
 module Test =
-  let serializeOplistToJson (oplist : PT.Oplist) : string =
-    MessagePack.MessagePackSerializer.SerializeToJson(oplist, optionsWithZip)
+  let serializeOplistToJson (tlid : tlid) (oplist : PT.Oplist) : string =
+    wrapSerializationException tlid (fun () ->
+      MessagePack.MessagePackSerializer.SerializeToJson(oplist, optionsWithZip))

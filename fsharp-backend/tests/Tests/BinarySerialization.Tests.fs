@@ -379,9 +379,10 @@ let toplevelRoundtripTest =
   testMany
     "serializeToplevels"
     (fun tl ->
+      let tlid = PT.Toplevel.toTLID tl
       tl
       |> BinarySerialization.serializeToplevel
-      |> BinarySerialization.deserializeToplevel
+      |> BinarySerialization.deserializeToplevel tlid
       |> (=) tl)
     (List.map (fun x -> x, true) testToplevels)
 
@@ -416,8 +417,8 @@ let oplistRoundtripTest =
   test "roundtrip oplists" {
     let actual =
       testOplist
-      |> BinarySerialization.serializeOplist
-      |> BinarySerialization.deserializeOplist
+      |> BinarySerialization.serializeOplist 0UL
+      |> BinarySerialization.deserializeOplist 0UL
     Expect.equal actual testOplist ""
   }
 
@@ -431,29 +432,29 @@ let testTestFiles =
   test "check test files are correct" {
     // We can just check the oplists as expressions and toplevels are contained inside
     let expected = File.readfile Config.Serialization "oplist-format.json"
-    let actual = testOplist |> BinarySerialization.Test.serializeOplistToJson
+    let actual = testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
     // There are times where the json would be the same but the binary would be different
     Expect.equal actual expected "check generates the same json"
 
     let expected =
       File.readfileBytes Config.Serialization "oplist-format.bin"
-      |> BinarySerialization.deserializeOplist
+      |> BinarySerialization.deserializeOplist 0UL
     let actual = testOplist
     Expect.equal actual expected "check can read the saved file"
 
     let expected = File.readfileBytes Config.Serialization "oplist-format.bin"
-    let actual = testOplist |> BinarySerialization.serializeOplist
+    let actual = testOplist |> BinarySerialization.serializeOplist 0UL
     Expect.equal actual expected "check generates the same binary"
   }
 
 
 let generateBinarySerializationTestFiles () : unit =
   testOplist
-  |> BinarySerialization.serializeOplist
+  |> BinarySerialization.serializeOplist 0UL
   |> File.writefileBytes Config.Serialization "oplist-format.bin"
 
   testOplist
-  |> BinarySerialization.Test.serializeOplistToJson
+  |> BinarySerialization.Test.serializeOplistToJson 0UL
   |> File.writefile Config.Serialization "oplist-format.json"
 
 let tests =
