@@ -7,7 +7,7 @@ module LibExecution.ProgramTypesParser
 
 // CLEANUP: almost all users of functions in this file could be replaced by having
 // better types and/or propagating the type definitions end-to-end (such as to the
-// frontend). It would likely also increase the reliability and reduce the
+// client). It would likely also increase the reliability and reduce the
 // maintainance costs
 
 open Prelude
