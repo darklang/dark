@@ -424,7 +424,7 @@ module Convert =
     { tlid = o.tlid
       ast = ocamlExpr2PT o.ast
       spec = ocamlSpec2PT o.spec
-      pos = { x = pos.y; y = pos.y } }
+      pos = { x = pos.x; y = pos.y } }
 
 
   let rec ocamlTipe2PT (o : tipe) : PT.DType =
