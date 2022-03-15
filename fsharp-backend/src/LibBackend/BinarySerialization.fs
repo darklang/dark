@@ -48,8 +48,10 @@ let deserializeToplevel (data : byte []) : PT.Toplevel.T =
 let serializeOplist (oplist : PT.Oplist) : byte [] =
   MessagePack.MessagePackSerializer.Serialize(oplist, optionsWithZip)
 
-let serializeOplistToJson (oplist : PT.Oplist) : string =
-  MessagePack.MessagePackSerializer.SerializeToJson(oplist, optionsWithZip)
 
 let deserializeOplist (data : byte []) : PT.Oplist =
   MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip)
+
+module Test =
+  let serializeOplistToJson (oplist : PT.Oplist) : string =
+    MessagePack.MessagePackSerializer.SerializeToJson(oplist, optionsWithZip)

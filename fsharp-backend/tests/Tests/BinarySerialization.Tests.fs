@@ -431,7 +431,7 @@ let testTestFiles =
   test "check test files are correct" {
     // We can just check the oplists as expressions and toplevels are contained inside
     let expected = File.readfile Config.Serialization "oplist-format.json"
-    let actual = testOplist |> BinarySerialization.serializeOplistToJson
+    let actual = testOplist |> BinarySerialization.Test.serializeOplistToJson
     // There are times where the json would be the same but the binary would be different
     Expect.equal actual expected "check generates the same json"
 
@@ -453,7 +453,7 @@ let generateBinarySerializationTestFiles () : unit =
   |> File.writefileBytes Config.Serialization "oplist-format.bin"
 
   testOplist
-  |> BinarySerialization.serializeOplistToJson
+  |> BinarySerialization.Test.serializeOplistToJson
   |> File.writefile Config.Serialization "oplist-format.json"
 
 let tests =
