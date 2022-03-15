@@ -27,26 +27,25 @@ type Sign = Prelude.Sign
 // new format.
 //
 // The follow changes are known to be safe:
+// - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
+// - renaming a variant in an Enum (even if that variant is used)
+// - rename a field in a record (so long as you keep the same key)
 //
 // The following changes are known to be unsafe (and will require migrating data):
 // - adding a new variant to an Enum that is not at the end
 // - removing a variant in an Enum that is not at the end
-// - removing a variant from an Enum where that variant is stored somewhere
+// - reorder variants in an Enum
 //
 // The following changes have not been tested but are assumed to be unsafe:
 // - adding a field to variant (eg add b to X(a,b))
-// - removing a field from a variant (eg remove b to X(a,b))
+// - add a field to a record
+// - change the type of a field in a variant
+// - change the type of a field in a record
 //
-// Still to check:
-// - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
-// - renaming a variant in an Enum (even if that variant is used)
-// - reorder variants in an Enum
-// - add a field to a record at the end
-// - add a field to a record in the middle, making indexes ok
+// Candidates to try
+// - removing a field from a variant (eg remove b to X(a,b))
 // - remove a field from a record
-// - change the order of variants
-// - change the type of a variant
-// - change the type of a record
+// - removing a variant from an Enum where that variant is stored somewhere
 
 [<MessagePack.MessagePackObject>]
 type Position =
