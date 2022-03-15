@@ -328,12 +328,7 @@ module Toplevel =
     | TLType t -> t.tlid
 
 module Secret =
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      name : string
-      [<MessagePack.Key 1>]
-      value : string }
+  type T = { name : string; value : string }
 
 [<MessagePack.MessagePackObject>]
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
