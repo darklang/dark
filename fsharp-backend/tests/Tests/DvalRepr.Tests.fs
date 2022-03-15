@@ -38,7 +38,7 @@ let testDvalRoundtrippableRoundtrips =
     "special roundtrippable dvals roundtrip"
     FuzzTests.OCamlInterop.Roundtrippable.roundtrip
     [ RT.DObj(
-        Map.ofList [ ("", RT.DFloat 1.797693135e+308) // WHATISTHIS why does it work without an attribute name
+        Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                      ("a", RT.DErrorRail(RT.DFloat nan)) ]
       ),
       true ]

@@ -151,7 +151,7 @@ let testListLiterals : Test =
 
 
 let testRecursionInEditor : Test =
-  testTask "editor avoids recursion" { // WHATISTHIS
+  testTask "execution avoids recursion in editor" {
     let callerID = gid ()
     let skippedCallerID = gid ()
 
