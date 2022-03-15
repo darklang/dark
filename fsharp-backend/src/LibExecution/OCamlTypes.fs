@@ -800,7 +800,7 @@ module Convert =
         name = string2bo ids.nameID name
         modifier =
           interval
-          |> Option.map string
+          |> Option.map PTParser.Handler.CronInterval.toString
           |> Option.defaultValue ""
           |> string2bo ids.modifierID
         types = types }
