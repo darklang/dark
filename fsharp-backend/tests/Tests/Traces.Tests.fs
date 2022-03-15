@@ -61,7 +61,7 @@ let testRouteVariablesWorkWithStoredEvents =
   testTask "route variables work with stored events" {
     let! meta = initializeTestCanvas "route_variables_works"
 
-    // set up tesHANDLER
+    // set up handler
     let httpRoute = "/some/:vars/:and/such"
     let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
