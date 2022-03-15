@@ -25,7 +25,7 @@ let testBasicTypecheckWorks : Test =
   let t
     ((fn, args) : string * List<string * RT.Dval>)
     : Result<unit, TypeChecker.Error.T list> =
-    let args = Map.ofList args in
+    let args = Map.ofList args
 
     let fn =
       libraries

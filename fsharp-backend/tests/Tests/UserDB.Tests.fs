@@ -1,6 +1,7 @@
 module Tests.UserDB
 
-// Most DB tests can be checked
+// Most DB tests are in db.tests
+// These ones are the ones we couldn't fit into that format well.
 
 open Expecto
 open Prelude
@@ -43,7 +44,6 @@ let nullsAddedToMissingColumn =
       (RT.DList [ RT.DStr "i"; RT.DObj(Map [ "x", RT.DStr "v"; "y", RT.DNull ]) ])
       result
       "has nulls"
-
   }
 
 

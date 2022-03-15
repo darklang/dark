@@ -83,7 +83,7 @@ let testExecFunctionTLIDs : Test =
 
 let testErrorRailUsedInAnalysis : Test =
   testTask
-    "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
+    "When a function isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
     let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
     let! state = executionStateFor meta Map.empty Map.empty
 
@@ -151,28 +151,35 @@ let testListLiterals : Test =
 
 
 let testRecursionInEditor : Test =
-  testTask "results in recursion" {
+  testTask "execution avoids recursion in editor" {
     let callerID = gid ()
     let skippedCallerID = gid ()
 
     let fnExpr =
-      (PT.EIf(
+      PT.EIf(
         gid (),
-        (PT.EFnCall(
+
+        // condition
+        PT.EFnCall(
           gid (),
           FQFnName.stdlibFqName "" "<" 0,
           [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
           PT.NoRail
-        )),
-        (PT.EInteger(gid (), 0)),
-        // infinite recursion
-        (PT.EFnCall(
+        ),
+
+        // 'then' expression
+        PT.EInteger(gid (), 0),
+
+        // 'else' expression
+        // calls self ("recurse") resulting in recursion
+        PT.EFnCall(
           skippedCallerID,
           FQFnName.userFqName "recurse",
           [ PT.EInteger(gid (), 2) ],
           PT.NoRail
-        ))
-      ))
+        )
+      )
+
     let recurse =
       testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
@@ -205,8 +212,24 @@ let testIfPreview : Test =
          Dictionary.get thenID results |> Option.unwrapUnsafe,
          Dictionary.get elseID results |> Option.unwrapUnsafe)
     }
+
+  // Using the first test below for illustration,
+  //
+  // First we pass in a condition to be evaluated:
+  // - `eBool false`
+  //
+  // The 3-tuple that follows is used to check three things:
+  //
+  // - the first part is "what does the if/then expression evaluate to?"
+  //   If the condition is 'truthy', then the expression will return "then"
+  //   Otherwise it willll turn "else"
+  //
+  // - the other two parts correspond to the `then` and `else` branches of the if condition.
+  //   if the first is an `ExecutedResult` and the second is a `NonExecutedResult`,
+  //   then the 'then' condition was evaluated but not the 'else' condition.
+
   testManyTask
-    "if preview"
+    "if-then expression previews correctly"
     f
     [ (eBool false,
        (AT.ExecutedResult(DStr "else"),
@@ -256,8 +279,11 @@ let testFeatureFlagPreview : Test =
          Dictionary.get oldID results |> Option.unwrapUnsafe,
          Dictionary.get newID results |> Option.unwrapUnsafe)
     }
+
+  // see notes in above `testIfPreview` regarding how these tests work
+
   testManyTask
-    "feature flag preview"
+    "feature flag expression previews correctly"
     f
     [ (eBool true,
        (AT.ExecutedResult(DStr "new"),
@@ -417,10 +443,10 @@ let testMatchPreview : Test =
             | Some (AT.NonExecutedResult _) -> ())
       }
 
-    let er x = AT.ExecutedResult x in
+    let er x = AT.ExecutedResult x
 
-    let ner x = AT.NonExecutedResult x in
-    let inc iid = DIncomplete(SourceID(id 7, iid)) in
+    let ner x = AT.NonExecutedResult x
+    let inc iid = DIncomplete(SourceID(id 7, iid))
 
     do!
       check

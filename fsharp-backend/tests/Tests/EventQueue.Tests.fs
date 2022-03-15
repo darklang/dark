@@ -28,6 +28,7 @@ let p (code : string) = FSharpToExpr.parsePTExpr code
 
 let testEventQueueRoundtrip =
   testTask "event queue roundtrip" {
+    // set up handler
     let! meta = initializeTestCanvas "event-queue-roundtrip"
 
     let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
@@ -36,9 +37,13 @@ let testEventQueueRoundtrip =
     do!
       Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
 
-    do! EQ.enqueue meta.name meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
+    // enqueue; schedule
+    let input = RT.DNull // I don't believe crons take inputs?
+    do! EQ.enqueue meta.name meta.id meta.owner "CRON" "test" "Daily" input
 
     do! EQ.testingScheduleAll ()
+
+    // verify roundtrip
     let! (result : Result<Option<RT.Dval>, exn>) = QueueWorker.dequeueAndProcess ()
 
     match result with
