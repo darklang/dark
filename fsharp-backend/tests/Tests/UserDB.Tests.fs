@@ -1,6 +1,6 @@
 module Tests.UserDB
 
-// Most DB tests can be checked
+// Most DB tests can be checked <- what does this mean by 'checked'?
 
 open Expecto
 open Prelude
@@ -43,7 +43,6 @@ let nullsAddedToMissingColumn =
       (RT.DList [ RT.DStr "i"; RT.DObj(Map [ "x", RT.DStr "v"; "y", RT.DNull ]) ])
       result
       "has nulls"
-
   }
 
 

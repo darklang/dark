@@ -9,6 +9,11 @@ module RT = LibExecution.RuntimeTypes
 
 open LibExecution.ProgramTypes
 
+// These are test that we've written fuzzers to test,
+// but would also like to cover these specific cases.
+//
+// Most likely, we've encountered problems with these before,
+// and want to ensure the issues don't come back up.
 let fuzzedTests =
   [ testListUsingProperty
       "OCamlInterop expr tests"
@@ -29,6 +34,7 @@ let fuzzedTests =
            EBlank 0UL,
            [ (PConstructor(0UL, "", [ PBool(0UL, true) ]), ENull 0UL) ]
          )) ]
+
     testListUsingProperty
       "OCamlInterop Yojson handler tests"
       FuzzTests.OCamlInterop.yojsonHandlerRoundtrip
@@ -48,6 +54,7 @@ let fuzzedTests =
                None,
                { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
              ) }) ]
+
     testListUsingProperty
       "queryStringToParams"
       FuzzTests.HttpClient.queryStringToParams
@@ -67,6 +74,7 @@ let fuzzedTests =
         "question mark surrounded with value", "x?x=6"
         "question mark surrounded later", "x=5&y?y"
         "question mark surrounded later with value", "x=5&y?y=6" ]
+
     testListUsingProperty
       "toQueryString"
       FuzzTests.HttpClient.queryToEncodedString
@@ -74,6 +82,7 @@ let fuzzedTests =
         "empty string value", [ "", [ "" ] ]
         "empty value", [ "a", [] ]
         "empty value and empty string value", [ "a", [ "" ] ] ]
+
     testListUsingProperty
       "queryToDval"
       FuzzTests.HttpClient.queryToDval

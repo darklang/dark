@@ -83,7 +83,7 @@ let testExecFunctionTLIDs : Test =
 
 let testErrorRailUsedInAnalysis : Test =
   testTask
-    "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
+    "When a function which isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
     let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
     let! state = executionStateFor meta Map.empty Map.empty
 
@@ -151,7 +151,7 @@ let testListLiterals : Test =
 
 
 let testRecursionInEditor : Test =
-  testTask "results in recursion" {
+  testTask "results in recursion" { // WHATISTHIS
     let callerID = gid ()
     let skippedCallerID = gid ()
 
@@ -205,8 +205,24 @@ let testIfPreview : Test =
          Dictionary.get thenID results |> Option.unwrapUnsafe,
          Dictionary.get elseID results |> Option.unwrapUnsafe)
     }
+
+  // Using the first test below for illustration,
+  //
+  // First we pass in a condition to be evaluated:
+  // - `eBool false`
+  //
+  // The 3-tuple that follows is used to check three things:
+  //
+  // - the first part is "what does the if/then expression evaluate to?"
+  //   If the condition is 'truthy', then the expression will return "then"
+  //   Otherwise it willll turn "else"
+  //
+  // - the other two parts correspond to the `then` and `else` branches of the if condition.
+  //   if the first is an `ExecutedResult` and the second is a `NonExecutedResult`,
+  //   then the 'then' condition was evaluated but not the 'else' condition.
+
   testManyTask
-    "if preview"
+    "if-then expression previews correctly"
     f
     [ (eBool false,
        (AT.ExecutedResult(DStr "else"),
@@ -256,8 +272,11 @@ let testFeatureFlagPreview : Test =
          Dictionary.get oldID results |> Option.unwrapUnsafe,
          Dictionary.get newID results |> Option.unwrapUnsafe)
     }
+
+  // see notes in above `testIfPreview` regarding how these tests work
+
   testManyTask
-    "feature flag preview"
+    "feature flag expression previews correctly"
     f
     [ (eBool true,
        (AT.ExecutedResult(DStr "new"),
@@ -417,10 +436,10 @@ let testMatchPreview : Test =
             | Some (AT.NonExecutedResult _) -> ())
       }
 
-    let er x = AT.ExecutedResult x in
+    let er x = AT.ExecutedResult x
 
-    let ner x = AT.NonExecutedResult x in
-    let inc iid = DIncomplete(SourceID(id 7, iid)) in
+    let ner x = AT.NonExecutedResult x
+    let inc iid = DIncomplete(SourceID(id 7, iid))
 
     do!
       check
