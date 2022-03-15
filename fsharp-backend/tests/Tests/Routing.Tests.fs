@@ -94,7 +94,7 @@ let filterMatchingPatternsBySpecificity =
       routes
       |> List.map (fun r -> testHttpRouteHandler r "GET" five)
       |> filterMatchingHandlersBySpecificity
-      |> List.map (fun h -> h.spec.name ()))
+      |> List.map (fun h -> PTParser.Handler.Spec.toName h.spec))
     // concrete over wild
     [ ([ "/:foo"; "/a" ], [ "/a" ])
       // wild over nothing
@@ -118,7 +118,7 @@ let filterInvalidHandlers =
       routes
       |> List.map (fun r -> testHttpRouteHandler r "GET" five)
       |> filterInvalidHandlerMatches path
-      |> List.map (fun h -> h.spec.name ()))
+      |> List.map (fun h -> PTParser.Handler.Spec.toName h.spec))
     // mismatch is filtered out
     [ ("/", [ "/:first" ], [])
       // mismatch is filtered out but root is left
