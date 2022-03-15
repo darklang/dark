@@ -16,24 +16,24 @@ type Sign = Prelude.Sign
 // field in the record should be annotated with `[<MessagePack.Key 0>]` (the zero
 // should be replaced with a unique sequential index):
 //
-// [<MessagePack.MessagePackObject>] type X = { [<MessagePack.Key 0>] x : int
+// [<MessagePack.MessagePackObject>] type X = { [<MessagePack.Key 0>] x : int }
 //
 // If you forget to annotate all parts of a type (or a type referred to by that type)
 // the serializer will raise an exception. (It seems to be OK to not annotate some
-// variants but not others, so we annotate them all if they are used)
+// variants but not others; since it's unclear we annotate them all)
 //
 // All "code" is Dark is serialized using these types and stored in the DB, and we
 // need to be very careful about changes to the types. "Safe" changes allow data
 // saved in files in the old format to continue to be read by the serializers for the
 // new format.
 //
-// The follow changes are known to be safe:
+// The follow changes appear to be safe:
 // - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
 // - renaming a variant in an Enum (even if that variant is used)
 // - rename a field in a record (does not have the be the last field, don't change the keys of other fields)
 // - remove a field from a record (keep the other fields in the right place)
 //
-// The following changes are known to be unsafe (and will require migrating data):
+// The following changes appear to be unsafe (and will require migrating data):
 // - adding a new variant to an Enum that is not at the end
 // - removing a variant in an Enum that is not at the end
 // - reorder variants in an Enum
