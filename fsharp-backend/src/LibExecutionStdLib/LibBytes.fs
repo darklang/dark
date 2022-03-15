@@ -28,7 +28,6 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "hexEncode" 0
-
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =

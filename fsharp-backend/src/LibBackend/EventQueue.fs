@@ -49,7 +49,7 @@ type T =
 let toEventDesc t = (t.space, t.name, t.modifier)
 
 // -------------------------
-// Public API *)
+// Public API
 // -------------------------
 
 type queue_action =
@@ -155,21 +155,27 @@ module WorkerStates =
 
 
 
-// None in case we want to log on a timer or something, not
-// just on enqueue/dequeue
+/// <summary>
+/// Logs the current status of what's enqueued for the the given queue,
+/// both at the "worker level" (ready to be picked up by workers),
+/// and at the "canvas level" (ready to be enqueued _for_ a worker).
+/// </summary>
+///
+/// <remarks>
+/// `host` is optional because we have it when we dequeue, but not enqueue.
+/// </remarks>
 let logQueueSize
   (queue_action : queue_action)
-  (host : Option<string>)
+  (canvasName : Option<string>)
   (canvasID : CanvasID)
   (space : string)
   (name : string)
   (modifier : string)
   : Task<unit> =
   task {
-    // host is optional b/c we have it when we dequeue, but not enqueue.
     use span = Telemetry.child "queue size" []
     let! host =
-      match host with
+      match canvasName with
       | Some host -> Task.FromResult(host)
       | None ->
         Sql.query "SELECT name FROM canvases WHERE id = @canvasID"
@@ -342,8 +348,9 @@ let testingGetQueue canvasID eventName =
       result |> List.map (LibExecution.DvalReprInternal.ofInternalRoundtrippableV0)
   }
 
-// schedule_all bypasses actual scheduling logic and is meant only for allowing
-// testing without running the queue-scheduler process
+/// Sets all 'new' events to 'scheduled', bypassing actual scheduling logic
+///
+/// Meant only for testing, so the queue-scheduler process doesn't have to be involved
 let testingScheduleAll () : Task<unit> =
   Sql.query
     "UPDATE events SET status = 'scheduled'
@@ -361,14 +368,14 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
 
 
 // DARK INTERNAL FN
-// Gets all event scheduling rules, as used by the queue-scheduler.
+/// Gets all event scheduling rules, as used by the queue-scheduler.
 let getAllSchedulingRules () : Task<List<SchedulingRule.T>> =
   Sql.query
     "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
      FROM scheduling_rules"
   |> Sql.executeAsync (fun read -> rowToSchedulingRule read)
 
-// Gets event scheduling rules for the specified canvas
+/// Gets event scheduling rules for the specified canvas
 let getSchedulingRules (canvasID : CanvasID) : Task<List<SchedulingRule.T>> =
   Sql.query
     "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
@@ -377,11 +384,16 @@ let getSchedulingRules (canvasID : CanvasID) : Task<List<SchedulingRule.T>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> rowToSchedulingRule read)
 
-// Returns an pair of every event handler (worker) in the given canvas
-// and its "schedule", which is usually "run", but can be either "block" or
-// "pause" if there is a scheduling rule for that handler. A handler can have
-// both a block and pause rule, in which case it is "block" (because block is
-// an admin action).
+/// <summary>
+/// Returns a pair of every event handler (worker) and its "schedule"
+/// in the given canvas.
+/// </summary>
+/// </remarks>
+/// The schedule is usually "run", but can be either "block" or "pause"
+/// if there is a scheduling rule for that handler. A handler can have
+/// both a block and pause rule, in which case it is "block"
+/// (because block is an admin action).
+/// </remarks>
 let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
   task {
     // build a pairs (name * Running) for all worker names in canvas
@@ -419,11 +431,11 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
   }
 
 
-// Keeps the given worker from executing by inserting a scheduling rule of the passed type.
-// Then, un-schedules any currently schedules events for this handler to keep
-// them from being processed.
-// 'pause' rules are user-controlled whereas 'block' rules are accessible
-// only as DarkInternal functions and cannot be removed by users
+/// Keeps the given worker from executing by inserting a scheduling rule of the passed type.
+/// Then, un-schedules any currently schedules events for this handler to keep
+/// them from being processed.
+/// 'pause' rules are user-controlled whereas 'block' rules are accessible
+/// only as DarkInternal functions and cannot be removed by users
 let addSchedulingRule
   (ruleType : string)
   (canvasID : CanvasID)
@@ -454,8 +466,8 @@ let addSchedulingRule
   }
 
 
-// Removes a scheduling rule of the passed type if one exists.
-// See also: addSchedulingRule.
+/// <summary>Removes a scheduling rule of the passed type if one exists.</summary>
+/// <remarks>See also: addSchedulingRule.</remarks>
 let removeSchedulingRule
   (ruleType : string)
   (canvasID : CanvasID)
@@ -484,6 +496,15 @@ let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
 
 let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"
 
+/// <summary>
+/// Puts an event 'back' to the queue, with a given status
+/// </summary>
+/// <remarks>
+/// Used:
+/// - in success cases (with "Ok" status) when item on queue processed and "moves on"
+/// - in failure cases where we've had an issue processing an item
+///   (due to the handler failing in execution, or missing for the event, etc.)
+/// </remarks>
 let putBack (item : T) (status : Status) : Task<unit> =
   task {
     use _span =

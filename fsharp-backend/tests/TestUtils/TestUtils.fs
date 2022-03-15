@@ -23,7 +23,7 @@ module S = LibExecution.Shortcuts
 let testOwner : Lazy<Task<Account.UserInfo>> =
   lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
 
-// delete test data for one canvas
+/// Delete test data (in DB) for one canvas
 let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
   task {
     let! canvasID = Canvas.canvasIDForCanvasName owner name
@@ -110,6 +110,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
 
     return ()
   }
+
 
 let nameToTestName (name : string) : string =
   // We want to avoid tests sharing the same canvas, so they can be parallelized, so
@@ -237,7 +238,7 @@ let testUserType
 
 
 
-let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
 let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
@@ -250,6 +251,9 @@ let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
     cols = cols
     version = 0 }
 
+/// Library function to be usable within tests.
+/// Includes normal StdLib fns, as well as test-specific fns.
+/// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<RT.Libraries> =
   lazy
     (let testFns =
@@ -329,7 +333,7 @@ let executionStateFor
     return state
   }
 
-// saves and reloads the canvas for the Toplevvel
+/// Saves and reloads the canvas for the Toplevels
 let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel>) : Task<Canvas.T> =
   task {
     let descs =

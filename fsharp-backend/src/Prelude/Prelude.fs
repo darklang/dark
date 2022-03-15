@@ -1620,7 +1620,7 @@ module UserName =
 
     override this.ToString() = let (UserName username) = this in username
 
-  let banned =
+  let reserved =
     // originally from https://ldpreload.com/blog/names-to-reserve
     // we allow www, because we have a canvas there
     [ "abuse"
@@ -1689,7 +1689,7 @@ module UserName =
   let newUserAllowed (name : string) : Result<unit, string> =
     match validate name with
     | Ok _ ->
-      if Set.contains name banned then Error "Username is not allowed" else Ok()
+      if Set.contains name reserved then Error "Username is not allowed" else Ok()
     | Error msg as error -> Error msg
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors

@@ -16,7 +16,7 @@ module RT = LibExecution.RuntimeTypes
 module DvalReprInternal = LibExecution.DvalReprInternal
 
 // -------------------------
-// External *)
+// External
 // -------------------------
 
 let store

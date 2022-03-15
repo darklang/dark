@@ -1,7 +1,6 @@
+/// The package manager allows user-defined functions to be shared with other
+/// users. Currently only enabled for admins.
 module LibBackend.PackageManager
-
-// The package manager allows user-defined functions to be shared with other
-// users. Currently only enabled for admins.
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -17,9 +16,10 @@ module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
 module Convert = OT.Convert
 
-(* ------------------ *)
-(* Uploading *)
-(* ------------------ *)
+// ------------------
+// Uploading
+// ------------------
+
 // exception InvalidFunction of string
 //
 // let extract_metadata (fn : RuntimeT.user_fn) :

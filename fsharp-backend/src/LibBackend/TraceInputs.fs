@@ -27,7 +27,15 @@ module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 
 
-// space, path, modifier
+/// (space/module, path, modifier)
+///
+/// "Space" is "HTTP", "WORKER", "REPL", etc.
+///
+/// "Modifier" options differ based on space.
+/// e.g. HTTP handler may have "GET" modifier.
+///
+/// Handlers which don't have modifiers (e.g. repl, worker) nearly
+/// always (but not actually always) have `_` as their modifier.
 type EventDesc = string * string * string
 
 type EventRecord = string * string * string * NodaTime.Instant * AT.TraceID
@@ -42,11 +50,12 @@ type Limit =
 // let event_subject module_ path modifier = module_ ^ "_" ^ path ^ "_" ^ modifier
 
 // Note that this returns munged version of the name, that are designed for
-// pattern matching using postgres' LIKE syntax. *)
+// pattern matching using postgres' LIKE syntax.
 // CLEANUP: nulls are allowed for name, modules, and modifiers. Why?
 let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
   Sql.query
-    "SELECT tlid, module, name, modifier FROM toplevel_oplists
+    "SELECT tlid, module, name, modifier
+      FROM toplevel_oplists
       WHERE canvas_id = @canvasID
         AND module IS NOT NULL
         AND name IS NOT NULL
@@ -58,7 +67,7 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
      (read.string "module", read.string "name", read.string "modifier")))
 
 // -------------------------
-// Event data *)
+// Event data
 // -------------------------
 
 let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d60d"
@@ -123,7 +132,6 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
      read.instant "timestamp",
      read.uuid "trace_id"))
 
-
 // let list_event_descs
 //     ~(limit : [`All | `After of RTT.time | `Before of RTT.time])
 //     ~(canvas_id : Uuidm.t)
@@ -158,7 +166,6 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 //              (module_, path, modifier)
 //          | out ->
 //              Exception.internal "Bad DB format for stored_events")
-
 
 let loadEvents
   (canvasID : CanvasID)
@@ -210,7 +217,7 @@ let mungePathForPostgres (module_ : string) (path : string) =
   if String.toLowercase module_ = "http" then
     Routing.routeToPostgresPattern path
   else
-    (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
+    // https://www.postgresql.org/docs/9.6/functions-matching.html
     path.Replace("%", "\\%").Replace("_", "\\_")
 
 let loadEventIDs

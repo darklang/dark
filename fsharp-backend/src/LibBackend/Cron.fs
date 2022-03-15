@@ -1,3 +1,4 @@
+/// Supports "crons" - toplevels that are triggered on a set schedule
 module LibBackend.Cron
 
 open System.Threading.Tasks
@@ -16,8 +17,8 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 
-// sumPairs folds over the list [l] with function [f], summing the
-// values of the returned (int * int) tuple from each call
+/// folds over the list [l] with function [f], summing the
+/// values of the returned (int * int) tuple from each call
 let sumPairs (l : (int * int) list) : int * int =
   List.fold (0, 0) (fun (a', b') (a, b) -> (a + a', b + b')) l
 
@@ -100,6 +101,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     | Some check ->
       use span = Telemetry.child "cron.enqueue" []
 
+      // trigger execution
       if Config.triggerCrons then
         do!
           EventQueue.enqueue
@@ -111,6 +113,8 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
             (string cron.interval)
             RT.DNull
         do! recordExecution cron
+
+      // record the execution
 
       // It's a little silly to recalculate now when we just did
       // it in executionCheck, but maybe EventQueue.enqueue was
@@ -147,7 +151,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     | None -> return false
   }
 
-/// Given a list of [cron_schedule_data] records,
+/// Given a list of `CronScheduleData` records,
 /// check which ones are due to run, and enqueue them.
 ///
 /// <returns>
@@ -162,7 +166,7 @@ let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * in
   }
 
 
-/// Iterates through every (non-deleted) cron toplevel_oplist
+/// Iterates through every (non-deleted) cron `toplevel_oplist`
 /// and checks to see if it should be executed, enqueuing
 /// work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =

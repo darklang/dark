@@ -46,9 +46,9 @@ type RequiredContext =
   | NoContext
   | AllDatastores
 
-// Returns the 'context', ie. the other stuff on the canvas, that
-// you need to also load in order validate that this op could be added
-// to the oplist/canvas correctly
+/// Returns the 'context', ie. the other stuff on the canvas, that
+/// you need to also load in order validate that this op could be added
+/// to the oplist/canvas correctly
 let requiredContextToValidate (op : PT.Op) : RequiredContext =
   match op with
   | PT.SetHandler _ -> NoContext
@@ -62,10 +62,10 @@ let requiredContextToValidate (op : PT.Op) : RequiredContext =
   | PT.SetExpr _ -> NoContext
   | PT.TLSavepoint _ -> NoContext
   | PT.UndoTL _ ->
-    (* Can undo/redo ops on dbs *)
+    // Can undo/redo ops on dbs
     AllDatastores
   | PT.RedoTL _ ->
-    (* Can undo/redo ops on dbs *)
+    // Can undo/redo ops on dbs
     AllDatastores
   | PT.DeleteTL _ -> NoContext
   | PT.MoveTL _ -> NoContext
@@ -216,12 +216,12 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   | PT.DeleteTypeForever _ -> op
 
 
-// Filter down to only those ops which can be applied out of order
-// without overwriting previous ops' state - eg, if we have
-// SetHandler1 setting a handler's value to "aaa", and then
-// SetHandler2's value is "aa", applying them out of order (SH2,
-// SH1) will result in SH2's update being overwritten
-// NOTE: DO NOT UPDATE WITHOUT UPDATING THE CLIENT-SIDE LIST
+/// Filter down to only those ops which can be applied out of order
+/// without overwriting previous ops' state - eg, if we have
+/// SetHandler1 setting a handler's value to "aaa", and then
+/// SetHandler2's value is "aa", applying them out of order (SH2,
+/// SH1) will result in SH2's update being overwritten
+/// NOTE: DO NOT UPDATE WITHOUT UPDATING THE CLIENT-SIDE LIST
 let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
   ops
   |> List.filter (fun op ->
@@ -268,8 +268,7 @@ type AddOpResult =
 type AddOpParams =
   { ops : ORT.fluidExpr OT.oplist
     opCtr : int
-    // option means that we can still deserialize if this field is null, as
-    // doc'd at https://github.com/ocaml-ppx/ppx_deriving_yojson
+    // option means that we can still deserialize if this field is null
     clientOpCtrId : string option }
 
 type AddOpEvent = { result : AddOpResult; ``params`` : AddOpParams }

@@ -1,3 +1,4 @@
+/// Supports the storage (CRUD) of canvas-level user secrets
 module LibBackend.Secret
 
 // Secrets

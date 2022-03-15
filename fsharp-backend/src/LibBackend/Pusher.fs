@@ -30,8 +30,12 @@ let pusherClient : Lazy<PusherServer.Pusher> =
      ))
 
 
-// Send an event to pusher. Note: this is fired in the backgroup, and does not
-// take any time from the current thread. You cannot wait for it, by design.
+/// <summary>Send an event to Pusher.com.</summary>
+///
+/// <remarks>
+/// This is fired in the background, and does not take any time from the current thread.
+/// You cannot wait for it, by design.
+/// </remarks>
 let push
   (executionID : ExecutionID)
   (canvasID : CanvasID)
@@ -40,7 +44,7 @@ let push
   : unit =
   FireAndForget.fireAndForgetTask executionID $"pusher: {eventName}" (fun () ->
     task {
-      // TODO: handle messages over 10k
+      // TODO: handle messages over 10k bytes
       // TODO: make channels private and end-to-end encrypted in order to add public canvases
       let client = Lazy.force pusherClient
       let channel = $"canvas_{canvasID}"

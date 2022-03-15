@@ -1,3 +1,13 @@
+/// <summary>
+/// Supports users' ability to upload (with an external CLI tool)
+/// and fetch/serve static assets, such as their frontend via
+/// several html, css, etc. files.
+/// </summary>
+/// <remarks>
+/// Upload is currently only supported for to-be-deprecated OCaml backend,
+/// and is not yet supported here. There are plans to replace such with
+/// Dark functions rather than implementing it here.
+/// </remarks>
 module LibBackend.StaticAssets
 
 module Account = LibBackend.Account
