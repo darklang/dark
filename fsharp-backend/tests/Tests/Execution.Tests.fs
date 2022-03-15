@@ -83,7 +83,7 @@ let testExecFunctionTLIDs : Test =
 
 let testErrorRailUsedInAnalysis : Test =
   testTask
-    "When a function which isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
+    "When a function isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
     let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
     let! state = executionStateFor meta Map.empty Map.empty
 
@@ -151,28 +151,35 @@ let testListLiterals : Test =
 
 
 let testRecursionInEditor : Test =
-  testTask "results in recursion" { // WHATISTHIS
+  testTask "editor avoids recursion" { // WHATISTHIS
     let callerID = gid ()
     let skippedCallerID = gid ()
 
     let fnExpr =
-      (PT.EIf(
+      PT.EIf(
         gid (),
-        (PT.EFnCall(
+
+        // condition
+        PT.EFnCall(
           gid (),
           FQFnName.stdlibFqName "" "<" 0,
           [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
           PT.NoRail
-        )),
-        (PT.EInteger(gid (), 0)),
-        // infinite recursion
-        (PT.EFnCall(
+        ),
+
+        // 'then' expression
+        PT.EInteger(gid (), 0),
+
+        // 'else' expression
+        // calls self ("recurse") resulting in recursion
+        PT.EFnCall(
           skippedCallerID,
           FQFnName.userFqName "recurse",
           [ PT.EInteger(gid (), 2) ],
           PT.NoRail
-        ))
-      ))
+        )
+      )
+
     let recurse =
       testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)

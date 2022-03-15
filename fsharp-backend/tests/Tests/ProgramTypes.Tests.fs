@@ -18,7 +18,7 @@ let rtFQFnName =
       (RT.FQFnName.stdlibFqName "" "toString" 0), "toString"
       (RT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
-// TODO parsing function names from OCaml WHATISTHIS, and should this be a FSTODO or CLEANUP?
+// TODO parsing function names from OCaml
 
 let ptFQFnName =
   testMany

@@ -256,7 +256,7 @@ let testFunctionTracesAreStored =
 
 let tests =
   testList
-    "Analysis" // should this be "traces"?
+    "Analysis"
     [ testTraceIDsOfTlidsMatch
       testFilterSlash
       testRouteVariablesWorkWithStoredEvents

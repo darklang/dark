@@ -1,6 +1,7 @@
 module Tests.UserDB
 
-// Most DB tests can be checked <- what does this mean by 'checked'?
+// Most DB tests are in db.tests
+// These ones are the ones we couldn't fit into that format well.
 
 open Expecto
 open Prelude
