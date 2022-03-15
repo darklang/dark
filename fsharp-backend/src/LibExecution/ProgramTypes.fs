@@ -327,9 +327,6 @@ module Toplevel =
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
 
-module Secret =
-  type T = { name : string; value : string }
-
 [<MessagePack.MessagePackObject>]
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
 
@@ -373,9 +370,15 @@ type Op =
 [<MessagePack.MessagePackObject>]
 type Oplist = List<Op>
 
+// ---------------------------------
+// Not serialized using BinarySerialization
+// ---------------------------------
+
 type TLIDOplists = List<tlid * Oplist>
 
-// Not actually serialized
+module Secret =
+  type T = { name : string; value : string }
+
 module Package =
   type Parameter = { name : string; typ : DType; description : string }
 
