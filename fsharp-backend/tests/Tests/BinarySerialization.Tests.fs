@@ -436,13 +436,21 @@ let oplistRoundtripTest =
 
 let testTestFiles =
   test "check test files are correct" {
-    let expected = File.readfileBytes Config.Serialization "oplist-format.bin"
-    let actual = testOplist |> BinarySerialization.serializeOplist
-    Expect.equal actual expected "binary oplist"
-
+    // We can just check the oplists as expressions and toplevels are contained inside
     let expected = File.readfile Config.Serialization "oplist-format.json"
     let actual = testOplist |> BinarySerialization.serializeOplistToJson
-    Expect.equal actual expected "json oplist"
+    // There are times where the json would be the same but the binary would be different
+    Expect.equal actual expected "check generates the same json"
+
+    let expected =
+      File.readfileBytes Config.Serialization "oplist-format.bin"
+      |> BinarySerialization.deserializeOplist
+    let actual = testOplist
+    Expect.equal actual expected "check can read the saved file"
+
+    let expected = File.readfileBytes Config.Serialization "oplist-format.bin"
+    let actual = testOplist |> BinarySerialization.serializeOplist
+    Expect.equal actual expected "check generates the same binary"
   }
 
 
