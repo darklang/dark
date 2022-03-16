@@ -72,7 +72,8 @@ let addOp (ctx : HttpContext) : Task<T> =
 
     let allTLIDs = (List.map Op.tlidOf newOps) @ dbTLIDs
     // We're going to save this, so we need all the ops
-    let! oldOps = C.loadOplists C.IncludeDeletedToplevels canvasInfo.id allTLIDs
+    let! oldOps =
+      Serialize.loadOplists Serialize.IncludeDeletedToplevels canvasInfo.id allTLIDs
     let oldOps = oldOps |> List.map Tuple2.second |> List.concat
 
     let c = C.fromOplist canvasInfo oldOps newOps

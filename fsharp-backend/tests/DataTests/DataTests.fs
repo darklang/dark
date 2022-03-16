@@ -311,7 +311,8 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
   task {
     let loadWatch = System.Diagnostics.Stopwatch()
     loadWatch.Start()
-    let! expected = Canvas.loadOplists Canvas.IncludeDeletedToplevels meta.id tlids
+    let! expected =
+      Serialize.loadOplists Serialize.IncludeDeletedToplevels meta.id tlids
     loadWatch.Stop()
     // debuG "load time" loadWatch.ElapsedMilliseconds
     // debuG "oplist load items" (List.length expected)

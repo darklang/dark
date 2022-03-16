@@ -118,6 +118,49 @@ let deserializeOCamlSerializedToplevel
   | _ ->
     Exception.raiseInternal "Invalid tipe for toplevel" [ "type", typ; "tlid", tlid ]
 
+type LoadAmount =
+  | LiveToplevels
+  | IncludeDeletedToplevels
+
+// Load oplists for anything that wasn't cached.
+// TLs might not be returned from the materialized view/fast loader/cache if:
+//  a) they have no materialized view (probably not possible anymore!)
+//  b) they are deleted, because the cache query filters out deleted items
+//  c) the deserializers for the cache version are broken (due to a binary version
+//  change!)
+let loadOplists
+  (loadAmount : LoadAmount)
+  (canvasID : CanvasID)
+  (tlids : List<tlid>)
+  : Task<List<tlid * PT.Oplist>> =
+  let query =
+    // CLEANUP stop loading ocaml data
+    match loadAmount with
+    | LiveToplevels ->
+      "SELECT tlid, data, oplist FROM toplevel_oplists
+          WHERE canvas_id = @canvasID
+            AND tlid = ANY(@tlids)
+            AND deleted IS NOT TRUE"
+    | IncludeDeletedToplevels ->
+      "SELECT tlid, data, oplist FROM toplevel_oplists
+          WHERE canvas_id = @canvasID
+            AND tlid = ANY(@tlids)"
+
+  Sql.query query
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+  |> Sql.executeAsync (fun read ->
+    (read.tlid "tlid", read.bytea "data", read.byteaOrNone "oplist"))
+  |> Task.bind (fun list ->
+    list
+    |> Task.mapWithConcurrency 2 (fun (tlid, ocamlSerialized, fsharpSerialized) ->
+      task {
+        match fsharpSerialized with
+        | Some oplist ->
+          return (tlid, BinarySerialization.deserializeOplist tlid oplist)
+        | None ->
+          let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
+          return (tlid, oplist)
+      }))
 
 
 // This is a special `load_*` function that specifically loads toplevels

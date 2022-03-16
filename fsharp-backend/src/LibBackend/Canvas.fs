@@ -358,52 +358,12 @@ let empty (meta : Meta) : T =
 let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
-type LoadAmount =
-  | LiveToplevels
-  | IncludeDeletedToplevels
 
-// Load oplists for anything that wasn't cached.
-// TLs might not be returned from the materialized view/fast loader/cache if:
-//  a) they have no materialized view (probably not possible anymore!)
-//  b) they are deleted, because the cache query filters out deleted items
-//  c) the deserializers for the cache version are broken (due to a binary version
-//  change!)
-let loadOplists
-  (loadAmount : LoadAmount)
-  (canvasID : CanvasID)
+let loadFrom
+  (loadAmount : Serialize.LoadAmount)
+  (meta : Meta)
   (tlids : List<tlid>)
-  : Task<List<tlid * PT.Oplist>> =
-  let query =
-    // CLEANUP stop loading ocaml data
-    match loadAmount with
-    | LiveToplevels ->
-      "SELECT tlid, data, oplist FROM toplevel_oplists
-          WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)
-            AND deleted IS NOT TRUE"
-    | IncludeDeletedToplevels ->
-      "SELECT tlid, data, oplist FROM toplevel_oplists
-          WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)"
-
-  Sql.query query
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync (fun read ->
-    (read.tlid "tlid", read.bytea "data", read.byteaOrNone "oplist"))
-  |> Task.bind (fun list ->
-    list
-    |> Task.mapWithConcurrency 2 (fun (tlid, ocamlSerialized, fsharpSerialized) ->
-      task {
-        match fsharpSerialized with
-        | Some oplist ->
-          return (tlid, BinarySerialization.deserializeOplist tlid oplist)
-        | None ->
-          let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
-          return (tlid, oplist)
-      }))
-
-
-let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task<T> =
+  : Task<T> =
   task {
     try
       // CLEANUP: rename "rendered" and "cached" to be consistent
@@ -418,7 +378,7 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
 
       // canvas initialized via the normal loading path with the non-fast loaded tlids
       // loaded traditionally via the oplist
-      let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
+      let! uncachedOplists = Serialize.loadOplists loadAmount meta.id notLoadedTLIDs
       let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
       let c = empty meta
 
@@ -437,50 +397,50 @@ let loadFrom (loadAmount : LoadAmount) (meta : Meta) (tlids : List<tlid>) : Task
 let loadAll (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchAllTLIDs meta.id
-    return! loadFrom IncludeDeletedToplevels meta tlids
+    return! loadFrom Serialize.IncludeDeletedToplevels meta tlids
   }
 
 let loadHttpHandlers (meta : Meta) (path : string) (method : string) : Task<T> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP meta.id path method
-    return! loadFrom LiveToplevels meta tlids
+    return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
 let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<T> =
-  loadFrom LiveToplevels meta tlids
+  loadFrom Serialize.LiveToplevels meta tlids
 
 
 let loadTLIDsWithContext (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     let! context = Serialize.fetchRelevantTLIDsForExecution meta.id
     let tlids = tlids @ context
-    return! loadFrom LiveToplevels meta tlids
+    return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
 let loadForEvent (e : EventQueue.T) : Task<T> =
   task {
     let meta = { id = e.canvasID; name = e.canvasName; owner = e.ownerID }
     let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id e
-    return! loadFrom LiveToplevels meta tlids
+    return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
 let loadAllDBs (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs meta.id
-    return! loadFrom LiveToplevels meta tlids
+    return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
 /// Returns a best guess at all workers (excludes what it knows not to be a worker)
 let loadAllWorkers (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllWorkers meta.id
-    return! loadFrom LiveToplevels meta tlids
+    return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
 let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id
-    return! loadFrom LiveToplevels meta (tlids @ dbTLIDs)
+    return! loadFrom Serialize.LiveToplevels meta (tlids @ dbTLIDs)
   }
 
 type Deleted =
