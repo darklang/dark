@@ -119,7 +119,10 @@ let deserializeOCamlSerializedToplevel
   | _ ->
     Exception.raiseInternal "Invalid tipe for toplevel" [ "type", typ; "tlid", tlid ]
 
-let cacheOplist
+/// Save the oplist using the F# serialization formats, after reading the oplist from
+/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
+/// aren't, logs but doesn't save or error (because things can continue just fine).
+let saveOplistToFSharpCache
   (canvasID : CanvasID)
   (tlid : tlid)
   (ocamlSerializedBytes : byte [])
@@ -155,10 +158,10 @@ let cacheOplist
     return ()
   }
 
-/// Save just the F# toplevel, after reading them from OCaml. Takes the
-/// existing OCaml value to ensure things are in sync - if they aren't, logs but
-/// doesn't save or error (because things can continue just fine).
-let cacheToplevel
+/// Save the F# toplevel suing the F# serialization format, after reading it from
+/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
+/// aren't, logs but doesn't save or error (because things can continue just fine).
+let saveToplevelToFSharpCache
   (canvasID : CanvasID)
   (ocamlSerializedBytes : byte [])
   (tl : PT.Toplevel.T)
@@ -272,7 +275,7 @@ let loadOplists
           return (tlid, BinarySerialization.deserializeOplist tlid oplist)
         | None ->
           let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
-          do! cacheOplist canvasID tlid ocamlSerialized oplist
+          do! saveOplistToFSharpCache canvasID tlid ocamlSerialized oplist
           return (tlid, oplist)
       }))
 
@@ -346,7 +349,7 @@ let loadOnlyRenderedTLIDs
                 task {
                   let! deserialized =
                     deserializeOCamlSerializedToplevel tlid typ ocamlSerialized pos
-                  do! cacheToplevel canvasID ocamlSerialized deserialized
+                  do! saveToplevelToFSharpCache canvasID ocamlSerialized deserialized
                   return deserialized
                 })
               ())
