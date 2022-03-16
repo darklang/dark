@@ -59,8 +59,7 @@ let prodHashReplacements : Lazy<Map<string, string>> =
      |> Map.remove "__date"
      |> Map.remove ".gitkeep"
      // Only hash our assets, not vendored assets
-     |> Map.filterWithIndex (fun k _ ->
-       not (String.includes "vendor/" k || String.includes "blazor/" k))
+     |> Map.filterWithIndex (fun k _ -> not (String.includes "vendor/" k))
      |> Map.toList
      |> List.map (fun (filename, hash) ->
        ($"/{filename}", hashedFilename filename hash))
