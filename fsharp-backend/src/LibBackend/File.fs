@@ -79,13 +79,17 @@ let tryReadFile (root : Config.Root) (f : string) : string option =
 
 open LibService.Exception
 
-let rec writefile (root : Config.Root) (f : string) (contents : string) : unit =
+let rec writefileBytes
+  (root : Config.Root)
+  (f : string)
+  (contents : byte [])
+  : unit =
   let f = checkFilename root Write f
 
   // First write to a temp file, then copy atomically. Do this as we've lost our data
   // a few times.
   let tempFilename = System.IO.Path.GetTempFileName()
-  System.IO.File.WriteAllText(tempFilename, contents)
+  System.IO.File.WriteAllBytes(tempFilename, contents)
 
   // We might not be the only one trying to copy here, and .NET won't let us
   // overwrite it if something else is. So try again.
@@ -100,3 +104,6 @@ let rec writefile (root : Config.Root) (f : string) (contents : string) : unit =
       count <- count + 1
       if count > 10 then e.Reraise() else ()
       ()
+
+let rec writefile (root : Config.Root) (f : string) (contents : string) : unit =
+  writefileBytes root f (UTF8.toBytes contents)

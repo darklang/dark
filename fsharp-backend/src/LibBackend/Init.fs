@@ -50,7 +50,6 @@ let waitForDB () : Task<unit> =
 
 let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
   task {
-
     print $"Initing LibBackend in {serviceName}"
     Db.init ()
 

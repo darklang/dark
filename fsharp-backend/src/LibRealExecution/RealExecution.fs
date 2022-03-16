@@ -11,6 +11,7 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
@@ -31,7 +32,8 @@ let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
       return
         packages
         |> List.map (fun (f : PT.Package.Fn) ->
-          (RT.FQFnName.Package f.name, PT.Package.toRuntimeType f))
+          (f.name |> PT2RT.FQFnName.PackageFnName.toRT |> RT.FQFnName.Package,
+           PT2RT.Package.toRT f))
         |> Map.ofList
     })
 

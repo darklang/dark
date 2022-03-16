@@ -11,7 +11,7 @@ module PT = LibExecution.ProgramTypes
 open LibExecution.RuntimeTypes
 
 module C = LibBackend.SqlCompiler
-module S = LibExecution.Shortcuts
+module S = TestUtils.RTShortcuts
 
 let compile
   (symtable : DvalMap)

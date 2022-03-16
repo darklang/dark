@@ -7,16 +7,18 @@ open Expecto
 
 open Prelude
 open Tablecloth
-open TestUtils.TestUtils
 
+open TestUtils.TestUtils
 open LibExecution.RuntimeTypes
-open LibExecution.Shortcuts
+open TestUtils.RTShortcuts
 
 module Exe = LibExecution.Execution
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
@@ -62,8 +64,7 @@ let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
-    let fn =
-      testUserFn name [] (PT.EInteger(gid (), 5)) |> PT.UserFunction.toRuntimeType
+    let fn = testUserFn name [] (PT.EInteger(gid (), 5)) |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor meta Map.empty fns
 
@@ -162,7 +163,7 @@ let testRecursionInEditor : Test =
         // condition
         PT.EFnCall(
           gid (),
-          FQFnName.stdlibFqName "" "<" 0,
+          PTParser.FQFnName.stdlibFqName "" "<" 0,
           [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
           PT.NoRail
         ),
@@ -174,14 +175,13 @@ let testRecursionInEditor : Test =
         // calls self ("recurse") resulting in recursion
         PT.EFnCall(
           skippedCallerID,
-          FQFnName.userFqName "recurse",
+          PTParser.FQFnName.userFqName "recurse",
           [ PT.EInteger(gid (), 2) ],
           PT.NoRail
         )
       )
 
-    let recurse =
-      testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
+    let recurse = testUserFn "recurse" [ "i" ] fnExpr |> PT2RT.UserFunction.toRT
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
     let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 
@@ -388,7 +388,10 @@ let testMatchPreview : Test =
           (PConstructor(pOkVarOkId, "Ok", [ PVariable(pOkVarVarId, "x") ]),
            EApply(
              okVarRhsId,
-             EFQFnValue(binopFnValId, FQFnName.stdlibFqName "" "++" 0),
+             EFQFnValue(
+               binopFnValId,
+               PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+             ),
              [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
              NotInPipe,
              NoRail
@@ -511,7 +514,13 @@ let testMatchPreview : Test =
           (pOkVarOkId, "ok pat", er (DResult(Ok(DStr "y"))))
           (binopFnValId,
            "fnval",
-           er (DFnVal(FnName(FQFnName.stdlibFqName "" "++" 0))))
+           er (
+             DFnVal(
+               FnName(
+                 PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+               )
+             )
+           ))
           (pOkVarVarId, "var pat", er (DStr "y"))
           (okVarRhsId, "rhs", er (DStr "ok: y"))
           (okVarRhsVarId, "rhs", er (DStr "y"))

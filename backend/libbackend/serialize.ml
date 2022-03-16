@@ -218,84 +218,6 @@ let fetch_all_tlids ~(canvas_id : Uuidm.t) () : Types.tlid list =
              Exception.internal "Shape of per_tlid oplists")
 
 
-let transactionally_migrate_oplist
-    ~(canvas_id : Uuidm.t)
-    ~host
-    ~tlid
-    ~(oplist_f : Types.oplist -> Types.oplist)
-    ~(handler_f :
-       Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.HandlerT.handler)
-    ~(db_f : Types.RuntimeT.DbT.db -> Types.RuntimeT.DbT.db)
-    ~(user_fn_f : Types.RuntimeT.user_fn -> Types.RuntimeT.user_fn)
-    ~(user_tipe_f : Types.RuntimeT.user_tipe -> Types.RuntimeT.user_tipe)
-    () : (string, unit) Tc.Result.t =
-  Log.inspecT "migrating oplists for" (host, tlid) ;
-  try
-    Db.transaction ~name:"oplist migration" (fun () ->
-        let oplist, rendered =
-          Db.fetch
-            ~name:"load_all_from_db"
-            (* SELECT FOR UPDATE locks row! *)
-            "SELECT data, rendered_oplist_cache FROM toplevel_oplists
-         WHERE canvas_id = $1
-         AND tlid = $2
-         FOR UPDATE"
-            ~params:[Uuid canvas_id; ID tlid]
-            ~result:BinaryResult
-          |> List.hd_exn
-          |> function
-          | [data; rendered_oplist_cache] ->
-              ( Binary_serialization.oplist_of_binary_string data
-              , rendered_oplist_cache )
-          | _ ->
-              Exception.internal "invalid oplists"
-        in
-        let try_convert f () = try Some (f rendered) with _ -> None in
-        let rendered =
-          if rendered = ""
-          then Db.Null
-          else
-            try_convert
-              (Binary_serialization.translate_handler_as_binary_string
-                 ~f:handler_f)
-              ()
-            |> Tc.Option.or_else_lazy
-                 (try_convert
-                    (Binary_serialization.translate_db_as_binary_string ~f:db_f))
-            |> Tc.Option.or_else_lazy
-                 (try_convert
-                    (Binary_serialization
-                     .translate_user_function_as_binary_string
-                       ~f:user_fn_f))
-            |> Tc.Option.or_else_lazy
-                 (try_convert
-                    (Binary_serialization.translate_user_tipe_as_binary_string
-                       ~f:user_tipe_f))
-            |> Tc.Option.map ~f:(fun str -> Db.Binary str)
-            |> Tc.Option.or_else_lazy (fun () ->
-                   Exception.internal "none of the decoders worked on the cache")
-            |> Tc.Option.withDefault ~default:Db.Null
-        in
-        let converted_oplist = oplist |> oplist_f in
-        Db.run
-          ~name:"save per tlid oplist"
-          "UPDATE toplevel_oplists
-       SET data = $1,
-           digest = $2,
-           rendered_oplist_cache = $3
-       WHERE canvas_id = $4
-         AND tlid = $5"
-          ~params:
-            [ Binary
-                (Binary_serialization.oplist_to_binary_string converted_oplist)
-            ; String Binary_serialization.digest
-            ; rendered
-            ; Uuid canvas_id
-            ; ID tlid ]) ;
-    Ok ()
-  with e -> Error (Exception.to_string e)
-
-
 let save_toplevel_oplist
     ~(binary_repr : string option)
     ~(tlid : Types.tlid)
@@ -328,8 +250,8 @@ let save_toplevel_oplist
   Db.run
     ~name:"save per tlid oplist"
     "INSERT INTO toplevel_oplists
-    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted, pos)
-    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11, $12)
+    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
+    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11, $12, NULL, NULL)
     ON CONFLICT (canvas_id, tlid) DO UPDATE
     SET account_id = $2,
         digest = $4,
@@ -340,7 +262,9 @@ let save_toplevel_oplist
         data = $9,
         rendered_oplist_cache = $10,
         deleted = $11,
-        pos = $12;
+        pos = $12,
+        oplist = NULL,
+        oplist_cache = NULL;
         "
     ~params:
       [ Uuid canvas_id

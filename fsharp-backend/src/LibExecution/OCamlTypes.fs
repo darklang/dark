@@ -19,6 +19,8 @@ open VendoredTablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 type id = uint64
 
@@ -361,9 +363,14 @@ module Convert =
     | ORT.EVariable (id, var) -> PT.EVariable(id, var)
     | ORT.EFieldAccess (id, obj, fieldname) -> PT.EFieldAccess(id, r obj, fieldname)
     | ORT.EFnCall (id, name, args, ster) ->
-      PT.EFnCall(id, PT.FQFnName.parse name, List.map r args, ocamlSter2PT ster)
+      PT.EFnCall(
+        id,
+        PTParser.FQFnName.parse name,
+        List.map r args,
+        ocamlSter2PT ster
+      )
     | ORT.EBinOp (id, name, arg1, arg2, ster) ->
-      PT.EBinOp(id, PT.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
+      PT.EBinOp(id, PTParser.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
     | ORT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
     | ORT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
     | ORT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -404,7 +411,7 @@ module Convert =
     | Filled (_, "HTTP"), route, method -> PT.Handler.HTTP(route, method, ids)
     | Filled (_, "WORKER"), name, _ -> PT.Handler.Worker(name, ids)
     | Filled (_, "CRON"), name, interval ->
-      PT.Handler.Cron(name, PT.Handler.CronInterval.parse interval, ids)
+      PT.Handler.Cron(name, PTParser.Handler.CronInterval.parse interval, ids)
     | Filled (_, "REPL"), name, _ -> PT.Handler.REPL(name, ids)
     | Filled (_, workerName), name, _ -> PT.Handler.OldWorker(workerName, name, ids)
     | Partial (_, _), name, modifier
@@ -417,7 +424,7 @@ module Convert =
     { tlid = o.tlid
       ast = ocamlExpr2PT o.ast
       spec = ocamlSpec2PT o.spec
-      pos = pos }
+      pos = { x = pos.x; y = pos.y } }
 
 
   let rec ocamlTipe2PT (o : tipe) : PT.DType =
@@ -464,7 +471,7 @@ module Convert =
     { tlid = o.tlid
       name = bo2String o.name
       nameID = bo2ID o.name
-      pos = pos
+      pos = { x = pos.x; y = pos.y }
       cols = List.map ocamlDBCol2PT o.cols
       version = int o.version }
 
@@ -508,61 +515,52 @@ module Convert =
       infix = o.metadata.infix
       body = ocamlExpr2PT o.ast }
 
-  let ocamlOp2PT (o : op<ORT.fluidExpr>) : PT.Op =
+  let ocamlOp2PT (o : op<ORT.fluidExpr>) : Option<PT.Op> =
     match o with
     | SetHandler (tlid, pos, handler) ->
-      PT.SetHandler(tlid, pos, ocamlHandler2PT pos handler)
-    | CreateDB (tlid, pos, name) -> PT.CreateDB(tlid, pos, name)
-    | AddDBCol (tlid, id1, id2) -> PT.AddDBCol(tlid, id1, id2)
-    | SetDBColName (tlid, id, name) -> PT.SetDBColName(tlid, id, name)
-    | SetDBColType (tlid, id, string) -> PT.SetDBColType(tlid, id, string)
-    | DeleteTL tlid -> PT.DeleteTL tlid
-    | MoveTL (tlid, pos) -> PT.MoveTL(tlid, pos)
-    | SetFunction fn -> PT.SetFunction(ocamlUserFunction2PT fn)
-    | ChangeDBColName (tlid, id, string) -> PT.ChangeDBColName(tlid, id, string)
-    | ChangeDBColType (tlid, id, string) -> PT.ChangeDBColType(tlid, id, string)
-    | UndoTL tlid -> PT.UndoTL tlid
-    | RedoTL tlid -> PT.RedoTL tlid
-    | DeprecatedInitDbm (tlid, id1, id2, id3, kind) ->
-      PT.DeprecatedInitDBm(tlid, id1, id2, id3, PT.DeprecatedMigrationKind)
-    | SetExpr (tlid, id, e) -> PT.SetExpr(tlid, id, ocamlExpr2PT e)
-    | TLSavepoint tlid -> PT.TLSavepoint tlid
-    | DeleteFunction tlid -> PT.DeleteFunction tlid
-    | CreateDBMigration (tlid, id1, id2, rollingFns) ->
-      PT.CreateDBMigration(
-        tlid,
-        id1,
-        id2,
-        List.map
-          (fun (bo1, bo2) ->
-            let s1 = bo2String bo1
-            let id1 = bo2ID bo1
-            let s2 = bo2String bo2
-            let id2 = bo2ID bo2
-            (s1, id1, s2, id2))
-          rollingFns
-      )
-    | AddDBColToDBMigration (tlid, id1, id2) ->
-      PT.AddDBColToDBMigration(tlid, id1, id2)
-    | SetDBColNameInDBMigration (tlid, id, name) ->
-      PT.SetDBColNameInDBMigration(tlid, id, name)
-    | SetDBColTypeInDBMigration (tlid, id, tipe) ->
-      PT.SetDBColTypeInDBMigration(tlid, id, tipe)
-    | AbandonDBMigration tlid -> PT.AbandonDBMigration tlid
-    | DeleteColInDBMigration (tlid, id) -> PT.DeleteColInDBMigration(tlid, id)
-    | DeleteDBCol (tlid, id) -> PT.DeleteDBCol(tlid, id)
-    | RenameDBname (tlid, string) -> PT.RenameDBname(tlid, string)
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.SetHandler(tlid, position, ocamlHandler2PT pos handler))
+    | CreateDB (tlid, pos, name) ->
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.CreateDB(tlid, position, name))
+    | AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
+    | SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
+    | SetDBColType (tlid, id, string) -> Some(PT.SetDBColType(tlid, id, string))
+    | DeleteTL tlid -> Some(PT.DeleteTL tlid)
+    | MoveTL (tlid, pos) ->
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.MoveTL(tlid, position))
+    | SetFunction fn -> Some(PT.SetFunction(ocamlUserFunction2PT fn))
+    | ChangeDBColName (tlid, id, string) ->
+      Some(PT.ChangeDBColName(tlid, id, string))
+    | ChangeDBColType (tlid, id, string) ->
+      Some(PT.ChangeDBColType(tlid, id, string))
+    | UndoTL tlid -> Some(PT.UndoTL tlid)
+    | RedoTL tlid -> Some(PT.RedoTL tlid)
+    | DeprecatedInitDbm (tlid, id1, id2, id3, kind) -> None
+    | SetExpr (tlid, id, e) -> Some(PT.SetExpr(tlid, id, ocamlExpr2PT e))
+    | TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
+    | DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
+    | CreateDBMigration (tlid, id1, id2, rollingFns) -> None
+    | AddDBColToDBMigration (tlid, id1, id2) -> None
+    | SetDBColNameInDBMigration (tlid, id, name) -> None
+    | SetDBColTypeInDBMigration (tlid, id, tipe) -> None
+    | AbandonDBMigration tlid -> None
+    | DeleteColInDBMigration (tlid, id) -> None
+    | DeleteDBCol (tlid, id) -> Some(PT.DeleteDBCol(tlid, id))
+    | RenameDBname (tlid, string) -> Some(PT.RenameDBname(tlid, string))
     | CreateDBWithBlankOr (tlid, pos, id, string) ->
-      PT.CreateDBWithBlankOr(tlid, pos, id, string)
-    | DeleteTLForever tlid -> PT.DeleteTLForever tlid
-    | DeleteFunctionForever tlid -> PT.DeleteFunctionForever tlid
-    | SetType tipe -> PT.SetType(ocamlUserType2PT tipe)
-    | DeleteType tlid -> PT.DeleteType tlid
-    | DeleteTypeForever tlid -> PT.DeleteTypeForever tlid
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.CreateDBWithBlankOr(tlid, position, id, string))
+    | DeleteTLForever tlid -> Some(PT.DeleteTLForever tlid)
+    | DeleteFunctionForever tlid -> Some(PT.DeleteFunctionForever tlid)
+    | SetType tipe -> Some(PT.SetType(ocamlUserType2PT tipe))
+    | DeleteType tlid -> Some(PT.DeleteType tlid)
+    | DeleteTypeForever tlid -> Some(PT.DeleteTypeForever tlid)
 
 
   let ocamlOplist2PT (list : oplist<ORT.fluidExpr>) : PT.Oplist =
-    List.map ocamlOp2PT list
+    List.filterMap ocamlOp2PT list
 
   let ocamlTLIDOplist2PT
     ((tlid, oplist) : tlid_oplist<ORT.fluidExpr>)
@@ -590,12 +588,12 @@ module Convert =
   let ocamlBinarySerializationToplevel2PT
     (pos : pos)
     (tl : BSTypes.tl)
-    : PT.Toplevel =
+    : PT.Toplevel.T =
     match tl with
-    | BSTypes.Handler h -> PT.TLHandler(ocamlHandler2PT pos h)
-    | BSTypes.DB db -> PT.TLDB(ocamlDB2PT pos db)
-    | BSTypes.UserType ut -> PT.TLType(ocamlUserType2PT ut)
-    | BSTypes.UserFn uf -> PT.TLFunction(ocamlUserFunction2PT uf)
+    | BSTypes.Handler h -> PT.Toplevel.TLHandler(ocamlHandler2PT pos h)
+    | BSTypes.DB db -> PT.Toplevel.TLDB(ocamlDB2PT pos db)
+    | BSTypes.UserType ut -> PT.Toplevel.TLType(ocamlUserType2PT ut)
+    | BSTypes.UserFn uf -> PT.Toplevel.TLFunction(ocamlUserFunction2PT uf)
 
 
 
@@ -677,22 +675,26 @@ module Convert =
     | PT.EVariable (id, var) -> ORT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) -> ORT.EFieldAccess(id, r obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
+      let nameStr = name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString
       let name =
-        if string name = "JSON::parse" || string name = "DB::add" then
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
           // Some things were named wrong in OCaml
-          $"{name}_v0"
+          $"{nameStr}_v0"
         else
           match name with
-          | RT.FQFnName.Stdlib _
-          | RT.FQFnName.User _ -> string name |> String.replace "_v0" ""
+          | PT.FQFnName.Stdlib _
+          | PT.FQFnName.User _ -> nameStr |> String.replace "_v0" ""
           // Keep the _v0 here
-          | RT.FQFnName.Package _ -> string name
+          | PT.FQFnName.Package _ -> nameStr
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
       ORT.EBinOp(
         id,
-        name |> string |> String.replace "_v0" "",
+        name
+        |> PT2RT.FQFnName.toRT
+        |> RT.FQFnName.toString
+        |> String.replace "_v0" "",
         r arg1,
         r arg2,
         pt2ocamlSter ster
@@ -759,12 +761,13 @@ module Convert =
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
       ORT.EFeatureFlag(id, "flag", r cond, r caseA, r caseB)
     | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.NotInPipe, rail) ->
+      let nameStr = name |> RT.FQFnName.toString
       let name =
-        if string name = "JSON::parse" || string name = "DB::add" then
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
           // Some things were named wrong in OCaml
-          $"{name}_v0"
+          $"{nameStr}_v0"
         else
-          string name |> String.replace "_v0" ""
+          nameStr |> String.replace "_v0" ""
 
 
       ORT.EFnCall(id, name, List.map r args, rt2ocamlSter rail)
@@ -797,7 +800,7 @@ module Convert =
         name = string2bo ids.nameID name
         modifier =
           interval
-          |> Option.map string
+          |> Option.map PTParser.Handler.CronInterval.toString
           |> Option.defaultValue ""
           |> string2bo ids.modifierID
         types = types }
@@ -899,13 +902,18 @@ module Convert =
   let pt2ocamlOp (p : PT.Op) : op<ORT.fluidExpr> =
     match p with
     | PT.SetHandler (tlid, pos, handler) ->
+      let pos : pos = { x = pos.x; y = pos.y }
       SetHandler(tlid, pos, pt2ocamlHandler handler)
-    | PT.CreateDB (tlid, pos, name) -> CreateDB(tlid, pos, name)
+    | PT.CreateDB (tlid, pos, name) ->
+      let pos : pos = { x = pos.x; y = pos.y }
+      CreateDB(tlid, pos, name)
     | PT.AddDBCol (tlid, id1, id2) -> AddDBCol(tlid, id1, id2)
     | PT.SetDBColName (tlid, id, name) -> SetDBColName(tlid, id, name)
     | PT.SetDBColType (tlid, id, string) -> SetDBColType(tlid, id, string)
     | PT.DeleteTL tlid -> DeleteTL tlid
-    | PT.MoveTL (tlid, pos) -> MoveTL(tlid, pos)
+    | PT.MoveTL (tlid, pos) ->
+      let pos : pos = { x = pos.x; y = pos.y }
+      MoveTL(tlid, pos)
     | PT.SetFunction fn -> SetFunction(pt2ocamlUserFunction fn)
     | PT.ChangeDBColName (tlid, id, string) -> ChangeDBColName(tlid, id, string)
     | PT.ChangeDBColType (tlid, id, string) -> ChangeDBColType(tlid, id, string)
@@ -914,28 +922,10 @@ module Convert =
     | PT.SetExpr (tlid, id, e) -> SetExpr(tlid, id, pt2ocamlExpr e)
     | PT.TLSavepoint tlid -> TLSavepoint tlid
     | PT.DeleteFunction tlid -> DeleteFunction tlid
-    | PT.CreateDBMigration (tlid, id1, id2, rollingFns) ->
-      CreateDBMigration(
-        tlid,
-        id1,
-        id2,
-        List.map
-          (fun (s1, id1, s2, id2) -> (string2bo id1 s1, string2bo id2 s2))
-          rollingFns
-      )
-    | PT.AddDBColToDBMigration (tlid, id1, id2) ->
-      AddDBColToDBMigration(tlid, id1, id2)
-    | PT.SetDBColNameInDBMigration (tlid, id, name) ->
-      SetDBColNameInDBMigration(tlid, id, name)
-    | PT.SetDBColTypeInDBMigration (tlid, id, tipe) ->
-      SetDBColTypeInDBMigration(tlid, id, tipe)
-    | PT.AbandonDBMigration tlid -> AbandonDBMigration tlid
-    | PT.DeleteColInDBMigration (tlid, id) -> DeleteColInDBMigration(tlid, id)
-    | PT.DeprecatedInitDBm (tlid, id1, id2, id3, kind) ->
-      DeprecatedInitDbm(tlid, id1, id2, id3, RuntimeT.DbT.DeprecatedMigrationKind)
     | PT.DeleteDBCol (tlid, id) -> DeleteDBCol(tlid, id)
     | PT.RenameDBname (tlid, string) -> RenameDBname(tlid, string)
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
+      let pos : pos = { x = pos.x; y = pos.y }
       CreateDBWithBlankOr(tlid, pos, id, string)
     | PT.DeleteTLForever tlid -> DeleteTLForever tlid
     | PT.DeleteFunctionForever tlid -> DeleteFunctionForever tlid
@@ -948,29 +938,33 @@ module Convert =
     List.map pt2ocamlOp list
 
   let pt2ocamlToplevels
-    (toplevels : Map<tlid, PT.Toplevel>)
+    (toplevels : Map<tlid, PT.Toplevel.T>)
     : ORT.toplevels * ORT.user_fn<ORT.fluidExpr> list * ORT.user_tipe list =
     toplevels
     |> Map.values
     |> List.ofSeq
     |> List.fold ([], [], []) (fun (tls, ufns, uts) tl ->
       match tl with
-      | PT.TLHandler h ->
+      | PT.Toplevel.TLHandler h ->
         let ocamlHandler = pt2ocamlHandler h
 
         let ocamlTL : ORT.toplevel =
-          { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
+          { tlid = h.tlid
+            pos = { x = h.pos.x; y = h.pos.y }
+            data = ORT.Handler ocamlHandler }
 
         tls @ [ ocamlTL ], ufns, uts
-      | PT.TLDB db ->
+      | PT.Toplevel.TLDB db ->
         let ocamlDB = pt2ocamlDB db
 
         let ocamlTL : ORT.toplevel =
-          { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
+          { tlid = db.tlid
+            pos = { x = db.pos.x; y = db.pos.y }
+            data = ORT.DB ocamlDB }
 
         tls @ [ ocamlTL ], ufns, uts
-      | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
-      | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
+      | PT.Toplevel.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
+      | PT.Toplevel.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
   let ocamlPackageManagerParameter2PT
     (o : PackageManager.parameter)
@@ -1066,7 +1060,7 @@ module Convert =
         RT.Lambda
           { parameters = args.``params``
             symtable = Map.map c args.symtable
-            body = args.body |> ocamlExpr2PT |> fun x -> x.toRuntimeType () }
+            body = args.body |> ocamlExpr2PT |> PT2RT.Expr.toRT }
       )
     | ORT.DIncomplete ORT.SourceNone -> RT.DIncomplete RT.SourceNone
     | ORT.DIncomplete (ORT.SourceId (tlid, id)) ->

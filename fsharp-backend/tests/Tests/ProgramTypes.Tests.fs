@@ -6,33 +6,23 @@ open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module S = LibExecution.Shortcuts
-
-let rtFQFnName =
-  testMany
-    "FQFnName.ToString"
-    string
-    [ (RT.FQFnName.stdlibFqName "" "++" 0), "++"
-      (RT.FQFnName.stdlibFqName "" "!=" 0), "!="
-      (RT.FQFnName.stdlibFqName "" "&&" 0), "&&"
-      (RT.FQFnName.stdlibFqName "" "toString" 0), "toString"
-      (RT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
-
-// TODO parsing function names from OCaml
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
+module S = TestUtils.RTShortcuts
 
 let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
-    string
-    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++"
-      (PT.FQFnName.stdlibFqName "" "!=" 0), "!="
-      (PT.FQFnName.stdlibFqName "" "&&" 0), "&&"
-      (PT.FQFnName.stdlibFqName "" "toString" 0), "toString"
-      (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
+    (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
+    [ (PTParser.FQFnName.stdlibFqName "" "++" 0), "++"
+      (PTParser.FQFnName.stdlibFqName "" "!=" 0), "!="
+      (PTParser.FQFnName.stdlibFqName "" "&&" 0), "&&"
+      (PTParser.FQFnName.stdlibFqName "" "toString" 0), "toString"
+      (PTParser.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 
 let parseTests =
-  let p = PT.FQFnName.parse
+  let p = PTParser.FQFnName.parse
   let User = RT.FQFnName.User
   let Stdlib = RT.FQFnName.Stdlib
   let Package = RT.FQFnName.Package
@@ -46,35 +36,58 @@ let parseTests =
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
           ("", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1")
           ("no v0", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E")
-          ("", Stdlib { module_ = ""; function_ = "toString"; version = 0 })
-          ("", User "someUserFn")
-          ("capital letter", User "SomeUserFn") // CLEANUP shouldn't be needed
+          ("",
+           PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 })
+          ("", PT.FQFnName.User "someUserFn")
+          ("capital letter", PT.FQFnName.User "SomeUserFn") // CLEANUP shouldn't be needed
           ("", p "String::toInt_v1")
-          ("", Stdlib { module_ = ""; function_ = "++"; version = 0 })
-          ("", Stdlib { module_ = ""; function_ = "+"; version = 0 })
+          ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 })
+          ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 })
           ("", p "-")
           ("", p "^") ]
       testMany
         "FQFnName parse tests"
         (fun name ->
           try
-            Some(PT.FQFnName.parse name)
+            Some(PTParser.FQFnName.parse name)
           with
           | _ -> None)
         [ ("toString",
-           Some(Stdlib { module_ = ""; function_ = "toString"; version = 0 }))
-          ("toRepr", Some(Stdlib { module_ = ""; function_ = "toRepr"; version = 0 }))
-          ("equals", Some(Stdlib { module_ = ""; function_ = "equals"; version = 0 }))
+           Some(
+             PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 }
+           ))
+          ("toRepr",
+           Some(
+             PT.FQFnName.Stdlib { module_ = ""; function_ = "toRepr"; version = 0 }
+           ))
+          ("equals",
+           Some(
+             PT.FQFnName.Stdlib { module_ = ""; function_ = "equals"; version = 0 }
+           ))
           ("notEquals",
-           Some(Stdlib { module_ = ""; function_ = "notEquals"; version = 0 }))
-          ("assoc", Some(Stdlib { module_ = ""; function_ = "assoc"; version = 0 }))
-          ("dissoc", Some(Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }))
-          ("toForm", Some(Stdlib { module_ = ""; function_ = "toForm"; version = 0 }))
-          ("++", Some(Stdlib { module_ = ""; function_ = "++"; version = 0 }))
-          ("+", Some(Stdlib { module_ = ""; function_ = "+"; version = 0 }))
+           Some(
+             PT.FQFnName.Stdlib
+               { module_ = ""; function_ = "notEquals"; version = 0 }
+           ))
+          ("assoc",
+           Some(
+             PT.FQFnName.Stdlib { module_ = ""; function_ = "assoc"; version = 0 }
+           ))
+          ("dissoc",
+           Some(
+             PT.FQFnName.Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }
+           ))
+          ("toForm",
+           Some(
+             PT.FQFnName.Stdlib { module_ = ""; function_ = "toForm"; version = 0 }
+           ))
+          ("++",
+           Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 }))
+          ("+",
+           Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }))
           ("dark/stdlib/Twitter::sendText_v0",
            Some(
-             Package
+             PT.FQFnName.Package
                { owner = "dark"
                  package = "stdlib"
                  module_ = "Twitter"
@@ -83,7 +96,7 @@ let parseTests =
            ))
           ("dark/stdlib/Twitter::sendText",
            Some(
-             Package
+             PT.FQFnName.Package
                { owner = "dark"
                  package = "stdlib"
                  module_ = "Twitter"
@@ -92,7 +105,7 @@ let parseTests =
            ))
           ("paul56/random/Rand56om::string20_v57",
            Some(
-             Package
+             PT.FQFnName.Package
                { owner = "paul56"
                  package = "random"
                  module_ = "Rand56om"
@@ -132,6 +145,4 @@ let testPipesToRuntimeTypes =
   }
 
 let tests =
-  testList
-    "ProgramTypes"
-    [ parseTests; testPipesToRuntimeTypes; rtFQFnName; ptFQFnName ]
+  testList "ProgramTypes" [ parseTests; testPipesToRuntimeTypes; ptFQFnName ]

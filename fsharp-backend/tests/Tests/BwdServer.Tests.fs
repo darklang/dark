@@ -223,7 +223,7 @@ let t filename =
 
         (h.tlid,
          [ PT.SetHandler(h.tlid, h.pos, h) ],
-         PT.TLHandler h,
+         PT.Toplevel.TLHandler h,
          Canvas.NotDeleted))
 
     do! Canvas.saveTLIDs meta oplists

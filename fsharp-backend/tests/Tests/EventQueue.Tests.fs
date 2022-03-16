@@ -35,7 +35,9 @@ let testEventQueueRoundtrip =
     let oplists = [ handlerOp h ]
 
     do!
-      Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
+      Canvas.saveTLIDs
+        meta
+        [ (h.tlid, oplists, PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
 
     // enqueue; schedule
     let input = RT.DNull // I don't believe crons take inputs?
@@ -70,7 +72,7 @@ let testEventQueueIsFifo =
     do!
       ([ apple; banana ]
        |> List.map (fun h ->
-         (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
+         (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
     let enqueue (name : string) (i : int64) =
@@ -115,7 +117,7 @@ let testGetWorkerSchedulesForCanvas =
     do!
       ([ apple; banana; cherry ]
        |> List.map (fun h ->
-         (h.tlid, [ handlerOp h ], PT.TLHandler h, Canvas.NotDeleted))
+         (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
     do! EQ.pauseWorker meta.id "apple"

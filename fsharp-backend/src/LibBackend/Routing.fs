@@ -13,6 +13,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 // Functions related to the HTTP server
 
@@ -114,7 +115,9 @@ let filterInvalidHandlerMatches
   (handlers : List<PT.Handler.T>)
   : List<PT.Handler.T> =
   List.filter
-    (fun h -> let route = h.spec.name () in requestPathMatchesRoute route path)
+    (fun h ->
+      let route = PTParser.Handler.Spec.toName h.spec
+      requestPathMatchesRoute route path)
     handlers
 
 
@@ -135,8 +138,8 @@ let rec compareRouteSpecificity (left : string list) (right : string list) : int
 
 let comparePageRouteSpecificity (left : PT.Handler.T) (right : PT.Handler.T) : int =
   compareRouteSpecificity
-    (left.spec.name () |> splitUriPath |> Array.toList)
-    (right.spec.name () |> splitUriPath |> Array.toList)
+    (PTParser.Handler.Spec.toName left.spec |> splitUriPath |> Array.toList)
+    (PTParser.Handler.Spec.toName right.spec |> splitUriPath |> Array.toList)
 
 
 /// Takes a list of handlers that match a request's path, and filters the list
@@ -175,7 +178,7 @@ let filterMatchingHandlers
   (pages : List<PT.Handler.T>)
   : List<PT.Handler.T> =
   pages
-  |> List.filter (fun h -> h.spec.complete ())
+  |> List.filter (fun h -> PTParser.Handler.Spec.isComplete h.spec)
   |> filterInvalidHandlerMatches path
   |> filterMatchingHandlersBySpecificity
 

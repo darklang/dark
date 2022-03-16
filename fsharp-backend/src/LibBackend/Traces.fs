@@ -9,6 +9,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 // -------------------------
 // Input variables (including samples)
@@ -142,7 +143,7 @@ let traceIDofTLID (tlid : tlid) : AT.TraceID =
 
 let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>> =
   task {
-    match h.spec.toEventDesc () with
+    match PTParser.Handler.Spec.toEventDesc h.spec with
     | Some desc ->
       let! events = TraceInputs.loadEventIDs c.meta.id desc
 

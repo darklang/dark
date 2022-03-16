@@ -14,6 +14,7 @@ open Tablecloth
 
 module Telemetry = LibService.Telemetry
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 
@@ -110,7 +111,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
             cron.ownerID
             "CRON"
             cron.cronName
-            (string cron.interval)
+            (PTParser.Handler.CronInterval.toString cron.interval)
             RT.DNull
         do! recordExecution cron
 

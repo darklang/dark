@@ -15,6 +15,11 @@ nuget Faithlife.Utility = 0.12.2
 nuget FSharp.SystemTextJson = 0.17.4
 nuget NodaTime = 3.0.9
 
+// Binary Serialization
+nuget MessagePack = 2.3.85
+nuget MessagePack.NodaTime = 3.0.0
+nuget MessagePack.FSharpExtensions = 3.0.0
+
 // Tests
 nuget Expecto = 9.0.4
 nuget Expecto.FsCheck = 9.0.4

@@ -222,12 +222,12 @@ let userTypeJson2Bin (userType : PT.UserType.T) : Task<byte array> =
   |> Json.OCamlCompatible.serialize
   |> stringToBytesReq "bs/user_tipe_json2bin"
 
-let toplevelToCachedBinary (toplevel : PT.Toplevel) : Task<byte array> =
+let toplevelToCachedBinary (toplevel : PT.Toplevel.T) : Task<byte array> =
   match toplevel with
-  | PT.TLHandler h -> handlerJson2Bin h
-  | PT.TLDB db -> dbJson2Bin db
-  | PT.TLFunction f -> userFnJson2Bin f
-  | PT.TLType t -> userTypeJson2Bin t
+  | PT.Toplevel.TLHandler h -> handlerJson2Bin h
+  | PT.Toplevel.TLDB db -> dbJson2Bin db
+  | PT.Toplevel.TLFunction f -> userFnJson2Bin f
+  | PT.Toplevel.TLType t -> userTypeJson2Bin t
 
 
 // ---------------------------

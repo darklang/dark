@@ -14,6 +14,8 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Canvas = LibBackend.Canvas
 
@@ -44,7 +46,7 @@ let setUpWorkers meta workers =
     let oplists =
       workersWithIDs
       |> List.map (fun (_w, tlid) ->
-        tlid, ops, PT.TLHandler c.handlers[tlid], Canvas.NotDeleted)
+        tlid, ops, PT.Toplevel.TLHandler c.handlers[tlid], Canvas.NotDeleted)
 
     do! Canvas.saveTLIDs meta oplists
   }
@@ -76,9 +78,9 @@ let t
         if workers <> [] then do! setUpWorkers meta workers
 
         let rtDBs =
-          (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
+          (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
 
-        let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
+        let rtFunctions = functions |> Map.map PT2RT.UserFunction.toRT
 
         let! state = executionStateFor meta rtDBs rtFunctions
 
@@ -90,7 +92,7 @@ let t
         let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
 
         let! expected =
-          Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
+          Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
         do! clearCanvasData meta.owner meta.name
 
@@ -127,7 +129,7 @@ let t
 
         if testFSharp then
           let! fsharpActual =
-            Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
+            Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualProg)
 
           let fsharpActual = normalizeDvalResult fsharpActual
 
@@ -284,7 +286,7 @@ let fileTests () : Test =
               |> Json.Vanilla.deserialize<Map<string, string>>
               |> Map.mapWithIndex (fun k v ->
                 let typ =
-                  PT.DType.parse v
+                  PTParser.DType.parse v
                   |> Exception.unwrapOptionInternal "Cannot parse type" []
                 ({ name = if k = "" then None else Some k
                    nameID = gid ()

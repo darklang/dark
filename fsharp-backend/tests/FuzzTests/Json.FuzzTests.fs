@@ -14,6 +14,7 @@ open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
@@ -166,10 +167,7 @@ module LibJwtJson =
 
             let! state = executionStateFor meta Map.empty Map.empty
             let! actual =
-              LibExecution.Execution.executeExpr
-                state
-                symtable
-                (ast.toRuntimeType ())
+              LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
             return (expected, actual)
           }
 
@@ -219,10 +217,7 @@ module LibJwtJson =
 
             let! state = executionStateFor meta Map.empty Map.empty
             let! actual =
-              LibExecution.Execution.executeExpr
-                state
-                symtable
-                (ast.toRuntimeType ())
+              LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
             return (expected, actual)
           }
 

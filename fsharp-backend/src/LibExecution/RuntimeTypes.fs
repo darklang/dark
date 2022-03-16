@@ -36,27 +36,15 @@ open VendoredTablecloth
 
 module J = Prelude.Json
 
-
-/// A Fully-Qualified Function Name
-/// Includes package, module, and version information where relevant.
 module FQFnName =
+
   /// Standard Library Function Name
-  type StdlibFnName =
-    { module_ : string
-      function_ : string
-      version : int }
+  type StdlibFnName = { module_ : string; function_ : string; version : int }
 
-    override this.ToString() : string =
-      let name =
-        if this.module_ = "" then
-          this.function_
-        else
-          $"{this.module_}::{this.function_}"
-
-      if this.version = 0 then name else $"{name}_v{this.version}"
-
+  /// A UserFunction is a function written by a Developer in their canvas
   type UserFnName = string
 
+  /// The name of a function in the package manager
   type PackageFnName =
     { owner : string
       package : string
@@ -64,79 +52,16 @@ module FQFnName =
       function_ : string
       version : int }
 
-    override this.ToString() : string =
-      $"{this.owner}/{this.package}/{this.module_}::{this.function_}_v{this.version}"
-
   type T =
     | User of UserFnName
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
-    override this.ToString() : string =
-      match this with
-      | User name -> name
-      | Stdlib std -> string std
-      | Package pkg -> string pkg
-
-    member this.isDBQueryFn() : bool =
-      match this with
-      | Stdlib std when
-        std.module_ = "DB"
-        && String.startsWith "query" std.function_
-        && not (String.includes "ExactFields" std.function_)
-        ->
-        true
-      | _ -> false
-
-    member this.isInternalFn() : bool =
-      match this with
-      | Stdlib std -> std.module_ = "DarkInternal"
-      | _ -> false
-
-
-
-  let namePat = @"^[a-z][a-z0-9_]*$"
+  /// Same as PTParser.FQFnName.modNamePat
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+
+  /// Same as PTParser.FQFnName.fnNamePat
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
-
-  let userFnNamePat = @"^.*$"
-
-  let packageFnName
-    (owner : string)
-    (package : string)
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    : PackageFnName =
-    assertRe "owner must match" namePat owner
-    assertRe "package must match" namePat package
-    if module_ <> "" then assertRe "modName name must match" modNamePat module_
-    assertRe "package function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
-
-    { owner = owner
-      package = package
-      module_ = module_
-      function_ = function_
-      version = version }
-
-  let packageFqName
-    (owner : string)
-    (package : string)
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    : T =
-    Package(packageFnName owner package module_ function_ version)
-
-  let userFnName (fnName : string) : UserFnName =
-    // CLEANUP we would like to enable this, but some users in our DB have functions
-    // named with weird characters, such as a url.
-    assertRe "user function name must match" userFnNamePat fnName
-    fnName
-
-
-  let userFqName (fnName : string) = User(userFnName fnName)
 
   let stdlibFnName
     (module_ : string)
@@ -148,12 +73,39 @@ module FQFnName =
     assert_ "version can't be negative" (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
-  let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
-    Stdlib(stdlibFnName module_ function_ version)
+  module StdlibFnName =
+    let toString (std : StdlibFnName) : string =
+      let name =
+        if std.module_ = "" then std.function_ else $"{std.module_}::{std.function_}"
+      if std.version = 0 then name else $"{name}_v{std.version}"
 
-  let binopFnName (op : string) : StdlibFnName = stdlibFnName "" op 0
+  module PackageFnName =
+    let toString (pkg : PackageFnName) : string =
+      $"{pkg.owner}/{pkg.package}/{pkg.module_}::{pkg.function_}_v{pkg.version}"
 
-  let binopFqName (op : string) : T = stdlibFqName "" op 0
+  let toString (fqfnName : T) : string =
+    match fqfnName with
+    | User name -> name
+    | Stdlib std -> StdlibFnName.toString std
+    | Package pkg -> PackageFnName.toString pkg
+
+
+
+  let isDBQueryFn (fqfnName : T) : bool =
+    match fqfnName with
+    | Stdlib std when
+      std.module_ = "DB"
+      && String.startsWith "query" std.function_
+      && not (String.includes "ExactFields" std.function_)
+      ->
+      true
+    | _ -> false
+
+  let isInternalFn (fqfnName : T) : bool =
+    match fqfnName with
+    | Stdlib std -> std.module_ = "DarkInternal"
+    | _ -> false
+
 
 module DDateTime =
   open NodaTime
@@ -175,7 +127,8 @@ module DDateTime =
   let toIsoString (d : T) : string = (toInstant d).toIsoString ()
 
 
-/// The AST, expressing what the user sees in their editor.
+/// Expressions here are runtime variants of the AST in ProgramTypes, having had
+/// superfluous information removed.
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
@@ -736,14 +689,15 @@ module UserFunction =
       infix : bool
       body : Expr }
 
-type Toplevel =
-  | TLHandler of Handler.T
-  | TLDB of DB.T
-  | TLFunction of UserFunction.T
-  | TLType of UserType.T
+module Toplevel =
+  type T =
+    | TLHandler of Handler.T
+    | TLDB of DB.T
+    | TLFunction of UserFunction.T
+    | TLType of UserType.T
 
-  member this.toTLID() : tlid =
-    match this with
+  let toTLID (tl : T) : tlid =
+    match tl with
     | TLHandler h -> h.tlid
     | TLDB db -> db.tlid
     | TLFunction f -> f.tlid
@@ -1003,7 +957,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
   let toParam (p : UserFunction.Parameter) : Param =
     { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
 
-  { name = FQFnName.userFqName fn.name
+  { name = FQFnName.User fn.name
     parameters = fn.parameters |> List.map toParam
     returnType = fn.returnType
     description = ""

@@ -9,10 +9,10 @@ open Prelude.Tablecloth
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 open LibBackend.Routing
-open PT.Shortcuts
 
 let sanitizeUrlPath =
   testMany
@@ -85,14 +85,16 @@ let requestPathMatchesRoute =
       ("/api/create-token", "/api-create_token", false)
       ("/%", "//.some-spam-address", true) ]
 
+let five = PT.EInteger(gid (), 5)
+
 let filterMatchingPatternsBySpecificity =
   testMany
     "filterMatchingPatternsBySpecificity"
     (fun routes ->
       routes
-      |> List.map (fun r -> testHttpRouteHandler r "GET" (eInt 5))
+      |> List.map (fun r -> testHttpRouteHandler r "GET" five)
       |> filterMatchingHandlersBySpecificity
-      |> List.map (fun h -> h.spec.name ()))
+      |> List.map (fun h -> PTParser.Handler.Spec.toName h.spec))
     // concrete over wild
     [ ([ "/:foo"; "/a" ], [ "/a" ])
       // wild over nothing
@@ -114,9 +116,9 @@ let filterInvalidHandlers =
     "filterInvalidHandlers"
     (fun path routes ->
       routes
-      |> List.map (fun r -> testHttpRouteHandler r "GET" (eInt 5))
+      |> List.map (fun r -> testHttpRouteHandler r "GET" five)
       |> filterInvalidHandlerMatches path
-      |> List.map (fun h -> h.spec.name ()))
+      |> List.map (fun h -> PTParser.Handler.Spec.toName h.spec))
     // mismatch is filtered out
     [ ("/", [ "/:first" ], [])
       // mismatch is filtered out but root is left
@@ -127,8 +129,8 @@ let filterMatchingHandlers =
     "filterMatchingHandlers"
     filterInvalidHandlerMatches
     // incomplete handler is filtered without throwing
-    [ (let filled = testHttpRouteHandler "/:foo" "GET" (eInt 5)
-       let emptyHttp = testHttpRouteHandler "" "" (eInt 5)
+    [ (let filled = testHttpRouteHandler "/:foo" "GET" five
+       let emptyHttp = testHttpRouteHandler "" "" five
        ("/a", [ filled; emptyHttp ], [ filled ])) ]
 
 let canvasNameFromHost =

@@ -10,9 +10,11 @@ open Tablecloth
 open Http
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Convert = LibExecution.OCamlTypes.Convert
 
@@ -59,7 +61,7 @@ module Function =
         RealExe.createState executionID p.trace_id p.tlid program
 
       t.next "execute-function"
-      let fnname = p.fnname |> PT.FQFnName.parse
+      let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
       let! result = Exe.executeFunction state p.caller_id args fnname
 
       t.next "get-unlocked"
@@ -106,7 +108,7 @@ module Handler =
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
       let program = Canvas.toProgram c
-      let expr = c.handlers[ p.tlid ].ast.toRuntimeType ()
+      let expr = c.handlers[p.tlid].ast |> PT2RT.Expr.toRT
 
       t.next "load-execution-state"
       let! state, touchedTLIDs =

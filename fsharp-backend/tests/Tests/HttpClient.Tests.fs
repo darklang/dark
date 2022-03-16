@@ -26,6 +26,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
@@ -147,7 +148,7 @@ let makeTest versionName filename =
       // note: in many cases, the expression is some sort of equality-checker,
       //   in which case this 'expected' is an eBool (a known runtime type)
       let! expected =
-        Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
+        Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
       let debugMsg = $"\n\n{actualDarkProg}\n=\n{expectedResult}\n\n"
 
@@ -190,7 +191,7 @@ let makeTest versionName filename =
       // Test F#
       if testFSharp then
         let! fsharpActual =
-          Exe.executeExpr state Map.empty (actualDarkProg.toRuntimeType ())
+          Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualDarkProg)
 
         let fsharpActual = normalizeDvalResult fsharpActual
 

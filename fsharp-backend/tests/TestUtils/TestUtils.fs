@@ -18,7 +18,7 @@ module PT = LibExecution.ProgramTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
-module S = LibExecution.Shortcuts
+module S = RTShortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
   lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
@@ -162,7 +162,7 @@ let createTestCanvas (name : string) : Task<Canvas.Meta> =
     return! createCanvasForOwner owner name
   }
 
-let testPos = { x = 0; y = 0 }
+let testPos : PT.Position = { x = 0; y = 0 }
 
 let testHttpRouteHandler
   (route : string)
@@ -334,16 +334,16 @@ let executionStateFor
   }
 
 /// Saves and reloads the canvas for the Toplevels
-let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel>) : Task<Canvas.T> =
+let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
   task {
     let descs =
       tls
       |> List.map (fun tl ->
-        let tlid = tl.toTLID ()
+        let tlid = PT.Toplevel.toTLID tl
 
         let op =
           match tl with
-          | PT.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
+          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
           | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
 
         (tlid, [ op ], tl, Canvas.NotDeleted))

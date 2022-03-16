@@ -16,13 +16,13 @@ open TestUtils.TestUtils
 open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module G = Generators
 
 let tpwg = testPropertyWithGenerator
-
-open LibExecution.ProgramTypes.Shortcuts
 
 let filterFloat (f : float) : bool =
   match f with
@@ -131,7 +131,7 @@ type Generator =
     Arb.Default.Derive() |> Arb.filter isSupportedType
 
 
-  static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
+  static member Fn() : Arbitrary<RT.FQFnName.StdlibFnName * List<RT.Dval>> =
 
     // Ensure we pick a type instead of having heterogeneous lists
     let rec selectNestedType (typ : RT.DType) : Gen<RT.DType> =
@@ -384,7 +384,7 @@ type Generator =
 
       Gen.sized (genDval' typ')
 
-    { new Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>>() with
+    { new Arbitrary<RT.FQFnName.StdlibFnName * List<RT.Dval>>() with
         member x.Generator =
           gen {
             let fns =
@@ -392,7 +392,7 @@ type Generator =
               |> Lazy.force
               |> Map.values
               |> List.filter (fun fn ->
-                let name = string fn.name
+                let name = RT.FQFnName.StdlibFnName.toString fn.name
                 let has set = Set.contains name set
                 let different = has allowedErrors.knownDifferingFunctions
                 let fsOnly = has (ApiServer.Functions.fsharpOnlyFns.Force())
@@ -446,7 +446,7 @@ type Generator =
               // meaningful testing, generate them here.
               let specific =
                 gen {
-                  match string name, i with
+                  match RT.FQFnName.StdlibFnName.toString name, i with
                   | "String::toInt_v1", 0
                   | "String::toInt", 0 ->
                     let! v = Arb.generate<int64>
@@ -561,17 +561,16 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
     task {
       let! meta = initializeTestCanvas "ExecutePureFunction"
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
-      let fnArgList = List.map (fun (name, _) -> eVar name) args
+      let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
-      let ast = PT.EFnCall(gid (), RT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
+      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
       let st = Map.ofList args
 
       let! expected = OCamlInterop.execute meta.owner meta.id ast st [] []
 
       let! state = executionStateFor meta Map.empty Map.empty
 
-      let! actual =
-        LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())
+      let! actual = LibExecution.Execution.executeExpr state st (PT2RT.Expr.toRT ast)
 
       // Error messages are not required to be directly the same between
       // old and new implementations. However, this can hide errors, so we
@@ -607,7 +606,13 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
               let regexMatch str regex =
                 Regex.Match(str, regex, RegexOptions.Singleline)
 
-              let nameMatches = (regexMatch (string fn) namePat).Success
+              let nameMatches =
+                (regexMatch
+                  (fn
+                   |> PT2RT.FQFnName.StdlibFnName.toRT
+                   |> RT.FQFnName.StdlibFnName.toString)
+                  namePat)
+                  .Success
               let actualMatch = regexMatch actualMsg actualPat
               let expectedMatch = regexMatch expectedMsg expectedPat
 

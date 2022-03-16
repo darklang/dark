@@ -102,13 +102,13 @@ let yojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> pt2ocamlHandler
   |> serialize
   |> deserialize
-  |> ocamlHandler2PT a.pos
+  |> ocamlHandler2PT { x = a.pos.x; y = a.pos.y }
   |> serialize
   |> deserialize
   |> pt2ocamlHandler
   |> serialize
   |> deserialize
-  |> ocamlHandler2PT a.pos
+  |> ocamlHandler2PT { x = a.pos.x; y = a.pos.y }
   |> serialize
   |> deserialize
   .=. a

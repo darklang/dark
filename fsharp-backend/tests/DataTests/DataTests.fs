@@ -11,10 +11,13 @@ open Tablecloth
 open TestUtils.TestUtils
 
 module Account = LibBackend.Account
+module Serialize = LibBackend.Serialize
+module BinarySerialization = LibBackend.BinarySerialization
 module Canvas = LibBackend.Canvas
 module Execution = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type CDict() =
   inherit System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
@@ -179,10 +182,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
       let! meta = Canvas.getMeta canvasName
       let! c = Canvas.loadAllDBs meta
       let dbs =
-        c.dbs
-        |> Map.values
-        |> List.map (fun db -> db.name, PT.DB.toRuntimeType db)
-        |> Map
+        c.dbs |> Map.values |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map
       let! state = TestUtils.TestUtils.executionStateFor meta dbs Map.empty
       let! (result : List<unit>) =
         dbs
@@ -195,7 +195,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
               LibExecution.Execution.executeExpr
                 state
                 (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) dbs)
-                (ast.toRuntimeType ())
+                (PT2RT.Expr.toRT ast)
 
             // For this to work, we need to make PasswordBytes.to_yojson return
             // [`String (Bytes.to_string bytes)]
@@ -251,6 +251,81 @@ let loadAllTraceData (concurrency : int) (failOnError : bool) =
     Tests.ApiServer.testGetTraceData client canvasName)
 
 
+
+let validate
+  (name : string)
+  (expected : 'a)
+  (serialize : 'a -> byte [])
+  (deserialize : byte [] -> 'a)
+  =
+  try
+    // serialize
+    let serializeWatch = System.Diagnostics.Stopwatch()
+    serializeWatch.Start()
+    let bytes = serialize expected
+    serializeWatch.Stop()
+    // debuG $"{name} serialize time  " serializeWatch.ElapsedMilliseconds
+    // debuG $"{name} serialized size " (Array.length bytes)
+    let token = System.Threading.CancellationToken()
+
+    // print (
+    //   MessagePack.MessagePackSerializer.SerializeToJson(expected, options, token)
+    // )
+
+    // deserialize
+    let deserializeWatch = System.Diagnostics.Stopwatch()
+    deserializeWatch.Start()
+    // debuG $"{name} serialized" (UTF8.ofBytesWithReplacement bytes)
+    let actual = deserialize bytes
+    deserializeWatch.Stop()
+    // debuG $"{name} deserialize time" deserializeWatch.ElapsedMilliseconds
+
+    // test it
+    Expect.equal actual expected $"same: {name}"
+  with
+  | e ->
+    print e.Message
+    print e.StackTrace
+    reraise ()
+
+let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
+  task {
+    let loadWatch = System.Diagnostics.Stopwatch()
+    loadWatch.Start()
+    let! expected = Serialize.loadOnlyRenderedTLIDs meta.id tlids
+    loadWatch.Stop()
+    // debuG "legacyserver load time" loadWatch.ElapsedMilliseconds
+    // debuG "rendered items" (List.length expected)
+    expected
+    |> List.iter (fun v ->
+      let tlid = PT.Toplevel.toTLID v
+      validate
+        "cached"
+        v
+        BinarySerialization.serializeToplevel
+        (BinarySerialization.deserializeToplevel tlid))
+    return ()
+  }
+
+let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
+  task {
+    let loadWatch = System.Diagnostics.Stopwatch()
+    loadWatch.Start()
+    let! expected = Canvas.loadOplists Canvas.IncludeDeletedToplevels meta.id tlids
+    loadWatch.Stop()
+    // debuG "load time" loadWatch.ElapsedMilliseconds
+    // debuG "oplist load items" (List.length expected)
+    expected
+    |> List.iter (fun (tlid, v) ->
+      validate
+        "oplists"
+        v
+        (BinarySerialization.serializeOplist tlid)
+        (BinarySerialization.deserializeOplist tlid))
+    return ()
+  }
+
+
 [<EntryPoint>]
 let main args =
   LibService.Init.init "Tests"
@@ -265,6 +340,16 @@ let main args =
     "DataTests"
     LibService.Telemetry.DontTraceDBQueries
 
+  let fn (canvasName : CanvasName.T) : Task<unit> =
+    task {
+      let! meta = Canvas.getMeta canvasName
+      let! tlids = Serialize.fetchAllTLIDs meta.id
+
+      do! checkRendered meta tlids
+      do! checkOplists meta tlids
+      return ()
+    }
+
   let concurrency = int args[1]
   let filename = args[2]
   let failOnError = args[3] = "--fail"
@@ -277,7 +362,7 @@ let main args =
   )
 
   try
-    (loadAllTraceData concurrency failOnError).Result
+    (forEachCanvas concurrency failOnError fn).Result
     CD.saveCheckpointData ()
   with
   | e -> catchException true e

@@ -526,7 +526,7 @@ and callFn
           // the lambda's livevalues, as the lambda was never actually
           // executed. We hack this is here as we have no idea what this
           // abstraction might look like in the future.
-          if state.tracing.realOrPreview = Preview && desc.isDBQueryFn () then
+          if state.tracing.realOrPreview = Preview && FQFnName.isDBQueryFn desc then
             match argvals with
             | [ DDB dbname; DFnVal (Lambda b) ] ->
               let sample =
@@ -627,7 +627,11 @@ and execFn
         List.tryFind
           (function
           // CLEANUP: does anyone use Bool.isError?
-          | DError _ when fnDesc = FQFnName.stdlibFqName "Bool" "isError" 0 -> false
+          | DError _ when
+            fnDesc = FQFnName.Stdlib
+                       { module_ = "Bool"; function_ = "isError"; version = 0 }
+            ->
+            false
           | DError _
           | DIncomplete _ -> true
           | _ -> false)
@@ -750,7 +754,7 @@ and execFn
             return
               (Dval.errSStr
                 sourceID
-                ($"{fn.name} has {paramLength} parameters,"
+                ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
                  + $" but here was called with {argLength} arguments."))
 
           else
@@ -759,7 +763,11 @@ and execFn
               |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
 
             match invalid with
-            | [] -> return (Dval.errSStr sourceID $"unknown error calling {fn.name}")
+            | [] ->
+              return
+                (Dval.errSStr
+                  sourceID
+                  $"unknown error calling {FQFnName.toString fn.name}")
             | (p, actual) :: _ ->
               let msg = Errors.incorrectArgsMsg (fn.name) p actual
               return (Dval.errSStr sourceID msg)
