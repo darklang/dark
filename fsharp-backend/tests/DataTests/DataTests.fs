@@ -139,10 +139,10 @@ let forEachCanvas
   task {
     let semaphore = new System.Threading.SemaphoreSlim(concurrency)
     let! canvases = LibBackend.Serialize.getAllCanvases ()
-    let! (result : List<unit>) =
+    return!
       canvases
       |> List.filter CD.shouldRun
-      |> Task.mapInParallel (fun canvasName ->
+      |> Task.iterInParallel (fun canvasName ->
         task {
           do! semaphore.WaitAsync()
           print $"start c: {canvasName}"
@@ -160,7 +160,6 @@ let forEachCanvas
             CD.markErroring canvasName
             semaphore.Release() |> ignore<int>
         })
-    return ()
   }
 
 
@@ -231,9 +230,9 @@ let loadAllQueueData (concurrency : int) (failOnError : bool) =
   forEachCanvas concurrency failOnError (fun canvasName ->
     task {
       let! dvalStrs = LibBackend.EventQueue.fetchAllQueueItems canvasName
-      let! (_ : List<unit>) =
+      return!
         dvalStrs
-        |> List.map (fun dvalStr ->
+        |> Task.iterInParallel (fun dvalStr ->
           task {
             let fsharpDval =
               LibExecution.DvalReprInternal.ofInternalRoundtrippableV0 dvalStr
@@ -241,8 +240,6 @@ let loadAllQueueData (concurrency : int) (failOnError : bool) =
               LibBackend.OCamlInterop.ofInternalRoundtrippableV0 dvalStr
             return Expect.equalDval fsharpDval ocamlDval ""
           })
-        |> Task.flatten
-      return ()
     })
 
 

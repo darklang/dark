@@ -494,13 +494,13 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
 let saveTLIDs
   (meta : Meta)
   (oplists : List<tlid * PT.Oplist * PT.Toplevel.T * Deleted>)
-  : Task =
+  : Task<unit> =
   try
     // Use ops rather than just set of toplevels, because toplevels may
     // have been deleted or undone, and therefore not appear, but it's
     // important to record them.
     oplists
-    |> List.map (fun (tlid, oplist, tl, deleted) ->
+    |> Task.iterInParallel (fun (tlid, oplist, tl, deleted) ->
       task {
         let string2option (s : string) : Option<string> =
           if s = "" then None else Some s
@@ -590,8 +590,6 @@ let saveTLIDs
                               "oplistCache", Sql.bytea fsharpOplistCache ]
           |> Sql.executeStatementAsync
       })
-    |> List.map (fun t -> t : Task)
-    |> Task.WhenAll
   with
   | e -> Exception.reraiseAsPageable "canvas save failed" e
 
