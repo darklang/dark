@@ -131,17 +131,16 @@ let cacheOplist
       Sql.query
         "UPDATE toplevel_oplists
          SET oplist = @oplist
-         WHERE
-          canvas_id = @canvasID,
-          tlid = @tlid,
-          data = @ocamlOplist"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid
+           AND data = @ocamlOplist"
+      |> Sql.parameters [ "oplist", Sql.bytea serialized
+                          "canvasID", Sql.uuid canvasID
                           "tlid", Sql.id tlid
                           // There might have been writes since then, so don't update
                           // unless it exactly matches what we expect it to have,
                           // otherwise we might overwrite other writes.
-                          "ocamlOplist", Sql.bytea ocamlSerializedBytes
-                          "oplist", Sql.bytea serialized ]
+                          "ocamlOplist", Sql.bytea ocamlSerializedBytes ]
       |> Sql.executeNonQueryAsync
     match rowUpdateCount with
     | 1 -> ()
@@ -170,18 +169,17 @@ let cacheToplevel
     let! rowUpdateCount =
       Sql.query
         "UPDATE toplevel_oplists
-         SET oplist_cache = @oplist_cache
-         WHERE
-          canvas_id = @canvasID,
-          tlid = @tlid,
-          rendered_oplist_cache = @renderedOplistCache"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+         SET oplist_cache = @oplistCache
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid
+           AND rendered_oplist_cache = @renderedOplistCache"
+      |> Sql.parameters [ "oplistCache", Sql.bytea serialized
+                          "canvasID", Sql.uuid canvasID
                           "tlid", Sql.id tlid
                           // There might have been writes since then, so don't update
                           // unless it exactly matches what we expect it to have,
                           // otherwise we might overwrite other writes.
-                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes
-                          "oplistCache", Sql.bytea serialized ]
+                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes ]
       |> Sql.executeNonQueryAsync
     match rowUpdateCount with
     | 1 -> ()
