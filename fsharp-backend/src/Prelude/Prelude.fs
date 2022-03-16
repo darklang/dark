@@ -62,9 +62,7 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
 type Metadata = List<string * obj>
 
-/// An error within Dark itself - we need to rollbar this and address it.
-///
-/// Do not show to anyone, unless within a WASM request.
+// Do not show to anyone, we need to rollbar this and address it
 type InternalException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
@@ -72,14 +70,14 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-/// An error caused by the grand user making the request, show the error to the
-/// requester no matter who they are
+// An error caused by the grand user making the request, show the error to the
+// requester no matter who they are
 type GrandUserException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = GrandUserException(msg, null)
 
-/// An error caused by how the developer wrote the code, such as calling a function
-/// with the wrong type
+// An error caused by how the developer wrote the code, such as calling a function
+// with the wrong type
 type DeveloperException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = DeveloperException(msg, null)
