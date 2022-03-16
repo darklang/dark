@@ -313,7 +313,9 @@ type EvalWorker =
           let metadata = Exception.toMetadata e
           System.Console.WriteLine("Error parsing analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
-          System.Console.WriteLine($"caught exception: \"{e.Message}\" \"{metadata}\"")
+          System.Console.WriteLine(
+            $"caught exception: \"{e.Message}\" \"{metadata}\""
+          )
           Error($"exception: {e.Message}, metdata: {metadata}")
 
       match args with
@@ -327,7 +329,9 @@ type EvalWorker =
           let metadata = Exception.toMetadata e
           System.Console.WriteLine("Error running analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
-          System.Console.WriteLine($"caught exception: \"{e.Message}\" \"{metadata}\"")
+          System.Console.WriteLine(
+            $"caught exception: \"{e.Message}\" \"{metadata}\""
+          )
           return Error($"exception: {e.Message}, metadata: {metadata}")
     }
     |> Task.map Json.OCamlCompatible.serialize
