@@ -3,7 +3,7 @@
 ## Customer requirements
 
 - You need to set up a CNAME from your desired domain to
-  `<canvas>.darkcutsomdomain.com`.
+  `<canvas>.darkcustomdomain.com`.
   - Note: this cannot be an apex (`foo.com`); using `www.foo.com` is the usual
     way, though you could use `app` or `api` or another subdomain instead of
     `www`. Why? Netlify has a post about this
