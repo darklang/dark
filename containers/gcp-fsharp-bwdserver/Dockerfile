@@ -8,6 +8,10 @@ COPY --chown=dark:dark scripts scripts
 
 RUN mkdir app
 
+# Add favicon
+RUN mkdir -p app/webroot
+RUN cp backend/static/favicon-32x32.png app/webroot/
+
 # Setting this now means we can set the filesystem to readonly
 ENV DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
 RUN ./scripts/devcontainer/_create-app-directories
