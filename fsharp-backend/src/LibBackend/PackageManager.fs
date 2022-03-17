@@ -312,7 +312,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
      read.int64 "tlid"))
   |> Task.bind (fun fns ->
     fns
-    |> List.map
+    |> Task.mapInParallel
       (fun (username,
             package,
             module_,
@@ -358,8 +358,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
                author = author
                deprecated = deprecated
                tlid = tlid |> uint64 } : PT.Package.Fn)
-        })
-    |> Task.flatten)
+        }))
 
 // TODO: this keeps a cached version so we're not loading them all the time.
 // Of course, this won't be up to date if we add more functions. Given that all

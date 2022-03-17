@@ -397,14 +397,14 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
                     timestamp = td.timestamp.truncate ()
                     input = td.input |> List.sortBy (fun (k, v) -> k) }) })
 
-    let! (_ : List<unit>) =
+    return!
       body
       |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
-      |> Task.mapInParallel (fun (tlid, traceID) ->
+      |> Task.iterInParallel (fun (tlid, traceID) ->
         task {
           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
-          do!
+          return!
             postApiTest
               "get_trace_data"
               (serialize ps)
@@ -412,10 +412,7 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
               canonicalize
               client
               canvasName
-          return ()
         })
-
-    return ()
   }
 
 let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
@@ -499,10 +496,9 @@ let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
 let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
     let! canvas = Canvas.getMeta canvasName
-
     let! canvasWithJustWorkers = Canvas.loadAllWorkers canvas
 
-    let! (_ : List<unit>) =
+    return!
       canvasWithJustWorkers.handlers
       |> Map.values
       |> List.filterMap (fun h ->
@@ -510,7 +506,7 @@ let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
         | PT.Handler.Worker _ -> Some h.tlid
         | PT.Handler.OldWorker _ -> Some h.tlid
         | _ -> None)
-      |> List.map (fun tlid ->
+      |> Task.iterInParallel (fun tlid ->
         postApiTest
           "get_worker_stats"
           (serialize ({ tlid = tlid } : Workers.WorkerStats.Params))
@@ -518,8 +514,6 @@ let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
           ident
           client
           canvasName)
-      |> Task.flatten
-    return ()
   }
 
 let testInsertDeleteSecrets (client : C) (canvasName : CanvasName.T) =

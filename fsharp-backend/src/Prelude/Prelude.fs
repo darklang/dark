@@ -1549,6 +1549,24 @@ module Task =
     let f = execWithSemaphore semaphore f
     List.map f list |> flatten
 
+  let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
+    task {
+      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      return ()
+    }
+
+  let iterWithConcurrency
+    (concurrencyCount : int)
+    (f : 'a -> Task<unit>)
+    (list : List<'a>)
+    : Task<unit> =
+    let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
+    let f = execWithSemaphore semaphore f
+    task {
+      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      return ()
+    }
+
   let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
     task {
       let! filtered =
@@ -1574,12 +1592,6 @@ module Task =
         })
       (Task.FromResult())
       list
-
-  let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
-    task {
-      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
-      return ()
-    }
 
   let findSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<Option<'a>> =
     List.fold

@@ -119,7 +119,8 @@ let cloneCanvas
   task {
     let! fromMeta = Canvas.getMeta fromCanvasName
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
-    let! fromOps = Canvas.loadOplists Canvas.LiveToplevels fromMeta.id fromTLIDs
+    let! fromOps =
+      Serialize.loadOplists Serialize.LiveToplevels fromMeta.id fromTLIDs
     let! fromCanvas = Canvas.loadAll fromMeta
 
     let! toMeta = Canvas.getMeta toCanvasName

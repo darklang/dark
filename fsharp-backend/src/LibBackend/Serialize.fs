@@ -18,6 +18,7 @@ open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
+module Telemetry = LibService.Telemetry
 
 
 let isLatestOpRequest
@@ -118,6 +119,165 @@ let deserializeOCamlSerializedToplevel
   | _ ->
     Exception.raiseInternal "Invalid tipe for toplevel" [ "type", typ; "tlid", tlid ]
 
+/// Save the oplist using the F# serialization formats, after reading the oplist from
+/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
+/// aren't, logs but doesn't save or error (because things can continue just fine).
+let saveOplistToFSharpCache
+  (canvasID : CanvasID)
+  (tlid : tlid)
+  (ocamlSerializedBytes : byte [])
+  (oplist : PT.Oplist)
+  : Task<unit> =
+  task {
+    let serialized = BinarySerialization.serializeOplist tlid oplist
+    let! rowUpdateCount =
+      Sql.query
+        "UPDATE toplevel_oplists
+         SET oplist = @oplist
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid
+           AND data = @ocamlOplist"
+      |> Sql.parameters [ "oplist", Sql.bytea serialized
+                          "canvasID", Sql.uuid canvasID
+                          "tlid", Sql.id tlid
+                          // There might have been writes since then, so don't update
+                          // unless it exactly matches what we expect it to have,
+                          // otherwise we might overwrite other writes.
+                          "ocamlOplist", Sql.bytea ocamlSerializedBytes ]
+      |> Sql.executeNonQueryAsync
+    match rowUpdateCount with
+    | 1 -> ()
+    | 0 ->
+      Telemetry.addEvent
+        "Oplist was not updated"
+        [ "tlid", tlid; "canvasID", canvasID ]
+    | _ ->
+      Telemetry.addEvent
+        "More than 1 row of oplists was updated, that's bad"
+        [ "tlid", tlid; "canvasID", canvasID ]
+    return ()
+  }
+
+/// Save the F# toplevel suing the F# serialization format, after reading it from
+/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
+/// aren't, logs but doesn't save or error (because things can continue just fine).
+let saveToplevelToFSharpCache
+  (canvasID : CanvasID)
+  (ocamlSerializedBytes : byte [])
+  (tl : PT.Toplevel.T)
+  : Task<unit> =
+  task {
+    let tlid = PT.Toplevel.toTLID tl
+    let serialized = BinarySerialization.serializeToplevel tl
+    let! rowUpdateCount =
+      Sql.query
+        "UPDATE toplevel_oplists
+         SET oplist_cache = @oplistCache
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid
+           AND rendered_oplist_cache = @renderedOplistCache"
+      |> Sql.parameters [ "oplistCache", Sql.bytea serialized
+                          "canvasID", Sql.uuid canvasID
+                          "tlid", Sql.id tlid
+                          // There might have been writes since then, so don't update
+                          // unless it exactly matches what we expect it to have,
+                          // otherwise we might overwrite other writes.
+                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes ]
+      |> Sql.executeNonQueryAsync
+    match rowUpdateCount with
+    | 1 -> ()
+    | 0 ->
+      Telemetry.addEvent "Row was not updated" [ "tlid", tlid; "canvasID", canvasID ]
+    | _ ->
+      Telemetry.addEvent
+        "More than 1 row was updated, that's bad"
+        [ "tlid", tlid; "canvasID", canvasID ]
+    return ()
+  }
+
+/// Save the F# oplist and cached oplist, after reading them from OCaml. Takes the
+/// existing OCaml value to ensure things are in sync - if they aren't, logs but
+/// doesn't save or error (because things can continue just fine).
+let cacheOplists
+  (canvasID : CanvasID)
+  (ocamlSerializedBytes : byte [])
+  (tl : PT.Toplevel.T)
+  : Task<unit> =
+  task {
+    let tlid = PT.Toplevel.toTLID tl
+    let serialized = BinarySerialization.serializeToplevel tl
+    let! rowUpdateCount =
+      Sql.query
+        "UPDATE toplevel_oplists
+         SET oplist_cache = @oplist_cache
+         WHERE
+          canvas_id = @canvasID,
+          tlid = @tlid,
+          rendered_oplist_cache = @renderedOplistCache"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "tlid", Sql.id tlid
+                          // There might have been writes since then, so don't update
+                          // unless it exactly matches what we expect it to have,
+                          // otherwise we might overwrite other writes.
+                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes
+                          "oplistCache", Sql.bytea serialized ]
+      |> Sql.executeNonQueryAsync
+    match rowUpdateCount with
+    | 1 -> ()
+    | 0 ->
+      Telemetry.addEvent "Row was not updated" [ "tlid", tlid; "canvasID", canvasID ]
+    | _ ->
+      Telemetry.addEvent
+        "More than 1 row was updated, that's bad"
+        [ "tlid", tlid; "canvasID", canvasID ]
+    return ()
+  }
+
+
+type LoadAmount =
+  | LiveToplevels
+  | IncludeDeletedToplevels
+
+// Load oplists for anything that wasn't cached.
+// TLs might not be returned from the materialized view/fast loader/cache if:
+//  a) they have no materialized view (probably not possible anymore!)
+//  b) they are deleted, because the cache query filters out deleted items
+//  c) the deserializers for the cache version are broken (due to a binary version
+//  change!)
+let loadOplists
+  (loadAmount : LoadAmount)
+  (canvasID : CanvasID)
+  (tlids : List<tlid>)
+  : Task<List<tlid * PT.Oplist>> =
+  let query =
+    // CLEANUP stop loading ocaml data
+    match loadAmount with
+    | LiveToplevels ->
+      "SELECT tlid, data, oplist FROM toplevel_oplists
+          WHERE canvas_id = @canvasID
+            AND tlid = ANY(@tlids)
+            AND deleted IS NOT TRUE"
+    | IncludeDeletedToplevels ->
+      "SELECT tlid, data, oplist FROM toplevel_oplists
+          WHERE canvas_id = @canvasID
+            AND tlid = ANY(@tlids)"
+
+  Sql.query query
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+  |> Sql.executeAsync (fun read ->
+    (read.tlid "tlid", read.bytea "data", read.byteaOrNone "oplist"))
+  |> Task.bind (fun list ->
+    list
+    |> Task.mapWithConcurrency 2 (fun (tlid, ocamlSerialized, fsharpSerialized) ->
+      task {
+        match fsharpSerialized with
+        | Some oplist ->
+          return (tlid, BinarySerialization.deserializeOplist tlid oplist)
+        | None ->
+          let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
+          do! saveOplistToFSharpCache canvasID tlid ocamlSerialized oplist
+          return (tlid, oplist)
+      }))
 
 
 // This is a special `load_*` function that specifically loads toplevels
@@ -186,7 +346,12 @@ let loadOnlyRenderedTLIDs
             Task.execWithSemaphore
               semaphore
               (fun () ->
-                deserializeOCamlSerializedToplevel tlid typ ocamlSerialized pos)
+                task {
+                  let! deserialized =
+                    deserializeOCamlSerializedToplevel tlid typ ocamlSerialized pos
+                  do! saveToplevelToFSharpCache canvasID ocamlSerialized deserialized
+                  return deserialized
+                })
               ())
   }
 
@@ -275,6 +440,46 @@ let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
        AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
+type CronScheduleData =
+  { canvasID : CanvasID
+    ownerID : UserID
+    canvasName : CanvasName.T
+    tlid : id
+    cronName : string
+    interval : PT.Handler.CronInterval }
+
+/// Fetch cron handlers from the DB. Active here means:
+/// - a non-null interval field in the spec
+/// - not deleted (When a CRON handler is deleted, we set (module, modifier,
+///   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
+///   ignores deleted CRONs.)
+let fetchActiveCrons () : Task<List<CronScheduleData>> =
+  Sql.query
+    "SELECT canvas_id,
+                  tlid,
+                  modifier,
+                  toplevel_oplists.name as handler_name,
+                  toplevel_oplists.account_id,
+                  canvases.name as canvas_name
+       FROM toplevel_oplists
+       JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
+      WHERE module = 'CRON'
+        AND modifier IS NOT NULL
+        AND modifier <> ''
+        AND toplevel_oplists.name IS NOT NULL"
+  |> Sql.executeAsync (fun read ->
+    { canvasID = read.uuid "canvas_id"
+      ownerID = read.uuid "account_id"
+      canvasName = read.string "canvas_name" |> CanvasName.create
+      tlid = read.id "tlid"
+      cronName = read.string "handler_name"
+      interval =
+        read.string "modifier"
+        |> PTParser.Handler.CronInterval.parse
+        |> Option.unwrapUnsafe })
+
+
 
 
 
@@ -379,41 +584,3 @@ let tierOneHosts () : List<CanvasName.T> =
     "ellen-battery2"
     "julius-tokimeki-unfollow" ]
   |> List.map CanvasName.create
-
-type CronScheduleData =
-  { canvasID : CanvasID
-    ownerID : UserID
-    canvasName : CanvasName.T
-    tlid : id
-    cronName : string
-    interval : PT.Handler.CronInterval }
-
-/// Fetch cron handlers from the DB. Active here means:
-/// - a non-null interval field in the spec
-/// - not deleted (When a CRON handler is deleted, we set (module, modifier,
-///   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
-///   ignores deleted CRONs.)
-let fetchActiveCrons () : Task<List<CronScheduleData>> =
-  Sql.query
-    "SELECT canvas_id,
-                  tlid,
-                  modifier,
-                  toplevel_oplists.name as handler_name,
-                  toplevel_oplists.account_id,
-                  canvases.name as canvas_name
-       FROM toplevel_oplists
-       JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
-      WHERE module = 'CRON'
-        AND modifier IS NOT NULL
-        AND modifier <> ''
-        AND toplevel_oplists.name IS NOT NULL"
-  |> Sql.executeAsync (fun read ->
-    { canvasID = read.uuid "canvas_id"
-      ownerID = read.uuid "account_id"
-      canvasName = read.string "canvas_name" |> CanvasName.create
-      tlid = read.id "tlid"
-      cronName = read.string "handler_name"
-      interval =
-        read.string "modifier"
-        |> PTParser.Handler.CronInterval.parse
-        |> Option.unwrapUnsafe })

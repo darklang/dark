@@ -32,7 +32,7 @@ let testDBOplistRoundtrip : Test =
       Canvas.saveTLIDs
         meta
         [ (db.tlid, oplist, PT.Toplevel.TLDB db, Canvas.NotDeleted) ]
-    let! ops = Canvas.loadOplists Canvas.LiveToplevels meta.id [ db.tlid ]
+    let! ops = Serialize.loadOplists Serialize.LiveToplevels meta.id [ db.tlid ]
     Expect.equal ops [ (db.tlid, oplist) ] "db oplist roundtrip"
   }
 
@@ -386,9 +386,9 @@ let testCanvasClone =
 
     let! tlids = Serialize.fetchAllTLIDs sourceMeta.id
     let! sourceOplists =
-      Canvas.loadOplists Canvas.IncludeDeletedToplevels sourceMeta.id tlids
+      Serialize.loadOplists Serialize.IncludeDeletedToplevels sourceMeta.id tlids
     let! targetOplists =
-      Canvas.loadOplists Canvas.IncludeDeletedToplevels targetMeta.id tlids
+      Serialize.loadOplists Serialize.IncludeDeletedToplevels targetMeta.id tlids
 
     let hasCreationOps oplists =
       oplists
