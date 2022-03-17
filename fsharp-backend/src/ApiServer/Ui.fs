@@ -51,7 +51,7 @@ let hashedFilename (filename : string) (hash : string) : string =
     Exception.raiseInternal "incorrect hash name" [ "filename", filename ]
   else
     let extension = parts[parts.Length - 1]
-    let name = parts[..(parts.Length - 2)] |> String.concat "."
+    let name = parts[.. (parts.Length - 2)] |> String.concat "."
     $"/{name}-{hash}.{extension}"
 
 
