@@ -43,7 +43,7 @@ let waitForDB () : Task<unit> =
         success <- true
       with
       | _ -> do! Task.Delay 1000
-      return ()
+    return ()
   }
 
 
