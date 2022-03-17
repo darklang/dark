@@ -157,7 +157,8 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
 /// work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
-    use _span = Telemetry.child "checkAndScheduleWorkForAllCrons" []
+    use (_span : Telemetry.Span.T) =
+      Telemetry.child "checkAndScheduleWorkForAllCrons" []
     let! crons = Serialize.fetchActiveCrons ()
 
     let concurrencyCount = LibService.Config.pgPoolSize
