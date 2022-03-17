@@ -36,5 +36,14 @@ spec:
                 name: apiserver-service
                 port:
                   number: 80
+
+          # Static assets test - CLEANUP remove
+          - path: /api/paul-testing-static-assets/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-service
+                port:
+                  number: 80
   tls:
     - secretName: darklang.com-tls
