@@ -45,10 +45,14 @@ let adminUiTemplate : Lazy<string> =
        .Replace("{{BUILD_HASH}}", LibService.Config.buildHash))
 
 let hashedFilename (filename : string) (hash : string) : string =
-  match filename.Split '.' with
-  | [| name; extension |] -> $"/{name}-{hash}.{extension}"
-  | _ -> Exception.raiseInternal "incorrect hash name" [ "filename", filename ]
+  let parts = filename.Split '.'
 
+  if parts.Length < 2 then
+    Exception.raiseInternal "incorrect hash name" [ "filename", filename ]
+  else
+    let extension = parts[parts.Length - 1]
+    let name = parts[..(parts.Length - 2)] |> String.concat "."
+    $"/{name}-{hash}.{extension}"
 
 
 let prodHashReplacements : Lazy<Map<string, string>> =
