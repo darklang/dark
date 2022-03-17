@@ -144,7 +144,7 @@ let notify (name : string) (tags : Metadata) : unit =
   span.AddEvent(event) |> ignore<Span.T>
 
 
-let addException (e : exn) : unit =
+let addException (metadata : Metadata) (e : exn) : unit =
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/1191a2a3da7be8deae7aa94083b5981cb7610080/src/OpenTelemetry.Api/Trace/ActivityExtensions.cs#L79
   // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
   let exceptionTags =
@@ -152,7 +152,7 @@ let addException (e : exn) : unit =
       "exception.type", e.GetType().FullName :> obj
       "exception.stacktrace", string e.StackTrace
       "exception.message", e.Message ]
-    @ Exception.toMetadata e
+    @ Exception.toMetadata e @ metadata
   addEvent e.Message exceptionTags
 
 
@@ -190,7 +190,7 @@ let init (serviceName : string) : unit =
       // These won't have stacktraces. We could add them but they're expensive, and
       // if they make it to the top they'll get a stacktrace. So let's not do
       // stacktraces until we learn we need them
-      addException e)
+      addException [] e)
 
   // Ensure there is always a root span
   Span.root $"Starting {serviceName}" |> ignore<Span.T>

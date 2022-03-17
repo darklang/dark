@@ -178,7 +178,7 @@ let run () : Task<unit> =
             (Telemetry.executionID ())
             Rollbar.emptyPerson
             []
-            (PageableException("Unhandled exception bubbled to queue worker", e))
+            (PageableException("Unhandled exception bubbled to queue worker", [], e))
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
@@ -187,7 +187,7 @@ let run () : Task<unit> =
           (Telemetry.executionID ())
           Rollbar.emptyPerson
           []
-          (PageableException("Unhandled exception bubbled to run", e))
+          (PageableException("Unhandled exception bubbled to run", [], e))
 
   }
 

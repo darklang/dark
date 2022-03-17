@@ -105,8 +105,9 @@ type LibraryException(message : string, metadata : Metadata, inner : exn) =
 // never happen and is an indicator that the service is broken in some way.  The
 // pager goes off because a pageable exception sets the `{ is_pageable: true }`
 // metadata, which causes a honeycomb trigger that sets off PagerDuty.
-type PageableException(message : string, inner : exn) =
+type PageableException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
+  member _.metadata = metadata
 
 
 // This is for tracing
@@ -119,7 +120,7 @@ module Exception =
       if e.InnerException <> null then toMetadata e.InnerException else []
     let thisMetadata =
       match e with
-      | :? PageableException -> [ "is_pageable", true :> obj ]
+      | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
       | :? InternalException as e -> e.metadata
       | :? LibraryException as e -> e.metadata
       | :? DeveloperException
@@ -187,7 +188,10 @@ module Exception =
     | Ok v -> v
     | Error msg -> raiseInternal (string msg) tags
 
-  let reraiseAsPageable (msg : string) (e : exn) = raise (PageableException(msg, e))
+  let reraiseAsPageable (msg : string) (tags : Metadata) (e : exn) =
+    let e = PageableException(msg, tags, e)
+    callExceptionCallback e
+    raise e
 
 
   let raiseLibrary (msg : string) (tags : Metadata) =

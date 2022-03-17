@@ -304,7 +304,11 @@ let exceptionWhileProcessingException
     // Now let's send a pageable exception, as our exception processing being down is
     // a pageable situation
     let e =
-      PageableException("Exception when processing exception", processingException)
+      PageableException(
+        "Exception when processing exception",
+        [],
+        processingException
+      )
     Rollbar.RollbarLocator.RollbarInstance.Critical(e) |> ignore<Rollbar.ILogger>
   with
   | _ -> ()
@@ -329,8 +333,8 @@ let exceptionWhileProcessingException
         // Do telemetry later, in case that's the cause
         if Telemetry.Span.current () = null then
           Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
-        Telemetry.addException original
-        Telemetry.addException processingException
+        Telemetry.addException [] original
+        Telemetry.addException [] processingException
       with
       | _ -> ()
 
@@ -349,7 +353,7 @@ let sendException
     print e.StackTrace
     let metadata = Exception.toMetadata e @ metadata
     printMetadata metadata
-    Telemetry.addException e
+    Telemetry.addException metadata e
     let custom = createCustom executionID metadata
     let package = createPackage e person
     Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
@@ -367,9 +371,9 @@ let lastDitchBlockAndPage (msg : string) (e : exn) : int =
     print $"last ditch rollbar: {msg}"
     print e.Message
     print e.StackTrace
-    let e = PageableException(msg, e)
+    let e = PageableException(msg, [], e)
     let metadata = Exception.toMetadata e
-    Telemetry.addException e
+    Telemetry.addException [] e
     let custom = createCustom (ExecutionID "last ditch") metadata
     Rollbar
       .RollbarLocator
@@ -377,7 +381,7 @@ let lastDitchBlockAndPage (msg : string) (e : exn) : int =
       .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
       .Error(e, custom)
     |> ignore<Rollbar.ILogger>
-    Telemetry.addException e
+    Telemetry.addException [] e
     (-1)
   with
   | processingException ->
