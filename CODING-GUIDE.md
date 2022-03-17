@@ -41,6 +41,16 @@
 
 - you can only use Tasks (aka `Ply`) once. Using it a second time is undefined.
 
+- use `///` for function comments
+
+- For file header comments, use `///` and add them to the first line of the file
+  before the module declaration
+
+## SQL
+
+- add `set statement_timeout = '1s'` or `set lock_timeout = '1s'` to the first line
+  of your script, so that it fails instead of taking the service down.
+
 ### Creating types
 
 When creating a type:
