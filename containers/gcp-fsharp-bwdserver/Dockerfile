@@ -10,7 +10,7 @@ RUN mkdir app
 
 # Add favicon
 RUN mkdir -p app/webroot
-RUN cp backend/static/favicon-32x32.png app/webroot/
+COPY --chown=dark:dark backend/static/favicon-32x32.png app/webroot/
 
 # Setting this now means we can set the filesystem to readonly
 ENV DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
