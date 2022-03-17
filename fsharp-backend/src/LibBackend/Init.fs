@@ -43,11 +43,10 @@ let waitForDB () : Task<unit> =
       use (span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
       try
         count <- count + 1
-        let! date =
+        do!
           Sql.query "select current_date"
           |> Sql.parameters []
-          |> Sql.executeRowAsync (fun read -> read.string "current_date")
-        Telemetry.addTag "date" date
+          |> Sql.executeStatementAsync
         success <- true
       with
       | e ->
