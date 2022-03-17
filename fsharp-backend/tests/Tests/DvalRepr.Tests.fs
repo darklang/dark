@@ -91,6 +91,22 @@ let testToPrettyResponseJson =
     LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
     [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}" ]
 
+
+let testDateMigrationHasCorrectFormats =
+  test "date migration has correct formats" {
+    let str = "2019-03-08T08:26:14Z"
+    let date =
+      str |> NodaTime.Instant.ofIsoString |> RT.DDateTime.fromInstant |> RT.DDate
+    let oldActual =
+      LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0 date
+    let oldExpected =
+      "{\n  \"type\": \"date\",\n  \"value\": \"2019-03-08T08:26:14Z\"\n}"
+    Expect.equal oldActual oldExpected "old format"
+    let newActual = DvalReprExternal.toPrettyMachineJsonStringV1 date
+    Expect.equal newActual $"\"{str}\"" "old format"
+  }
+
+
 let testToPrettyRequestJson =
   testMany
     "toPrettyRequestJson"
@@ -588,6 +604,7 @@ let tests =
       testToEnduserReadable
       testToPrettyRequestJson
       testToPrettyResponseJson
+      testDateMigrationHasCorrectFormats
       ToHashableRepr.tests
       Password.tests
       LibJwt.testJsonSameOnBoth
