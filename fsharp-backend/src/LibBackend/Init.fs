@@ -50,7 +50,7 @@ let waitForDB () : Task<unit> =
         success <- true
       with
       | e ->
-        Telemetry.addException e
+        Telemetry.addException [] e
         do! Task.Delay 1000
     return ()
   }
