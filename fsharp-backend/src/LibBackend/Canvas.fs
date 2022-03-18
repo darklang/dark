@@ -358,6 +358,19 @@ let empty (meta : Meta) : T =
 let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
+let knownBrokenCanvases =
+  [ "danbowles"
+    "danwetherald"
+    "ellen-dbproblem18"
+    "ellen-dbtests"
+    "ellen-preview"
+    "ellen-stltrialrun"
+    "ellen-trinity"
+    "jaeren_sl"
+    "jaeren_sl-crud"
+    "sydney" ]
+  |> List.map CanvasName.create
+  |> Set
 
 let loadFrom
   (loadAmount : Serialize.LoadAmount)
@@ -391,11 +404,10 @@ let loadFrom
         |> addOps uncachedOplists []
         |> verify
     with
-    | e ->
+    | e when not (Set.contains meta.name knownBrokenCanvases) ->
       let tags =
         [ "canvasName", meta.name :> obj; "tlids", tlids; "loadAmount", loadAmount ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
-
   }
 
 let loadAll (meta : Meta) : Task<T> =
