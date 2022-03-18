@@ -6,10 +6,9 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: gce
 spec:
-  # The default backend goes to the OCaml service (editor-deployment)
   defaultBackend:
     service:
-      name: darklang-nodeport
+      name: apiserver-service
       port:
         number: 80
   rules:
