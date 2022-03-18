@@ -11,6 +11,8 @@ open Db
 open Prelude
 open Microsoft.Extensions.Diagnostics.HealthChecks
 
+module Telemetry = LibService.Telemetry
+
 // Add a startup probe to check if we can check the tier one canvases
 let legacyServerCheck : LibService.Kubernetes.HealthCheck =
   { probeTypes = [ LibService.Kubernetes.Startup ]
@@ -33,16 +35,23 @@ let legacyServerCheck : LibService.Kubernetes.HealthCheck =
 
 let waitForDB () : Task<unit> =
   task {
+    use (span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"
     let mutable success = false
+    let mutable count = 0
+    Telemetry.addEvent "starting to loop to wait for DB" []
     while not success do
+      use (span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
       try
+        count <- count + 1
         do!
           Sql.query "select current_date"
           |> Sql.parameters []
           |> Sql.executeStatementAsync
         success <- true
       with
-      | _ -> do! Task.Delay 1000
+      | e ->
+        Telemetry.addException e
+        do! Task.Delay 1000
     return ()
   }
 
