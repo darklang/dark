@@ -247,7 +247,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.UndoTL _
     | PT.RedoTL _ ->
       Exception.raiseInternal
-        $"Undo/Redo op should have been preprocessed out!"
+        "Undo/Redo op should have been preprocessed out!"
         [ "op", op ]
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
@@ -261,7 +261,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   | e ->
     // Log here so we have context, but then re-raise
     let tags = [ ("host", c.meta.name :> obj); ("op", string op) ]
-    Telemetry.addException (InternalException("apply_op", tags, e))
+    Telemetry.addException tags (InternalException("apply_op", e))
     e.Reraise()
 
 
@@ -382,7 +382,7 @@ let loadFrom
       let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
       let c = empty meta
 
-      let! secrets = LibBackend.Secret.getCanvasSecrets meta.id
+      let! secrets = Secret.getCanvasSecrets meta.id
       let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
 
       return
@@ -391,7 +391,11 @@ let loadFrom
         |> addOps uncachedOplists []
         |> verify
     with
-    | e -> return Exception.reraiseAsPageable "canvas load failed" e
+    | e ->
+      let tags =
+        [ "canvasName", meta.name :> obj; "tlids", tlids; "loadAmount", loadAmount ]
+      return Exception.reraiseAsPageable "canvas load failed" tags e
+
   }
 
 let loadAll (meta : Meta) : Task<T> =
@@ -591,7 +595,8 @@ let saveTLIDs
           |> Sql.executeStatementAsync
       })
   with
-  | e -> Exception.reraiseAsPageable "canvas save failed" e
+  | e ->
+    Exception.reraiseAsPageable "canvas save failed" [ "canvasName", meta.name ] e
 
 
 // -------------------------
