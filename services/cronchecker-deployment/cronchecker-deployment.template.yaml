@@ -120,7 +120,14 @@ spec:
             limits:
               memory: "50Mi"
               cpu: "500m"
-          command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432", "-credential_file=/secrets/cloudsql/credentials.json"]
+
+          command: ["/cloud_sql_proxy",
+                    "-dir=/cloudsql",
+                    "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432",
+                    "-credential_file=/secrets/cloudsql/credentials.json",
+                    "-structured_logs",
+                    "-term_timeout=30s"]
+
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
