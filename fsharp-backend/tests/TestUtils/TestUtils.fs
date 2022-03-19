@@ -940,6 +940,14 @@ let interestingDvals =
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
+    ("block with pipe",
+     DFnVal(
+       Lambda
+         { body =
+             FSharpToExpr.parseRTExpr "5 |> (+) 6 |> (+) 7 |> (+) 8 |> List.push 6"
+           symtable = Map.empty
+           parameters = [ (id 5678, "a") ] }
+     ))
     ("errorrail", DErrorRail(Dval.int 5))
     ("errorrail with float",
      DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))

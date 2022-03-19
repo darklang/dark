@@ -21,8 +21,8 @@
   <ItemGroup>
     <Compile Include="RTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
-    <Compile Include="TestUtils.fs" />
     <Compile Include="FSharpToExpr.fs" />
+    <Compile Include="TestUtils.fs" />
     <Compile Include="FSI.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>
