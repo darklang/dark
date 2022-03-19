@@ -111,27 +111,79 @@ spec:
         # set of GKE secrets, listed below, to manage this.
         #########################
         - name: cloudsql-proxy
-          image: "gcr.io/cloudsql-docker/gce-proxy:1.25.0"
-          resources:
-            requests:
-              # Observed in practice using 200m and 10Mi when going full-tilt
-              memory: "20Mi"
-              cpu: "300m"
-            limits:
-              memory: "50Mi"
-              cpu: "500m"
-
-          command: ["/cloud_sql_proxy",
-                    "-dir=/cloudsql",
-                    "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432",
-                    "-credential_file=/secrets/cloudsql/credentials.json",
-                    "-structured_logs",
-                    "-term_timeout=30s"]
-
+          image: "gcr.io/cloudsql-docker/gce-proxy:1.28.0@sha256:69880f1a8c3ac450f9cb083b91adb2d881ef71af3928ebf6b88b8933314f118a"
+          command:
+            - "/cloud_sql_proxy",
+            - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432",
+            - "-credential_file=/secrets/cloudsql/credentials.json",
+            - "-term_timeout=30s"
+            - "-structured_logs",
+            - "-verbose",
+            - "-use_http_health_check"
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
               readOnly: true
+
+          # --------------------
+          # Security
+          # --------------------
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
+                - ALL # https://docs.bridgecrew.io/docs/bc_k8s_34
+            privileged: false
+            readOnlyRootFilesystem: true # https://docs.bridgecrew.io/docs/bc_k8s_21
+            runAsNonRoot: true # https://docs.bridgecrew.io/docs/bc_k8s_22
+            runAsUser: 25432 # https://stackoverflow.com/questions/49720308
+
+          # ---------------------
+          # Resource limits
+          # ---------------------
+          resources:
+            requests:
+              memory: "20Mi"
+              cpu: "300m"
+            limits:
+              memory: "500Mi"
+              cpu: "500m"
+
+          # ---------------------
+          # Lifecycle probes
+          # ---------------------
+          # from https://github.com/GoogleCloudPlatform/cloudsql-proxy/blob/9e4bf2c689eaa117e0f89c7ac5d181bfcc03a849/examples/k8s-health-check/proxy_with_http_health_check.yaml#L91
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 60
+            timeoutSeconds: 30
+            # If periodSeconds = 60, 5 tries will result in five minutes of
+            # checks. The proxy starts to refresh a certificate five minutes
+            # before its expiration. If those five minutes lapse without a
+            # successful refresh, the liveness probe will fail and the pod will be
+            # restarted.
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 8090
+            periodSeconds: 1
+            timeoutSeconds: 5
+            failureThreshold: 20
 
       volumes:
         - name: cloudsql-instance-credentials
