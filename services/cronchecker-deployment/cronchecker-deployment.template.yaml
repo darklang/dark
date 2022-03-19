@@ -113,12 +113,12 @@ spec:
         - name: cloudsql-proxy
           image: "gcr.io/cloudsql-docker/gce-proxy:1.28.0@sha256:69880f1a8c3ac450f9cb083b91adb2d881ef71af3928ebf6b88b8933314f118a"
           command:
-            - "/cloud_sql_proxy",
-            - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432",
-            - "-credential_file=/secrets/cloudsql/credentials.json",
+            - "/cloud_sql_proxy"
+            - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
+            - "-credential_file=/secrets/cloudsql/credentials.json"
             - "-term_timeout=30s"
-            - "-structured_logs",
-            - "-verbose",
+            - "-structured_logs"
+            - "-verbose"
             - "-use_http_health_check"
           volumeMounts:
             - name: cloudsql-instance-credentials
