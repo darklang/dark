@@ -48,7 +48,8 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                 // Span creation might belong inside
                 // Canvas.loadForEvent, but then so would the
                 // error handling ... this may want a refactor
-                use span = Telemetry.child "Canvas.load_for_event_from_cache" []
+                use (span : Telemetry.Span.T) =
+                  Telemetry.child "Canvas.load_for_event_from_cache" []
                 try
                   let! c = Canvas.loadForEvent event
                   Telemetry.addTag "load_event_succeeded" true
@@ -86,7 +87,6 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                   |> List.filter (fun h ->
                     Some desc = PTParser.Handler.Spec.toEventDesc h.spec)
                   |> List.head
-
 
                 Telemetry.addTags [ "host", host
                                     "event", desc
