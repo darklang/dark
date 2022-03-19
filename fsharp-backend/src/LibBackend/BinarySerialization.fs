@@ -47,6 +47,14 @@ let wrapSerializationException (tlid : tlid) (f : unit -> 'a) : 'a =
     Exception.callExceptionCallback e
     raise (InternalException("error deserializing toplevel", [ "tlid", tlid ], e))
 
+let serializeExpr (tlid : tlid) (e : PT.Expr) : byte [] =
+  wrapSerializationException tlid (fun () ->
+    MessagePack.MessagePackSerializer.Serialize(e, optionsWithoutZip))
+
+let deserializeExpr (tlid : tlid) (data : byte []) : PT.Expr =
+  wrapSerializationException tlid (fun () ->
+    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip))
+
 let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
   wrapSerializationException (PT.Toplevel.toTLID tl) (fun () ->
     MessagePack.MessagePackSerializer.Serialize(tl, optionsWithoutZip))

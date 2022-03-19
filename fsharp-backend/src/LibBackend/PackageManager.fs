@@ -283,15 +283,39 @@ module Convert = OT.Convert
 //              (* Error "Problem saving function" *)
 //              Error ("Unknown error: " ^ Exception.to_string e))
 
+let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
+  task {
+    let binary = BinarySerialization.serializeExpr tlid expr
+    return!
+      Sql.query "UPDATE packages_v0 SET body2 = @body2 where tlid = @tlid"
+      |> Sql.parameters [ "body2", Sql.bytea binary; "tlid", Sql.tlid tlid ]
+      |> Sql.executeStatementAsync
+  }
+
+let convertPackagesToFSharpBinary () : Task<unit> =
+  task {
+    let! packages =
+      Sql.query "SELECT body FROM packages_v0"
+      |> Sql.executeAsync (fun read -> read.bytea "body")
+    return!
+      packages
+      |> Task.iterSequentially (fun body ->
+        task {
+          let! (expr, tlid) = OCamlInterop.exprTLIDPairOfCachedBinary body
+          do! writeBody2 tlid expr
+          return ()
+        })
+  }
 
 // ------------------
 // Fetching functions
 // ------------------
 
+
 let allFunctions () : Task<List<PT.Package.Fn>> =
   Sql.query
     "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
-            P.body, P.description, P.return_type, P.parameters, P.deprecated,
+            P.body, P.body2, P.description, P.return_type, P.parameters, P.deprecated,
             A.username, O.username as author
        FROM packages_v0 P, accounts A, accounts O
       WHERE P.user_id = A.id
@@ -304,12 +328,13 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
      read.string "fnname",
      read.int "version",
      read.bytea "body",
+     read.byteaOrNone "body2",
      read.string "return_type",
      read.string "parameters",
      read.string "description",
      read.string "author",
      read.bool "deprecated",
-     read.int64 "tlid"))
+     read.tlid "tlid"))
   |> Task.bind (fun fns ->
     fns
     |> Task.mapInParallel
@@ -319,6 +344,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
             fnname,
             version,
             body,
+            body2,
             returnType,
             parameters,
             description,
@@ -340,7 +366,11 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
                 |> PT2RT.FQFnName.PackageFnName.toRT
                 |> RT.FQFnName.PackageFnName.toString
                 :> obj ]
-          let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
+          let! (expr, _) =
+            match body2 with
+            | Some body2 ->
+              Task.FromResult(BinarySerialization.deserializeExpr tlid body2, tlid)
+            | None -> OCamlInterop.exprTLIDPairOfCachedBinary body
 
           return
             ({ name = name
@@ -357,7 +387,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
                description = description
                author = author
                deprecated = deprecated
-               tlid = tlid |> uint64 } : PT.Package.Fn)
+               tlid = tlid } : PT.Package.Fn)
         }))
 
 // TODO: this keeps a cached version so we're not loading them all the time.

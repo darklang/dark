@@ -75,6 +75,7 @@ let help () : unit =
     "  ExecHost migrations run"
     "  ExecHost trigger-rollbar"
     "  ExecHost trigger-pageable-rollbar"
+    "  ExecHost convert-packages"
     "  ExecHost help" ]
   |> List.join "\n"
   |> print
@@ -109,6 +110,10 @@ let run (executionID : ExecutionID) (args : string []) : Task<int> =
       return 0
 
     | [| "trigger-paging-rollbar" |] -> return triggerPagingRollbar ()
+
+    | [| "convert-packages" |] ->
+      do! LibBackend.PackageManager.convertPackagesToFSharpBinary ()
+      return 0
 
     | [| "help" |] ->
       help ()
