@@ -131,7 +131,7 @@ spec:
             - "/cloud_sql_proxy"
             - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
             - "-credential_file=/secrets/cloudsql/credentials.json"
-            - "-term_timeout=28s" # match termination code
+            - "-term_timeout=30s"
             - "-structured_logs"
             - "-verbose"
             - "-use_http_health_check"
