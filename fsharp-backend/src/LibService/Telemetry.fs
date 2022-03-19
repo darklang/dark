@@ -155,7 +155,25 @@ let addException (metadata : Metadata) (e : exn) : unit =
     @ Exception.toMetadata e @ metadata
   addEvent e.Message exceptionTags
 
+let serverTags : List<string * obj> =
+  // Ensure that these are all stringified on startup, not when they're added to the
+  // span
+  let (tags : List<string * string>) =
+    [ "meta.environment", Config.envDisplayName
+      "meta.server.hash", Config.buildHash
+      "meta.server.hostname", Config.hostName
+      "meta.server.machinename", string System.Environment.MachineName
+      "meta.server.os", string System.Environment.OSVersion
+      "meta.dbhost", Config.pgHost
+      "meta.process.path", string System.Environment.ProcessPath
+      "meta.process.pwd", string System.Environment.CurrentDirectory
+      "meta.process.command_line", string System.Environment.CommandLine
+      "meta.dotnet.framework.version",
+      string System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription ]
+  List.map (fun (k, v) -> (k, v :> obj)) tags
 
+
+let addServerTags (span : Span.T) : unit = Span.addTags serverTags span
 
 // Call, passing with serviceName for this service, such as "ApiServer"
 let init (serviceName : string) : unit =
@@ -179,6 +197,11 @@ let init (serviceName : string) : unit =
 
     al.Sample <-
       fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
+
+    // Do it now so that the parent has
+    al.ActivityStarted <-
+      // Use ParentId instead of Parent as Parent is null in more cases
+      (fun span -> if span.ParentId = null then addServerTags span)
 
     al
 
@@ -234,7 +257,6 @@ let configureAspNetCore
 
         activity
         |> Span.addTags [ "meta.type", "http_request"
-                          "meta.server_version", Config.buildHash
                           "http.remote_addr", ipAddress
                           "request.method", httpRequest.Method
                           "request.path", httpRequest.Path
