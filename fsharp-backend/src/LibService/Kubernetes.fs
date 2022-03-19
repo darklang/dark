@@ -126,6 +126,17 @@ let registerServerTimeout (b : IWebHostBuilder) : unit =
   b.UseShutdownTimeout(System.TimeSpan.FromSeconds(28.0))
   |> ignore<IWebHostBuilder>
 
+open System.Runtime.InteropServices
+
+let registerShutdownCallback (callback : unit -> unit) : unit =
+  PosixSignalRegistration.Create(PosixSignal.SIGTERM, (fun _ -> callback ()))
+  |> ignore<PosixSignalRegistration>
+  PosixSignalRegistration.Create(PosixSignal.SIGINT, (fun _ -> callback ()))
+  |> ignore<PosixSignalRegistration>
+  PosixSignalRegistration.Create(PosixSignal.SIGQUIT, (fun _ -> callback ()))
+  |> ignore<PosixSignalRegistration>
+  ()
+
 /// Run an ASP.NET server that provides the healthcheck and shutdown endpoints. This
 /// is for services which need to be managed but do not have HTTP servers of their
 /// own.
@@ -139,6 +150,7 @@ let runKubernetesServer
   configureServices healthChecks builder.Services |> ignore<IServiceCollection>
   registerServerTimeout builder.WebHost
   builder.WebHost.UseUrls(url port) |> ignore<IWebHostBuilder>
+  registerShutdownCallback shutdownCallback
 
   let app = builder.Build()
   Rollbar.AspNet.addRollbarToApp
