@@ -198,7 +198,10 @@ let init (serviceName : string) : unit =
     al.Sample <-
       fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
 
-    al.ActivityStarted <- (fun span -> addServerTags span)
+    // Do it now so that the parent has
+    al.ActivityStarted <-
+      // Use ParentId instead of Parent as Parent is null in more cases
+      (fun span -> if span.ParentId = null then addServerTags span)
 
     al
 
