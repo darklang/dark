@@ -771,8 +771,35 @@ module Convert =
 
 
       ORT.EFnCall(id, name, List.map r args, rt2ocamlSter rail)
-    | expr ->
-      Exception.raiseInternal "TODO: add more cases to rt2ocamlExpr" [ "expr", expr ]
+    | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.InPipe pipeID, rail) ->
+      // Convert
+      //   fn3 (fn2 (fn1 a b c) d e) f g
+      // to
+      //   a |> fn1 b c |> fn2 d e |> fn3 f g
+      let nameStr = name |> RT.FQFnName.toString
+      let name =
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
+          // Some things were named wrong in OCaml
+          $"{nameStr}_v0"
+        else
+          nameStr |> String.replace "_v0" ""
+
+      let pipeStart, actualArgs =
+        match List.map r args with
+        | (ORT.EPipe (innerPipeID, pipeStart) as start) :: rest when
+          pipeID = innerPipeID
+          ->
+          pipeStart, rest
+        | head :: rest -> [ head ], rest
+        | _ -> Exception.raiseInternal "Invalid pipe format" []
+
+      let pipeTarget = ORT.EPipeTarget(gid ())
+      let fnCall = ORT.EFnCall(id, name, pipeTarget :: actualArgs, rt2ocamlSter rail)
+      ORT.EPipe(pipeID, pipeStart @ [ fnCall ]) |> debug "converted to pipe"
+    | RT.EFQFnValue _
+    | RT.EApply (_, _, _, _, _) ->
+      // these shouldn't happen in practice at the moment
+      Exception.raiseInternal "Unexpected expression to rt2ocamlExpr" [ "expr", e ]
 
 
 

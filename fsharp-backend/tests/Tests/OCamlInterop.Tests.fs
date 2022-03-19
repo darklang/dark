@@ -3,10 +3,12 @@ module Tests.OCamlInterop
 open Expecto
 open Prelude
 open TestUtils.TestUtils
+open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
+module Convert = LibExecution.OCamlTypes.Convert
 
 // These are test that we've written fuzzers to test,
 // but would also like to cover these specific cases.
@@ -89,6 +91,14 @@ let fuzzedTests =
     testListUsingProperty
       "queryToDval"
       FuzzTests.HttpClient.queryToDval
-      [ "empty", [ "", [] ] ] ]
+      [ "empty", [ "", [] ] ]
+
+    testMany
+      "dval2rt"
+      (fun (name, dv) ->
+        let converted = dv |> Convert.rt2ocamlDval |> Convert.ocamlDval2rt
+        Expect.equalDval converted dv $"{name} dval2rt")
+      (List.map (fun v -> v, ()) sampleDvals) ]
+
 
 let tests = testList "ocamlInterop" fuzzedTests
