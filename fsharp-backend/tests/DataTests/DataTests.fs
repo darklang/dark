@@ -331,8 +331,7 @@ let main args =
   LibService.Telemetry.Console.loadTelemetry
     "DataTests"
     LibService.Telemetry.DontTraceDBQueries
-  (LibBackend.Init.init LibBackend.Init.RunSideEffects LibBackend.Init.WaitForDB name)
-    .Result
+  (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
   (LibRealExecution.Init.init name).Result
 
   let fn (canvasName : CanvasName.T) : Task<unit> =
