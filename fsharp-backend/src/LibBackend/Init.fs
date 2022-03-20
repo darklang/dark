@@ -55,14 +55,9 @@ let _waitForDB () : Task<unit> =
     return ()
   }
 
-type RunSideEffects =
-  | RunSideEffects
-  | DontRunSideEffects
-
 type WaitForDB =
   | WaitForDB
   | DontWaitForDB
-
 
 /// Initialize LibBackend.
 ///
@@ -71,11 +66,7 @@ type WaitForDB =
 /// the test of dev environment). This is called by ExecHost, which does the
 /// migration. You cannot expect the DB to be ready when LibBackend is initialized -
 /// call `waitForDB` if you need that.</remarks>
-let init
-  (shouldRunSideEffects : RunSideEffects)
-  (shouldWaitForDB : WaitForDB)
-  (serviceName : string)
-  : Task<unit> =
+let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend in {serviceName}"
     Db.init ()
@@ -91,12 +82,6 @@ let init
     match shouldWaitForDB with
     | WaitForDB -> do! _waitForDB ()
     | DontWaitForDB -> ()
-
-    // CLEANUP move this elsewhere and keep LibBackend.Init more about initializing
-    // the library, not the app in the dev/prod environment
-    match shouldRunSideEffects with
-    | RunSideEffects -> do! Account.init serviceName
-    | DontRunSideEffects -> ()
 
     print $" Inited LibBackend in {serviceName}"
   }

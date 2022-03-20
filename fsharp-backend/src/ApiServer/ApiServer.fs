@@ -211,13 +211,12 @@ let main _ =
     let name = "ApiServer"
     print "Starting ApiServer"
     LibService.Init.init name
-    (LibBackend.Init.init
-      LibBackend.Init.DontRunSideEffects
-      LibBackend.Init.WaitForDB
-      name)
-      .Result
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
-    let packages = (LibBackend.PackageManager.allFunctions ()).Result
+
+    if Config.createAccounts then LibBackend.Account.init(name).Result
+
+    let packages = LibBackend.PackageManager.allFunctions().Result
     run packages
     0
   with

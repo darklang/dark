@@ -522,11 +522,7 @@ let main _ =
     let name = "BwdServer"
     print "Starting BwdServer"
     LibService.Init.init name
-    (LibBackend.Init.init
-      LibBackend.Init.DontRunSideEffects
-      LibBackend.Init.WaitForDB
-      name)
-      .Result
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
     run ()
     0

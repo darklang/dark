@@ -199,22 +199,17 @@ let main _ : int =
     print "Starting QueueWorker"
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
-    (LibBackend.Init.init
-      LibBackend.Init.DontRunSideEffects
-      LibBackend.Init.WaitForDB
-      name)
-      .Result
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
-
+    // Called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "shutting down" []
       shutdown.Value <- true
 
-    let healthChecks = [ LibBackend.Init.legacyServerCheck ]
-
-    // we need to stop taking things if we're told to stop by k8s
+    // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.queueWorkerKubernetesPort
+    let healthChecks = [ LibBackend.Init.legacyServerCheck ]
     LibService.Kubernetes.runKubernetesServer name healthChecks port shutdownCallback
     |> ignore<Task>
 

@@ -34,19 +34,15 @@ let main _ : int =
     print "Starting CronChecker"
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
-    (LibBackend.Init.init
-      LibBackend.Init.DontRunSideEffects
-      LibBackend.Init.WaitForDB
-      name)
-      .Result
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
-
 
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "Shutting down" []
       shouldShutdown.Value <- true
 
+    // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.croncheckerKubernetesPort
     LibService.Kubernetes.runKubernetesServer name [] port shutdownCallback
     |> ignore<Task>

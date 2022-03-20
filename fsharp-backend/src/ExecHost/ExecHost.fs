@@ -162,16 +162,13 @@ let run (executionID : ExecutionID) (options : Options) : Task<int> =
 [<EntryPoint>]
 let main (args : string []) : int =
   try
-    LibService.Init.init "ExecHost"
-    Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
-    let executionID = Telemetry.executionID ()
+    let name = "ExecHost"
+    LibService.Init.init name
+    Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     let options = parse args
     if usesDB options then
-      (LibBackend.Init.init
-        LibBackend.Init.DontRunSideEffects
-        LibBackend.Init.WaitForDB
-        "ExecHost")
-        .Result
+      (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    let executionID = Telemetry.executionID ()
     (run executionID options).Result
   with
   | e ->

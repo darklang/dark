@@ -11,13 +11,11 @@ module Telemetry = LibService.Telemetry
 
 [<EntryPoint>]
 let main (args : string array) : int =
-  LibService.Init.init "Tests"
-  LibExecution.Init.init "Tests"
-  LibExecutionStdLib.Init.init "Tests"
-  (LibBackend.Init.init "Tests" true).Result
-  LibRealExecution.Init.init "Tests"
-  HttpMiddleware.Init.init "Tests"
-  TestUtils.Init.init "Tests"
+  let name = "Tests"
+  LibService.Init.init name
+  (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+  (LibRealExecution.Init.init name).Result
+  (LibBackend.Account.init name).Result
 
   let tests =
     [ Tests.Account.tests
