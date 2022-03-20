@@ -46,10 +46,23 @@
 - For file header comments, use `///` and add them to the first line of the file
   before the module declaration
 
-## SQL
+## SQL migrations
 
 - add `set statement_timeout = '1s'` or `set lock_timeout = '1s'` to the first line
   of your script, so that it fails instead of taking the service down.
+
+## Initialization
+
+- initialization code should be in a function called `init` in a file called `Init.fs`
+
+- Library initialization code can rely on the DB but the services (eg ApiServer) must
+  ensure to call them in the right order to ensure the DB is available and in the right
+  shape (as migrations will not necessarily have run in tests at that point).
+
+- Do not block in library initialization code, instead return `Lazy` or `Task`, and
+  let the service resolve it.
+
+- remove unused `Init.fs` files - they create cognitive load
 
 ### Creating types
 
