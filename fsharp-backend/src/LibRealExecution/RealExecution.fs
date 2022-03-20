@@ -25,7 +25,7 @@ let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
   lazy
     (task {
-      let! packages = Lazy.force PackageManager.cachedForAPI
+      let! packages = PackageManager.allFunctions ()
 
       return
         packages
@@ -98,4 +98,11 @@ let createState
         tlid
         program,
        touchedTLIDs)
+  }
+
+/// Ensure library is ready to be called. Throws if it cannot initialize.
+let init () : Task<unit> =
+  task {
+    let! (_ : RT.Libraries) = Lazy.force libraries
+    return ()
   }
