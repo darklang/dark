@@ -203,12 +203,15 @@ let run () : unit =
 [<EntryPoint>]
 let main _ =
   try
+    let name = "ApiServer"
     print "Starting ApiServer"
-    LibService.Init.init "ApiServer"
-    LibExecution.Init.init "ApiServer"
-    LibExecutionStdLib.Init.init "ApiServer"
-    (LibBackend.Init.init "ApiServer" true).Result
-    LibRealExecution.Init.init "ApiServer"
+    LibService.Init.init name
+    (LibBackend.Init.init
+      LibBackend.Init.DontRunSideEffects
+      LibBackend.Init.WaitForDB
+      name)
+      .Result
+    (LibRealExecution.Init.init name).Result
     run ()
     0
   with

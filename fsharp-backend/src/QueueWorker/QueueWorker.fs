@@ -195,22 +195,27 @@ let run () : Task<unit> =
 [<EntryPoint>]
 let main _ : int =
   try
+    let name = "QueueWorker"
     print "Starting QueueWorker"
-    LibService.Init.init "QueueWorker"
-    Telemetry.Console.loadTelemetry "QueueWorker" Telemetry.DontTraceDBQueries
-    LibExecution.Init.init "QueueWorker"
-    LibExecutionStdLib.Init.init "QueueWorker"
-    (LibBackend.Init.init "QueueWorker" false).Result
-    LibRealExecution.Init.init "QueueWorker"
+    LibService.Init.init name
+    Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
+    (LibBackend.Init.init
+      LibBackend.Init.DontRunSideEffects
+      LibBackend.Init.WaitForDB
+      name)
+      .Result
+    (LibRealExecution.Init.init name).Result
+
+
+    let shutdownCallback () =
+      Telemetry.addEvent "shutting down" []
+      shutdown.Value <- true
+
+    let healthChecks = [ LibBackend.Init.legacyServerCheck ]
 
     // we need to stop taking things if we're told to stop by k8s
-    LibService.Kubernetes.runKubernetesServer
-      "QueueWorker"
-      [ LibBackend.Init.legacyServerCheck ]
-      LibService.Config.queueWorkerKubernetesPort
-      (fun () ->
-        Telemetry.addEvent "shutting down" []
-        shutdown.Value <- true)
+    let port = LibService.Config.queueWorkerKubernetesPort
+    LibService.Kubernetes.runKubernetesServer name healthChecks port shutdownCallback
     |> ignore<Task>
 
     if false then
@@ -222,4 +227,4 @@ let main _ : int =
     0
 
   with
-  | e -> LibService.Rollbar.lastDitchBlockAndPage "Error running Queueworker" e
+  | e -> Rollbar.lastDitchBlockAndPage "Error running Queueworker" e

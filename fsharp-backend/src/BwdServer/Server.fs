@@ -519,13 +519,15 @@ let run () : unit =
 [<EntryPoint>]
 let main _ =
   try
+    let name = "BwdServer"
     print "Starting BwdServer"
-    LibService.Init.init "BwdServer"
-    LibExecution.Init.init "BwdServer"
-    LibExecutionStdLib.Init.init "BwdServer"
-    (LibBackend.Init.init "BwdServer" false).Result
-    LibRealExecution.Init.init "BwdServer"
-    HttpMiddleware.Init.init "BwdServer"
+    LibService.Init.init name
+    (LibBackend.Init.init
+      LibBackend.Init.DontRunSideEffects
+      LibBackend.Init.WaitForDB
+      name)
+      .Result
+    (LibRealExecution.Init.init name).Result
     run ()
     0
   with

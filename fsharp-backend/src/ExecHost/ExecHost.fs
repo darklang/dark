@@ -80,6 +80,13 @@ let help () : unit =
   |> List.join "\n"
   |> print
 
+let needsDB () : Task<unit> =
+  LibBackend.Init.init
+    LibBackend.Init.DontRunSideEffects
+    LibBackend.Init.WaitForDB
+    "ExecHost"
+
+
 let run (executionID : ExecutionID) (args : string []) : Task<int> =
   task {
     // Track calls to this
@@ -91,14 +98,17 @@ let run (executionID : ExecutionID) (args : string []) : Task<int> =
 
     | [| "emergency-login"; username |] ->
       Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
+      do! needsDB ()
       do! emergencyLogin username
       return 0
 
     | [| "migrations"; "list" |] ->
+      do! needsDB ()
       listMigrations executionID
       return 0
 
     | [| "migrations"; "run" |] ->
+      do! needsDB ()
       runMigrations executionID
       return 0
 
@@ -112,6 +122,7 @@ let run (executionID : ExecutionID) (args : string []) : Task<int> =
     | [| "trigger-paging-rollbar" |] -> return triggerPagingRollbar ()
 
     | [| "convert-packages" |] ->
+      do! needsDB ()
       do! LibBackend.PackageManager.convertPackagesToFSharpBinary ()
       return 0
 
@@ -131,7 +142,6 @@ let main (args : string []) : int =
     LibService.Init.init "ExecHost"
     Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
     let executionID = Telemetry.executionID ()
-    (LibBackend.Init.init "ExecHost" false).Result
     (run executionID args).Result
   with
   | e ->

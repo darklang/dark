@@ -161,8 +161,13 @@ let parser = ArgumentParser.Create<Arguments>(programName = "Benchmark")
 let main args : int =
   try
     let cliArgs = parser.ParseCommandLine args
+    let name = "Benchmark"
     print "Starting Benchmark"
-    (LibBackend.Init.init "Benchmark" false).Result
+    (LibBackend.Init.init
+      LibBackend.Init.DontRunSideEffects
+      LibBackend.Init.WaitForDB
+      name)
+      .Result
     let filename = cliArgs.GetResult Filename
     let warmUpCount = cliArgs.GetResult(Warmups, 3u)
     let iterations = cliArgs.GetResult(Iterations, 3u)
