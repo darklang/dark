@@ -214,7 +214,8 @@ let main _ =
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
-    if Config.createAccounts then LibBackend.Account.init(name).Result
+    if Config.createAccounts then
+      LibBackend.Account.initializeDevelopmentAccounts(name).Result
 
     let packages = LibBackend.PackageManager.allFunctions().Result
     run packages

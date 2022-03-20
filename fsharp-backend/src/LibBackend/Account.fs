@@ -413,7 +413,7 @@ let initAdmins () : Task<unit> =
   }
 
 /// Initialize accounts needed for development and testing
-let init (serviceName : string) : Task<unit> =
+let initializeDevelopmentAccounts (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend.Account in {serviceName}"
     do! initTestAccounts ()

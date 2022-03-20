@@ -15,7 +15,7 @@ let main (args : string array) : int =
   LibService.Init.init name
   (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
   (LibRealExecution.Init.init name).Result
-  (LibBackend.Account.init name).Result
+  (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
   let tests =
     [ Tests.Account.tests
