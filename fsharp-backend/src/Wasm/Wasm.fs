@@ -191,7 +191,6 @@ module Eval =
 
       let stdlib =
         LibExecutionStdLib.StdLib.fns
-        |> Lazy.force
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       // TODO: get packages from caller
