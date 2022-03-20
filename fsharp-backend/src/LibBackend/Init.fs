@@ -70,6 +70,8 @@ let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
       EventQueue.WorkerStates.STJJsonConverter.WorkerStateConverter()
     )
 
+    do! PackageManager.init ()
+
     if runSideEffects then do! Account.init serviceName
 
     print $" Inited LibBackend in {serviceName}"

@@ -395,3 +395,11 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
 // functions need to be loaded for the API, when this becomes a problem we want
 // to look at breaking it up into different packages
 let cachedForAPI : Lazy<Task<List<PT.Package.Fn>>> = lazy (allFunctions ())
+
+/// Initialize packages. Call this after the DB connection is initialized.
+let init () : Task<unit> =
+  // Make sure functions are present during startup
+  task {
+    let! (_ : List<PT.Package.Fn>) = cachedForAPI |> Lazy.force
+    return ()
+  }
