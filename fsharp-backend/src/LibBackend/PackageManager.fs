@@ -389,17 +389,3 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
                deprecated = deprecated
                tlid = tlid } : PT.Package.Fn)
         }))
-
-// TODO: this keeps a cached version so we're not loading them all the time.
-// Of course, this won't be up to date if we add more functions. Given that all
-// functions need to be loaded for the API, when this becomes a problem we want
-// to look at breaking it up into different packages
-let cachedForAPI : Lazy<Task<List<PT.Package.Fn>>> = lazy (allFunctions ())
-
-/// Initialize packages. Call this after the DB connection is initialized.
-let init () : Task<unit> =
-  // Make sure functions are present during startup
-  task {
-    let! (_ : List<PT.Package.Fn>) = cachedForAPI |> Lazy.force
-    return ()
-  }
