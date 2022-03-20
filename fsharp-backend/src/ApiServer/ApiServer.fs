@@ -25,10 +25,15 @@ open Microsoft.AspNetCore.StaticFiles
 module Auth = LibBackend.Authorization
 module Config = LibBackend.Config
 
+type Packages = List<LibExecution.ProgramTypes.Package.Fn>
+
 // --------------------
 // Handlers
 // --------------------
-let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
+let addRoutes
+  (packages : Packages)
+  (app : IApplicationBuilder)
+  : IApplicationBuilder =
   let ab = app
   let app = app :?> WebApplication
 
@@ -111,7 +116,7 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   api "get_worker_stats" R Workers.WorkerStats.getStats
   api "initial_load" R InitialLoad.initialLoad
   api "insert_secret" RW Secrets.Insert.insert
-  api "packages" R Packages.List.packages
+  api "packages" R (Packages.List.packages packages)
   // FSLATER: packages/upload_function
   // FSLATER: save_test handler
   api "trigger_handler" RW Execution.Handler.trigger
@@ -157,7 +162,7 @@ let rollbarCtxToMetadata
     | _ -> null
   (person, [ "canvas", canvas ])
 
-let configureApp (appBuilder : WebApplication) =
+let configureApp (packages : Packages) (appBuilder : WebApplication) =
   appBuilder
   |> fun app -> app.UseServerTiming() // must go early or this is dropped
   |> fun app ->
@@ -167,7 +172,7 @@ let configureApp (appBuilder : WebApplication) =
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
   |> configureStaticContent
-  |> addRoutes
+  |> addRoutes packages
   |> ignore<IApplicationBuilder>
 
 // A service is a value that's added to each request, to be used by some middleware.
@@ -182,7 +187,7 @@ let configureServices (services : IServiceCollection) : unit =
   |> fun s -> s.AddServerTiming()
   |> ignore<IServiceCollection>
 
-let run () : unit =
+let run (packages : Packages) : unit =
   let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
   let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
 
@@ -196,7 +201,7 @@ let run () : unit =
   |> ignore<IWebHostBuilder>
 
   let app = builder.Build()
-  configureApp app
+  configureApp packages app
   app.Run()
 
 
@@ -212,7 +217,8 @@ let main _ =
       name)
       .Result
     (LibRealExecution.Init.init name).Result
-    run ()
+    let packages = (LibBackend.PackageManager.allFunctions ()).Result
+    run packages
     0
   with
   | e -> LibService.Rollbar.lastDitchBlockAndPage "Error starting ApiServer" e
