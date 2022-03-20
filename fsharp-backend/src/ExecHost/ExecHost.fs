@@ -80,57 +80,80 @@ let help () : unit =
   |> List.join "\n"
   |> print
 
-let needsDB () : Task<unit> =
-  LibBackend.Init.init
-    LibBackend.Init.DontRunSideEffects
-    LibBackend.Init.WaitForDB
-    "ExecHost"
+type Options =
+  | EmergencyLogin of string
+  | MigrationList
+  | MigrationsRun
+  | TriggerRollbar
+  | TriggerPagingRollbar
+  | ConvertPackages
+  | InvalidUsage
+  | Help
+
+let parse (args : string []) : Options =
+  match args with
+  | [| "emergency-login"; username |] -> EmergencyLogin username
+  | [| "migrations"; "list" |] -> MigrationList
+  | [| "migrations"; "run" |] -> MigrationsRun
+  | [| "trigger-rollbar" |] -> TriggerRollbar
+  | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
+  | [| "convert-packages" |] -> ConvertPackages
+  | [| "help" |] -> Help
+  | _ -> InvalidUsage
+
+let usesDB (options : Options) =
+  match options with
+  | EmergencyLogin _
+  | MigrationList
+  | MigrationsRun
+  | ConvertPackages -> true
+  | TriggerRollbar
+  | TriggerPagingRollbar
+  | InvalidUsage
+  | Help -> false
 
 
-let run (executionID : ExecutionID) (args : string []) : Task<int> =
+
+let run (executionID : ExecutionID) (options : Options) : Task<int> =
   task {
     // Track calls to this
     use _ = Telemetry.createRoot "ExecHost run"
-    Telemetry.addTags [ "args", args ]
-    Rollbar.notify executionID "execHost called" [ "args", String.concat "," args ]
+    Telemetry.addTags [ "options", options ]
+    Rollbar.notify executionID "execHost called" [ "options", string options ]
 
-    match args with
+    match options with
 
-    | [| "emergency-login"; username |] ->
+    | EmergencyLogin username ->
       Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
-      do! needsDB ()
       do! emergencyLogin username
       return 0
 
-    | [| "migrations"; "list" |] ->
-      do! needsDB ()
+    | MigrationList ->
       listMigrations executionID
       return 0
 
-    | [| "migrations"; "run" |] ->
-      do! needsDB ()
+    | MigrationsRun ->
       runMigrations executionID
       return 0
 
-    | [| "trigger-rollbar" |] ->
+    | TriggerRollbar ->
       triggerRollbar executionID
       // The async operations go in a queue, and I don't know how to block until
       // the queue is empty.
       do! Task.Delay 5000
       return 0
 
-    | [| "trigger-paging-rollbar" |] -> return triggerPagingRollbar ()
+    | TriggerPagingRollbar -> return triggerPagingRollbar ()
 
-    | [| "convert-packages" |] ->
-      do! needsDB ()
+    | ConvertPackages ->
       do! LibBackend.PackageManager.convertPackagesToFSharpBinary ()
       return 0
 
-    | [| "help" |] ->
+    | Help ->
       help ()
       return 0
 
-    | _ ->
+    | InvalidUsage ->
       print "Invalid usage!!\n"
       help ()
       return 1
@@ -142,7 +165,14 @@ let main (args : string []) : int =
     LibService.Init.init "ExecHost"
     Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
     let executionID = Telemetry.executionID ()
-    (run executionID args).Result
+    let options = parse args
+    if usesDB options then
+      (LibBackend.Init.init
+        LibBackend.Init.DontRunSideEffects
+        LibBackend.Init.WaitForDB
+        "ExecHost")
+        .Result
+    (run executionID options).Result
   with
   | e ->
     // Don't reraise or report as ExecHost is only run interactively
