@@ -18,6 +18,7 @@ REPEAT=1 # repeat allows us to repeat individual tests many times to check for e
 BASE_URL="http://darklang.localhost:9000"
 BWD_BASE_URL=".builtwithdark.localhost:11000"
 BROWSER="chromium"
+PUBLISHED=""
 
 for i in "$@"
 do
@@ -36,6 +37,10 @@ do
     ;;
     --repeat=*)
     REPEAT=${1/--repeat=/''}
+    shift
+    ;;
+    --published)
+    PUBLISHED="--published"
     shift
     ;;
     --debug)
@@ -82,7 +87,8 @@ fi
 
 # We need to restart the server after adding new packages. Integration tests test
 # against the dev environment, not the test one.
-./scripts/run-fsharp-server
+./scripts/run-fsharp-server "${PUBLISHED}"
+./scripts/devcontainer/_wait-until-apiserver-ready
 
 ######################
 # Run playwright
