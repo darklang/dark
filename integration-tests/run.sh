@@ -80,6 +80,10 @@ fi
 ######################
 ./integration-tests/prep.sh
 
+# We need to restart the server after adding new packages. Integration tests test
+# against the dev environment, not the test one.
+./scripts/run-fsharp-server
+
 ######################
 # Run playwright
 ######################
