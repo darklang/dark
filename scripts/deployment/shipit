@@ -183,7 +183,12 @@ def collect_versioned_configmaps(dir, parent):
     hashed_name = get_hashed_configmap_name(dir, name, cm)
     filespec = read_config_map_source(dir, cm)
     namespace = read_config_map_namespace(cm)
-    cms[hashed_name] = {"filespec": filespec, "namespace": namespace}
+    key = f"{namespace}/{hashed_name}"
+    cms[key] = {
+        "hashed_name": hashed_name,
+        "filespec": filespec,
+        "namespace": namespace
+    }
   return cms
 
 
@@ -219,8 +224,7 @@ def read_config_map_source(dir, cm):
 
 def read_config_map_namespace(cm):
   # TODO: it might be better to put the namespace at the toplevel of the shipit file
-  namespace = cm.get("namespace").strip()
-  return f"--namespace={namespace}"
+  return cm.get("namespace").strip()
 
 
 def manual_diff(cliargs):
@@ -241,7 +245,7 @@ def manual_diff(cliargs):
       filespec = read_config_map_source(dir, cm)
       namespace = read_config_map_namespace(cm)
       run("kubectl diff configmap",
-          f"kubectl create configmap {name} {filespec} {namespace} --dry-run=client -o yaml | kubectl diff --filename=-",
+          f"kubectl create configmap {name} {filespec} --namespace={namespace} --dry-run=client -o yaml | kubectl diff --filename=-",
           shell=True,
           on_error=do_nothing)
 
@@ -277,11 +281,11 @@ def manual_apply(cliargs):
       namespace = read_config_map_namespace(cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
-            f"kubectl create configmap {name} {filespec} {namespace} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
+            f"kubectl create configmap {name} {filespec} --namespace={namespace} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
             shell=True)
       else:
         run("kubectl apply configmap",
-            f"kubectl create configmap {name} {filespec} {namespace} --dry-run=client -o yaml | kubectl apply --filename=-",
+            f"kubectl create configmap {name} {filespec} --namespace={namespace} --dry-run=client -o yaml | kubectl apply --filename=-",
             shell=True)
 
   # Custom apply
@@ -534,12 +538,22 @@ def release_current_manifest(cliargs):
     containers = set(config['k8s'].get("release", {}).get("containers", []))
     # Only check yamls with a containers section
     if len(containers) > 0:
+      # Get the right namespace for the deployment
+      template_filename = config['k8s'].get("release", {}).get("config-template")
+      assert_file_exists(dir, template_filename)
+      template_filename = os.path.join(dir, template_filename)
+      template_contents = yaml.load(open(template_filename).read(),
+                                    Loader=yaml.Loader)
+      namespace = template_contents['metadata'].get('namespace', "default")
+
+      # get the deployment
       service_name = os.path.basename(dir)
-      k8s_config = run_output(f"kubectl get deployments/{service_name} -o json",
-                              shell=True)
+      k8s_config = run_output(
+          f"kubectl get deployments/{service_name} -n {namespace} -o json",
+          shell=True)
       k8s_config = json.loads(k8s_config)
       for c in k8s_config['spec']['template']['spec']['containers']:
-        [name, version] = c['image'].split(":")
+        [name, version] = c['image'].split(":", 1)
         name = name.split("/")[-1]
         # only use containers listed in config, as those are the only ones shipit manages
         if name in containers:
@@ -567,9 +581,9 @@ def release_diff(cliargs):
     if release:
       maps = collect_versioned_configmaps(dir, release)
       all_configmaps.update(maps)
-  for hashed_name, cm in all_configmaps.items():
+  for _, cm in all_configmaps.items():
     run("kubectl diff configmap",
-        f"kubectl create configmap {hashed_name} {cm['filespec']} {cm['namespace']} --dry-run=client -o yaml | kubectl diff --filename=-",
+        f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={cm['namespace']} --dry-run=client -o yaml | kubectl diff --filename=-",
         shell=True,
         on_error=do_nothing)
 
@@ -596,15 +610,17 @@ def release_push(cliargs):
     release = config['k8s'].get("release")
     if release:
       maps = collect_versioned_configmaps(dir, release)
+      print("maps", dir, maps)
       all_configmaps.update(maps)
-  for hashed_name, cm in all_configmaps.items():
+  print("all_configmaps", all_configmaps)
+  for _, cm in all_configmaps.items():
     if should_dry_run:
       run("kubectl apply configmap",
-          f"kubectl create configmap {hashed_name} {cm['filespec']} {cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
+          f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
           shell=True)
     else:
       run("kubectl apply configmap",
-          f"kubectl create configmap {hashed_name} {cm['filespec']} {cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=-",
+          f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=-",
           shell=True)
 
   files = collect_release_templated_configs(cliargs)
@@ -709,6 +725,7 @@ properties:
 
 
 def do_validation(cliargs):
+
   def validate_configmaps(configmaps):
     if configmaps is None:
       return
