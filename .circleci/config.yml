@@ -434,6 +434,12 @@ jobs:
             PATTERN=${PATTERN%?}
 
             echo $PATTERN > test-pattern
+      # We need to run DB migrations for the prep.sh script to work
+      - run:
+          name: DB migrations
+          command: |
+            cd fsharp-backend
+            ./Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost migrations run
       - run:
           name: Run integration tests
           command: |
