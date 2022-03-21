@@ -59,7 +59,7 @@ type WaitForDB =
   | WaitForDB
   | DontWaitForDB
 
-/// Initialize LibBackend.
+/// <summary>Initialize LibBackend.</summary>
 ///
 /// <remarks> This function does not do any behaviour which accesses DB tables and
 /// data, as the DB might not be migrated to it's correct form at this point (eg in
