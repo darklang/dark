@@ -534,12 +534,22 @@ def release_current_manifest(cliargs):
     containers = set(config['k8s'].get("release", {}).get("containers", []))
     # Only check yamls with a containers section
     if len(containers) > 0:
+      # Get the right namespace for the deployment
+      template_filename = config['k8s'].get("release", {}).get("config-template")
+      assert_file_exists(dir, template_filename)
+      template_filename = os.path.join(dir, template_filename)
+      template_contents = yaml.load(open(template_filename).read(),
+                                    Loader=yaml.Loader)
+      namespace = template_contents['metadata'].get('namespace', "default")
+
+      # get the deployment
       service_name = os.path.basename(dir)
-      k8s_config = run_output(f"kubectl get deployments/{service_name} -o json",
-                              shell=True)
+      k8s_config = run_output(
+          f"kubectl get deployments/{service_name} -n {namespace} -o json",
+          shell=True)
       k8s_config = json.loads(k8s_config)
       for c in k8s_config['spec']['template']['spec']['containers']:
-        [name, version] = c['image'].split(":")
+        [name, version] = c['image'].split(":", 1)
         name = name.split("/")[-1]
         # only use containers listed in config, as those are the only ones shipit manages
         if name in containers:
