@@ -19,6 +19,19 @@ spec:
     # see what works.
     - http:
         paths:
+          # Due to an unknown issue with the load balancer, we cannot change the
+          # defaultBackend without causing the service to go down. So instead we'll
+          # just make a rule that sends everything to the F# backend.  I'm leaving
+          # everything else alone on purpose.
+          # CLEANUP Later, I'll just add a new load balancer and change the DNS over.
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: apiserver-service
+                port:
+                  number: 80
+
           # Testing so that any user can use these
           - path: /a-testing-fsharp/*
             pathType: ImplementationSpecific
