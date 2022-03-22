@@ -439,6 +439,8 @@ jobs:
           command: |
             # Run the server first to set up the DB correctly for the prep script
             scripts/run-fsharp-server --published
+            # Wait for users to be added so prep.sh works
+            ./scripts/devcontainer/_wait-until-apiserver-ready
             integration-tests/run.sh --concurrency=3 --retry --pattern="`cat test-pattern`" --published
             rm test-pattern
 
