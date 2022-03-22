@@ -35,7 +35,6 @@ let main _ : int =
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibRealExecution.Init.init name).Result
 
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =
