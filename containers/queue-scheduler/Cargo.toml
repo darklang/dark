@@ -22,5 +22,5 @@ postgres = { version = "0.15", features = ["with-uuid"] }
 rand = "0.8.4"
 rollbar = "0.7.0"
 slog = "2.7.0"
-slog-json = "2.3.0"
+slog-json = "2.6.1"
 uuid = { version = "0.5", features = ["v4"] }
