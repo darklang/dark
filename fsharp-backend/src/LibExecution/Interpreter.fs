@@ -776,7 +776,15 @@ and execFn
           state.notify state "fakedval found" [ "dval", dv ]
           return dv
         | :? DeveloperException as e ->
-          state.notify state "Developer error found" [ "error", e.Message ]
+          state.notify
+            state
+            $"Developer error found against {fnDesc}"
+            [ "context", "An exception was caught in fncall"
+              "fn", fnDesc
+              "args", args
+              "callerID", id
+              "isInPipe", isInPipe
+              "error", e.Message ]
           return Dval.errSStr sourceID e.Message
         | e ->
           // CLEANUP could we show the user the execution id here?
