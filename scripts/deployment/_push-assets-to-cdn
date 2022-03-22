@@ -1,57 +1,111 @@
 #! /usr/bin/env bash
 set -euo pipefail
-set -x
 
 PREFIX_TO_REMOVE="backend/static/"
-rm -rf gzipped_assets; mkdir -p gzipped_assets
+BUCKET="gs://darklang-static-assets-test"
 
 # for debugging in CI
-find backend/static
+# find backend/static
 
-function copyHashed {
-  file="$1"
-  basefile="${file//$PREFIX_TO_REMOVE}"
-  mkdir -p "gzipped_assets/$(dirname "${basefile}")"
+function mimeTypeFor {
+  # See also ApiServer.configureStaticContent
+  case "$1" in
+    # Common web stuff
+    *.css) echo "text/css" ;;
+    *.js) echo "application/javascript" ;;
+    *.json) echo "application/json" ;;
+    *.txt) echo "text/plain" ;;
+    *.png) echo "image/png" ;;
+    *.svg) echo "image/svg+xml" ;;
+    *.html) echo "text/html" ;;
+    # Fonts
+    *.ttf) echo "font/ttf" ;;
+    *.woff) echo "font/woff" ;;
+    *.woff2) echo "font/woff2" ;;
+    *.eot) echo "application/vnd.ms-fontobject" ;;
+    # Blazor
+    *.wasm) echo "application/wasm" ;;
+    *.pdb) echo "text/plain" ;;
+    *.dll) echo "application/octet-stream" ;;
+    *.dat) echo "application/octet-stream" ;;
+    *.blat) echo "application/octet-stream" ;;
+    # Don't allow anything else
+    *) echo "Unknown extension for ${file}"; exit 1 ;;
+  esac
+}
 
+function upload {
+  local localpath="$1"
+  local remotepath="$2"
+  local mimetype;
+  mimetype="$(mimeTypeFor ${localpath})"
+  # echo -e "copy\n  ${localpath}\nto\n  ${remotepath}\nmime\n  ${mimetype}\n\n"
+
+  # We do separate uploads for each file to get the mimetype right. Zipping is
+  # handled by "-Z" which also sets Cache-Control to `public;no-transform`.
+  gsutil \
+    -h "Content-Type:${mimetype}" \
+    -h "Cache-Control:public" \
+    cp \
+      -Z \
+      -n \
+      "${localpath}" \
+      "${BUCKET}/${remotepath}" \
+      &
+}
+
+function uploadHashed {
+  local file="$1"
+  local basefile="${file//$PREFIX_TO_REMOVE}"
+  local filehash
   filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' backend/static/etags.json)"
-  hashed_file="${file%.*}-${filehash}.${basefile##*.}"
+  local hashed_file="${basefile%.*}-${filehash}.${basefile##*.}"
 
-  # No .gz extension because gcloud cloud cdn doesn't want that
-  gzip -c "${file}" > "gzipped_assets/${hashed_file//$PREFIX_TO_REMOVE}"
+  upload "${file}" "${hashed_file}"
 }
 
-function copyUnhashed {
-  file=$1
-  basefile="${file//$PREFIX_TO_REMOVE}"
-  mkdir -p "gzipped_assets/$(dirname "${basefile}")"
+function uploadUnhashed {
+  local file=$1
+  local basefile="${file//$PREFIX_TO_REMOVE}"
 
-  # No .gz extension because gcloud cloud cdn doesn't want that
-  gzip -c "${file}" > "gzipped_assets/${file//$PREFIX_TO_REMOVE}"
+  upload "${file}" "${basefile}"
 }
 
-# We're not hashing the files in backend/static/vendor
-for file in $(find backend/static -type f -and -not -name "*.gz"); do
-  echo -e "\n\n\n$file"
-  if [[ "${file}" == "backend/static/vendor/"* ]]; then
-    copyUnhashed "${file}"
+function skipFile {
+  local file=$1
+  if [[ "${file}" == "backend/static/.gitkeep" ]]; then
+    return 0
   elif [[ "${file}" == "backend/static/etags.json" ]]; then
-    echo "skipping etags"
+    return 0
   else
-    copyHashed "${file}"
+    return 1
+  fi
+}
+
+files=$(find backend/static -type f -and -not -name "*.gz")
+
+echo "Checking mime types"
+for file in $files; do
+  if skipFile "$file"; then
+    : # do nothing
+  else
+    mimeTypeFor "$file"
   fi
 done
 
-(
-  cd gzipped_assets
-  find .
+echo "Uploading"
 
-  # -m parallelizes upload
-  # -n no-clobber - we don't need upload assets already there
-  # -r recursive
-  gsutil -m \
-      -h 'Content-Encoding: gzip' \
-      -h 'Cache-Control:public' \
-      cp -n -r . gs://darklang-static-assets
-)
+# Upload in parallel
+for file in $files ; do
+  if skipFile "$file"; then
+    echo "skipping $file"
+  elif [[ "${file}" == "backend/static/vendor/"* ]]; then
+    uploadUnhashed "${file}"
+  else
+    uploadHashed "${file}"
+  fi
+done
 
-rm -r gzipped_assets
+# Wait for uploads to be done
+wait
+echo "Done!"
