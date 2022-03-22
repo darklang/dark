@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PREFIX_TO_REMOVE="backend/static/"
-BUCKET="gs://darklang-static-assets-test"
+BUCKET="gs://darklang-static-assets"
 
 # for debugging in CI
 # find backend/static
