@@ -41,8 +41,10 @@ function upload {
   mimetype="$(mimeTypeFor ${localpath})"
   # echo -e "copy\n  ${localpath}\nto\n  ${remotepath}\nmime\n  ${mimetype}\n\n"
 
-  # We do separate uploads for each file to get the mimetype right. Zipping is
-  # handled by "-Z" which also sets Cache-Control to `public;no-transform`.
+  # We do separate uploads for each file to get the mimetype right
+  # -h: set header
+  # -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
+  # -n: Don't overwrite
   gsutil \
     -h "Content-Type:${mimetype}" \
     -h "Cache-Control:public" \
