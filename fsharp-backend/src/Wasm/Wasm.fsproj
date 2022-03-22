@@ -12,7 +12,7 @@
     <!-- <PublishTrimmed>false</PublishTrimmed> -->
     <!-- <EmccCompileOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccCompileOptimizationFlag> -->
     <!-- <EmccLinkOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccLinkOptimizationFlag> -->
-    <!-- <BlazorEnableCompression>false</BlazorEnableCompression> -->
+    <BlazorEnableCompression>false</BlazorEnableCompression>
     <!-- <WasmNativeStrip>false</WasmNativeStrip> -->
     <!-- <WasmLinkIcalls>true</WasmLinkIcalls> -->
     <!-- <WasmDebugLevel>1</WasmDebugLevel> -->
