@@ -32,15 +32,6 @@ type FunctionMetadata =
     is_supported_in_query : bool }
 
 
-// CLEANUP not needed anymore
-let fsharpOnlyFns : Lazy<Set<string>> =
-  lazy
-    ([] // LibExecutionStdLib.LibMiddleware.fns
-     |> List.map (fun (fn : RT.BuiltInFn) ->
-       RT.FQFnName.StdlibFnName.toString fn.name)
-     |> Set)
-
-
 let typToApiString (typ : RT.DType) : string =
   match typ with
   | RT.TVariable _ -> "Any"
@@ -95,33 +86,23 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
 
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
-  |> List.filter (fun fn ->
-    not (
-      Set.contains
-        (RT.FQFnName.StdlibFnName.toString fn.name)
-        (Lazy.force fsharpOnlyFns)
-    ))
   |> List.map convertFn
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize
 
-let adminFunctions : Lazy<string> =
-  lazy
-    (LibRealExecution.RealExecution.stdlibFns.Force()
-     |> Map.values
-     |> functionsToString)
+let adminFunctions : string =
+  LibRealExecution.RealExecution.stdlibFns |> Map.values |> functionsToString
 
-let nonAdminFunctions : Lazy<string> =
-  lazy
-    (LibRealExecution.RealExecution.stdlibFns.Force()
-     |> Map.values
-     |> List.filter (function
-       | { name = { module_ = "DarkInternal" } } -> false
-       | _ -> true)
-     |> functionsToString)
+let nonAdminFunctions : string =
+  LibRealExecution.RealExecution.stdlibFns
+  |> Map.values
+  |> List.filter (function
+    | { name = { module_ = "DarkInternal" } } -> false
+    | _ -> true)
+  |> functionsToString
 
 /// Returns a list of all standard library Functions
 ///
 /// Depending on `includeAdminFns` flag, may exclude Dark admin-only fns
-let functions (includeAdminFns : bool) : Lazy<string> =
+let functions (includeAdminFns : bool) : string =
   if includeAdminFns then adminFunctions else nonAdminFunctions

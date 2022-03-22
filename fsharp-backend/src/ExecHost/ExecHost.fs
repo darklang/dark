@@ -80,46 +80,80 @@ let help () : unit =
   |> List.join "\n"
   |> print
 
-let run (executionID : ExecutionID) (args : string []) : Task<int> =
+type Options =
+  | EmergencyLogin of string
+  | MigrationList
+  | MigrationsRun
+  | TriggerRollbar
+  | TriggerPagingRollbar
+  | ConvertPackages
+  | InvalidUsage
+  | Help
+
+let parse (args : string []) : Options =
+  match args with
+  | [| "emergency-login"; username |] -> EmergencyLogin username
+  | [| "migrations"; "list" |] -> MigrationList
+  | [| "migrations"; "run" |] -> MigrationsRun
+  | [| "trigger-rollbar" |] -> TriggerRollbar
+  | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
+  | [| "convert-packages" |] -> ConvertPackages
+  | [| "help" |] -> Help
+  | _ -> InvalidUsage
+
+let usesDB (options : Options) =
+  match options with
+  | EmergencyLogin _
+  | MigrationList
+  | MigrationsRun
+  | ConvertPackages -> true
+  | TriggerRollbar
+  | TriggerPagingRollbar
+  | InvalidUsage
+  | Help -> false
+
+
+
+let run (executionID : ExecutionID) (options : Options) : Task<int> =
   task {
     // Track calls to this
     use _ = Telemetry.createRoot "ExecHost run"
-    Telemetry.addTags [ "args", args ]
-    Rollbar.notify executionID "execHost called" [ "args", String.concat "," args ]
+    Telemetry.addTags [ "options", options ]
+    Rollbar.notify executionID "execHost called" [ "options", string options ]
 
-    match args with
+    match options with
 
-    | [| "emergency-login"; username |] ->
+    | EmergencyLogin username ->
       Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
       do! emergencyLogin username
       return 0
 
-    | [| "migrations"; "list" |] ->
+    | MigrationList ->
       listMigrations executionID
       return 0
 
-    | [| "migrations"; "run" |] ->
+    | MigrationsRun ->
       runMigrations executionID
       return 0
 
-    | [| "trigger-rollbar" |] ->
+    | TriggerRollbar ->
       triggerRollbar executionID
       // The async operations go in a queue, and I don't know how to block until
       // the queue is empty.
       do! Task.Delay 5000
       return 0
 
-    | [| "trigger-paging-rollbar" |] -> return triggerPagingRollbar ()
+    | TriggerPagingRollbar -> return triggerPagingRollbar ()
 
-    | [| "convert-packages" |] ->
+    | ConvertPackages ->
       do! LibBackend.PackageManager.convertPackagesToFSharpBinary ()
       return 0
 
-    | [| "help" |] ->
+    | Help ->
       help ()
       return 0
 
-    | _ ->
+    | InvalidUsage ->
       print "Invalid usage!!\n"
       help ()
       return 1
@@ -128,11 +162,14 @@ let run (executionID : ExecutionID) (args : string []) : Task<int> =
 [<EntryPoint>]
 let main (args : string []) : int =
   try
-    LibService.Init.init "ExecHost"
-    Telemetry.Console.loadTelemetry "ExecHost" Telemetry.TraceDBQueries
+    let name = "ExecHost"
+    LibService.Init.init name
+    Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
+    let options = parse args
+    if usesDB options then
+      (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let executionID = Telemetry.executionID ()
-    (LibBackend.Init.init "ExecHost" false).Result
-    (run executionID args).Result
+    (run executionID options).Result
   with
   | e ->
     // Don't reraise or report as ExecHost is only run interactively

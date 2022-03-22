@@ -18,16 +18,14 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let stdlibFns : Lazy<Map<RT.FQFnName.T, RT.BuiltInFn>> =
-  lazy
-    (Lazy.force LibExecutionStdLib.StdLib.fns
-     @ Lazy.force BackendOnlyStdLib.StdLib.fns
-     |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
+let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
+  LibExecutionStdLib.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
+  |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
   lazy
     (task {
-      let! packages = Lazy.force PackageManager.cachedForAPI
+      let! packages = PackageManager.allFunctions ()
 
       return
         packages
@@ -41,7 +39,6 @@ let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     (task {
       let! packageFns = Lazy.force packageFns
-      let stdlibFns = Lazy.force stdlibFns
       // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
@@ -101,4 +98,11 @@ let createState
         tlid
         program,
        touchedTLIDs)
+  }
+
+/// Ensure library is ready to be called. Throws if it cannot initialize.
+let init () : Task<unit> =
+  task {
+    let! (_ : RT.Libraries) = Lazy.force libraries
+    return ()
   }

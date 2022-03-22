@@ -326,17 +326,13 @@ let checkOplists (meta : Canvas.Meta) (tlids : List<tlid>) =
 
 [<EntryPoint>]
 let main args =
-  LibService.Init.init "Tests"
-  LibExecution.Init.init "Tests"
-  LibExecutionStdLib.Init.init "Tests"
-  (LibBackend.Init.init "Tests" true).Result
-  LibRealExecution.Init.init "Tests"
-  HttpMiddleware.Init.init "Tests"
-  TestUtils.Init.init "Tests"
-
+  let name = "DataTests"
+  LibService.Init.init name
   LibService.Telemetry.Console.loadTelemetry
     "DataTests"
     LibService.Telemetry.DontTraceDBQueries
+  (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+  (LibRealExecution.Init.init name).Result
 
   let fn (canvasName : CanvasName.T) : Task<unit> =
     task {

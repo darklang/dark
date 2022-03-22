@@ -30,31 +30,22 @@ let run () : Task<unit> =
 [<EntryPoint>]
 let main _ : int =
   try
+    let name = "CronChecker"
     print "Starting CronChecker"
-    LibService.Init.init "CronChecker"
-    LibExecution.Init.init "CronChecker"
-    LibExecutionStdLib.Init.init "CronChecker"
-    (LibBackend.Init.init "CronChecker" false).Result
-    LibRealExecution.Init.init "CronChecker"
-
-    Telemetry.Console.loadTelemetry "CronChecker" Telemetry.DontTraceDBQueries
+    LibService.Init.init name
+    Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    (LibRealExecution.Init.init name).Result
 
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "Shutting down" []
       shouldShutdown.Value <- true
 
-    LibService.Kubernetes.runKubernetesServer
-      "CronChecker"
-      []
-      LibService.Config.croncheckerKubernetesPort
-      shutdownCallback
+    // Set up healthchecks and shutdown with k8s
+    let port = LibService.Config.croncheckerKubernetesPort
+    LibService.Kubernetes.runKubernetesServer name [] port shutdownCallback
     |> ignore<Task>
-
-
-    // Don't start until the DB is available. Otherwise we'll just spin off
-    // exceptions in a loop.
-    LibBackend.Init.waitForDB().Result
 
     if LibBackend.Config.triggerCrons then
       (run ()).Result

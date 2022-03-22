@@ -16,7 +16,6 @@
     <Compile Include="RequestV0.fs" />
     <Compile Include="ResponseV0.fs" />
     <Compile Include="MiddlewareV0.fs" />
-    <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

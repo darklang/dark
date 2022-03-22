@@ -33,7 +33,7 @@ let legacyServerCheck : LibService.Kubernetes.HealthCheck =
 
 
 
-let waitForDB () : Task<unit> =
+let _waitForDB () : Task<unit> =
   task {
     use (span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"
     let mutable success = false
@@ -55,9 +55,18 @@ let waitForDB () : Task<unit> =
     return ()
   }
 
+type WaitForDB =
+  | WaitForDB
+  | DontWaitForDB
 
-
-let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
+/// <summary>Initialize LibBackend.</summary>
+///
+/// <remarks> This function does not do any behaviour which accesses DB tables and
+/// data, as the DB might not be migrated to it's correct form at this point (eg in
+/// the test of dev environment). This is called by ExecHost, which does the
+/// migration. You cannot expect the DB to be ready when LibBackend is initialized -
+/// call `waitForDB` if you need that.</remarks>
+let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend in {serviceName}"
     Db.init ()
@@ -70,7 +79,9 @@ let init (serviceName : string) (runSideEffects : bool) : Task<unit> =
       EventQueue.WorkerStates.STJJsonConverter.WorkerStateConverter()
     )
 
-    if runSideEffects then do! Account.init serviceName
+    match shouldWaitForDB with
+    | WaitForDB -> do! _waitForDB ()
+    | DontWaitForDB -> ()
 
     print $" Inited LibBackend in {serviceName}"
   }

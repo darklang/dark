@@ -2,8 +2,7 @@
 
 ## File layout
 
-- Every file should start with a comment describing it (this is currently not done
-  very much at all).
+- Every file should start with a comment describing it.
 
 - all files have a formatter, which should be setup automatically in VSCode. Use
   `scripts/format format` to format otherwise. Unformatted files fail in CI.
@@ -34,10 +33,10 @@
 
 - use `print` instead of `Console.WriteLine` or similar, the latter deadlocks
 
-- ensure that `try` do not have a `uply` in the body unless you know what you are
-  doing and provide a comment. Typically, the `uply` should be on the outside, which
-  causes the compiler to compile the `try` into a version which supports Tasks.
-  Otherwise, it won't catch an exception thrown within the `uply`.
+- ensure that `try` do not have a `uply`/`task` in the body unless you know what you
+  are doing and provide a comment. Typically, the `uply`/`task` should be on the
+  outside, which causes the compiler to compile the `try` into a version which supports
+  Tasks. Otherwise, it won't catch an exception thrown within the `uply`/`task`.
 
 - you can only use Tasks (aka `Ply`) once. Using it a second time is undefined.
 
@@ -46,12 +45,36 @@
 - For file header comments, use `///` and add them to the first line of the file
   before the module declaration
 
-## SQL
+### SQL migrations
 
 - add `set statement_timeout = '1s'` or `set lock_timeout = '1s'` to the first line
   of your script, so that it fails instead of taking the service down.
 
-### Creating types
+- migrations are run manually before deployment (using `ExecHost migrations run`)
+
+### Initialization
+
+- initialization code should be in a function called `init` in a file called `Init.fs`
+
+- Library initialization code can rely on the DB but the services (eg ApiServer) must
+  ensure to call them in the right order to ensure the DB is available and in the right
+  shape (as migrations will not necessarily have run in tests at that point).
+
+- Do not block in library initialization code, instead return `Lazy` or `Task`, and
+  let the service resolve it.
+
+- remove unused `Init.fs` files - they create cognitive load
+
+### Types
+
+- Avoid using bools for function parameters to configure. Instead use a type with two
+  cases. Do match on the type to ensure
+
+- Unless impossible or impractical to do so, avoid using wildcards in pattern
+  matches. When changing a type we would like the compiler to tell us everywhere that
+  has to be changed.
+
+#### Creating types
 
 When creating a type:
 

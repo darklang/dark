@@ -259,7 +259,7 @@ let libraries : Lazy<RT.Libraries> =
     (let testFns =
       LibTest.fns
       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-      |> Map.mergeFavoringLeft (Lazy.force LibRealExecution.RealExecution.stdlibFns)
+      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
      { stdlib = testFns; packageFns = Map.empty })
 
 let executionStateFor

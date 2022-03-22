@@ -389,15 +389,13 @@ type Generator =
           gen {
             let fns =
               LibRealExecution.RealExecution.stdlibFns
-              |> Lazy.force
               |> Map.values
               |> List.filter (fun fn ->
                 let name = RT.FQFnName.StdlibFnName.toString fn.name
                 let has set = Set.contains name set
                 let different = has allowedErrors.knownDifferingFunctions
-                let fsOnly = has (ApiServer.Functions.fsharpOnlyFns.Force())
 
-                if different || fsOnly then
+                if different then
                   false
                 elif allowedErrors.functionToTest = None then
                   // FSTODO: Add JWT and X509 functions here

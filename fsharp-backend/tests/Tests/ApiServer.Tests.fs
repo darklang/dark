@@ -285,16 +285,6 @@ let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
 
     Expect.equal fc oc ""
 
-    let fns = LibRealExecution.RealExecution.stdlibFns |> Lazy.force
-
-    let builtins =
-      fns
-      |> Map.values
-      |> List.filter (fun fn ->
-        Functions.fsharpOnlyFns |> Lazy.force |> Set.contains (string fn.name) |> not)
-      |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
-      |> Set
-
     List.iter2
       (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
       fcfns

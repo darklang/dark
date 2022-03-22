@@ -412,13 +412,11 @@ let initAdmins () : Task<unit> =
     return ()
   }
 
-let init (serviceName : string) : Task<unit> =
+/// Initialize accounts needed for development and testing
+let initializeDevelopmentAccounts (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend.Account in {serviceName}"
-    if Config.createAccounts then
-      do! initTestAccounts ()
-      do! initAdmins ()
-      return ()
-    else
-      return ()
+    do! initTestAccounts ()
+    do! initAdmins ()
+    return ()
   }
