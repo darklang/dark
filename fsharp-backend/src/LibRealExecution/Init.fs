@@ -11,4 +11,5 @@ let init (serviceName : string) : Task<unit> =
     print $"Initing LibRealExecution in {serviceName}"
     do! RealExecution.init ()
     print $" Inited LibRealExecution in {serviceName}"
+    return ()
   }
