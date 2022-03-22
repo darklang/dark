@@ -3,6 +3,40 @@
 
 Bytes.length_v0 (String.toBytes_v0 "abcdef") = 6
 
+Bytes.base64Decode_v0 "random string" = Error "Not a valid base64 string" // FSHARPONLY
+Bytes.base64Decode_v0 "illegal chars&@:" = Error "Not a valid base64 string" // FSHARPONLY
+Bytes.base64Decode_v0 "Kw" = Ok(String.toBytes_v0 "+") // FSHARPONLY
+Bytes.base64Decode_v0 "yLo" = Ok(String.toBytes_v0 "Ⱥ") // FSHARPONLY
+Bytes.base64Decode_v0 "xbzDs8WCdw" = Ok(String.toBytes_v0 "żółw") // FSHARPONLY
+Bytes.base64Decode_v0 "LyotKygmQDk4NTIx" = Ok(String.toBytes_v0 "/*-+(&@98521") // FSHARPONLY
+// empty case
+Bytes.base64Decode_v0 "" = Ok(String.toBytes_v0 "") // FSHARPONLY
+// Test cases from the spec with padding added
+Bytes.base64Decode_v0 "Zg" = Ok(String.toBytes_v0 "f") // FSHARPONLY
+Bytes.base64Decode_v0 "Zg==" = Ok(String.toBytes_v0 "f") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm8" = Ok(String.toBytes_v0 "fo") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm8=" = Ok(String.toBytes_v0 "fo") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9v" = Ok(String.toBytes_v0 "foo") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9vYg" = Ok(String.toBytes_v0 "foob") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9vYg==" = Ok(String.toBytes_v0 "foob") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9vYmE" = Ok(String.toBytes_v0 "fooba") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9vYmE=" = Ok(String.toBytes_v0 "fooba") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9vYmFy" = Ok(String.toBytes_v0 "foobar") // FSHARPONLY
+// "Impossible cases" from apache
+// https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
+Bytes.base64Decode_v0 "ZE==" = Ok(String.toBytes_v0 "d") // FSHARPONLY
+Bytes.base64Decode_v0 "ZmC=" = Ok(String.toBytes_v0 "f`") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9vYE==" = Ok(String.toBytes_v0 "foo`") // FSHARPONLY
+Bytes.base64Decode_v0 "Zm9vYmC=" = Ok(String.toBytes_v0 "foob`") // FSHARPONLY
+Bytes.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = Ok(String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"") // FSHARPONLY
+Bytes.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = Ok(String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") // FSHARPONLY
+// These produce strings of bytes which are technically legal it seems
+Bytes.base64Decode_v0 "-p" = Ok(Test.asBytes_v0 [ 250 ]) // FSHARPONLY
+Bytes.base64Decode_v0 "lI" = Ok(Test.asBytes_v0 [ 148 ]) // FSHARPONLY
+Bytes.base64Decode_v0 "5Sk" = Ok(Test.asBytes_v0 [ 229; 41 ]) // FSHARPONLY
+Bytes.base64Decode_v0 "AA" = Ok(Test.asBytes_v0 [ 0 ]) // FSHARPONLY
+Bytes.base64Decode_v0 "_w" = Ok(Test.asBytes_v0 [ 255 ]) // FSHARPONLY
+
 Bytes.base64Encode_v0 (String.toBytes_v0 "abcdef") = "YWJjZGVm"
 Bytes.base64Encode_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
 Bytes.base64Encode_v0 (String.toBytes_v0 "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"

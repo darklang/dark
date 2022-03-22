@@ -231,4 +231,23 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "asBytes" 0
+      parameters = [ Param.make "list" (TList TInt) "" ]
+      returnType = TBytes
+      description = "Turns a list of ints into bytes"
+      fn =
+        (function
+        | _, [ DList l ] ->
+          l
+          |> List.map (fun x ->
+            match x with
+            | DInt x -> byte x
+            | _ -> incorrectArgs ())
+          |> Array.ofList
+          |> DBytes
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
