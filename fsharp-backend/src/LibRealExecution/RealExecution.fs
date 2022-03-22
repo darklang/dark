@@ -60,6 +60,7 @@ let createState
 
     // Any real execution needs to track the touched TLIDs in order to send traces to pusher
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
+    HashSet.add tlid touchedTLIDs
 
     let tracing =
       { Exe.noTracing RT.Real with

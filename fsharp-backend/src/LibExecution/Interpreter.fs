@@ -776,11 +776,9 @@ and execFn
           state.notify state "fakedval found" [ "dval", dv ]
           return dv
         | :? DeveloperException as e ->
-          printfn "DevExn"
-          state.notify state "fakedval found" [ "dval", DStr "test" ]
+          state.notify state "Developer error found" [ "error", e.Message ]
           return Dval.errSStr sourceID e.Message
         | e ->
-          printfn "Unhandled thing %A" e
           // CLEANUP could we show the user the execution id here?
           state.reportException
             state
