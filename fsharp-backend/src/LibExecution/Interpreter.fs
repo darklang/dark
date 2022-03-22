@@ -785,7 +785,7 @@ and execFn
               "callerID", id
               "isInPipe", isInPipe
               "error", e.Message ]
-          return Dval.errSStr sourceID e.Message
+          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
         | e ->
           // CLEANUP could we show the user the execution id here?
           state.reportException
