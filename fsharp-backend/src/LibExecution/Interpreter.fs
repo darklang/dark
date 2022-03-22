@@ -778,7 +778,7 @@ and execFn
         | :? DeveloperException as e ->
           state.notify
             state
-            $"Developer error found against {fnDesc}"
+            $"DevException against {fnDesc}"
             [ "context", "An exception was caught in fncall"
               "fn", fnDesc
               "args", args
