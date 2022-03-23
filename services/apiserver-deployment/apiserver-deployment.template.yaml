@@ -350,8 +350,8 @@ spec:
         # Nginx inbound-proxy container
         #########################
         - name: http-proxy
-          # latest as of Jan 25, 2022. Probably 1.20
-          image: "nginxinc/nginx-unprivileged@sha256:dc6c6c3052ec07e73ad87d8bcb30f23a9f95f6af3a50925eae334097450ec358"
+          # 1.21.6
+          image: "nginxinc/nginx-unprivileged@sha256:a095510287e1f1f08ff3d9cda2b10457f48ca6d0454f5346d289a50773abb8de"
           ports:
             - name: http-proxy-port
               containerPort: 9000
