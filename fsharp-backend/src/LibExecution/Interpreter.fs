@@ -7,6 +7,7 @@ open FSharp.Control.Tasks.Affine.Unsafe
 
 open Prelude
 open RuntimeTypes
+open Prelude
 
 let globalsFor (state : ExecutionState) : Symtable =
   let secrets =
@@ -605,7 +606,7 @@ and execFn
        && not state.onExecutionPath
        && Set.contains fnDesc state.callstack then
       // Don't recurse (including transitively!) when previewing unexecuted paths
-      // in the editor. If we do, we'll recurse forever and blow the stack. *)
+      // in the editor. If we do, we'll recurse forever and blow the stack.
       return DIncomplete(SourceID(state.tlid, id))
     else
       // CLEANUP: optimization opp
@@ -638,10 +639,10 @@ and execFn
           arglist
 
       match badArg, isInPipe with
-      | Some (DIncomplete src), InPipe _ ->
+      | Some (DIncomplete _src), InPipe _ ->
         // That is, unless it's an incomplete in a pipe. In a pipe, we treat
         // the entire expression as a blank, and skip it, returning the input
-        // (first) value to be piped into the next statement instead. *)
+        // (first) value to be piped into the next statement instead.
         return List.head arglist
       | Some (DIncomplete src), _ -> return DIncomplete src
       | Some (DError (src, _) as err), _ ->
@@ -664,7 +665,7 @@ and execFn
                 do! state.tracing.storeFnResult fnRecord arglist result
 
               return result
-          | PackageFunction (tlid, body) ->
+          | PackageFunction (_tlid, body) ->
             // This is similar to InProcess but also has elements of UserCreated.
             match TypeChecker.checkFunctionCall Map.empty fn args with
             | Ok () ->
@@ -697,7 +698,7 @@ and execFn
                       |> Dval.unwrapFromErrorRail
                       |> typeErrorOrValue Map.empty
                   }
-              // there's no point storing data we'll never ask for *)
+              // there's no point storing data we'll never ask for
               if fn.previewable <> Pure then
                 do! state.tracing.storeFnResult fnRecord arglist result
 
@@ -774,6 +775,17 @@ and execFn
         | Errors.StdlibException (Errors.FakeDvalFound dv) ->
           state.notify state "fakedval found" [ "dval", dv ]
           return dv
+        | :? DeveloperException as e ->
+          state.notify
+            state
+            $"DevException against {fnDesc}"
+            [ "context", "An exception was caught in fncall"
+              "fn", fnDesc
+              "args", args
+              "callerID", id
+              "isInPipe", isInPipe
+              "error", e.Message ]
+          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
         | e ->
           // CLEANUP could we show the user the execution id here?
           state.reportException
