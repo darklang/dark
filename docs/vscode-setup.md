@@ -36,6 +36,7 @@ by doing a full build of dotnet from the VSCode terminal and then restarting
 VSCode:
 
 - open the terminal from within VSCode
+- cd to `fsharp-backend`
 - run `dotnet tool restore`
 - run `dotnet paket restore`
 - run `dotnet build`
