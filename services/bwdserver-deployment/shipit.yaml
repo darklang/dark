@@ -19,7 +19,7 @@ k8s:
     config-template: bwdserver-deployment.template.yaml
     versioned-configmaps:
       bwdserver-nginx-base-conf:
-        text-file: ../../containers/ocaml-nginx/base-nginx.conf
+        text-file: ../../containers/base-fsharp-nginx.conf
         namespace: default
       bwdserver-nginx-conf:
         text-file: nginx.conf
