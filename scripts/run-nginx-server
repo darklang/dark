@@ -52,7 +52,7 @@ setup() {
 setup_test() {
   name=$1
   source=$2
-  config_file=$2
+  config_file=$3
   listen_port=$4
   new_listen_port=$5
   upstream_port=$6
