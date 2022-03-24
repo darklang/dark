@@ -1,5 +1,5 @@
 /// Generators and FuzzTests to ensure consistent behaviour
-/// of Runtime DVals across OCaml and F# backends
+/// of Runtime Dvals across OCaml and F# backends
 module FuzzTests.DvalRepr
 
 open Expecto
