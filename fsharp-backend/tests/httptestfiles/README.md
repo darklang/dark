@@ -68,6 +68,11 @@ The response is expected to be perfect down to the byte. However, JSON
 responses are not necessarily identical as the F# server gives slightly
 different JSON to the OCaml server. JSON is parsed and compared.
 
+It may be a struggle to edit these files, since automatic changes made by text
+editors can change the contents, for example stripping \r characters, or adding or
+removing newlines. To get around this, you can use a hex editor, or `vim -b` with
+`noeol` set.
+
 # Adjusting for minor differences
 
 ## Json responses
