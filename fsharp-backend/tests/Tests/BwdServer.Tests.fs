@@ -61,7 +61,7 @@ let findIndex (pattern : 'a list) (list : 'a list) : int option =
   else
     let mutable i = 0
     let mutable result = None
-    while result = None && i < list.Length - pattern.Length do
+    while result = None && i <= list.Length - pattern.Length do
       let mutable matches = true
       let mutable j = 0
       while matches && j < pattern.Length do
