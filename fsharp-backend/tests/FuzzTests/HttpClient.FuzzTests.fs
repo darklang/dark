@@ -48,7 +48,7 @@ let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
 
   DvalReprExternal.toUrlString dv .=. (OCamlInterop.toUrlString dv).Result
 
-/// Checks that a DVal is consistently converted
+/// Checks that a Dval is consistently converted
 /// to a querystring-safe string across OCaml and F# backends
 let dvalToQuery (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
