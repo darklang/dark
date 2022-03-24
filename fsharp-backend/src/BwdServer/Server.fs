@@ -93,8 +93,16 @@ let getBody (ctx : HttpContext) : Task<byte array> =
         do! ctx.Request.Body.CopyToAsync(ms)
         return ms.ToArray()
     with
-    // If the body can't be read, its the granduser's fault
-    | e -> return Exception.raiseGrandUser $"Invalid request body: {e.Message}"
+    | e ->
+      // Let's try to get a good error message to the user, but don't include .NET specific hints
+      let tooSlowlyMessage =
+        "Reading the request body timed out due to data arriving too slowly"
+      let message =
+        if String.startsWith tooSlowlyMessage e.Message then
+          tooSlowlyMessage
+        else
+          e.Message
+      return Exception.raiseGrandUser $"Invalid request body: {message}"
   }
 
 

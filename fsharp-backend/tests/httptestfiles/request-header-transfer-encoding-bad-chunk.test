@@ -26,4 +26,5 @@ Connection: keep-alive // OCAMLONLY
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Content-Length: LENGTH
 
-Invalid json: MozillaDeveloperNetwork
+Invalid json: MozillaDeveloperNetwork // OCAMLONLY
+Invalid request body: Bad chunk suffix.// FSHARPONLY
