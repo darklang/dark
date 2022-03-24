@@ -275,7 +275,7 @@ let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
         )
         .Replace(
           $"builtwithdark.localhost:{port}",
-          $"builtwithdark.localhost:{LibService.Config.bwdServerNginxPort}"
+          $"builtwithdark.localhost:{LibService.Config.bwdServerPort}"
         )
         // get the rest
         .Replace(
@@ -622,7 +622,7 @@ let testDelete404s (client : C) (canvasName : CanvasName.T) =
         let port =
           match server with
           | OCaml -> 8000
-          | FSharp -> LibService.Config.bwdServerNginxPort
+          | FSharp -> LibService.Config.bwdServerPort
         let url = $"http://{canvasName}.builtwithdark.localhost:{port}{path}"
         use message = new HttpRequestMessage(HttpMethod.Get, url)
         let! result = client.http.SendAsync(message)

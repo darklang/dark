@@ -280,7 +280,7 @@ let t filename =
         let port =
           match server with
           | OCaml -> TestConfig.ocamlServerNginxPort
-          | FSharp -> TestConfig.bwdServerNginxPort
+          | FSharp -> TestConfig.bwdServerBackendPort
 
         let mutable connected = false
 
