@@ -1,3 +1,5 @@
+/// Generators and FuzzTests ensuring consistent
+/// behaviour across F# and OCaml backends
 module FuzzTests.OCamlInterop
 
 open Expecto
@@ -20,8 +22,6 @@ module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
 module G = Generators
-
-let tpwg = testPropertyWithGenerator
 
 open LibExecution.OCamlTypes.Convert
 open OCamlInterop
@@ -60,26 +60,27 @@ let isInteroperable
       false
   with
   | e ->
-    print $"Cause exception while fuzzing {e}"
+    print $"Exception while fuzzing {e}"
     reraise ()
 
 type Generator =
+  static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
   static member Expr() =
     Arb.Default.Derive()
     |> Arb.filter (function
-      // characters are not yet supported in OCaml
+      // characters are not supported in OCaml
+      // CLEANUP can be removed once OCaml gone
       | PT.ECharacter _ -> false
       | _ -> true)
 
   static member Pattern() =
     Arb.Default.Derive()
     |> Arb.filter (function
-      // characters are not yet supported in OCaml
+      // characters are not supported in OCaml
+      // CLEANUP can be removed once OCaml gone
       | PT.PCharacter _ -> false
       | _ -> true)
-
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
-
 
 let yojsonExprRoundtrip (a : PT.Expr) : bool =
   a
@@ -122,7 +123,7 @@ let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   .=. pair
 
 let tests =
-  let tp f = tpwg typeof<Generator> f
+  let tp f = testPropertyWithGenerator typeof<Generator> f
 
   testList
     "OcamlInterop"
@@ -172,8 +173,11 @@ module Roundtrippable =
   let tests =
     testList
       "roundtrippable"
-      [ tpwg typeof<Generator> "roundtripping works properly" roundtrip
-        tpwg
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "roundtripping works properly"
+          roundtrip
+        testPropertyWithGenerator
           typeof<GeneratorWithBugs>
           "roundtrippable is interoperable"
           isInteroperableV0 ]
@@ -215,7 +219,7 @@ module Queryable =
         (RT.DObj dvm)
 
   let tests =
-    let tp f = tpwg typeof<Generator> f
+    let tp f = testPropertyWithGenerator typeof<Generator> f
 
     testList
       "InternalQueryable"

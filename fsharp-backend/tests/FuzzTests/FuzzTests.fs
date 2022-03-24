@@ -6,14 +6,17 @@ open Prelude
 open Prelude.Tablecloth
 open Tablecloth
 
+/// Tests we know to have some issues to work out
+/// FSTODO resolve these
 let stillBuggy = testList "still buggy" [ OCamlInterop.tests; FQFnName.tests ]
 
+/// Tests we generally know to be consistent
 let knownGood =
   testList
     "known good"
     ([ OCamlInterop.Roundtrippable.tests
        OCamlInterop.Queryable.tests
-       DvalRepr.EndUserReadable.tests
+       DvalRepr.EnduserReadable.tests
        DvalRepr.Hashing.tests
        DvalRepr.DeveloperRepr.tests
        HttpClient.tests
@@ -23,7 +26,7 @@ let knownGood =
        Json.PrettyResponseJson.tests
        Passwords.tests
        BytesToString.tests
-       Date.tests
+       NodaTime.tests
        ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]

@@ -1,4 +1,5 @@
-module FuzzTests.Date
+/// FuzzTests around NodaTime dependency
+module FuzzTests.NodaTime
 
 open Expecto
 open FsCheck
@@ -7,6 +8,9 @@ open Prelude
 open TestUtils.TestUtils
 open FuzzTests.Utils
 
+/// Checks whether a `NodaTime.Instant` can be serialized
+/// and deserialized to/from an ISO String successfully,
+/// maintaining the same value
 let roundtrip (date : NodaTime.Instant) : bool =
   let date = date.truncate ()
   let roundTripped =
@@ -17,4 +21,5 @@ let roundtrip (date : NodaTime.Instant) : bool =
 
   roundTripped = date
 
-let tests = testList "date" [ testProperty "roundtrip" roundtrip ]
+let tests =
+  testList "NodaTime" [ testProperty "roundtrips to/from isoString" roundtrip ]

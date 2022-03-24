@@ -275,7 +275,7 @@ let allRoundtrips =
         "queryable interop v1"
         FuzzTests.OCamlInterop.Queryable.isInteroperableV1
         (dvs DvalReprInternal.isQueryableDval)
-      t "enduserReadable" FuzzTests.DvalRepr.EndUserReadable.equalsOCaml all
+      t "enduserReadable" FuzzTests.DvalRepr.EnduserReadable.equalsOCaml all
       t "developerRepr" FuzzTests.DvalRepr.DeveloperRepr.equalsOCaml all
       t "prettyMachineJson" FuzzTests.Json.PrettyMachineJson.equalsOCaml all ]
 
