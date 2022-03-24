@@ -1,3 +1,4 @@
+/// Generators and FuzzTests around Fully-Qualified Function Names
 module FuzzTests.FQFnName
 
 open Expecto
@@ -14,13 +15,12 @@ module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module G = FuzzTests.Utils.Generators
 
-let tpwg = testPropertyWithGenerator
-
+/// Helper function to generate allowed function name parts
 let nameGenerator (first : char list) (other : char list) : Gen<string> =
   gen {
-    let! length = Gen.choose (0, 20)
+    let! tailLength = Gen.choose (0, 20)
     let! head = Gen.elements first
-    let! tail = Gen.arrayOfLength length (Gen.elements other)
+    let! tail = Gen.arrayOfLength tailLength (Gen.elements other)
     return System.String(Array.append [| head |] tail)
   }
 
@@ -37,7 +37,7 @@ type Generator =
 
   static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
     { new Arbitrary<PT.FQFnName.T>() with
-        member x.Generator =
+        member _.Generator =
           let stdlib =
             gen {
               let! module_ = modName
@@ -69,12 +69,15 @@ type Generator =
 
   static member RTFQFnName() : Arbitrary<RT.FQFnName.T> =
     { new Arbitrary<RT.FQFnName.T>() with
-        member x.Generator =
+        member _.Generator =
           Generator.PTFQFnName().Generator |> Gen.map PT2RT.FQFnName.toRT }
 
+/// ProgramType can roundtrip cleanly to/from RuntimeType
 let ptRoundtrip (a : PT.FQFnName.T) : bool =
   a |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString |> PTParser.FQFnName.parse
   .=. a
 
 let tests =
-  testList "PT.FQFnName" [ tpwg typeof<Generator> "roundtripping" ptRoundtrip ]
+  testList
+    "PT.FQFnName"
+    [ testPropertyWithGenerator typeof<Generator> "roundtripping" ptRoundtrip ]

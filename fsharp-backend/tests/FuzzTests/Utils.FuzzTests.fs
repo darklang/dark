@@ -1,3 +1,4 @@
+/// Utilities useful for writing and running FuzzTests
 module FuzzTests.Utils
 
 open Expecto
@@ -19,6 +20,7 @@ module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
 
+/// Extracts the result from a task
 let result (t : Task<'a>) : 'a = t.Result
 
 let (.=.) actual expected : bool =
@@ -43,17 +45,17 @@ let testProperty (name : string) (x : 'a) : Test =
 let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
   testPropertyWithConfig (baseConfigWithGenerator typ) name x
 
-
+/// Lower-level generators
 module Generators =
-  let nonNullString (s : string) : bool = s <> null
+  /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
+  let safeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
 
-  let safeOCamlString (s : string) : bool =
-    // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
-    s <> null && not (s.Contains('\u0000'))
-
+  /// List of all a..z, A..Z, 0..9, and _ characters
   let alphaNumericString =
-    (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
+    List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
 
+  /// Generates a string that 'normalizes' successfully,
+  /// and is safe for use in OCaml
   let string () =
     let isValid (s : string) : bool =
       try
@@ -71,9 +73,10 @@ module Generators =
     |> Gen.map (fun (UnicodeString s) -> s)
     |> Gen.filter isValid
     // Now that we know it can be normalized, actually normalize it
-    |> Gen.map (fun s -> s.Normalize())
+    |> Gen.map String.normalize
     |> Gen.filter safeOCamlString
 
+  /// Generates an `int` >= 0
   let nonNegativeInt () =
     gen {
       let! (NonNegativeInt i) = Arb.generate<NonNegativeInt>
@@ -85,6 +88,6 @@ module Generators =
     |> Gen.map String.toEgcSeq
     |> Gen.map Seq.toList
     |> Gen.map List.head
-    |> Gen.filter ((<>) None)
+    |> Gen.filter Option.isSome
     |> Gen.map (Option.defaultValue "")
     |> Gen.filter ((<>) "")

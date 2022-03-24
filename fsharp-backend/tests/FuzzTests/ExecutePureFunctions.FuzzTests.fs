@@ -22,8 +22,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module G = Generators
 
-let tpwg = testPropertyWithGenerator
-
+/// Ensure we only work with OCaml-friendly floats
 let filterFloat (f : float) : bool =
   match f with
   | System.Double.PositiveInfinity -> false
@@ -33,27 +32,29 @@ let filterFloat (f : float) : bool =
   | f when f >= 1e+308 -> false
   | _ -> true
 
-let ocamlIntUpperLimit = 4611686018427387903L
-
-let ocamlIntLowerLimit = -4611686018427387904L
-
+/// Ensure we only work with OCaml-friendly integers
 let isValidOCamlInt (i : int64) : bool =
+  let ocamlIntUpperLimit = 4611686018427387903L
+  let ocamlIntLowerLimit = -4611686018427387904L
+
   i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
 
 
-type AllowedFuzzerErrorFileStructure =
-  { functionToTest : Option<string>
-    knownDifferingFunctions : Set<string>
-    knownErrors : List<List<string>> }
+module AllowedFuzzerErrors =
+  type AllowedFuzzerErrorFileStructure =
+    { functionToTest : Option<string>
+      knownDifferingFunctions : Set<string>
+      knownErrors : List<List<string>> }
 
-// Keep a list of allowed errors where we can edit it without recompiling
-let readAllowedErrors () =
-  use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.jsonc"
-  let json = r.ReadToEnd()
+  // Keep a list of allowed errors where we can edit it without recompiling
+  let readAllowedErrors () =
+    use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.jsonc"
+    let json = r.ReadToEnd()
 
-  Json.Vanilla.deserializeWithComments<AllowedFuzzerErrorFileStructure> json
+    Json.Vanilla.deserializeWithComments<AllowedFuzzerErrorFileStructure> json
 
-let allowedErrors = readAllowedErrors ()
+let allowedErrors = AllowedFuzzerErrors.readAllowedErrors ()
+
 
 type Generator =
   static member SafeString() : Arbitrary<string> =
@@ -711,4 +712,4 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
 let tests =
   testList
     "executePureFunctions"
-    [ tpwg typeof<Generator> "equalsOCaml" equalsOCaml ]
+    [ testPropertyWithGenerator typeof<Generator> "equalsOCaml" equalsOCaml ]

@@ -1,3 +1,5 @@
+/// Generators and FuzzTests ensuring `toString` yields
+/// consistent results for `byte`s across OCaml and F# backends
 module FuzzTests.BytesToString
 
 open System.Threading.Tasks
@@ -15,6 +17,8 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 type Generator =
   static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.string ())
 
+/// Checks that `toString` on a `byte[]` produces
+/// the same string for both OCaml and F# runtimes
 let toStringTest (bytes : byte []) : bool =
   let t =
     task {

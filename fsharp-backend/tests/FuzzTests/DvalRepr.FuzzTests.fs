@@ -1,3 +1,5 @@
+/// Generators and FuzzTests to ensure consistent behaviour
+/// of Runtime DVals across OCaml and F# backends
 module FuzzTests.DvalRepr
 
 open Expecto
@@ -14,14 +16,14 @@ module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
 
-let tpwg = testPropertyWithGenerator
-
+/// Ensure text representation of DVals meant to be read by Dark users
+/// is produced consistently across OCaml and F# backends
 module DeveloperRepr =
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.fromGen (Generators.string ())
 
-    // The format here is only used for errors so it doesn't matter all the
+    // The format here is only used for errors so it doesn't matter all that
     // much. These are places where we've manually checked the differing
     // outputs are fine.
 
@@ -30,7 +32,7 @@ module DeveloperRepr =
       |> Arb.filter (function
         | RT.DFnVal _ -> false
         | RT.DFloat 0.0 -> false
-        | RT.DFloat infinity -> false
+        | RT.DFloat infinity -> false // TODO I don't think this is doing what we want it to!!
         | _ -> true)
 
   let equalsOCaml (dv : RT.Dval) : bool =
@@ -38,9 +40,13 @@ module DeveloperRepr =
     .=. (OCamlInterop.toDeveloperRepr dv).Result
 
   let tests =
-    testList "toDeveloperRepr" [ tpwg typeof<Generator> "roundtripping" equalsOCaml ]
+    testList
+      "toDeveloperRepr"
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
 
-module EndUserReadable =
+/// Ensure text representation of DVals meant to be read by "end users"
+/// is produced consistently across OCaml and F# backends
+module EnduserReadable =
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.fromGen (Generators.string ())
@@ -51,7 +57,7 @@ module EndUserReadable =
         | RT.DFnVal _ -> false
         | _ -> true)
 
-  // The format here is used to show users so it has to be exact
+  // The format here is shown to users, so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
     DvalReprExternal.toEnduserReadableTextV0 dv
     .=. (OCamlInterop.toEnduserReadableTextV0 dv).Result
@@ -59,8 +65,9 @@ module EndUserReadable =
   let tests =
     testList
       "toEnduserReadable"
-      [ tpwg typeof<Generator> "roundtripping" equalsOCaml ]
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
 
+/// Ensure hashing of RT DVals is consistent across OCaml and F# backends
 module Hashing =
   type Generator =
     static member SafeString() : Arbitrary<string> =
@@ -91,6 +98,9 @@ module Hashing =
   let tests =
     testList
       "hash"
-      [ tpwg typeof<Generator> "toHashableRepr" equalsOCamlToHashable
-        tpwg typeof<Generator> "hashv0" equalsOCamlV0
-        tpwg typeof<Generator> "hashv1" equalsOCamlV1 ]
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "toHashableRepr"
+          equalsOCamlToHashable
+        testPropertyWithGenerator typeof<Generator> "hashv0" equalsOCamlV0
+        testPropertyWithGenerator typeof<Generator> "hashv1" equalsOCamlV1 ]

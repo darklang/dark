@@ -728,7 +728,6 @@ module String =
   let splitOnNewline (str : string) : List<string> =
     str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
-
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
@@ -1246,6 +1245,7 @@ module Json =
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
+    /// Serialize to JSON
     let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
 
     /// Serialize WITHOUT redacting passwords. Only used for communicating to the
