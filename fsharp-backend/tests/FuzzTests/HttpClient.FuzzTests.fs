@@ -41,7 +41,7 @@ type QueryStringGenerator =
     |> Gen.map (String.concat "&")
     |> Arb.fromGen
 
-/// Checks that a DVal is consistently converted
+/// Checks that a Dval is consistently converted
 /// to a URL-safe string across OCaml and F# backends
 let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
