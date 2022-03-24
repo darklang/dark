@@ -22,7 +22,7 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
 module G = Generators
 
-/// Generators and FuzzTests ensuring Runtime DVals are
+/// Generators and FuzzTests ensuring Runtime Dvals are
 /// consistently pretty-printed for machines (code) across
 /// OCaml and F# backends.
 module PrettyMachineJson =
