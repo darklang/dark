@@ -20,5 +20,6 @@ Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 
 { "h": "myhost.darklang.com",
-  "u": "http://CANVAS.builtwithdark.localhost/"
+  "u": "http://CANVAS.builtwithdark.localhost/" // OCAMLONLY
+  "u": "http://CANVAS.builtwithdark.localhost:10011/" // FSHARPONLY
 }

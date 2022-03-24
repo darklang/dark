@@ -24,7 +24,8 @@ Content-Length: LENGTH
   "connection": "close", // OCAMLONLY
   "content-type": "text/plain",
   "date": "Sun, 08 Nov 2020 15:38:01 GMT",
-  "host": "CANVAS.builtwithdark.localhost",
+  "host": "CANVAS.builtwithdark.localhost", // OCAMLONLY
+  "host": "CANVAS.builtwithdark.localhost:10011", // FSHARPONLY
   "user-agent": "þþÿÿ"
 }
 
