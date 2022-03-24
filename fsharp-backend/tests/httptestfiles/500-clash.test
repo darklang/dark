@@ -16,7 +16,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Length: 61
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY

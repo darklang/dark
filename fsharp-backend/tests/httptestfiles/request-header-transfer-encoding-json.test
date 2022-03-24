@@ -11,7 +11,7 @@ Transfer-encoding: chunked
 7
 { "vali
 9
-d json": 
+d json":
 8
 "yay!" }
 0
@@ -25,7 +25,7 @@ access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 
 {

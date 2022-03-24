@@ -9,7 +9,7 @@ Content-Length: 0
 
 [response]
 HTTP/1.1 404 Not Found
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Length: LENGTH
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
