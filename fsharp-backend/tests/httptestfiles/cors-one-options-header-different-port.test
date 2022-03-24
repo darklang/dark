@@ -1,7 +1,7 @@
 [http-handler POST /]
 "hello post"
 
-[cors http://localhost:11000]
+[cors http://localhost:11001]
 
 [request]
 OPTIONS / HTTP/1.1

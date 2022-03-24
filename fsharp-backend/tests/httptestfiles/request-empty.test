@@ -27,7 +27,6 @@ Content-Length: LENGTH
   "fullBody": "",
   "headers": {
     "connection": "close", // OCAMLONLY
-    "connection": "keep-alive", // FSHARPONLY
     "content-length": "0",
     "content-type": "text/plain",
     "date": "Sun, 08 Nov 2020 15:38:01 GMT",
