@@ -358,7 +358,7 @@ spec:
           volumeMounts:
             - mountPath: /etc/nginx/nginx.conf
               name: apiserver-nginx-base-conf
-              subPath: base-nginx.conf
+              subPath: base-fsharp-nginx.conf
             - mountPath: /etc/nginx/conf.d/
               name: apiserver-nginx-confs
             - mountPath: /var/cache/nginx # security
