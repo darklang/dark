@@ -85,8 +85,6 @@ setup_test() {
 sudo rm -f /etc/nginx/nginx.conf
 setup ocaml containers/ocaml-nginx/ containers/ocaml-nginx/base-nginx.conf
 setup apiserver services/apiserver-deployment/ containers/base-fsharp-nginx.conf
-setup bwdserver services/bwdserver-deployment/ containers/base-fsharp-nginx.conf
 setup_test ocaml containers/ocaml-nginx/ containers/ocaml-nginx/base-nginx.conf 8000 10000 80 10001
 setup_test apiserver services/apiserver-deployment/ containers/base-fsharp-nginx.conf 9000 10020 9001 10021
-setup_test bwdserver services/bwdserver-deployment/ containers/base-fsharp-nginx.conf 11000 10010 11001 10011
 
