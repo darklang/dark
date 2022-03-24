@@ -1,4 +1,5 @@
 [http-handler POST /]
+// It's a valid request but we don't parse it
 { j = request.jsonBody; b = request.body; fb = request.fullBody; f = request.formBody }
 
 [request]

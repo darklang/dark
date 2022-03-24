@@ -125,17 +125,17 @@ let fromRequest
     try
       parseBody headers body
     with
-    | e -> if allowUnparseable then RT.DNull else raise e
+    | _ -> if allowUnparseable then RT.DNull else reraise ()
   let jsonBody =
     try
       parseJsonBody headers body
     with
-    | e -> if allowUnparseable then RT.DNull else raise e
+    | _ -> if allowUnparseable then RT.DNull else reraise ()
   let formBody =
     try
       parseFormBody headers body
     with
-    | e -> if allowUnparseable then RT.DNull else raise e
+    | _ -> if allowUnparseable then RT.DNull else reraise ()
   let parts =
     [ "body", parseBody
       "jsonBody", jsonBody
