@@ -346,71 +346,6 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 20
 
-        #########################
-        # Nginx inbound-proxy container
-        #########################
-        - name: http-proxy
-          # 1.21.6
-          image: "nginxinc/nginx-unprivileged@sha256:a095510287e1f1f08ff3d9cda2b10457f48ca6d0454f5346d289a50773abb8de"
-          ports:
-            - name: http-proxy-port
-              containerPort: 11000
-          volumeMounts:
-            - mountPath: /etc/nginx/nginx.conf
-              name: bwdserver-nginx-base-conf
-              subPath: base-fsharp-nginx.conf
-            - mountPath: /etc/nginx/conf.d/
-              name: bwdserver-nginx-confs
-            - mountPath: /var/cache/nginx # security
-              name: nginx-cache-volume
-            - mountPath: /var/run # security
-              name: nginx-pid-volume
-
-          # ---------------------
-          # Security
-          # ---------------------
-          imagePullPolicy: Always
-          securityContext:
-            # This wouldn't run except as root, needed these settings
-            # See https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
-            privileged: false
-            runAsNonRoot: true
-            runAsGroup: 101 # nginx default
-            runAsUser: 101 # nginx default
-            # It's hard to get nginx to work with this. It needs to write to the
-            # mounted config files, which are mounted as root. Using fsGroup would
-            # allow a different user, but that's a pod setting, not a container one,
-            # and that probably won't work with other containers. There's no settings
-            # on volumeMounts. So the simplest this is just to let this go for now.
-            readOnlyRootFilesystem: false
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-                - NET_RAW
-
-          # ---------------------
-          # Resource limits
-          # ---------------------
-          resources:
-            requests:
-              memory: "20Mi"
-              cpu: "10m"
-            limits:
-              memory: "200Mi"
-              cpu: "100m"
-
-          # ---------------------
-          # Lifecycle probes
-          # ---------------------
-          lifecycle:
-            preStop:
-              exec:
-                # https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/
-                command:
-                  - "/bin/sh"
-                  - "-c"
-                  - "nginx -s quit; while killall -0 nginx; do sleep 1; done"
 
       # ---------------------
       # Pod volume definitions
@@ -420,24 +355,6 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
-
-        # Nginx
-        - name: bwdserver-nginx-confs
-          projected:
-            sources:
-              - configMap:
-                  name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-conf}"
-              - configMap:
-                  name: bwdserver-nginx-override-conf
-        - name: bwdserver-nginx-base-conf
-          configMap:
-            name: "{VERSIONED-CONFIGMAP:bwdserver-nginx-base-conf}"
-        # to allow readOnlyRootFilesystem for nginx
-        # see https://bridgecrew.io/blog/creating-a-secure-kubernetes-nginx-deployment-using-checkov/
-        - name: nginx-cache-volume
-          emptyDir: { }
-        - name: nginx-pid-volume
-          emptyDir: { }
 
         # Main container
         # to allow readOnlyRootFilesystem

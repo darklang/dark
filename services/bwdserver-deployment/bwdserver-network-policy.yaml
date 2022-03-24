@@ -14,6 +14,6 @@ spec:
   ingress:
     - ports:
         - protocol: TCP
-          port: http-proxy-port
+          port: 11001
         - protocol: TCP
           port: 11002
