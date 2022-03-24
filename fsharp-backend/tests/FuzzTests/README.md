@@ -19,7 +19,7 @@ run by developers.
 
 [Expecto](https://github.com/haf/expecto) is used to run tests.
 
-You can trigger test runs by running `./scripts/run-fsharp-tests` within the dev container
+You can trigger test runs by running `./scripts/run-fsharp-fuzzer` within the dev container
 
 (View the project's root README.md for details on how to run within the dev container.)
 
