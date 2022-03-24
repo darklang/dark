@@ -16,7 +16,7 @@ module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
 
-/// Ensure text representation of DVals meant to be read by Dark users
+/// Ensure text representation of Dvals meant to be read by Dark users
 /// is produced consistently across OCaml and F# backends
 module DeveloperRepr =
   type Generator =
