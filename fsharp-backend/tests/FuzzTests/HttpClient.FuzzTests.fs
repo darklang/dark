@@ -55,7 +55,7 @@ let dvalToQuery (l : List<string * RT.Dval>) : bool =
   DvalReprExternal.toQuery dv |> Result.unwrapUnsafe
   .=. (OCamlInterop.dvalToQuery dv).Result
 
-/// Checks that a DVal is consistently converted
+/// Checks that a Dval is consistently converted
 /// to a form-encoding-safe string across OCaml and F# backends
 let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
