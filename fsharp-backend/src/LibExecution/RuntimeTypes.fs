@@ -133,13 +133,17 @@ type Expr =
   | EInteger of id * int64
   | EBool of id * bool
   | EString of id * string
+
+  /// A single Extended Grapheme Cluster
   | ECharacter of id * string
   | EFloat of id * double
   | ENull of id
   | EBlank of id
 
+  /// <summary>
   /// Composed of binding name, the bound expression,
   /// and the expression that follows, where the bound value is available
+  /// </summary>
   ///
   /// <code>
   /// let str = expr1
@@ -153,13 +157,12 @@ type Expr =
   /// Composed of a parameters * the expression itself
   | ELambda of id * List<id * string> * Expr
 
-  /// Composed of:
-  /// - an expression resulting in a value that contains a field
-  /// - the name of the field to acceess
-  ///
-  /// <code>someExpr.fieldName</code>
+  /// Access a field of some expression (e.g. `someExpr.fieldName`)
   | EFieldAccess of id * Expr * string
 
+  /// Reference some local variable by name
+  ///
+  /// i.e. after a `let binding = value`, any use of `value`
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
@@ -167,6 +170,7 @@ type Expr =
 
   | EPartial of id * Expr
 
+  /// Reference a fully-qualified function name
   /// Since functions aren't real values in the symbol table, we look them up directly
   | EFQFnValue of id * FQFnName.T
 
@@ -363,7 +367,11 @@ and DType =
 /// information later, such as the iteration count that led to this, or
 /// something like a stack trace
 and DvalSource =
+  /// Function was either called directly,
+  /// or we do not have context to supply an identifier
   | SourceNone
+
+  /// Caused by an expression of `id` within the given `tlid`
   | SourceID of tlid * id
 
 and Param =
@@ -841,8 +849,17 @@ and FnImpl =
   | UserFunction of tlid * Expr
   | PackageFunction of tlid * Expr
 
+
+// CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
+/// Represents the context in which we're evaluating some code
 and RealOrPreview =
+  /// We are evaluating an expression normally, and it is OK to affect state.
   | Real
+
+  /// We are previewing the evaluation of some expression,
+  /// likely within a Dark canvas for a developer's sake.
+  ///
+  /// No state should be affected by this evaluation.
   | Preview
 
 and FunctionRecord = tlid * FQFnName.T * id
