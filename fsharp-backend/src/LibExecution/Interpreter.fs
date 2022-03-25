@@ -414,7 +414,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   }
 
 /// Interprets an expression and reduces to a Dark value
-/// (or a task that results in a Dark value)
+/// (or a task that results in a dval)
 and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   uply {
     let! (result : Dval) = eval' state st e
