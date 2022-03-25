@@ -308,18 +308,29 @@ let t filename =
           |> replaceByteStrings "CANVAS" canvasName
           |> Http.setHeadersToCRLF
 
-        // Check input LENGTH not set
-        if test.request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH" then
-          Expect.isFalse true "LENGTH substitution not done on request"
-
         // Check body matches content-length
-        let parsedTestRequest = Http.split request
-        let contentLength =
-          parsedTestRequest.headers
-          |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
-        match contentLength with
-        | None -> ()
-        | Some (_, v) -> Expect.equal parsedTestRequest.body.Length (int v) ""
+        let incorrectContentTypeAllowed =
+          test.request
+          |> UTF8.ofBytesWithReplacement
+          |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
+
+        if not incorrectContentTypeAllowed then
+          let parsedTestRequest = Http.split request
+          let contentLength =
+            parsedTestRequest.headers
+            |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
+          match contentLength with
+          | None -> ()
+          | Some (_, v) ->
+            if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
+              ()
+            else
+              Expect.equal parsedTestRequest.body.Length (int v) ""
+
+        // Check input LENGTH not set
+        if test.request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
+           && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
+          Expect.isFalse true "LENGTH substitution not done on request"
 
         // Make a request
         use! client = createClient (port)
