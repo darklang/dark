@@ -8,6 +8,8 @@ Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
 Content-Type: text/ping
 
+
+
 [response]
 HTTP/1.1 200 OK // FSHARPONLY - may as well allow it, if it doesn't rollbar
 HTTP/1.1 418 I'm a teapot (RFC 2324) // OCAMLONLY
