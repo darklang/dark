@@ -142,8 +142,11 @@ let parseTest (bytes : byte array) : Test =
               [ "line", line ])
   |> Tuple2.second
   |> fun test ->
-       // Remove the superfluously added newline on response (keep it on the request though)
-       { test with response = Array.slice 0 -1 test.response }
+       { test with
+           // Remove the superfluously added newline on response
+           response = Array.slice 0 -1 test.response
+           // Allow separation from the next section with a blank line
+           request = Array.slice 0 -2 test.request }
 
 // Replace `pattern` in the byte array with `replacement` - both are provided as strings
 // for convenience, but obviously both will be converted to bytes

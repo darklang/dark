@@ -30,6 +30,8 @@ Content-Type: application/json; charset=utf-8
 Content-Length: 22
 
 { "field1": "value1" }
+
+[response] // Note single blank line above
 ```
 
 Responses are sent to the server, where presumably they'll hit the HTTP handler
@@ -38,6 +40,11 @@ that you've set up (or not, if that's what you're testing)
 Note that while HTTP requires headers to end lines with \r\n instead of \n, the
 test files use \n (the files are parsed and corrected before being sent to the
 server).
+
+The Content-Length must be set correctly (it's also allowed to not send it). The test
+suite will check that the Content-length matches the request body's length. After the
+request body, include exactly one blank line to separate it from the start of
+"\[response\]".
 
 # Responses
 
