@@ -16,7 +16,6 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789 // OCAMLONLY
 Server: nginx/1.16.1 // OCAMLONLY
-Server: Kestrel // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
 Connection: close // FSHARPONLY
 Content-Length: LENGTH

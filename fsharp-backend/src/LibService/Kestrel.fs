@@ -13,3 +13,4 @@ let configureKestrel (opts : KestrelServerOptions) : unit =
   opts.Limits.MaxRequestBodySize <- 10L * 1024L * 1024L // 10MB
   opts.Limits.RequestHeadersTimeout <- System.TimeSpan.FromSeconds 10.0
   opts.AllowSynchronousIO <- false // prevent deadlock of some kind
+  opts.AddServerHeader <- false // Don't add kestrel
