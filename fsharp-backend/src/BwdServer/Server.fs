@@ -281,13 +281,11 @@ exception NotFoundException of msg : string with
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
-let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
+let runDarkHandler
+  (executionID : ExecutionID)
+  (ctx : HttpContext)
+  : Task<HttpContext> =
   task {
-    let executionID = LibService.Telemetry.executionID ()
-    ctx.Items[ "executionID" ] <- executionID
-    setHeader ctx "x-darklang-execution-id" (string executionID)
-    setHeader ctx "Server" "darklang"
-
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
@@ -423,12 +421,17 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task =
     (task {
+      let executionID = LibService.Telemetry.executionID ()
+      ctx.Items[ "executionID" ] <- executionID
+      setHeader ctx "x-darklang-execution-id" (string executionID)
+      setHeader ctx "Server" "darklang"
+
       try
         // Do this here so we don't redirect the health check
         if shouldRedirect ctx then
           return httpsRedirect ctx
         else
-          return! runDarkHandler ctx
+          return! runDarkHandler executionID ctx
       with
       // These errors are the only ones we want to handle here. We don't want to give
       // GrandUsers any info not intended for them. We want the rest to be caught by
