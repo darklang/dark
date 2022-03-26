@@ -1,0 +1,296 @@
+[http-handler GET /]
+// this is https://csshake.surge.sh/csshake-default.css, pasted twice to get over 1024 characters.
+(let body =
+  "/*! * * * * * * * * * * * * * * * * * * * *
+      CSShake :: shake
+      v1.5.0
+      CSS classes to move your DOM
+      (c) 2015 @elrumordelaluz
+      http://elrumordelaluz.github.io/csshake/
+      Licensed under MIT
+    \* * * * * * * * * * * * * * * * * * * * */
+    .shake {
+      display: inherit;
+      transform-origin: center center; }
+
+    .shake-freeze,
+    .shake-constant.shake-constant--hover:hover,
+    .shake-trigger:hover .shake-constant.shake-constant--hover {
+      animation-play-state: paused; }
+
+    .shake-freeze:hover,
+    .shake-trigger:hover .shake-freeze, .shake:hover,
+    .shake-trigger:hover .shake {
+      animation-play-state: running; }
+
+    @keyframes shake {
+      2% {
+        transform: translate(-0.5px, 2.5px) rotate(-0.5deg); }
+      4% {
+        transform: translate(0.5px, -1.5px) rotate(-0.5deg); }
+      6% {
+        transform: translate(1.5px, -1.5px) rotate(1.5deg); }
+      8% {
+        transform: translate(0.5px, 2.5px) rotate(-0.5deg); }
+      10% {
+        transform: translate(-1.5px, 2.5px) rotate(1.5deg); }
+      12% {
+        transform: translate(2.5px, -0.5px) rotate(-0.5deg); }
+      14% {
+        transform: translate(2.5px, 2.5px) rotate(1.5deg); }
+      16% {
+        transform: translate(1.5px, 1.5px) rotate(0.5deg); }
+      18% {
+        transform: translate(0.5px, 2.5px) rotate(1.5deg); }
+      20% {
+        transform: translate(1.5px, -1.5px) rotate(-0.5deg); }
+      22% {
+        transform: translate(0.5px, 1.5px) rotate(1.5deg); }
+      24% {
+        transform: translate(-0.5px, 1.5px) rotate(0.5deg); }
+      26% {
+        transform: translate(-1.5px, -1.5px) rotate(0.5deg); }
+      28% {
+        transform: translate(1.5px, 2.5px) rotate(1.5deg); }
+      30% {
+        transform: translate(2.5px, -1.5px) rotate(1.5deg); }
+      32% {
+        transform: translate(1.5px, 1.5px) rotate(1.5deg); }
+      34% {
+        transform: translate(2.5px, 0.5px) rotate(-0.5deg); }
+      36% {
+        transform: translate(2.5px, -0.5px) rotate(-0.5deg); }
+      38% {
+        transform: translate(0.5px, 0.5px) rotate(0.5deg); }
+      40% {
+        transform: translate(1.5px, -1.5px) rotate(1.5deg); }
+      42% {
+        transform: translate(0.5px, -0.5px) rotate(0.5deg); }
+      44% {
+        transform: translate(-0.5px, -0.5px) rotate(-0.5deg); }
+      46% {
+        transform: translate(1.5px, 2.5px) rotate(-0.5deg); }
+      48% {
+        transform: translate(2.5px, 2.5px) rotate(1.5deg); }
+      50% {
+        transform: translate(0.5px, 2.5px) rotate(1.5deg); }
+      52% {
+        transform: translate(1.5px, -1.5px) rotate(1.5deg); }
+      54% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      56% {
+        transform: translate(1.5px, 1.5px) rotate(0.5deg); }
+      58% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      60% {
+        transform: translate(-0.5px, 0.5px) rotate(-0.5deg); }
+      62% {
+        transform: translate(2.5px, -1.5px) rotate(1.5deg); }
+      64% {
+        transform: translate(2.5px, -0.5px) rotate(0.5deg); }
+      66% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      68% {
+        transform: translate(-1.5px, -0.5px) rotate(0.5deg); }
+      70% {
+        transform: translate(2.5px, 0.5px) rotate(-0.5deg); }
+      72% {
+        transform: translate(1.5px, 0.5px) rotate(1.5deg); }
+      74% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      76% {
+        transform: translate(-1.5px, -0.5px) rotate(0.5deg); }
+      78% {
+        transform: translate(-1.5px, -1.5px) rotate(-0.5deg); }
+      80% {
+        transform: translate(-0.5px, -0.5px) rotate(0.5deg); }
+      82% {
+        transform: translate(-0.5px, 1.5px) rotate(1.5deg); }
+      84% {
+        transform: translate(-1.5px, 2.5px) rotate(-0.5deg); }
+      86% {
+        transform: translate(-1.5px, -0.5px) rotate(-0.5deg); }
+      88% {
+        transform: translate(2.5px, -0.5px) rotate(-0.5deg); }
+      90% {
+        transform: translate(2.5px, -1.5px) rotate(-0.5deg); }
+      92% {
+        transform: translate(2.5px, 0.5px) rotate(-0.5deg); }
+      94% {
+        transform: translate(0.5px, 1.5px) rotate(-0.5deg); }
+      96% {
+        transform: translate(1.5px, 2.5px) rotate(0.5deg); }
+      98% {
+        transform: translate(2.5px, -0.5px) rotate(1.5deg); }
+      0%, 100% {
+        transform: translate(0, 0) rotate(0); } }
+
+    .shake:hover,
+    .shake-trigger:hover .shake, .shake.shake-freeze, .shake.shake-constant {
+      animation-name: shake;
+      animation-duration: 100ms;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite; }
+    /*! * * * * * * * * * * * * * * * * * * * *
+      CSShake :: shake
+      v1.5.0
+      CSS classes to move your DOM
+      (c) 2015 @elrumordelaluz
+      http://elrumordelaluz.github.io/csshake/
+      Licensed under MIT
+    \* * * * * * * * * * * * * * * * * * * * */
+    .shake {
+      display: inherit;
+      transform-origin: center center; }
+
+    .shake-freeze,
+    .shake-constant.shake-constant--hover:hover,
+    .shake-trigger:hover .shake-constant.shake-constant--hover {
+      animation-play-state: paused; }
+
+    .shake-freeze:hover,
+    .shake-trigger:hover .shake-freeze, .shake:hover,
+    .shake-trigger:hover .shake {
+      animation-play-state: running; }
+
+    @keyframes shake {
+      2% {
+        transform: translate(-0.5px, 2.5px) rotate(-0.5deg); }
+      4% {
+        transform: translate(0.5px, -1.5px) rotate(-0.5deg); }
+      6% {
+        transform: translate(1.5px, -1.5px) rotate(1.5deg); }
+      8% {
+        transform: translate(0.5px, 2.5px) rotate(-0.5deg); }
+      10% {
+        transform: translate(-1.5px, 2.5px) rotate(1.5deg); }
+      12% {
+        transform: translate(2.5px, -0.5px) rotate(-0.5deg); }
+      14% {
+        transform: translate(2.5px, 2.5px) rotate(1.5deg); }
+      16% {
+        transform: translate(1.5px, 1.5px) rotate(0.5deg); }
+      18% {
+        transform: translate(0.5px, 2.5px) rotate(1.5deg); }
+      20% {
+        transform: translate(1.5px, -1.5px) rotate(-0.5deg); }
+      22% {
+        transform: translate(0.5px, 1.5px) rotate(1.5deg); }
+      24% {
+        transform: translate(-0.5px, 1.5px) rotate(0.5deg); }
+      26% {
+        transform: translate(-1.5px, -1.5px) rotate(0.5deg); }
+      28% {
+        transform: translate(1.5px, 2.5px) rotate(1.5deg); }
+      30% {
+        transform: translate(2.5px, -1.5px) rotate(1.5deg); }
+      32% {
+        transform: translate(1.5px, 1.5px) rotate(1.5deg); }
+      34% {
+        transform: translate(2.5px, 0.5px) rotate(-0.5deg); }
+      36% {
+        transform: translate(2.5px, -0.5px) rotate(-0.5deg); }
+      38% {
+        transform: translate(0.5px, 0.5px) rotate(0.5deg); }
+      40% {
+        transform: translate(1.5px, -1.5px) rotate(1.5deg); }
+      42% {
+        transform: translate(0.5px, -0.5px) rotate(0.5deg); }
+      44% {
+        transform: translate(-0.5px, -0.5px) rotate(-0.5deg); }
+      46% {
+        transform: translate(1.5px, 2.5px) rotate(-0.5deg); }
+      48% {
+        transform: translate(2.5px, 2.5px) rotate(1.5deg); }
+      50% {
+        transform: translate(0.5px, 2.5px) rotate(1.5deg); }
+      52% {
+        transform: translate(1.5px, -1.5px) rotate(1.5deg); }
+      54% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      56% {
+        transform: translate(1.5px, 1.5px) rotate(0.5deg); }
+      58% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      60% {
+        transform: translate(-0.5px, 0.5px) rotate(-0.5deg); }
+      62% {
+        transform: translate(2.5px, -1.5px) rotate(1.5deg); }
+      64% {
+        transform: translate(2.5px, -0.5px) rotate(0.5deg); }
+      66% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      68% {
+        transform: translate(-1.5px, -0.5px) rotate(0.5deg); }
+      70% {
+        transform: translate(2.5px, 0.5px) rotate(-0.5deg); }
+      72% {
+        transform: translate(1.5px, 0.5px) rotate(1.5deg); }
+      74% {
+        transform: translate(0.5px, 0.5px) rotate(1.5deg); }
+      76% {
+        transform: translate(-1.5px, -0.5px) rotate(0.5deg); }
+      78% {
+        transform: translate(-1.5px, -1.5px) rotate(-0.5deg); }
+      80% {
+        transform: translate(-0.5px, -0.5px) rotate(0.5deg); }
+      82% {
+        transform: translate(-0.5px, 1.5px) rotate(1.5deg); }
+      84% {
+        transform: translate(-1.5px, 2.5px) rotate(-0.5deg); }
+      86% {
+        transform: translate(-1.5px, -0.5px) rotate(-0.5deg); }
+      88% {
+        transform: translate(2.5px, -0.5px) rotate(-0.5deg); }
+      90% {
+        transform: translate(2.5px, -1.5px) rotate(-0.5deg); }
+      92% {
+        transform: translate(2.5px, 0.5px) rotate(-0.5deg); }
+      94% {
+        transform: translate(0.5px, 1.5px) rotate(-0.5deg); }
+      96% {
+        transform: translate(1.5px, 2.5px) rotate(0.5deg); }
+      98% {
+        transform: translate(2.5px, -0.5px) rotate(1.5deg); }
+      0%, 100% {
+        transform: translate(0, 0) rotate(0); } }
+
+    .shake:hover,
+    .shake-trigger:hover .shake, .shake.shake-freeze, .shake.shake-constant {
+      animation-name: shake;
+      animation-duration: 100ms;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite; }"
+ Http.responseWithText body 200)
+
+[request]
+GET / HTTP/1.1
+Host: HOST
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 0
+Accept-encoding: gzip
+
+
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-Type: text/plain
+Content-Encoding: gzip
+Access-Control-Allow-Origin: * // FSHARPONLY
+access-control-allow-origin: * // OCAMLONLY
+x-darklang-execution-id: 0123456789
+Server: nginx/1.16.1 // OCAMLONLY
+Server: darklang // FSHARPONLY
+Transfer-Encoding: chunked
+Connection: keep-alive // OCAMLONLY
+
+3f3
+‹      í™=oÛ0†÷ü
+và–-ù;Ê ]
+4èŒ]T›¶‰Ø”¡ IÑÿ^Š:Ê=šc3tRD¶$¿º{ô’âÇ×ÄµßëBØ¿ûäIŠ8yõv?G£ù(<Ÿ#Ö‡$Ïe.ŠTÓg)^Ò2Ÿ¾ŞÃ)ƒõ•˜„Ñ\ÜÉCVÓl#É¡|…Ãû¢8Åã1>6Ú©b_~©t¼ÎíÅÇpúµ–:—QêÌÄıçG{à›gjâºYQñT7*?’—X(½—™*na‘%:ß¦Ù1H3µS:æê…¹n½¹¿.ì™µ\°Í¤|•Ã?w­S‰.à÷1öUÛÿè…¹ĞÎ­¯µ>‚J“F¢Õ1)Tªƒ*›À\¸±8%¥Ö«o Äãù-&®¬ÔZé]Øİ“|ÙfÉÑX	ßÉe£$DsKâúíÁä8ÂÑüôc(&ÕæJdi•¹İ»‘»«ê
+µ¥g¬Æäo*-X%«0-%³‡´b…<s‹BV©¥‰„ñÀ-h“œíàO¤ğ­£1y·Ü›L€˜wôNà$¢	ÏÛ†B,PAÃ1Mxà`œ‰Çí†
+V¢!ñ¼›Z§R<q Åx`Êw¾ÄÙNS8„Ä	ñÀ!${[RLyà.9VŠn%†+™OØ—38`jy€ ŸñÀ!¤Ö”Bcâ‰;‹·¤(óÏòÃÎìPâ‘ÃİÃJÔœG 8!¸ç½›óÄ!$»i<NsóÆm#k„ˆæ<m¿ˆ<mg&œuÀ‚çàÆÊ‚çí”pP„Ó‚îÉ‰Ş<˜˜–<rÈQâK88+_.yà~˜–<ooLÿ@
+jÅ#w.¯·y+¹“ÂQè+ºc…gºüŞ½C‹çŞ=ø¨ÔİIaVR<vÏAsÃc¯³1ñÔ­D»Ü0òx•qó^äÄSáåPD!=4+Ÿ³Ç«úòõíÊa\ıã®ào*Øs®M©­×o8Ü”™­äã*¡cNO(ÔÑÏÁ¶Ôëªâ…Lr(¤eÓ¾8Ë)Ó´¨;ë´ÔEÕèØ*möºÚxÜ·‡l©oÙŞ´²<‚k|õí!×hò¹Å ?7ÂtÍ=$ûöPİ"Ä5ò0êÛC^˜&¼Áİê­åpB|Â[¼sAş}{ÈöÀ«Õã›­ë)æ¬Dî\ßt:“®ßg<rX¿ãiœx¼oU?óXêç|» èÛCõŞš	ÈøíÛC5'<Í‘1×·‡šßW9Gõí!9€‰¼…Š>úöPçÃ“ÌR}{HÒîÏlıº*l9$  
+0
+
