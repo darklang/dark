@@ -306,10 +306,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
-      let url : string =
-        let isHttps =
-          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
-        ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
 
       Telemetry.addTags [ "canvas.name", canvasName
                           "canvas.id", meta.id
