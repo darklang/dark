@@ -327,7 +327,7 @@ let runDarkHandler
       match pages with
       // matching handler found - process normally
       | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-        LibService.Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
+        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
         let routeVars = Routing.routeInputVars route requestPath
