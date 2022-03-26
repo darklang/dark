@@ -17,17 +17,10 @@ Server: nginx/1.16.1 // OCAMLONLY
 Connection: close
 Content-Length: LENGTH
 
-<html>
- // OCAMLONLY
-<head><title>400 Bad Request</title></head>
- // OCAMLONLY
-<body>
- // OCAMLONLY
-<center><h1>400 Bad Request</h1></center>
- // OCAMLONLY
-<hr><center>nginx/1.16.1</center>
- // OCAMLONLY
-</body>
- // OCAMLONLY
-</html>
- // OCAMLONLY
+<html> // OCAMLONLY
+<head><title>400 Bad Request</title></head> // OCAMLONLY
+<body> // OCAMLONLY
+<center><h1>400 Bad Request</h1></center> // OCAMLONLY
+<hr><center>nginx/1.16.1</center> // OCAMLONLY
+</body> // OCAMLONLY
+</html> // OCAMLONLY
