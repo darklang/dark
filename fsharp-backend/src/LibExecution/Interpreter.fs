@@ -39,14 +39,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
-  /// This function ensures any value not on the exeuction path is evaluated.
-  ///
-  /// We call this "previewing," a feature needed only when viewing/editing
-  /// the expression as a Dark user.
-  ///
-  /// Let's say you have the expression `if true then 4 else 5+6`.
-  /// In order to be able to get live values in the editor for `5`, `6` and `5+6`,
-  /// you need to "execute" the `5+6`, even though a "normal" exeuction wouldn't.
+  /// This function ensures any value not on the execution path is evaluated.
   let preview st expr : Ply<unit> =
     uply {
       if state.tracing.realOrPreview = Preview then
@@ -82,10 +75,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // We ignore incompletes but not error rail.
       // CLEANUP: Other places where lists are created propagate incompletes
       // instead of ignoring, this is probably a mistake.
-      let! results = exprs |> Ply.List.mapSequentially (eval state st)
+      let! results = Ply.List.mapSequentially (eval state st) exprs
 
       let filtered =
-        results |> List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv))
+        List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
 
       // CLEANUP: why do we only find errorRail, and not errors. Seems like
       // a mistake
@@ -123,7 +116,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let evaluated = List.choose Operators.id evaluated
 
       // CLEANUP - we should propagate DErrors too
-      let errorRail = evaluated |> List.tryFind (fun (_, dv) -> Dval.isErrorRail dv)
+      let errorRail = List.tryFind (fun (_, dv) -> Dval.isErrorRail dv) evaluated
 
       match errorRail with
       | None -> return Dval.interpreterObj evaluated
@@ -131,7 +124,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | EApply (id, fnVal, exprs, inPipe, ster) ->
       let! fnVal = eval state st fnVal
-      let! args = exprs |> Ply.List.mapSequentially (eval state st)
+      let! args = Ply.List.mapSequentially (eval state st) exprs
       let! result = applyFn state id fnVal (Seq.toList args) inPipe ster
 
       do
@@ -193,14 +186,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // start serving the new code to all your traffic? No. So only `true`
       // gets new code.
 
-      let! conditionEvaluation =
+      let! conditionResult =
         // under no circumstances should this cause code to fail
         try
           eval state st cond
         with
         | _ -> Ply(DBool false)
 
-      if conditionEvaluation = DBool true then
+      if conditionResult = DBool true then
         do! preview st oldcode
         return! eval state st newcode
       else
@@ -224,7 +217,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
-    | EMatch (id, matchExpr, caseExprs) ->
+    | EMatch (id, matchExpr, cases) ->
       let hasMatched = ref false
       let matchResult = ref (incomplete id)
 
@@ -379,7 +372,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       do!
         Ply.List.iterSequentially
           (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
-          caseExprs
+          cases
 
       return matchResult.Value
 

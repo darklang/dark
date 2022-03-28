@@ -162,7 +162,7 @@ type Expr =
 
   /// Reference some local variable by name
   ///
-  /// i.e. after a `let binding = value`, any use of `value`
+  /// i.e. after a `let binding = value`, any use of `binding`
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
@@ -367,8 +367,7 @@ and DType =
 /// information later, such as the iteration count that led to this, or
 /// something like a stack trace
 and DvalSource =
-  /// Function was either called directly,
-  /// or we do not have context to supply an identifier
+  /// We do not have context to supply an identifier
   | SourceNone
 
   /// Caused by an expression of `id` within the given `tlid`
@@ -853,13 +852,10 @@ and FnImpl =
 // CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
 /// Represents the context in which we're evaluating some code
 and RealOrPreview =
-  /// We are evaluating an expression normally, and it is OK to affect state.
+  /// We are evaluating an expression normally
   | Real
 
-  /// We are previewing the evaluation of some expression,
-  /// likely within a Dark canvas for a developer's sake.
-  ///
-  /// No state should be affected by this evaluation.
+  /// We are previewing the evaluation of some expression within the editor.
   | Preview
 
 and FunctionRecord = tlid * FQFnName.T * id
