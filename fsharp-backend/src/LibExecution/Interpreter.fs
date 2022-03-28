@@ -760,9 +760,9 @@ and execFn
 
               if paramLength <> argLength then
                 (Dval.errSStr
-                    sourceID
-                    ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
-                    + $" but here was called with {argLength} arguments."))
+                  sourceID
+                  ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
+                   + $" but here was called with {argLength} arguments."))
 
               else
                 let invalid =
@@ -772,8 +772,8 @@ and execFn
                 match invalid with
                 | [] ->
                   (Dval.errSStr
-                      sourceID
-                      $"unknown error calling {FQFnName.toString fn.name}")
+                    sourceID
+                    $"unknown error calling {FQFnName.toString fn.name}")
                 | (p, actual) :: _ ->
                   let msg = Errors.incorrectArgsMsg (fn.name) p actual
                   (Dval.errSStr sourceID msg)
