@@ -8,6 +8,7 @@ NUGET
     AspNetCore.HealthChecks.NpgSql (6.0.1)
       Microsoft.Extensions.Diagnostics.HealthChecks (>= 6.0)
       Npgsql (>= 6.0)
+    ChunkDecoder (1.0.4.1)
     Expecto (9.0.4)
       FSharp.Core (>= 4.6)
       Mono.Cecil (>= 0.11.3)

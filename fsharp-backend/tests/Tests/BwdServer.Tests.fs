@@ -403,6 +403,10 @@ let runTestRequest
     let expectedHeaders = normalizeExpectedHeaders expected.headers actual.body
     let actualHeaders = normalizeActualHeaders actual.headers
 
+    // Decompress the body if returned with a content-encoding. Throws an exception if content-encoding is set and the body is not encrypted. This lets us test that the server returns compressed content
+    let actual =
+      { actual with body = Http.decompressIfNeeded actual.headers actual.body }
+
     // Test as json or strings
     let asJson =
       try
@@ -457,6 +461,7 @@ let t (filename : string) =
 
     if shouldSkip then
       skiptest $"underscore test - {testName}"
+
     else
       do! callServer OCaml // check OCaml to see if we got the right answer
       do! callServer FSharp // test F# impl

@@ -5,6 +5,9 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open System.IO
+open System.IO.Compression
+
 open Npgsql.FSharp
 open Npgsql
 open LibBackend.Db
@@ -1000,7 +1003,7 @@ let sampleDvals : List<string * Dval> =
 
 // Utilties shared among tests
 module Http =
-  type T = { status : string; headers : (string * string) list; body : byte array }
+  type T = { status : string; headers : List<string * string>; body : byte array }
 
   let setHeadersToCRLF (text : byte array) : byte array =
     // We keep our test files with an LF line ending, but the HTTP spec
@@ -1020,6 +1023,73 @@ module Http =
         justSawNewline <- false
         [ b ])
     |> List.toArray
+
+  // Decompress
+  let decompressIfNeeded
+    (headers : List<string * string>)
+    (body : byte array)
+    : byte array =
+    let contentEncodingHeader =
+      headers
+      |> List.find (fun (k, v) -> String.toLowercase k = "content-encoding")
+      |> Option.map Tuple2.second
+      |> Option.map String.toLowercase
+    print $"headers: {headers}"
+
+    LibBackend.File.writefileBytes LibBackend.Config.NoCheck "contents.file" body
+
+    // If the transfer-encoding=chunked header is set, we need to process it before
+    // we have a gzip/brotli/etc output
+    let body =
+      // Only decode the transfer-encoding in order to decompress the stream. We have
+      // tests for the transfer-encoding format and we don't want to break them by
+      // transfer-encoding test bodies
+      if Option.isSome contentEncodingHeader then
+        print "hanve contentencodingheader"
+        let isTransferEncodingChunked =
+          headers
+          |> List.find (fun (k, v) ->
+            String.toLowercase k = "transfer-encoding"
+            && String.toLowercase v = "chunked")
+          |> Option.isSome
+        if isTransferEncodingChunked then
+          print "have transferencoding header"
+          let decoder = new ChunkDecoder.Decoder()
+          print "created decider"
+          let mutable (byteArray : byte array) = null
+          print "created bytearray"
+          print $"body{body}"
+          let success = decoder.Decode(body, &byteArray)
+          print $"decoded {success}"
+          if not success then Exception.raiseInternal "could not dechunk chunks" []
+          print "done dechunking"
+          byteArray
+        else
+          body
+      else
+        body
+
+
+    print $"stating to dezip {contentEncodingHeader}"
+    match contentEncodingHeader with
+    | Some "gzip" ->
+      let inputStream = new MemoryStream(body)
+      use decompressionStream =
+        new GZipStream(inputStream, CompressionMode.Decompress)
+      use outputStream = new MemoryStream()
+      decompressionStream.CopyTo(outputStream)
+      print "done gunzipping"
+      outputStream.ToArray()
+    | Some "br" ->
+      let inputStream = new MemoryStream(body)
+      use decompressionStream =
+        new BrotliStream(inputStream, CompressionMode.Decompress)
+      use outputStream = new MemoryStream()
+      decompressionStream.CopyTo(outputStream)
+      print "done unbrotliing"
+      outputStream.ToArray()
+    | Some ce -> Exception.raiseInternal $"unsupported content encoding {ce}" []
+    | None -> body
 
   let split (response : byte array) : T =
     // read a single line of bytes (a line ends with \r\n)

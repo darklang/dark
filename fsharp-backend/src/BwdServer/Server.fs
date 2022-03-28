@@ -19,6 +19,7 @@ open Microsoft.AspNetCore.Http.Abstractions
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.AspNetCore.ResponseCompression
 
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
@@ -470,6 +471,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     (person, metadata)
 
   Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
+  |> fun app -> app.UseResponseCompression()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
@@ -477,6 +479,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) : unit =
   services
+  |> fun services -> services.AddResponseCompression()
   |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> Rollbar.AspNet.addRollbarToServices
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries

@@ -276,15 +276,14 @@ Accept-encoding: gzip
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain
-Content-Encoding: gzip
+Content-encoding: gzip
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Transfer-Encoding: chunked
-Vary: Accept-Encoding // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
+Content-Length: LENGTH
 
 /*! * * * * * * * * * * * * * * * * * * * *
       CSShake :: shake
