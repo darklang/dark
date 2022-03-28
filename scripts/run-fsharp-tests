@@ -10,14 +10,14 @@ function ctrl_c() {
   exit 1
 }
 
-DEBUG=false
+LLDB=false
 PUBLISHED=false
 
 for i in "$@"
 do
   case "${i}" in
-    --debug)
-    DEBUG=true
+    --lldb)
+    LLDB=true
     shift
     ;;
     --published)
@@ -80,7 +80,7 @@ DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVE
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
 
 cd fsharp-backend
-if [[ "$DEBUG" == "true" ]]; then
+if [[ "$LLDB" == "true" ]]; then
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_DB_HOST=localhost \
