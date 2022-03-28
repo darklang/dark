@@ -661,7 +661,7 @@ and execFn
               | Some (result, _ts) -> return result
               | None -> return DIncomplete sourceID
             else
-              shouldStoreFnResult <- true
+              shouldStoreFnResult <- fn.previewable <> Pure
               let! result = f (state, arglist)
               // there's no point storing data we'll never ask for
               if fn.previewable <> Pure then
