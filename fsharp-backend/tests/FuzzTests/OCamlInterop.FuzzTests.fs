@@ -27,7 +27,7 @@ open LibExecution.OCamlTypes.Convert
 open OCamlInterop
 open Json.OCamlCompatible
 
-let isInteroperable
+let isInteroperableWithOCamlBackend
   (ocamlToString : 'a -> Task<string>)
   (ocamlOfString : string -> Task<'a>)
   (fsToString : 'a -> string)
@@ -64,7 +64,9 @@ let isInteroperable
     reraise ()
 
 type Generator =
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+  inherit Generators.NodaTime.All
+
+  static member SafeString() : Arbitrary<string> = Arb.fromGen (G.ocamlSafeString)
 
   static member Expr() =
     Arb.Default.Derive()
@@ -123,7 +125,7 @@ let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   .=. pair
 
 let tests =
-  let tp f = testPropertyWithGenerator typeof<Generator> f
+  let tp f = testProperty typeof<Generator> f
 
   testList
     "OcamlInterop"
@@ -134,7 +136,9 @@ let tests =
 
 module Roundtrippable =
   type Generator =
-    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
+    inherit Generators.NodaTime.All
+
+    static member String() : Arbitrary<string> = Arb.fromGen (G.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -143,8 +147,11 @@ module Roundtrippable =
       Arb.Default.Derive()
       |> Arb.filter (DvalReprInternal.isRoundtrippableDval false)
 
+
   type GeneratorWithBugs =
-    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
+    inherit Generators.NodaTime.All
+
+    static member String() : Arbitrary<string> = G.ocamlSafeString |> Arb.fromGen
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -152,7 +159,7 @@ module Roundtrippable =
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter (DvalReprInternal.isRoundtrippableDval true)
 
-  let roundtrip (dv : RT.Dval) : bool =
+  let canRoundtrip (dv : RT.Dval) : bool =
     dv
     |> DvalReprInternal.toInternalRoundtrippableV0
     |> DvalReprInternal.ofInternalRoundtrippableV0
@@ -162,7 +169,7 @@ module Roundtrippable =
     if containsPassword dv then
       true
     else
-      isInteroperable
+      isInteroperableWithOCamlBackend
         OCamlInterop.toInternalRoundtrippableV0
         OCamlInterop.ofInternalRoundtrippableV0
         DvalReprInternal.toInternalRoundtrippableV0
@@ -173,11 +180,8 @@ module Roundtrippable =
   let tests =
     testList
       "roundtrippable"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "roundtripping works properly"
-          roundtrip
-        testPropertyWithGenerator
+      [ testProperty typeof<Generator> "roundtripping works properly" canRoundtrip
+        testProperty
           typeof<GeneratorWithBugs>
           "roundtrippable is interoperable"
           isInteroperableV0 ]
@@ -185,7 +189,9 @@ module Roundtrippable =
 
 module Queryable =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    inherit Generators.NodaTime.All
+
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -208,7 +214,7 @@ module Queryable =
     else
       let dvm = (Map.ofList [ "field", dv ])
 
-      isInteroperable
+      isInteroperableWithOCamlBackend
         OCamlInterop.toInternalQueryableV1
         OCamlInterop.ofInternalQueryableV1
         (function
@@ -219,8 +225,9 @@ module Queryable =
         (RT.DObj dvm)
 
   let tests =
-    let tp f = testPropertyWithGenerator typeof<Generator> f
+    let tp f = testProperty typeof<Generator> f
 
     testList
       "InternalQueryable"
-      [ tp "roundtripping v1" v1Roundtrip; tp "interoperable v1" isInteroperableV1 ]
+      [ tp "roundtripping v1" v1Roundtrip
+        tp "interoperable v1" isInteroperableV1 ]

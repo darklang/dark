@@ -11,11 +11,6 @@ module Telemetry = LibService.Telemetry
 
 [<EntryPoint>]
 let main (args : string array) : int =
-  let name = "Tests"
-  LibService.Init.init name
-  (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-  (LibRealExecution.Init.init name).Result
-  (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
   let tests =
     [ Tests.Account.tests
@@ -47,6 +42,11 @@ let main (args : string array) : int =
     print "Serialized to backend/serialization"
     0
   else
+    let name = "Tests"
+    LibService.Init.init name
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    (LibRealExecution.Init.init name).Result
+    (LibBackend.Account.initializeDevelopmentAccounts name).Result
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token

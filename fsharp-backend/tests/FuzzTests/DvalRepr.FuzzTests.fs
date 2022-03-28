@@ -20,8 +20,10 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 /// is produced consistently across OCaml and F# backends
 module DeveloperRepr =
   type Generator =
+    inherit Generators.NodaTime.All
+    
     static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+      Arb.fromGen (Generators.ocamlSafeString)
 
     // The format here is only used for errors so it doesn't matter all that
     // much. These are places where we've manually checked the differing
@@ -42,14 +44,16 @@ module DeveloperRepr =
   let tests =
     testList
       "toDeveloperRepr"
-      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+      [ testProperty typeof<Generator> "roundtripping" equalsOCaml ]
 
 /// Ensure text representation of DVals meant to be read by "end users"
 /// is produced consistently across OCaml and F# backends
 module EnduserReadable =
   type Generator =
+    inherit Generators.NodaTime.All
+
     static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+      Arb.fromGen (Generators.ocamlSafeString)
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -65,13 +69,15 @@ module EnduserReadable =
   let tests =
     testList
       "toEnduserReadable"
-      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+      [ testProperty typeof<Generator> "roundtripping" equalsOCaml ]
 
 /// Ensure hashing of RT DVals is consistent across OCaml and F# backends
 module Hashing =
   type Generator =
+    inherit Generators.NodaTime.All
+
     static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+      Arb.fromGen (Generators.ocamlSafeString)
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -98,9 +104,6 @@ module Hashing =
   let tests =
     testList
       "hash"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "toHashableRepr"
-          equalsOCamlToHashable
-        testPropertyWithGenerator typeof<Generator> "hashv0" equalsOCamlV0
-        testPropertyWithGenerator typeof<Generator> "hashv1" equalsOCamlV1 ]
+      [ testProperty typeof<Generator> "toHashableRepr" equalsOCamlToHashable
+        testProperty typeof<Generator> "hashv0" equalsOCamlV0
+        testProperty typeof<Generator> "hashv1" equalsOCamlV1 ]

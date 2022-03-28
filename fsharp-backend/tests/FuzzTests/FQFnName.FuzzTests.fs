@@ -13,7 +13,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
-module G = FuzzTests.Utils.Generators
+module G = FuzzTests.Generators
 
 /// Helper function to generate allowed function name parts
 let nameGenerator (first : char list) (other : char list) : Gen<string> =
@@ -33,7 +33,7 @@ let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericString
 
 type Generator =
   static member SafeString() : Arbitrary<string> =
-    Arb.fromGenShrink (G.string (), Arb.shrink<string>)
+    Arb.fromGenShrink (G.ocamlSafeString, Arb.shrink<string>)
 
   static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
     { new Arbitrary<PT.FQFnName.T>() with
@@ -42,7 +42,7 @@ type Generator =
             gen {
               let! module_ = modName
               let! function_ = fnName
-              let! version = G.nonNegativeInt ()
+              let! version = G.nonNegativeInt
               return PTParser.FQFnName.stdlibFqName module_ function_ version
             }
 
@@ -54,7 +54,7 @@ type Generator =
               let! package = packageName
               let! module_ = modName
               let! function_ = fnName
-              let! version = G.nonNegativeInt ()
+              let! version = G.nonNegativeInt
 
               return
                 PTParser.FQFnName.packageFqName
@@ -68,9 +68,7 @@ type Generator =
           Gen.oneof [ stdlib; user; package ] }
 
   static member RTFQFnName() : Arbitrary<RT.FQFnName.T> =
-    { new Arbitrary<RT.FQFnName.T>() with
-        member _.Generator =
-          Generator.PTFQFnName().Generator |> Gen.map PT2RT.FQFnName.toRT }
+    Generator.PTFQFnName().Generator |> Gen.map PT2RT.FQFnName.toRT |> Arb.fromGen
 
 /// ProgramType can roundtrip cleanly to/from RuntimeType
 let ptRoundtrip (a : PT.FQFnName.T) : bool =
@@ -80,4 +78,4 @@ let ptRoundtrip (a : PT.FQFnName.T) : bool =
 let tests =
   testList
     "PT.FQFnName"
-    [ testPropertyWithGenerator typeof<Generator> "roundtripping" ptRoundtrip ]
+    [ testProperty typeof<Generator> "roundtripping" ptRoundtrip ]
