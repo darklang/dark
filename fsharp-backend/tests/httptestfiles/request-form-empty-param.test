@@ -6,7 +6,7 @@ POST / HTTP/1.1
 Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Type: application/x-www-form-urlencoded
-Content-Length: 6
+Content-Length: 5
 
 param
 
@@ -19,16 +19,16 @@ access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 
 {
   "b": {
-    "param\n": null
+    "param": null
   },
   "f": {
-    "param\n": null
+    "param": null
   },
-  "fb": "param\n",
+  "fb": "param",
   "j": null
 }

@@ -5,12 +5,6 @@ k8s:
       - bwdserver-service.yaml
       - bwdserver-service-backendconfig.yaml
 
-    # Manually deployed so it can be used to override
-    configmaps:
-      bwdserver-nginx-override-conf:
-        text-file: nginx-override.conf
-        namespace: default
-
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
       - kubectl rollout restart --namespace default deployment bwdserver-deployment
@@ -18,12 +12,6 @@ k8s:
   release:
     config-template: bwdserver-deployment.template.yaml
     versioned-configmaps:
-      bwdserver-nginx-base-conf:
-        text-file: ../../containers/base-fsharp-nginx.conf
-        namespace: default
-      bwdserver-nginx-conf:
-        text-file: nginx.conf
-        namespace: default
       app-config:
         env-file: ../../config/gke-builtwithdark
         namespace: default

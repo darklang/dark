@@ -17,7 +17,7 @@ Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 
 Invalid json: An invalid json string

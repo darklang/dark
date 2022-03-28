@@ -73,7 +73,6 @@ let apiServerKubernetesPort = int "DARK_CONFIG_APISERVER_KUBERNETES_PORT"
 
 // Don't use DARK_CONFIG_HEALTH_CHECK_PORT as that's part of the ocaml service
 let bwdServerPort = int "DARK_CONFIG_BWDSERVER_BACKEND_PORT"
-let bwdServerNginxPort = int "DARK_CONFIG_BWDSERVER_NGINX_PORT"
 let bwdServerKubernetesPort = int "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"
 
 let legacyFuzzingServerPort = int "DARK_CONFIG_LEGACY_FUZZING_SERVER_PORT"

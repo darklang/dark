@@ -7,8 +7,8 @@ import {
 } from "@playwright/test";
 import fs from "fs";
 
-const BASE_URL = process.env.BASE_URL || "http://darklang.localhost:9000";
-const BWD_BASE_URL = process.env.BWD_BASE_URL || ".builtwithdark.localhost:11000";
+const BASE_URL = process.env.BASE_URL;
+const BWD_BASE_URL = process.env.BWD_BASE_URL;
 const options = {
   baseURL: BASE_URL,
   bwdBaseURL: BWD_BASE_URL,

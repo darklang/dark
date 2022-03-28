@@ -61,7 +61,7 @@ let findIndex (pattern : 'a list) (list : 'a list) : int option =
   else
     let mutable i = 0
     let mutable result = None
-    while result = None && i < list.Length - pattern.Length do
+    while result = None && i <= list.Length - pattern.Length do
       let mutable matches = true
       let mutable j = 0
       while matches && j < pattern.Length do
@@ -142,8 +142,11 @@ let parseTest (bytes : byte array) : Test =
               [ "line", line ])
   |> Tuple2.second
   |> fun test ->
-       // Remove the superfluously added newline on response (keep it on the request though)
-       { test with response = Array.slice 0 -1 test.response }
+       { test with
+           // Remove the superfluously added newline on response
+           response = Array.slice 0 -1 test.response
+           // Allow separation from the next section with a blank line
+           request = Array.slice 0 -2 test.request }
 
 // Replace `pattern` in the byte array with `replacement` - both are provided as strings
 // for convenience, but obviously both will be converted to bytes
@@ -271,19 +274,12 @@ let t filename =
         | _ -> (k, v))
       |> List.sortBy Tuple2.first
 
-
-    let callServer (server : Server) : Task<unit> =
+    let createClient (port : int) : Task<TcpClient> =
       task {
+        let client = new TcpClient()
+
         // Web server might not be loaded yet
-        use client = new TcpClient()
-
-        let port =
-          match server with
-          | OCaml -> TestConfig.ocamlServerNginxPort
-          | FSharp -> TestConfig.bwdServerNginxPort
-
         let mutable connected = false
-
         for i in 1..10 do
           try
             if not connected then
@@ -293,29 +289,64 @@ let t filename =
           | _ when i <> 10 ->
             print $"Server not ready on port {port}, maybe retry"
             do! System.Threading.Tasks.Task.Delay 1000
+        return client
+      }
 
-        use stream = client.GetStream()
-        stream.ReadTimeout <- 1000 // responses should be instant, right?
-
-        if test.request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH" then
-          Expect.isFalse true "LENGTH substitution not done on request"
+    let callServer (server : Server) : Task<unit> =
+      task {
+        let port =
+          match server with
+          | OCaml -> TestConfig.ocamlServerNginxPort
+          | FSharp -> TestConfig.bwdServerBackendPort
 
         let host = $"{meta.name}.builtwithdark.localhost:{port}"
         let canvasName = string meta.name
+
         let request =
           test.request
           |> replaceByteStrings "HOST" host
           |> replaceByteStrings "CANVAS" canvasName
           |> Http.setHeadersToCRLF
 
+        // Check body matches content-length
+        let incorrectContentTypeAllowed =
+          test.request
+          |> UTF8.ofBytesWithReplacement
+          |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
+
+        if not incorrectContentTypeAllowed then
+          let parsedTestRequest = Http.split request
+          let contentLength =
+            parsedTestRequest.headers
+            |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
+          match contentLength with
+          | None -> ()
+          | Some (_, v) ->
+            if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
+              ()
+            else
+              Expect.equal parsedTestRequest.body.Length (int v) ""
+
+        // Check input LENGTH not set
+        if test.request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
+           && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
+          Expect.isFalse true "LENGTH substitution not done on request"
+
+        // Make a request
+        use! client = createClient (port)
+        use stream = client.GetStream()
+        stream.ReadTimeout <- 1000 // responses should be instant, right?
 
         do! stream.WriteAsync(request, 0, request.Length)
+        do! stream.FlushAsync()
 
         // Read the response
         let length = 10000
-        let response = Array.zeroCreate length
-        let! byteCount = stream.ReadAsync(response, 0, length)
-        let response = Array.take byteCount response
+        let responseBuffer = Array.zeroCreate length
+        let! byteCount = stream.ReadAsync(responseBuffer, 0, length)
+        stream.Close()
+        client.Close()
+        let response = Array.take byteCount responseBuffer
 
         // Prepare expected response
         let expectedResponse =

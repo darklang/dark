@@ -8,6 +8,8 @@ Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-type: text/plain
 User-agent: þþÿÿ
 
+
+
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -17,15 +19,15 @@ access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 
 {
   "connection": "close", // OCAMLONLY
-  "connection": "keep-alive", // FSHARPONLY
   "content-type": "text/plain",
   "date": "Sun, 08 Nov 2020 15:38:01 GMT",
-  "host": "CANVAS.builtwithdark.localhost",
+  "host": "CANVAS.builtwithdark.localhost", // OCAMLONLY
+  "host": "CANVAS.builtwithdark.localhost:10011", // FSHARPONLY
   "user-agent": "þþÿÿ"
 }
 

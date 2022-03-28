@@ -9,6 +9,8 @@ Content-Length: 0
 Access-Control-Allow-Origin: null // FSHARPONLY
 access-control-allow-origin: null // OCAMLONLY
 
+
+
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -21,5 +23,5 @@ access-control-allow-methods: GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS // OCAMLONL
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Length: 0

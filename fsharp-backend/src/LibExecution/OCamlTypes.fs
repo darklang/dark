@@ -795,7 +795,7 @@ module Convert =
 
       let pipeTarget = ORT.EPipeTarget(gid ())
       let fnCall = ORT.EFnCall(id, name, pipeTarget :: actualArgs, rt2ocamlSter rail)
-      ORT.EPipe(pipeID, pipeStart @ [ fnCall ]) |> debug "converted to pipe"
+      ORT.EPipe(pipeID, pipeStart @ [ fnCall ])
     | RT.EFQFnValue _
     | RT.EApply (_, _, _, _, _) ->
       // these shouldn't happen in practice at the moment

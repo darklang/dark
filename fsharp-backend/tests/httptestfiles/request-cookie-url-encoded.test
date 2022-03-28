@@ -9,6 +9,8 @@ Content-Type: text/plain
 Cookie: user=someuser&ksdfmerGSDKsgrsdfSDROJSDFKNFkwej; _ga=GA1.2.0285759937.1029485802; ajs_user_id=%2295850%22; ajs_anonymous_id=%22023499fd-0dk4-3m9b-d03k-38e0db0e0wq8%22; ajs%3acookies=true; ajs%3atest=true; le_LNRI4kjskl4ho_JAkeifn3Q3m3k1SDKr23dSD-03Dmf_posthog=%7B%22distinct_id%22%3A%22737fe932-836e-17f4-e728-93fe6d9ac350%22%2C%22%24device_id%22%3A%2208692b49d0e0ca-09ce90b048ce0a-039c9f0e-049f0b-039dbe049b0e0a%22%2C%22%24user_id%22%3A%220f0e0852-05be-03fe-b039-049b0e9a0349%22%2C%22%24initial_referrer%22%3A%22%24direct%22%2C%22%24initial_referring_domain%22%3A%22%24direct%22%2C%22%24referrer%22%3A%22https%3A%2F%2Fnews.ycombinator.com%2F%22%2C%22%24referring_domain%22%3A%22news.ycombinator.com%22%2C%22%24session_recording_enabled%22%3Afalse%2C%22%24active_feature_flags%22%3A%5B%5D%2C%22%24search_engine%22%3A%22google%22%7D
 Content-Length: 0
 
+
+
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -18,7 +20,7 @@ access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 
 {

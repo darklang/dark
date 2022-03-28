@@ -83,14 +83,26 @@ let getQuery (ctx : HttpContext) : List<string * List<string>> =
 /// Reads the incoming request body as a byte array
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
-    // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
-    if ctx.Request.Method = "GET" then
-      return [||]
-    else
-      // TODO: apparently it's faster to use a PipeReader, but that broke for us
-      let ms = new IO.MemoryStream()
-      do! ctx.Request.Body.CopyToAsync(ms)
-      return ms.ToArray()
+    try
+      // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
+      if ctx.Request.Method = "GET" then
+        return [||]
+      else
+        // TODO: apparently it's faster to use a PipeReader, but that broke for us
+        let ms = new IO.MemoryStream()
+        do! ctx.Request.Body.CopyToAsync(ms)
+        return ms.ToArray()
+    with
+    | e ->
+      // Let's try to get a good error message to the user, but don't include .NET specific hints
+      let tooSlowlyMessage =
+        "Reading the request body timed out due to data arriving too slowly"
+      let message =
+        if String.startsWith tooSlowlyMessage e.Message then
+          tooSlowlyMessage
+        else
+          e.Message
+      return Exception.raiseGrandUser $"Invalid request body: {message}"
   }
 
 
@@ -269,13 +281,11 @@ exception NotFoundException of msg : string with
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
-let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
+let runDarkHandler
+  (executionID : ExecutionID)
+  (ctx : HttpContext)
+  : Task<HttpContext> =
   task {
-    let executionID = LibService.Telemetry.executionID ()
-    ctx.Items[ "executionID" ] <- executionID
-    setHeader ctx "x-darklang-execution-id" (string executionID)
-    setHeader ctx "Server" "darklang"
-
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
@@ -294,10 +304,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let traceID = System.Guid.NewGuid()
       let method = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
-      let url : string =
-        let isHttps =
-          getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
-        ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
 
       Telemetry.addTags [ "canvas.name", canvasName
                           "canvas.id", meta.id
@@ -321,7 +327,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       match pages with
       // matching handler found - process normally
       | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-        LibService.Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
+        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
         let routeVars = Routing.routeInputVars route requestPath
@@ -342,11 +348,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Store trace - Do not resolve task, send this into the ether
           let traceHook (request : RT.Dval) : unit =
             FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-              TI.storeEvent
-                canvas.meta.id
-                traceID
-                ("HTTP", requestPath, method)
-                request)
+              TI.storeEvent meta.id traceID ("HTTP", requestPath, method) request)
 
           // Send to Pusher - Do not resolve task, send this into the ether
           let notifyHook (touchedTLIDs : List<tlid>) : unit =
@@ -419,12 +421,17 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task =
     (task {
+      let executionID = LibService.Telemetry.executionID ()
+      ctx.Items[ "executionID" ] <- executionID
+      setHeader ctx "x-darklang-execution-id" (string executionID)
+      setHeader ctx "Server" "darklang"
+
       try
         // Do this here so we don't redirect the health check
         if shouldRedirect ctx then
           return httpsRedirect ctx
         else
-          return! runDarkHandler ctx
+          return! runDarkHandler executionID ctx
       with
       // These errors are the only ones we want to handle here. We don't want to give
       // GrandUsers any info not intended for them. We want the rest to be caught by

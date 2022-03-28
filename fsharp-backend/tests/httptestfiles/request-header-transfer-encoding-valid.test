@@ -1,4 +1,5 @@
 [http-handler POST /]
+// It's a valid request but we don't parse it
 { j = request.jsonBody; b = request.body; fb = request.fullBody; f = request.formBody }
 
 [request]
@@ -16,13 +17,15 @@ Developer
 Network
 0
 
+
+
 [response]
 HTTP/1.1 400 Bad Request
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Connection: keep-alive
+Connection: keep-alive // OCAMLONLY
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Content-Length: LENGTH
 
