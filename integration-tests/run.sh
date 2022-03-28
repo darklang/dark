@@ -16,7 +16,7 @@ CONCURRENCY=1
 RETRIES=0
 REPEAT=1 # repeat allows us to repeat individual tests many times to check for edge cases
 BASE_URL="http://${DARK_CONFIG_APISERVER_HOST}"
-BWD_BASE_URL="http://${DARK_CONFIG_BWDSERVER_HOST}"
+BWD_BASE_URL=".${DARK_CONFIG_BWDSERVER_HOST}"
 BROWSER="chromium"
 PUBLISHED=""
 
