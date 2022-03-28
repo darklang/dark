@@ -9,6 +9,8 @@ open Prelude
 open RuntimeTypes
 open Prelude
 
+/// Gathers any global data (Secrets, DBs, etc.)
+/// that may be needed to evaluate an expression
 let globalsFor (state : ExecutionState) : Symtable =
   let secrets =
     state.program.secrets
@@ -33,10 +35,11 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   // Design doc for execution results and previews:
   // https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
-  // TODO document is either gone or hidden behind login
+  // TODO remove link from code or avail document - it is either gone or hidden behind login
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
+  /// This function ensures any value not on the execution path is evaluated.
   let preview st expr : Ply<unit> =
     uply {
       if state.tracing.realOrPreview = Preview then
@@ -76,6 +79,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let filtered =
         List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
+
       // CLEANUP: why do we only find errorRail, and not errors. Seems like
       // a mistake
       match List.tryFind (fun (dv : Dval) -> Dval.isErrorRail dv) filtered with
@@ -94,7 +98,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | None, Real ->
         return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
       | Some other, _ -> return other
-    | ERecord (id, pairs) ->
+    | ERecord (_id, pairs) ->
       let! evaluated =
         pairs
         |> Ply.List.mapSequentially (fun (k, v) ->
@@ -134,7 +138,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | NotInPipe -> ()
 
       return result
-    | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
+    | EFQFnValue (_id, desc) -> return DFnVal(FnName(desc))
     | EFieldAccess (id, e, field) ->
       let! obj = eval state st e
 
@@ -158,38 +162,38 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
           DError(
             sourceID id,
-            "Attempting to access a field of something that isn't a record or dict, ("
-            + actualType
-            + ")."
+            $"Attempting to access a field of something that isn't a record or dict, ({actualType})."
           )
 
       return result
-    | EFeatureFlag (id, cond, oldcode, newcode) ->
-      // True gives newcode, unlike in If statements
+    | EFeatureFlag (_id, cond, oldcode, newcode) ->
+      // Unlike If statements that check their condition for 'truthiness,'
+      // (considering the condition true if it evaluates to anything other
+      // than false/null,) Feature Flags require that the condition evaluates
+      // to exactly `True`.
       //
-      // In If statements, we use a false/null as false, and anything else is
-      // true. But this won't work for feature flags. If statements are built
-      // as you build you code, with no existing users. But feature flags are
-      // created when you have users and don't want to break your code. As a
-      // result, anything that isn't an explicitly signalling to use the new
-      // code, should use the old code:
+      // If statements are built as you build you code, with no existing users.
+      // But feature flags are created when you have users and don't want to
+      // break your code. As a result, anything that isn't an explicitly
+      // signalling to use the new code, should use the old code:
       // - errors should be ignored: use old code
       // - incompletes should be ignored: use old code
       // - errorrail should not be propaged: use old code
-      // - values which are "truthy" in if statements are not truthy here:
-      // imagine you are writing the FF cond and you get a list or object,
+      // - values which are "truthy" in if statements are not truthy here
+      //
+      // Imagine you are writing the FF cond and you get a list or object,
       // and you're about to do some other work on it. Should we immediately
       // start serving the new code to all your traffic? No. So only `true`
       // gets new code.
 
-      let! cond =
+      let! conditionResult =
         // under no circumstances should this cause code to fail
         try
           eval state st cond
         with
         | _ -> Ply(DBool false)
 
-      if cond = DBool true then
+      if conditionResult = DBool true then
         do! preview st oldcode
         return! eval state st newcode
       else
@@ -203,12 +207,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         // live values.
         let fakeST = Map.add "var" (DIncomplete SourceNone) st
         do! preview fakeST body
+
       let parameters =
-        List.choose
-          (function
+        parameters
+        |> List.choose (function
           | _, "" -> None
           | id, name -> Some(id, name))
-          parameters
 
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
@@ -409,7 +413,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   }
 
 /// Interprets an expression and reduces to a Dark value
-/// (or task that should result in such)
+/// (or a task that results in a dval)
 and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   uply {
     let! (result : Dval) = eval' state st e
@@ -427,11 +431,13 @@ and applyFn
   (ster : SendToRail)
   : DvalTask =
   let sourceID = SourceID(state.tlid, id)
+
+  // Unwrap
   match fn, isInPipe with
   | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
   // Incompletes are allowed in pipes
   | DIncomplete _, InPipe _ -> Ply(Option.defaultValue fn (List.tryHead args))
-  | other, InPipe _ ->
+  | _other, InPipe _ ->
     // CLEANUP: this matches the old pipe behaviour, no need to preserve that
     Ply(Option.defaultValue fn (List.tryHead args))
   | other, _ ->
@@ -440,7 +446,6 @@ and applyFn
         sourceID
         $"Expected a function value, got something else: {DvalReprExternal.toDeveloperReprV0 other}"
     )
-
 
 
 and applyFnVal
@@ -505,12 +510,12 @@ and callFn
 
     let fn =
       match desc with
-      | FQFnName.Stdlib std ->
+      | FQFnName.Stdlib _std ->
         // CLEANUP: do this when the libraries are loaded
         state.libraries.stdlib.TryFind desc |> Option.map builtInFnToFn
       | FQFnName.User name ->
         state.program.userFns.TryFind name |> Option.map userFnToFn
-      | FQFnName.Package pkg ->
+      | FQFnName.Package _pkg ->
         state.libraries.packageFns.TryFind desc |> Option.map packageFnToFn
 
     match List.tryFind Dval.isErrorRail argvals with
