@@ -39,8 +39,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
 
-  /// WHATISTHIS?
-  /// "if we're previewing some execution, ...?"
+  /// This function ensures any value not on the exeuction path is evaluated.
+  ///
+  /// We call this "previewing," a feature needed only when viewing/editing
+  /// the expression as a Dark user.
+  ///
+  /// Let's say you have the expression `if true then 4 else 5+6`.
+  /// In order to be able to get live values in the editor for `5`, `6` and `5+6`,
+  /// you need to "execute" the `5+6`, even though a "normal" exeuction wouldn't.
   let preview st expr : Ply<unit> =
     uply {
       if state.tracing.realOrPreview = Preview then
