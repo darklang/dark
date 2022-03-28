@@ -651,6 +651,8 @@ and execFn
         return DError(src, "Fn called with an error as an argument")
       // return err
       | _ ->
+        let mutable shouldStoreFnResult = false
+
         try
           match fn.fn with
           | StdLib f ->
@@ -659,6 +661,7 @@ and execFn
               | Some (result, _ts) -> return result
               | None -> return DIncomplete sourceID
             else
+              shouldStoreFnResult <- true
               let! result = f (state, arglist)
               // there's no point storing data we'll never ask for
               if fn.previewable <> Pure then
@@ -689,8 +692,8 @@ and execFn
                     // tl;dr, executing a package function may result in
                     // trace data being associated with the wrong
                     // handler/call site.
+                    shouldStoreFnResult <- true
                     let! result = eval state argsWithGlobals body
-
                     do! state.tracing.storeFnResult fnRecord arglist result
 
                     return
@@ -725,6 +728,7 @@ and execFn
                 do! state.tracing.storeFnArguments tlid args
 
                 let state = { state with tlid = tlid }
+                shouldStoreFnResult <- true
                 let! result = eval state argsWithGlobals body
                 do! state.tracing.storeFnResult fnRecord arglist result
 
@@ -740,64 +744,69 @@ and execFn
                    + TypeChecker.Error.listToString errs)
                 )
         with
-        | Errors.FakeValFoundInQuery dv ->
-          state.notify state "fakeval found in query" [ "dval", dv ]
-          return dv
-        | Errors.DBQueryException e ->
-          return (Dval.errStr (Errors.queryCompilerErrorTemplate + e))
-        | Errors.StdlibException (Errors.StringError msg) ->
-          return (Dval.errSStr sourceID msg)
-        | Errors.StdlibException Errors.IncorrectArgs ->
-          let paramLength = List.length fn.parameters
-          let argLength = List.length arglist
-
-          if paramLength <> argLength then
-            return
-              (Dval.errSStr
-                sourceID
-                ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
-                 + $" but here was called with {argLength} arguments."))
-
-          else
-            let invalid =
-              List.zip fn.parameters arglist
-              |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
-
-            match invalid with
-            | [] ->
-              return
-                (Dval.errSStr
-                  sourceID
-                  $"unknown error calling {FQFnName.toString fn.name}")
-            | (p, actual) :: _ ->
-              let msg = Errors.incorrectArgsMsg (fn.name) p actual
-              return (Dval.errSStr sourceID msg)
-        | Errors.StdlibException (Errors.FakeDvalFound dv) ->
-          state.notify state "fakedval found" [ "dval", dv ]
-          return dv
-        | :? DeveloperException as e ->
-          state.notify
-            state
-            $"DevException against {fnDesc}"
-            [ "context", "An exception was caught in fncall"
-              "fn", fnDesc
-              "args", args
-              "callerID", id
-              "isInPipe", isInPipe
-              "error", e.Message ]
-          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
         | e ->
-          // CLEANUP could we show the user the execution id here?
-          state.reportException
-            state
-            [ "context", "An exception was caught in fncall"
-              "fn", fnDesc
-              "args", args
-              "callerID", id
-              "isInPipe", isInPipe ]
-            e
-          // The GrandUser doesn't get to see DErrors, so it's safe to include this
-          // value and show it to the Dark Developer
-          return Dval.errSStr sourceID (Exception.toDeveloperMessage e)
+          let errorDval =
+            match e with
+            | Errors.FakeValFoundInQuery dv ->
+              state.notify state "fakeval found in query" [ "dval", dv ]
+              dv
+            | Errors.DBQueryException e ->
+              (Dval.errStr (Errors.queryCompilerErrorTemplate + e))
+            | Errors.StdlibException (Errors.StringError msg) ->
+              (Dval.errSStr sourceID msg)
+            | Errors.StdlibException Errors.IncorrectArgs ->
+              let paramLength = List.length fn.parameters
+              let argLength = List.length arglist
 
+              if paramLength <> argLength then
+                (Dval.errSStr
+                    sourceID
+                    ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
+                    + $" but here was called with {argLength} arguments."))
+
+              else
+                let invalid =
+                  List.zip fn.parameters arglist
+                  |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
+
+                match invalid with
+                | [] ->
+                  (Dval.errSStr
+                      sourceID
+                      $"unknown error calling {FQFnName.toString fn.name}")
+                | (p, actual) :: _ ->
+                  let msg = Errors.incorrectArgsMsg (fn.name) p actual
+                  (Dval.errSStr sourceID msg)
+            | Errors.StdlibException (Errors.FakeDvalFound dv) ->
+              state.notify state "fakedval found" [ "dval", dv ]
+              dv
+            | :? DeveloperException as e ->
+              state.notify
+                state
+                $"DevException against {fnDesc}"
+                [ "context", "An exception was caught in fncall"
+                  "fn", fnDesc
+                  "args", args
+                  "callerID", id
+                  "isInPipe", isInPipe
+                  "error", e.Message ]
+              Dval.errSStr sourceID (Exception.toDeveloperMessage e)
+            | e ->
+              // CLEANUP could we show the user the execution id here?
+              state.reportException
+                state
+                [ "context", "An exception was caught in fncall"
+                  "fn", fnDesc
+                  "args", args
+                  "callerID", id
+                  "isInPipe", isInPipe ]
+                e
+              // The GrandUser doesn't get to see DErrors, so it's safe to include this
+              // value and show it to the Dark Developer
+              Dval.errSStr sourceID (Exception.toDeveloperMessage e)
+
+          if shouldStoreFnResult then
+            do! state.tracing.storeFnResult fnRecord arglist errorDval
+
+          return errorDval
   }
