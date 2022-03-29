@@ -688,7 +688,7 @@ and execFn
                     // data we need
 
                     // TODO: We don't munge `state.tlid` like we do in
-                    // UserCreated, which means there might be `id`
+                    // UserFunction, which means there might be `id`
                     // collisions between AST nodes. Munging `state.tlid`
                     // would not save us from tlid collisions either.
                     // tl;dr, executing a package function may result in
@@ -703,11 +703,14 @@ and execFn
                       |> Dval.unwrapFromErrorRail
                       |> typeErrorOrValue Map.empty
                   }
-              // there's no point storing data we'll never ask for
-              if fn.previewable <> Pure then
-                do! state.tracing.storeFnResult fnRecord arglist result
+              // For now, always store these results
+              do! state.tracing.storeFnResult fnRecord arglist result
 
-              return result
+              return
+                result
+                |> Dval.unwrapFromErrorRail
+                |> typeErrorOrValue state.program.userTypes
+
             | Error errs ->
               return
                 DError(
