@@ -253,6 +253,43 @@ let testFunctionTracesAreStored =
       "functions should only have fn result for DB::generateKey"
   }
 
+let testErrorTracesAreStored =
+  testTask "error traces are stored" {
+    // set up canvas, user fn
+    let! (meta : Canvas.Meta) = initializeTestCanvas "test-error-traces-are-stored"
+
+    let (db : DB.T) = { tlid = gid (); name = "MyDB"; cols = []; version = 0 }
+
+    let program =
+      { canvasID = meta.id
+        canvasName = meta.name
+        accountID = meta.owner
+        dbs = Map [ "MyDB", db ]
+        userFns = Map.empty
+        userTypes = Map.empty
+        secrets = [] }
+
+    // call the user fn, which should result in a trace being stored
+    let executionID = LibService.Telemetry.executionID ()
+    let traceID = System.Guid.NewGuid()
+
+    let! (state, _) = RealExecution.createState executionID traceID (gid ()) program
+
+    // the DB has no columns, but the code expects one, causing it to fail
+    let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"
+
+    let (ast : Expr) = FSharpToExpr.parseRTExpr code
+
+    let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
+
+    // check for traces
+    let! testFnResult = TFR.load meta.id traceID state.tlid
+    Expect.equal
+      (List.length testFnResult)
+      1
+      "handler should have a result for test_fn"
+  }
+
 
 let tests =
   testList
@@ -263,4 +300,5 @@ let tests =
       testRouteVariablesWorkWithTraceInputsAndWildcards
       testStoredEventRoundtrip
       testTraceDataJsonFormatRedactsPasswords
-      testFunctionTracesAreStored ]
+      testFunctionTracesAreStored
+      testErrorTracesAreStored ]
