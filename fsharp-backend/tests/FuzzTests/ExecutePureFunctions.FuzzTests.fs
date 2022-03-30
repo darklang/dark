@@ -57,7 +57,9 @@ let allowedErrors = AllowedFuzzerErrors.readAllowedErrors ()
 
 
 type Generator =
-  static member String() : Arbitrary<string> = Generators.OCamlSafeString
+  static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> = G.NodaTime.LocalDateTime
+
+  static member String() : Arbitrary<string> = G.OCamlSafeString
 
   static member Float() : Arbitrary<float> =
     Arb.fromGenShrink (
