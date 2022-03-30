@@ -64,9 +64,9 @@ toString 5 = "5"
 
 [tests.featureflag]
 flag "test" true "old" "new" = "new"
+// everything else is old
 flag "test" false "old" "new" = "old"
 flag "" [true] "old" "new" = "old"
-// everything else is old
 flag "test" null "old" "new" = "old"
 flag "test" 5 "old" "new" = "old"
 flag "test" blank "old" "new" = "old"
@@ -239,7 +239,8 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 
 [tests.constructors]
 Nothing = Nothing
-((List.head_v1 []) == Nothing) = true
+((List.head_v1 []) = Nothing) = true
+(List.head_v1 []) = Nothing
 
 
 // ---------------------------
