@@ -389,4 +389,18 @@ DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY
 // ---------------------------
 // Functions
 // ---------------------------
-//[fn.addFriend key name height human dob income]
+[fn.stringFn key:string]
+key ++ " appended string"
+
+[fn.twoStringFn str1:string str2:string]
+str1 ++ " appended " ++ str2
+
+[tests.valid function calls]
+stringFn "string" = "string appended string"
+twoStringFn "str1" "str2" = "str1 appended str2"
+
+[tests.invalid function calls]
+stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int" // OCAMLONLY
+stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int" // FSHARPONLY
+stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments." // OCAMLONLY
+stringFn "str1" "str2" = Test.typeError "User \"stringFn\" has 1 parameters, but here was called with 2 arguments." // FSHARPONLY
