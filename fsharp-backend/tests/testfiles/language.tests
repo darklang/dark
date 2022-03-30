@@ -290,7 +290,7 @@ Ok (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
  5 |> e |> (+) 3) = 8
 
 
-[fn.errorRailFn arg]
+[fn.errorRailFn arg:any]
 ([] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x)))
 
 [tests.errorrail]
@@ -384,3 +384,9 @@ DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY
 [tests.db equality] with DB MyDB
 (MyDB = MyDB) = true
 (MyDB <> 5) = true
+
+
+// ---------------------------
+// Functions
+// ---------------------------
+//[fn.addFriend key name height human dob income]

@@ -322,11 +322,32 @@ let fileTests () : Test =
         let parameters : List<PT.UserFunction.Parameter> =
           definition
           |> String.split " "
-          |> List.map (fun name ->
-            { name = name
+          |> List.map (fun def ->
+            let (name, typ) =
+              match String.split ":" def with
+              | [ name; typ ] ->
+                (name,
+                 (typ
+                  |> String.trim
+                  |> PTParser.DType.parse
+                  |> Exception.unwrapOptionInternal
+                       "Invalid type name"
+                       [ "definition", def
+                         "type", typ
+                         "name", name
+                         "lineNumber", i
+                         "filename", filename ]))
+              | _ ->
+                Exception.raiseInternal
+                  "Invalid test function type declaration"
+                  [ "definition", def
+                    "name", name
+                    "lineNumber", i
+                    "filename", filename ]
+            { name = String.trim name
               nameID = gid ()
               description = ""
-              typ = Some(PT.TVariable "a")
+              typ = Some typ
               typeID = gid () })
 
         currentFn <-

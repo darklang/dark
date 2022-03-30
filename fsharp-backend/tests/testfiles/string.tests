@@ -1,4 +1,4 @@
-[fn.c arg]
+[fn.c arg:string]
 Test.toChar_v0_ster arg
 
 [tests.tests]
