@@ -20,7 +20,9 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 /// is produced consistently across OCaml and F# backends
 module DeveloperRepr =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
+    inherit Generators.NodaTime.All
+
+    static member String() : Arbitrary<string> =
       Arb.fromGen (Generators.ocamlSafeString)
 
     // The format here is only used for errors so it doesn't matter all that
@@ -48,7 +50,9 @@ module DeveloperRepr =
 /// is produced consistently across OCaml and F# backends
 module EnduserReadable =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
+    inherit Generators.NodaTime.All
+
+    static member String() : Arbitrary<string> =
       Arb.fromGen (Generators.ocamlSafeString)
 
     static member Dval() : Arbitrary<RT.Dval> =
@@ -70,7 +74,9 @@ module EnduserReadable =
 /// Ensure hashing of RT DVals is consistent across OCaml and F# backends
 module Hashing =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
+    inherit Generators.NodaTime.All
+
+    static member String() : Arbitrary<string> =
       Arb.fromGen (Generators.ocamlSafeString)
 
     static member Dval() : Arbitrary<RT.Dval> =

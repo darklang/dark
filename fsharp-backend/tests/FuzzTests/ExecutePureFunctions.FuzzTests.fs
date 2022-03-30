@@ -23,7 +23,7 @@ module OCamlInterop = LibBackend.OCamlInterop
 module G = Generators
 
 /// Ensure we only work with OCaml-friendly floats
-let filterFloat (f : float) : bool =
+let isValidOCamlFloat (f : float) : bool =
   match f with
   | System.Double.PositiveInfinity -> false
   | System.Double.NegativeInfinity -> false
@@ -57,7 +57,7 @@ let allowedErrors = AllowedFuzzerErrors.readAllowedErrors ()
 
 
 type Generator =
-  static member SafeString() : Arbitrary<string> =
+  static member String() : Arbitrary<string> =
     Arb.fromGenShrink (Generators.ocamlSafeString, Arb.shrink<string>)
 
   static member Float() : Arbitrary<float> =
@@ -66,12 +66,12 @@ type Generator =
         let specials =
           interestingFloats
           |> List.map Tuple2.second
-          |> List.filter filterFloat
+          |> List.filter isValidOCamlFloat
           |> List.map Gen.constant
           |> Gen.oneof
 
         let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
-        return! Gen.filter filterFloat v
+        return! Gen.filter isValidOCamlFloat v
       },
       Arb.shrinkNumber
     )
@@ -98,7 +98,7 @@ type Generator =
       // These all break the serialization to OCaml
       | RT.DPassword _ -> false
       | RT.DFnVal _ -> false
-      | RT.DFloat f -> filterFloat f
+      | RT.DFloat f -> isValidOCamlFloat f
       | _ -> true)
 
   static member DType() : Arbitrary<RT.DType> =
@@ -386,7 +386,7 @@ type Generator =
       Gen.sized (genDval' typ')
 
     { new Arbitrary<RT.FQFnName.StdlibFnName * List<RT.Dval>>() with
-        member x.Generator =
+        member _.Generator =
           gen {
             let fns =
               LibRealExecution.RealExecution.stdlibFns

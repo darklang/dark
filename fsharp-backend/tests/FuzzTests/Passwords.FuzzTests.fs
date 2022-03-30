@@ -21,7 +21,7 @@ module RT = LibExecution.RuntimeTypes
 module G = Generators
 
 type Generator =
-  static member SafeString() : Arbitrary<string> =
+  static member String() : Arbitrary<string> =
     Arb.fromGen (Generators.ocamlSafeString)
 
 /// We should be able to successfully 'check' a

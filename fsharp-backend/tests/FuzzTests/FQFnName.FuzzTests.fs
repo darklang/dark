@@ -32,7 +32,7 @@ let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] G.alphaNumericString
 let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericString
 
 type Generator =
-  static member SafeString() : Arbitrary<string> =
+  static member String() : Arbitrary<string> =
     Arb.fromGenShrink (Generators.ocamlSafeString, Arb.shrink<string>)
 
   static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =

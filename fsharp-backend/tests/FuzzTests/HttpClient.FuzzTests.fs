@@ -20,7 +20,9 @@ module G = Generators
 
 
 type Generator =
-  static member SafeString() : Arbitrary<string> =
+  inherit G.NodaTime.All
+
+  static member String() : Arbitrary<string> =
     // FSTODO: add in unicode
     // Generators.ocamlSafeString |> Arb.fromGen
     Arb.Default.String() |> Arb.filter G.isSafeOCamlString
@@ -32,9 +34,6 @@ type Generator =
       | _ -> true)
 
 type QueryStringGenerator =
-  static member SafeString() : Arbitrary<string> =
-    Arb.Default.String() |> Arb.filter G.isSafeOCamlString
-
   static member String() : Arbitrary<string> =
     Gen.listOf (Gen.listOf (Generators.ocamlSafeString))
     |> Gen.map (List.map (String.concat "="))
