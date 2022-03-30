@@ -161,7 +161,7 @@ module Roundtrippable =
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter (DvalReprInternal.isRoundtrippableDval true)
 
-  let canRoundtrip (dv : RT.Dval) : bool =
+  let roundtripsSuccessfully (dv : RT.Dval) : bool =
     dv
     |> DvalReprInternal.toInternalRoundtrippableV0
     |> DvalReprInternal.ofInternalRoundtrippableV0
@@ -186,7 +186,7 @@ module Roundtrippable =
           config
           typeof<Generator>
           "roundtripping works properly"
-          canRoundtrip
+          roundtripsSuccessfully
         testProperty
           config
           typeof<GeneratorWithBugs>

@@ -79,7 +79,7 @@ module Tests =
     let test name fn = testProperty config typeof<Generator> name fn
     testList
       "HttpClient, known good"
-      [ test "dvalToUrlStringExn" dvalToUrlStringExn
+      [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
         test "dvalToQuery" dvalToQuery
         test "dvalToFormEncoding" dvalToFormEncoding
         test "queryToDval" queryToDval

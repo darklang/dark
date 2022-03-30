@@ -36,7 +36,7 @@ let testInternalRoundtrippableDoesntCareAboutOrder =
 let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
-    FuzzTests.OCamlInterop.Roundtrippable.canRoundtrip
+    FuzzTests.OCamlInterop.Roundtrippable.roundtripsSuccessfully
     [ RT.DObj(
         Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                      ("a", RT.DErrorRail(RT.DFloat nan)) ]
@@ -261,7 +261,7 @@ let allRoundtrips =
     "roundtrips"
     [ t
         "roundtrippable"
-        FuzzTests.OCamlInterop.Roundtrippable.canRoundtrip
+        FuzzTests.OCamlInterop.Roundtrippable.roundtripsSuccessfully
         (dvs (DvalReprInternal.isRoundtrippableDval false))
       t
         "roundtrippable interop"

@@ -744,21 +744,15 @@ module Package =
 /// this includes Date::now and Int::random.
 /// </remarks>
 type Previewable =
-  /// Can be recalculated in the editor, so we don't need to save results.
-  /// e.g. `Date::add`
+  /// The same inputs will always yield the same outputs,
+  /// so we don't need to save results. e.g. `Date::add`
   | Pure
 
-  /// Can either:
-  /// - only be run on the server but is actually pure (e.g. `Crypto::md5`)
-  ///   Generally, these are functions that aren't compilable to WASM.
-  /// - be safely run without side effects but is not pure (e.g. `Date::now`)
-  ///
-  /// We should save the results.
+  /// Output may vary with the same inputs, though we can safely preview.
+  /// e.g. `Date::now`. We should save the results.
   | ImpurePreviewable
 
-  /// Can only be run on the server, and cannot be safely previewed
-  /// e.g. `DB::update`
-  ///
+  /// Can only be run on the server. e.g. `DB::update`
   /// We should save the results.
   | Impure
 
