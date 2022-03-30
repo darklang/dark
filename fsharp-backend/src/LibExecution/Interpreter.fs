@@ -188,11 +188,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let! conditionResult =
         // under no circumstances should this cause code to fail
-        // FSTODO this can fail
-        try
-          eval state st cond
-        with
-        | _ -> Ply(DBool false)
+        task {
+          try
+            return! eval state st cond
+          with
+          | _ -> return DBool false
+        }
 
       if conditionResult = DBool true then
         do! preview st oldcode
