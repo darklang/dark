@@ -22,16 +22,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module G = Generators
 
-/// Ensure we only work with OCaml-friendly floats
-let isValidOCamlFloat (f : float) : bool =
-  match f with
-  | System.Double.PositiveInfinity -> false
-  | System.Double.NegativeInfinity -> false
-  | f when System.Double.IsNaN f -> false
-  | f when f <= -1e+308 -> false
-  | f when f >= 1e+308 -> false
-  | _ -> true
-
 /// Ensure we only work with OCaml-friendly integers
 let isValidOCamlInt (i : int64) : bool =
   let ocamlIntUpperLimit = 4611686018427387903L
@@ -67,12 +57,10 @@ type Generator =
         let specials =
           interestingFloats
           |> List.map Tuple2.second
-          |> List.filter isValidOCamlFloat
           |> List.map Gen.constant
           |> Gen.oneof
 
-        let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
-        return! Gen.filter isValidOCamlFloat v
+        return! Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
       },
       Arb.shrinkNumber
     )
@@ -99,7 +87,6 @@ type Generator =
       // These all break the serialization to OCaml
       | RT.DPassword _ -> false
       | RT.DFnVal _ -> false
-      | RT.DFloat f -> isValidOCamlFloat f
       | _ -> true)
 
   static member DType() : Arbitrary<RT.DType> =
