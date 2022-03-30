@@ -41,10 +41,10 @@ module DeveloperRepr =
     DvalReprExternal.toDeveloperReprV0 dv
     .=. (OCamlInterop.toDeveloperRepr dv).Result
 
-  let tests =
+  let tests config =
     testList
       "toDeveloperRepr"
-      [ testProperty typeof<Generator> "roundtripping" equalsOCaml ]
+      [ testProperty config typeof<Generator> "roundtripping" equalsOCaml ]
 
 /// Ensure text representation of DVals meant to be read by "end users"
 /// is produced consistently across OCaml and F# backends
@@ -66,10 +66,10 @@ module EnduserReadable =
     DvalReprExternal.toEnduserReadableTextV0 dv
     .=. (OCamlInterop.toEnduserReadableTextV0 dv).Result
 
-  let tests =
+  let tests config =
     testList
       "toEnduserReadable"
-      [ testProperty typeof<Generator> "roundtripping" equalsOCaml ]
+      [ testProperty config typeof<Generator> "roundtripping" equalsOCaml ]
 
 /// Ensure hashing of RT DVals is consistent across OCaml and F# backends
 module Hashing =
@@ -101,9 +101,9 @@ module Hashing =
     let fsharpVersion = DvalReprInternal.hash 1 l
     ocamlVersion .=. fsharpVersion
 
-  let tests =
+  let tests config =
     testList
       "hash"
-      [ testProperty typeof<Generator> "toHashableRepr" equalsOCamlToHashable
-        testProperty typeof<Generator> "hashv0" equalsOCamlV0
-        testProperty typeof<Generator> "hashv1" equalsOCamlV1 ]
+      [ testProperty config typeof<Generator> "toHashableRepr" equalsOCamlToHashable
+        testProperty config typeof<Generator> "hashv0" equalsOCamlV0
+        testProperty config typeof<Generator> "hashv1" equalsOCamlV1 ]

@@ -42,7 +42,7 @@ let hashCheckRoundtrip (rawPassword : string) : bool =
     }
   t.Result
 
-let tests =
+let tests config =
   testList
     "password"
-    [ testProperty typeof<Generator> "hash/check roundtrip" hashCheckRoundtrip ]
+    [ testProperty config typeof<Generator> "hash/check roundtrip" hashCheckRoundtrip ]

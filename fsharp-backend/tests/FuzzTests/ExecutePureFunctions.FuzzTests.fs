@@ -709,7 +709,7 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
   Task.WaitAll [| t :> Task |]
   t.Result
 
-let tests =
+let tests config =
   testList
     "executePureFunctions"
-    [ testProperty typeof<Generator> "equalsOCaml" equalsOCaml ]
+    [ testProperty config typeof<Generator> "equalsOCaml" equalsOCaml ]

@@ -21,10 +21,11 @@ let roundtrip (date : NodaTime.Instant) : bool =
 
   roundTripped = date
 
-let tests =
+let tests config =
   testList
     "NodaTime"
     [ testProperty
+        config
         typeof<Generators.NodaTime.All>
         "roundtrips to/from isoString"
         roundtrip ]

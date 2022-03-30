@@ -37,7 +37,7 @@ let toStringTest (bytes : byte []) : bool =
   }
   |> result
 
-let tests =
+let tests config =
   testList
     "bytesToString"
-    [ testProperty typeof<Generator> "comparing bytesToString" toStringTest ]
+    [ testProperty config typeof<Generator> "comparing bytesToString" toStringTest ]

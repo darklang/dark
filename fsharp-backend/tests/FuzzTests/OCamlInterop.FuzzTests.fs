@@ -125,8 +125,8 @@ let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   |> result
   .=. pair
 
-let tests =
-  let tp f = testProperty typeof<Generator> f
+let tests config =
+  let tp f = testProperty config typeof<Generator> f
 
   testList
     "OcamlInterop"
@@ -179,11 +179,16 @@ module Roundtrippable =
         Expect.dvalEquality
         dv
 
-  let tests =
+  let tests config =
     testList
       "roundtrippable"
-      [ testProperty typeof<Generator> "roundtripping works properly" canRoundtrip
+      [ testProperty
+          config
+          typeof<Generator>
+          "roundtripping works properly"
+          canRoundtrip
         testProperty
+          config
           typeof<GeneratorWithBugs>
           "roundtrippable is interoperable"
           isInteroperableV0 ]
@@ -227,8 +232,8 @@ module Queryable =
         Expect.dvalEquality
         (RT.DObj dvm)
 
-  let tests =
-    let tp f = testProperty typeof<Generator> f
+  let tests config =
+    let tp f = testProperty config typeof<Generator> f
 
     testList
       "InternalQueryable"

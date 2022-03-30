@@ -77,7 +77,7 @@ let ptRoundtrip (a : PT.FQFnName.T) : bool =
   a |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString |> PTParser.FQFnName.parse
   .=. a
 
-let tests =
+let tests config =
   testList
     "PT.FQFnName"
-    [ testProperty typeof<Generator> "roundtripping" ptRoundtrip ]
+    [ testProperty config typeof<Generator> "roundtripping" ptRoundtrip ]

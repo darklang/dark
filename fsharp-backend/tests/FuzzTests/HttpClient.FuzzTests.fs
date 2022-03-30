@@ -18,7 +18,6 @@ module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module G = Generators
 
-
 type Generator =
   inherit G.NodaTime.All
 
@@ -74,16 +73,23 @@ let queryToEncodedString (q : List<string * List<string>>) : bool =
   DvalReprExternal.queryToEncodedString q
   .=. (OCamlInterop.paramsToQueryString q).Result
 
-let tests =
-  let test name fn = testProperty typeof<Generator> name fn
-  testList
-    "HttpClient"
-    [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
-      test "dvalToQuery" dvalToQuery
-      test "dvalToFormEncoding" dvalToFormEncoding
-      testProperty
-        typeof<QueryStringGenerator>
-        "queryStringToParams"
-        queryStringToParams // only &=& fails
-      test "queryToDval" queryToDval
-      test "queryToEncodedString" queryToEncodedString ]
+// FSTODO replace with simple `let tests = ...` once issues resolved
+module Tests =
+  let knownGood config =
+    let test name fn = testProperty config typeof<Generator> name fn
+    testList
+      "HttpClient, known good"
+      [ test "dvalToUrlStringExn" dvalToUrlStringExn
+        test "dvalToQuery" dvalToQuery
+        test "dvalToFormEncoding" dvalToFormEncoding
+        test "queryToDval" queryToDval
+        test "queryToEncodedString" queryToEncodedString ]
+
+  let knownBad config =
+    testList
+      "HttpClient, known bad"
+      [ testProperty
+          config
+          typeof<QueryStringGenerator>
+          "queryStringToParams"
+          queryStringToParams ] // fails on "&=&"
