@@ -190,8 +190,12 @@ let testAdmin =
           password = LibBackend.Password.invalid
           email = "admin-test@darklang.com"
           name = "test name" }
-      do! LibBackend.Account.upsertAdmin account |> Task.map Result.unwrapUnsafe
-      return! LibBackend.Account.getUser username |> Task.map Option.unwrapUnsafe
+      do!
+        LibBackend.Account.upsertAdmin account
+        |> Task.map (Exception.unwrapResultInternal [])
+      return!
+        LibBackend.Account.getUser username
+        |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
     })
 
 // Read all test files. The test file format is described in README.md

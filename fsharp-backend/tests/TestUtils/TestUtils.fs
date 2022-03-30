@@ -21,7 +21,10 @@ module Exe = LibExecution.Execution
 module S = RTShortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
+  lazy
+    (UserName.create "test"
+     |> Account.getUser
+     |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
 
 /// Delete test data (in DB) for one canvas
 let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =

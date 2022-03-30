@@ -98,7 +98,12 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
   if sameKeys then
     Map.mapWithIndex
       (fun key value ->
-        match (Map.get key cols |> Option.unwrapUnsafe, value) with
+        let col =
+          Map.get key cols
+          |> Exception.unwrapOptionInternal
+               "Could not find Col"
+               [ "name", key; "cols", cols ]
+        match col, value with
         | RT.TInt, RT.DInt _ -> value
         | RT.TFloat, RT.DFloat _ -> value
         | RT.TStr, RT.DStr _ -> value

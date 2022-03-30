@@ -52,14 +52,15 @@ let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
 /// to a querystring-safe string across OCaml and F# backends
 let dvalToQuery (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
-  DvalReprExternal.toQuery dv |> Result.unwrapUnsafe
+  (DvalReprExternal.toQuery dv |> Exception.unwrapResultInternal [ "dv", dv ])
   .=. (OCamlInterop.dvalToQuery dv).Result
 
 /// Checks that a Dval is consistently converted
 /// to a form-encoding-safe string across OCaml and F# backends
 let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
-  (DvalReprExternal.toFormEncoding dv |> Result.unwrapUnsafe)
+  (DvalReprExternal.toFormEncoding dv
+   |> Exception.unwrapResultInternal [ "dv", dv ])
   .=. (OCamlInterop.dvalToFormEncoding dv).Result
 
 /// Checks that provided query strings are parsed as URL route parameters

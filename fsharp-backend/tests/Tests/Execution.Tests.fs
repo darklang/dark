@@ -208,9 +208,12 @@ let testIfPreview : Test =
       let! results = execSaveDvals "if-preview" [] [] ast
 
       return
-        (Dictionary.get ifID results |> Option.unwrapUnsafe,
-         Dictionary.get thenID results |> Option.unwrapUnsafe,
-         Dictionary.get elseID results |> Option.unwrapUnsafe)
+        (Dictionary.get ifID results
+         |> Exception.unwrapOptionInternal "cannot find ifID" [],
+         Dictionary.get thenID results
+         |> Exception.unwrapOptionInternal "cannot find thenID" [],
+         Dictionary.get elseID results
+         |> Exception.unwrapOptionInternal "cannot find elseID" [])
     }
 
   // Using the first test below for illustration,
@@ -275,9 +278,12 @@ let testFeatureFlagPreview : Test =
       let! results = execSaveDvals "ff-preview" [] [] ast
 
       return
-        (Dictionary.get ffID results |> Option.unwrapUnsafe,
-         Dictionary.get oldID results |> Option.unwrapUnsafe,
-         Dictionary.get newID results |> Option.unwrapUnsafe)
+        (Dictionary.get ffID results
+         |> Exception.unwrapOptionInternal "ADDMESSAGE" [],
+         Dictionary.get oldID results
+         |> Exception.unwrapOptionInternal "ADDMESSAGE" [],
+         Dictionary.get newID results
+         |> Exception.unwrapOptionInternal "ADDMESSAGE" [])
     }
 
   // see notes in above `testIfPreview` regarding how these tests work

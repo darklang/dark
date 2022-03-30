@@ -358,9 +358,14 @@ let testingScheduleAll () : Task<unit> =
   |> Sql.executeStatementAsync
 
 let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
+  let ruleType = read.string "rule_type"
   { id = read.int "id"
     ruleType =
-      read.string "rule_type" |> SchedulingRule.RuleType.parse |> Option.unwrapUnsafe
+      ruleType
+      |> SchedulingRule.RuleType.parse
+      |> Exception.unwrapOptionInternal
+           "Could not parse ruleType"
+           [ "ruleType", ruleType ]
     canvasID = read.uuid "canvas_id"
     handlerName = read.string "handler_name"
     eventSpace = read.string "event_space"

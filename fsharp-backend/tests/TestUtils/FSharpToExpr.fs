@@ -137,7 +137,11 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     PT.EFloat(id, sign, whole, fraction)
   | SynExpr.Const (SynConst.String (s, _, _), _) -> PT.EString(id, s)
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
-    let op = Map.get ident.idText ops |> Option.unwrapUnsafe
+    let op =
+      Map.get ident.idText ops
+      |> Exception.unwrapOptionInternal
+           "can't find operation"
+           [ "name", ident.idText ]
     let name = PTParser.FQFnName.stdlibFqName "" op 0
     PT.EBinOp(id, name, placeholder, placeholder, PT.NoRail)
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
@@ -177,7 +181,11 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
         ($"{module_}::{name}_v{int version}", PT.NoRail)
       | Regex "(.*)" [ name ] when Map.containsKey name ops ->
         // Things like `Date::<`, written `Date.(<)`
-        let name = Map.get name ops |> Option.unwrapUnsafe
+        let name =
+          Map.get name ops
+          |> Exception.unwrapOptionInternal
+               "can't find function name"
+               [ "name", name ]
         ($"{module_}::{name}", PT.NoRail)
       | Regex "(.+)_ster" [ name ] -> ($"{module_}::{name}", PT.Rail)
       | Regex "(.+)" [ name ] -> ($"{module_}::{name}", PT.NoRail)

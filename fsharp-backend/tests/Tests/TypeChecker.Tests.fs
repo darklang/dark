@@ -34,7 +34,7 @@ let testBasicTypecheckWorks : Test =
       |> Lazy.force
       |> fun l -> l.stdlib
       |> Map.get (PTParser.FQFnName.parse fn |> PT2RT.FQFnName.toRT)
-      |> Option.unwrapUnsafe
+      |> Exception.unwrapOptionInternal "ADDMESSAGE" []
       |> RT.builtInFnToFn
 
     TypeChecker.checkFunctionCall Map.empty fn args
