@@ -147,7 +147,11 @@ let t
       with
       | e ->
         let metadata = Exception.toMetadata e
-        return Expect.equal ("Exception thrown in test", []) (string e, metadata) ""
+        return
+          Expect.equal
+            (e.Message, metadata, e.StackTrace)
+            ("Exception thrown in test", [], "")
+            ""
     }
 
 
