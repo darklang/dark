@@ -96,6 +96,16 @@ let t
 
         do! clearCanvasData meta.owner meta.name
 
+        // Only do this now so that the error doesn't fire while evaluating the expectedExpr
+        let state =
+          let expectedExceptionCount =
+            match comment with
+            | Regex ".*EXPECTED_EXCEPTION_COUNT: (\d+)" [ count ] -> int count
+            | _ -> 0
+          { state with
+              test =
+                { state.test with expectedExceptionCount = expectedExceptionCount } }
+
         let testOCaml, testFSharp =
           if String.includes "FSHARPONLY" comment then (false, true)
           else if String.includes "OCAMLONLY" comment then (true, false)

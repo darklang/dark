@@ -74,6 +74,9 @@ flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
 flag "test" (List.head_v1_ster []) "old" "new" = "old"
 flag "test" {x = true} "old" "new" = "old"
 flag "test" [true] "old" "new" = "old"
+flag "test" (Test.errorRailValue "error") "old" "new" = "old"
+flag "test" (Test.negativeInfinity "extra arg") "old" "new" = "old"
+flag "test" (Test.raiseException "message") "old" "new" = "old" // EXPECTED_EXCEPTION_COUNT: 1
 
 
 [tests.lambdas]

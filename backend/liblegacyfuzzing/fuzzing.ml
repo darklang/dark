@@ -458,7 +458,22 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = false }
+  ; { prefix_names = ["Test::raiseException"]
+    ; infix_names = []
+    ; parameters = [Lib.par "message" TStr]
+    ; return_type = TAny
+    ; description = "A function that raises an F# exception"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr message] ->
+              failwith (Unicode_string.to_string message)
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+     ]
 
 
 let exec_state : Types.RuntimeT.exec_state =
