@@ -899,6 +899,7 @@ let fns : List<BuiltInFn> =
           Ply(DStr(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = Impure
       deprecated = NotDeprecated }
 
