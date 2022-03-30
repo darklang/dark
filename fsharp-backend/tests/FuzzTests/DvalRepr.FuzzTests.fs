@@ -20,10 +20,12 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 /// is produced consistently across OCaml and F# backends
 module DeveloperRepr =
   type Generator =
-    inherit Generators.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // The format here is only used for errors so it doesn't matter all that
     // much. These are places where we've manually checked the differing
@@ -50,10 +52,12 @@ module DeveloperRepr =
 /// is produced consistently across OCaml and F# backends
 module EnduserReadable =
   type Generator =
-    inherit Generators.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -74,10 +78,12 @@ module EnduserReadable =
 /// Ensure hashing of RT DVals is consistent across OCaml and F# backends
 module Hashing =
   type Generator =
-    inherit Generators.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()

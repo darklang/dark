@@ -27,10 +27,12 @@ module G = Generators
 /// OCaml and F# backends.
 module PrettyMachineJson =
   type Generator =
-    inherit G.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -66,10 +68,12 @@ module PrettyMachineJson =
 
 module PrettyResponseJson =
   type Generator =
-    inherit G.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -108,11 +112,12 @@ module PrettyResponseJson =
 
 module PrettyRequestJson =
   type Generator =
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    inherit G.NodaTime.All
-
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -145,10 +150,12 @@ module PrettyRequestJson =
 
 module LibJwtJson =
   type Generator =
-    inherit G.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()

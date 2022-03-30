@@ -53,6 +53,8 @@ let ocamlSafeString =
   |> Gen.map String.normalize
   |> Gen.filter isSafeOCamlString
 
+let OCamlSafeString = Arb.fromGen ocamlSafeString
+
 let char () : Gen<string> =
   ocamlSafeString
   |> Gen.map String.toEgcSeq
@@ -78,6 +80,5 @@ module NodaTime =
   let localDateTime : Gen<NodaTime.LocalDateTime> =
     Arb.generate<System.DateTime> |> Gen.map NodaTime.LocalDateTime.FromDateTime
 
-  type All =
-    static member Instant() = instant |> Arb.fromGen
-    static member LocalDateTime() = localDateTime |> Arb.fromGen
+  let Instant = instant |> Arb.fromGen
+  let LocalDateTime = localDateTime |> Arb.fromGen

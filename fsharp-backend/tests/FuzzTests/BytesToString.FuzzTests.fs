@@ -15,8 +15,7 @@ module OCamlInterop = LibBackend.OCamlInterop
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Generator =
-  static member String() : Arbitrary<string> =
-    Arb.fromGen (Generators.ocamlSafeString)
+  static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
 /// Checks that `toString` on a `byte[]` produces
 /// the same string for both OCaml and F# runtimes

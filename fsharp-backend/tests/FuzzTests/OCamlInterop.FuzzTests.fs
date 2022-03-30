@@ -64,10 +64,10 @@ let isInteroperableWithOCamlBackend
     reraise ()
 
 type Generator =
-  inherit Generators.NodaTime.All
+  static member LocalDateTime() = Generators.NodaTime.LocalDateTime
+  static member Instant() = Generators.NodaTime.Instant
 
-  static member String() : Arbitrary<string> =
-    Arb.fromGen (Generators.ocamlSafeString)
+  static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
   static member Expr() =
     Arb.Default.Derive()
@@ -137,10 +137,12 @@ let tests config =
 
 module Roundtrippable =
   type Generator =
-    inherit Generators.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -150,10 +152,12 @@ module Roundtrippable =
       |> Arb.filter (DvalReprInternal.isRoundtrippableDval false)
 
   type GeneratorWithBugs =
-    inherit Generators.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -196,10 +200,12 @@ module Roundtrippable =
 
 module Queryable =
   type Generator =
-    inherit Generators.NodaTime.All
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
 
-    static member String() : Arbitrary<string> =
-      Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)

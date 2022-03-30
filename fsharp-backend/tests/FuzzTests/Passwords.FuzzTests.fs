@@ -21,8 +21,7 @@ module RT = LibExecution.RuntimeTypes
 module G = Generators
 
 type Generator =
-  static member String() : Arbitrary<string> =
-    Arb.fromGen (Generators.ocamlSafeString)
+  static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
 /// We should be able to successfully 'check' a
 /// password against a hash of the same password

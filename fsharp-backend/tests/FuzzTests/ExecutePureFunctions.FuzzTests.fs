@@ -57,8 +57,7 @@ let allowedErrors = AllowedFuzzerErrors.readAllowedErrors ()
 
 
 type Generator =
-  static member String() : Arbitrary<string> =
-    Arb.fromGenShrink (Generators.ocamlSafeString, Arb.shrink<string>)
+  static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
   static member Float() : Arbitrary<float> =
     Arb.fromGenShrink (

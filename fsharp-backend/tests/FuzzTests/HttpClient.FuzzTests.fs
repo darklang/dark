@@ -19,7 +19,9 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 module G = Generators
 
 type Generator =
-  inherit G.NodaTime.All
+  static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+    Generators.NodaTime.LocalDateTime
+  static member Instant() : Arbitrary<NodaTime.Instant> = Generators.NodaTime.Instant
 
   static member String() : Arbitrary<string> =
     // FSTODO: add in unicode
