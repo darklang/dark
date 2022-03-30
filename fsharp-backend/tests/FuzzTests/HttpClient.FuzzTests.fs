@@ -22,8 +22,8 @@ module G = Generators
 type Generator =
   static member SafeString() : Arbitrary<string> =
     // FSTODO: add in unicode
-    // G.string () |> Arb.fromGen
-    Arb.Default.String() |> Arb.filter G.safeOCamlString
+    // Generators.ocamlSafeString |> Arb.fromGen
+    Arb.Default.String() |> Arb.filter G.isSafeOCamlString
 
   static member Dval() : Arbitrary<RT.Dval> =
     Arb.Default.Derive()
@@ -33,10 +33,10 @@ type Generator =
 
 type QueryStringGenerator =
   static member SafeString() : Arbitrary<string> =
-    Arb.Default.String() |> Arb.filter G.safeOCamlString
+    Arb.Default.String() |> Arb.filter G.isSafeOCamlString
 
   static member String() : Arbitrary<string> =
-    Gen.listOf (Gen.listOf (G.string ()))
+    Gen.listOf (Gen.listOf (Generators.ocamlSafeString))
     |> Gen.map (List.map (String.concat "="))
     |> Gen.map (String.concat "&")
     |> Arb.fromGen

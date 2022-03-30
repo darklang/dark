@@ -32,4 +32,5 @@ let knownGood =
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 
 [<EntryPoint>]
-let main args = runTestsWithCLIArgs [] args tests
+let main args =
+  runTestsWithCLIArgs [] args tests

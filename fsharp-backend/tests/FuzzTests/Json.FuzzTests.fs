@@ -27,7 +27,7 @@ module G = Generators
 /// OCaml and F# backends.
 module PrettyMachineJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -62,7 +62,7 @@ module PrettyMachineJson =
 
 module PrettyResponseJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -101,7 +101,7 @@ module PrettyResponseJson =
 
 module PrettyRequestJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -134,7 +134,7 @@ module PrettyRequestJson =
 
 module LibJwtJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()

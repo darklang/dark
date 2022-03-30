@@ -58,7 +58,7 @@ let allowedErrors = AllowedFuzzerErrors.readAllowedErrors ()
 
 type Generator =
   static member SafeString() : Arbitrary<string> =
-    Arb.fromGenShrink (G.string (), Arb.shrink<string>)
+    Arb.fromGenShrink (Generators.ocamlSafeString, Arb.shrink<string>)
 
   static member Float() : Arbitrary<float> =
     Arb.fromGenShrink (
@@ -163,7 +163,7 @@ type Generator =
             let! v = Arb.generate<int64>
             return RT.EInteger(gid (), v)
           | RT.TStr ->
-            let! v = Generators.string ()
+            let! v = Generators.ocamlSafeString
             return RT.EString(gid (), v)
           | RT.TChar ->
             // We don't have a construct for characters, so create code to generate the character
@@ -192,7 +192,7 @@ type Generator =
                 (fun l -> RT.ERecord(gid (), l))
                 (Gen.listOfLength
                   s
-                  (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+                  (Gen.zip (Generators.ocamlSafeString) (genExpr' typ (s / 2))))
           | RT.TUserType (_name, _version) ->
             let! typ = Arb.generate<RT.DType>
 
@@ -201,7 +201,7 @@ type Generator =
                 (fun l -> RT.ERecord(gid (), l))
                 (Gen.listOfLength
                   s
-                  (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+                  (Gen.zip (Generators.ocamlSafeString) (genExpr' typ (s / 2))))
 
           | RT.TRecord pairs ->
             let! entries =
@@ -246,7 +246,7 @@ type Generator =
             let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
             return call "String" "toBytes" 0 [ v ]
           | RT.TDB _ ->
-            let! name = Generators.string ()
+            let! name = Generators.ocamlSafeString
             let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
             let name = ti.ToTitleCase name
             return RT.EVariable(gid (), name)
@@ -280,7 +280,7 @@ type Generator =
             let! v = Arb.generate<int64>
             return RT.DInt v
           | RT.TStr ->
-            let! v = Generators.string ()
+            let! v = Generators.ocamlSafeString
             return RT.DStr v
           | RT.TVariable _ ->
             let! newtyp = Arb.generate<RT.DType>
@@ -301,10 +301,10 @@ type Generator =
                 (fun l -> RT.DObj(Map.ofList l))
                 (Gen.listOfLength
                   s
-                  (Gen.zip (Generators.string ()) (genDval' typ (s / 2))))
+                  (Gen.zip (Generators.ocamlSafeString) (genDval' typ (s / 2))))
           // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
           // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
-          | RT.TDB _ -> return! Gen.map RT.DDB (Generators.string ())
+          | RT.TDB _ -> return! Gen.map RT.DDB (Generators.ocamlSafeString)
           | RT.TDate ->
             return!
               Gen.map
@@ -350,7 +350,7 @@ type Generator =
             let! list =
               Gen.listOfLength
                 s
-                (Gen.zip (Generators.string ()) (genDval' typ (s / 2)))
+                (Gen.zip (Generators.ocamlSafeString) (genDval' typ (s / 2)))
 
             return RT.DObj(Map list)
           | RT.TRecord (pairs) ->

@@ -21,7 +21,7 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 module DeveloperRepr =
   type Generator =
     static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+      Arb.fromGen (Generators.ocamlSafeString)
 
     // The format here is only used for errors so it doesn't matter all that
     // much. These are places where we've manually checked the differing
@@ -49,7 +49,7 @@ module DeveloperRepr =
 module EnduserReadable =
   type Generator =
     static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+      Arb.fromGen (Generators.ocamlSafeString)
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -71,7 +71,7 @@ module EnduserReadable =
 module Hashing =
   type Generator =
     static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+      Arb.fromGen (Generators.ocamlSafeString)
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()

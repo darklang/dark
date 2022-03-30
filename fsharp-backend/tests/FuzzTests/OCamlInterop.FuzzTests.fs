@@ -64,7 +64,7 @@ let isInteroperable
     reraise ()
 
 type Generator =
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+  static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
   static member Expr() =
     Arb.Default.Derive()
@@ -134,7 +134,7 @@ let tests =
 
 module Roundtrippable =
   type Generator =
-    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member String() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -144,7 +144,7 @@ module Roundtrippable =
       |> Arb.filter (DvalReprInternal.isRoundtrippableDval false)
 
   type GeneratorWithBugs =
-    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member String() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -185,7 +185,7 @@ module Roundtrippable =
 
 module Queryable =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)

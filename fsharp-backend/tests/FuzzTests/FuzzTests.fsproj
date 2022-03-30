@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.FuzzTests.fs" />
+    <Compile Include="Generators.fs" />
     <Compile Include="FQFnName.FuzzTests.fs" />
     <Compile Include="OCamlInterop.FuzzTests.fs" />
     <Compile Include="DvalRepr.FuzzTests.fs" />
