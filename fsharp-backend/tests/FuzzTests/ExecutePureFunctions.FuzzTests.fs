@@ -47,7 +47,8 @@ let allowedErrors = AllowedFuzzerErrors.readAllowedErrors ()
 
 
 type Generator =
-  static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> = G.NodaTime.LocalDateTime
+  static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+    G.NodaTime.LocalDateTime
 
   static member String() : Arbitrary<string> = G.OCamlSafeString
 
