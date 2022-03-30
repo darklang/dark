@@ -44,7 +44,8 @@ let parseTests =
           ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 })
           ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 })
           ("", p "-")
-          ("", p "^") ]
+          ("", p "^")
+          ("", PT.FQFnName.User "gm32_v6") ]
       testMany
         "FQFnName parse tests"
         (fun name ->
