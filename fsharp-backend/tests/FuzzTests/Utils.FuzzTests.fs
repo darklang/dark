@@ -33,14 +33,8 @@ let (.=.) actual expected : bool =
     Expect.equal (actual, o) (expected, e) ""
     false
 
-let baseConfig : FsCheckConfig =
-  { FsCheckConfig.defaultConfig with maxTest = 100000 }
-
 let baseConfigWithGenerator (typ : System.Type) : FsCheckConfig =
-  { baseConfig with arbitrary = [ typ ] }
+  { FsCheckConfig.defaultConfig with maxTest = 10; arbitrary = [ typ ] }
 
-let testProperty (name : string) (x : 'a) : Test =
-  testPropertyWithConfig baseConfig name x
-
-let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
+let testProperty (typ : System.Type) (name : string) (x : 'a) : Test =
   testPropertyWithConfig (baseConfigWithGenerator typ) name x

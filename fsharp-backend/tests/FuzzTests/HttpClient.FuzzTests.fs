@@ -76,13 +76,13 @@ let queryToEncodedString (q : List<string * List<string>>) : bool =
   .=. (OCamlInterop.paramsToQueryString q).Result
 
 let tests =
-  let test name fn = testPropertyWithGenerator typeof<Generator> name fn
+  let test name fn = testProperty typeof<Generator> name fn
   testList
     "HttpClient"
     [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
       test "dvalToQuery" dvalToQuery
       test "dvalToFormEncoding" dvalToFormEncoding
-      testPropertyWithGenerator
+      testProperty
         typeof<QueryStringGenerator>
         "queryStringToParams"
         queryStringToParams // only &=& fails

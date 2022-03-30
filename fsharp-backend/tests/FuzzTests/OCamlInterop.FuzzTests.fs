@@ -64,7 +64,8 @@ let isInteroperable
     reraise ()
 
 type Generator =
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
+  static member SafeString() : Arbitrary<string> =
+    Arb.fromGen (Generators.ocamlSafeString)
 
   static member Expr() =
     Arb.Default.Derive()
@@ -123,7 +124,7 @@ let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   .=. pair
 
 let tests =
-  let tp f = testPropertyWithGenerator typeof<Generator> f
+  let tp f = testProperty typeof<Generator> f
 
   testList
     "OcamlInterop"
@@ -134,7 +135,8 @@ let tests =
 
 module Roundtrippable =
   type Generator =
-    static member String() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> =
+      Arb.fromGen (Generators.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -144,7 +146,8 @@ module Roundtrippable =
       |> Arb.filter (DvalReprInternal.isRoundtrippableDval false)
 
   type GeneratorWithBugs =
-    static member String() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
+    static member String() : Arbitrary<string> =
+      Arb.fromGen (Generators.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -173,11 +176,8 @@ module Roundtrippable =
   let tests =
     testList
       "roundtrippable"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "roundtripping works properly"
-          roundtrip
-        testPropertyWithGenerator
+      [ testProperty typeof<Generator> "roundtripping works properly" roundtrip
+        testProperty
           typeof<GeneratorWithBugs>
           "roundtrippable is interoperable"
           isInteroperableV0 ]
@@ -185,7 +185,8 @@ module Roundtrippable =
 
 module Queryable =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
+    static member SafeString() : Arbitrary<string> =
+      Arb.fromGen (Generators.ocamlSafeString)
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -219,7 +220,7 @@ module Queryable =
         (RT.DObj dvm)
 
   let tests =
-    let tp f = testPropertyWithGenerator typeof<Generator> f
+    let tp f = testProperty typeof<Generator> f
 
     testList
       "InternalQueryable"

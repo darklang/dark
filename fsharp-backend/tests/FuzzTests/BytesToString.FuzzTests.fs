@@ -15,7 +15,8 @@ module OCamlInterop = LibBackend.OCamlInterop
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Generator =
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (Generators.ocamlSafeString)
+  static member SafeString() : Arbitrary<string> =
+    Arb.fromGen (Generators.ocamlSafeString)
 
 /// Checks that `toString` on a `byte[]` produces
 /// the same string for both OCaml and F# runtimes
@@ -40,7 +41,4 @@ let toStringTest (bytes : byte []) : bool =
 let tests =
   testList
     "bytesToString"
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "comparing bytesToString"
-        toStringTest ]
+    [ testProperty typeof<Generator> "comparing bytesToString" toStringTest ]

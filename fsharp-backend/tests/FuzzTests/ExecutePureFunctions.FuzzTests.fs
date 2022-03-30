@@ -712,4 +712,4 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
 let tests =
   testList
     "executePureFunctions"
-    [ testPropertyWithGenerator typeof<Generator> "equalsOCaml" equalsOCaml ]
+    [ testProperty typeof<Generator> "equalsOCaml" equalsOCaml ]

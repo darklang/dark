@@ -21,8 +21,7 @@ module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
 
-let isSafeOCamlString (s : string) : bool =
-  s <> null && not (s.Contains('\u0000'))
+let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
 
 /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
 /// FSTODO: add in unicode

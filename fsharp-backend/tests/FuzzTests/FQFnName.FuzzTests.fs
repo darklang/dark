@@ -80,4 +80,4 @@ let ptRoundtrip (a : PT.FQFnName.T) : bool =
 let tests =
   testList
     "PT.FQFnName"
-    [ testPropertyWithGenerator typeof<Generator> "roundtripping" ptRoundtrip ]
+    [ testProperty typeof<Generator> "roundtripping" ptRoundtrip ]

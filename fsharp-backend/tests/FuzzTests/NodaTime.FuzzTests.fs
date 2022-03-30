@@ -22,4 +22,9 @@ let roundtrip (date : NodaTime.Instant) : bool =
   roundTripped = date
 
 let tests =
-  testList "NodaTime" [ testProperty "roundtrips to/from isoString" roundtrip ]
+  testList
+    "NodaTime"
+    [ testProperty
+        typeof<Generators.NodaTime.All>
+        "roundtrips to/from isoString"
+        roundtrip ]
