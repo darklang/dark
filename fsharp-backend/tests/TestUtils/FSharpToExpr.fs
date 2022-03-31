@@ -195,6 +195,21 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
           [ "name", fnName.idText ]
 
     PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+  // Preliminary support for package manager functions
+  | SynExpr.LongIdent (_,
+                       LongIdentWithDots ([ owner; package; modName; fnName ], _),
+                       _,
+                       _) when
+    owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
+    ->
+    let fnName = fnName.idText
+    let name, ster =
+      if String.endsWith "_ster" fnName then
+        String.dropRight 5 fnName, PT.Rail
+      else
+        fnName, PT.NoRail
+    let name = $"test/test/Test::{name}_v0"
+    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
     let obj1 =
       PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
