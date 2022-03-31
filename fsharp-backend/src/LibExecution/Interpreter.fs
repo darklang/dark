@@ -569,7 +569,7 @@ and callFn
             Ply(
               DError(
                 sourceID callerID,
-                $"{desc} has {expectedLength} parameters, but here was called"
+                $"{FQFnName.toString desc} has {expectedLength} parameters, but here was called"
                 + $" with {actualLength} arguments."
               )
             )
