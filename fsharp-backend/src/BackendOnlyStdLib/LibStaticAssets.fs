@@ -48,7 +48,7 @@ let getV0 (url : string) : Task<byte []> =
       let! body = response.Content.ReadAsByteArrayAsync()
       if code < 200 || code >= 300 then
         return
-          Exception.raiseLibrary
+          Exception.raiseKnownIssue
             $"Bad HTTP response ({code}) in call to {url}"
             [ "url", url; "code", code; "body", UTF8.ofBytesWithReplacement body ]
       else
@@ -56,7 +56,7 @@ let getV0 (url : string) : Task<byte []> =
     with
     | e ->
       return
-        Exception.raiseLibrary
+        Exception.raiseKnownIssue
           $"Internal HTTP-stack exception: {e.Message}"
           [ "url", url ]
   }
@@ -73,7 +73,7 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
       let! body = response.Content.ReadAsByteArrayAsync()
       if code < 200 || code >= 300 then
         return
-          Exception.raiseLibrary
+          Exception.raiseKnownIssue
             $"Bad HTTP response ({code}) in call to {url}"
             [ "url", url; "code", code; "body", UTF8.ofBytesWithReplacement body ]
       else
@@ -81,7 +81,7 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
     with
     | e ->
       return
-        Exception.raiseLibrary
+        Exception.raiseKnownIssue
           $"Internal HTTP-stack exception: {e.Message}"
           [ "url", url ]
   }
@@ -100,7 +100,7 @@ let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
     with
     | e ->
       return
-        Exception.raiseLibrary
+        Exception.raiseKnownIssue
           $"Internal HTTP-stack exception: {e.Message}"
           [ "url", url ]
   }

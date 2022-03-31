@@ -76,10 +76,10 @@ type EditorException(message : string, inner : exn) =
 // exceptions in library code, we replace it with this exception to indicate that we
 // know about it: that the library is wrong but that also we're stuck with it. It's
 // OK to tell the developer what happened (not grandusers though)
-type LibraryException(message : string, metadata : Metadata, inner : exn) =
+type KnownIssueException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
-  new(msg : string, metadata : Metadata) = LibraryException(msg, metadata, null)
+  new(msg : string, metadata : Metadata) = KnownIssueException(msg, metadata, null)
 
 // A pageable exception will cause the pager to go off! This is something that should
 // never happen and is an indicator that the service is broken in some way.  The
@@ -102,7 +102,7 @@ module Exception =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
       | :? InternalException as e -> e.metadata
-      | :? LibraryException as e -> e.metadata
+      | :? KnownIssueException as e -> e.metadata
       | :? DeveloperException
       | :? EditorException
       | :? GrandUserException
@@ -174,15 +174,15 @@ module Exception =
     raise e
 
 
-  let raiseLibrary (msg : string) (tags : Metadata) =
-    let e = LibraryException(msg, tags)
+  let raiseKnownIssue (msg : string) (tags : Metadata) =
+    let e = KnownIssueException(msg, tags)
     callExceptionCallback e
     raise e
 
-  let unwrapOptionLibrary (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
+  let unwrapOptionKnownIssue (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
     match o with
     | Some v -> v
-    | None -> raiseLibrary msg tags
+    | None -> raiseKnownIssue msg tags
 
   let unknownErrorMessage = "Unknown error"
 
@@ -195,7 +195,7 @@ module Exception =
     match e with
     | :? GrandUserException as e -> e.Message
     | :? DeveloperException as e -> e.Message
-    | :? LibraryException as e -> e.Message
+    | :? KnownIssueException as e -> e.Message
     | :? EditorException as e -> e.Message
     | _ -> unknownErrorMessage
 

@@ -93,12 +93,12 @@ let sendRequest
           // Legacy.HttpClientv1.http_call, which threw exceptions for non-200 status
           // codes
           return
-            Exception.raiseLibrary
+            Exception.raiseKnownIssue
               $"Bad HTTP response ({response.code}) in call to {uri}"
               []
 
     // Raise to be caught in the right place
-    | Error err -> return Exception.raiseLibrary err.error []
+    | Error err -> return Exception.raiseKnownIssue err.error []
   }
 
 let call (method : HttpMethod) jsonFn : BuiltInFnSig =
