@@ -27,7 +27,12 @@ module G = Generators
 /// OCaml and F# backends.
 module PrettyMachineJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -52,17 +57,23 @@ module PrettyMachineJson =
 
     actual .=. expected
 
-  let tests =
+  let tests config =
     testList
       "prettyMachineJson"
-      [ testPropertyWithGenerator
+      [ testProperty
+          config
           typeof<Generator>
           "roundtripping prettyMachineJson"
           equalsOCaml ]
 
 module PrettyResponseJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -94,14 +105,19 @@ module PrettyResponseJson =
 
     actual .=. expected
 
-  let tests =
+  let tests config =
     testList
       "prettyResponseJson"
-      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
+      [ testProperty config typeof<Generator> "compare to ocaml" equalsOCaml ]
 
 module PrettyRequestJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -127,14 +143,19 @@ module PrettyRequestJson =
 
     actual .=. expected
 
-  let tests =
+  let tests config =
     testList
       "prettyRequestJson"
-      [ testPropertyWithGenerator typeof<Generator> "compare to ocaml" equalsOCaml ]
+      [ testProperty config typeof<Generator> "compare to ocaml" equalsOCaml ]
 
 module LibJwtJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -259,9 +280,11 @@ module LibJwtJson =
       false
 
 
-  let tests =
+  let tests config =
+    let test = testProperty config typeof<Generator>
+
     testList
       "jwtJson"
-      [ testPropertyWithGenerator typeof<Generator> "comparing jwt json" equalsOCaml
-        testPropertyWithGenerator typeof<Generator> "roundtrip jwt v0" roundtripV0
-        testPropertyWithGenerator typeof<Generator> "roundtrip jwt v1" roundtripV1 ]
+      [ test "comparing jwt json" equalsOCaml
+        test "roundtrip jwt v0" roundtripV0
+        test "roundtrip jwt v1" roundtripV1 ]

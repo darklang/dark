@@ -8,6 +8,11 @@ open Prelude
 open TestUtils.TestUtils
 open FuzzTests.Utils
 
+type Generator =
+  static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+    Generators.NodaTime.LocalDateTime
+  static member Instant() : Arbitrary<NodaTime.Instant> = Generators.NodaTime.Instant
+
 /// Checks whether a `NodaTime.Instant` can be serialized
 /// and deserialized to/from an ISO String successfully,
 /// maintaining the same value
@@ -21,5 +26,7 @@ let roundtrip (date : NodaTime.Instant) : bool =
 
   roundTripped = date
 
-let tests =
-  testList "NodaTime" [ testProperty "roundtrips to/from isoString" roundtrip ]
+let tests config =
+  testList
+    "NodaTime"
+    [ testProperty config typeof<Generator> "roundtrips to/from isoString" roundtrip ]

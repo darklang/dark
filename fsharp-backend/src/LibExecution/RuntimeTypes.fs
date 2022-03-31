@@ -744,13 +744,16 @@ module Package =
 /// this includes Date::now and Int::random.
 /// </remarks>
 type Previewable =
-  /// Do not need to be saved, can be recalculated in JS
+  /// The same inputs will always yield the same outputs,
+  /// so we don't need to save results. e.g. `Date::add`
   | Pure
 
-  /// Save their results. We can preview these safely
+  /// Output may vary with the same inputs, though we can safely preview.
+  /// e.g. `Date::now`. We should save the results.
   | ImpurePreviewable
 
-  /// Save their results, cannot be safely previewed
+  /// Can only be run on the server. e.g. `DB::update`
+  /// We should save the results.
   | Impure
 
 /// Used to mark whether a function has been deprecated, and if so,

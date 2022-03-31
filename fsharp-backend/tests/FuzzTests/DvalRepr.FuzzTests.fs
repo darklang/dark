@@ -20,8 +20,12 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 /// is produced consistently across OCaml and F# backends
 module DeveloperRepr =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     // The format here is only used for errors so it doesn't matter all that
     // much. These are places where we've manually checked the differing
@@ -39,17 +43,21 @@ module DeveloperRepr =
     DvalReprExternal.toDeveloperReprV0 dv
     .=. (OCamlInterop.toDeveloperRepr dv).Result
 
-  let tests =
+  let tests config =
     testList
       "toDeveloperRepr"
-      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+      [ testProperty config typeof<Generator> "roundtripping" equalsOCaml ]
 
 /// Ensure text representation of DVals meant to be read by "end users"
 /// is produced consistently across OCaml and F# backends
 module EnduserReadable =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -62,16 +70,20 @@ module EnduserReadable =
     DvalReprExternal.toEnduserReadableTextV0 dv
     .=. (OCamlInterop.toEnduserReadableTextV0 dv).Result
 
-  let tests =
+  let tests config =
     testList
       "toEnduserReadable"
-      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+      [ testProperty config typeof<Generator> "roundtripping" equalsOCaml ]
 
 /// Ensure hashing of RT DVals is consistent across OCaml and F# backends
 module Hashing =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.fromGen (Generators.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      Generators.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> =
+      Generators.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -95,12 +107,9 @@ module Hashing =
     let fsharpVersion = DvalReprInternal.hash 1 l
     ocamlVersion .=. fsharpVersion
 
-  let tests =
+  let tests config =
     testList
       "hash"
-      [ testPropertyWithGenerator
-          typeof<Generator>
-          "toHashableRepr"
-          equalsOCamlToHashable
-        testPropertyWithGenerator typeof<Generator> "hashv0" equalsOCamlV0
-        testPropertyWithGenerator typeof<Generator> "hashv1" equalsOCamlV1 ]
+      [ testProperty config typeof<Generator> "toHashableRepr" equalsOCamlToHashable
+        testProperty config typeof<Generator> "hashv0" equalsOCamlV0
+        testProperty config typeof<Generator> "hashv1" equalsOCamlV1 ]

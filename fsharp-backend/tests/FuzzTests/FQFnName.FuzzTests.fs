@@ -13,7 +13,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
-module G = FuzzTests.Utils.Generators
+module G = FuzzTests.Generators
 
 /// Helper function to generate allowed function name parts
 let nameGenerator (first : char list) (other : char list) : Gen<string> =
@@ -32,8 +32,7 @@ let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] G.alphaNumericString
 let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericString
 
 type Generator =
-  static member SafeString() : Arbitrary<string> =
-    Arb.fromGenShrink (G.string (), Arb.shrink<string>)
+  static member String() : Arbitrary<string> = Generators.OCamlSafeString
 
   static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
     { new Arbitrary<PT.FQFnName.T>() with
@@ -42,7 +41,7 @@ type Generator =
             gen {
               let! module_ = modName
               let! function_ = fnName
-              let! version = G.nonNegativeInt ()
+              let! version = G.nonNegativeInt
               return PTParser.FQFnName.stdlibFqName module_ function_ version
             }
 
@@ -54,7 +53,7 @@ type Generator =
               let! package = packageName
               let! module_ = modName
               let! function_ = fnName
-              let! version = G.nonNegativeInt ()
+              let! version = G.nonNegativeInt
 
               return
                 PTParser.FQFnName.packageFqName
@@ -77,7 +76,7 @@ let ptRoundtrip (a : PT.FQFnName.T) : bool =
   a |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString |> PTParser.FQFnName.parse
   .=. a
 
-let tests =
+let tests config =
   testList
     "PT.FQFnName"
-    [ testPropertyWithGenerator typeof<Generator> "roundtripping" ptRoundtrip ]
+    [ testProperty config typeof<Generator> "roundtripping" ptRoundtrip ]

@@ -33,61 +33,10 @@ let (.=.) actual expected : bool =
     Expect.equal (actual, o) (expected, e) ""
     false
 
-let baseConfig : FsCheckConfig =
-  { FsCheckConfig.defaultConfig with maxTest = 100000 }
+type FuzzTestConfig = { MaxTests : int }
 
-let baseConfigWithGenerator (typ : System.Type) : FsCheckConfig =
-  { baseConfig with arbitrary = [ typ ] }
+let baseConfigWithGenerator config (typ : System.Type) : FsCheckConfig =
+  { FsCheckConfig.defaultConfig with maxTest = config.MaxTests; arbitrary = [ typ ] }
 
-let testProperty (name : string) (x : 'a) : Test =
-  testPropertyWithConfig baseConfig name x
-
-let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
-  testPropertyWithConfig (baseConfigWithGenerator typ) name x
-
-/// Lower-level generators
-module Generators =
-  /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
-  let safeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
-
-  /// List of all a..z, A..Z, 0..9, and _ characters
-  let alphaNumericString =
-    List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
-
-  /// Generates a string that 'normalizes' successfully,
-  /// and is safe for use in OCaml
-  let string () =
-    let isValid (s : string) : bool =
-      try
-        String.normalize s |> ignore<string>
-        true
-      with
-      | e ->
-        // debuG
-        //   "Failed to normalize :"
-        //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
-
-        false
-
-    Arb.generate<UnicodeString>
-    |> Gen.map (fun (UnicodeString s) -> s)
-    |> Gen.filter isValid
-    // Now that we know it can be normalized, actually normalize it
-    |> Gen.map String.normalize
-    |> Gen.filter safeOCamlString
-
-  /// Generates an `int` >= 0
-  let nonNegativeInt () =
-    gen {
-      let! (NonNegativeInt i) = Arb.generate<NonNegativeInt>
-      return i
-    }
-
-  let char () : Gen<string> =
-    string ()
-    |> Gen.map String.toEgcSeq
-    |> Gen.map Seq.toList
-    |> Gen.map List.head
-    |> Gen.filter Option.isSome
-    |> Gen.map (Option.defaultValue "")
-    |> Gen.filter ((<>) "")
+let testProperty config (typ : System.Type) (name : string) (x : 'a) : Test =
+  testPropertyWithConfig (baseConfigWithGenerator config typ) name x
