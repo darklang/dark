@@ -341,6 +341,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     // A pipe with more than one entry
     | PT.EPipe (id, arg1, arg2, rest) as pipe ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+    // Function calls sending to error rail
+    | PT.EVariable (id, name) when String.endsWith "_ster" name ->
+      let name = String.dropRight 5 name
+      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.Rail)
     | PT.EVariable (id, name) ->
       PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.NoRail)
     | e ->
