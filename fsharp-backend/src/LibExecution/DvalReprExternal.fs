@@ -150,7 +150,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TBool -> "Bool"
   | TNull -> "Null"
   | TChar -> "Character"
-  | TStr -> "String"
+  | TStr -> "Str"
   | TList _ -> "List"
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
