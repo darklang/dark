@@ -387,7 +387,7 @@ DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY
 
 
 // ---------------------------
-// Functions
+// User-defined Functions
 // ---------------------------
 [fn.stringFn key:string]
 key ++ " appended string"
@@ -440,7 +440,64 @@ returnsOptionUnwrappedViaErrorRail 6 = 5
 returnsOptionNothingOnErrorRail 6 = Nothing
 
 [tests.invalid function calls]
-stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int" // OCAMLONLY
-stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int" // FSHARPONLY
-stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments." // OCAMLONLY
-stringFn "str1" "str2" = Test.typeError "User \"stringFn\" has 1 parameters, but here was called with 2 arguments." // FSHARPONLY
+functionWhichDoesntExist 6 = blank
+stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
+stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
+
+// ---------------------------
+// Package manager function calls
+// ---------------------------
+[packagefn.stringFn key:string]
+key ++ " appended string"
+
+[packagefn.twoStringFn str1:string str2:string]
+str1 ++ " appended " ++ str2
+
+[packagefn.returnsInt v:any]
+5
+
+[packagefn.returnsString v:any]
+"string"
+
+[packagefn.returnsOptionJust v:any]
+Just 5
+
+[packagefn.returnsOptionNothing v:any]
+Nothing
+
+[packagefn.returnsResultOk v:any]
+Ok 5
+
+[packagefn.returnsResultError v:any]
+Error false
+
+[packagefn.returnsOptionNothingOnErrorRail v:any]
+// A value that is already on the error rail
+Test.errorRailValue_v0 Nothing
+
+[packagefn.returnsOptionUnwrappedViaErrorRail v:any]
+List.head_v1_ster [5]
+
+[tests.valid package function calls]
+Test.Test.Test.stringFn "string" = "string appended string"
+Test.Test.Test.twoStringFn "str1" "str2" = "str1 appended str2"
+Test.Test.Test.returnsInt 6 = 5
+Test.Test.Test.returnsString 6 = "string"
+Test.Test.Test.returnsOptionJust 6 = Just 5
+Test.Test.Test.returnsOptionJust_ster 6 = 5
+Test.Test.Test.returnsOptionNothing 6 = Nothing
+Test.Test.Test.returnsOptionNothing_ster 6 = Test.errorRailValue_v0 Nothing
+Test.Test.Test.returnsResultOk 6 = Ok 5
+Test.Test.Test.returnsResultOk_ster 6 = 5
+Test.Test.Test.returnsResultError 6 = Error false
+Test.Test.Test.returnsResultError_ster 6 = Test.errorRailValue_v0 (Error false)
+Test.Test.Test.returnsOptionUnwrappedViaErrorRail 6 = 5
+
+// CLEANUP I was expecting the ErrorRail value to be returned (not unwrapped), and
+// for the result here to be `Test.errorRailValue Nothing`
+Test.Test.Test.returnsOptionNothingOnErrorRail 6 = Nothing
+
+[tests.invalid function calls]
+Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
+Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
+
