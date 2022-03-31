@@ -395,9 +395,49 @@ key ++ " appended string"
 [fn.twoStringFn str1:string str2:string]
 str1 ++ " appended " ++ str2
 
+[fn.returnsInt v:any]
+5
+
+[fn.returnsString v:any]
+"string"
+
+[fn.returnsOptionJust v:any]
+Just 5
+
+[fn.returnsOptionNothing v:any]
+Nothing
+
+[fn.returnsResultOk v:any]
+Ok 5
+
+[fn.returnsResultError v:any]
+Error false
+
+[fn.returnsOptionNothingOnErrorRail v:any]
+// A value that is already on the error rail
+Test.errorRailValue_v0 Nothing
+
+[fn.returnsOptionUnwrappedViaErrorRail v:any]
+List.head_v1_ster [5]
+
 [tests.valid function calls]
 stringFn "string" = "string appended string"
 twoStringFn "str1" "str2" = "str1 appended str2"
+returnsInt 6 = 5
+returnsString 6 = "string"
+returnsOptionJust 6 = Just 5
+returnsOptionJust_ster 6 = 5
+returnsOptionNothing 6 = Nothing
+returnsOptionNothing_ster 6 = Test.errorRailValue_v0 Nothing
+returnsResultOk 6 = Ok 5
+returnsResultOk_ster 6 = 5
+returnsResultError 6 = Error false
+returnsResultError_ster 6 = Test.errorRailValue_v0 (Error false)
+returnsOptionUnwrappedViaErrorRail 6 = 5
+
+// CLEANUP I was expecting the ErrorRail value to be returned (not unwrapped), and
+// for the result here to be `Test.errorRailValue Nothing`
+returnsOptionNothingOnErrorRail 6 = Nothing
 
 [tests.invalid function calls]
 stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int" // OCAMLONLY
