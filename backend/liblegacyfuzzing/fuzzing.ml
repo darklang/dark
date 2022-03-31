@@ -472,8 +472,7 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
-     ]
+    ; deprecated = false } ]
 
 
 let exec_state : Types.RuntimeT.exec_state =
@@ -534,9 +533,13 @@ let execute (json : string) : string =
     in
     (* convert package_fns from their current format, which is user_fns *)
     let package_fns =
-      List.map ~f:Libbackend.Package_manager.runtime_fn_of_package_fn package_fns
+      List.map
+        ~f:Libbackend.Package_manager.runtime_fn_of_package_fn
+        package_fns
     in
-    let exec_state = {exec_state with account_id; canvas_id; dbs; user_fns; package_fns} in
+    let exec_state =
+      {exec_state with account_id; canvas_id; dbs; user_fns; package_fns}
+    in
     Ast.execute_ast ~input_vars:args ~state:exec_state program
     |> Types.RuntimeT.dval_to_yojson
     |> Yojson.Safe.to_string
@@ -555,9 +558,13 @@ let benchmark (json : string) : string =
     in
     (* convert package_fns from their current format, which is user_fns *)
     let package_fns =
-      List.map ~f:Libbackend.Package_manager.runtime_fn_of_package_fn package_fns
+      List.map
+        ~f:Libbackend.Package_manager.runtime_fn_of_package_fn
+        package_fns
     in
-    let exec_state = {exec_state with account_id; canvas_id; dbs; user_fns; package_fns} in
+    let exec_state =
+      {exec_state with account_id; canvas_id; dbs; user_fns; package_fns}
+    in
     let startTime = Time.now () |> Time.to_span_since_epoch in
     let dval = Ast.execute_ast ~input_vars:args ~state:exec_state program in
     let endTime = Time.now () |> Time.to_span_since_epoch in
