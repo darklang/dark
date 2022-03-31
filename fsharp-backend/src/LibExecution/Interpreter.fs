@@ -798,12 +798,21 @@ and handleException
   | Errors.StdlibException (Errors.FakeDvalFound dv) ->
     state.notify state "fakedval found" [ "dval", dv ]
     dv
-  | :? DeveloperException as e ->
+  | :? KnownIssueException ->
     state.notify
       state
-      $"DevException against {fnDesc}"
-      [ "context", "An exception was caught in fncall"
-        "fn", fnDesc
+      $"KnownIssue triggered calling {FQFnName.toString fnDesc}"
+      [ "fn", fnDesc
+        "args", arglist
+        "callerID", id
+        "isInPipe", isInPipe
+        "error", e.Message ]
+    Dval.errSStr sourceID (Exception.toDeveloperMessage e)
+  | :? DeveloperException ->
+    state.notify
+      state
+      $"DeveloperException calling {FQFnName.toString fnDesc}"
+      [ "fn", fnDesc
         "args", arglist
         "callerID", id
         "isInPipe", isInPipe
