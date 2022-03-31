@@ -71,6 +71,36 @@ let nonNegativeInt =
     return i
   }
 
+let ocamlSafeFloat =
+  gen {
+    let specials = interestingFloats |> List.map Tuple2.second |> Gen.elements
+
+    return! Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
+  }
+
+let OCamlSafeFloat = Arb.fromGen ocamlSafeFloat
+
+/// Ensure we only work with OCaml-friendly integers
+let isValidOCamlInt (i : int64) : bool =
+  let ocamlIntUpperLimit = 4611686018427387903L
+  let ocamlIntLowerLimit = -4611686018427387904L
+
+  i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
+
+let ocamlSafeInt64 =
+  gen {
+    let specials =
+      interestingInts
+      |> List.map Tuple2.second
+      |> List.filter isValidOCamlInt
+      |> Gen.elements
+
+    let v = Gen.frequency [ (5, specials); (5, Arb.generate<int64>) ]
+    return! Gen.filter isValidOCamlInt v
+  }
+
+let OCamlSafeInt64 = Arb.fromGen ocamlSafeInt64
+
 module NodaTime =
   let instant =
     Arb.generate<System.DateTime>
@@ -82,3 +112,83 @@ module NodaTime =
 
   let Instant = instant |> Arb.fromGen
   let LocalDateTime = localDateTime |> Arb.fromGen
+
+module RuntimeTypes =
+  /// Used to avoid `toString` on Dvals that contains bytes,
+  /// as OCaml backend raises an exception when attempted.
+  /// CLEANUP can be removed with OCaml
+  let rec containsBytes (dv : RT.Dval) =
+    match dv with
+    | RT.DBytes _ -> true
+
+    | RT.DDB _
+    | RT.DInt _
+    | RT.DBool _
+    | RT.DFloat _
+    | RT.DNull
+    | RT.DStr _
+    | RT.DChar _
+    | RT.DIncomplete _
+    | RT.DFnVal _
+    | RT.DError _
+    | RT.DDate _
+    | RT.DPassword _
+    | RT.DUuid _
+    | RT.DHttpResponse (RT.Redirect _)
+    | RT.DOption None -> false
+
+    | RT.DList dv -> List.any containsBytes dv
+    | RT.DObj o -> o |> Map.values |> List.any containsBytes
+
+    | RT.DHttpResponse (RT.Response (_, _, dv))
+    | RT.DOption (Some dv)
+    | RT.DErrorRail dv
+    | RT.DResult (Ok dv)
+    | RT.DResult (Error dv) -> containsBytes dv
+
+  let Dval =
+    Arb.Default.Derive()
+    |> Arb.filter (function
+      // These all break the serialization to OCaml
+      // CLEANUP allow all Dvals to be generated
+      | RT.DPassword _ -> false
+      | RT.DFnVal _ -> false
+      | _ -> true)
+
+  let DType =
+    let rec isSupportedType =
+
+      function
+      | RT.TInt
+      | RT.TStr
+      | RT.TVariable _
+      | RT.TFloat
+      | RT.TBool
+      | RT.TNull
+      | RT.TNull
+      | RT.TDate
+      | RT.TChar
+      | RT.TUuid
+      | RT.TBytes
+      | RT.TError
+      | RT.TDB (RT.TUserType _)
+      | RT.TDB (RT.TRecord _)
+      | RT.TUserType _ -> true
+      | RT.TList t
+      | RT.TDict t
+      | RT.TOption t
+      | RT.THttpResponse t -> isSupportedType t
+      | RT.TResult (t1, t2) -> isSupportedType t1 && isSupportedType t2
+      | RT.TFn (ts, rt) -> isSupportedType rt && List.all isSupportedType ts
+      | RT.TRecord (pairs) ->
+        pairs |> List.map Tuple2.second |> List.all isSupportedType
+
+      // FSTODO: support all types
+      | RT.TDB _
+      | RT.TIncomplete
+      | RT.TPassword
+      | RT.TErrorRail ->
+        printfn "excluding dtype"
+        false
+
+    Arb.Default.Derive() |> Arb.filter isSupportedType
