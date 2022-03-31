@@ -130,7 +130,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 
 [test.matchInt]
 (match 5 with
-| 5 -> "int"
 | 5.6 -> "float"
 | false -> "bool"
 | "myStr" -> "string"
@@ -138,30 +137,43 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 | blank -> "blank"
 | Ok x -> "ok: " ++ x
 | Nothing -> "constructor nothing"
+| 5 -> "int"
 | name -> name ++ "var") = "int"
 
 [test.matchFloat]
 (match 5.6 with
  | 5 -> "int"
- | 5.6 -> "float"
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | 5.6 -> "float"
+ | name -> name ++ "var") = "float"
+
+[test.matchFloat2]
+(match 1.1 with
+ | 5 -> "int"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | 1.1 -> "float"
  | name -> name ++ "var") = "float"
 
 [test.matchBool]
 (match false with
  | 5 -> "int"
  | 5.6 -> "float"
- | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | false -> "bool"
  | name -> name ++ "var") = "bool"
 
 [test.matchString]
@@ -169,11 +181,11 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5 -> "int"
  | 5.6 -> "float"
  | false -> "bool"
- | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | "myStr" -> "string"
  | name -> name ++ "var") = "string"
 
 [test.matchString2]
@@ -194,10 +206,10 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | false -> "bool"
  | "myStr" -> "string"
- | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | null -> "null"
  | name -> name ++ "var") = "null"
 
 [test.matchConstructorWithArg]
@@ -208,8 +220,8 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
- | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | Ok x -> "ok: " ++ x
  | name -> name ++ "var") = "ok: x"
 
 [test.matchEmptyConstructor]
@@ -235,7 +247,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "not matched: var"
-
 
 [tests.constructors]
 Nothing = Nothing
