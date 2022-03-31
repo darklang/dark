@@ -150,7 +150,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TBool -> "Bool"
   | TNull -> "Null"
   | TChar -> "Character"
-  | TStr -> "Str"
+  | TStr -> "Str" // CLEANUP change to String
   | TList _ -> "List"
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
@@ -160,7 +160,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TError -> "Error"
   | THttpResponse _ -> "Response"
   | TDB _ -> "Datastore"
-  | TDate -> "Date"
+  | TDate -> "Date" // CLEANUP Dates should be DateTimes
   | TPassword -> "Password"
   | TUuid -> "UUID"
   | TOption _ -> "Option"
