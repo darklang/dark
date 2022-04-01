@@ -182,7 +182,7 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
   |> Task.map (function
     | Some v -> v
-    | None -> Exception.raiseDeveloper "User not found")
+    | None -> Exception.raiseGrandUser "User not found")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query

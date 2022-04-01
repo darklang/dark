@@ -9,25 +9,26 @@ open RuntimeTypes
 // ------------------
 
 type StdlibError =
+
+  /// Standard error raised for calling a function with arguments of an incorrect type
   | IncorrectArgs
+
   /// When we encounter a fakeDval, this exception allows us to jump out of the
   /// computation immediately, and the caller can return the dval. This is useful
   /// for jumping out of folds and other complicated constructs.
   | FakeDvalFound of Dval
+
+  /// Error in DB::query when we don't support something yet
+  | DBQueryException of string
+
+  /// Just a string. Ideally we wouldn't have these, but there are of one-off errors
   | StringError of string
 
-/// Error made in a standard library call. This allows us to call them when we
-/// don't have the information to make a RuntimeException, and they are
-/// converted to runtimeExceptions at the call site.
+/// Error made in a standard library call. We use special type here, outside of
+/// standard Dark internal/developer/etc functions so that we can add additional
+/// context at the call site
+
 exception StdlibException of StdlibError
-
-/// Error in DB::query when we don't support something yet
-exception DBQueryException of string
-
-/// Error in DB::query when there's a fakeval in the query
-exception FakeValFoundInQuery of Dval
-
-
 
 // ------------------
 // Messages
@@ -103,6 +104,27 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   $"{FQFnName.toString name} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
   + $"a {expectedTypeRepr}.{conversionMsg}"
 
+let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>) =
+  let paramLength = List.length fn.parameters
+  let argLength = List.length argList
+
+  if paramLength <> argLength then
+    (Dval.errSStr
+      source
+      ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
+       + $" but here was called with {argLength} arguments."))
+
+  else
+    let invalid =
+      List.zip fn.parameters argList
+      |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
+
+    match invalid with
+    | [] -> Dval.errSStr source $"unknown error calling {FQFnName.toString fn.name}"
+    | (p, actual) :: _ ->
+      let msg = incorrectArgsMsg fn.name p actual
+      Dval.errSStr source msg
+
 
 /// When a function has been removed (rarely happens but does happen occasionally)
 let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
@@ -111,3 +133,13 @@ let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
 
 /// When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (StdlibException(FakeDvalFound dv))
+
+let unwrapResult (result : Result<'a, string>) : 'a =
+  match result with
+  | Ok v -> v
+  | Error str -> throw str
+
+let unwrapOption (message : string) (option : Option<'a>) : 'a =
+  match option with
+  | Some v -> v
+  | None -> throw message

@@ -116,11 +116,11 @@ let fns : List<BuiltInFn> =
               Errors.throw (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
             | DErrorRail _
-            | DError _) as dv -> Errors.foundFakeDval (dv)
+            | DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Errors.throw "All list items must be `[key, value]`"
 
           let result = List.fold Map.empty f l
-          Ply((DObj(result)))
+          Ply(DObj result)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

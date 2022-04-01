@@ -463,7 +463,7 @@ let fns : List<BuiltInFn> =
                 "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
           match result with
           | Some (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Errors.unwrapResult
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList
@@ -495,7 +495,7 @@ let fns : List<BuiltInFn> =
             | _ -> Error "Invalid public key"
           match result with
           | Ok (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Errors.unwrapResult
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList

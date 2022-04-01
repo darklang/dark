@@ -56,12 +56,6 @@ type GrandUserException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = GrandUserException(msg, null)
 
-/// An error caused by how the developer wrote the code, such as calling a function
-/// with the wrong type
-type DeveloperException(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
-  new(msg : string) = DeveloperException(msg, null)
-
 /// An editor exception is one which is caused by an invalid action on the part of
 /// the Dark editor, such as an Redo or rename that isn't allowed.  We are
 /// interested in these, as the editor should have caught this on the client and not
@@ -71,16 +65,6 @@ type EditorException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = EditorException(msg, null)
 
-// A known error in library or framework code, such as calling a function with a
-// negative number when it doesn't support it. When we find internal or other
-// exceptions in library code, we replace it with this exception to indicate that we
-// know about it: that the library is wrong but that also we're stuck with it. It's
-// OK to tell the developer what happened (not grandusers though)
-type KnownIssueException(message : string, metadata : Metadata, inner : exn) =
-  inherit System.Exception(message, inner)
-  member _.metadata = metadata
-  new(msg : string, metadata : Metadata) = KnownIssueException(msg, metadata, null)
-
 // A pageable exception will cause the pager to go off! This is something that should
 // never happen and is an indicator that the service is broken in some way.  The
 // pager goes off because a pageable exception sets the `{ is_pageable: true }`
@@ -88,6 +72,11 @@ type KnownIssueException(message : string, metadata : Metadata, inner : exn) =
 type PageableException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
+
+/// Error made in a standard library call. This is inherited by
+/// Errors.StdlibException, where all the magic happens.
+type StdlibBaseException() =
+  inherit System.Exception()
 
 
 // This is for tracing
@@ -102,8 +91,7 @@ module Exception =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
       | :? InternalException as e -> e.metadata
-      | :? KnownIssueException as e -> e.metadata
-      | :? DeveloperException
+      | :? StdlibBaseException
       | :? EditorException
       | :? GrandUserException
       | _ -> []
@@ -128,23 +116,6 @@ module Exception =
     let e = GrandUserException(msg)
     callExceptionCallback e
     raise e
-
-  // A developer exception is one caused by the incorrect actions of our
-  // user/developer. The msg is suitable to show to the user.
-  let raiseDeveloper (msg : string) =
-    let e = DeveloperException(msg)
-    callExceptionCallback e
-    raise e
-
-  let unwrapResultDeveloper (r : Result<'ok, string>) : 'ok =
-    match r with
-    | Ok v -> v
-    | Error msg -> raiseDeveloper msg
-
-  let unwrapOptionDeveloper (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
-    match o with
-    | Some v -> v
-    | None -> raiseDeveloper msg tags
 
 
   let raiseEditor (msg : string) =
@@ -173,32 +144,12 @@ module Exception =
     callExceptionCallback e
     raise e
 
-
-  let raiseKnownIssue (msg : string) (tags : Metadata) =
-    let e = KnownIssueException(msg, tags)
-    callExceptionCallback e
-    raise e
-
-  let unwrapOptionKnownIssue (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
-    match o with
-    | Some v -> v
-    | None -> raiseKnownIssue msg tags
-
   let unknownErrorMessage = "Unknown error"
 
   let toGrandUserMessage (e : exn) : string =
     match e with
     | :? GrandUserException as e -> e.Message
     | _ -> unknownErrorMessage
-
-  let toDeveloperMessage (e : exn) : string =
-    match e with
-    | :? GrandUserException as e -> e.Message
-    | :? DeveloperException as e -> e.Message
-    | :? KnownIssueException as e -> e.Message
-    | :? EditorException as e -> e.Message
-    | _ -> unknownErrorMessage
-
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
     task {

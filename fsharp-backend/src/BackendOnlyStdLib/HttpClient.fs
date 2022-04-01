@@ -170,8 +170,7 @@ let httpCall'
               req.Content.Headers.ContentType <-
                 Headers.MediaTypeHeaderValue.Parse(v)
             with
-            | :? System.FormatException ->
-              Exception.raiseDeveloper "Invalid content-type header" []
+            | :? System.FormatException -> Errors.throw "Invalid content-type header"
           else
             // Dark headers can only be added once, as they use a Dict. Remove them
             // so they don't get added twice (eg via Authorization headers above)
@@ -409,7 +408,7 @@ let encodeRequestBody (body : Dval option) (headers : HttpHeaders.T) : Content =
     | DObj _ when hasFormHeader headers ->
       match DvalReprExternal.toFormEncoding dv with
       | Ok content -> FormContent(content)
-      | Error msg -> Exception.raiseDeveloper msg
+      | Error msg -> Errors.throw msg
     | dv when hasTextHeader headers ->
       StringContent(DvalReprExternal.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
@@ -432,11 +431,11 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalReprExternal.toQuery query |> Exception.unwrapResultDeveloper
+    let query = DvalReprExternal.toQuery query |> Errors.unwrapResult
 
     // Headers
     let encodedReqHeaders =
-      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+      DvalReprExternal.toStringPairs reqHeaders |> Errors.unwrapResult
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)

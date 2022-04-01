@@ -569,12 +569,10 @@ that's already taken, returns an error."
                 | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
                 | Some (Canvas.Origins os) ->
                   os |> List.map DStr |> DList |> Some |> DOption
-              try
-                let! c = Canvas.getMeta (CanvasName.create host)
-                let! cors = Canvas.fetchCORSSetting c.id
-                return corsSettingToDval cors
-              with
-              | e -> return DError(SourceNone, Exception.toDeveloperMessage e)
+
+              let! c = Canvas.getMeta (CanvasName.create host)
+              let! cors = Canvas.fetchCORSSetting c.id
+              return corsSettingToDval cors
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -606,7 +604,7 @@ that's already taken, returns an error."
                     os
                     |> List.map (function
                       | DStr v -> v
-                      | _ -> Exception.raiseGrandUser "Invalid origin string")
+                      | _ -> Errors.throw "Invalid origin string")
                     |> Canvas.Origins
                     |> Some
                     |> Ok

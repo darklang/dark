@@ -32,10 +32,9 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalRepr.toQuery query |> Exception.unwrapResultDeveloper
+    let query = DvalRepr.toQuery query |> Errors.unwrapResult
 
-    let encodedReqHeaders =
-      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+    let encodedReqHeaders = DvalRepr.toStringPairs reqHeaders |> Errors.unwrapResult
     let encodedReqBody =
       encodeRequestBody
         DvalRepr.toPrettyMachineJsonStringV1

@@ -19,7 +19,8 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
-let error (str : string) : 'a = raise (Errors.DBQueryException str)
+let error (str : string) : 'a =
+  raise (Errors.StdlibException(Errors.DBQueryException str))
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 
@@ -44,7 +45,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   match dval with
   | DError _
   | DIncomplete _
-  | DErrorRail _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
+  | DErrorRail _ -> Errors.foundFakeDval dval
   | DObj _
   | DList _
   | DHttpResponse _
@@ -79,7 +80,7 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
 // TODO: support character. And maybe lists and bytes.
 // Probably something can be done with options and results.
 let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
-  if Dval.isFake dval then raise (Errors.FakeValFoundInQuery dval)
+  if Dval.isFake dval then Errors.foundFakeDval dval
   typecheck name (Dval.toType dval) expectedType
 
 let escapeFieldname (str : string) : string =
