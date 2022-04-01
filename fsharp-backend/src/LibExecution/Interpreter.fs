@@ -524,56 +524,58 @@ and callFn
     | Some er -> return er
     | None ->
       let! result =
-        match fn with
-        // Functions which aren't implemented in the client may have results
-        // available, otherwise they just return incomplete.
-        | None ->
-          let fnRecord = (state.tlid, desc, callerID) in
-          let fnResult = state.tracing.loadFnResult fnRecord argvals in
-          // In the case of DB::query (and friends), we want to backfill
-          // the lambda's livevalues, as the lambda was never actually
-          // executed. We hack this is here as we have no idea what this
-          // abstraction might look like in the future.
-          if state.tracing.realOrPreview = Preview && FQFnName.isDBQueryFn desc then
-            match argvals with
-            | [ DDB dbname; DFnVal (Lambda b) ] ->
-              let sample =
-                match fnResult with
-                | Some (DList (sample :: _), _) -> sample
-                | _ ->
-                  Map.find dbname state.program.dbs
-                  |> (fun (db : DB.T) -> db.cols)
-                  |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
-                  |> Map.ofList
-                  |> DObj
+        uply {
+          match fn with
+          // Functions which aren't implemented in the client may have results
+          // available, otherwise they just return incomplete.
+          | None ->
+            let fnRecord = (state.tlid, desc, callerID) in
+            let fnResult = state.tracing.loadFnResult fnRecord argvals in
+            // In the case of DB::query (and friends), we want to backfill
+            // the lambda's livevalues, as the lambda was never actually
+            // executed. We hack this is here as we have no idea what this
+            // abstraction might look like in the future.
+            if state.tracing.realOrPreview = Preview && FQFnName.isDBQueryFn desc then
+              match argvals with
+              | [ DDB dbname; DFnVal (Lambda b) ] ->
+                let sample =
+                  match fnResult with
+                  | Some (DList (sample :: _), _) -> sample
+                  | _ ->
+                    Map.find dbname state.program.dbs
+                    |> (fun (db : DB.T) -> db.cols)
+                    |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
+                    |> Map.ofList
+                    |> DObj
 
-              ignore<DvalTask> (executeLambda state b [ sample ])
-            | _ -> ()
+                let! (_ : Dval) = executeLambda state b [ sample ]
+                ()
+              | _ -> ()
 
-          match fnResult with
-          | Some (result, _ts) -> Ply(result)
-          | _ -> Ply(DIncomplete(sourceID callerID))
-        | Some fn ->
-          // equalize length
-          let expectedLength = List.length fn.parameters in
-          let actualLength = List.length argvals in
+            match fnResult with
+            | Some (result, _ts) -> return result
+            | _ -> return DIncomplete(sourceID callerID)
 
-          if expectedLength = actualLength then
-            let args =
-              fn.parameters
-              |> List.map2 (fun dv p -> (p.name, dv)) argvals
-              |> Map.ofList
+          | Some fn ->
+            // equalize length
+            let expectedLength = List.length fn.parameters in
+            let actualLength = List.length argvals in
 
-            execFn state desc callerID fn args isInPipe
-          else
-            Ply(
-              DError(
-                sourceID callerID,
-                $"{FQFnName.toString desc} has {expectedLength} parameters, but here was called"
-                + $" with {actualLength} arguments."
-              )
-            )
+            if expectedLength = actualLength then
+              let args =
+                fn.parameters
+                |> List.map2 (fun dv p -> (p.name, dv)) argvals
+                |> Map.ofList
 
+              return! execFn state desc callerID fn args isInPipe
+            else
+              return
+                DError(
+                  sourceID callerID,
+                  $"{FQFnName.toString desc} has {expectedLength} parameters, but here was called"
+                  + $" with {actualLength} arguments."
+                )
+        }
       if sendToRail = Rail then
         match Dval.unwrapFromErrorRail result with
         | DOption (Some v) -> return v
