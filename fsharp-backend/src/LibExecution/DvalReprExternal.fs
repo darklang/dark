@@ -513,7 +513,7 @@ let unsafeOfUnknownJsonV0 str : Dval =
     use document = parseJson str
     convert document.RootElement
   with
-  | _ -> Exception.raiseCode "Invalid json"
+  | _ -> Exception.raiseGrandUser "Invalid json"
 
 
 // When receiving unknown json from the user, or via a HTTP API, attempt to
