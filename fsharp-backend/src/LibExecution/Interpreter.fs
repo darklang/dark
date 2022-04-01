@@ -698,7 +698,7 @@ and execFn
                       // information, so best not to show it to the user. If we'd
                       // like to show it to the user, we should catch it and give
                       // them a known safe error.
-                      Dval.errSStr sourceID e.Message
+                      Dval.errSStr sourceID Exception.unknownErrorMessage
               }
             // there's no point storing data we'll never ask for
             if fn.previewable <> Pure then
