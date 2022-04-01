@@ -50,14 +50,19 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-/// An error caused by the grand user making the request, show the error to the
-/// requester no matter who they are
+// A grand user exception was caused by the incorrect actions of a grand user. The
+// msg is suitable to show to the grand user. We don't care about grandUser
+// exceptions, they're normal. When a message can be safely propagated to show to the
+// grand user, it's safe to use this exception, even if it's more properly defined by
+// another exception type.
 type GrandUserException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = GrandUserException(msg, null)
 
 /// An error during code execution, which is the responsibility of the
-/// User/Developer. The message can be shown to the developer.
+/// User/Developer. The message can be shown to the developer. You can alternatively
+/// use GrandUser exception in code which is used in both Libraries and in the
+/// HttpFramework.
 type CodeException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = CodeException(msg, null)
@@ -65,7 +70,7 @@ type CodeException(message : string, inner : exn) =
 /// An editor exception is one which is caused by an invalid action on the part of
 /// the Dark editor, such as an Redo or rename that isn't allowed.  We are
 /// interested in these, as the editor should have caught this on the client and not
-/// made the request.The message may be shown to the logged-in user, and should be
+/// made the request. The message may be shown to the logged-in user, and should be
 /// suitable for this.
 type EditorException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
@@ -78,11 +83,6 @@ type EditorException(message : string, inner : exn) =
 type PageableException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
-
-/// Error made in a standard library call. This is inherited by
-/// Errors.StdlibException, where all the magic happens.
-type StdlibBaseException() =
-  inherit System.Exception()
 
 
 // This is for tracing
@@ -97,8 +97,8 @@ module Exception =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
       | :? InternalException as e -> e.metadata
-      | :? StdlibBaseException
       | :? EditorException
+      | :? CodeException
       | :? GrandUserException
       | _ -> []
     thisMetadata @ innerMetadata
@@ -115,9 +115,6 @@ module Exception =
       System.Console.WriteLine e.StackTrace
 
 
-  // A grand user exception was caused by the incorrect actions of a grand user. The
-  // msg is suitable to show to the grand user. We don't care about grandUser
-  // exceptions, they're normal.
   let raiseGrandUser (msg : string) =
     let e = GrandUserException(msg)
     callExceptionCallback e
@@ -143,7 +140,6 @@ module Exception =
     callExceptionCallback e
     raise e
 
-  // An internal error. Should be rollbarred, and should not be shown to users.
   let raiseInternal (msg : string) (tags : Metadata) =
     let e = InternalException(msg, tags)
     callExceptionCallback e
