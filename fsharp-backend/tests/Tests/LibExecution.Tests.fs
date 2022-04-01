@@ -57,6 +57,7 @@ let t
   (comment : string)
   (code : string)
   (dbs : List<PT.DB.T>)
+  (packageFns : Map<PT.FQFnName.PackageFnName, PT.Package.Fn>)
   (functions : Map<string, PT.UserFunction.T>)
   (workers : List<string>)
   : Test =
@@ -82,7 +83,17 @@ let t
 
         let rtFunctions = functions |> Map.map PT2RT.UserFunction.toRT
 
-        let! state = executionStateFor meta rtDBs rtFunctions
+        let rtPackageFns =
+          packageFns
+          |> Map.toList
+          |> List.map (fun (k, v) ->
+            let fn = PT2RT.Package.toRT v
+            ((RT.FQFnName.Package fn.name), fn))
+          |> Map
+
+        let! (state : RT.ExecutionState) = executionStateFor meta rtDBs rtFunctions
+        let state =
+          { state with libraries = { state.libraries with packageFns = rtPackageFns } }
 
         let source = FSharpToExpr.parse code
 
@@ -95,6 +106,16 @@ let t
           Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
         do! clearCanvasData meta.owner meta.name
+
+        // Only do this now so that the error doesn't fire while evaluating the expectedExpr
+        let state =
+          let expectedExceptionCount =
+            match comment with
+            | Regex ".*EXPECTED_EXCEPTION_COUNT: (\d+)" [ count ] -> int count
+            | _ -> 0
+          { state with
+              test =
+                { state.test with expectedExceptionCount = expectedExceptionCount } }
 
         let testOCaml, testFSharp =
           if String.includes "FSHARPONLY" comment then (false, true)
@@ -110,6 +131,7 @@ let t
               Map.empty
               dbs
               (Map.values functions)
+              (Map.values packageFns)
 
           Expect.isTrue (Expect.isCanonical ocamlActual) "actual is normalized"
 
@@ -147,7 +169,11 @@ let t
       with
       | e ->
         let metadata = Exception.toMetadata e
-        return Expect.equal ("Exception thrown in test", []) (string e, metadata) ""
+        return
+          Expect.equal
+            (e.Message, metadata, e.StackTrace)
+            ("Exception thrown in test", [], "")
+            ""
     }
 
 
@@ -163,6 +189,7 @@ type TestGroup = { name : string; tests : List<Test>; dbs : List<PT.DB.T> }
 type FnInfo =
   { name : string
     recording : bool
+    isPackage : bool
     code : string
     tlid : tlid
     parameters : List<PT.UserFunction.Parameter> }
@@ -176,8 +203,12 @@ let testAdmin =
           password = LibBackend.Password.invalid
           email = "admin-test@darklang.com"
           name = "test name" }
-      do! LibBackend.Account.upsertAdmin account |> Task.map Result.unwrapUnsafe
-      return! LibBackend.Account.getUser username |> Task.map Option.unwrapUnsafe
+      do!
+        LibBackend.Account.upsertAdmin account
+        |> Task.map (Exception.unwrapResultInternal [])
+      return!
+        LibBackend.Account.getUser username
+        |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
     })
 
 // Read all test files. The test file format is described in README.md
@@ -193,7 +224,12 @@ let fileTests () : Test =
       { recording = false; name = ""; dbs = []; code = ""; workers = [] }
 
     let emptyFn =
-      { recording = false; name = ""; parameters = []; code = ""; tlid = id 7 }
+      { recording = false
+        name = ""
+        parameters = []
+        code = ""
+        tlid = id 7
+        isPackage = false }
 
     let emptyGroup = { name = ""; tests = []; dbs = [] }
 
@@ -205,6 +241,8 @@ let fileTests () : Test =
     let mutable currentGroup = emptyGroup
     let mutable allTests = []
     let mutable functions : Map<string, PT.UserFunction.T> = Map.empty
+    let mutable packageFunctions : Map<PT.FQFnName.PackageFnName, PT.Package.Fn> =
+      Map.empty
     let mutable dbs : Map<string, PT.DB.T> = Map.empty
     let owner =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
@@ -222,6 +260,7 @@ let fileTests () : Test =
             currentTest.name
             currentTest.code
             currentTest.dbs
+            packageFunctions
             functions
             currentTest.workers
 
@@ -232,18 +271,42 @@ let fileTests () : Test =
         allTests <- allTests @ [ newTestCase ]
 
       if currentFn.recording then
-        let (fn : PT.UserFunction.T) =
-          { tlid = currentFn.tlid
-            name = currentFn.name
-            nameID = gid ()
-            returnType = PT.TVariable "a"
-            returnTypeID = gid ()
-            description = "test function"
-            infix = false
-            body = FSharpToExpr.parsePTExpr currentFn.code
-            parameters = currentFn.parameters }
 
-        functions <- Map.add currentFn.name fn functions
+
+        if currentFn.isPackage then
+          let parameters =
+            currentFn.parameters
+            |> List.map (fun p ->
+              let typ =
+                p.typ |> Exception.unwrapOptionInternal "type must not be option" []
+              { description = p.description; name = p.name; typ = typ } : PT.Package.Parameter)
+          let (fn : PT.Package.Fn) =
+            { tlid = currentFn.tlid
+              name =
+                { owner = "test"
+                  package = "test"
+                  module_ = "Test"
+                  function_ = currentFn.name
+                  version = 0 }
+              body = FSharpToExpr.parsePTExpr currentFn.code
+              parameters = parameters
+              returnType = PT.TVariable "a"
+              author = "test"
+              deprecated = false
+              description = "test package function" }
+          packageFunctions <- Map.add fn.name fn packageFunctions
+        else
+          let (fn : PT.UserFunction.T) =
+            { tlid = currentFn.tlid
+              name = currentFn.name
+              nameID = gid ()
+              returnType = PT.TVariable "a"
+              returnTypeID = gid ()
+              description = "test function"
+              infix = false
+              body = FSharpToExpr.parsePTExpr currentFn.code
+              parameters = currentFn.parameters }
+          functions <- Map.add currentFn.name fn functions
 
       // Clear settings
       currentTest <- emptyTest
@@ -298,17 +361,38 @@ let fileTests () : Test =
 
 
       // [function] declaration
-      | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
+      | Regex @"^\[(package)?fn\.(\S+) (.*)\]$" [ package; name; definition ] ->
         finish ()
 
         let parameters : List<PT.UserFunction.Parameter> =
           definition
           |> String.split " "
-          |> List.map (fun name ->
-            { name = name
+          |> List.map (fun def ->
+            let (name, typ) =
+              match String.split ":" def with
+              | [ name; typ ] ->
+                (name,
+                 (typ
+                  |> String.trim
+                  |> PTParser.DType.parse
+                  |> Exception.unwrapOptionInternal
+                       "Invalid type name"
+                       [ "definition", def
+                         "type", typ
+                         "name", name
+                         "lineNumber", i
+                         "filename", filename ]))
+              | _ ->
+                Exception.raiseInternal
+                  "Invalid test function type declaration"
+                  [ "definition", def
+                    "name", name
+                    "lineNumber", i
+                    "filename", filename ]
+            { name = String.trim name
               nameID = gid ()
               description = ""
-              typ = Some(PT.TVariable "a")
+              typ = Some typ
               typeID = gid () })
 
         currentFn <-
@@ -316,6 +400,7 @@ let fileTests () : Test =
             recording = true
             name = name
             parameters = parameters
+            isPackage = package = "package"
             code = "" }
 
       // [test] with DB indicator
@@ -364,6 +449,7 @@ let fileTests () : Test =
             $"{comment} (line {i})"
             code
             currentGroup.dbs
+            packageFunctions
             functions
             currentTest.workers
 
@@ -377,6 +463,7 @@ let fileTests () : Test =
             $"line {i}"
             code
             currentGroup.dbs
+            packageFunctions
             functions
             currentTest.workers
 

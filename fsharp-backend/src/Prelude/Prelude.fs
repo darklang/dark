@@ -26,28 +26,6 @@ let failwith = failwith
                            IsHidden = true)>]
 let printf = printf
 
-module Option =
-
-  [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
-                             0,
-                             IsError = true,
-                             IsHidden = true)>]
-  let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
-
-  [<CompilerMessageAttribute("Option.get is banned, use Prelude.Exception.unwrapOption* instead",
-                             0,
-                             IsError = true,
-                             IsHidden = true)>]
-  let get = Option.get
-
-module Result =
-
-  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
-                             0,
-                             IsError = true,
-                             IsHidden = true)>]
-  let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
-
 
 // ----------------------
 // Null
@@ -1274,6 +1252,26 @@ module Tablecloth =
       | Ok v -> v
       | Error v -> f v
 
+    [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
+                               0,
+                               IsError = true,
+                               IsHidden = true)>]
+    let unwrapUnsafe = Tablecloth.Result.unwrapUnsafe
+
+  module Option =
+
+    [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+                               0,
+                               IsError = true,
+                               IsHidden = true)>]
+    let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
+
+    [<CompilerMessageAttribute("Option.get is banned, use Prelude.Exception.unwrapOption* instead",
+                               0,
+                               IsError = true,
+                               IsHidden = true)>]
+    let get = Option.get
+
   module String =
     let take (count : int) (str : string) : string =
       if count >= str.Length then str else str.Substring(0, count)
@@ -1283,6 +1281,7 @@ module Tablecloth =
         str.Substring(0, str.Length - suffix.Length)
       else
         str
+
 
   module Map =
     let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =

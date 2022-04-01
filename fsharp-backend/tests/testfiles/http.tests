@@ -37,7 +37,7 @@ Http.setCookie_v1 "myCookie" "myVal" { Domain = "darklang"; SameSite = "fake" } 
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
 Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with the wrong type to parameter: error" // OCAMLONLY
-Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a String." // FSHARPONLY
+Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a Str." // FSHARPONLY
 
 Http.notFound_v0 = Http.response_v0 null 404
 

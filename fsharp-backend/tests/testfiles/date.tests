@@ -1,7 +1,7 @@
-[fn.d datestr]
+[fn.d datestr:string]
 (Date.parse_v2_ster datestr)
 
-[fn.p datestr]
+[fn.p datestr:string]
 (Date.parse_v2 datestr) |> Result.map_v0 (fun x -> Date.toString_v0 x)
 
 [tests.date parsing]

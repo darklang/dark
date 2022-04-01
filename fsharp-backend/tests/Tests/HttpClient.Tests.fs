@@ -130,7 +130,7 @@ let makeTest versionName filename =
     if shouldSkipTest then
       skiptest $"underscore test - {testName}"
     else
-      let! meta = createTestCanvas $"http-client-{testName}"
+      let! meta = createTestCanvas $"httpclient-{versionName}-{testName}"
 
       // Parse the code
       let shouldEqual, actualDarkProg, expectedResult =
@@ -167,6 +167,7 @@ let makeTest versionName filename =
               state.program.canvasID
               actualDarkProg
               Map.empty
+              []
               []
               []
 
@@ -280,7 +281,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
         testCase.result.status
         |> String.split " "
         |> List.getAt 1
-        |> Option.unwrapUnsafe
+        |> Exception.unwrapOptionInternal "ADDMESSAGE" []
         |> int
       List.iter
         (fun (k, v) ->

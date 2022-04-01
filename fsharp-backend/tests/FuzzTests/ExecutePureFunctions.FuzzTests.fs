@@ -554,7 +554,7 @@ let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool
       let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
       let st = Map.ofList args
 
-      let! expected = OCamlInterop.execute meta.owner meta.id ast st [] []
+      let! expected = OCamlInterop.execute meta.owner meta.id ast st [] [] []
 
       let! state = executionStateFor meta Map.empty Map.empty
 

@@ -26,7 +26,7 @@ let toStringTest (bytes : byte []) : bool =
     let ast = $"toString_v0 myValue" |> FSharpToExpr.parsePTExpr
     let symtable = Map [ "myvalue", RT.DBytes bytes ]
 
-    let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] []
+    let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] [] []
 
     let! state = executionStateFor meta Map.empty Map.empty
     let! actual =

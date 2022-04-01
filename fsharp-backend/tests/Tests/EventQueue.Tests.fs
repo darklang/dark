@@ -52,7 +52,11 @@ let testEventQueueRoundtrip =
     | Ok (Some resultDval) ->
       // should have at least one trace
       let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
-      let traceID = eventIDs |> List.head |> Option.unwrapUnsafe |> Tuple2.first
+      let traceID =
+        eventIDs
+        |> List.head
+        |> Exception.unwrapOptionInternal "ADDMESSAGE" []
+        |> Tuple2.first
 
       let! functionResults = TFR.load meta.id traceID h.tlid
 
@@ -87,7 +91,7 @@ let testEventQueueIsFifo =
     let checkDequeue (i : int64) expectedName : Task<unit> =
       task {
         let! evt = EQ.dequeue ()
-        let evt = Option.unwrapUnsafe evt
+        let evt = Exception.unwrapOptionInternal "cannot find event" [] evt
 
         Expect.equal evt.name expectedName $"dequeue {i} is handler {expectedName}"
         Expect.equal evt.value (RT.DInt i) $"dequeue {i} has value {i}"
@@ -126,7 +130,10 @@ let testGetWorkerSchedulesForCanvas =
     let! result = EQ.getWorkerSchedules meta.id
 
     let check (name : string) (value : EQ.WorkerStates.State) =
-      let actual = Map.get name result |> Option.unwrapUnsafe |> string
+      let actual =
+        Map.get name result
+        |> Exception.unwrapOptionInternal "ADDMESSAGE" []
+        |> string
       let expected = string value
       Expect.equal actual expected ($"{name} is {expected}")
 

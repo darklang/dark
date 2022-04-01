@@ -15,10 +15,17 @@ The implementation of the tests is in Tests/LibExecution.Tests.fs.
 
 The code is written using F#, which is very similar to Dark. It is parsed by the F# parser, then converted from F# to Dark. The error messages around this are not very good, but there are a few things to be careful of:
 
-- all tests must be of the format `x = y`, that is, they must have a single
-  expression on the left, one on the right, and an equals sign in between. You can use parens around multiple expressions to group them into a single expression, eg `(5 |> toString)`.
+- all tests must be of the format `x = y` (or `x <> y`, though that's rarely used),
+  that is, they must have a single expression on the left, one on the right, and an
+  equals sign in between. You can use parens around multiple expressions to group them
+  into a single expression, eg `(5 |> toString)`.
 
-- be explicit around pipes, wrapping them in parens to make sure the right expression is being piped. Otherwise you will typically get type errors.
+- be explicit around pipes, wrapping them in parens to make sure the right expression
+  is being piped. Otherwise you will typically get type errors.
+
+- by default, function calls are not sent to the errorRail (the opposite of the Dark
+  editor). You can send them to the errorRail by calling the function with the suffix
+  `_ster`.
 
 # Test file format
 
@@ -62,12 +69,16 @@ until the next test indicator, are all a single test named "name", and should
 be parsed as one. The Worker MyWorker is available to the test, without
 prior setup required. Cannot be used with `with DB MyDb` syntax.
 
-`[fn.name argnames]` creates a function which is available to all subsequent
-tests. The following lines are part of the function body (until we hit
-another test indicator)
+`[fn.name arg1:int arg2:str]` creates a function which is available to all subsequent
+tests. The following lines are part of the function body (until we hit another test
+indicator)
+
+`[packagefn.name arg1:int arg2:str]` creates a function which is available to all
+subsequent tests. The following lines are part of the function body (until we hit
+another test indicator). Package functions call be called as `Test.Test.Test.myFn`
 
 # Test functions
 
 To produce results that are hard to otherwise create, you can add functions to
-LibTest.fs. For example, Test.nan_v0 produces a NaN float, and Test.typeError
+LibTest.fs. For example, `Test.nan_v0` produces a NaN float, and `Test.typeError`
 produces a built-in error.

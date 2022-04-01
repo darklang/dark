@@ -451,12 +451,18 @@ let sendRequest
         // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
         if false then // HttpHeaders.hasFormHeader response.headers
           try
-            DvalReprExternal.ofQueryString (Option.unwrapUnsafe body)
+            body
+            |> Exception.unwrapOptionInternal
+                 "Invalid query string"
+                 [ "bytes", response.body ]
+            |> DvalReprExternal.ofQueryString
           with
           | _ -> DStr "form decoding error"
         elif hasJsonHeader response.headers then
           try
-            DvalReprExternal.unsafeOfUnknownJsonV0 (Option.unwrapUnsafe body)
+            body
+            |> Exception.unwrapOptionInternal "invalid json string" []
+            |> DvalReprExternal.unsafeOfUnknownJsonV0
           with
           | _ -> DStr "json decoding error"
         else

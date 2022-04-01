@@ -74,7 +74,10 @@ let savedInputVars
         // trace doesn't match the handler should be done in the future
         // somehow.
         if Routing.requestPathMatchesRoute route requestPath then
-          Routing.routeInputVars route requestPath |> Option.unwrapUnsafe
+          Routing.routeInputVars route requestPath
+          |> Exception.unwrapOptionInternal
+               "invalid routeInputVars"
+               [ "route", route; "requestPath", requestPath ]
         else
           sampleRouteInputVars h
       else

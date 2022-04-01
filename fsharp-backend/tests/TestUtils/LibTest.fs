@@ -231,4 +231,15 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "raiseException" 0
+      parameters = [ Param.make "message" TStr "" ]
+      returnType = TVariable "a"
+      description = "A function that raises an F# exception"
+      fn =
+        (function
+        | _, [ DStr message ] -> raise (System.Exception(message))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]

@@ -899,6 +899,7 @@ and Tracing =
 and TestContext =
   { mutable sideEffectCount : int
     mutable exceptionReports : List<ExecutionID * string * string * Metadata>
+    expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit }
 
 /// Non-user-specific functionality needed to run code

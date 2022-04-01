@@ -34,7 +34,7 @@ let testBasicTypecheckWorks : Test =
       |> Lazy.force
       |> fun l -> l.stdlib
       |> Map.get (PTParser.FQFnName.parse fn |> PT2RT.FQFnName.toRT)
-      |> Option.unwrapUnsafe
+      |> Exception.unwrapOptionInternal "ADDMESSAGE" []
       |> RT.builtInFnToFn
 
     TypeChecker.checkFunctionCall Map.empty fn args
@@ -93,7 +93,7 @@ let testArguments : Test =
     [ (("myBadFn", RT.TStr, S.eInt 7),
        RT.DError(
          RT.SourceNone,
-         "Type error(s) in return type: Expected to see a value of type String but found a Int"
+         "Type error(s) in return type: Expected to see a value of type Str but found a Int"
        ))
       (("myGoodFn", RT.TStr, S.eStr "test"), RT.DStr "test")
       (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]

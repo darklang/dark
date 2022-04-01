@@ -460,12 +460,12 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 // ------------
 [db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 
-[fn.addFriend key name height human dob income]
+[fn.addFriend key:string name:string height:int human:bool dob:string income:float]
 (let dob = Date.parse_v2_ster dob in
  let obj = { height = height; name = name; human = human; dob = dob; income = income } in
  DB.set_v1 obj key Person)
 
-[fn.prepFriends v]
+[fn.prepFriends v:any]
 (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
  let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
  // Note spaces around Chandler, that's to test trim functions
@@ -473,12 +473,12 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
  let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
 
-[fn.d datestr]
+[fn.d datestr:string]
 (Date.parse_v1_ster datestr)
-[fn.rossDOB x]
+[fn.rossDOB x:any]
 (Date.parse_v1_ster  "1967-05-12T00:00:00Z")
 
-[fn.friends lambda]
+[fn.friends lambda:any]
 (let _ = prepFriends null in
  ((DB.query_v4 Person lambda)
  |> List.map_v0 (fun p -> p.name)
@@ -659,14 +659,14 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 // Date Functions
 // ------------
 
-[fn.beforeDate null]
+[fn.beforeDate null:any]
 Date.parse_v2_ster "1900-01-01T00:00:00Z"
-[fn.middleDate null]
+[fn.middleDate null:any]
 Date.parse_v2_ster "2000-01-01T00:00:00Z"
-[fn.afterDate null]
+[fn.afterDate null:any]
 Date.parse_v2_ster "2100-01-01T00:00:00Z"
 
-[fn.prepDates null]
+[fn.prepDates null:any]
 (let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
  let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
  DB.set_v1 { ts = afterDate null } "after"  Timestamp)

@@ -269,7 +269,7 @@ let sendError
 
 let printMetadata (metadata : Metadata) =
   try
-    print (string metadata)
+    List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
   with
   | _ -> ()
 
@@ -371,8 +371,9 @@ let lastDitchBlockAndPage (msg : string) (e : exn) : int =
     print $"last ditch rollbar: {msg}"
     print e.Message
     print e.StackTrace
-    let e = PageableException(msg, [], e)
     let metadata = Exception.toMetadata e
+    printMetadata metadata
+    let e = PageableException(msg, [], e)
     Telemetry.addException [] e
     let custom = createCustom (ExecutionID "last ditch") metadata
     Rollbar
