@@ -438,7 +438,8 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
-let unsafeOfUnknownJsonV0 str =
+// Raises CodeException as nearly all callers are in code
+let unsafeOfUnknownJsonV0 str : Dval =
   // This special format was originally the default OCaml (yojson-derived) format
   // for this.
   let responseOfJson (dv : Dval) (j : JsonElement) : DHTTP =
@@ -449,11 +450,10 @@ let unsafeOfUnknownJsonV0 str =
         headers
         |> List.map (function
           | JList [ JString k; JString v ] -> (k, v)
-          | h ->
-            Exception.raiseInternal "Invalid DHttpResponse headers" [ "header", h ])
+          | _ -> Exception.raiseCode "Invalid DHttpResponse headers")
 
       Response(code, headers, dv)
-    | _ -> Exception.raiseInternal "Invalid response json" [ "json", j ]
+    | _ -> Exception.raiseCode "Invalid response json"
 
 
   let rec convert json =
@@ -506,13 +506,13 @@ let unsafeOfUnknownJsonV0 str =
           ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     | JUndefined
-    | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
+    | _ -> Exception.raiseCode "Invalid type in json"
 
   try
     use document = parseJson str
     convert document.RootElement
   with
-  | _ -> Exception.raiseInternal "Invalid json" [ "json", str ]
+  | _ -> Exception.raiseCode "Invalid json"
 
 
 // When receiving unknown json from the user, or via a HTTP API, attempt to
