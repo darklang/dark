@@ -673,7 +673,32 @@ and execFn
                 try
                   return! f (state, arglist)
                 with
-                | e -> return handleException state fnDesc arglist id fn isInPipe e
+                | e ->
+                  let context : Metadata =
+                    [ "fn", fnDesc; "args", arglist; "id", id; "isInPipe", isInPipe ]
+                  return
+                    match e with
+                    | Errors.IncorrectArgs ->
+                      Errors.incorrectArgsToDError sourceID fn arglist
+                    | Errors.FakeDvalFound dv ->
+                      // We don't expect to see fakeDvals inside functions, so let's
+                      // learn where they are so that they can be removed.
+                      if fn.deprecated = NotDeprecated then
+                        let context = (context @ [ "dval", dv ])
+                        state.notify state "fakedval found" context
+                      dv
+                    | :? CodeException as e ->
+                      // There errors are created by us, within the libraries, so they are
+                      // safe to show to users (but not grandusers)
+                      Dval.errSStr sourceID e.Message
+                    | e ->
+                      // CLEANUP could we show the user the execution id here?
+                      state.reportException state context e
+                      // These are arbitrary errors, and could include sensitive
+                      // information, so best not to show it to the user. If we'd
+                      // like to show it to the user, we should catch it and give
+                      // them a known safe error.
+                      Dval.errSStr sourceID e.Message
               }
             // there's no point storing data we'll never ask for
             if fn.previewable <> Pure then
@@ -756,28 +781,3 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
   }
-
-and handleException
-  (state : ExecutionState)
-  (fnDesc : FQFnName.T)
-  (argList : List<Dval>)
-  (callerID : id)
-  (fn : Fn)
-  (isInPipe : IsInPipe)
-  (e : exn)
-  : Dval =
-  let source = SourceID(state.tlid, callerID)
-  let context : Metadata =
-    [ "fn", fnDesc; "args", argList; "callerID", callerID; "isInPipe", isInPipe ]
-  match e with
-  | Errors.IncorrectArgs -> Errors.incorrectArgsToDError source fn argList
-  | Errors.FakeDvalFound dv ->
-    state.notify state "fakedval found" (context @ [ "dval", dv ])
-    dv
-  | :? CodeException as e -> Dval.errSStr source e.Message
-  | e ->
-    // CLEANUP could we show the user the execution id here?
-    state.reportException state context e
-    // The GrandUser doesn't get to see DErrors, so it's safe to include this
-    // value and show it to the Dark Developer
-    Dval.errSStr source e.Message
