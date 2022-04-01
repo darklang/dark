@@ -343,7 +343,7 @@ Error (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 // ---------------------------
 [tests.darkinternal]
 DarkInternal.checkAccess_v0 = Test.typeError_v0 "User executed an internal function but isn't an admin: test" // OCAMLONLY
-DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY
+DarkInternal.checkAccess_v0 = Test.typeError_v0 "User executed an internal function but isn't an admin" // FSHARPONLY
 
 // ---------------------------
 // Equality
@@ -432,7 +432,7 @@ Test.errorRailValue_v0 Nothing
 List.head_v1_ster [5]
 
 [fn.throwsException v:any]
-Test.raiseException "message"
+Test.raiseException "throwsException message"
 
 [tests.valid function calls]
 stringFn "string" = "string appended string"
@@ -457,8 +457,8 @@ returnsOptionNothingOnErrorRail 6 = Nothing
 functionWhichDoesntExist 6 = blank
 stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
 stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
-throwsException 6 = Test.typeError "Unknown Err: (Failure message)" // OCAMLONLY
-throwsException 6 = Test.typeError "Unknown error" // FSHARPONLY
+throwsException 6 = Test.typeError "Unknown Err: (Failure \"throwsException message\")" // OCAMLONLY
+throwsException 6 = Test.typeError "throwsException message" // FSHARPONLY
 
 // ---------------------------
 // Package manager function calls
@@ -495,7 +495,7 @@ Test.errorRailValue_v0 Nothing
 List.head_v1_ster [5]
 
 [packagefn.throwsException v:any]
-Test.raiseException "message"
+Test.raiseException "package throwsException message"
 
 [tests.valid package function calls]
 Test.Test.Test.stringFn "string" = "string appended string"
@@ -519,5 +519,5 @@ Test.Test.Test.returnsOptionNothingOnErrorRail 6 = Nothing
 [tests.invalid function calls]
 Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
 Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
-Test.Test.Test.throwsException 6 = Test.typeError "Unknown Err: (Failure message)" // OCAMLONLY
-Test.Test.Test.throwsException 6 = Test.typeError "Unknown error" // FSHARPONLY
+Test.Test.Test.throwsException 6 = Test.typeError "Unknown Err: (Failure \"package throwsException message\")" // OCAMLONLY
+Test.Test.Test.throwsException 6 = Test.typeError "package throwsException message" // FSHARPONLY
