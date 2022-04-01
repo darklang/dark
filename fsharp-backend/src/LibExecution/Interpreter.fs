@@ -188,7 +188,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let! conditionResult =
         // under no circumstances should this cause code to fail
-        task {
+        uply {
           try
             return! eval state st cond
           with
@@ -667,7 +667,7 @@ and execFn
             | None -> return DIncomplete sourceID
           else
             let! result =
-              task {
+              uply {
                 try
                   return! f (state, arglist)
                 with
