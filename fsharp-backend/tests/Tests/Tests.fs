@@ -58,7 +58,7 @@ let main (args : string array) : int =
       // context or it may hang
       let exitCode = runTestsWithCLIArgs [] args (testList "tests" tests)
 
-      Prelude.NonBlockingConsole.wait () // flush stdout
+      NonBlockingConsole.wait () // flush stdout
       cancelationTokenSource.Cancel()
       bwdServerTestsTask.Wait()
       httpClientTestsTask.Wait()
@@ -69,4 +69,5 @@ let main (args : string array) : int =
     let metadata = Exception.toMetadata e
     LibService.Rollbar.printMetadata metadata
     print e.StackTrace
+    NonBlockingConsole.wait () // flush stdout
     1
