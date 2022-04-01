@@ -450,10 +450,11 @@ let unsafeOfUnknownJsonV0 str : Dval =
         headers
         |> List.map (function
           | JList [ JString k; JString v ] -> (k, v)
-          | _ -> Exception.raiseCode "Invalid DHttpResponse headers")
+          | h ->
+            Exception.raiseInternal "Invalid DHttpResponse headers" [ "headers", h ])
 
       Response(code, headers, dv)
-    | _ -> Exception.raiseCode "Invalid response json"
+    | _ -> Exception.raiseInternal "Invalid response json" [ "json", j ]
 
 
   let rec convert json =
@@ -506,7 +507,7 @@ let unsafeOfUnknownJsonV0 str : Dval =
           ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     | JUndefined
-    | _ -> Exception.raiseCode "Invalid type in json"
+    | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
 
   try
     use document = parseJson str
