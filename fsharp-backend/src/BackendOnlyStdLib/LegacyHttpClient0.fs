@@ -34,9 +34,10 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalRepr.toQuery query |> Errors.unwrapResult
+    let query = DvalRepr.toQuery query |> Exception.unwrapResultCode
 
-    let encodedReqHeaders = DvalRepr.toStringPairs reqHeaders |> Errors.unwrapResult
+    let encodedReqHeaders =
+      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultCode
     let encodedReqBody = encodeRequestBody jsonFn encodedReqHeaders reqBody
 
     match! httpCall 0 false uri query verb encodedReqHeaders encodedReqBody with
@@ -91,11 +92,13 @@ let sendRequest
           // The OCaml version of this was Legacy.LibHttpClientv1, which called
           // Legacy.HttpClientv1.http_call, which threw exceptions for non-200 status
           // codes
-          return Errors.throw $"Bad HTTP response ({response.code}) in call to {uri}"
+          return
+            Exception.raiseCode
+              $"Bad HTTP response ({response.code}) in call to {uri}"
 
 
     // Raise to be caught in the right place
-    | Error err -> return Errors.throw err.error
+    | Error err -> return Exception.raiseCode err.error
   }
 
 let call (method : HttpMethod) jsonFn : BuiltInFnSig =

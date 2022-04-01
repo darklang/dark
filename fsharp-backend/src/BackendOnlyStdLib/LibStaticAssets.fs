@@ -47,11 +47,11 @@ let getV0 (url : string) : Task<byte []> =
       let code = int response.StatusCode
       let! body = response.Content.ReadAsByteArrayAsync()
       if code < 200 || code >= 300 then
-        return Errors.throw $"Bad HTTP response ({code}) in call to {url}"
+        return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
       else
         return body
     with
-    | e -> return Errors.throw $"Internal HTTP-stack exception: {e.Message}"
+    | e -> return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
   }
 
 /// Replaces legacy HttpClientv1. Returns bytes, headers, and status code, and throws
@@ -65,11 +65,11 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
       let headers = response.Headers |> HttpHeaders.fromAspNetHeaders
       let! body = response.Content.ReadAsByteArrayAsync()
       if code < 200 || code >= 300 then
-        return Errors.throw $"Bad HTTP response ({code}) in call to {url}"
+        return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
       else
         return body, headers, code
     with
-    | e -> return Errors.throw $"Internal HTTP-stack exception: {e.Message}"
+    | e -> return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
   }
 
 /// Replaces legacy HttpClientv2. Returns bytes, headers, and status code, and throws
@@ -84,7 +84,7 @@ let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
       let! body = response.Content.ReadAsByteArrayAsync()
       return body, headers, code
     with
-    | e -> return Errors.throw $"Internal HTTP-stack exception: {e.Message}"
+    | e -> return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
 
   }
 

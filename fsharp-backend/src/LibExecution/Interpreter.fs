@@ -770,15 +770,11 @@ and handleException
   let context : Metadata =
     [ "fn", fnDesc; "args", argList; "callerID", callerID; "isInPipe", isInPipe ]
   match e with
-  | Errors.StdlibException err ->
-    match err with
-    | Errors.DBQueryException msg ->
-      Dval.errStr (Errors.queryCompilerErrorTemplate + msg)
-    | Errors.StringError msg -> Dval.errSStr source msg
-    | Errors.IncorrectArgs -> Errors.incorrectArgsToDError source fn argList
-    | Errors.FakeDvalFound dv ->
-      state.notify state "fakedval found" (context @ [ "dval", dv ])
-      dv
+  | Errors.IncorrectArgs -> Errors.incorrectArgsToDError source fn argList
+  | Errors.FakeDvalFound dv ->
+    state.notify state "fakedval found" (context @ [ "dval", dv ])
+    dv
+  | :? CodeException as e -> Dval.errSStr source e.Message
   | e ->
     // CLEANUP could we show the user the execution id here?
     state.reportException state context e

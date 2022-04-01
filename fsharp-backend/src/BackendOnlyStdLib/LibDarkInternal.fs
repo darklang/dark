@@ -604,7 +604,7 @@ that's already taken, returns an error."
                     os
                     |> List.map (function
                       | DStr v -> v
-                      | _ -> Errors.throw "Invalid origin string")
+                      | _ -> Exception.raiseCode "Invalid origin string")
                     |> Canvas.Origins
                     |> Some
                     |> Ok

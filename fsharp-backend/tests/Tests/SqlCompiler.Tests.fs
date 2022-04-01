@@ -31,8 +31,9 @@ let compile
       let args = Map.ofList args
       return sql, args
     with
-    | Errors.StdlibException (Errors.DBQueryException msg) as e ->
-      return Exception.raiseInternal msg [ "paramName", paramName; "expr", expr ]
+    | e ->
+      return
+        Exception.raiseInternal e.Message [ "paramName", paramName; "expr", expr ]
   }
 
 let matchSql

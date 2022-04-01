@@ -115,7 +115,6 @@ let testToPrettyRequestJson =
       try
         BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson v
       with
-      | Errors.StdlibException (Errors.StringError msg) -> msg
       | e -> e.Message)
     [ RT.DErrorRail(RT.DResult(Ok RT.DNull)),
       "Unknown Err: (Failure \"printing an unprintable value:<result>\")"

@@ -56,6 +56,12 @@ type GrandUserException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = GrandUserException(msg, null)
 
+/// An error during code execution, which is the responsibility of the
+/// User/Developer. The message can be shown to the developer.
+type CodeException(message : string, inner : exn) =
+  inherit System.Exception(message, inner)
+  new(msg : string) = CodeException(msg, null)
+
 /// An editor exception is one which is caused by an invalid action on the part of
 /// the Dark editor, such as an Redo or rename that isn't allowed.  We are
 /// interested in these, as the editor should have caught this on the client and not
@@ -117,6 +123,20 @@ module Exception =
     callExceptionCallback e
     raise e
 
+  let raiseCode (msg : string) =
+    let e = CodeException(msg)
+    callExceptionCallback e
+    raise e
+
+  let unwrapOptionCode (msg : string) (o : Option<'a>) : 'a =
+    match o with
+    | Some v -> v
+    | None -> raiseCode msg
+
+  let unwrapResultCode (r : Result<'a, string>) : 'a =
+    match r with
+    | Ok v -> v
+    | Error msg -> raiseCode msg
 
   let raiseEditor (msg : string) =
     let e = EditorException(msg)

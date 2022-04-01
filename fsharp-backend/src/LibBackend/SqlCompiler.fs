@@ -19,8 +19,10 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
-let error (str : string) : 'a =
-  raise (Errors.StdlibException(Errors.DBQueryException str))
+let errorTemplate =
+  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\nError: "
+
+let error (str : string) : 'a = Exception.raiseCode (errorTemplate + str)
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 

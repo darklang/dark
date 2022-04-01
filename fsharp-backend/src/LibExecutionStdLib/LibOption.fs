@@ -118,7 +118,9 @@ let fns : List<BuiltInFn> =
               | DOption result -> return DOption result
               | other ->
                 return
-                  Errors.throw (Errors.expectedLambdaType "f" (TOption varB) other)
+                  Exception.raiseCode (
+                    Errors.expectedLambdaType "f" (TOption varB) other
+                  )
             | None -> return DOption None
           }
         | _ -> incorrectArgs ())

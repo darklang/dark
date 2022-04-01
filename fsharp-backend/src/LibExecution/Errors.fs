@@ -7,28 +7,18 @@ open RuntimeTypes
 // ------------------
 // Exception types
 // ------------------
+// We have a number of special exceptions that are used as control-flow to jump out
+// of Stdlib execution.
+// ------------------
 
-type StdlibError =
+/// Standard error raised for calling a function with arguments of an incorrect type
+exception IncorrectArgs
 
-  /// Standard error raised for calling a function with arguments of an incorrect type
-  | IncorrectArgs
+/// When we encounter a fakeDval, this exception allows us to jump out of the
+/// computation immediately, and the caller can return the dval. This is useful
+/// for jumping out of folds and other complicated constructs.
+exception FakeDvalFound of Dval
 
-  /// When we encounter a fakeDval, this exception allows us to jump out of the
-  /// computation immediately, and the caller can return the dval. This is useful
-  /// for jumping out of folds and other complicated constructs.
-  | FakeDvalFound of Dval
-
-  /// Error in DB::query when we don't support something yet
-  | DBQueryException of string
-
-  /// Just a string. Ideally we wouldn't have these, but there are of one-off errors
-  | StringError of string
-
-/// Error made in a standard library call. We use special type here, outside of
-/// standard Dark internal/developer/etc functions so that we can add additional
-/// context at the call site
-
-exception StdlibException of StdlibError
 
 // ------------------
 // Messages
@@ -59,8 +49,6 @@ let argumentMemberWasnt (typ : DType) (paramName : string) (dv : Dval) : string 
   let typ = DvalReprExternal.typeToDeveloperReprV0 typ
   $"Expected `{paramName}` to be a list of {typ}s, but the list contained `{actual}`"
 
-let queryCompilerErrorTemplate =
-  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\nError: "
 
 let typeErrorMsg (colName : string) (expected : DType) (actual : Dval) : string =
   let expected = DvalReprExternal.typeToDeveloperReprV0 expected
@@ -72,11 +60,10 @@ let typeErrorMsg (colName : string) (expected : DType) (actual : Dval) : string 
 // ------------------
 // Extremely common exceptions
 // ------------------
-let throw (str : string) : 'a = raise (StdlibException(StringError str))
 
 /// When a function in called with the wrong number of arguments.
 /// Used in almost every function signature.
-let incorrectArgs () = raise (StdlibException IncorrectArgs)
+let incorrectArgs () = raise IncorrectArgs
 
 let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
 
@@ -132,14 +119,4 @@ let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
   Ply(DError(SourceNone, $"{fnName} was removed from Dark"))
 
 /// When you have a fakeval, you typically just want to return it.
-let foundFakeDval (dv : Dval) : 'a = raise (StdlibException(FakeDvalFound dv))
-
-let unwrapResult (result : Result<'a, string>) : 'a =
-  match result with
-  | Ok v -> v
-  | Error str -> throw str
-
-let unwrapOption (message : string) (option : Option<'a>) : 'a =
-  match option with
-  | Some v -> v
-  | None -> throw message
+let foundFakeDval (dv : Dval) : 'a = raise (FakeDvalFound dv)
