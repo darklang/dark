@@ -687,7 +687,8 @@ and execFn
                         let context = (context @ [ "dval", dv ])
                         state.notify state "fakedval found" context
                       dv
-                    | :? CodeException as e ->
+                    | (:? CodeException
+                    | :? GrandUserException) as e ->
                       // There errors are created by us, within the libraries, so they are
                       // safe to show to users (but not grandusers)
                       Dval.errSStr sourceID e.Message
