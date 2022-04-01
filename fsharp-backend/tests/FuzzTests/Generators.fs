@@ -14,6 +14,7 @@ open Prelude.Tablecloth
 open Tablecloth
 open TestUtils.TestUtils
 open NodaTime
+open System
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -28,32 +29,43 @@ let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000
 let safeOCamlString = Arb.Default.String() |> Arb.filter isSafeOCamlString
 
 /// List of all a..z, A..Z, 0..9, and _ characters
-let alphaNumericString =
+let alphaNumericCharacters =
   List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
 
-/// Generates a string that 'normalizes' successfully,
-/// and is safe for use in OCaml
-let ocamlSafeString =
-  let isValid (s : string) : bool =
-    try
-      String.normalize s |> ignore<string>
-      true
-    with
-    | e ->
-      // debuG
-      //   "Failed to normalize :"
-      //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+let alphaNumericString =
+  let charGen = alphaNumericCharacters |> Gen.elements
+  Gen.arrayOf charGen |> Gen.map (fun cs -> new String(cs))
 
-      false
+let AlphaNumericString = Arb.fromGen alphaNumericString
 
-  Arb.generate<UnicodeString>
-  |> Gen.map (fun (UnicodeString s) -> s)
-  |> Gen.filter isValid
-  // Now that we know it can be normalized, actually normalize it
-  |> Gen.map String.normalize
-  |> Gen.filter isSafeOCamlString
+// /// Generates a string that 'normalizes' successfully,
+// /// and is safe for use in OCaml
+// let ocamlSafeString =
+//   let isValid (s : string) : bool =
+//     try
+//       String.normalize s |> ignore<string>
+//       true
+//     with
+//     | e ->
+//       // debuG
+//       //   "Failed to normalize :"
+//       //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
 
-let OCamlSafeString = Arb.fromGen ocamlSafeString
+//       false
+
+//   Arb.generate<UnicodeString>
+//   |> Gen.map (fun (UnicodeString s) -> s)
+//   |> Gen.filter isValid
+//   // Now that we know it can be normalized, actually normalize it
+//   |> Gen.map String.normalize
+//   |> Gen.filter isSafeOCamlString
+
+// let OCamlSafeString =
+//   ocamlSafeString |> Arb.fromGen
+
+// FSTODO temporary! Remove this soon.
+let ocamlSafeString = alphaNumericString
+let OCamlSafeString = AlphaNumericString
 
 let char () : Gen<string> =
   ocamlSafeString
@@ -187,8 +199,43 @@ module RuntimeTypes =
       | RT.TDB _
       | RT.TIncomplete
       | RT.TPassword
-      | RT.TErrorRail ->
-        printfn "excluding dtype"
-        false
+      | RT.TErrorRail -> false
+
+    Arb.Default.Derive() |> Arb.filter isSupportedType
+
+module ProgramTypes =
+  let DType =
+    let rec isSupportedType =
+      function
+      | PT.TInt
+      | PT.TStr
+      | PT.TVariable _
+      | PT.TFloat
+      | PT.TBool
+      | PT.TNull
+      | PT.TNull
+      | PT.TDate
+      | PT.TChar
+      | PT.TUuid
+      | PT.TBytes
+      | PT.TError
+      | PT.TDB (PT.TUserType _)
+      | PT.TDB (PT.TRecord _)
+      | PT.TUserType _ -> true
+      | PT.TList t
+      | PT.TDict t
+      | PT.TOption t
+      | PT.THttpResponse t -> isSupportedType t
+      | PT.TResult (t1, t2) -> isSupportedType t1 && isSupportedType t2
+      | PT.TFn (ts, rt) -> isSupportedType rt && List.all isSupportedType ts
+      | PT.TRecord (pairs) ->
+        pairs |> List.map Tuple2.second |> List.all isSupportedType
+
+      // FSTODO: support all types
+      | PT.TDB _
+      | PT.TIncomplete
+      | PT.TPassword
+      | PT.TErrorRail
+      | PT.TDbList _ -> false
 
     Arb.Default.Derive() |> Arb.filter isSupportedType

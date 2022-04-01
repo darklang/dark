@@ -33,7 +33,7 @@ let allowedErrors = readAllowedErrors ()
 // old and new implementations. However, this can hide errors, so we
 // manually verify them all to make sure we didn't miss any.
 let errorIsAllowed
-  (fn : PT.FQFnName.StdlibFnName)
+  (fn : RT.FQFnName.StdlibFnName)
   (debug : bool)
   (actualMsg : string)
   (expectedMsg : string)
@@ -64,12 +64,7 @@ let errorIsAllowed
         let regexMatch str regex = Regex.Match(str, regex, RegexOptions.Singleline)
 
         let nameMatches =
-          (regexMatch
-            (fn
-             |> PT2RT.FQFnName.StdlibFnName.toRT
-             |> RT.FQFnName.StdlibFnName.toString)
-            namePat)
-            .Success
+          (regexMatch (fn |> RT.FQFnName.StdlibFnName.toString) namePat).Success
         let actualMatch = regexMatch actualMsg actualPat
         let expectedMatch = regexMatch expectedMsg expectedPat
 

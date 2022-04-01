@@ -18,7 +18,6 @@ open FuzzTests.Utils
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module G = Generators
 
@@ -27,7 +26,7 @@ let allowedErrors = AllowedFuzzerErrors.allowedErrors
 module Generators =
   // Used to ensure we generate values of a consistent type
   // for collection types such as lists and dicts.
-  let rec generateTypeToMatchCollection (typ : RT.DType) : Gen<RT.DType> =
+  let rec private generateTypeToMatchCollection (typ : RT.DType) : Gen<RT.DType> =
     gen {
       match typ with
       | RT.TVariable _name ->
@@ -74,10 +73,14 @@ module Generators =
           return RT.EBool(gid (), v)
         | RT.TNull -> return RT.ENull(gid ())
         | RT.TList typ ->
+          if size > 10 then printfn "Generating list of length %A" size
+
           let! typ = generateTypeToMatchCollection typ
           let! v = Gen.listOfLength size (genExpr' typ (size / 2))
           return RT.EList(gid (), v)
         | RT.TDict typ ->
+          if size > 10 then printfn "Generating dict of length %A" size
+
           let! typ = generateTypeToMatchCollection typ
 
           return!
@@ -85,7 +88,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip (Generators.ocamlSafeString) (genExpr' typ (size / 2))))
+                (Gen.zip Generators.ocamlSafeString (genExpr' typ (size / 2))))
         | RT.TUserType (_name, _version) ->
           let! typ = Arb.generate<RT.DType>
 
@@ -94,7 +97,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip (Generators.ocamlSafeString) (genExpr' typ (size / 2))))
+                (Gen.zip Generators.ocamlSafeString (genExpr' typ (size / 2))))
 
         | RT.TRecord pairs ->
           let! entries =
@@ -170,6 +173,7 @@ module Generators =
     LibRealExecution.RealExecution.stdlibFns
     |> Map.values
     |> List.filter (fun fn ->
+
       let name = RT.FQFnName.StdlibFnName.toString fn.name
       let has set = Set.contains name set
       let different = has allowedErrors.knownDifferingFunctions
@@ -302,9 +306,12 @@ module Generators =
 
     Gen.sized (genDval' typ')
 
+type FnAndArgs = RT.FQFnName.StdlibFnName * List<RT.Dval>
+
 type Generator =
   static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
     G.NodaTime.LocalDateTime
+  static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
   static member String() : Arbitrary<string> = G.OCamlSafeString
   static member Float() : Arbitrary<float> = G.OCamlSafeFloat
   static member Int64() : Arbitrary<int64> = G.OCamlSafeInt64
@@ -313,11 +320,13 @@ type Generator =
 
   // this is the type expected/generated for the below property
   // generates a function, and a list of valid params to be applied to it
-  static member Fn() : Arbitrary<RT.FQFnName.StdlibFnName * List<RT.Dval>> =
+  static member FnAndArgs() : Arbitrary<FnAndArgs> =
     gen {
+      printfn "Actually using generator"
       let! fn = Generators.StdLibFn
       let name = fn.name
       let signature = fn.parameters
+      printfn "Fn chosen: %A" fn
 
       // WHATISTHIS
       let unifiesWith (typ : RT.DType) =
@@ -414,9 +423,10 @@ type Generator =
             not (Generators.RuntimeTypes.containsBytes dv)
           | _ -> true)
 
+      printfn "Generating arguments"
+
       // When generating arguments, we sometimes make use of the previous params
       // which requires us to generate the arguments in order, as below
-      // TODO move this note somewhere else
       match List.length signature with
       | 0 -> return (name, [])
       | 1 ->
@@ -446,28 +456,42 @@ type Generator =
     }
     |> Arb.fromGen
 
-// FSTODO these tests are broken, that the generator does not
-// match the property type (RT vs. PT)
 
 /// Checks if a fn and some arguments result in the same Dval
 /// against both OCaml and F# backends.
-let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
+///
+/// Some differences are OK, managed by `AllowedFuzzerErrors` module
+let equalsOCaml ((fn, args) : FnAndArgs) : bool =
+  let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
+
   task {
+    printfn "Checking property"
+    // evaluate the fn call against both backends
     let! meta = initializeTestCanvas "ExecutePureFunction"
     let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
-    let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
-    let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
-    let st = Map.ofList args
+    let ast =
+      let callFn mod_ fn version args =
+        let call =
+          RT.EFQFnValue(
+            gid (),
+            RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName mod_ fn version)
+          )
 
-    let! expected = OCamlInterop.execute meta.owner meta.id ast st [] []
+        RT.EApply(gid (), call, args, RT.NotInPipe, RT.NoRail)
+
+      let fnArgList = List.map (fun (name, _) -> RT.EVariable(gid (), name)) args
+      printfn "Calling %A with %A" fn fnArgList
+      callFn fn.module_ fn.function_ fn.version fnArgList
+
+    let symtable = Map.ofList args
+
+    let! expected = OCamlInterop.executeExpr meta.owner meta.id ast symtable [] []
 
     let! state = executionStateFor meta Map.empty Map.empty
+    let! actual = LibExecution.Execution.executeExpr state symtable ast
 
-    let! actual = LibExecution.Execution.executeExpr state st (PT2RT.Expr.toRT ast)
-
-    let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
-
+    // check if Dvals are (roughly) the same
     let debugFn () =
       debuG "\n\n\nfn" fn
       debuG "args" (List.map (fun (_, v) -> debugDval v) args)
