@@ -55,7 +55,7 @@ let testEventQueueRoundtrip =
       let traceID =
         eventIDs
         |> List.head
-        |> Exception.unwrapOptionInternal "ADDMESSAGE" []
+        |> Exception.unwrapOptionInternal "missing eventID" []
         |> Tuple2.first
 
       let! functionResults = TFR.load meta.id traceID h.tlid
@@ -132,7 +132,7 @@ let testGetWorkerSchedulesForCanvas =
     let check (name : string) (value : EQ.WorkerStates.State) =
       let actual =
         Map.get name result
-        |> Exception.unwrapOptionInternal "ADDMESSAGE" []
+        |> Exception.unwrapOptionInternal "missing workerstate" [ "name", name ]
         |> string
       let expected = string value
       Expect.equal actual expected ($"{name} is {expected}")

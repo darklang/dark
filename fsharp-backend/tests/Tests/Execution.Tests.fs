@@ -279,11 +279,11 @@ let testFeatureFlagPreview : Test =
 
       return
         (Dictionary.get ffID results
-         |> Exception.unwrapOptionInternal "ADDMESSAGE" [],
+         |> Exception.unwrapOptionInternal "missing ffID" [ "ffid", ffID ],
          Dictionary.get oldID results
-         |> Exception.unwrapOptionInternal "ADDMESSAGE" [],
+         |> Exception.unwrapOptionInternal "missing oldID" [ "oldID", oldID ],
          Dictionary.get newID results
-         |> Exception.unwrapOptionInternal "ADDMESSAGE" [])
+         |> Exception.unwrapOptionInternal "missing newID" [ "newID", newID ])
     }
 
   // see notes in above `testIfPreview` regarding how these tests work
