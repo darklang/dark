@@ -279,7 +279,7 @@ let makeHttpCall
                 Headers.MediaTypeHeaderValue.Parse(v)
             with
             | :? System.FormatException ->
-              Exception.raiseDeveloper "Invalid content-type header" []
+              Exception.raiseCode "Invalid content-type header"
           else
             // Dark headers can only be added once, as they use a Dict. Remove them
             // so they don't get added twice (eg via Authorization headers above)
@@ -405,7 +405,7 @@ let encodeRequestBody
     | RT.DObj _ when ContentType.hasFormHeaderWithoutCharset headers ->
       match DvalReprExternal.toFormEncoding dv with
       | Ok content -> FormContent(content)
-      | Error msg -> Exception.raiseDeveloper msg
+      | Error msg -> Exception.raiseCode msg
     | _ when ContentType.hasNoContentType headers ->
       FakeFormContentToMatchCurl(jsonFn dv)
     | _ -> StringContent(jsonFn dv)

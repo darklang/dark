@@ -113,14 +113,14 @@ let fns : List<BuiltInFn> =
             match e with
             | DList [ DStr k; value ] -> Map.add k value acc
             | DList [ k; value ] ->
-              Errors.throw (Errors.argumentWasnt "a string" "key" k)
+              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
             | DErrorRail _
-            | DError _) as dv -> Errors.foundFakeDval (dv)
-            | _ -> Errors.throw "All list items must be `[key, value]`"
+            | DError _) as dv -> Errors.foundFakeDval dv
+            | _ -> Exception.raiseCode "All list items must be `[key, value]`"
 
           let result = List.fold Map.empty f l
-          Ply((DObj(result)))
+          Ply(DObj result)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -147,8 +147,9 @@ let fns : List<BuiltInFn> =
               | DErrorRail _
               | DError _) as dv) -> Errors.foundFakeDval dv
             | Some _, DList [ k; _ ] ->
-              Errors.throw (Errors.argumentWasnt "a string" "key" k)
-            | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
+              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+            | Some _, _ ->
+              Exception.raiseCode "All list items must be `[key, value]`"
             | None, _ -> None
 
           let result = List.fold (Some Map.empty) f l
@@ -309,7 +310,8 @@ let fns : List<BuiltInFn> =
                 | DIncomplete _ ->
                   incomplete.Value <- true
                   return false
-                | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+                | v ->
+                  return Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
               }
 
             if incomplete.Value then
@@ -359,7 +361,8 @@ let fns : List<BuiltInFn> =
                   | (DIncomplete _ as e)
                   | (DError _ as e) -> return Error e
                   | other ->
-                    return Errors.throw (Errors.expectedLambdaType "f" TBool other)
+                    return
+                      Exception.raiseCode (Errors.expectedLambdaType "f" TBool other)
                 }
 
             let! filtered_result =
@@ -418,7 +421,9 @@ let fns : List<BuiltInFn> =
                     abortReason.Value <- Some dv
                     return None
                   | v ->
-                    Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
+                    Exception.raiseCode (
+                      Errors.expectedLambdaType "f" (TOption varB) v
+                    )
 
                     return None
 

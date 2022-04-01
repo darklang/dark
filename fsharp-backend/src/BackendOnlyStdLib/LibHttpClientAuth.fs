@@ -19,7 +19,7 @@ let encodeBasicAuthBroken (u : string) (p : string) : string =
   let input : byte [] =
     if u.Contains("-") then
       // CLEANUP, this says colon but this is a hyphen
-      Errors.throw "Username cannot contain a colon"
+      Exception.raiseCode "Username cannot contain a colon"
     else
       ([ (System.Text.Encoding.UTF8.GetBytes u)
          [| byte ':' |]
@@ -33,7 +33,7 @@ let encodeBasicAuth (u : string) (p : string) : string =
   let input : byte [] =
     if u.Contains("-") then
       // CLEANUP, this says colon but this is a hyphen
-      Errors.throw "Username cannot contain a colon"
+      Exception.raiseCode "Username cannot contain a colon"
     else
       toBytes $"{u}:{p}"
 

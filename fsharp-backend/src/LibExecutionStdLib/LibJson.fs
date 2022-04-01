@@ -26,10 +26,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr json ] ->
-          (try
-            json |> DvalReprExternal.unsafeOfUnknownJsonV0 |> Ply
-           with
-           | _ -> Ply DNull)
+          uply {
+            try
+              return DvalReprExternal.unsafeOfUnknownJsonV0 json
+            with
+            | _ -> return DNull
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

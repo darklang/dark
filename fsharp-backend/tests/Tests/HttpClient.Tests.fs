@@ -281,7 +281,9 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
         testCase.result.status
         |> String.split " "
         |> List.getAt 1
-        |> Exception.unwrapOptionInternal "ADDMESSAGE" []
+        |> Exception.unwrapOptionInternal
+             "invalid status code"
+             [ "status", testCase.result.status ]
         |> int
       List.iter
         (fun (k, v) ->

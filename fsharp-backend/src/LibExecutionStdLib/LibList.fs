@@ -503,7 +503,7 @@ let fns : List<BuiltInFn> =
           let f acc i =
             match i with
             | DList l -> List.append acc l
-            | _ -> Errors.throw "Flattening non-lists"
+            | _ -> Exception.raiseCode "Flattening non-lists"
 
           List.fold f [] l |> DList |> Ply
         | _ -> incorrectArgs ())
@@ -671,7 +671,9 @@ let fns : List<BuiltInFn> =
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
               | _ ->
                 return
-                  Errors.throw (Errors.expectedLambdaValue "f" "-1, 0, 1" result)
+                  Exception.raiseCode (
+                    Errors.expectedLambdaValue "f" "-1, 0, 1" result
+                  )
             }
 
           uply {
@@ -681,8 +683,6 @@ let fns : List<BuiltInFn> =
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Ok |> DResult
             with
-            | Errors.StdlibException (Errors.StringError m) as e ->
-              return DResult(Error(DStr m))
             | e -> return DResult(Error(DStr e.Message))
           }
         | _ -> incorrectArgs ())
@@ -730,7 +730,8 @@ let fns : List<BuiltInFn> =
                 | DIncomplete _ ->
                   incomplete.Value <- true
                   return false
-                | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+                | v ->
+                  return Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
               }
 
             if incomplete.Value then
@@ -776,7 +777,7 @@ let fns : List<BuiltInFn> =
     //                   incomplete := true
     //                   return false
     //               | v ->
-    //                   Errors.throw (Errors.expectedLambdaType TBool dv)
+    //                   Exception.raiseCode (Errors.expectedLambdaType TBool dv)
     //                   return false
     //             }
     //
@@ -821,7 +822,9 @@ let fns : List<BuiltInFn> =
                   | DErrorRail _) as dv ->
                     fakecf.Value <- Some dv
                     return false
-                  | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+                  | v ->
+                    return
+                      Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
                 else
                   return false
               }
@@ -868,7 +871,9 @@ let fns : List<BuiltInFn> =
                   | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return false
-                  | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+                  | v ->
+                    return
+                      Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
                 else
                   return false
               }
@@ -920,7 +925,9 @@ let fns : List<BuiltInFn> =
                     return None
                   | v ->
                     return
-                      Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
+                      Exception.raiseCode (
+                        Errors.expectedLambdaType "f" (TOption varB) v
+                      )
                 else
                   return None
               }
@@ -986,7 +993,8 @@ let fns : List<BuiltInFn> =
                       abortReason.Value <- Some dv
                       return []
                     | v ->
-                      return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+                      return
+                        Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
                   else
                     return []
                 }
@@ -1054,7 +1062,8 @@ let fns : List<BuiltInFn> =
                       abortReason.Value <- Some dv
                       return []
                     | v ->
-                      return Errors.throw (Errors.expectedLambdaType "f" TBool v)
+                      return
+                        Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
                   else
                     return []
                 }
@@ -1313,7 +1322,7 @@ let fns : List<BuiltInFn> =
                 | nonList ->
                   $". It is of type {DvalReprExternal.prettyTypename v} instead of `List`"
 
-              Errors.throw (
+              Exception.raiseCode (
                 Errors.argumentWasnt "a list with exactly two values" "pairs" v
                 + errDetails
               )

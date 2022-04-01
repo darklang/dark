@@ -50,36 +50,31 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-/// An error caused by the grand user making the request, show the error to the
-/// requester no matter who they are
+// A grand user exception was caused by the incorrect actions of a grand user. The
+// msg is suitable to show to the grand user. We don't care about grandUser
+// exceptions, they're normal. When a message can be safely propagated to show to the
+// grand user, it's safe to use this exception, even if it's more properly defined by
+// another exception type.
 type GrandUserException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = GrandUserException(msg, null)
 
-/// An error caused by how the developer wrote the code, such as calling a function
-/// with the wrong type
-type DeveloperException(message : string, inner : exn) =
+/// An error during code execution, which is the responsibility of the
+/// User/Developer. The message can be shown to the developer. You can alternatively
+/// use GrandUser exception in code which is used in both Libraries and in the
+/// HttpFramework.
+type CodeException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
-  new(msg : string) = DeveloperException(msg, null)
+  new(msg : string) = CodeException(msg, null)
 
 /// An editor exception is one which is caused by an invalid action on the part of
 /// the Dark editor, such as an Redo or rename that isn't allowed.  We are
 /// interested in these, as the editor should have caught this on the client and not
-/// made the request.The message may be shown to the logged-in user, and should be
+/// made the request. The message may be shown to the logged-in user, and should be
 /// suitable for this.
 type EditorException(message : string, inner : exn) =
   inherit System.Exception(message, inner)
   new(msg : string) = EditorException(msg, null)
-
-// A known error in library or framework code, such as calling a function with a
-// negative number when it doesn't support it. When we find internal or other
-// exceptions in library code, we replace it with this exception to indicate that we
-// know about it: that the library is wrong but that also we're stuck with it. It's
-// OK to tell the developer what happened (not grandusers though)
-type LibraryException(message : string, metadata : Metadata, inner : exn) =
-  inherit System.Exception(message, inner)
-  member _.metadata = metadata
-  new(msg : string, metadata : Metadata) = LibraryException(msg, metadata, null)
 
 // A pageable exception will cause the pager to go off! This is something that should
 // never happen and is an indicator that the service is broken in some way.  The
@@ -102,9 +97,8 @@ module Exception =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
       | :? InternalException as e -> e.metadata
-      | :? LibraryException as e -> e.metadata
-      | :? DeveloperException
       | :? EditorException
+      | :? CodeException
       | :? GrandUserException
       | _ -> []
     thisMetadata @ innerMetadata
@@ -121,38 +115,31 @@ module Exception =
       System.Console.WriteLine e.StackTrace
 
 
-  // A grand user exception was caused by the incorrect actions of a grand user. The
-  // msg is suitable to show to the grand user. We don't care about grandUser
-  // exceptions, they're normal.
   let raiseGrandUser (msg : string) =
     let e = GrandUserException(msg)
     callExceptionCallback e
     raise e
 
-  // A developer exception is one caused by the incorrect actions of our
-  // user/developer. The msg is suitable to show to the user.
-  let raiseDeveloper (msg : string) =
-    let e = DeveloperException(msg)
+  let raiseCode (msg : string) =
+    let e = CodeException(msg)
     callExceptionCallback e
     raise e
 
-  let unwrapResultDeveloper (r : Result<'ok, string>) : 'ok =
-    match r with
-    | Ok v -> v
-    | Error msg -> raiseDeveloper msg
-
-  let unwrapOptionDeveloper (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
+  let unwrapOptionCode (msg : string) (o : Option<'a>) : 'a =
     match o with
     | Some v -> v
-    | None -> raiseDeveloper msg tags
+    | None -> raiseCode msg
 
+  let unwrapResultCode (r : Result<'a, string>) : 'a =
+    match r with
+    | Ok v -> v
+    | Error msg -> raiseCode msg
 
   let raiseEditor (msg : string) =
     let e = EditorException(msg)
     callExceptionCallback e
     raise e
 
-  // An internal error. Should be rollbarred, and should not be shown to users.
   let raiseInternal (msg : string) (tags : Metadata) =
     let e = InternalException(msg, tags)
     callExceptionCallback e
@@ -173,32 +160,12 @@ module Exception =
     callExceptionCallback e
     raise e
 
-
-  let raiseLibrary (msg : string) (tags : Metadata) =
-    let e = LibraryException(msg, tags)
-    callExceptionCallback e
-    raise e
-
-  let unwrapOptionLibrary (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
-    match o with
-    | Some v -> v
-    | None -> raiseLibrary msg tags
-
   let unknownErrorMessage = "Unknown error"
 
   let toGrandUserMessage (e : exn) : string =
     match e with
     | :? GrandUserException as e -> e.Message
     | _ -> unknownErrorMessage
-
-  let toDeveloperMessage (e : exn) : string =
-    match e with
-    | :? GrandUserException as e -> e.Message
-    | :? DeveloperException as e -> e.Message
-    | :? LibraryException as e -> e.Message
-    | :? EditorException as e -> e.Message
-    | _ -> unknownErrorMessage
-
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
     task {

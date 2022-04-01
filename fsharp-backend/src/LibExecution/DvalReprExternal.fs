@@ -438,7 +438,8 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
-let unsafeOfUnknownJsonV0 str =
+// Raises CodeException as nearly all callers are in code
+let unsafeOfUnknownJsonV0 str : Dval =
   // This special format was originally the default OCaml (yojson-derived) format
   // for this.
   let responseOfJson (dv : Dval) (j : JsonElement) : DHTTP =
@@ -450,7 +451,7 @@ let unsafeOfUnknownJsonV0 str =
         |> List.map (function
           | JList [ JString k; JString v ] -> (k, v)
           | h ->
-            Exception.raiseInternal "Invalid DHttpResponse headers" [ "header", h ])
+            Exception.raiseInternal "Invalid DHttpResponse headers" [ "headers", h ])
 
       Response(code, headers, dv)
     | _ -> Exception.raiseInternal "Invalid response json" [ "json", j ]
@@ -512,7 +513,7 @@ let unsafeOfUnknownJsonV0 str =
     use document = parseJson str
     convert document.RootElement
   with
-  | _ -> Exception.raiseInternal "Invalid json" [ "json", str ]
+  | _ -> Exception.raiseGrandUser "Invalid json"
 
 
 // When receiving unknown json from the user, or via a HTTP API, attempt to
