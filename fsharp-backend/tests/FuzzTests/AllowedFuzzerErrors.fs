@@ -58,8 +58,8 @@ let errorIsAllowed
   if actualMsg = expectedMsg then
     true
   else
-    List.any
-      (function
+    allowedErrors.knownErrors
+    |> List.any (function
       | [ namePat; actualPat; expectedPat ] ->
         let regexMatch str regex = Regex.Match(str, regex, RegexOptions.Singleline)
 
@@ -105,4 +105,3 @@ let errorIsAllowed
         nameMatches && actualMatch.Success && expectedMatch.Success && groupsMatch
       | _ ->
         Exception.raiseInternal "Invalid json in tests/allowedFuzzerErrors.json" [])
-      allowedErrors.knownErrors

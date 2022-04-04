@@ -20,7 +20,7 @@ module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
 
-let makeLibFnName mod_ function_ version =
+let fnName mod_ function_ version =
   PTParser.FQFnName.stdlibFnName mod_ function_ version
   |> PT2RT.FQFnName.StdlibFnName.toRT
 
@@ -29,47 +29,46 @@ let equalsOCaml =
   testMany
     "equalsOCaml"
     (FuzzTests.ExecutePureFunctions.equalsOCaml)
-    [ (makeLibFnName "List" "fold" 0,
-        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
-          RT.DList []
-          RT.DFnVal(
-            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
-          ) ]),
-       true
+    [ (fnName "List" "fold" 0,
+       [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
+         RT.DList []
+         RT.DFnVal(
+           RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+         ) ]),
+      true
 
-      (makeLibFnName "Result" "fromOption" 0,
-        [ RT.DOption(
-            Some(
-              RT.DFnVal(
-                RT.Lambda
-                  { parameters = []
-                    symtable = Map.empty
-                    body = RT.EFloat(84932785UL, -9.223372037e+18) }
-              )
-            )
-          )
-          RT.DStr "s" ]),
-       true
+      (fnName "Result" "fromOption" 0,
+       [ RT.DOption(
+           Some(
+             RT.DFnVal(
+               RT.Lambda
+                 { parameters = []
+                   symtable = Map.empty
+                   body = RT.EFloat(84932785UL, -9.223372037e+18) }
+             )
+           )
+         )
+         RT.DStr "s" ]),
+      true
 
-      (makeLibFnName "Result" "fromOption" 0,
-        [ RT.DOption(
-            Some(
-              RT.DFnVal(
-                RT.Lambda
-                  { parameters = []
-                    symtable = Map.empty
-                    body =
-                      RT.EMatch(
-                        gid (),
-                        RT.ENull(gid ()),
-                        [ (RT.PFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
-                      ) }
-              )
-            )
-          )
-          RT.DStr "s" ]),
-       true
-      ]
+      (fnName "Result" "fromOption" 0,
+       [ RT.DOption(
+           Some(
+             RT.DFnVal(
+               RT.Lambda
+                 { parameters = []
+                   symtable = Map.empty
+                   body =
+                     RT.EMatch(
+                       gid (),
+                       RT.ENull(gid ()),
+                       [ (RT.PFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
+                     ) }
+             )
+           )
+         )
+         RT.DStr "s" ]),
+      true ]
 
 let oldFunctionsAreDeprecated =
   test "old functions are deprecated" {
