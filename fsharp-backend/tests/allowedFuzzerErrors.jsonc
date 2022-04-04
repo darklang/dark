@@ -3,7 +3,7 @@
   "functionToTest": null,
   //"functionToTest": "String::trim",
 
-  // tests against these fns are generated, but failures are ignored
+  // tests against these fns are note generated
   "knownDifferingFunctions": [
     // These use a different sort order in OCaml
     "List::sort",

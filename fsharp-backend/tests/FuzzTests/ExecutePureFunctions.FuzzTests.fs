@@ -173,7 +173,6 @@ module Generators =
     LibRealExecution.RealExecution.stdlibFns
     |> Map.values
     |> List.filter (fun fn ->
-
       let name = RT.FQFnName.StdlibFnName.toString fn.name
 
       // FSTODO: reduce/resolve these
@@ -192,10 +191,15 @@ module Generators =
         false)
     |> Gen.elements
 
-  /// Generates a valid Dval for a given type
-  /// Respects incoming `size` value
-  /// TODO rephrase this ^
-  /// This handles 'correct' mappings - something surrounding this can/should ensure we try _bad_ data sometimes.
+  /// <summary>
+  /// Generates a valid Dval for a given type.
+  /// </summary>
+  /// <remarks>
+  /// This handles 'correct' mappings - something surrounding this can/should/does
+  /// ensure we try _bad_ data sometimes.
+  ///
+  /// Respects incoming `size` value.
+  /// </remarks>
   let dvalFromType (typ' : RT.DType) : Gen<RT.Dval> =
 
     let rec genDval' typ s : Gen<RT.Dval> =
