@@ -1,7 +1,7 @@
 {
   // If `null`, test anything. If `"fn"`, only test fn
   "functionToTest": null,
-  //"functionToTest": "String::trim",
+  //"functionToTest": "JSON::read",
 
   // tests against these fns are note generated
   "knownDifferingFunctions": [
@@ -127,6 +127,16 @@
       "(JSON::parse|JSON::read).*",
       "JSON string was empty",
       "Json Err: Blank input data"
+    ],
+    [
+      "(JSON::parse|JSON::read).*",
+      ".* is an invalid start of a value..*",
+      "Json Err: .* Invalid token .*"
+    ],
+    [
+      "(JSON::parse|JSON::read).*",
+      ".* is an invalid JSON literal..*",
+      "Json Err: .* Invalid token .*"
     ],
     [
       // JSON::parse in ocaml actually has the _v0 in the name

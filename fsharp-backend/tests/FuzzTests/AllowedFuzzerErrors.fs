@@ -1,5 +1,6 @@
-/// Error messages are not required to be directly the same between
-/// old and new implementations.
+/// Manages differences between OCaml and F# backends currently allowed in
+/// fuzztesting, in a `.jsonc` file so re-compilations are not required upon
+/// every adjustment of these rules.
 module FuzzTests.AllowedFuzzerErrors
 
 open System.Threading.Tasks

@@ -73,14 +73,10 @@ module Generators =
           return RT.EBool(gid (), v)
         | RT.TNull -> return RT.ENull(gid ())
         | RT.TList typ ->
-          if size > 10 then printfn "Generating list of length %A" size
-
           let! typ = generateTypeToMatchCollection typ
           let! v = Gen.listOfLength size (genExpr' typ (size / 2))
           return RT.EList(gid (), v)
         | RT.TDict typ ->
-          if size > 10 then printfn "Generating dict of length %A" size
-
           let! typ = generateTypeToMatchCollection typ
 
           return!
@@ -306,8 +302,8 @@ module Generators =
           return! Gen.map RT.DErrorRail (genDval' typ s)
 
         // FSTODO: support all types
-        | RT.TIncomplete
-        | RT.TPassword ->
+        | RT.TPassword
+        | RT.TIncomplete ->
           return Exception.raiseInternal "Type not supported yet" [ "type", typ ]
       }
 
@@ -329,11 +325,9 @@ type Generator =
   // generates a function, and a list of valid params to be applied to it
   static member FnAndArgs() : Arbitrary<FnAndArgs> =
     gen {
-      printfn "Actually using generator"
       let! fn = Generators.StdLibFn
       let name = fn.name
       let signature = fn.parameters
-      printfn "Fn chosen: %A" fn
 
       /// `argIndex` is the index of the argument in the fn definition
       let arg (argIndex : int) (prevArgs : List<RT.Dval>) : Gen<RT.Dval> =
@@ -430,8 +424,6 @@ type Generator =
             not (Generators.RuntimeTypes.containsBytes dv)
           | _ -> true)
 
-      printfn "Generating arguments"
-
       // When generating arguments, we sometimes make use of the previous params
       // which requires us to generate the arguments in order, as below
       match List.length signature with
@@ -472,7 +464,6 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
   let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
 
   task {
-    printfn "Checking property"
     // evaluate the fn call against both backends
     let! meta = initializeTestCanvas "ExecutePureFunction"
     let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
@@ -488,7 +479,6 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
         RT.EApply(gid (), call, args, RT.NotInPipe, RT.NoRail)
 
       let fnArgList = List.map (fun (name, _) -> RT.EVariable(gid (), name)) args
-      printfn "Calling %A with %A" fn fnArgList
       callFn fn.module_ fn.function_ fn.version fnArgList
 
     let symtable = Map.ofList args
