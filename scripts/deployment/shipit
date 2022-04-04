@@ -259,6 +259,7 @@ def manual_diff(cliargs):
 
 def manual_apply(cliargs):
   cliargs.services = [cliargs.service]
+  dryrun = cliargs.dryrun
   do_validation(cliargs)
 
   # Config files
@@ -830,13 +831,16 @@ def create_arg_parser():
   base_parser.add_argument('--debug',
                            action='store_true',
                            help="Print debug info about what's running")
-  base_parser.add_argument(
+  base_parser.set_defaults(debug=False)
+
+  # Arguments for commands that allow dry-runs
+  dryrun_parser = argparse.ArgumentParser(add_help=False)
+  dryrun_parser.add_argument(
       '--dry-run',
       choices=['server', 'client'],
       action='store',
-      help="paths to the service definitions. Leave empty to run on all services")
-  base_parser.set_defaults(debug=False)
-  base_parser.set_defaults(dry_run=False)
+      help="do a kubernetes dry-run instead of actually doing the action")
+  dryrun_parser.set_defaults(dry_run=False)
 
   # We want to be explicit about listing services for side-effecting commands
   services_parser = argparse.ArgumentParser(add_help=False)
@@ -889,14 +893,14 @@ def create_arg_parser():
       'diff',
       description=
       "Checks that the config files listed in the k8s.manually-deployed key of shipit.yaml are already properly deployed, using `kubectl diff`",
-      parents=[base_parser, services_parser])
+      parents=[base_parser, dryrun_parser, services_parser])
   manual_diff_parser.set_defaults(func=manual_diff)
 
   manual_apply_parser = manual_subparser.add_parser(
       'apply',
       description=
       "Apply the manually applied config for the config listed in the k8s.manually-deployed key of shipit.yaml, using `kubectl apply` and `kubectl create`",
-      parents=[base_parser])
+      parents=[base_parser, dryrun_parser])
   manual_apply_parser.add_argument(
       'service',
       action="store",
@@ -910,13 +914,13 @@ def create_arg_parser():
 
   containers_build_parser = containers_subparser.add_parser(
       'build',
-      description="Builds the container images needed by services; echoes a manifest",
+      description="Builds the container images needed by services; saves a manifest",
       parents=[base_parser, services_parser, output_manifest_parser])
   containers_build_parser.set_defaults(func=containers_build)
 
   containers_pull_parser = containers_subparser.add_parser(
       'pull',
-      description="Pull the remote docker images used by services, echoes a manifest",
+      description="Pull the remote docker images used by services, saves a manifest",
       parents=[base_parser, services_parser, output_manifest_parser])
   containers_pull_parser.set_defaults(func=containers_pull)
 
@@ -939,7 +943,7 @@ def create_arg_parser():
   release_current_manifest_parser = release_subparser.add_parser(
       'current-manifest',
       description=
-      "Reads the current manifest from production deployments; echoes a manifest",
+      "Reads the current manifest from production deployments; saves a manifest with --save-manifest",
       parents=[base_parser, services_parser, output_manifest_parser])
   release_current_manifest_parser.set_defaults(func=release_current_manifest)
 
@@ -952,7 +956,7 @@ def create_arg_parser():
   release_push_parser = release_subparser.add_parser(
       'push',
       description="Actually do the release",
-      parents=[base_parser, services_parser, release_args_parser])
+      parents=[base_parser, dryrun_parser, services_parser, release_args_parser])
   release_push_parser.set_defaults(func=release_push)
 
   release_prepare_parser = release_subparser.add_parser(
@@ -976,8 +980,10 @@ def main():
   parser = create_arg_parser()
   cliargs = parser.parse_args()
   should_debug = cliargs.debug
-  should_dry_run = cliargs.dry_run in ['client', 'server']
-  dry_run_target = cliargs.dry_run
+  dry_run_target = getattr(cliargs, "dry_run", None)
+  should_dry_run = dry_run_target != None
+  if dry_run_target not in [None, "client", "server"]:
+    bad(f"Invalid dry_run target: {dry_run_target}")
   cliargs.func(cliargs)
   if error:
     sys.exit(1)
