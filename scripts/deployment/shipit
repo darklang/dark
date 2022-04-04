@@ -150,8 +150,11 @@ def get_service_dirs(cliargs):
     dirs = [path for path in glob.glob(r'services/**') if "README.md" not in path]
   elif len(dirs) == 1 and dirs[0].endswith("shipit.yaml"):
     dirs = [os.path.dirname(dirs[0])]
-  sorted_dirs = sorted(dirs)
-  return sorted_dirs
+  # Cleanup input
+  dirs = [dir.strip("/").strip() for dir in dirs]
+  dirs = sorted(dirs)
+
+  return dirs
 
 
 def get_service_config(dir):
