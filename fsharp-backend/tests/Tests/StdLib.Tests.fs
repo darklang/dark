@@ -13,24 +13,34 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
+module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
+
+let fnName mod_ function_ version =
+  PTParser.FQFnName.stdlibFnName mod_ function_ version
+  //|> PT2RT.FQFnName.StdlibFnName.toRT
 
 let equalsOCaml =
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany
     "equalsOCaml"
-    (FuzzTests.ExecutePureFunctions.equalsOCaml)
-    [ (RT.FQFnName.stdlibFnName "List" "fold" 0,
+    FuzzTests.ExecutePureFunctions.equalsOCamlPT
+    [ (fnName "List" "fold" 0,
        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
+
          RT.DList []
+
          RT.DFnVal(
-           RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
-         ) ]),
+            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+          )
+         ]),
       true
 
-      (RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
+      (fnName "Result" "fromOption" 0,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -44,7 +54,7 @@ let equalsOCaml =
          RT.DStr "s" ]),
       true
 
-      (RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
+      (fnName "Result" "fromOption" 0,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -61,11 +71,11 @@ let equalsOCaml =
            )
          )
          RT.DStr "s" ]),
-      true ]
+      true
+      ]
 
 let oldFunctionsAreDeprecated =
   test "old functions are deprecated" {
-
     let counts = ref Map.empty
 
     let fns = libraries.Force().stdlib |> Map.values

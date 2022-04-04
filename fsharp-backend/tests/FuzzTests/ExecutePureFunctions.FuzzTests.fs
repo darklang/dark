@@ -463,6 +463,8 @@ type Generator =
 let equalsOCaml ((fn, args) : FnAndArgs) : bool =
   let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
 
+  printfn "Fn %A" fn
+
   task {
     // evaluate the fn call against both backends
     let! meta = initializeTestCanvas "ExecutePureFunction"
@@ -487,6 +489,79 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
 
     let! state = executionStateFor meta Map.empty Map.empty
     let! actual = LibExecution.Execution.executeExpr state symtable ast
+
+    // check if Dvals are (roughly) the same
+    let debugFn () =
+      debuG "\n\n\nfn" fn
+      debuG "args" (List.map (fun (_, v) -> debugDval v) args)
+
+    if not (Expect.isCanonical expected) then
+      debugFn ()
+      debuG "ocaml (expected) is not normalized" (debugDval expected)
+      return false
+    elif not (Expect.isCanonical actual) then
+      debugFn ()
+      debuG "fsharp (actual) is not normalized" (debugDval actual)
+      return false
+    elif Expect.dvalEquality actual expected then
+      return true
+    else
+      match actual, expected with
+      | RT.DError (_, aMsg), RT.DError (_, eMsg) ->
+        let allowed = isErrorAllowed false aMsg eMsg
+        // For easier debugging. Check once then step through
+        let allowed2 = if not allowed then isErrorAllowed true aMsg eMsg else allowed
+
+        if not allowed2 then
+          debugFn ()
+
+          print $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+
+        return allowed
+      | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
+        let allowed = isErrorAllowed false aMsg eMsg
+        // For easier debugging. Check once then step through
+        let allowed2 = if not allowed then isErrorAllowed true aMsg eMsg else allowed
+
+        if not allowed2 then
+          debugFn ()
+
+          print $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+
+        return allowed
+      | _ ->
+        debugFn ()
+        debuG "ocaml (expected)" (debugDval expected)
+        debuG "fsharp (actual) " (debugDval actual)
+        return false
+  }
+  |> result
+
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+
+/// Checks if a fn and some arguments result in the same Dval
+/// against both OCaml and F# backends.
+///
+/// Some differences are OK, managed by `AllowedFuzzerErrors` module
+let equalsOCamlPT ((fn, args) : PT.FQFnName.StdlibFnName * List<RT.Dval>) : bool =
+  let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed (fn |> PT2RT.FQFnName.StdlibFnName.toRT)
+
+  printfn "Fn %A" fn
+
+  task {
+    // evaluate the fn call against both backends
+    let! meta = initializeTestCanvas "ExecutePureFunction"
+    let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
+    let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
+
+    let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
+
+    let symtable = Map.ofList args
+
+    let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] [] []
+
+    let! state = executionStateFor meta Map.empty Map.empty
+    let! actual = LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
 
     // check if Dvals are (roughly) the same
     let debugFn () =
