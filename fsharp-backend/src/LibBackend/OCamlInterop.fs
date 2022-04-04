@@ -313,6 +313,7 @@ let execute
   (symtable : Map<string, RT.Dval>)
   (dbs : List<PT.DB.T>)
   (fns : List<PT.UserFunction.T>)
+  (packageFns : List<PT.Package.Fn>)
   : Task<RT.Dval> =
   let program = Convert.pt2ocamlExpr program
 
@@ -321,9 +322,11 @@ let execute
 
   let dbs = List.map Convert.pt2ocamlDB dbs
   let fns = List.map Convert.pt2ocamlUserFunction fns
+  let packageFns = List.map Convert.pt2ocamlPackageManagerFn packageFns
 
-  let str =
-    Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
+  let tuple = (ownerID, canvasID, program, args, dbs, fns, packageFns)
+
+  let str = Json.OCamlCompatible.serialize tuple
 
   task {
     try

@@ -32,7 +32,7 @@ let executeOCaml (code : string) : RT.Dval =
     task {
       let! meta = TestUtils.initializeTestCanvas "fsi"
       let prog = FSharpToExpr.parsePTExpr code
-      return! OCamlInterop.execute meta.owner meta.id prog Map.empty [] []
+      return! OCamlInterop.execute meta.owner meta.id prog Map.empty [] [] []
     }
 
   Task.WaitAll [| t :> Task |]

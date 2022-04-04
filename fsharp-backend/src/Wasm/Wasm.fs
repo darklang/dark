@@ -145,7 +145,10 @@ module Eval =
     |> List.filterMap (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
       if RT.FQFnName.toString fnName = rFnName
          && callerID = rCallerID
-         && hash = ((Map.tryFind hashVersion hashes) |> Option.unwrapUnsafe) then
+         && hash = (Map.get hashVersion hashes
+                    |> Exception.unwrapOptionInternal
+                         "Could not find hash"
+                         [ "hashVersion", hashVersion; "hashes", hashes ]) then
         Some dval
       else
         None)

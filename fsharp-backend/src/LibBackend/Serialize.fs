@@ -469,15 +469,20 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
         AND modifier <> ''
         AND toplevel_oplists.name IS NOT NULL"
   |> Sql.executeAsync (fun read ->
-    { canvasID = read.uuid "canvas_id"
-      ownerID = read.uuid "account_id"
+    let interval = read.string "modifier"
+    let canvasID = read.uuid "canvas_id"
+    let ownerID = read.uuid "account_id"
+    { canvasID = canvasID
+      ownerID = ownerID
       canvasName = read.string "canvas_name" |> CanvasName.create
       tlid = read.id "tlid"
       cronName = read.string "handler_name"
       interval =
-        read.string "modifier"
+        interval
         |> PTParser.Handler.CronInterval.parse
-        |> Option.unwrapUnsafe })
+        |> Exception.unwrapOptionInternal
+             "Could not parse cron modifier"
+             [ "interval", interval; "canvasID", canvasID; "accountID", ownerID ] })
 
 
 

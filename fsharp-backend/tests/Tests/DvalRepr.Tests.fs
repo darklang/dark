@@ -14,6 +14,7 @@ module RT = LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
+module Errors = LibExecution.Errors
 
 
 let testInternalRoundtrippableDoesntCareAboutOrder =

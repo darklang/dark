@@ -663,7 +663,9 @@ let loadAndResaveFromTestFile (meta : Meta) : Task<unit> =
             let oplist = fromOplist meta [] oplist
             let tls = toplevels oplist
             let dtls = deletedToplevels oplist
-            (Map.mergeFavoringLeft tls dtls) |> Map.get tlid |> Option.unwrapUnsafe
+            (Map.mergeFavoringLeft tls dtls)
+            |> Map.get tlid
+            |> Exception.unwrapOptionInternal "could not find tlid" [ "tlid", tlid ]
           (tlid, oplist, tl, NotDeleted))
       | None -> []
 

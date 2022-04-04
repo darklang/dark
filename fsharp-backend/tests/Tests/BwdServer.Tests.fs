@@ -366,14 +366,14 @@ let t filename =
                 let index =
                   findLastIndex [ byte ' '; byte '/'; byte '/' ] line
                   |> Option.orElse (findLastIndex [ byte '/'; byte '/' ] line)
-                  |> Option.unwrapUnsafe
+                  |> Exception.unwrapOptionInternal "cannot find comment" []
                 line |> List.splitAt index |> Tuple2.first |> Some
             else
               Some line)
           |> List.map (fun l -> List.append l [ nl ])
           |> List.flatten
           |> List.initial // remove final newline which we don't want
-          |> Option.unwrapUnsafe
+          |> Exception.unwrapOptionInternal "cannot find newline" []
           |> List.toArray
           |> replaceByteStrings "HOST" host
           |> replaceByteStrings "CANVAS" canvasName

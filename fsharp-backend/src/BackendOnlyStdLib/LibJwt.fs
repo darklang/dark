@@ -459,11 +459,11 @@ let fns : List<BuiltInFn> =
               verifyAndExtractV0 rsa token
             with
             | _ ->
-              Errors.throw
+              Exception.raiseCode
                 "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
           match result with
           | Some (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Exception.unwrapResultCode
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList
@@ -495,7 +495,7 @@ let fns : List<BuiltInFn> =
             | _ -> Error "Invalid public key"
           match result with
           | Ok (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Exception.unwrapResultCode
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList

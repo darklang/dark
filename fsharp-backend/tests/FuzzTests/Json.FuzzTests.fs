@@ -190,7 +190,7 @@ module LibJwtJson =
           task {
             let ast = FSharpToExpr.parsePTExpr code
             let! expected =
-              OCamlInterop.execute meta.owner meta.id ast symtable [] []
+              OCamlInterop.execute meta.owner meta.id ast symtable [] [] []
 
             let! state = executionStateFor meta Map.empty Map.empty
             let! actual =
@@ -245,7 +245,7 @@ module LibJwtJson =
           task {
             let ast = FSharpToExpr.parsePTExpr code
             let! expected =
-              OCamlInterop.execute meta.owner meta.id ast symtable [] []
+              OCamlInterop.execute meta.owner meta.id ast symtable [] [] []
 
             let! state = executionStateFor meta Map.empty Map.empty
             let! actual =

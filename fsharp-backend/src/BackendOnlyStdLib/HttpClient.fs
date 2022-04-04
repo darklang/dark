@@ -171,7 +171,7 @@ let httpCall'
                 Headers.MediaTypeHeaderValue.Parse(v)
             with
             | :? System.FormatException ->
-              Exception.raiseDeveloper "Invalid content-type header" []
+              Exception.raiseCode "Invalid content-type header"
           else
             // Dark headers can only be added once, as they use a Dict. Remove them
             // so they don't get added twice (eg via Authorization headers above)
@@ -409,7 +409,7 @@ let encodeRequestBody (body : Dval option) (headers : HttpHeaders.T) : Content =
     | DObj _ when hasFormHeader headers ->
       match DvalReprExternal.toFormEncoding dv with
       | Ok content -> FormContent(content)
-      | Error msg -> Exception.raiseDeveloper msg
+      | Error msg -> Exception.raiseCode msg
     | dv when hasTextHeader headers ->
       StringContent(DvalReprExternal.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
@@ -432,11 +432,11 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalReprExternal.toQuery query |> Exception.unwrapResultDeveloper
+    let query = DvalReprExternal.toQuery query |> Exception.unwrapResultCode
 
     // Headers
     let encodedReqHeaders =
-      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultCode
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)
@@ -451,12 +451,18 @@ let sendRequest
         // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
         if false then // HttpHeaders.hasFormHeader response.headers
           try
-            DvalReprExternal.ofQueryString (Option.unwrapUnsafe body)
+            body
+            |> Exception.unwrapOptionInternal
+                 "Invalid query string"
+                 [ "bytes", response.body ]
+            |> DvalReprExternal.ofQueryString
           with
           | _ -> DStr "form decoding error"
         elif hasJsonHeader response.headers then
           try
-            DvalReprExternal.unsafeOfUnknownJsonV0 (Option.unwrapUnsafe body)
+            body
+            |> Exception.unwrapOptionInternal "invalid json string" []
+            |> DvalReprExternal.unsafeOfUnknownJsonV0
           with
           | _ -> DStr "json decoding error"
         else

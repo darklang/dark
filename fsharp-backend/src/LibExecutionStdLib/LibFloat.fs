@@ -261,7 +261,10 @@ let fns : List<BuiltInFn> =
               (fun f ->
                 match f with
                 | DFloat ft -> ft
-                | t -> Errors.throw (Errors.argumentWasnt "a list of floats" "a" ldv))
+                | t ->
+                  Exception.raiseCode (
+                    Errors.argumentWasnt "a list of floats" "a" ldv
+                  ))
               l
 
           let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats

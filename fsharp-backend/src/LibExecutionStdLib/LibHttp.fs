@@ -49,7 +49,8 @@ let fns : List<BuiltInFn> =
             |> List.map (fun (k, v) ->
               match k, v with
               | k, DStr v -> k, v
-              | k, v -> Errors.throw (Errors.argumentWasnt "a string" "value" v))
+              | k, v ->
+                Exception.raiseCode (Errors.argumentWasnt "a string" "value" v))
 
           Ply(DHttpResponse(Response(code, pairs, dv)))
         | _ -> incorrectArgs ())
@@ -218,7 +219,7 @@ let fns : List<BuiltInFn> =
             | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
             // Throw if there's not a good way to transform the k/v pair
             | _ ->
-              Errors.throw
+              Exception.raiseCode
                 $"Unknown set-cookie param: {x}: {DvalReprExternal.toDeveloperReprV0 y}")
           // Combine it into a set-cookie header
           |> List.concat
@@ -264,7 +265,7 @@ let fns : List<BuiltInFn> =
             | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
             // Throw if there's not a good way to transform the k/v pair
             | _ ->
-              Errors.throw
+              Exception.raiseCode
                 $"Unknown set-cookie param: {x}: {DvalReprExternal.toDeveloperReprV0 y}")
           // Combine it into a set-cookie header
           |> List.concat
@@ -315,7 +316,7 @@ let fns : List<BuiltInFn> =
               (match v with
                | DBool b -> if b then (key :: acc) else acc
                | _ ->
-                 Errors.throw (
+                 Exception.raiseCode (
                    Errors.argumentWasnt "`true` or `false`" "Secure or HttpOnly" v
                  ))
             // key=data set-cookie params
@@ -324,7 +325,7 @@ let fns : List<BuiltInFn> =
               (match v with
                | DStr str -> (sprintf "%s=%s" key str :: acc)
                | _ ->
-                 Errors.throw (
+                 Exception.raiseCode (
                    Errors.argumentWasnt "a string" "`Path` or `Domain`" v
                  ))
             | "samesite", v ->
@@ -334,14 +335,14 @@ let fns : List<BuiltInFn> =
                  ->
                  (sprintf "%s=%s" key str :: acc)
                | _ ->
-                 Errors.throw (
+                 Exception.raiseCode (
                    Errors.argumentWasnt "`Strict`, `Lax`, or `None`" "SameSite" v
                  ))
             | "max-age", v ->
               (match v with
                | DInt i -> (sprintf "%s=%s" key (string i) :: acc)
                | _ ->
-                 Errors.throw (
+                 Exception.raiseCode (
                    Errors.argumentWasnt "a `Int` representing seconds" "Max-Age" v
                  ))
             | "expires", v ->
@@ -353,10 +354,10 @@ let fns : List<BuiltInFn> =
                    key
                    (dt.ToString("ddd, dd MMM yyyy HH':'mm':'ss 'GMT'"))
                   :: acc)
-               | _ -> Errors.throw (Errors.argumentWasnt "a date" "Expires" v))
+               | _ -> Exception.raiseCode (Errors.argumentWasnt "a date" "Expires" v))
             // Error if the set-cookie parameter is invalid
             | _ ->
-              Errors.throw (
+              Exception.raiseCode (
                 $"Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was {key}"
               )
 

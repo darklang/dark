@@ -98,7 +98,12 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
   if sameKeys then
     Map.mapWithIndex
       (fun key value ->
-        match (Map.get key cols |> Option.unwrapUnsafe, value) with
+        let col =
+          Map.get key cols
+          |> Exception.unwrapOptionInternal
+               "Could not find Col"
+               [ "name", key; "cols", cols ]
+        match col, value with
         | RT.TInt, RT.DInt _ -> value
         | RT.TFloat, RT.DFloat _ -> value
         | RT.TStr, RT.DStr _ -> value
@@ -112,7 +117,9 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TRecord _, RT.DObj _ -> value
         | _, RT.DNull -> value // allow nulls for now
         | expectedType, valueOfActualType ->
-          Errors.throw (Errors.typeErrorMsg key expectedType valueOfActualType))
+          Exception.raiseCode (
+            Errors.typeErrorMsg key expectedType valueOfActualType
+          ))
       obj
   else
     let missingKeys = Set.difference tipeKeys objKeys
@@ -130,11 +137,11 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
       + "]"
 
     match (Set.isEmpty missingKeys, Set.isEmpty extraKeys) with
-    | false, false -> Errors.throw $"{missingMsg} & {extraMsg}"
-    | false, true -> Errors.throw missingMsg
-    | true, false -> Errors.throw extraMsg
+    | false, false -> Exception.raiseCode $"{missingMsg} & {extraMsg}"
+    | false, true -> Exception.raiseCode missingMsg
+    | true, false -> Exception.raiseCode extraMsg
     | true, true ->
-      Errors.throw
+      Exception.raiseCode
         "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 

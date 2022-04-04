@@ -458,6 +458,20 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::raiseException"]
+    ; infix_names = []
+    ; parameters = [Lib.par "message" TStr]
+    ; return_type = TAny
+    ; description = "A function that raises an F# exception"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr message] ->
+              failwith (Unicode_string.to_string message)
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]
 
 
@@ -506,17 +520,26 @@ type execute_type =
   * (string * Types.RuntimeT.dval) list
   * Types.RuntimeT.DbT.db list
   * Types.RuntimeT.user_fn list
+  * Libbackend.Package_manager.fn list
 [@@deriving of_yojson]
 
 let execute (json : string) : string =
   try
-    let account_id, canvas_id, program, args, dbs, user_fns =
+    let account_id, canvas_id, program, args, dbs, user_fns, package_fns =
       json
       |> Yojson.Safe.from_string
       |> execute_type_of_yojson
       |> Result.ok_or_failwith
     in
-    let exec_state = {exec_state with account_id; canvas_id; dbs; user_fns} in
+    (* convert package_fns from their current format, which is user_fns *)
+    let package_fns =
+      List.map
+        ~f:Libbackend.Package_manager.runtime_fn_of_package_fn
+        package_fns
+    in
+    let exec_state =
+      {exec_state with account_id; canvas_id; dbs; user_fns; package_fns}
+    in
     Ast.execute_ast ~input_vars:args ~state:exec_state program
     |> Types.RuntimeT.dval_to_yojson
     |> Yojson.Safe.to_string
@@ -527,13 +550,21 @@ let execute (json : string) : string =
 
 let benchmark (json : string) : string =
   try
-    let account_id, canvas_id, program, args, dbs, user_fns =
+    let account_id, canvas_id, program, args, dbs, user_fns, package_fns =
       json
       |> Yojson.Safe.from_string
       |> execute_type_of_yojson
       |> Result.ok_or_failwith
     in
-    let exec_state = {exec_state with account_id; canvas_id; dbs; user_fns} in
+    (* convert package_fns from their current format, which is user_fns *)
+    let package_fns =
+      List.map
+        ~f:Libbackend.Package_manager.runtime_fn_of_package_fn
+        package_fns
+    in
+    let exec_state =
+      {exec_state with account_id; canvas_id; dbs; user_fns; package_fns}
+    in
     let startTime = Time.now () |> Time.to_span_since_epoch in
     let dval = Ast.execute_ast ~input_vars:args ~state:exec_state program in
     let endTime = Time.now () |> Time.to_span_since_epoch in

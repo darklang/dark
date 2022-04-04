@@ -326,7 +326,8 @@ let fns : List<BuiltInFn> =
               (fun i ->
                 match i with
                 | DInt it -> it
-                | t -> Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
+                | t ->
+                  Exception.raiseCode (Errors.argumentWasnt "a list of ints" "a" ldv))
               l
 
           let sum = List.fold (fun acc elem -> acc + elem) 0L ints

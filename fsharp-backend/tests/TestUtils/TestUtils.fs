@@ -21,7 +21,10 @@ module Exe = LibExecution.Execution
 module S = RTShortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
+  lazy
+    (UserName.create "test"
+     |> Account.getUser
+     |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
 
 /// Delete test data (in DB) for one canvas
 let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
@@ -282,24 +285,34 @@ let executionStateFor
     let testContext : RT.TestContext =
       { sideEffectCount = 0
         exceptionReports = []
+        expectedExceptionCount = 0
         postTestExecutionHook =
           fun tc result ->
-            // In an effort to find error in the test suite, we track exceptions that
-            // we report in the runtime and check for them after the test completes.
-            // Because there are some places where exceptions are allowed, a rule of
-            // thumb is that if the result is a DError, the exception was reported to
-            // the user as an error, and that's probably what the test was for.
-            // This isn't a perfect rule and we may need to do better, but it seems
-            // to work for now
-            let errorsExpected = RT.Dval.isDError result
-            if tc.exceptionReports.Length > 0 && not errorsExpected then
-              print $"UNEXPECTED EXCEPTION in {meta.name}"
+            // In an effort to find errors in the test suite, we track exceptions
+            // that we report in the runtime and check for them after the test
+            // completes.  There are a lot of places where exceptions are allowed,
+            // possibly too many to annotate, so we assume that errors are intended
+            // to be reported anytime the result is a DError.
+            let exceptionCountMatches =
+              if RT.Dval.isDError result then
+                // This should be greater than zero, but there's confusion between
+                // different kinds of exceptions. Once we untangle handleException
+                // this can be re-enabled.
+                // FSTODO tc.exceptionReports.Length > 0
+                true
+              else
+                tc.exceptionReports.Length = tc.expectedExceptionCount
+
+            if not exceptionCountMatches then
               List.iter
                 (fun (executionID, msg, stackTrace, metadata) ->
                   print
                     $"An error was reported in the runtime ({executionID}):  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
-              Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
+              Exception.raiseInternal
+                $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
+                [ "expectedExceptionCount", tc.expectedExceptionCount
+                  "actualExceptionCount", tc.exceptionReports.Length ] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
@@ -311,9 +324,8 @@ let executionStateFor
         let metadata = Exception.toMetadata exn @ metadata
         let inner = exn.InnerException
         if inner <> null then (exceptionReporter state metadata inner) else ()
-        testContext.exceptionReports <-
-          (executionID, message, stackTrace, metadata)
-          :: testContext.exceptionReports
+        state.test.exceptionReports <-
+          (executionID, message, stackTrace, metadata) :: state.test.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors

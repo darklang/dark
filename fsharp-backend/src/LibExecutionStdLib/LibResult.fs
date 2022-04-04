@@ -258,7 +258,7 @@ let fns : List<BuiltInFn> =
               | DResult result -> return (DResult result)
               | other ->
                 return
-                  Errors.throw (
+                  Exception.raiseCode (
                     Errors.expectedLambdaType "f" (TResult(varOk, varErr)) other
                   )
             | Error msg -> return DResult(Error msg)
@@ -290,7 +290,7 @@ let fns : List<BuiltInFn> =
               | DResult (Error result) -> return Dval.resultError result
               | other ->
                 return
-                  Errors.throw (
+                  Exception.raiseCode (
                     Errors.expectedLambdaType "f" (TResult(varOk, varErr)) other
                   )
             | Error msg -> return DResult(Error msg)

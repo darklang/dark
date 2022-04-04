@@ -188,11 +188,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let! conditionResult =
         // under no circumstances should this cause code to fail
-        // FSTODO this can fail
-        try
-          eval state st cond
-        with
-        | _ -> Ply(DBool false)
+        uply {
+          try
+            return! eval state st cond
+          with
+          | _ -> return DBool false
+        }
 
       if conditionResult = DBool true then
         do! preview st oldcode
@@ -523,56 +524,58 @@ and callFn
     | Some er -> return er
     | None ->
       let! result =
-        match fn with
-        // Functions which aren't implemented in the client may have results
-        // available, otherwise they just return incomplete.
-        | None ->
-          let fnRecord = (state.tlid, desc, callerID) in
-          let fnResult = state.tracing.loadFnResult fnRecord argvals in
-          // In the case of DB::query (and friends), we want to backfill
-          // the lambda's livevalues, as the lambda was never actually
-          // executed. We hack this is here as we have no idea what this
-          // abstraction might look like in the future.
-          if state.tracing.realOrPreview = Preview && FQFnName.isDBQueryFn desc then
-            match argvals with
-            | [ DDB dbname; DFnVal (Lambda b) ] ->
-              let sample =
-                match fnResult with
-                | Some (DList (sample :: _), _) -> sample
-                | _ ->
-                  Map.find dbname state.program.dbs
-                  |> (fun (db : DB.T) -> db.cols)
-                  |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
-                  |> Map.ofList
-                  |> DObj
+        uply {
+          match fn with
+          // Functions which aren't implemented in the client may have results
+          // available, otherwise they just return incomplete.
+          | None ->
+            let fnRecord = (state.tlid, desc, callerID) in
+            let fnResult = state.tracing.loadFnResult fnRecord argvals in
+            // In the case of DB::query (and friends), we want to backfill
+            // the lambda's livevalues, as the lambda was never actually
+            // executed. We hack this is here as we have no idea what this
+            // abstraction might look like in the future.
+            if state.tracing.realOrPreview = Preview && FQFnName.isDBQueryFn desc then
+              match argvals with
+              | [ DDB dbname; DFnVal (Lambda b) ] ->
+                let sample =
+                  match fnResult with
+                  | Some (DList (sample :: _), _) -> sample
+                  | _ ->
+                    Map.find dbname state.program.dbs
+                    |> (fun (db : DB.T) -> db.cols)
+                    |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
+                    |> Map.ofList
+                    |> DObj
 
-              ignore<DvalTask> (executeLambda state b [ sample ])
-            | _ -> ()
+                let! (_ : Dval) = executeLambda state b [ sample ]
+                ()
+              | _ -> ()
 
-          match fnResult with
-          | Some (result, _ts) -> Ply(result)
-          | _ -> Ply(DIncomplete(sourceID callerID))
-        | Some fn ->
-          // equalize length
-          let expectedLength = List.length fn.parameters in
-          let actualLength = List.length argvals in
+            match fnResult with
+            | Some (result, _ts) -> return result
+            | _ -> return DIncomplete(sourceID callerID)
 
-          if expectedLength = actualLength then
-            let args =
-              fn.parameters
-              |> List.map2 (fun dv p -> (p.name, dv)) argvals
-              |> Map.ofList
+          | Some fn ->
+            // equalize length
+            let expectedLength = List.length fn.parameters in
+            let actualLength = List.length argvals in
 
-            execFn state desc callerID fn args isInPipe
-          else
-            Ply(
-              DError(
-                sourceID callerID,
-                $"{desc} has {expectedLength} parameters, but here was called"
-                + $" with {actualLength} arguments."
-              )
-            )
+            if expectedLength = actualLength then
+              let args =
+                fn.parameters
+                |> List.map2 (fun dv p -> (p.name, dv)) argvals
+                |> Map.ofList
 
+              return! execFn state desc callerID fn args isInPipe
+            else
+              return
+                DError(
+                  sourceID callerID,
+                  $"{FQFnName.toString desc} has {expectedLength} parameters, but here was called"
+                  + $" with {actualLength} arguments."
+                )
+        }
       if sendToRail = Rail then
         match Dval.unwrapFromErrorRail result with
         | DOption (Some v) -> return v
@@ -666,13 +669,37 @@ and execFn
             | None -> return DIncomplete sourceID
           else
             let! result =
-              task {
+              uply {
                 try
                   return! f (state, arglist)
                 with
                 | e ->
-                  // FSTODO: this is a bit of a mess, clean it up
-                  return handleException state fnDesc arglist id fn isInPipe e
+                  let context : Metadata =
+                    [ "fn", fnDesc; "args", arglist; "id", id; "isInPipe", isInPipe ]
+                  return
+                    match e with
+                    | Errors.IncorrectArgs ->
+                      Errors.incorrectArgsToDError sourceID fn arglist
+                    | Errors.FakeDvalFound dv ->
+                      // We don't expect to see fakeDvals inside functions, so let's
+                      // learn where they are so that they can be removed.
+                      if fn.deprecated = NotDeprecated then
+                        let context = (context @ [ "dval", dv ])
+                        state.notify state "fakedval found" context
+                      dv
+                    | (:? CodeException
+                    | :? GrandUserException) as e ->
+                      // There errors are created by us, within the libraries, so they are
+                      // safe to show to users (but not grandusers)
+                      Dval.errSStr sourceID e.Message
+                    | e ->
+                      // CLEANUP could we show the user the execution id here?
+                      state.reportException state context e
+                      // These are arbitrary errors, and could include sensitive
+                      // information, so best not to show it to the user. If we'd
+                      // like to show it to the user, we should catch it and give
+                      // them a known safe error.
+                      Dval.errSStr sourceID Exception.unknownErrorMessage
               }
             // there's no point storing data we'll never ask for
             if fn.previewable <> Pure then
@@ -755,69 +782,3 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
   }
-
-and handleException
-  (state : ExecutionState)
-  (fnDesc : FQFnName.T)
-  (arglist : List<Dval>)
-  (id : id)
-  (fn : Fn)
-  (isInPipe : IsInPipe)
-  (e : exn)
-  : Dval =
-  let sourceID = SourceID(state.tlid, id)
-  match e with
-  | Errors.FakeValFoundInQuery dv ->
-    state.notify state "fakeval found in query" [ "dval", dv ]
-    dv
-  | Errors.DBQueryException e ->
-    (Dval.errStr (Errors.queryCompilerErrorTemplate + e))
-  | Errors.StdlibException (Errors.StringError msg) -> (Dval.errSStr sourceID msg)
-  | Errors.StdlibException Errors.IncorrectArgs ->
-    let paramLength = List.length fn.parameters
-    let argLength = List.length arglist
-
-    if paramLength <> argLength then
-      (Dval.errSStr
-        sourceID
-        ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
-         + $" but here was called with {argLength} arguments."))
-
-    else
-      let invalid =
-        List.zip fn.parameters arglist
-        |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
-
-      match invalid with
-      | [] ->
-        Dval.errSStr sourceID $"unknown error calling {FQFnName.toString fn.name}"
-      | (p, actual) :: _ ->
-        let msg = Errors.incorrectArgsMsg (fn.name) p actual
-        Dval.errSStr sourceID msg
-  | Errors.StdlibException (Errors.FakeDvalFound dv) ->
-    state.notify state "fakedval found" [ "dval", dv ]
-    dv
-  | :? DeveloperException as e ->
-    state.notify
-      state
-      $"DevException against {fnDesc}"
-      [ "context", "An exception was caught in fncall"
-        "fn", fnDesc
-        "args", arglist
-        "callerID", id
-        "isInPipe", isInPipe
-        "error", e.Message ]
-    Dval.errSStr sourceID (Exception.toDeveloperMessage e)
-  | e ->
-    // CLEANUP could we show the user the execution id here?
-    state.reportException
-      state
-      [ "context", "An exception was caught in fncall"
-        "fn", fnDesc
-        "args", arglist
-        "callerID", id
-        "isInPipe", isInPipe ]
-      e
-    // The GrandUser doesn't get to see DErrors, so it's safe to include this
-    // value and show it to the Dark Developer
-    Dval.errSStr sourceID (Exception.toDeveloperMessage e)

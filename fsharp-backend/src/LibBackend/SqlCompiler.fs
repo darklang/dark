@@ -19,7 +19,11 @@ module DvalReprExternal = LibExecution.DvalReprExternal
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
-let error (str : string) : 'a = raise (Errors.DBQueryException str)
+// CLEANUP mention Slack explicitly. Maybe even try to get a clickable URL into this.
+let errorTemplate =
+  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\nError: "
+
+let error (str : string) : 'a = Exception.raiseCode (errorTemplate + str)
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 
@@ -44,7 +48,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   match dval with
   | DError _
   | DIncomplete _
-  | DErrorRail _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
+  | DErrorRail _ -> Errors.foundFakeDval dval
   | DObj _
   | DList _
   | DHttpResponse _
@@ -79,7 +83,7 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
 // TODO: support character. And maybe lists and bytes.
 // Probably something can be done with options and results.
 let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
-  if Dval.isFake dval then raise (Errors.FakeValFoundInQuery dval)
+  if Dval.isFake dval then Errors.foundFakeDval dval
   typecheck name (Dval.toType dval) expectedType
 
 let escapeFieldname (str : string) : string =

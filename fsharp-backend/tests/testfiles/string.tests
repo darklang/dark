@@ -1,4 +1,4 @@
-[fn.c arg]
+[fn.c arg:string]
 Test.toChar_v0_ster arg
 
 [tests.tests]
@@ -34,7 +34,7 @@ String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "
 String.join_v0 ["🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
 String.join_v0 ["🧑🏽‍🦰‍", "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected string" // OCAMLONLY
-String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strings, but the list contained `0`" // FSHARPONLY
+String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strs, but the list contained `0`" // FSHARPONLY
 
 Bytes.length_v0 (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
 Bytes.length_v0 (String.toBytes_v0 "😄APPLE🍏") = 13

@@ -87,7 +87,8 @@ let fns : List<BuiltInFn> =
                    List.map
                      (function
                      | DChar c -> c
-                     | dv -> Errors.throw (Errors.expectedLambdaType "f" TChar dv))
+                     | dv ->
+                       Exception.raiseCode (Errors.expectedLambdaType "f" TChar dv))
                      dvals
 
                  let str = String.concat "" chars
@@ -575,7 +576,7 @@ let fns : List<BuiltInFn> =
               (fun s ->
                 match s with
                 | DStr st -> st
-                | dv -> Errors.throw (Errors.argumentMemberWasnt TStr "l" dv))
+                | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TStr "l" dv))
               l
 
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
@@ -610,7 +611,7 @@ let fns : List<BuiltInFn> =
             l
             |> List.map (function
               | DChar c -> c
-              | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
+              | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TChar "l" dv))
             |> String.concat ""
           )
           |> Ply

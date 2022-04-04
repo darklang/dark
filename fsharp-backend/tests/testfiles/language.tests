@@ -64,9 +64,9 @@ toString 5 = "5"
 
 [tests.featureflag]
 flag "test" true "old" "new" = "new"
+// everything else is old
 flag "test" false "old" "new" = "old"
 flag "" [true] "old" "new" = "old"
-// everything else is old
 flag "test" null "old" "new" = "old"
 flag "test" 5 "old" "new" = "old"
 flag "test" blank "old" "new" = "old"
@@ -74,6 +74,9 @@ flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
 flag "test" (List.head_v1_ster []) "old" "new" = "old"
 flag "test" {x = true} "old" "new" = "old"
 flag "test" [true] "old" "new" = "old"
+flag "test" (Test.errorRailValue "error") "old" "new" = "old"
+flag "test" (Test.negativeInfinity "extra arg") "old" "new" = "old"
+flag "test" (Test.raiseException "message") "old" "new" = "old" // EXPECTED_EXCEPTION_COUNT: 1
 
 
 [tests.lambdas]
@@ -127,7 +130,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 
 [test.matchInt]
 (match 5 with
-| 5 -> "int"
 | 5.6 -> "float"
 | false -> "bool"
 | "myStr" -> "string"
@@ -135,30 +137,43 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 | blank -> "blank"
 | Ok x -> "ok: " ++ x
 | Nothing -> "constructor nothing"
+| 5 -> "int"
 | name -> name ++ "var") = "int"
 
 [test.matchFloat]
 (match 5.6 with
  | 5 -> "int"
- | 5.6 -> "float"
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | 5.6 -> "float"
+ | name -> name ++ "var") = "float"
+
+[test.matchFloat2]
+(match 1.1 with
+ | 5 -> "int"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | 1.1 -> "float"
  | name -> name ++ "var") = "float"
 
 [test.matchBool]
 (match false with
  | 5 -> "int"
  | 5.6 -> "float"
- | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | false -> "bool"
  | name -> name ++ "var") = "bool"
 
 [test.matchString]
@@ -166,11 +181,11 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5 -> "int"
  | 5.6 -> "float"
  | false -> "bool"
- | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | "myStr" -> "string"
  | name -> name ++ "var") = "string"
 
 [test.matchString2]
@@ -191,10 +206,10 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | false -> "bool"
  | "myStr" -> "string"
- | null -> "null"
  | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | null -> "null"
  | name -> name ++ "var") = "null"
 
 [test.matchConstructorWithArg]
@@ -205,8 +220,8 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | "myStr" -> "string"
  | null -> "null"
  | blank -> "blank"
- | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
+ | Ok x -> "ok: " ++ x
  | name -> name ++ "var") = "ok: x"
 
 [test.matchEmptyConstructor]
@@ -233,10 +248,10 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "not matched: var"
 
-
 [tests.constructors]
 Nothing = Nothing
-((List.head_v1 []) == Nothing) = true
+((List.head_v1 []) = Nothing) = true
+(List.head_v1 []) = Nothing
 
 
 // ---------------------------
@@ -263,7 +278,7 @@ Ok blank = blank
 [tests.error]
 List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
 Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with the wrong type to parameter: option2" // OCAMLONLY
-Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a String (\"not an option\"), but `option2` expected a Option." // FSHARPONLY
+Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a Str (\"not an option\"), but `option2` expected a Option." // FSHARPONLY
 
 
 [tests.errorPropagation]
@@ -286,7 +301,7 @@ Ok (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
  5 |> e |> (+) 3) = 8
 
 
-[fn.errorRailFn arg]
+[fn.errorRailFn arg:any]
 ([] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x)))
 
 [tests.errorrail]
@@ -380,3 +395,129 @@ DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY
 [tests.db equality] with DB MyDB
 (MyDB = MyDB) = true
 (MyDB <> 5) = true
+
+
+// ---------------------------
+// User-defined Functions
+// ---------------------------
+[fn.stringFn key:string]
+key ++ " appended string"
+
+[fn.twoStringFn str1:string str2:string]
+str1 ++ " appended " ++ str2
+
+[fn.returnsInt v:any]
+5
+
+[fn.returnsString v:any]
+"string"
+
+[fn.returnsOptionJust v:any]
+Just 5
+
+[fn.returnsOptionNothing v:any]
+Nothing
+
+[fn.returnsResultOk v:any]
+Ok 5
+
+[fn.returnsResultError v:any]
+Error false
+
+[fn.returnsOptionNothingOnErrorRail v:any]
+// A value that is already on the error rail
+Test.errorRailValue_v0 Nothing
+
+[fn.returnsOptionUnwrappedViaErrorRail v:any]
+List.head_v1_ster [5]
+
+[fn.throwsException v:any]
+Test.raiseException "throwsException message"
+
+[tests.valid function calls]
+stringFn "string" = "string appended string"
+twoStringFn "str1" "str2" = "str1 appended str2"
+returnsInt 6 = 5
+returnsString 6 = "string"
+returnsOptionJust 6 = Just 5
+returnsOptionJust_ster 6 = 5
+returnsOptionNothing 6 = Nothing
+returnsOptionNothing_ster 6 = Test.errorRailValue_v0 Nothing
+returnsResultOk 6 = Ok 5
+returnsResultOk_ster 6 = 5
+returnsResultError 6 = Error false
+returnsResultError_ster 6 = Test.errorRailValue_v0 (Error false)
+returnsOptionUnwrappedViaErrorRail 6 = 5
+
+// CLEANUP I was expecting the ErrorRail value to be returned (not unwrapped), and
+// for the result here to be `Test.errorRailValue Nothing`
+returnsOptionNothingOnErrorRail 6 = Nothing
+
+[tests.invalid function calls]
+functionWhichDoesntExist 6 = blank
+stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
+stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
+throwsException 6 = Test.typeError "Unknown Err: (Failure \"throwsException message\")" // OCAMLONLY
+throwsException 6 = Test.typeError "Unknown error" // FSHARPONLY
+
+// ---------------------------
+// Package manager function calls
+// ---------------------------
+[packagefn.stringFn key:string]
+key ++ " appended string"
+
+[packagefn.twoStringFn str1:string str2:string]
+str1 ++ " appended " ++ str2
+
+[packagefn.returnsInt v:any]
+5
+
+[packagefn.returnsString v:any]
+"string"
+
+[packagefn.returnsOptionJust v:any]
+Just 5
+
+[packagefn.returnsOptionNothing v:any]
+Nothing
+
+[packagefn.returnsResultOk v:any]
+Ok 5
+
+[packagefn.returnsResultError v:any]
+Error false
+
+[packagefn.returnsOptionNothingOnErrorRail v:any]
+// A value that is already on the error rail
+Test.errorRailValue_v0 Nothing
+
+[packagefn.returnsOptionUnwrappedViaErrorRail v:any]
+List.head_v1_ster [5]
+
+[packagefn.throwsException v:any]
+Test.raiseException "package throwsException message"
+
+[tests.valid package function calls]
+Test.Test.Test.stringFn "string" = "string appended string"
+Test.Test.Test.twoStringFn "str1" "str2" = "str1 appended str2"
+Test.Test.Test.returnsInt 6 = 5
+Test.Test.Test.returnsString 6 = "string"
+Test.Test.Test.returnsOptionJust 6 = Just 5
+Test.Test.Test.returnsOptionJust_ster 6 = 5
+Test.Test.Test.returnsOptionNothing 6 = Nothing
+Test.Test.Test.returnsOptionNothing_ster 6 = Test.errorRailValue_v0 Nothing
+Test.Test.Test.returnsResultOk 6 = Ok 5
+Test.Test.Test.returnsResultOk_ster 6 = 5
+Test.Test.Test.returnsResultError 6 = Error false
+Test.Test.Test.returnsResultError_ster 6 = Test.errorRailValue_v0 (Error false)
+Test.Test.Test.returnsOptionUnwrappedViaErrorRail 6 = 5
+
+// CLEANUP I was expecting the ErrorRail value to be returned (not unwrapped), and
+// for the result here to be `Test.errorRailValue Nothing`
+Test.Test.Test.returnsOptionNothingOnErrorRail 6 = Nothing
+
+[tests.invalid function calls]
+Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
+Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
+Test.Test.Test.throwsException 6 = Test.typeError "Unknown Err: (Failure \"package throwsException message\")" // OCAMLONLY
+Test.Test.Test.throwsException 6 = Test.typeError "Unknown error" // FSHARPONLY
