@@ -483,7 +483,7 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
 
     let symtable = Map.ofList args
 
-    let! expected = OCamlInterop.executeExpr meta.owner meta.id ast symtable [] []
+    let! expected = OCamlInterop.executeExpr meta.owner meta.id ast symtable
 
     let! state = executionStateFor meta Map.empty Map.empty
     let! actual = LibExecution.Execution.executeExpr state symtable ast

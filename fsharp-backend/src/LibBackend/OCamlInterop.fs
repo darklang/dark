@@ -338,16 +338,13 @@ let executeExpr
   (canvasID : CanvasID)
   (program : RT.Expr)
   (symtable : Map<string, RT.Dval>)
-  (dbs : List<PT.DB.T>)
-  (fns : List<PT.UserFunction.T>)
   : Task<RT.Dval> =
   let program = Convert.rt2ocamlExpr program
 
   let args =
     symtable |> Map.toList |> List.map (fun (k, dv) -> (k, Convert.rt2ocamlDval dv))
 
-  let dbs = List.map Convert.pt2ocamlDB dbs
-  let fns = List.map Convert.pt2ocamlUserFunction fns
+  let dbs, fns = [], []
 
   let str =
     Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
