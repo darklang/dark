@@ -38,34 +38,37 @@ let alphaNumericString =
 
 let AlphaNumericString = Arb.fromGen alphaNumericString
 
-// /// Generates a string that 'normalizes' successfully,
-// /// and is safe for use in OCaml
-// let ocamlSafeString =
-//   let isValid (s : string) : bool =
-//     try
-//       String.normalize s |> ignore<string>
-//       true
-//     with
-//     | e ->
-//       // debuG
-//       //   "Failed to normalize :"
-//       //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+/// Generates a string that 'normalizes' successfully,
+/// and is safe for use in OCaml
+let ocamlSafeString =
+  let isValid (s : string) : bool =
+    try
+      String.normalize s |> ignore<string>
+      true
+    with
+    | e ->
+      // debuG
+      //   "Failed to normalize :"
+      //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
 
-//       false
+      false
 
-//   Arb.generate<UnicodeString>
-//   |> Gen.map (fun (UnicodeString s) -> s)
-//   |> Gen.filter isValid
-//   // Now that we know it can be normalized, actually normalize it
-//   |> Gen.map String.normalize
-//   |> Gen.filter isSafeOCamlString
+  Arb.generate<UnicodeString>
+  |> Gen.map (fun (UnicodeString s) -> s)
+  |> Gen.filter isValid
+  // Now that we know it can be normalized, actually normalize it
+  |> Gen.map String.normalize
+  |> Gen.filter isSafeOCamlString
 
-// let OCamlSafeString =
-//   ocamlSafeString |> Arb.fromGen
+let OCamlSafeString = ocamlSafeString |> Arb.fromGen
 
-// FSTODO temporary! Remove this soon.
-let ocamlSafeString = alphaNumericString
-let OCamlSafeString = AlphaNumericString
+// FSTODO The above string generators yield strings that result in inconsistent
+// behaviour between OCaml and F# backends. This should be resolved. That said,
+// to test functionality outside of that issue, locally toggling the above
+// generator/arb for the below pair is recommended.
+
+// let ocamlSafeString = alphaNumericString
+// let OCamlSafeString = AlphaNumericString
 
 let char () : Gen<string> =
   ocamlSafeString
