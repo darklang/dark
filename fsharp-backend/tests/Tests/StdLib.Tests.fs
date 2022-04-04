@@ -13,23 +13,16 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
-
-let fnName mod_ function_ version =
-  PTParser.FQFnName.stdlibFnName mod_ function_ version
-  |> PT2RT.FQFnName.StdlibFnName.toRT
 
 let equalsOCaml =
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany
     "equalsOCaml"
     (FuzzTests.ExecutePureFunctions.equalsOCaml)
-    [ (fnName "List" "fold" 0,
+    [ (RT.FQFnName.stdlibFnName "List" "fold" 0,
        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
          RT.DList []
          RT.DFnVal(
@@ -37,7 +30,7 @@ let equalsOCaml =
          ) ]),
       true
 
-      (fnName "Result" "fromOption" 0,
+      (RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -51,7 +44,7 @@ let equalsOCaml =
          RT.DStr "s" ]),
       true
 
-      (fnName "Result" "fromOption" 0,
+      (RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
        [ RT.DOption(
            Some(
              RT.DFnVal(
