@@ -47,7 +47,7 @@ let main args =
   LibService.Init.init "FuzzTests"
 
   let config : FuzzTestConfig =
-    // FSTODO figure out why --fscheck-max-tests doesn't work
+    // CLEANUP figure out why --fscheck-max-tests doesn't work
     // as documented, and don't pass `config` down the fn tree
     match args
           |> List.ofArray
