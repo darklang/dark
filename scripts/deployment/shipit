@@ -151,7 +151,7 @@ def get_service_dirs(cliargs):
   elif len(dirs) == 1 and dirs[0].endswith("shipit.yaml"):
     dirs = [os.path.dirname(dirs[0])]
   # Cleanup input
-  dirs = [dir.strip("/").strip() for dir in dirs]
+  dirs = [dir.rstrip("/").strip() for dir in dirs]
   dirs = sorted(dirs)
 
   return dirs
@@ -262,7 +262,6 @@ def manual_diff(cliargs):
 
 def manual_apply(cliargs):
   cliargs.services = [cliargs.service]
-  dryrun = cliargs.dryrun
   do_validation(cliargs)
 
   # Config files
@@ -983,9 +982,9 @@ def main():
   parser = create_arg_parser()
   cliargs = parser.parse_args()
   should_debug = cliargs.debug
-  dry_run_target = getattr(cliargs, "dry_run", None)
-  should_dry_run = dry_run_target != None
-  if dry_run_target not in [None, "client", "server"]:
+  dry_run_target = getattr(cliargs, "dry_run", False)
+  should_dry_run = dry_run_target != False
+  if dry_run_target not in [False, "client", "server"]:
     bad(f"Invalid dry_run target: {dry_run_target}")
   cliargs.func(cliargs)
   if error:
