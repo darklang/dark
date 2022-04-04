@@ -38,7 +38,8 @@ let equalsOCaml =
       let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] [] []
 
       let! state = executionStateFor meta Map.empty Map.empty
-      let! actual = LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
+      let! actual =
+        LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
 
       return Expect.dvalEquality actual expected
     }
@@ -57,9 +58,8 @@ let equalsOCaml =
          RT.DList []
 
          RT.DFnVal(
-            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
-          )
-         ]),
+           RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+         ) ]),
       true
 
       (fnName "Result" "fromOption" 0,
@@ -93,8 +93,7 @@ let equalsOCaml =
            )
          )
          RT.DStr "s" ]),
-      true
-      ]
+      true ]
 
 let oldFunctionsAreDeprecated =
   test "old functions are deprecated" {
