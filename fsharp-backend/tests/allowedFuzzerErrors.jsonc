@@ -20,6 +20,11 @@
     "Dict::keys",
     "Dict::values",
 
+    // OCaml seems to trim wrong here,
+    "String::trim",
+    "String::trimEnd",
+    "String::trimStart",
+
     // .NET doesn't handle "full" case mapping
     "String::toUppercase_v1",
     "String::toLowercase_v1",
