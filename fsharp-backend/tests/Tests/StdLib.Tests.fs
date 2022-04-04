@@ -17,18 +17,40 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
+module OCamlInterop = LibBackend.OCamlInterop
 
 open TestUtils.TestUtils
 
-let fnName mod_ function_ version =
-  PTParser.FQFnName.stdlibFnName mod_ function_ version
-  //|> PT2RT.FQFnName.StdlibFnName.toRT
-
 let equalsOCaml =
+  /// Checks if a fn and some arguments result in the same Dval
+  /// against both OCaml and F# backends.
+  let checkEquality ((fn, args) : PT.FQFnName.StdlibFnName * List<RT.Dval>) : bool =
+    task {
+      // evaluate the fn call against both backends
+      let! meta = initializeTestCanvas "ExecutePureFunction"
+      let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
+      let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
+
+      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
+
+      let symtable = Map.ofList args
+
+      let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] [] []
+
+      let! state = executionStateFor meta Map.empty Map.empty
+      let! actual = LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
+
+      return Expect.dvalEquality actual expected
+    }
+    |> FuzzTests.Utils.result
+
+  let fnName mod_ function_ version =
+    PTParser.FQFnName.stdlibFnName mod_ function_ version
+
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany
     "equalsOCaml"
-    FuzzTests.ExecutePureFunctions.equalsOCamlPT
+    checkEquality
     [ (fnName "List" "fold" 0,
        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
 
