@@ -278,7 +278,9 @@ def get_service_config(dir: str) -> ShipitFile:
   except:
     bad(f"Cannot find shipit.yaml in {dir}/")
   try:
-    return yaml.load(file, Loader=yaml.Loader)  # type: ignore
+    config: ShipitFile = yaml.load(file, Loader=yaml.Loader)
+    validate_config(dir, config)
+    return config
   except Exception as e:
     bad(f"Bad yaml in {dir}/shipit.yaml\n  {e}")
 
@@ -857,7 +859,7 @@ properties:
 """
 
 
-def do_validation(cliargs: ServicesArguments) -> None:
+def validate_config(dir: str, config: ShipitFile) -> None:
 
   def validate_configmaps(
       dir: str, configmaps: Optional[Dict[str, ShipitFileConfigMapSection]]) -> None:
@@ -871,85 +873,83 @@ def do_validation(cliargs: ServicesArguments) -> None:
       else:
         bad(f"Need either `text-file` or `env-file` for {name}")
 
+  k8s = config['k8s']
+
+  namespace = k8s.get("namespace")
+  if namespace is None:
+    bad(f"missing namespace field in {dir}/shipit.yaml")
+  else:
+    if not re.match(r"^([-a-z0-9]+)$", namespace):
+      bad(f"namespace \"{namespace}\" not in valid")
+
+  manually_deployed = k8s["manually-deployed"]
+  validate_configmaps(dir, manually_deployed.get("configmaps"))
+  configs = manually_deployed["configs"]
+  for f in configs:
+    assert_file_exists(dir, f)
+
+  release = config['k8s'].get("release", None)
+  if release:
+    validate_configmaps(dir, release.get("versioned-configmaps"))
+    assert_file_exists(dir, release['config-template'])
+    template_filename = os.path.join(dir, release['config-template'])
+    template_contents = open(template_filename).read()
+
+    for c in release["containers"]:
+      assert_dir_exists(dir, f"containers/{c}")
+      # Check the containers are used in the template
+      assert_string_in_file(template_filename, template_contents, f"{{IMAGEID:{c}}}")
+
+    # Check the vars are used in the template
+    for var in release.get("builtins", []):
+      assert_string_in_file(template_filename, template_contents,
+                            f"{{BUILTIN:{var}}}")
+    for var in release.get("expected-args", []):
+      assert_string_in_file(template_filename, template_contents, f"{{ARG:{var}}}")
+    for name in release.get("versioned-configmaps", {}).keys():
+      assert_string_in_file(template_filename, template_contents,
+                            f"{{VERSIONED-CONFIGMAP:{name}}}")
+
+    # Check all template vars are defined
+    for match in re.findall(r"\{([-A-Z0-9a-z:_]+)}", template_contents,
+                            re.MULTILINE):
+      builtin_match = re.match(r"^BUILTIN:([A-Z0-9_]+)$", match)
+      expectedarg_match = re.match(r"^ARG:([A-Z0-9_]+)$", match)
+      imageid_match = re.match(r"^IMAGEID:([-a-z0-9]+)$", match)
+      versioned_configmap_match = re.match(r"^VERSIONED-CONFIGMAP:([-a-z0-9]+)$",
+                                           match)
+      if builtin_match:
+        builtin = builtin_match.group(1)
+        if builtin not in release["builtins"]:
+          bad(f"builtin \"{builtin}\" not in `k8s.release.builtins` in {template_filename}"
+              )
+
+      elif expectedarg_match:
+        expectedarg = expectedarg_match.group(1)
+        if expectedarg not in release["expected-args"]:
+          bad(f"expected arg \"{expectedarg}\" not in `k8s.release.expected-args` in {template_filename}"
+              )
+
+      elif imageid_match:
+        id = imageid_match.group(1)
+        if id not in release["containers"]:
+          bad(f"imageid \"{id}\" not in `k8s.release.containers` in {template_filename}"
+              )
+
+      elif versioned_configmap_match:
+        name = versioned_configmap_match.group(1)
+        if name not in release.get("versioned-configmaps", {}):
+          bad(f"configmap \"{name}\" not in `k8s.release.versioned-configmaps` in {template_filename}"
+              )
+      else:
+        bad(f"Unexpected placeholder \"{{{match}}}\" in\n{template_filename}")
+
+
+def do_validation(cliargs: ServicesArguments) -> None:
   for dir in get_service_dirs(cliargs):
-    config: ShipitFile = get_service_config(dir)
     debug(f"Validating config for {dir}")
-    try:
-      jsonschema.validate(config, yaml.load(config_schema, Loader=yaml.Loader))
-    except jsonschema.exceptions.ValidationError as e:
-      bad(f"Error in {dir}/shipit.yaml:\n  {e}")
-
-    k8s = config['k8s']
-
-    namespace = k8s.get("namespace")
-    if namespace is None:
-      bad(f"missing namespace field in {dir}/shipit.yaml")
-    else:
-      if not re.match(r"^([-a-z0-9]+)$", namespace):
-        bad(f"namespace \"{namespace}\" not in valid")
-
-    manually_deployed = k8s["manually-deployed"]
-    validate_configmaps(dir, manually_deployed.get("configmaps"))
-    configs = manually_deployed["configs"]
-    for f in configs:
-      assert_file_exists(dir, f)
-
-    release = config['k8s'].get("release", None)
-    if release:
-      validate_configmaps(dir, release.get("versioned-configmaps"))
-      assert_file_exists(dir, release['config-template'])
-      template_filename = os.path.join(dir, release['config-template'])
-      template_contents = open(template_filename).read()
-
-      for c in release["containers"]:
-        assert_dir_exists(dir, f"containers/{c}")
-        # Check the containers are used in the template
-        assert_string_in_file(template_filename, template_contents,
-                              f"{{IMAGEID:{c}}}")
-
-      # Check the vars are used in the template
-      for var in release.get("builtins", []):
-        assert_string_in_file(template_filename, template_contents,
-                              f"{{BUILTIN:{var}}}")
-      for var in release.get("expected-args", []):
-        assert_string_in_file(template_filename, template_contents, f"{{ARG:{var}}}")
-      for name in release.get("versioned-configmaps", {}).keys():
-        assert_string_in_file(template_filename, template_contents,
-                              f"{{VERSIONED-CONFIGMAP:{name}}}")
-
-      # Check all template vars are defined
-      for match in re.findall(r"\{([-A-Z0-9a-z:_]+)}", template_contents,
-                              re.MULTILINE):
-        builtin_match = re.match(r"^BUILTIN:([A-Z0-9_]+)$", match)
-        expectedarg_match = re.match(r"^ARG:([A-Z0-9_]+)$", match)
-        imageid_match = re.match(r"^IMAGEID:([-a-z0-9]+)$", match)
-        versioned_configmap_match = re.match(r"^VERSIONED-CONFIGMAP:([-a-z0-9]+)$",
-                                             match)
-        if builtin_match:
-          builtin = builtin_match.group(1)
-          if builtin not in release["builtins"]:
-            bad(f"builtin \"{builtin}\" not in `k8s.release.builtins` in {template_filename}"
-                )
-
-        elif expectedarg_match:
-          expectedarg = expectedarg_match.group(1)
-          if expectedarg not in release["expected-args"]:
-            bad(f"expected arg \"{expectedarg}\" not in `k8s.release.expected-args` in {template_filename}"
-                )
-
-        elif imageid_match:
-          id = imageid_match.group(1)
-          if id not in release["containers"]:
-            bad(f"imageid \"{id}\" not in `k8s.release.containers` in {template_filename}"
-                )
-
-        elif versioned_configmap_match:
-          name = versioned_configmap_match.group(1)
-          if name not in release.get("versioned-configmaps", {}):
-            bad(f"configmap \"{name}\" not in `k8s.release.versioned-configmaps` in {template_filename}"
-                )
-        else:
-          bad(f"Unexpected placeholder \"{{{match}}}\" in\n{template_filename}")
+    # We automatically validate when we load the file
+    config: ShipitFile = get_service_config(dir)
 
 
 def validate(cliargs: ServicesArguments) -> None:
