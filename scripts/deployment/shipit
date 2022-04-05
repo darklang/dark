@@ -161,7 +161,6 @@ def assert_string_in_file(filename: str, file_str: str, substr: str) -> None:
 ShipitFileConfigMapSection = TypedDict('ShipitFileConfigMapSection', {
     "text-file": NotRequired[str],
     "env-file": NotRequired[str],
-    "namespace": str
 })
 
 ShipitFileManuallyDeployedSection = TypedDict(
@@ -184,6 +183,7 @@ ShipitFileReleaseSection = TypedDict(
 
 ShipitFileK8sSection = TypedDict(
     'ShipitFileK8sSection', {
+        "namespace": str,
         "manually-deployed": ShipitFileManuallyDeployedSection,
         "release": NotRequired[ShipitFileReleaseSection]
     })
@@ -299,22 +299,20 @@ def get_hashed_configmap_name(dir: str, name: str,
 ConfigMapDef = TypedDict("ConfigMapDef", {
     "hashed_name": str,
     "filespec": str,
-    "namespace": str
 })
 
 
 def collect_versioned_configmaps(
-    dir: str, parent: ShipitFileReleaseSection) -> Dict[str, ConfigMapDef]:
+    dir: str, namespace: str,
+    parent: ShipitFileReleaseSection) -> Dict[str, ConfigMapDef]:
   cms = {}
   for name, cm in parent.get("versioned-configmaps", {}).items():
     hashed_name = get_hashed_configmap_name(dir, name, cm)
     filespec = read_config_map_source(dir, cm)
-    namespace = read_config_map_namespace(cm)
     key = f"{namespace}/{hashed_name}"
     cmd: ConfigMapDef = {
         "hashed_name": hashed_name,
         "filespec": filespec,
-        "namespace": namespace
     }
     cms[key] = cmd
   return cms
@@ -350,11 +348,6 @@ def read_config_map_source(dir: str, cm: ShipitFileConfigMapSection) -> str:
     return f"--from-env-file={filename}"
 
 
-def read_config_map_namespace(cm: ShipitFileConfigMapSection) -> str:
-  # TODO: it might be better to put the namespace at the toplevel of the shipit file
-  return cm["namespace"].strip()
-
-
 def manual_diff(cliargs: ManualDiffArguments) -> None:
   do_validation(cliargs)
 
@@ -369,9 +362,9 @@ def manual_diff(cliargs: ManualDiffArguments) -> None:
   for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     cms = config['k8s']["manually-deployed"].get("configmaps", {})
+    namespace = config['k8s']['namespace']
     for name, cm in cms.items():
       filespec = read_config_map_source(dir, cm)
-      namespace = read_config_map_namespace(cm)
       run("kubectl diff configmap",
           f"kubectl create configmap {name} {filespec} --namespace={namespace} --dry-run=client -o yaml | kubectl diff --filename=-",
           shell=True,
@@ -404,9 +397,9 @@ def manual_apply(cliargs: ManualApplyArguments) -> None:
   for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     cms = config['k8s'].get("manually-deployed", {}).get("configmaps", {})
+    namespace = config['k8s']['namespace']
     for name, cm in cms.items():
       filespec = read_config_map_source(dir, cm)
-      namespace = read_config_map_namespace(cm)
       if should_dry_run:
         run("kubectl apply configmap (dry-run)",
             f"kubectl create configmap {name} {filespec} --namespace={namespace} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
@@ -687,15 +680,8 @@ def release_current_manifest(cliargs: ReleaseCurrentManifestArguments) -> None:
     containers = set(config['k8s'].get("release", {}).get("containers", []))
     # Only check yamls with a containers section
     if len(containers) > 0:
-      # Get the right namespace for the deployment
-      template_filename = config['k8s'].get("release", {})["config-template"]
-      assert_file_exists(dir, template_filename)
-      template_filename = os.path.join(dir, template_filename)
-      template_contents = yaml.load(open(template_filename).read(),
-                                    Loader=yaml.Loader)
-      namespace = template_contents['metadata'].get('namespace', "default")
-
       # get the deployment
+      namespace = config['k8s']['namespace']
       service_name = os.path.basename(dir)
       k8s_config_str = run_output(
           f"kubectl get deployments/{service_name} -n {namespace} -o json",
@@ -727,12 +713,13 @@ def release_diff(cliargs: ReleaseDiffArguments) -> None:
   for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
+    namespace = config['k8s']['namespace']
     if release:
-      maps = collect_versioned_configmaps(dir, release)
+      maps = collect_versioned_configmaps(dir, namespace, release)
       all_configmaps.update(maps)
   for _, cm in all_configmaps.items():
     run("kubectl diff configmap",
-        f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={cm['namespace']} --dry-run=client -o yaml | kubectl diff --filename=-",
+        f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={namespace} --dry-run=client -o yaml | kubectl diff --filename=-",
         shell=True,
         on_error=do_nothing)
 
@@ -757,19 +744,20 @@ def release_push(cliargs: ReleasePushArguments) -> None:
   for dir in get_service_dirs(cliargs):
     config = get_service_config(dir)
     release = config['k8s'].get("release")
+    namespace = config['k8s']["namespace"]
     if release:
-      maps = collect_versioned_configmaps(dir, release)
+      maps = collect_versioned_configmaps(dir, namespace, release)
       print("maps", dir, maps)
       all_configmaps.update(maps)
   print("all_configmaps", all_configmaps)
   for _, cm in all_configmaps.items():
     if should_dry_run:
       run("kubectl apply configmap",
-          f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
+          f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={namespace} --dry-run=client -o yaml | kubectl apply --filename=- --dry-run={dry_run_target}",
           shell=True)
     else:
       run("kubectl apply configmap",
-          f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={cm['namespace']} --dry-run=client -o yaml | kubectl apply --filename=-",
+          f"kubectl create configmap {cm['hashed_name']} {cm['filespec']} --namespace={namespace} --dry-run=client -o yaml | kubectl apply --filename=-",
           shell=True)
 
   files = collect_release_templated_configs(cliargs)
@@ -799,6 +787,8 @@ properties:
   k8s:
     type: object
     properties:
+      namespace:
+        type: string
       manually-deployed:
         type: object
         properties:
@@ -817,10 +807,7 @@ properties:
                   type: string
                 env-file:
                   type: string
-                namespace:
-                  type: string
               additionalProperties: false
-              required: [namespace]
           custom-diff:
             type: array
             items:
@@ -854,10 +841,7 @@ properties:
                   type: string
                 env-file:
                   type: string
-                namespace:
-                  type: string
               additionalProperties: false
-              required: [namespace]
           expected-args:
             type: array
             items:
@@ -880,9 +864,6 @@ def do_validation(cliargs: ServicesArguments) -> None:
     if configmaps is None:
       return
     for name, desc in configmaps.items():
-      namespace = desc["namespace"]
-      if not re.match(r"^([-a-z0-9]+)$", namespace):
-        bad(f"namespace \"{namespace}\" not in valid")
 
       from_file: Optional[str] = desc.get("text-file") or desc.get("env-file")
       if from_file is not None:
@@ -899,6 +880,13 @@ def do_validation(cliargs: ServicesArguments) -> None:
       bad(f"Error in {dir}/shipit.yaml:\n  {e}")
 
     k8s = config['k8s']
+
+    namespace = k8s.get("namespace")
+    if namespace is None:
+      bad(f"missing namespace field in {dir}/shipit.yaml")
+    else:
+      if not re.match(r"^([-a-z0-9]+)$", namespace):
+        bad(f"namespace \"{namespace}\" not in valid")
 
     manually_deployed = k8s["manually-deployed"]
     validate_configmaps(dir, manually_deployed.get("configmaps"))

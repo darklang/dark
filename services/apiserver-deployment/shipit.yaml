@@ -1,4 +1,5 @@
 k8s:
+  namespace: default
   manually-deployed:
     configs:
       - apiserver-network-policy.yaml
@@ -9,7 +10,6 @@ k8s:
     configmaps:
       apiserver-nginx-override-conf:
         text-file: nginx-override.conf
-        namespace: default
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
@@ -20,14 +20,11 @@ k8s:
     versioned-configmaps:
       apiserver-nginx-base-conf:
         text-file: ../../containers/base-fsharp-nginx.conf
-        namespace: default
       apiserver-nginx-conf:
         text-file: nginx.conf
-        namespace: default
       app-config:
         # deployed to both namespaces
         env-file: ../../config/gke-builtwithdark
-        namespace: default
     containers:
       - gcp-fsharp-apiserver
       - legacyserver
