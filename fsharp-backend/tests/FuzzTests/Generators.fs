@@ -204,3 +204,5 @@ module RuntimeTypes =
       | RT.TErrorRail -> false
 
     Arb.Default.Derive() |> Arb.filter isSupportedType
+
+  let dType : Gen<RT.DType> = DType.Generator

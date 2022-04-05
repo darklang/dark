@@ -128,7 +128,10 @@ module Generators =
               (fun i (v : RT.DType) -> (id i, $"{v.toOldString().ToLower()}_{i}"))
               paramTypes
 
-          // FSTODO: occasionally use the wrong return type
+          let! returnType =
+            Gen.frequency [ (98, Gen.constant returnType)
+                            (2, G.RuntimeTypes.dType) ]
+
           // FSTODO: can we use the argument to get this type?
           let! body = genExpr' returnType size
           return RT.ELambda(gid (), parameters, body)
@@ -270,9 +273,7 @@ module Generators =
           return RT.DError(source, str)
         | RT.TUserType (_name, _version) ->
           let! list =
-            Gen.listOfLength
-              s
-              (Gen.zip (G.ocamlSafeString) (genDval' typ (s / 2)))
+            Gen.listOfLength s (Gen.zip (G.ocamlSafeString) (genDval' typ (s / 2)))
 
           return RT.DObj(Map list)
         | RT.TRecord (pairs) ->
@@ -420,8 +421,7 @@ type Generator =
           | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000L
 
           // Exception - don't try to stringify
-          | 0, _, _, "", "toString", 0 ->
-            not (G.RuntimeTypes.containsBytes dv)
+          | 0, _, _, "", "toString", 0 -> not (G.RuntimeTypes.containsBytes dv)
           | _ -> true)
 
       // When generating arguments, we sometimes make use of the previous params
