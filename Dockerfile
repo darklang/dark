@@ -274,7 +274,8 @@ RUN sudo pip3 install -U --no-cache-dir -U crcmod \
 ############################
 # Pip packages
 ############################
-RUN sudo pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
+RUN sudo pip3 install --no-cache-dir yq yamllint
+ENV PATH "$PATH:/home/dark/.local/bin"
 
 RUN pip3 install git+https://github.com/pbiggar/watchgod.git@b74cd7ec064ebc7b4263dc532c7c97e046002bef
 # Formatting
