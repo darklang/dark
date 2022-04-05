@@ -1,7 +1,7 @@
 {
   // If `null`, test anything. If `"fn"`, only test fn
   "functionToTest": null,
-  //"functionToTest": "JSON::read",
+  //"functionToTest": "JSON::parse_v1",
 
   // tests against these fns are note generated
   "knownDifferingFunctions": [
@@ -44,6 +44,12 @@
       "actual (F#) error message (regex)",
       "expected (OCaml) error message (regex)"
     ],
+
+    // -----------------------------
+    // Int::divide and `/`
+    // -----------------------------
+    ["Int::divide", "Division by zero", "Unknown Err: \\(Division_by_zero\\)"],
+
     // -----------------------------
     // Dict::fromList.*
     // -----------------------------
@@ -66,10 +72,6 @@
       "All list items must be `\\[key, value\\]`",
       "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. It has length \\d+ but must have length 2."
     ],
-    // -----------------------------
-    // Int::divide
-    // -----------------------------
-    ["Int::divide", "Division by zero", "Unknown Err: \\(Division_by_zero\\)"],
     // -----------------------------
     // List::repeat
     // -----------------------------
@@ -188,6 +190,16 @@
       "The .* param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate Floats to Ints."
     ],
     [
+      "Int::sqrt",
+      "(?<fn>.*) was called with a Float \\((?<value>.*)\\), but `.*` expected a Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
+      "The param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate the Float to an Int."
+    ],
+    [
+      "(Int::add|\\+)",
+      ".* was called with a Str .*, but `(a|b)` expected a Int. Use .* to concatenate",
+      "The (first|second) param .* is a String, but .* only works on Ints. Use .* or String::append to join Strings or parse Strings to Ints with String::toInt."
+    ],
+    [
       "(Int::add|\\+)",
       "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected a Int.",
       "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints.  Use \\+\\+ or String::append to join Strings or parse Strings to Ints with String::toInt."
@@ -218,6 +230,7 @@
       "Expected `(?<arg>.*)` to return a .*, but it returned `.*`",
       "Expected the argument `(?<arg>.*)` passed to `.*` to return .*. However, it returned `.*` for the input `.*`."
     ],
+
     // -----------------------------
     // Remove functions
     // -----------------------------
