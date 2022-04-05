@@ -336,6 +336,30 @@ let execute
     | e -> return (RT.DError(RT.SourceNone, e.Message))
   }
 
+let executeExpr
+  (ownerID : UserID)
+  (canvasID : CanvasID)
+  (program : RT.Expr)
+  (symtable : Map<string, RT.Dval>)
+  : Task<RT.Dval> =
+  let program = Convert.rt2ocamlExpr program
+
+  let args =
+    symtable |> Map.toList |> List.map (fun (k, dv) -> (k, Convert.rt2ocamlDval dv))
+
+  let dbs, fns = [], []
+
+  let str =
+    Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
+
+  task {
+    try
+      let! result = stringToDvalReq "execute" str
+      return result
+    with
+    | e -> return (RT.DError(RT.SourceNone, e.Message))
+  }
+
 type BenchmarkResult = (float * OCamlTypes.RuntimeT.dval)
 
 let benchmark

@@ -28,8 +28,8 @@ let ownerName : Gen<string> =
   nameGenerator [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
 let packageName = ownerName
-let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] G.alphaNumericString
-let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericString
+let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] G.alphaNumericCharacters
+let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericCharacters
 
 type Generator =
   static member String() : Arbitrary<string> = Generators.OCamlSafeString

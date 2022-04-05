@@ -1,34 +1,43 @@
 {
-  // If null, test anything. If `"fn"`, only test fn
+  // If `null`, test anything. If `"fn"`, only test fn
   "functionToTest": null,
-  //"functionToTest": "String::base64Decode",
+  //"functionToTest": "JSON::read",
+
+  // tests against these fns are note generated
   "knownDifferingFunctions": [
     // These use a different sort order in OCaml
     "List::sort",
     "List::sortBy",
+
     // Known formatting differences
     "Object::toJSON",
     "Object::toJSON_v1",
     "Dict::toJSON",
     "Dict::toJSON_v1",
+
     // Sorting odities, these are fine
     "Dict::toList",
     "Dict::keys",
     "Dict::values",
+
     // OCaml seems to trim wrong here,
     "String::trim",
     "String::trimEnd",
     "String::trimStart",
+
     // .NET doesn't handle "full" case mapping
     "String::toUppercase_v1",
     "String::toLowercase_v1",
+
     // The lambda gives the same value for all elements,
     // and we don't guarantee which one wins
     "List::uniqueBy",
-    // Returns a DError on invalid UTF-8 strings, while F# returns a Result.Error
+
+    // OCaml returns a DError on invalid UTF-8 strings, while F# returns a Result.Error
     "JSON::parse_v1" // FSTODO make signature the same
   ],
   "knownErrors": [
+    // Expected form:
     [
       // comments are allowed
       "function name or regex",
@@ -123,6 +132,16 @@
       "(JSON::parse|JSON::read).*",
       "JSON string was empty",
       "Json Err: Blank input data"
+    ],
+    [
+      "(JSON::parse|JSON::read).*",
+      ".* is an invalid start of a value..*",
+      "Json Err: .* Invalid token .*"
+    ],
+    [
+      "(JSON::parse|JSON::read).*",
+      ".* is an invalid JSON literal..*",
+      "Json Err: .* Invalid token .*"
     ],
     [
       // JSON::parse in ocaml actually has the _v0 in the name
