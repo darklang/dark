@@ -3,6 +3,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: darklang-tls-ingress
+  namespace: default
   annotations:
     kubernetes.io/ingress.class: gce
 spec:

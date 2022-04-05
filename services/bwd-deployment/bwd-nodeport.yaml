@@ -2,6 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: bwd-nodeport
+  namespace: default
 spec:
   type: NodePort
   selector:

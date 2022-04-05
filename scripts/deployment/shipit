@@ -861,6 +861,36 @@ properties:
 
 def validate_config(dir: str, config: ShipitFile) -> None:
 
+  def validate_k8s_yaml(dir: str, f: str, expected_namespace: str) -> None:
+    assert_file_exists(dir, f)
+    filename = os.path.join(dir, f)
+    # Yaml files can contain multiple documents
+    docs = yaml.load_all(open(filename).read(), Loader=yaml.Loader)
+    for i, doc in enumerate(docs):
+      if doc is None:
+        # Empty files are allowed
+        return
+
+      # Validate it's got the right namespace as well
+      kind = doc.get("kind")
+      if kind in ["CustomResourceDefinition", "ClusterRoleBinding", "Namespace"]:
+        # No namespaces on these
+        return
+
+      metadata = doc.get("metadata")
+      if metadata is None:
+        bad(f"Missing metadata in {filename}[{i}], expecting \"\{ namespace: {expected_namespace}\"\}"
+            )
+
+      this_namespace = doc['metadata'].get('namespace')
+      if this_namespace is None:
+        bad(f"Unspecified namespace in {filename}[{i}], expecting \"{expected_namespace}\""
+            )
+
+      if this_namespace != namespace:
+        bad(f"Config namespace in {filename}[{i}] doesn't match shipit.yaml, expecting \"{expected_namespace}\" but got \"{this_namespace}\""
+            )
+
   def validate_configmaps(
       dir: str, configmaps: Optional[Dict[str, ShipitFileConfigMapSection]]) -> None:
     if configmaps is None:
@@ -886,7 +916,7 @@ def validate_config(dir: str, config: ShipitFile) -> None:
   validate_configmaps(dir, manually_deployed.get("configmaps"))
   configs = manually_deployed["configs"]
   for f in configs:
-    assert_file_exists(dir, f)
+    validate_k8s_yaml(dir, f, namespace)
 
   release = config['k8s'].get("release", None)
   if release:

@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: cc-network-policy
+  namespace: default
 spec:
   podSelector:
     matchLabels:
