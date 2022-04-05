@@ -70,7 +70,7 @@ let OCamlSafeString = ocamlSafeString |> Arb.fromGen
 // let ocamlSafeString = alphaNumericString
 // let OCamlSafeString = AlphaNumericString
 
-let char () : Gen<string> =
+let char : Gen<string> =
   ocamlSafeString
   |> Gen.map String.toEgcSeq
   |> Gen.map Seq.toList
@@ -172,7 +172,6 @@ module RuntimeTypes =
 
   let DType =
     let rec isSupportedType =
-
       function
       | RT.TInt
       | RT.TStr
