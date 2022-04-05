@@ -858,8 +858,45 @@ properties:
     additionalProperties: false
 """
 
+K8sMetadata = TypedDict('K8sMetadata', {
+    "namespace": NotRequired[str],
+})
+
+K8sFile = TypedDict('K8sFile', {
+    "metadata": NotRequired[K8sMetadata],
+})
+
 
 def validate_config(dir: str, config: ShipitFile) -> None:
+
+  def validate_k8s_namespace(filename: str, expected_namespace: str,
+                             doc: Optional[K8sFile]) -> None:
+    if doc is None:
+      # Empty files are allowed
+      return
+
+    # Validate it's got the right namespace as well
+    kind = doc.get("kind")
+    if kind in [
+        "CustomResourceDefinition", "ClusterRoleBinding", "Namespace", "ClusterRole",
+        "Role", "RoleBinding", "MutatingWebhookConfiguration",
+        "ValidatingWebhookConfiguration"
+    ]:
+      # No namespaces on these
+      return
+
+    metadata = doc.get("metadata")
+    if metadata is None:
+      bad(f"Missing metadata in {filename}, expecting \"\{ namespace: {expected_namespace}\"\}"
+          )
+
+    this_namespace = doc['metadata'].get('namespace')
+    if this_namespace is None:
+      bad(f"Unspecified namespace in {filename}, expecting \"{expected_namespace}\"")
+
+    if this_namespace != namespace:
+      bad(f"Config namespace in {filename} doesn't match shipit.yaml, expecting \"{expected_namespace}\" but got \"{this_namespace}\""
+          )
 
   def validate_k8s_yaml(dir: str, f: str, expected_namespace: str) -> None:
     assert_file_exists(dir, f)
@@ -867,29 +904,7 @@ def validate_config(dir: str, config: ShipitFile) -> None:
     # Yaml files can contain multiple documents
     docs = yaml.load_all(open(filename).read(), Loader=yaml.Loader)
     for i, doc in enumerate(docs):
-      if doc is None:
-        # Empty files are allowed
-        return
-
-      # Validate it's got the right namespace as well
-      kind = doc.get("kind")
-      if kind in ["CustomResourceDefinition", "ClusterRoleBinding", "Namespace"]:
-        # No namespaces on these
-        return
-
-      metadata = doc.get("metadata")
-      if metadata is None:
-        bad(f"Missing metadata in {filename}[{i}], expecting \"\{ namespace: {expected_namespace}\"\}"
-            )
-
-      this_namespace = doc['metadata'].get('namespace')
-      if this_namespace is None:
-        bad(f"Unspecified namespace in {filename}[{i}], expecting \"{expected_namespace}\""
-            )
-
-      if this_namespace != namespace:
-        bad(f"Config namespace in {filename}[{i}] doesn't match shipit.yaml, expecting \"{expected_namespace}\" but got \"{this_namespace}\""
-            )
+      validate_k8s_namespace(f"{filename}[{i}]", expected_namespace, doc)
 
   def validate_configmaps(
       dir: str, configmaps: Optional[Dict[str, ShipitFileConfigMapSection]]) -> None:
@@ -925,9 +940,13 @@ def validate_config(dir: str, config: ShipitFile) -> None:
     template_filename = os.path.join(dir, release['config-template'])
     template_contents = open(template_filename).read()
 
+    # Check they have the right namespace in them
+    doc = yaml.load(template_contents, Loader=yaml.Loader)
+    validate_k8s_namespace(template_filename, namespace, doc)
+
+    # Check the containers are used in the template
     for c in release["containers"]:
       assert_dir_exists(dir, f"containers/{c}")
-      # Check the containers are used in the template
       assert_string_in_file(template_filename, template_contents, f"{{IMAGEID:{c}}}")
 
     # Check the vars are used in the template

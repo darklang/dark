@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: garbagecollector-deployment
+  namespace: default
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 spec:
