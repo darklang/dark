@@ -5,10 +5,12 @@ k8s:
       - bwdserver-network-policy.yaml
       - bwdserver-service.yaml
       - bwdserver-service-backendconfig.yaml
+      - bwdserver-ingress.yaml
+      - builtwithdark.com-tls.yaml
 
     # If you change the nginx override, it needs a rolling restart
     custom-post-apply:
-      - kubectl rollout restart --namespace default deployment/bwdserver-deployment
+      - kubectl rollout restart --namespace darklang deployment/bwdserver-deployment
 
   release:
     config-template: bwdserver-deployment.template.yaml
