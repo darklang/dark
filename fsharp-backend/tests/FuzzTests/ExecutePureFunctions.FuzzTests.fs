@@ -511,7 +511,8 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
         if not allowed2 then
           debugFn ()
 
-          print $"Got different error msgs:\n\"{aMsg}\"\n\n(F#) vs (OCaml)\n\"{eMsg}\"\n\n"
+          print
+            $"Got different error msgs:\n\"{aMsg}\"\n\n(F#) vs (OCaml)\n\"{eMsg}\"\n\n"
 
         return allowed
       | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
@@ -522,7 +523,8 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
         if not allowed2 then
           debugFn ()
 
-          print $"Got different DError msgs:\n\"{aMsg}\"\n\n(F#) vs (OCaml)\n\"{eMsg}\"\n\n"
+          print
+            $"Got different DError msgs:\n\"{aMsg}\"\n\n(F#) vs (OCaml)\n\"{eMsg}\"\n\n"
 
         return allowed
       | _ ->
