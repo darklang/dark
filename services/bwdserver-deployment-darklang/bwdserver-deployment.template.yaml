@@ -2,13 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bwdserver-deployment
-  namespace: default
+  namespace: darklang
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 
 spec:
   revisionHistoryLimit: 10
-  replicas: 3
+  replicas: 1 # FSTODO
   strategy:
     type: RollingUpdate
     rollingUpdate:

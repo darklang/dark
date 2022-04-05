@@ -2,7 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: bwdserver-service
-  namespace: default
+  namespace: darklang
   annotations:
     cloud.google.com/backend-config: '{"default": "bwdserver-service-backendconfig"}'
 spec:

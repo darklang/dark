@@ -1,5 +1,5 @@
 k8s:
-  namespace: default
+  namespace: darklang
   manually-deployed:
     configs:
       - bwdserver-network-policy.yaml
