@@ -159,14 +159,9 @@ def pip_install():
 def mypy_shipit():
   start = time.time()
   args = [
-      "--disallow-any-unimported",
-      # "--disallow-untyped-calls",
-      "--disallow-untyped-defs",
-      # "--no-implicit-optional",
-      # "--warn-redundant-casts",
-      # "--warn-unused-ignores",
-      # "--warn-return-any",
-      # "--allow-redefinition"
+      "--disallow-any-unimported", "--disallow-untyped-calls",
+      "--disallow-untyped-defs", "--no-implicit-optional", "--warn-redundant-casts",
+      "--warn-unused-ignores", "--warn-return-any"
   ]
   argstr = " ".join(args)
   return run_backend(start, f"mypy {argstr} scripts/deployment/shipit")
