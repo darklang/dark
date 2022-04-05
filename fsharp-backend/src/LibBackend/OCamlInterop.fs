@@ -347,10 +347,11 @@ let executeExpr
   let args =
     symtable |> Map.toList |> List.map (fun (k, dv) -> (k, Convert.rt2ocamlDval dv))
 
-  let dbs, fns = [], []
+  let dbs, fns, packageFns = [], [], []
 
-  let str =
-    Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
+  let tuple = (ownerID, canvasID, program, args, dbs, fns, packageFns)
+
+  let str = Json.OCamlCompatible.serialize tuple
 
   task {
     try
