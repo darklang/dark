@@ -3,6 +3,9 @@ k8s:
   manually-deployed:
     configs:
       - darkcustomdomain-ip-svc.yaml
+      - nginx-ingress-controller.yaml
+      - cert-manager-issuer.yaml
+      - cert-manager-wildcard-issuer.yaml
 
 # Note that services/custom-domains/darkcustomdomain-ingress.yaml is NOT checked in.
 # This ingress is `kubectl patch`'d to add new custom domains; `kubectl apply`ing the
