@@ -107,7 +107,7 @@ def run_output(args: Union[str, List[str]],
                shell: bool = False,
                on_error: Callable[[str], None] = bad,
                input: Optional[str] = None,
-               env: Optional[Dict[str, str]] = None) -> str:
+               env=None) -> str:
   try:
     if env != None:
       env = {**os.environ, **env}  # merge two dicts in python 3.8
