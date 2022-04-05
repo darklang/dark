@@ -1,42 +1,16 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: bwd-tls-ingress
-  namespace: default
+  name: bwdserver-tls-ingress
+  namespace: darklang
   annotations:
     kubernetes.io/ingress.class: gce
-    kubernetes.io/ingress.global-static-ip-name: bwd-tls-ip
+    kubernetes.io/ingress.global-static-ip-name: bwdserver-tls-ip
 spec:
   defaultBackend:
     service:
-      name: bwd-nodeport
+      name: bwdserver-service
       port:
         number: 80
-  rules:
-    # See
-    # https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress
-    # These rules are intended to enable just the users who opt in to the new F#
-    # backend, while we see what works.
-    - host: trydarkfsharp.builtwithdark.com
-      http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: bwdserver-service
-                port:
-                  number: 80
-    - host: luolong.builtwithdark.com
-      http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: bwdserver-service
-                port:
-                  number: 80
-
   tls:
     - secretName: builtwithdark.com-tls
