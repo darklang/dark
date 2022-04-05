@@ -36,7 +36,6 @@ module DeveloperRepr =
       |> Arb.filter (function
         | RT.DFnVal _ -> false
         | RT.DFloat 0.0 -> false
-        | RT.DFloat infinity -> false // TODO I don't think this is doing what we want it to!!
         | _ -> true)
 
   let equalsOCaml (dv : RT.Dval) : bool =
