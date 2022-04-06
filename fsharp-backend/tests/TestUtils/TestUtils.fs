@@ -294,14 +294,7 @@ let executionStateFor
             // possibly too many to annotate, so we assume that errors are intended
             // to be reported anytime the result is a DError.
             let exceptionCountMatches =
-              if RT.Dval.isDError result then
-                // This should be greater than zero, but there's confusion between
-                // different kinds of exceptions. Once we untangle handleException
-                // this can be re-enabled.
-                // FSTODO tc.exceptionReports.Length > 0
-                true
-              else
-                tc.exceptionReports.Length = tc.expectedExceptionCount
+              tc.exceptionReports.Length = tc.expectedExceptionCount
 
             if not exceptionCountMatches then
               List.iter
