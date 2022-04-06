@@ -427,7 +427,7 @@ let rec httpCall
     //   2) when redirecting, it kept the Authorization header (which HTTPClient drops)
     //   3) when redirecting, it failed appropriately when the scheme was not http/https
     // Each of these was a breaking change, and not great, but considering all three
-    // it felt worth implementing redirects outselves. Note that we did not use
+    // it felt worth implementing redirects ourselves. Note that we did not use
     // recursion within makeHttpCall, to ensure that the HTTP objects/streams were
     // all cleaned up before the redirect happened. We do keep more data in this case
     // than we would like but they're all redirects and so unlikely to have bodies.
@@ -450,7 +450,6 @@ let rec httpCall
           let newUrl = System.Uri(System.Uri(url), locationUrl).ToString()
 
           // Match curls default redirect behaviour: if it's a POST with content, redirect to GET
-          // FSTODO: are some headers involved
           let method, reqBody =
             match reqBody with
             | StringContent body when body <> "" ->
@@ -463,7 +462,6 @@ let rec httpCall
                 HttpMethod.Get, NoContent
               else
                 method, NoContent
-
             | _ -> method, reqBody
 
           // Unlike HttpClient, do not drop the authorization header
