@@ -14,6 +14,7 @@ optimize = in_ci
 
 # Make io unbuffered
 def flush(fn):
+
   def newfn(x):
     fn(x)
     sys.stdout.flush()
@@ -153,6 +154,17 @@ def shipit_validate(f):
 def pip_install():
   start = time.time()
   return run_backend(start, f"pip3 install -r scripts/deployment/requirements.txt")
+
+
+def mypy_shipit():
+  start = time.time()
+  args = [
+      "--disallow-any-unimported", "--disallow-untyped-calls",
+      "--disallow-untyped-defs", "--no-implicit-optional", "--warn-redundant-casts",
+      "--warn-unused-ignores", "--warn-return-any"
+  ]
+  argstr = " ".join(args)
+  return run_backend(start, f"mypy {argstr} scripts/deployment/shipit")
 
 
 def circleci_validate():
@@ -401,6 +413,7 @@ def reload_browser():
 
 
 class Should:
+
   def __init__(self):
     self.esy_install = False
     self.backend_build = False
@@ -423,6 +436,7 @@ class Should:
     self.copy_fsharp_static = False
     self.circleci_validate = False
     self.pip_install = False
+    self.mypy_shipit = False
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
@@ -475,6 +489,9 @@ def execute(should):
 
   if should.pip_install:
     if not pip_install(): success = False
+
+  if should.mypy_shipit:
+    if not mypy_shipit(): success = False
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False
@@ -711,6 +728,9 @@ def mark(should, f):
   elif ("/scripts/deployment/requirements.txt" in f):
     should.pip_install = True
 
+  elif ("/scripts/deployment/shipit" in f):
+    should.mypy_shipit = True
+
   elif ("/scripts/" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
@@ -734,12 +754,12 @@ def ignore(filename):
       ".ionide",
       ".browser-trigger",
       "scripts/build/compile",
-      "scripts/deployment/shipit",
       "integration-tests/tests.js",
       "rundir/",
       "_build/",
       "dark.install",
       "gmon.out",
+      ".mypy_cache/",
       "backend/serialization/",
       "backend/static/",
       "_esy/",
