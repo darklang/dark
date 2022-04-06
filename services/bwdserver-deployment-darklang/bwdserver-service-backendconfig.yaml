@@ -18,5 +18,5 @@ spec:
   logging:
     # Changing this setting didn't seem to do anything - I needed to Edit it in the
     # GCP web console (or presumably using the gcloud command line utilily)
-    # Note that only a change is status is logged.
+    # Note that only a change in status is logged.
     enable: true
