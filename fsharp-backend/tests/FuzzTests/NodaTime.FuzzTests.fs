@@ -7,6 +7,7 @@ open FsCheck
 open Prelude
 open TestUtils.TestUtils
 open FuzzTests.Utils
+
 module G = Generators
 
 type Generator =

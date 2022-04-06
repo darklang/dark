@@ -55,7 +55,7 @@ module Generators =
           let! v = Arb.generate<int64>
           return RT.EInteger(gid (), v)
         | RT.TStr ->
-          let! v = G.ocamlSafeString
+          let! v = G.ocamlSafeUnicodeString
           return RT.EString(gid (), v)
         | RT.TChar ->
           // We don't have a construct for characters, so create code to generate the character
@@ -84,7 +84,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip G.ocamlSafeString (genExpr' typ (size / 2))))
+                (Gen.zip G.ocamlSafeUnicodeString (genExpr' typ (size / 2))))
         | RT.TUserType (_name, _version) ->
           let! typ = Arb.generate<RT.DType>
 
@@ -93,7 +93,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip G.ocamlSafeString (genExpr' typ (size / 2))))
+                (Gen.zip G.ocamlSafeUnicodeString (genExpr' typ (size / 2))))
 
         | RT.TRecord pairs ->
           let! entries =
@@ -128,7 +128,10 @@ module Generators =
               (fun i (v : RT.DType) -> (id i, $"{v.toOldString().ToLower()}_{i}"))
               paramTypes
 
-          // FSTODO: occasionally use the wrong return type
+          let! returnType =
+            Gen.frequency [ (98, Gen.constant returnType)
+                            (2, G.RuntimeTypes.dType) ]
+
           // FSTODO: can we use the argument to get this type?
           let! body = genExpr' returnType size
           return RT.ELambda(gid (), parameters, body)
@@ -138,7 +141,7 @@ module Generators =
           let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
           return callFn "String" "toBytes" 0 [ v ]
         | RT.TDB _ ->
-          let! name = G.ocamlSafeString
+          let! name = G.ocamlSafeUnicodeString
           let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
           let name = ti.ToTitleCase name
           return RT.EVariable(gid (), name)
@@ -205,7 +208,7 @@ module Generators =
           let! v = Arb.generate<int64>
           return RT.DInt v
         | RT.TStr ->
-          let! v = G.ocamlSafeString
+          let! v = G.ocamlSafeUnicodeString
           return RT.DStr v
         | RT.TVariable _ ->
           let! newtyp = Arb.generate<RT.DType>
@@ -226,8 +229,8 @@ module Generators =
               (fun l -> RT.DObj(Map.ofList l))
               (Gen.listOfLength
                 s
-                (Gen.zip (G.ocamlSafeString) (genDval' typ (s / 2))))
-        | RT.TDB _ -> return! Gen.map RT.DDB (G.ocamlSafeString)
+                (Gen.zip (G.ocamlSafeUnicodeString) (genDval' typ (s / 2))))
+        | RT.TDB _ -> return! Gen.map RT.DDB (G.ocamlSafeUnicodeString)
         | RT.TDate ->
           return!
             Gen.map
@@ -270,7 +273,9 @@ module Generators =
           return RT.DError(source, str)
         | RT.TUserType (_name, _version) ->
           let! list =
-            Gen.listOfLength s (Gen.zip (G.ocamlSafeString) (genDval' typ (s / 2)))
+            Gen.listOfLength
+              s
+              (Gen.zip (G.ocamlSafeUnicodeString) (genDval' typ (s / 2)))
 
           return RT.DObj(Map list)
         | RT.TRecord (pairs) ->
@@ -313,7 +318,7 @@ type Generator =
   static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
     G.NodaTime.LocalDateTime
   static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
-  static member String() : Arbitrary<string> = G.OCamlSafeString
+  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
   static member Float() : Arbitrary<float> = G.OCamlSafeFloat
   static member Int64() : Arbitrary<int64> = G.OCamlSafeInt64
   static member Dval() : Arbitrary<RT.Dval> = G.RuntimeTypes.Dval

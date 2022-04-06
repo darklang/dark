@@ -67,7 +67,7 @@ type Generator =
   static member LocalDateTime() = G.NodaTime.LocalDateTime
   static member Instant() = G.NodaTime.Instant
 
-  static member String() : Arbitrary<string> = G.OCamlSafeString
+  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
   static member Expr() =
     Arb.Default.Derive()
@@ -141,7 +141,7 @@ module Roundtrippable =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -155,7 +155,7 @@ module Roundtrippable =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -202,7 +202,7 @@ module Queryable =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)

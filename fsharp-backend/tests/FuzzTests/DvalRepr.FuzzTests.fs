@@ -25,7 +25,7 @@ module DeveloperRepr =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     // The format here is only used for errors so it doesn't matter all that
     // much. These are places where we've manually checked the differing
@@ -56,7 +56,7 @@ module EnduserReadable =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -81,7 +81,7 @@ module Hashing =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()

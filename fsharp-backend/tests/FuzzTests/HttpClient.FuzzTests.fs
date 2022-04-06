@@ -23,10 +23,7 @@ type Generator =
     G.NodaTime.LocalDateTime
   static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-  static member String() : Arbitrary<string> =
-    // FSTODO: add in unicode
-    // G.ocamlSafeString |> Arb.fromGen
-    Arb.Default.String() |> Arb.filter G.isSafeOCamlString
+  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
   static member Dval() : Arbitrary<RT.Dval> =
     Arb.Default.Derive()
@@ -36,7 +33,7 @@ type Generator =
 
 type QueryStringGenerator =
   static member String() : Arbitrary<string> =
-    Gen.listOf (Gen.listOf (G.ocamlSafeString))
+    Gen.listOf (Gen.listOf (G.ocamlSafeUnicodeString))
     |> Gen.map (List.map (String.concat "="))
     |> Gen.map (String.concat "&")
     |> Arb.fromGen
@@ -82,7 +79,7 @@ module Tests =
     let test name fn = testProperty config typeof<Generator> name fn
     testList
       "HttpClient, known good"
-      [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
+      [ test "dvalToUrlStringExn" dvalToUrlStringExn
         test "dvalToQuery" dvalToQuery
         test "dvalToFormEncoding" dvalToFormEncoding
         test "queryToDval" queryToDval

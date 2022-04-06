@@ -16,7 +16,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module G = Generators
 
 type Generator =
-  static member String() : Arbitrary<string> = G.OCamlSafeString
+  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
 /// Checks that `toString` on a `byte[]` produces
 /// the same string for both OCaml and F# runtimes

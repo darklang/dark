@@ -31,7 +31,7 @@ module PrettyMachineJson =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -71,7 +71,7 @@ module PrettyResponseJson =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -114,7 +114,7 @@ module PrettyRequestJson =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -151,7 +151,7 @@ module LibJwtJson =
       G.NodaTime.LocalDateTime
     static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = G.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
