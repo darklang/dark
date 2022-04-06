@@ -5,6 +5,7 @@ apiVersion: cert-manager.io/v1alpha2
 kind: Issuer
 metadata:
   name: letsencrypt-prod
+  namespace: default
 spec:
   acme:
     # You must replace this email address with your own.

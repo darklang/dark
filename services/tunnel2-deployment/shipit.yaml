@@ -1,4 +1,5 @@
 k8s:
+  namespace: darklang
   manually-deployed:
     configs:
       - tunnel2-service.yaml

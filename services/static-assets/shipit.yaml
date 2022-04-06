@@ -1,4 +1,5 @@
 k8s:
+  namespace: default
   manually-deployed:
     configs:
       - darksa.com-tls.yaml

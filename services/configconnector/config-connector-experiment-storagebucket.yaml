@@ -6,6 +6,7 @@ metadata:
     cnrm.cloud.google.com/project-id: "balmy-ground-195100"
     cnrm.cloud.google.com/deletion-policy: abandon
   name: "config-connector-experiment"
+  namespace: default
 spec:
   bucketPolicyOnly: false
   cors:

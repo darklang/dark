@@ -1,4 +1,5 @@
 k8s:
+  namespace: default
   manually-deployed:
     configs:
       - cc-network-policy.yaml
@@ -7,7 +8,6 @@ k8s:
     versioned-configmaps:
       app-config:
         env-file: ../../config/gke-builtwithdark
-        namespace: default
     containers:
       - gcp-cronchecker
     builtins:

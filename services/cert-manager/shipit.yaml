@@ -1,7 +1,5 @@
 k8s:
+  namespace: cert-manager
   manually-deployed:
     configs:
-      - cert-manager-issuer.yaml
-      - cert-manager-wildcard-issuer.yaml
       - cert-manager.yaml
-      - nginx-ingress-controller.yaml

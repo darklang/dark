@@ -1,13 +1,16 @@
-# honeycomb-agent is deployed via helm. I don't know a great deal about it, but it seems we can update the deployment with
+# honeycomb-agent is deployed via helm. I don't know a great deal about it, but it
+# seems we can update the deployment with
+#
 # helm upgrade --install honeycomb honeycomb/honeycomb --values services/honeycomb-agent/config.yaml
+#
 # I think the regular config below also works
 k8s:
+  namespace: default
   manually-deployed:
     configs: []
     configmaps:
       honeycomb-agent:
         text-file: config.yaml
-        namespace: default
 
     custom-post-apply:
       - kubectl rollout restart ds/honeycomb-agent
