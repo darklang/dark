@@ -26,46 +26,46 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 let alphaNumericCharacters =
   List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
 
-// /// Generates a string that 'normalizes' successfully,
-// /// and is safe for use in OCaml
-// let ocamlSafeUnicodeString =
-//   /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
-//   let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
+/// Generates a string that 'normalizes' successfully,
+/// and is safe for use in OCaml
+let ocamlSafeUnicodeString =
+  /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
+  let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
 
-//   let normalizesSuccessfully (s : string) : bool =
-//     try
-//       String.normalize s |> ignore<string>
-//       true
-//     with
-//     | e ->
-//       // debuG
-//       //   "Failed to normalize :"
-//       //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+  let normalizesSuccessfully (s : string) : bool =
+    try
+      String.normalize s |> ignore<string>
+      true
+    with
+    | e ->
+      // debuG
+      //   "Failed to normalize :"
+      //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
 
-//       false
+      false
 
-//   Arb.generate<UnicodeString>
-//   |> Gen.map (fun (UnicodeString s) -> s)
-//   |> Gen.filter normalizesSuccessfully
-//   // Now that we know it can be normalized, actually normalize it
-//   |> Gen.map String.normalize
-//   |> Gen.filter isSafeOCamlString
+  Arb.generate<UnicodeString>
+  |> Gen.map (fun (UnicodeString s) -> s)
+  |> Gen.filter normalizesSuccessfully
+  // Now that we know it can be normalized, actually normalize it
+  |> Gen.map String.normalize
+  |> Gen.filter isSafeOCamlString
 
-// let OCamlSafeUnicodeString = ocamlSafeUnicodeString |> Arb.fromGen
+let OCamlSafeUnicodeString = ocamlSafeUnicodeString |> Arb.fromGen
 
 // FSTODO The above string generators yield strings that result in inconsistent
 // behaviour between OCaml and F# backends. This should be resolved. That said,
 // to test functionality outside of that issue, locally toggling the above
 // generator/arb for the below pair is recommended.
 
-let alphaNumericString =
-  let charGen = alphaNumericCharacters |> Gen.elements
-  Gen.arrayOf charGen |> Gen.map (fun cs -> new String(cs))
+// let alphaNumericString =
+//   let charGen = alphaNumericCharacters |> Gen.elements
+//   Gen.arrayOf charGen |> Gen.map (fun cs -> new String(cs))
 
-let AlphaNumericString = Arb.fromGen alphaNumericString
+// let AlphaNumericString = Arb.fromGen alphaNumericString
 
-let ocamlSafeUnicodeString = alphaNumericString
-let OCamlSafeUnicodeString = AlphaNumericString
+// let ocamlSafeUnicodeString = alphaNumericString
+// let OCamlSafeUnicodeString = AlphaNumericString
 
 let char () : Gen<string> =
   ocamlSafeUnicodeString
