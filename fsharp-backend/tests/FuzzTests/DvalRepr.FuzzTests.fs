@@ -15,17 +15,17 @@ module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
+module G = Generators
 
 /// Ensure text representation of Dvals meant to be read by Dark users
 /// is produced consistently across OCaml and F# backends
 module DeveloperRepr =
   type Generator =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-      Generators.NodaTime.LocalDateTime
-    static member Instant() : Arbitrary<NodaTime.Instant> =
-      Generators.NodaTime.Instant
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = Generators.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeString
 
     // The format here is only used for errors so it doesn't matter all that
     // much. These are places where we've manually checked the differing
@@ -53,11 +53,10 @@ module DeveloperRepr =
 module EnduserReadable =
   type Generator =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-      Generators.NodaTime.LocalDateTime
-    static member Instant() : Arbitrary<NodaTime.Instant> =
-      Generators.NodaTime.Instant
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = Generators.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -79,11 +78,10 @@ module EnduserReadable =
 module Hashing =
   type Generator =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-      Generators.NodaTime.LocalDateTime
-    static member Instant() : Arbitrary<NodaTime.Instant> =
-      Generators.NodaTime.Instant
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = Generators.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()

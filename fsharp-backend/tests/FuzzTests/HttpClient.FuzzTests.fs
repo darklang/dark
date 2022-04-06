@@ -20,12 +20,12 @@ module G = Generators
 
 type Generator =
   static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-    Generators.NodaTime.LocalDateTime
-  static member Instant() : Arbitrary<NodaTime.Instant> = Generators.NodaTime.Instant
+    G.NodaTime.LocalDateTime
+  static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
   static member String() : Arbitrary<string> =
     // FSTODO: add in unicode
-    // Generators.ocamlSafeString |> Arb.fromGen
+    // G.ocamlSafeString |> Arb.fromGen
     Arb.Default.String() |> Arb.filter G.isSafeOCamlString
 
   static member Dval() : Arbitrary<RT.Dval> =
@@ -36,7 +36,7 @@ type Generator =
 
 type QueryStringGenerator =
   static member String() : Arbitrary<string> =
-    Gen.listOf (Gen.listOf (Generators.ocamlSafeString))
+    Gen.listOf (Gen.listOf (G.ocamlSafeString))
     |> Gen.map (List.map (String.concat "="))
     |> Gen.map (String.concat "&")
     |> Arb.fromGen

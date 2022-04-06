@@ -7,11 +7,12 @@ open FsCheck
 open Prelude
 open TestUtils.TestUtils
 open FuzzTests.Utils
+module G = Generators
 
 type Generator =
   static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-    Generators.NodaTime.LocalDateTime
-  static member Instant() : Arbitrary<NodaTime.Instant> = Generators.NodaTime.Instant
+    G.NodaTime.LocalDateTime
+  static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
 /// Checks whether a `NodaTime.Instant` can be serialized
 /// and deserialized to/from an ISO String successfully,
