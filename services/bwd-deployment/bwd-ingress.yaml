@@ -27,6 +27,66 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+    - host: ops-documentation.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+    - host: xtopherbrandt-calculator.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+    - host: xtopherbrandt-race-sense.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+    - host: benwaffle.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+    - host: juliankrispel.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+    - host: juliankrispel-rob.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
     - host: luolong.builtwithdark.com
       http:
         paths:
