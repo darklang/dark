@@ -188,6 +188,16 @@
       "The .* param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate Floats to Ints."
     ],
     [
+      "Int::sqrt",
+      "(?<fn>.*) was called with a Float \\((?<value>.*)\\), but `.*` expected a Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
+      "The param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate the Float to an Int."
+    ],
+    [
+      "(Int::add|\\+)",
+      ".* was called with a Str .*, but `(a|b)` expected a Int. Use .* to concatenate",
+      "The (first|second) param .* is a String, but .* only works on Ints. Use .* or String::append to join Strings or parse Strings to Ints with String::toInt."
+    ],
+    [
       "(Int::add|\\+)",
       "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected a Int.",
       "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints.  Use \\+\\+ or String::append to join Strings or parse Strings to Ints with String::toInt."
