@@ -24,7 +24,7 @@ type Generator =
   static member Instant() : Arbitrary<NodaTime.Instant> = Generators.NodaTime.Instant
 
   static member String() : Arbitrary<string> =
-    // FSTODO: add in unicode
+    // FSTODO: add in unicode WHATISTHIS
     // Generators.ocamlSafeString |> Arb.fromGen
     Arb.Default.String() |> Arb.filter G.isSafeOCamlString
 
@@ -82,7 +82,7 @@ module Tests =
     let test name fn = testProperty config typeof<Generator> name fn
     testList
       "HttpClient, known good"
-      [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode
+      [ test "dvalToUrlStringExn" dvalToUrlStringExn // FSTODO: unicode WHATISTHIS
         test "dvalToQuery" dvalToQuery
         test "dvalToFormEncoding" dvalToFormEncoding
         test "queryToDval" queryToDval

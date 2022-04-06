@@ -298,7 +298,7 @@ let executionStateFor
                 // This should be greater than zero, but there's confusion between
                 // different kinds of exceptions. Once we untangle handleException
                 // this can be re-enabled.
-                // FSTODO tc.exceptionReports.Length > 0
+                // FSTODO tc.exceptionReports.Length > 0 WHATISTHIS
                 true
               else
                 tc.exceptionReports.Length = tc.expectedExceptionCount

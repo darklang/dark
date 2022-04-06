@@ -25,7 +25,7 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
 
 /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
-/// FSTODO: add in unicode
+/// FSTODO: add in unicode WHATISTHIS
 let safeOCamlString = Arb.Default.String() |> Arb.filter isSafeOCamlString
 
 /// List of all a..z, A..Z, 0..9, and _ characters
@@ -84,9 +84,11 @@ let nonNegativeInt =
   Arb.generate<NonNegativeInt> |> Gen.map (fun (NonNegativeInt i) -> i)
 
 let ocamlSafeFloat =
-  let specials = interestingFloats |> List.map Tuple2.second |> Gen.elements
+  gen {
+    let specials = interestingFloats |> List.map Tuple2.second |> Gen.elements
 
-  Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
+    return! Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
+  }
   |> Gen.filter (function
     | Double.PositiveInfinity
     | Double.NegativeInfinity -> false

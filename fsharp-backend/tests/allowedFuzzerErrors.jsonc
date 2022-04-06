@@ -1,7 +1,7 @@
 {
   // If `null`, test anything. If `"fn"`, only test fn
   "functionToTest": null,
-  //"functionToTest": "JSON::parse_v1",
+  //"functionToTest": "toString",
 
   // tests against these fns are note generated
   "knownDifferingFunctions": [
@@ -34,7 +34,7 @@
     "List::uniqueBy",
 
     // OCaml returns a DError on invalid UTF-8 strings, while F# returns a Result.Error
-    "JSON::parse_v1" // FSTODO make signature the same
+    "JSON::parse_v1" // FSTODO make signature the same (Q)
   ],
   "knownErrors": [
     // Expected form:

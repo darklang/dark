@@ -132,11 +132,11 @@ module Generators =
             Gen.frequency [ (98, Gen.constant returnType)
                             (2, G.RuntimeTypes.dType) ]
 
-          // FSTODO: can we use the argument to get this type?
+          // FSTODO: can we use the argument to get this type? WHATISTHIS
           let! body = genExpr' returnType size
           return RT.ELambda(gid (), parameters, body)
         | RT.TBytes ->
-          // FSTODO: this doesn't really do anything useful
+          // FSTODO: this doesn't really do anything useful WHATISTHIS
           let! bytes = Arb.generate<byte []>
           let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
           return callFn "String" "toBytes" 0 [ v ]
@@ -158,9 +158,12 @@ module Generators =
         | RT.TError ->
           let! msg = genExpr' RT.TStr size
           return callFn "Test" "typeError" 0 [ msg ]
+        | RT.TIncomplete ->
+          // WHATISTHIS does this seem reasonable, given the context?
+          let! returnType = G.RuntimeTypes.dType
+          return! genExpr' returnType size
 
         // FSTODO support all types
-        | RT.TIncomplete
         | RT.TPassword
         | RT.TErrorRail ->
           return Exception.raiseInternal $"Unsupported type (yet!)" [ "typ", typ ]
@@ -182,7 +185,8 @@ module Generators =
       if isKnownDifference then
         false
       elif allowedErrors.functionToTest = None then
-        // FSTODO: Add JWT and X509 functions here
+        // FSTODO: Add JWT functions here
+        // FSTODO: Add x509 functions here
         fn.previewable = RT.Pure || fn.previewable = RT.ImpurePreviewable
       elif Some name = allowedErrors.functionToTest then
         true
@@ -301,10 +305,12 @@ module Generators =
         | RT.TErrorRail ->
           let! typ = Arb.generate<RT.DType>
           return! Gen.map RT.DErrorRail (genDval' typ s)
+        | RT.TIncomplete ->
+          let! source = Arb.generate<RT.DvalSource>
+          return! Gen.constant (RT.DIncomplete source)
 
         // FSTODO: support all types
-        | RT.TPassword
-        | RT.TIncomplete ->
+        | RT.TPassword ->
           return Exception.raiseInternal "Type not supported yet" [ "type", typ ]
       }
 
