@@ -4,7 +4,7 @@ metadata:
   name: bwdserver-service
   namespace: darklang
   annotations:
-    cloud.google.com/backend-config: '{"default": "bwdserver-service-backendconfig"}'
+    cloud.google.com/backend-config: '{"darklang": "bwdserver-service-backendconfig"}'
 spec:
   # GKE ingress requires this to be a nodeport
   type: NodePort
@@ -19,4 +19,4 @@ spec:
       name: bwdserver-healthcheck-port
       port: 11002
       targetPort: 11002
-      nodePort: 30112 # For the healthcheck in bwdserver-service-backendconfig
+      nodePort: 30212 # For the healthcheck in bwdserver-service-backendconfig
