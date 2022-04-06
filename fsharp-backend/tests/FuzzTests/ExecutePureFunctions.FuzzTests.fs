@@ -136,7 +136,9 @@ module Generators =
           let! body = genExpr' returnType size
           return RT.ELambda(gid (), parameters, body)
         | RT.TBytes ->
-          // FSTODO: this doesn't really do anything useful
+          // FSTODO: expand our byte level testing to include non-stringable bytes
+          // (to test edges of conversions to strings, and just be more robust in general).
+          // If we're able to remove `containsBytes` or reduce its scope, all the better.
           let! bytes = Arb.generate<byte []>
           let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
           return callFn "String" "toBytes" 0 [ v ]
