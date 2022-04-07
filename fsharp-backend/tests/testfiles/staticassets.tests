@@ -19,3 +19,7 @@
  ([ String.startsWith_v0 url "https://test-baseurlforlatest-line-12-let-url-staticassets-base"
   ; String.endsWith_v0 url "abcdef1234"
   ; String.length_v0 url])) = [true; true; 119]
+
+[tests.baseUrlForLatestWithNoHash]
+StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "Dark Exception.DarkStorage Err: Expected one result, got none" // OCAMLONLY
+StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "No deploy hash found" // FSHARPONLY

@@ -96,7 +96,7 @@ let urlFor
   url canvasName deployHash variant + "/" + file
 
 
-let latestDeployHash (canvasID : CanvasID) : Task<string> =
+let latestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
   let branch = "main"
 
   Sql.query
@@ -105,7 +105,7 @@ let latestDeployHash (canvasID : CanvasID) : Task<string> =
        ORDER BY created_at desc
        LIMIT 1"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "branch", Sql.string branch ]
-  |> Sql.executeRowAsync (fun read -> read.string "deploy_hash")
+  |> Sql.executeRowOptionAsync (fun read -> read.string "deploy_hash")
 
 
 

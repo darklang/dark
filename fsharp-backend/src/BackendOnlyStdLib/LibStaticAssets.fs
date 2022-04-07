@@ -114,9 +114,11 @@ let fns : List<BuiltInFn> =
         | state, [] ->
           uply {
             // CLEANUP calling this with no deploy hash generates an error
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.url state.program.canvasName deployHash SA.Short
-            return DStr url
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.url state.program.canvasName deployHash SA.Short
+              return DStr url
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -147,9 +149,11 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            return DStr url
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some hash ->
+              let url = SA.urlFor state.program.canvasName hash SA.Short file
+              return DStr url
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -227,12 +231,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! response = getV0 url
-            match UTF8.ofBytesOpt response with
-            | Some str -> return DResult(Ok(DStr str))
-            | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! response = getV0 url
+              match UTF8.ofBytesOpt response with
+              | Some str -> return DResult(Ok(DStr str))
+              | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -249,12 +255,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! response = getV0 url
-            match UTF8.ofBytesOpt response with
-            | Some str -> return Dval.resultOk (DStr str)
-            | None -> return Dval.resultError (DStr "Response was not UTF-8 safe")
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! response = getV0 url
+              match UTF8.ofBytesOpt response with
+              | Some str -> return Dval.resultOk (DStr str)
+              | None -> return Dval.resultError (DStr "Response was not UTF-8 safe")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -270,10 +278,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! response, _, _ = getV1 url
-            return DResult(Ok(DBytes(response)))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! response, _, _ = getV1 url
+              return DResult(Ok(DBytes(response)))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -346,18 +356,20 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! body, headers, code = getV2 url
-            let headers =
-              headers
-              |> List.map (fun (k, v) -> (k, v.Trim()))
-              |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
-              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
-            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! body, headers, code = getV2 url
+              let headers =
+                headers
+                |> List.map (fun (k, v) -> (k, v.Trim()))
+                |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
+                |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+                |> List.filter (fun (k, v) -> not (v.Trim() = ""))
+              return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -373,18 +385,21 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr file ] ->
           uply {
-            let! deployHash = SA.latestDeployHash state.program.canvasID
-            let url = SA.urlFor state.program.canvasName deployHash SA.Short file
-            let! body, headers, code = getV2 url
-            let headers =
-              headers
-              |> List.map (fun (k, v) -> (k, v.Trim()))
-              |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
-              |> List.filter (fun (k, v) -> not (k.Trim() = ""))
-              |> List.filter (fun (k, v) -> not (v.Trim() = ""))
-            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return Dval.errStr "No deploy hash found"
+            | Some deployHash ->
+              let url = SA.urlFor state.program.canvasName deployHash SA.Short file
+              let! body, headers, code = getV2 url
+              let headers =
+                headers
+                |> List.map (fun (k, v) -> (k, v.Trim()))
+                |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+                |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
+                |> List.filter (fun (k, v) -> not (k.Trim() = ""))
+                |> List.filter (fun (k, v) -> not (v.Trim() = ""))
+              return
+                DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
