@@ -41,35 +41,46 @@ let httpClient =
 /// anything goes wrong.
 let getV0 (url : string) : Task<byte []> =
   task {
-    try
-      use req = new HttpRequestMessage(HttpMethod.Get, url)
-      let! response = httpClient.SendAsync req
-      let code = int response.StatusCode
-      let! body = response.Content.ReadAsByteArrayAsync()
-      if code < 200 || code >= 300 then
-        return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
-      else
-        return body
-    with
-    | e -> return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
+    let! (body, code) =
+      task {
+        try
+          use req = new HttpRequestMessage(HttpMethod.Get, url)
+          let! response = httpClient.SendAsync req
+          let code = int response.StatusCode
+          let! body = response.Content.ReadAsByteArrayAsync()
+          return body, code
+        with
+        | e ->
+          return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
+      }
+
+    if code < 200 || code >= 300 then
+      return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
+    else
+      return body
   }
 
 /// Replaces legacy HttpClientv1. Returns bytes, headers, and status code, and throws
 /// on non-200s or if anything goes wrong.
 let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
   task {
-    try
-      use req = new HttpRequestMessage(HttpMethod.Get, url)
-      let! response = httpClient.SendAsync req
-      let code = int response.StatusCode
-      let headers = HttpHeaders.headersForAspNetResponse response
-      let! body = response.Content.ReadAsByteArrayAsync()
-      if code < 200 || code >= 300 then
-        return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
-      else
-        return body, headers, code
-    with
-    | e -> return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
+    let! body, headers, code =
+      task {
+        try
+          use req = new HttpRequestMessage(HttpMethod.Get, url)
+          let! response = httpClient.SendAsync req
+          let code = int response.StatusCode
+          let headers = HttpHeaders.headersForAspNetResponse response
+          let! body = response.Content.ReadAsByteArrayAsync()
+          return body, headers, code
+        with
+        | e ->
+          return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
+      }
+    if code < 200 || code >= 300 then
+      return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
+    else
+      return body, headers, code
   }
 
 /// Replaces legacy HttpClientv2. Returns bytes, headers, and status code, and throws
@@ -175,7 +186,7 @@ let fns : List<BuiltInFn> =
             let! response = getV0 url
             match UTF8.ofBytesOpt response with
             | Some dv -> return DResult(Ok(DStr dv))
-            | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
+            | None -> return DResult(Error(DStr "Response was not\nUTF-8 safe"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

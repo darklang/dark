@@ -20,14 +20,28 @@ StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "No deploy hash fo
 
 // I tried uploading files for these tests using the dark-cli, but between the login and the dev server this proved almost impossible. Instead, I uploaded them directly using the google cloud console.
 
-[test.fetchhtml] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// Fetch_v0
+//[test.fetchhtml] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+//StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+
+[test.fetchmissing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
 [test.fetchtext] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetchpng OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetchpng] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
-[test.fetchpngfsharp FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
+// Fetch_v1
+//[test.fetchv1html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+//StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+
+[test.fetchv1missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v1 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
+
+[test.fetchv1text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v1 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
+
+[test.fetchv1png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v1 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
