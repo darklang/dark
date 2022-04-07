@@ -8,6 +8,9 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open Npgsql.FSharp
+open LibBackend.Db
+
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
@@ -21,7 +24,7 @@ module Canvas = LibBackend.Canvas
 
 open TestUtils.TestUtils
 
-let setUpWorkers meta workers =
+let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
   task {
     let workersWithIDs = workers |> List.map (fun w -> w, (gid ()))
 
@@ -51,6 +54,21 @@ let setUpWorkers meta workers =
     do! Canvas.saveTLIDs meta oplists
   }
 
+let setupStaticAssets (meta : Canvas.Meta) (deployHash : string) : Task<unit> =
+  task {
+    return!
+      Sql.query
+        "INSERT INTO static_asset_deploys
+          (canvas_id, branch, deploy_hash, uploaded_by_account_id, created_at, live_at)
+        VALUES
+          (@canvasID, @branch, @deployHash, @uploadedBy, NOW(), NOW())"
+      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                          "branch", Sql.string "main"
+                          "deployHash", Sql.string deployHash
+                          "uploadedBy", Sql.uuid meta.owner ]
+      |> Sql.executeStatementAsync
+  }
+
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
   (initializeCanvas : bool)
@@ -60,6 +78,7 @@ let t
   (packageFns : Map<PT.FQFnName.PackageFnName, PT.Package.Fn>)
   (functions : Map<string, PT.UserFunction.T>)
   (workers : List<string>)
+  (staticAssetsDeployHash : Option<string>)
   : Test =
   let name = $"{comment} ({code})"
 
@@ -70,13 +89,16 @@ let t
       try
         let! owner = owner
         let! meta =
+          let initializeCanvas =
+            initializeCanvas
+            || dbs <> []
+            || workers <> []
+            || staticAssetsDeployHash <> None
           // Little optimization to skip the DB sometimes
           if initializeCanvas then
             initializeCanvasForOwner owner name
           else
             createCanvasForOwner owner name
-
-        if workers <> [] then do! setUpWorkers meta workers
 
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
@@ -106,6 +128,11 @@ let t
           Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
         do! clearCanvasData meta.owner meta.name
+        match staticAssetsDeployHash with
+        | Some hash -> do! setupStaticAssets meta hash
+        | None -> ()
+        if workers <> [] then do! setupWorkers meta workers
+
 
         // Only do this now so that the error doesn't fire while evaluating the expectedExpr
         let state =
@@ -148,6 +175,11 @@ let t
 
           // Clear the canvas before we run the OCaml tests
           do! clearCanvasData meta.owner meta.name
+          match staticAssetsDeployHash with
+          | Some hash -> do! setupStaticAssets meta hash
+          | None -> ()
+          if workers <> [] then do! setupWorkers meta workers
+
 
         if testFSharp then
           let! fsharpActual =
@@ -182,7 +214,8 @@ type TestInfo =
     recording : bool
     code : string
     dbs : List<PT.DB.T>
-    workers : List<string> }
+    workers : List<string>
+    staticAssetsDeployHash : Option<string> }
 
 type TestGroup = { name : string; tests : List<Test>; dbs : List<PT.DB.T> }
 
@@ -221,7 +254,12 @@ let fileTests () : Test =
   |> Array.map (fun file ->
     let filename = System.IO.Path.GetFileName file
     let emptyTest =
-      { recording = false; name = ""; dbs = []; code = ""; workers = [] }
+      { recording = false
+        name = ""
+        dbs = []
+        code = ""
+        workers = []
+        staticAssetsDeployHash = None }
 
     let emptyFn =
       { recording = false
@@ -246,17 +284,15 @@ let fileTests () : Test =
     let mutable dbs : Map<string, PT.DB.T> = Map.empty
     let owner =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
+    let initializeCanvas =
+      filename = "internal.tests"
+      // staticassets.tests only needs initialization for OCaml (where the
+      // canvas_id is fetched from the DB during test function call, rather than
+      // up-front). This is also true of the other places in this file this
+      // condition is repeated.
+      || filename = "staticassets.tests"
 
     let finish () =
-      let initializeCanvas =
-        filename = "internal.tests"
-        // staticassets.tests only needs initialization for OCaml (where the
-        // canvas_id is fetched from the DB during test function call, rather than
-        // up-front). This is also true of the other places in this file this
-        // condition is repeated.
-        || filename = "staticassets.tests"
-        || currentTest.dbs <> []
-        || currentTest.workers <> []
       if currentTest.recording then
         let newTestCase =
           t
@@ -268,6 +304,7 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.workers
+            currentTest.staticAssetsDeployHash
 
         allTests <- allTests @ [ newTestCase ]
 
@@ -276,7 +313,6 @@ let fileTests () : Test =
         allTests <- allTests @ [ newTestCase ]
 
       if currentFn.recording then
-
 
         if currentFn.isPackage then
           let parameters =
@@ -429,6 +465,16 @@ let fileTests () : Test =
               recording = true
               workers = [ workerName ] }
 
+      // [test] with StaticAssetsDeploy indicator
+      | Regex @"^\[test\.(.*)\] with StaticAssetsDeploy (.*)$" [ name; hash ] ->
+        finish ()
+
+        currentTest <-
+          { currentTest with
+              name = $"{name} (line {i})"
+              recording = true
+              staticAssetsDeployHash = Some hash }
+
       // [test] indicator (no DB)
       | Regex @"^\[test\.(.*)\]$" [ name ] ->
         finish ()
@@ -446,10 +492,6 @@ let fileTests () : Test =
         currentFn <- { currentFn with code = currentFn.code + "\n" + line }
       // 1-line test
       | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
-        let initializeCanvas =
-          filename = "internal.tests"
-          || filename = "staticassets.tests"
-          || currentGroup.dbs <> []
         let test =
           t
             owner
@@ -460,13 +502,10 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.workers
+            currentTest.staticAssetsDeployHash
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
-        let initializeCanvas =
-          filename = "internal.tests"
-          || filename = "staticassets.tests"
-          || currentGroup.dbs <> []
         let test =
           t
             owner
@@ -477,6 +516,7 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.workers
+            currentTest.staticAssetsDeployHash
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 
