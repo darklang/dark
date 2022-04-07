@@ -216,17 +216,6 @@ let latestDeployHash (canvasID : CanvasID) : Task<string> =
 //   ; last_update
 //   ; status = Deploying }
 //
-//
-// (* This is for Ellen's demo, and is just the backend of a libdarkinternal function. *)
-// let delete_assets_for_ellens_demo (canvas_id : Uuidm.t) : unit =
-//   Db.delete
-//     ~name:"delete_ellens_assets"
-//     ~subject:(Uuidm.to_string canvas_id)
-//     "DELETE FROM static_asset_deploys where canvas_id = $1"
-//     ~params:[Uuid canvas_id]
-//   |> ignore
-//
-//
 // (* since postgres doesn't have named transactions, we just delete the db
 //  * record in question. For now, we're leaving files where they are; the right
 //  * thing to do here would be to shell out to `gsutil -m rm -r`, but shelling out
