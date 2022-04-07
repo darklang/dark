@@ -78,6 +78,7 @@ let setupStaticAssets
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
   (initializeCanvas : bool)
+  (canvasName : TestCanvasName)
   (comment : string)
   (code : string)
   (dbs : List<PT.DB.T>)
@@ -102,9 +103,9 @@ let t
             || staticAssetsDeployHashes <> []
           // Little optimization to skip the DB sometimes
           if initializeCanvas then
-            initializeCanvasForOwner owner (Randomized name)
+            initializeCanvasForOwner owner canvasName
           else
-            createCanvasForOwner owner (Randomized name)
+            createCanvasForOwner owner canvasName
 
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
@@ -214,7 +215,8 @@ let t
 type TestExtras =
   { dbs : List<PT.DB.T>
     workers : List<string>
-    staticAssetsDeployHashes : List<string> }
+    staticAssetsDeployHashes : List<string>
+    exactCanvasName : Option<string> }
 
 type TestInfo =
   { name : string
@@ -249,13 +251,14 @@ let testAdmin =
         |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
     })
 
-let emptyExtras = { dbs = []; workers = []; staticAssetsDeployHashes = [] }
+let emptyExtras =
+  { dbs = []; workers = []; staticAssetsDeployHashes = []; exactCanvasName = None }
 
 let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras =
   annotation
   |> String.split ","
   |> List.fold emptyExtras (fun extras s ->
-    match String.split " " annotation with
+    match String.split " " (String.trim s) |> debug "split" with
     | [ "DB"; dbName ] ->
       let dbName = String.trim dbName
       match Map.get dbName dbs with
@@ -264,6 +267,8 @@ let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras 
     | [ "Worker"; workerName ] ->
       let workerName = String.trim workerName
       { extras with workers = workerName :: extras.workers }
+    | [ "ExactCanvasName"; canvasName ] ->
+      { extras with exactCanvasName = Some(String.trim canvasName) }
     | [ "StaticAssetsDeployHash"; hash ] ->
       let hash = String.trim hash
       { extras with
@@ -317,10 +322,15 @@ let fileTests () : Test =
 
     let finish () =
       if currentTest.recording then
+        let canvasName =
+          match currentTest.extras.exactCanvasName with
+          | None -> Randomized currentTest.name
+          | Some exactName -> Exact exactName
         let newTestCase =
           t
             owner
             initializeCanvas
+            canvasName
             currentTest.name
             currentTest.code
             currentTest.extras.dbs
@@ -496,6 +506,7 @@ let fileTests () : Test =
           t
             owner
             initializeCanvas
+            (Randomized $"{comment} (line {i})")
             $"{comment} (line {i})"
             code
             currentGroup.extras.dbs
@@ -510,6 +521,7 @@ let fileTests () : Test =
           t
             owner
             initializeCanvas
+            (Randomized $"line {i}")
             $"line {i}"
             code
             currentGroup.extras.dbs

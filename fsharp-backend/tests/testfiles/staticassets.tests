@@ -1,35 +1,18 @@
-// Url tests change every time we run tests because they have the canvas name in the
-// Url and the canvas next is generated dynamically by the test framework. This means
-// we need to test their properties instead, and that changing the line numbers of
-// the test means we need to change the test.
+[test.baseUrlFor] with ExactCanvasName test-baseurlfor-0
+StaticAssets.baseUrlFor_v0 "abcdefghi" = "https://test-baseurlfor-0.darksa.com/gd57quywk2db6zncs3h2hxgfdtc/abcdefghi"
 
-[test.baseUrlFor]
-(let url = StaticAssets.baseUrlFor_v0 "abcdefghi"
- ([ String.startsWith_v0 url "https://test-baseurlfor-line-6-let-url-staticassets-baseurlfor-"
-  ; String.endsWith_v0 url "/abcdefghi"
-  ; String.length_v0 url])) = [true; true; 117]
-
-[test.baseUrlForLatest] with StaticAssetsDeployHash abcdef1234
-(let url = StaticAssets.baseUrlForLatest_v0
- ([ String.startsWith_v0 url "https://test-baseurlforlatest-line-12-let-url-staticassets-base-"
-  ; String.endsWith_v0 url "abcdef1234"
-  ; String.length_v0 url])) = [true; true; 119]
+[test.baseUrlForLatest] with ExactCanvasName test-baseurlforlatest-0, StaticAssetsDeployHash abcdef1234
+StaticAssets.baseUrlForLatest_v0 = "https://test-baseurlforlatest-0.darksa.com/hzfhha2hzep63uscg-venrwndxs/abcdef1234"
 
 [tests.baseUrlForLatestWithNoHash]
 StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "Dark Exception.DarkStorage Err: Expected one result, got none" // OCAMLONLY
 StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "No deploy hash found" // FSHARPONLY
 
-[test.urlFor]
-(let url = StaticAssets.urlFor_v0 "abcdefghi" "index.html"
- ([ String.startsWith_v0 url "https://test-urlfor-line-22-let-url-staticassets-urlfor-v0-abcd-"
-  ; String.endsWith_v0 url "/abcdefghi/index.html"
-  ; String.length_v0 url])) = [true; true; 129]
+[test.urlFor] with ExactCanvasName test-urlfor-0
+StaticAssets.urlFor_v0 "abcdefghi" "index.html" = "https://test-urlfor-0.darksa.com/3jmuukrzwc2zszlzv_3kxyvd_eo/abcdefghi/index.html"
 
-[test.urlForLatest] with StaticAssetsDeployHash abcdef1234
-(let url = StaticAssets.urlForLatest_v0 "index.html"
- ([ String.startsWith_v0 url "https://test-urlforlatest-line-28-let-url-staticassets-urlforla-"
-  ; String.endsWith_v0 url "abcdef1234/index.html"
-  ; String.length_v0 url])) = [true; true; 130]
+[test.urlForLatest] with ExactCanvasName test-urlforlatest-0, StaticAssetsDeployHash abcdef1234
+StaticAssets.urlForLatest_v0 "index.html" = "https://test-urlforlatest-0.darksa.com/bxbyu2t5yencny5j8wus3wszcnc/abcdef1234/index.html"
 
 [tests.urlForLatestWithNoHash]
 StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "Dark Exception.DarkStorage Err: Expected one result, got none" // OCAMLONLY
