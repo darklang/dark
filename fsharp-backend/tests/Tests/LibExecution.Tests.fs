@@ -54,19 +54,25 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
     do! Canvas.saveTLIDs meta oplists
   }
 
-let setupStaticAssets (meta : Canvas.Meta) (deployHash : string) : Task<unit> =
+let setupStaticAssets
+  (meta : Canvas.Meta)
+  (deployHashes : List<string>)
+  : Task<unit> =
   task {
     return!
-      Sql.query
-        "INSERT INTO static_asset_deploys
-          (canvas_id, branch, deploy_hash, uploaded_by_account_id, created_at, live_at)
-        VALUES
-          (@canvasID, @branch, @deployHash, @uploadedBy, NOW(), NOW())"
-      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                          "branch", Sql.string "main"
-                          "deployHash", Sql.string deployHash
-                          "uploadedBy", Sql.uuid meta.owner ]
-      |> Sql.executeStatementAsync
+      Task.iterSequentially
+        (fun hash ->
+          Sql.query
+            "INSERT INTO static_asset_deploys
+              (canvas_id, branch, deploy_hash, uploaded_by_account_id, created_at, live_at)
+            VALUES
+              (@canvasID, @branch, @deployHash, @uploadedBy, NOW(), NOW())"
+          |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                              "branch", Sql.string "main"
+                              "deployHash", Sql.string hash
+                              "uploadedBy", Sql.uuid meta.owner ]
+          |> Sql.executeStatementAsync)
+        deployHashes
   }
 
 let t
@@ -78,7 +84,7 @@ let t
   (packageFns : Map<PT.FQFnName.PackageFnName, PT.Package.Fn>)
   (functions : Map<string, PT.UserFunction.T>)
   (workers : List<string>)
-  (staticAssetsDeployHash : Option<string>)
+  (staticAssetsDeployHashes : List<string>)
   : Test =
   let name = $"{comment} ({code})"
 
@@ -93,7 +99,7 @@ let t
             initializeCanvas
             || dbs <> []
             || workers <> []
-            || staticAssetsDeployHash <> None
+            || staticAssetsDeployHashes <> []
           // Little optimization to skip the DB sometimes
           if initializeCanvas then
             initializeCanvasForOwner owner name
@@ -127,12 +133,14 @@ let t
         let! expected =
           Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
-        do! clearCanvasData meta.owner meta.name
-        match staticAssetsDeployHash with
-        | Some hash -> do! setupStaticAssets meta hash
-        | None -> ()
-        if workers <> [] then do! setupWorkers meta workers
-
+        let resetCanvas () : Task<unit> =
+          task {
+            do! clearCanvasData meta.owner meta.name
+            if staticAssetsDeployHashes <> [] then
+              do! setupStaticAssets meta staticAssetsDeployHashes
+            if workers <> [] then do! setupWorkers meta workers
+          }
+        do! resetCanvas ()
 
         // Only do this now so that the error doesn't fire while evaluating the expectedExpr
         let state =
@@ -174,12 +182,7 @@ let t
               $"OCaml: {msg}"
 
           // Clear the canvas before we run the OCaml tests
-          do! clearCanvasData meta.owner meta.name
-          match staticAssetsDeployHash with
-          | Some hash -> do! setupStaticAssets meta hash
-          | None -> ()
-          if workers <> [] then do! setupWorkers meta workers
-
+          do! resetCanvas ()
 
         if testFSharp then
           let! fsharpActual =
@@ -208,16 +211,18 @@ let t
             ""
     }
 
+type TestExtras =
+  { dbs : List<PT.DB.T>
+    workers : List<string>
+    staticAssetsDeployHashes : List<string> }
 
 type TestInfo =
   { name : string
     recording : bool
     code : string
-    dbs : List<PT.DB.T>
-    workers : List<string>
-    staticAssetsDeployHash : Option<string> }
+    extras : TestExtras }
 
-type TestGroup = { name : string; tests : List<Test>; dbs : List<PT.DB.T> }
+type TestGroup = { name : string; tests : List<Test>; extras : TestExtras }
 
 type FnInfo =
   { name : string
@@ -244,6 +249,30 @@ let testAdmin =
         |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
     })
 
+let emptyExtras = { dbs = []; workers = []; staticAssetsDeployHashes = [] }
+
+let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras =
+  annotation
+  |> String.split ","
+  |> List.fold emptyExtras (fun extras s ->
+    match String.split " " annotation with
+    | [ "DB"; dbName ] ->
+      let dbName = String.trim dbName
+      match Map.get dbName dbs with
+      | Some db -> { extras with dbs = db :: extras.dbs }
+      | None -> Exception.raiseInternal $"No DB named {dbName} found" []
+    | [ "Worker"; workerName ] ->
+      let workerName = String.trim workerName
+      { extras with workers = workerName :: extras.workers }
+    | [ "StaticAssetsDeployHash"; hash ] ->
+      let hash = String.trim hash
+      { extras with
+          staticAssetsDeployHashes = hash :: extras.staticAssetsDeployHashes }
+    | other -> Exception.raiseInternal "invalid option" [ "annotation", other ])
+
+
+
+
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
   let dir = "tests/testfiles/"
@@ -253,13 +282,7 @@ let fileTests () : Test =
   |> Array.filter ((<>) ".gitattributes")
   |> Array.map (fun file ->
     let filename = System.IO.Path.GetFileName file
-    let emptyTest =
-      { recording = false
-        name = ""
-        dbs = []
-        code = ""
-        workers = []
-        staticAssetsDeployHash = None }
+    let emptyTest = { recording = false; name = ""; code = ""; extras = emptyExtras }
 
     let emptyFn =
       { recording = false
@@ -269,7 +292,7 @@ let fileTests () : Test =
         tlid = id 7
         isPackage = false }
 
-    let emptyGroup = { name = ""; tests = []; dbs = [] }
+    let emptyGroup = { name = ""; tests = []; extras = emptyExtras }
 
     // for recording a multiline test
     let mutable currentTest = emptyTest
@@ -300,11 +323,11 @@ let fileTests () : Test =
             initializeCanvas
             currentTest.name
             currentTest.code
-            currentTest.dbs
+            currentTest.extras.dbs
             packageFunctions
             functions
-            currentTest.workers
-            currentTest.staticAssetsDeployHash
+            currentTest.extras.workers
+            currentTest.extras.staticAssetsDeployHashes
 
         allTests <- allTests @ [ newTestCase ]
 
@@ -363,14 +386,11 @@ let fileTests () : Test =
       // any changes, update that file.
       match line with
       // [tests] indicator
-      | Regex @"^\[tests\.(.*)\] with DB (.*)$" [ name; dbName ] ->
+      | Regex @"^\[tests\.(.*)\] with (.*)$" [ name; extras ] ->
         finish ()
+        let extras = parseExtras extras dbs
 
-        match Map.get dbName dbs with
-        | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
-        | None -> Exception.raiseInternal $"No DB named {dbName} found" []
-
-        currentGroup <- { currentGroup with name = name }
+        currentGroup <- { currentGroup with name = name; extras = extras }
       | Regex @"^\[tests\.(.*)\]$" [ name ] ->
         finish ()
         currentGroup <- { currentGroup with name = name }
@@ -445,35 +465,15 @@ let fileTests () : Test =
             code = "" }
 
       // [test] with DB indicator
-      | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
+      | Regex @"^\[test\.(.*)\] with (.*)$" [ name; extras ] ->
         finish ()
-
-        match Map.get dbName dbs with
-        | Some db -> currentTest <- { currentTest with dbs = [ db ] }
-        | None -> Exception.raiseInternal $"No DB named {dbName} found" []
-
-        currentTest <-
-          { currentTest with name = $"{name} (line {i})"; recording = true }
-
-      // [test] with Worker indicator
-      | Regex @"^\[test\.(.*)\] with Worker (.*)$" [ name; workerName ] ->
-        finish ()
+        let extras = parseExtras extras dbs
 
         currentTest <-
           { currentTest with
               name = $"{name} (line {i})"
               recording = true
-              workers = [ workerName ] }
-
-      // [test] with StaticAssetsDeploy indicator
-      | Regex @"^\[test\.(.*)\] with StaticAssetsDeploy (.*)$" [ name; hash ] ->
-        finish ()
-
-        currentTest <-
-          { currentTest with
-              name = $"{name} (line {i})"
-              recording = true
-              staticAssetsDeployHash = Some hash }
+              extras = extras }
 
       // [test] indicator (no DB)
       | Regex @"^\[test\.(.*)\]$" [ name ] ->
@@ -498,11 +498,11 @@ let fileTests () : Test =
             initializeCanvas
             $"{comment} (line {i})"
             code
-            currentGroup.dbs
+            currentGroup.extras.dbs
             packageFunctions
             functions
-            currentTest.workers
-            currentTest.staticAssetsDeployHash
+            currentTest.extras.workers
+            currentTest.extras.staticAssetsDeployHashes
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
@@ -512,11 +512,11 @@ let fileTests () : Test =
             initializeCanvas
             $"line {i}"
             code
-            currentGroup.dbs
+            currentGroup.extras.dbs
             packageFunctions
             functions
-            currentTest.workers
-            currentTest.staticAssetsDeployHash
+            currentTest.extras.workers
+            currentTest.extras.staticAssetsDeployHashes
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 

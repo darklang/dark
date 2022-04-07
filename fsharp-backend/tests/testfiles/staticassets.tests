@@ -9,7 +9,7 @@
   ; String.endsWith_v0 url "/abcdefghi"
   ; String.length_v0 url])) = [true; true; 117]
 
-[test.baseUrlForLatest] with StaticAssetsDeploy abcdef1234
+[test.baseUrlForLatest] with StaticAssetsDeployHash abcdef1234
 (let url = StaticAssets.baseUrlForLatest_v0
  ([ String.startsWith_v0 url "https://test-baseurlforlatest-line-12-let-url-staticassets-base-"
   ; String.endsWith_v0 url "abcdef1234"
@@ -25,7 +25,7 @@ StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "No deploy hash found" // F
   ; String.endsWith_v0 url "/abcdefghi/index.html"
   ; String.length_v0 url])) = [true; true; 129]
 
-[test.urlForLatest] with StaticAssetsDeploy abcdef1234
+[test.urlForLatest] with StaticAssetsDeployHash abcdef1234
 (let url = StaticAssets.urlForLatest_v0 "index.html"
  ([ String.startsWith_v0 url "https://test-urlforlatest-line-28-let-url-staticassets-urlforla-"
   ; String.endsWith_v0 url "abcdef1234/index.html"
