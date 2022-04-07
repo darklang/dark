@@ -67,6 +67,16 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+    - host: hgad.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
     - host: juliankrispel.builtwithdark.com
       http:
         paths:
