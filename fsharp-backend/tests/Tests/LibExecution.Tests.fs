@@ -102,9 +102,9 @@ let t
             || staticAssetsDeployHashes <> []
           // Little optimization to skip the DB sometimes
           if initializeCanvas then
-            initializeCanvasForOwner owner name
+            initializeCanvasForOwner owner (Randomized name)
           else
-            createCanvasForOwner owner name
+            createCanvasForOwner owner (Randomized name)
 
         let rtDBs =
           (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)

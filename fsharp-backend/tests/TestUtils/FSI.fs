@@ -18,7 +18,7 @@ open Prelude
 let execute (code : string) : RT.Dval =
   let t =
     task {
-      let! meta = TestUtils.initializeTestCanvas "fsi"
+      let! meta = TestUtils.initializeTestCanvas (TestUtils.Exact "fsi")
       let! state = TestUtils.executionStateFor meta Map.empty Map.empty
       let prog = FSharpToExpr.parseRTExpr code
       return! Exe.executeExpr state Map.empty prog
@@ -30,7 +30,7 @@ let execute (code : string) : RT.Dval =
 let executeOCaml (code : string) : RT.Dval =
   let t =
     task {
-      let! meta = TestUtils.initializeTestCanvas "fsi"
+      let! meta = TestUtils.initializeTestCanvas (TestUtils.Exact "fsi")
       let prog = FSharpToExpr.parsePTExpr code
       return! OCamlInterop.execute meta.owner meta.id prog Map.empty [] [] []
     }

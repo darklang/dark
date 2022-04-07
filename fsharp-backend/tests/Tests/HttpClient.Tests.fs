@@ -130,7 +130,7 @@ let makeTest versionName filename =
     if shouldSkipTest then
       skiptest $"underscore test - {testName}"
     else
-      let! meta = createTestCanvas $"httpclient-{versionName}-{testName}"
+      let! meta = createTestCanvas (Randomized $"httpclient-{versionName}-{testName}")
 
       // Parse the code
       let shouldEqual, actualDarkProg, expectedResult =

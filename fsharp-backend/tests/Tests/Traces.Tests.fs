@@ -39,7 +39,7 @@ let testTraceIDsOfTlidsMatch =
 let testFilterSlash =
   testTask "test that a request which doesnt match doesnt end up in the traces" {
     // set up handler with route param
-    let! meta = initializeTestCanvas "test-filter_slash"
+    let! meta = initializeTestCanvas (Randomized "test-filter_slash")
     let route = "/:rest"
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
@@ -59,7 +59,7 @@ let testFilterSlash =
 
 let testRouteVariablesWorkWithStoredEvents =
   testTask "route variables work with stored events" {
-    let! meta = initializeTestCanvas "route_variables_works"
+    let! meta = initializeTestCanvas (Randomized "route_variables_works")
 
     // set up handler
     let httpRoute = "/some/:vars/:and/such"
@@ -91,7 +91,7 @@ let testRouteVariablesWorkWithStoredEvents =
 
 let testRouteVariablesWorkWithTraceInputsAndWildcards =
   testTask "route variables work with trace inputs and wildcards" {
-    let! meta = initializeTestCanvas "route_variables_works_with_withcards"
+    let! meta = initializeTestCanvas (Randomized "route_variables_works_with_withcards")
 
     // '_' is the "wildcard" here, and the '-' matches the wildcard.
     // '-' could equally well be '!' or 'Z' or '🇨🇭' or "-matcheswildcard-"
@@ -116,9 +116,9 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards =
 let testStoredEventRoundtrip =
   testTask "test stored events can be roundtripped" {
     let! (meta1 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped1"
+      initializeTestCanvas (Randomized "stored_events_can_be_roundtripped1")
     let! (meta2 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped2"
+      initializeTestCanvas (Randomized "stored_events_can_be_roundtripped2")
     let id1 = meta1.id
     let id2 = meta2.id
 
@@ -208,7 +208,7 @@ let testFunctionTracesAreStored =
   testTask "function traces are stored" {
     // set up canvas, user fn
     let! (meta : Canvas.Meta) =
-      initializeTestCanvas "test-function-traces-are-stored"
+      initializeTestCanvas (Randomized "test-function-traces-are-stored")
     let fnid = 12312345234UL
 
     let (userFn : RT.UserFunction.T) =
@@ -256,7 +256,7 @@ let testFunctionTracesAreStored =
 let testErrorTracesAreStored =
   testTask "error traces are stored" {
     // set up canvas, user fn
-    let! (meta : Canvas.Meta) = initializeTestCanvas "test-error-traces-are-stored"
+    let! (meta : Canvas.Meta) = initializeTestCanvas (Randomized "test-error-traces-are-stored")
 
     let (db : DB.T) = { tlid = gid (); name = "MyDB"; cols = []; version = 0 }
 

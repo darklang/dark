@@ -30,7 +30,7 @@ let executionStateForPreview
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
-    let! meta = createTestCanvas name
+    let! meta = createTestCanvas (Randomized name)
     let! state = executionStateFor meta dbs fns
     let results, traceFn = Exe.traceDvals ()
 
@@ -62,7 +62,7 @@ let execSaveDvals
 
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
-    let! meta = initializeTestCanvas "exec-function-tlids"
+    let! meta = initializeTestCanvas (Randomized "exec-function-tlids")
     let name = "testFunction"
     let fn = testUserFn name [] (PT.EInteger(gid (), 5)) |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
@@ -85,7 +85,7 @@ let testExecFunctionTLIDs : Test =
 let testErrorRailUsedInAnalysis : Test =
   testTask
     "When a function isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
-    let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
+    let! meta = createTestCanvas (Randomized "testErrorRailsUsedInAnalysis")
     let! state = executionStateFor meta Map.empty Map.empty
 
     let loadTraceResults _ _ =

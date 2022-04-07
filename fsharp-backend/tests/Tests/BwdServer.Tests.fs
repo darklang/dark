@@ -200,7 +200,7 @@ let t filename =
     let name =
       let withoutPrefix = if skip then String.dropLeft 1 filename else filename
       withoutPrefix |> String.dropRight 5 // ".test"
-    let! (meta : Canvas.Meta) = initializeTestCanvas $"bwdserver-{name}"
+    let! (meta : Canvas.Meta) = initializeTestCanvas (Randomized $"bwdserver-{name}")
 
     let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
