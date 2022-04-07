@@ -62,11 +62,13 @@ let setupStaticAssets
     return!
       Task.iterSequentially
         (fun hash ->
+          // If it's already there just update the times. Multiple tests can use the same hash.
           Sql.query
             "INSERT INTO static_asset_deploys
               (canvas_id, branch, deploy_hash, uploaded_by_account_id, created_at, live_at)
             VALUES
-              (@canvasID, @branch, @deployHash, @uploadedBy, NOW(), NOW())"
+              (@canvasID, @branch, @deployHash, @uploadedBy, NOW(), NOW())
+            ON CONFLICT DO NOTHING"
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                               "branch", Sql.string "main"
                               "deployHash", Sql.string hash
@@ -258,7 +260,7 @@ let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras 
   annotation
   |> String.split ","
   |> List.fold emptyExtras (fun extras s ->
-    match String.split " " (String.trim s) |> debug "split" with
+    match String.split " " (String.trim s) with
     | [ "DB"; dbName ] ->
       let dbName = String.trim dbName
       match Map.get dbName dbs with
