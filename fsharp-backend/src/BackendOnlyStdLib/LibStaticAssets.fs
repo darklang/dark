@@ -113,6 +113,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [] ->
           uply {
+            // CLEANUP calling this with no deploy hash generates an error
             let! deployHash = SA.latestDeployHash state.program.canvasID
             let url = SA.url state.program.canvasName deployHash SA.Short
             return DStr url
