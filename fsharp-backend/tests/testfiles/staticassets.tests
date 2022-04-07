@@ -1,0 +1,10 @@
+[test.baseUrlFor]
+// The result changes each time we run tests, but is in the format
+// https://test-line-1-staticassets-baseurlfor-v0-test-html-https-ehrrk.darksa.com/xgio89ag5akbnvmltdg_5z8krxa/test.html
+// So we check some properties instead. Note that the line number is in the canvas
+// name and hence is in the test result, so if you change things you need to update
+// the test.
+(let url = StaticAssets.baseUrlFor_v0 "test.html"
+ ([ String.startsWith_v0 url "https://test-baseurlfor-line-1-let-url-staticassets-baseurlfor"
+  ; String.endsWith_v0 url "/test.html"
+  ; String.length_v0 url])) = [true; true; 117]

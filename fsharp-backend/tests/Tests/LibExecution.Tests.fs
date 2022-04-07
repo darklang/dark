@@ -250,6 +250,11 @@ let fileTests () : Test =
     let finish () =
       let initializeCanvas =
         filename = "internal.tests"
+        // staticassets.tests only needs initialization for OCaml (where the
+        // canvas_id is fetched from the DB during test function call, rather than
+        // up-front). This is also true of the other places in this file this
+        // condition is repeated.
+        || filename = "staticassets.tests"
         || currentTest.dbs <> []
         || currentTest.workers <> []
       if currentTest.recording then
@@ -441,7 +446,10 @@ let fileTests () : Test =
         currentFn <- { currentFn with code = currentFn.code + "\n" + line }
       // 1-line test
       | Regex @"^(.*)\s+//\s+(.*)$" [ code; comment ] ->
-        let initializeCanvas = filename = "internal.tests" || currentGroup.dbs <> []
+        let initializeCanvas =
+          filename = "internal.tests"
+          || filename = "staticassets.tests"
+          || currentGroup.dbs <> []
         let test =
           t
             owner
@@ -455,7 +463,10 @@ let fileTests () : Test =
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
-        let initializeCanvas = filename = "internal.tests" || currentGroup.dbs <> []
+        let initializeCanvas =
+          filename = "internal.tests"
+          || filename = "staticassets.tests"
+          || currentGroup.dbs <> []
         let test =
           t
             owner
