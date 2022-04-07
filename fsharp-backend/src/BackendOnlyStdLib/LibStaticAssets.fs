@@ -62,7 +62,7 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
       use req = new HttpRequestMessage(HttpMethod.Get, url)
       let! response = httpClient.SendAsync req
       let code = int response.StatusCode
-      let headers = response.Headers |> HttpHeaders.fromAspNetHeaders
+      let headers = HttpHeaders.headersForAspNetResponse response
       let! body = response.Content.ReadAsByteArrayAsync()
       if code < 200 || code >= 300 then
         return Exception.raiseCode $"Bad HTTP response ({code}) in call to {url}"
@@ -80,7 +80,7 @@ let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
       use req = new HttpRequestMessage(HttpMethod.Get, url)
       let! response = httpClient.SendAsync req
       let code = int response.StatusCode
-      let headers = response.Headers |> HttpHeaders.fromAspNetHeaders
+      let headers = HttpHeaders.headersForAspNetResponse response
       let! body = response.Content.ReadAsByteArrayAsync()
       return body, headers, code
     with
