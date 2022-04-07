@@ -1,7 +1,7 @@
 {
   // If `null`, test anything. If `"fn"`, only test fn
   "functionToTest": null,
-  //"functionToTest": "JSON::read",
+  //"functionToTest": "Float::clamp",
 
   // tests against these fns are note generated
   "knownDifferingFunctions": [
@@ -156,6 +156,11 @@
       "String::toFloat",
       "Expected the argument `.*` to be a string representation of an IEEE float, but it was `.*`",
       "Expected a string representation of an IEEE float"
+    ],
+    [
+      "Float::clamp",
+      "clamp requires arguments to be valid numbers",
+      ".*Internal Float.clamp exception: \\(\\\"clamp requires \\[min <= max\\]\\\" \\(min .*\\) \\(max .*\\)\\).*"
     ],
     [
       "Float::sum",

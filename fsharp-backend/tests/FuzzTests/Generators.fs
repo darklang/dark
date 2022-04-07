@@ -87,9 +87,7 @@ let ocamlSafeFloat =
   gen {
     let specials = interestingFloats |> List.map Tuple2.second |> Gen.elements
 
-    return!
-      Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
-      |> Gen.filter (Float.isNaN >> not)
+    return! Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
   }
 
 let OCamlSafeFloat = Arb.fromGen ocamlSafeFloat
