@@ -1,6 +1,9 @@
+// baseUrlFor
 [test.baseUrlFor] with ExactCanvasName test-baseurlfor-0
 StaticAssets.baseUrlFor_v0 "abcdefghi" = "https://test-baseurlfor-0.darksa.com/gd57quywk2db6zncs3h2hxgfdtc/abcdefghi"
 
+
+// baseUrlForLatest
 [test.baseUrlForLatest] with ExactCanvasName test-baseurlforlatest-0, StaticAssetsDeployHash abcdef1234
 StaticAssets.baseUrlForLatest_v0 = "https://test-baseurlforlatest-0.darksa.com/hzfhha2hzep63uscg-venrwndxs/abcdef1234"
 
@@ -8,9 +11,13 @@ StaticAssets.baseUrlForLatest_v0 = "https://test-baseurlforlatest-0.darksa.com/h
 StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "Dark Exception.DarkStorage Err: Expected one result, got none" // OCAMLONLY
 StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "No deploy hash found" // FSHARPONLY
 
+
+// urlFor
 [test.urlFor] with ExactCanvasName test-urlfor-0
 StaticAssets.urlFor_v0 "abcdefghi" "index.html" = "https://test-urlfor-0.darksa.com/3jmuukrzwc2zszlzv_3kxyvd_eo/abcdefghi/index.html"
 
+
+// urlForLatest
 [test.urlForLatest] with ExactCanvasName test-urlforlatest-0, StaticAssetsDeployHash abcdef1234
 StaticAssets.urlForLatest_v0 "index.html" = "https://test-urlforlatest-0.darksa.com/bxbyu2t5yencny5j8wus3wszcnc/abcdef1234/index.html"
 
@@ -18,30 +25,61 @@ StaticAssets.urlForLatest_v0 "index.html" = "https://test-urlforlatest-0.darksa.
 StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "Dark Exception.DarkStorage Err: Expected one result, got none" // OCAMLONLY
 StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "No deploy hash found" // FSHARPONLY
 
-// I tried uploading files for these tests using the dark-cli, but between the login and the dev server this proved almost impossible. Instead, I uploaded them directly using the google cloud console.
 
 // Fetch_v0
-//[test.fetchhtml] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-//StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+[test.fetchhtml] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
-[test.fetchmissing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
-
-[test.fetchtext] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetchpng] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
-// Fetch_v1
-//[test.fetchv1html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-//StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+[test.fetch missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
-[test.fetchv1missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v1 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
+[test.fetch nohash] with ExactCanvasName test-static-assets-deploy
+StaticAssets.fetch_v0 "xx" "index.html" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/xx/index.html"
+
+
+// Fetch_v1
+[test.fetchv1html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
 [test.fetchv1text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
 [test.fetchv1png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
+
+[test.fetchv1missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v1 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
+
+[test.fetch nohash] with ExactCanvasName test-static-assets-deploy
+StaticAssets.fetch_v1 "xx" "index.html" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/xx/index.html"
+
+// FSTODO All these tests use the same canvas and they're having race issues cause
+// the canvas is getting deleted between runs and all of this is happening in
+// parallel.
+
+// FetchLatestv0
+[test.fetchhtml] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+
+[test.fetchLatest text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatest_v0 "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
+
+[test.fetchLatest png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatest_v0 "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
+
+[test.fetchLatest missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatest_v0 "no-file-with-this-name" = Test.typeError "Dark Exception.DarkStorage Err: Expected one result, got none"
+
+[test.fetchLatest missing FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatest_v0 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
+
+[tests.fetch nohash]
+StaticAssets.fetchLatest_v0 "index.html" = Test.typeError "Dark Exception.DarkStorage Err: Expected one result, got none" // OCAMLONLY
+StaticAssets.fetchLatest_v0 "index.html" = Test.typeError "No deploy hash found" // FSHARPONLY
+
