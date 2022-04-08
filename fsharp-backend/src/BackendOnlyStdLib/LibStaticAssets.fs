@@ -249,7 +249,7 @@ let fns : List<BuiltInFn> =
               let! response = getV0 url
               match UTF8.ofBytesOpt response with
               | Some str -> return DResult(Ok(DStr str))
-              | None -> return DResult(Error(DStr "Response was not UTF-8 safe"))
+              | None -> return DResult(Error(DStr "Response was not\nUTF-8 safe"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
