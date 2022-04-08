@@ -18,7 +18,10 @@ module Canvas = LibBackend.Canvas
 /// Creates/returns a "benchmark" ProgramContext for testing
 let programContext () : Task<RT.ProgramContext> =
   task {
-    let! c = TestUtils.TestUtils.initializeTestCanvas (TestUtils.TestUtils.Exact "benchmark")
+    let! c =
+      TestUtils.TestUtils.initializeTestCanvas (
+        TestUtils.TestUtils.Exact "benchmark"
+      )
     return
       { canvasID = c.id
         canvasName = c.name

@@ -91,7 +91,8 @@ let testRouteVariablesWorkWithStoredEvents =
 
 let testRouteVariablesWorkWithTraceInputsAndWildcards =
   testTask "route variables work with trace inputs and wildcards" {
-    let! meta = initializeTestCanvas (Randomized "route_variables_works_with_withcards")
+    let! meta =
+      initializeTestCanvas (Randomized "route_variables_works_with_withcards")
 
     // '_' is the "wildcard" here, and the '-' matches the wildcard.
     // '-' could equally well be '!' or 'Z' or '🇨🇭' or "-matcheswildcard-"
@@ -256,7 +257,8 @@ let testFunctionTracesAreStored =
 let testErrorTracesAreStored =
   testTask "error traces are stored" {
     // set up canvas, user fn
-    let! (meta : Canvas.Meta) = initializeTestCanvas (Randomized "test-error-traces-are-stored")
+    let! (meta : Canvas.Meta) =
+      initializeTestCanvas (Randomized "test-error-traces-are-stored")
 
     let (db : DB.T) = { tlid = gid (); name = "MyDB"; cols = []; version = 0 }
 

@@ -263,7 +263,8 @@ let testLoadAllDBs =
 
 let testCanvasVerificationDuplicationCreation =
   testTask "canvas verification duplication creation" {
-    let! meta = initializeTestCanvas (Randomized "canvas-verification-duplication-creation")
+    let! meta =
+      initializeTestCanvas (Randomized "canvas-verification-duplication-creation")
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -279,7 +280,9 @@ let testCanvasVerificationDuplicationCreation =
 let testCanvasVerificationDuplicationCreationOffDisk =
   testTask "canvas verification duplication creation off disk" {
     let! meta =
-      initializeTestCanvas (Randomized "canvas-verification-duplication-creation-off-disk")
+      initializeTestCanvas (
+        Randomized "canvas-verification-duplication-creation-off-disk"
+      )
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     // same name
@@ -306,7 +309,8 @@ let testCanvasVerificationDuplicationCreationOffDisk =
 
 let testCanvasVerificationDuplicationRenaming =
   testTask "canvas verification duplication renaming" {
-    let! meta = initializeTestCanvas (Randomized "canvas-verification-duplication-renaming")
+    let! meta =
+      initializeTestCanvas (Randomized "canvas-verification-duplication-renaming")
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -336,7 +340,8 @@ let testCanvasVerificationNoError =
 
 let testCanvasVerificationUndoRenameDupedName =
   testTask "canvas verification undo rename duped name" {
-    let! meta = initializeTestCanvas (Randomized "canvas-verification-undo-rename-duped-name")
+    let! meta =
+      initializeTestCanvas (Randomized "canvas-verification-undo-rename-duped-name")
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops1 =
