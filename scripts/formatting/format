@@ -125,6 +125,8 @@ all_prettier_files() {
     -o -path "./fsharp-backend/.paket" \
     -o -path "fsharp-backend/Build" \
     -o -path "./fsharp-backend/Build" \
+    -o -path "fsharp-backend/tests/staticassets-tests" \
+    -o -path "./fsharp-backend/tests/staticassets-tests" \
     \) -prune -false \
     \
     -o -type f \
