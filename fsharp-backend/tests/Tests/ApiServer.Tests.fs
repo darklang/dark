@@ -328,7 +328,7 @@ let postApiTestCase
       clear "Server-Timing"
       clear "x-darklang-execution-id"
       let (_ : bool) = h.Remove "Connection" // not useful, not in new API
-      let (_ : bool) = h.Remove "Strict-Transport-Security" // only in new API
+      let (_ : bool) = h.Remove "Strict-Transport-Security" // only in new API Q: any adjustment needed here?
 
       h
       |> Seq.toList

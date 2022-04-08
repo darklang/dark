@@ -480,6 +480,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
+  |> fun app -> app.UseHsts()
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -487,6 +488,7 @@ let configureServices (services : IServiceCollection) : unit =
   |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> Rollbar.AspNet.addRollbarToServices
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
+  |> fun s -> s.AddHsts (LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
 
 let noLogger (builder : ILoggingBuilder) : unit =
