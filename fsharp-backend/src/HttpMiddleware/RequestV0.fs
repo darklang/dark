@@ -99,11 +99,10 @@ let url (headers : List<string * string>) (uri : string) =
   // FSTODO test this somehow (probably fuzz against old)
   parsed.Query <- urlEncodeExcept "*$@!:()~?/.,&-_=\\" parsed.Query
   // Set the scheme if it's passed by the load balancer
-  let headerProtocol =
-    headers
-    |> List.find (fun (k, _) -> String.toLowercase k = "x-forwarded-proto")
-    |> Option.map (fun (_, v) -> parsed.Scheme <- v)
-    |> ignore<Option<unit>>
+  headers
+  |> List.find (fun (k, _) -> String.toLowercase k = "x-forwarded-proto")
+  |> Option.map (fun (_, v) -> parsed.Scheme <- v)
+  |> ignore<Option<unit>>
   // Use .Uri or it will slip in a port number
   RT.DStr(string parsed.Uri)
 

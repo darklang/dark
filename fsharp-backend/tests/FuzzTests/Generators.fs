@@ -22,26 +22,17 @@ module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternal = LibExecution.DvalReprInternal
 
-let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
-
-/// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
-/// FSTODO: add in unicode
-let safeOCamlString = Arb.Default.String() |> Arb.filter isSafeOCamlString
-
 /// List of all a..z, A..Z, 0..9, and _ characters
 let alphaNumericCharacters =
   List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
 
-let alphaNumericString =
-  let charGen = alphaNumericCharacters |> Gen.elements
-  Gen.arrayOf charGen |> Gen.map (fun cs -> new String(cs))
-
-let AlphaNumericString = Arb.fromGen alphaNumericString
-
 /// Generates a string that 'normalizes' successfully,
 /// and is safe for use in OCaml
-let ocamlSafeString =
-  let isValid (s : string) : bool =
+let ocamlSafeUnicodeString =
+  /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
+  let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
+
+  let normalizesSuccessfully (s : string) : bool =
     try
       String.normalize s |> ignore<string>
       true
@@ -55,23 +46,29 @@ let ocamlSafeString =
 
   Arb.generate<UnicodeString>
   |> Gen.map (fun (UnicodeString s) -> s)
-  |> Gen.filter isValid
+  |> Gen.filter normalizesSuccessfully
   // Now that we know it can be normalized, actually normalize it
   |> Gen.map String.normalize
   |> Gen.filter isSafeOCamlString
 
-let OCamlSafeString = ocamlSafeString |> Arb.fromGen
+let OCamlSafeUnicodeString = ocamlSafeUnicodeString |> Arb.fromGen
 
 // FSTODO The above string generators yield strings that result in inconsistent
 // behaviour between OCaml and F# backends. This should be resolved. That said,
 // to test functionality outside of that issue, locally toggling the above
 // generator/arb for the below pair is recommended.
 
-// let ocamlSafeString = alphaNumericString
-// let OCamlSafeString = AlphaNumericString
+// let alphaNumericString =
+//   let charGen = alphaNumericCharacters |> Gen.elements
+//   Gen.arrayOf charGen |> Gen.map (fun cs -> new String(cs))
+
+// let AlphaNumericString = Arb.fromGen alphaNumericString
+
+// let ocamlSafeUnicodeString = alphaNumericString
+// let OCamlSafeUnicodeString = AlphaNumericString
 
 let char () : Gen<string> =
-  ocamlSafeString
+  ocamlSafeUnicodeString
   |> Gen.map String.toEgcSeq
   |> Gen.map Seq.toList
   |> Gen.map List.head
@@ -205,3 +202,5 @@ module RuntimeTypes =
       | RT.TErrorRail -> false
 
     Arb.Default.Derive() |> Arb.filter isSupportedType
+
+  let dType = DType.Generator

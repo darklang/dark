@@ -55,7 +55,7 @@ module Generators =
           let! v = Arb.generate<int64>
           return RT.EInteger(gid (), v)
         | RT.TStr ->
-          let! v = Generators.ocamlSafeString
+          let! v = G.ocamlSafeUnicodeString
           return RT.EString(gid (), v)
         | RT.TChar ->
           // We don't have a construct for characters, so create code to generate the character
@@ -84,7 +84,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip Generators.ocamlSafeString (genExpr' typ (size / 2))))
+                (Gen.zip G.ocamlSafeUnicodeString (genExpr' typ (size / 2))))
         | RT.TUserType (_name, _version) ->
           let! typ = Arb.generate<RT.DType>
 
@@ -93,7 +93,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip Generators.ocamlSafeString (genExpr' typ (size / 2))))
+                (Gen.zip G.ocamlSafeUnicodeString (genExpr' typ (size / 2))))
 
         | RT.TRecord pairs ->
           let! entries =
@@ -128,17 +128,22 @@ module Generators =
               (fun i (v : RT.DType) -> (id i, $"{v.toOldString().ToLower()}_{i}"))
               paramTypes
 
-          // FSTODO: occasionally use the wrong return type
+          let! returnType =
+            Gen.frequency [ (98, Gen.constant returnType)
+                            (2, G.RuntimeTypes.dType) ]
+
           // FSTODO: can we use the argument to get this type?
           let! body = genExpr' returnType size
           return RT.ELambda(gid (), parameters, body)
         | RT.TBytes ->
-          // FSTODO: this doesn't really do anything useful
+          // FSTODO: expand our byte level testing to include non-stringable bytes
+          // (to test edges of conversions to strings, and just be more robust in general).
+          // If we're able to remove `containsBytes` or reduce its scope, all the better.
           let! bytes = Arb.generate<byte []>
           let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
           return callFn "String" "toBytes" 0 [ v ]
         | RT.TDB _ ->
-          let! name = Generators.ocamlSafeString
+          let! name = G.ocamlSafeUnicodeString
           let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
           let name = ti.ToTitleCase name
           return RT.EVariable(gid (), name)
@@ -205,7 +210,7 @@ module Generators =
           let! v = Arb.generate<int64>
           return RT.DInt v
         | RT.TStr ->
-          let! v = Generators.ocamlSafeString
+          let! v = G.ocamlSafeUnicodeString
           return RT.DStr v
         | RT.TVariable _ ->
           let! newtyp = Arb.generate<RT.DType>
@@ -226,8 +231,8 @@ module Generators =
               (fun l -> RT.DObj(Map.ofList l))
               (Gen.listOfLength
                 s
-                (Gen.zip (Generators.ocamlSafeString) (genDval' typ (s / 2))))
-        | RT.TDB _ -> return! Gen.map RT.DDB (Generators.ocamlSafeString)
+                (Gen.zip (G.ocamlSafeUnicodeString) (genDval' typ (s / 2))))
+        | RT.TDB _ -> return! Gen.map RT.DDB (G.ocamlSafeUnicodeString)
         | RT.TDate ->
           return!
             Gen.map
@@ -272,7 +277,7 @@ module Generators =
           let! list =
             Gen.listOfLength
               s
-              (Gen.zip (Generators.ocamlSafeString) (genDval' typ (s / 2)))
+              (Gen.zip (G.ocamlSafeUnicodeString) (genDval' typ (s / 2)))
 
           return RT.DObj(Map list)
         | RT.TRecord (pairs) ->
@@ -315,7 +320,7 @@ type Generator =
   static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
     G.NodaTime.LocalDateTime
   static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
-  static member String() : Arbitrary<string> = G.OCamlSafeString
+  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
   static member Float() : Arbitrary<float> = G.OCamlSafeFloat
   static member Int64() : Arbitrary<int64> = G.OCamlSafeInt64
   static member Dval() : Arbitrary<RT.Dval> = G.RuntimeTypes.Dval
@@ -348,7 +353,7 @@ type Generator =
               return v |> string |> RT.DStr
             | "String::padStart", 1
             | "String::padEnd", 1 ->
-              let! v = Generators.char ()
+              let! v = G.char ()
               return RT.DStr v
             | "JWT::signAndEncode", 0
             | "JWT::signAndEncode_v1", 0 ->
@@ -420,8 +425,7 @@ type Generator =
           | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000L
 
           // Exception - don't try to stringify
-          | 0, _, _, "", "toString", 0 ->
-            not (Generators.RuntimeTypes.containsBytes dv)
+          | 0, _, _, "", "toString", 0 -> not (G.RuntimeTypes.containsBytes dv)
           | _ -> true)
 
       // When generating arguments, we sometimes make use of the previous params

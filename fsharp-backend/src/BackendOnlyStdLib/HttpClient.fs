@@ -319,7 +319,6 @@ let rec httpCall
 
           // CLEANUP no reason to do this
           // Match curls default redirect behaviour: if it's a POST with content, redirect to GET
-          // FSTODO: are some headers involved
           let method, reqBody =
             match reqBody with
             | StringContent body when body <> "" ->

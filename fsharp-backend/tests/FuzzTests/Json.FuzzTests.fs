@@ -28,11 +28,10 @@ module G = Generators
 module PrettyMachineJson =
   type Generator =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-      Generators.NodaTime.LocalDateTime
-    static member Instant() : Arbitrary<NodaTime.Instant> =
-      Generators.NodaTime.Instant
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = Generators.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -69,11 +68,10 @@ module PrettyMachineJson =
 module PrettyResponseJson =
   type Generator =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-      Generators.NodaTime.LocalDateTime
-    static member Instant() : Arbitrary<NodaTime.Instant> =
-      Generators.NodaTime.Instant
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = Generators.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -113,11 +111,10 @@ module PrettyResponseJson =
 module PrettyRequestJson =
   type Generator =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-      Generators.NodaTime.LocalDateTime
-    static member Instant() : Arbitrary<NodaTime.Instant> =
-      Generators.NodaTime.Instant
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = Generators.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -151,11 +148,10 @@ module PrettyRequestJson =
 module LibJwtJson =
   type Generator =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
-      Generators.NodaTime.LocalDateTime
-    static member Instant() : Arbitrary<NodaTime.Instant> =
-      Generators.NodaTime.Instant
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
 
-    static member String() : Arbitrary<string> = Generators.OCamlSafeString
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()

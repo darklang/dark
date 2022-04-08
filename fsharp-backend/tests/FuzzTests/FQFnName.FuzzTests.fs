@@ -32,7 +32,7 @@ let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] G.alphaNumericCharacter
 let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericCharacters
 
 type Generator =
-  static member String() : Arbitrary<string> = Generators.OCamlSafeString
+  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
   static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
     { new Arbitrary<PT.FQFnName.T>() with

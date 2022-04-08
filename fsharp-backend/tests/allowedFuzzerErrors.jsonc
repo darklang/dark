@@ -1,7 +1,7 @@
 {
   // If `null`, test anything. If `"fn"`, only test fn
   "functionToTest": null,
-  //"functionToTest": "JSON::read",
+  //"functionToTest": "Float::clamp",
 
   // tests against these fns are note generated
   "knownDifferingFunctions": [
@@ -158,6 +158,11 @@
       "Expected a string representation of an IEEE float"
     ],
     [
+      "Float::clamp",
+      "clamp requires arguments to be valid numbers",
+      ".*Internal Float.clamp exception: \\(\\\"clamp requires \\[min <= max\\]\\\" \\(min .*\\) \\(max .*\\)\\).*"
+    ],
+    [
       "Float::sum",
       "Expected the argument `.*` to be a list of floats, but it was `.*`",
       "Sum expects you to pass a list of floats"
@@ -186,6 +191,16 @@
       "(Int::multiply|Int::subtract|Int::divide|Int::add|Int::lessThan|Int::greaterThan|Int::lessThanOrEquals|Int::greaterThanOrEquals|Int::sqrt|\\+|\\-|\\*|\\/|\\<|\\>|<=|>=)",
       "(?<fn>.*) was called with a Float \\((?<value>.*)\\), but `.*` expected a Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
       "The .* param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate Floats to Ints."
+    ],
+    [
+      "Int::sqrt",
+      "(?<fn>.*) was called with a Float \\((?<value>.*)\\), but `.*` expected a Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
+      "The param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate the Float to an Int."
+    ],
+    [
+      "(Int::add|\\+)",
+      ".* was called with a Str .*, but `(a|b)` expected a Int. Use .* to concatenate",
+      "The (first|second) param .* is a String, but .* only works on Ints. Use .* or String::append to join Strings or parse Strings to Ints with String::toInt."
     ],
     [
       "(Int::add|\\+)",
