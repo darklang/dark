@@ -1,3 +1,20 @@
+// These tests are racy, and therefore they are run using testSequencedGroup in
+// LibExecution.Tests.fs.
+//
+// We have uploaded files to the cloud storage bucket for the dev-environment canvas
+// "test-static-assets-deploy". Tests which fetch/serve need to access these files to
+// test, and so will all use the same canvas.
+//
+// However, we also use deploy hashes for many of these tests. Deploy hashes are
+// saved to the DB, and the DB for a particular canvas is cleared between tests.
+// Since multiple tests use the same canvas, there is a chance that one test will be
+// trying to read the deploy hash while another test is deleting the canvas.
+//
+// That is, if the tests are running in parallel. We've set them to run using
+// testSequenceGroup which eliminates the race. This means we can't use the [tests]
+// indicator to create groups, as those tests would be run in parallel.
+
+
 // baseUrlFor
 [test.baseUrlFor] with ExactCanvasName test-baseurlfor-0
 StaticAssets.baseUrlFor_v0 "abcdefghi" = "https://test-baseurlfor-0.darksa.com/gd57quywk2db6zncs3h2hxgfdtc/abcdefghi"

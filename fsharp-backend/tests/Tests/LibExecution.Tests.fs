@@ -307,7 +307,7 @@ let fileTests () : Test =
     let mutable currentFn = emptyFn
     // for recording a bunch if single-line tests grouped together
     let mutable currentGroup = emptyGroup
-    let mutable allTests = []
+    let mutable fileTests = []
     let mutable functions : Map<string, PT.UserFunction.T> = Map.empty
     let mutable packageFunctions : Map<PT.FQFnName.PackageFnName, PT.Package.Fn> =
       Map.empty
@@ -341,11 +341,11 @@ let fileTests () : Test =
             currentTest.extras.workers
             currentTest.extras.staticAssetsDeployHashes
 
-        allTests <- allTests @ [ newTestCase ]
+        fileTests <- fileTests @ [ newTestCase ]
 
       if List.length currentGroup.tests > 0 then
         let newTestCase = testList currentGroup.name currentGroup.tests
-        allTests <- allTests @ [ newTestCase ]
+        fileTests <- fileTests @ [ newTestCase ]
 
       if currentFn.recording then
 
@@ -537,7 +537,15 @@ let fileTests () : Test =
       | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
     finish ()
-    testList $"Tests from {filename}" allTests)
+    let tests = testList $"Tests from {filename}" fileTests
+    // Staticassets.tests use a combination of ExactCanvasName and
+    // StaticAssetsDeployHash, which can be racy. See comment in staticassets.tests.
+    if filename = "staticassets.tests" then
+      testSequencedGroup "staticAssetsInSequence" tests
+    else
+      tests
+
+  )
   |> Array.toList
   |> testList "All files"
 
