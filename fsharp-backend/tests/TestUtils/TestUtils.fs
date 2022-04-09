@@ -461,6 +461,12 @@ let rec debugDval (v : Dval) : string =
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DObj {{\n  {contents}}}"
+  | DBytes b ->
+    b
+    |> Array.toList
+    |> List.map string
+    |> String.concat ", "
+    |> fun s -> $"[|{s}|]"
 
   | _ -> v.ToString()
 
@@ -743,7 +749,6 @@ module Expect =
     | DErrorRail _, _
     | DOption _, _
     | DStr _, _
-    // All others can be directly compared
     | DInt _, _
     | DDate _, _
     | DBool _, _
