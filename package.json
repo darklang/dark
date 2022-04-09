@@ -28,7 +28,7 @@
     "domready": "1.0.8",
     "html2canvas": "1.0.0-rc.7",
     "minimist": ">=1.2.6",
-    "moment": "^2.29.1",
+    "moment": "^2.29.2",
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
     "rollbar": "2.24.1",
