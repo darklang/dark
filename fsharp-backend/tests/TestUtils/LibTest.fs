@@ -242,4 +242,25 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+    { name = fn "Test" "intArrayToBytes" 0
+      parameters = [ Param.make "bytes" (TList TInt) "" ]
+      returnType = TBytes
+      description = "Create a bytes structure from an array of ints"
+      fn =
+        (function
+        | _, [ DList bytes ] ->
+          bytes
+          |> List.toArray
+          |> Array.map (function
+            | DInt i -> byte i
+            | other -> Exception.raiseCode "Expected int" [ "actual", other ])
+          |> DBytes
+          |> Ply
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    ]
