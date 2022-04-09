@@ -134,6 +134,7 @@ StaticAssets.fetchLatest_v0 "index.html" = Test.typeError "Dark Exception.DarkSt
 [test.fetchLatest_v0 nohash FSHARPONLY]
 StaticAssets.fetchLatest_v0 "index.html" = Test.typeError "No deploy hash found"
 
+
 // fetchLatest_v1
 [test.fetchLatest_v1 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatest_v1 "index.html" = Ok "<html><body>Hello world</body></html>\n"
@@ -153,6 +154,7 @@ StaticAssets.fetchLatest_v1 "index.html" = Test.typeError "Dark Exception.DarkSt
 [test.fetchLatest_v1 nohash FSHARPONLY]
 StaticAssets.fetchLatest_v1 "index.html" = Test.typeError "No deploy hash found"
 
+
 // fetchBytes_v0
 [test.fetchBytes_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchBytes_v0 "abcdef1234" "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
@@ -168,3 +170,23 @@ StaticAssets.fetchBytes_v0 "abcdef1234" "no-file-with-this-name" = Test.typeErro
 
 [test.fetchBytes_v0 nohash] with ExactCanvasName test-static-assets-deploy
 StaticAssets.fetchBytes_v0 "xx" "index.html" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/xx/index.html"
+
+
+// fetchLatestBytes_v0
+[test.fetchLatestBytes_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatestBytes_v0 "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
+
+[test.fetchLatestBytes_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatestBytes_v0 "plain.txt" = Ok (String.toBytes_v0 "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut")
+
+[test.fetchLatestBytes_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatestBytes_v0 "favicon-32x32.png" = Ok (getPng 0)
+
+[test.fetchLatestBytes_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatestBytes_v0 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
+
+[test.fetchLatestBytes_v0 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
+StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "Dark Exception.DarkStorage Err: Expected one result, got none"
+
+[test.fetchLatestBytes_v0 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
+StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash found"
