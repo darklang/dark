@@ -272,13 +272,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr str; DStr pattern; DStr replacement ] ->
-          FsRegEx.replace
-            (debug "pattern" pattern)
-            (debug "replacement" replacement)
-            (debug "str" str)
-          |> debug "replaced"
-          |> DStr
-          |> Ply
+          FsRegEx.replace pattern replacement str |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
