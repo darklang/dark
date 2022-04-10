@@ -197,7 +197,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
 // Serve
 // ----------------------------
 
-[fn.ocamlMissingResponse x:int]
+[fn.ocaml404Response x:int]
 "404 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
 content-type: text/html,\
 etag: \"d41d8cd98f00b204e9800998ecf8427e\",\
@@ -220,7 +220,7 @@ x-goog-generation: 1559259346696919,\
 x-guploader-uploadid: xxx }
 \"\""
 
-[fn.fsharpMissingResponse x:int]
+[fn.fsharp404Response x:int]
 "404 { \
 X-GUploader-UploadID: xxx,\
 x-goog-generation: 1559259346696919,\
@@ -243,20 +243,8 @@ Last-Modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
 Content-Type: text/html }
 \"\""
 
-
-// serve_v0
-[test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-// We do toString because responseWithHeaders sorts while serve does not
-(StaticAssets.serve_v0 "abcdef1234" "index.html")
-  |> Result.map_v1
-       (fun s ->
-          s
-          |> toString_v0
-          |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
-          |> Test.regexReplace "age: \d+" "age: xxxx") =
-    Ok "200 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
+[fn.ocaml200HtmlResponse int:int]
+"200 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
 content-type: text/html,\
 etag: \"f48d15085d77f9812a13ba59235bdbf4\",\
 last-modified: Thu, 07 Apr 2022 22:05:09 GMT,\
@@ -279,18 +267,8 @@ x-guploader-uploadid: xxx }
 \"<html><body>Hello world</body></html>
 \""
 
-[test.serve_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-// We do toString because responseWithHeaders sorts while serve does not
-(StaticAssets.serve_v0 "abcdef1234" "index.html")
-  |> Result.map_v1
-       (fun s ->
-          s
-          |> toString_v0
-          |> Test.regexReplace "Expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Expires: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "Date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Date: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "X-GUploader-UploadID: [-_a-zA-Z0-9]+" "X-GUploader-UploadID: xxx"
-          |> Test.regexReplace "Age: \\d+" "Age: xxxx") =
-    Ok "200 { \
+[fn.fsharp200HtmlResponse int:int]
+"200 { \
 X-GUploader-UploadID: xxx,\
 x-goog-generation: 1649369109123964,\
 x-goog-metageneration: 1,\
@@ -313,47 +291,74 @@ Content-Type: text/html }
 \"<html><body>Hello world</body></html>
 \""
 
+[fn.canonicalizeOCamlGoodResponse result:result]
+result
+|> Result.map_v1
+  (fun s ->
+    s
+    |> toString_v0
+    |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
+    |> Test.regexReplace "age: \d+" "age: xxxx")
+
+[fn.canonicalizeOCamlBadResponse result:result]
+result
+|> Result.map_v1
+  (fun s ->
+    s
+    |> toString_v0
+    |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
+    // in good responses, last-modified is a concrete value
+    |> Test.regexReplace "last-modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "last-modified: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "age: \d+" "age: xxxx")
+
+[fn.canonicalizeFSharpGoodResponse result:result]
+result
+|> Result.map_v1
+  (fun s ->
+    s
+    |> toString_v0
+    |> Test.regexReplace "Expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "Date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Date: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "X-GUploader-UploadID: [-_a-zA-Z0-9]+" "X-GUploader-UploadID: xxx"
+    |> Test.regexReplace "Age: \\d+" "Age: xxxx")
+
+
+[fn.canonicalizeFSharpBadResponse result:result]
+result
+|> Result.map_v1
+  (fun s ->
+    s
+    |> toString_v0
+    |> Test.regexReplace "Expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "Date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Date: xxx, xx xxx xxxx xx:xx:xx xxx"
+    // in good responses, Last-Modified is a concrete value
+    |> Test.regexReplace "Last-Modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Last-Modified: xxx, xx xxx xxxx xx:xx:xx xxx"
+    |> Test.regexReplace "X-GUploader-UploadID: [-_a-zA-Z0-9]+" "X-GUploader-UploadID: xxx"
+    |> Test.regexReplace "Age: \\d+" "Age: xxxx")
+
+
+// serve_v0
+[test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") = Ok (ocaml200HtmlResponse 0)
+
+[test.serve_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") = Ok (fsharp200HtmlResponse 0)
+
 [test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
 [test.serve_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-// We do toString because responseWithHeaders sorts while serve does not
-(StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name")
-  |> Result.map_v1
-       (fun s ->
-          s
-          |> toString_v0
-          |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "last-modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "last-modified: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
-          |> Test.regexReplace "age: \d+" "age: xxxx") =
-    Ok (ocamlMissingResponse 0)
+canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") = Ok (ocaml404Response 0)
 
 [test.serve_v0 missing FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-// We do toString because responseWithHeaders sorts while serve does not
-(StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name")
-  |> Result.map_v1
-       (fun s ->
-          s
-          |> toString_v0
-          |> Test.regexReplace "Expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Expires: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "Date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Date: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "X-GUploader-UploadID: [-_a-zA-Z0-9]+" "X-GUploader-UploadID: xxx"
-          |> Test.regexReplace "Last-Modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Last-Modified: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "Age: \\d+" "Age: xxxx") =
-    Ok (fsharpMissingResponse 0)
+canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") = Ok (fsharp404Response 0)
 
 [test.serve_v0 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
-// We do toString because responseWithHeaders sorts while serve does not
-(StaticAssets.serve_v0 "xx" "index.html")
-  |> Result.map_v1
-       (fun s ->
-          s
-          |> toString_v0
-          |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "last-modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "last-modified: xxx, xx xxx xxxx xx:xx:xx xxx"
-          |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
-          |> Test.regexReplace "age: \d+" "age: xxxx") =
-    Ok (ocamlMissingResponse 0)
+canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "xx" "index.html") = Ok (ocaml404Response 0)
+
+[test.serve_v0 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
+canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "xx" "index.html") = Ok (fsharp404Response 0)
