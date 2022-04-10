@@ -222,6 +222,31 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["x-guploader-uploadid"; "xxx"]
 ]
 
+[fn.ocaml200PngHeaders i:int]
+[
+  ["alt-svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\""]
+  ["content-type"; "image/png"]
+  ["etag"; "\"b19a4b18d1ea73d3297500bcfeb44ae6\""]
+  ["last-modified"; "Thu, 07 Apr 2022 21:03:18 GMT"]
+  ["age"; "xxxx"]
+  ["cache-control"; "public, max-age=3600"];
+  ["expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+  ["date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+  ["server"; "UploadServer"]
+  ["access-control-expose-headers"; "Content-Type"]
+  ["access-control-allow-origin"; "*"]
+  ["content-length"; "685"]
+  ["accept-ranges"; "bytes"]
+  ["x-goog-storage-class"; "STANDARD"]
+  ["x-goog-hash"; "md5=sZpLGNHqc9MpdQC8/rRK5g=="]
+  ["x-goog-hash"; "crc32c=K8nQUQ=="]
+  ["x-goog-stored-content-length"; "685"]
+  ["x-goog-stored-content-encoding"; "identity"]
+  ["x-goog-metageneration"; "1"]
+  ["x-goog-generation"; "1649365398031129"]
+  ["x-guploader-uploadid"; "xxx"]
+]
+
 [fn.ocaml404Headers i:int]
 [
   ["alt-svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\""]
@@ -269,6 +294,30 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["Last-Modified"; "Thu, 07 Apr 2022 22:05:09 GMT"]
   ["Content-Type"; "text/html"]
 ]
+
+[fn.fsharp200PngHeaders i:int]
+[
+  ["X-GUploader-UploadID"; "xxx"]
+  ["x-goog-generation"; "1649365398031129"]
+  ["x-goog-metageneration"; "1"]
+  ["x-goog-stored-content-encoding"; "identity"]
+  ["x-goog-stored-content-length"; "685"]
+  ["x-goog-hash"; "crc32c=K8nQUQ==,md5=sZpLGNHqc9MpdQC8/rRK5g=="]
+  ["x-goog-storage-class"; "STANDARD"]
+  ["Accept-Ranges"; "bytes"]
+  ["Access-Control-Allow-Origin"; "*"]
+  ["Access-Control-Expose-Headers"; "Content-Type"]
+  ["Server"; "UploadServer"]
+  ["Date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+  ["Cache-Control"; "public, max-age=3600"]
+  ["Age"; "xxxx"]
+  ["ETag"; "\"b19a4b18d1ea73d3297500bcfeb44ae6\""]
+  ["Alt-Svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000"]
+  ["Expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+  ["Last-Modified"; "Thu, 07 Apr 2022 21:03:18 GMT"]
+  ["Content-Type"; "image/png"]
+]
+
 
 [fn.fsharp404Headers i:int]
 [
@@ -399,9 +448,17 @@ canonicalizeFSharpGoodResponseX (StaticAssets.serve_v1 "abcdef1234" "index.html"
        headers = fsharp200HtmlHeaders 0;
        code = 200 }
 
-// FSTODO
-// [test.serve_v1X png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-// StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
+[test.serve_v1X png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponseX (StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png") =
+  Ok { body = getPng 0
+       headers = ocaml200PngHeaders 0;
+       code = 200 }
+
+[test.serve_v1X png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponseX (StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png") =
+  Ok { body = getPng 0
+       headers = fsharp200PngHeaders 0;
+       code = 200 }
 
 [test.serve_v1X missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponseX (StaticAssets.serve_v1 "abcdef1234" "no-file-with-this-name") =
