@@ -261,11 +261,6 @@ Content-Type: text/html }
 \"<html><body>Hello world</body></html>
 \""
 
-
-
-[test.serve_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.serve_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
-
 [test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
