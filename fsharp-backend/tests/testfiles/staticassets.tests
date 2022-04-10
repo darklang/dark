@@ -264,9 +264,70 @@ Content-Type: text/html }
 [test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
-[test.serve_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
+[test.serve_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// We do toString because responseWithHeaders sorts while serve does not
+(StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name")
+  |> Result.map_v1
+       (fun s ->
+          s
+          |> toString_v0
+          |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "last-modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "last-modified: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
+          |> Test.regexReplace "age: \d+" "age: xxxx") =
+    Ok "404 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
+content-type: text/html,\
+etag: \"d41d8cd98f00b204e9800998ecf8427e\",\
+last-modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
+age: xxxx,cache-control: public, max-age=3600,\
+expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
+date: xxx, xx xxx xxxx xx:xx:xx xxx,\
+server: UploadServer,\
+access-control-expose-headers: Content-Type,\
+access-control-allow-origin: *,\
+content-length: 0,\
+accept-ranges: bytes,\
+x-goog-storage-class: STANDARD,\
+x-goog-hash: md5=1B2M2Y8AsgTpgAmY7PhCfg==,\
+x-goog-hash: crc32c=AAAAAA==,\
+x-goog-stored-content-length: 0,\
+x-goog-stored-content-encoding: identity,\
+x-goog-metageneration: 1,\
+x-goog-generation: 1559259346696919,\
+x-guploader-uploadid: xxx }
+\"\""
 
-[test.serve_v0 nohash] with ExactCanvasName test-static-assets-deploy
-StaticAssets.serve_v0 "xx" "index.html" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/xx/index.html"
-
+[test.serve_v0 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
+// We do toString because responseWithHeaders sorts while serve does not
+(StaticAssets.serve_v0 "xx" "index.html")
+  |> Result.map_v1
+       (fun s ->
+          s
+          |> toString_v0
+          |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "last-modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "last-modified: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
+          |> Test.regexReplace "age: \d+" "age: xxxx") =
+    Ok "404 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
+content-type: text/html,\
+etag: \"d41d8cd98f00b204e9800998ecf8427e\",\
+last-modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
+age: xxxx,cache-control: public, max-age=3600,\
+expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
+date: xxx, xx xxx xxxx xx:xx:xx xxx,\
+server: UploadServer,\
+access-control-expose-headers: Content-Type,\
+access-control-allow-origin: *,\
+content-length: 0,\
+accept-ranges: bytes,\
+x-goog-storage-class: STANDARD,\
+x-goog-hash: md5=1B2M2Y8AsgTpgAmY7PhCfg==,\
+x-goog-hash: crc32c=AAAAAA==,\
+x-goog-stored-content-length: 0,\
+x-goog-stored-content-encoding: identity,\
+x-goog-metageneration: 1,\
+x-goog-generation: 1559259346696919,\
+x-guploader-uploadid: xxx }
+\"\""
