@@ -266,6 +266,31 @@ x-goog-generation: 1649369109123964,\
 x-guploader-uploadid: xxx }
 " ++ body
 
+[fn.ocaml200HtmlHeaders i:int]
+[
+  ["alt-svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\""]
+  ["content-type"; "text/html"]
+  ["etag"; "\"f48d15085d77f9812a13ba59235bdbf4\""]
+  ["last-modified"; "Thu, 07 Apr 2022 22:05:09 GMT"]
+  ["age"; "xxxx,cache-control: public, max-age=3600"]
+  ["cache-control"; "public, max-age=3600"];
+  ["expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+  ["date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+  ["server"; "UploadServer"]
+  ["access-control-expose-headers"; "Content-Type"]
+  ["access-control-allow-origin"; "*"]
+  ["content-length"; "38"]
+  ["accept-ranges"; "bytes"]
+  ["x-goog-storage-class"; "STANDARD"]
+  ["x-goog-hash"; "md5=9I0VCF13+YEqE7pZI1vb9A=="]
+  ["x-goog-hash"; "crc32c=64O3OA=="]
+  ["x-goog-stored-content-length"; "38"]
+  ["x-goog-stored-content-encoding"; "identity"]
+  ["x-goog-metageneration"; "1"]
+  ["x-goog-generation"; "1649369109123964"]
+  ["x-guploader-uploadid"; "xxx"]
+]
+
 [fn.fsharp200HtmlResponse body:string]
 "200 { \
 X-GUploader-UploadID: xxx,\
@@ -288,6 +313,21 @@ Expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
 Last-Modified: Thu, 07 Apr 2022 22:05:09 GMT,\
 Content-Type: text/html }
 " ++ body
+
+[fn.canonicalizeOCamlGoodResponseX result:result]
+result |> Result.map_v1
+  (fun response ->
+    let headers =
+      (Test.httpResponseHeaders response)
+      |> List.map (fun h ->
+        match h |> List.head_v0 with
+        | "expires" -> ["expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "date" -> ["date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "age" -> ["age"; "xxxx,cache-control: public, max-age=3600"]
+        | "x-guploader-uploadid" -> ["x-guploader-uploadid"; "xxx"]
+        | _ -> h
+      )
+    { code = Test.httpResponseStatusCode response; body = Test.httpResponseBody response; headers = headers})
 
 [fn.canonicalizeOCamlGoodResponse result:result]
 result
@@ -338,8 +378,11 @@ result
     |> Test.regexReplace "X-GUploader-UploadID: [-_a-zA-Z0-9]+" "X-GUploader-UploadID: xxx"
     |> Test.regexReplace "Age: \\d+" "Age: xxxx")
 
-
 // serve_v0
+[test.serve_v0X html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponseX (StaticAssets.serve_v0 "abcdef1234" "index.html") =
+  Ok { body = "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+
 [test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") = Ok (ocaml200HtmlResponse "\"<html><body>Hello world</body></html>\n\"")
 
