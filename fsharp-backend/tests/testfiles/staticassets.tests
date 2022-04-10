@@ -197,7 +197,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
 // Serve
 // ----------------------------
 
-[fn.ocaml404Response x:int]
+[fn.ocaml404Response body:string]
 "404 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
 content-type: text/html,\
 etag: \"d41d8cd98f00b204e9800998ecf8427e\",\
@@ -218,9 +218,9 @@ x-goog-stored-content-encoding: identity,\
 x-goog-metageneration: 1,\
 x-goog-generation: 1559259346696919,\
 x-guploader-uploadid: xxx }
-\"\""
+" ++ body
 
-[fn.fsharp404Response x:int]
+[fn.fsharp404Response body:string]
 "404 { \
 X-GUploader-UploadID: xxx,\
 x-goog-generation: 1559259346696919,\
@@ -241,9 +241,9 @@ Alt-Svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma
 Expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
 Last-Modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
 Content-Type: text/html }
-\"\""
+" ++ body
 
-[fn.ocaml200HtmlResponse int:int]
+[fn.ocaml200HtmlResponse body:string]
 "200 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
 content-type: text/html,\
 etag: \"f48d15085d77f9812a13ba59235bdbf4\",\
@@ -264,10 +264,9 @@ x-goog-stored-content-encoding: identity,\
 x-goog-metageneration: 1,\
 x-goog-generation: 1649369109123964,\
 x-guploader-uploadid: xxx }
-\"<html><body>Hello world</body></html>
-\""
+" ++ body
 
-[fn.fsharp200HtmlResponse int:int]
+[fn.fsharp200HtmlResponse body:string]
 "200 { \
 X-GUploader-UploadID: xxx,\
 x-goog-generation: 1649369109123964,\
@@ -288,8 +287,7 @@ Alt-Svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma
 Expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
 Last-Modified: Thu, 07 Apr 2022 22:05:09 GMT,\
 Content-Type: text/html }
-\"<html><body>Hello world</body></html>
-\""
+" ++ body
 
 [fn.canonicalizeOCamlGoodResponse result:result]
 result
@@ -343,22 +341,46 @@ result
 
 // serve_v0
 [test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") = Ok (ocaml200HtmlResponse 0)
+canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") = Ok (ocaml200HtmlResponse "\"<html><body>Hello world</body></html>\n\"")
 
 [test.serve_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") = Ok (fsharp200HtmlResponse 0)
+canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") = Ok (fsharp200HtmlResponse "\"<html><body>Hello world</body></html>\n\"")
 
 [test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
 [test.serve_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") = Ok (ocaml404Response 0)
+canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") = Ok (ocaml404Response "\"\"")
 
 [test.serve_v0 missing FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") = Ok (fsharp404Response 0)
+canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") = Ok (fsharp404Response "\"\"")
 
 [test.serve_v0 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
-canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "xx" "index.html") = Ok (ocaml404Response 0)
+canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "xx" "index.html") = Ok (ocaml404Response "\"\"")
 
 [test.serve_v0 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
-canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "xx" "index.html") = Ok (fsharp404Response 0)
+canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "xx" "index.html") = Ok (fsharp404Response "\"\"")
+
+
+// serve_v1
+[test.serve_v1 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") = Ok (ocaml200HtmlResponse "<html><body>Hello world</body></html>\n")
+
+[test.serve_v1 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") = Ok (fsharp200HtmlResponse "<html><body>Hello world</body></html>\n")
+
+// [test.serve_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png" = Ok (ocaml200HtmlResponse "<html><body>Hello world</body></html>\n")
+
+[test.serve_v1 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlBadResponse (StaticAssets.serve_v1 "abcdef1234" "no-file-with-this-name") = Ok (ocaml404Response "")
+
+[test.serve_v1 missing FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpBadResponse (StaticAssets.serve_v1 "abcdef1234" "no-file-with-this-name") = Ok (fsharp404Response "")
+
+[test.serve_v1 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
+canonicalizeOCamlBadResponse (StaticAssets.serve_v1 "xx" "index.html") = Ok (ocaml404Response "")
+
+[test.serve_v1 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
+canonicalizeFSharpBadResponse (StaticAssets.serve_v1 "xx" "index.html") = Ok (fsharp404Response "")
+
