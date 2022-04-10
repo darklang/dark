@@ -192,6 +192,58 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "Dark Exception.D
 StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash found"
 
 
+
+// ----------------------------
+// Serve
+// ----------------------------
+
+[fn.ocamlMissingResponse x:int]
+"404 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
+content-type: text/html,\
+etag: \"d41d8cd98f00b204e9800998ecf8427e\",\
+last-modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
+age: xxxx,cache-control: public, max-age=3600,\
+expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
+date: xxx, xx xxx xxxx xx:xx:xx xxx,\
+server: UploadServer,\
+access-control-expose-headers: Content-Type,\
+access-control-allow-origin: *,\
+content-length: 0,\
+accept-ranges: bytes,\
+x-goog-storage-class: STANDARD,\
+x-goog-hash: md5=1B2M2Y8AsgTpgAmY7PhCfg==,\
+x-goog-hash: crc32c=AAAAAA==,\
+x-goog-stored-content-length: 0,\
+x-goog-stored-content-encoding: identity,\
+x-goog-metageneration: 1,\
+x-goog-generation: 1559259346696919,\
+x-guploader-uploadid: xxx }
+\"\""
+
+[fn.fsharpMissingResponse x:int]
+"404 { \
+X-GUploader-UploadID: xxx,\
+x-goog-generation: 1559259346696919,\
+x-goog-metageneration: 1,\
+x-goog-stored-content-encoding: identity,\
+x-goog-stored-content-length: 0,\
+x-goog-hash: crc32c=AAAAAA==,md5=1B2M2Y8AsgTpgAmY7PhCfg==,\
+x-goog-storage-class: STANDARD,\
+Accept-Ranges: bytes,\
+Access-Control-Allow-Origin: *,\
+Access-Control-Expose-Headers: Content-Type,\
+Server: UploadServer,\
+Date: xxx, xx xxx xxxx xx:xx:xx xxx,\
+Cache-Control: public, max-age=3600,\
+Age: xxxx,\
+ETag: \"d41d8cd98f00b204e9800998ecf8427e\",\
+Alt-Svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000,\
+Expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
+Last-Modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
+Content-Type: text/html }
+\"\""
+
+
 // serve_v0
 [test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 // We do toString because responseWithHeaders sorts while serve does not
@@ -276,27 +328,7 @@ StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not
           |> Test.regexReplace "last-modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "last-modified: xxx, xx xxx xxxx xx:xx:xx xxx"
           |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
           |> Test.regexReplace "age: \d+" "age: xxxx") =
-    Ok "404 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
-content-type: text/html,\
-etag: \"d41d8cd98f00b204e9800998ecf8427e\",\
-last-modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
-age: xxxx,cache-control: public, max-age=3600,\
-expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
-date: xxx, xx xxx xxxx xx:xx:xx xxx,\
-server: UploadServer,\
-access-control-expose-headers: Content-Type,\
-access-control-allow-origin: *,\
-content-length: 0,\
-accept-ranges: bytes,\
-x-goog-storage-class: STANDARD,\
-x-goog-hash: md5=1B2M2Y8AsgTpgAmY7PhCfg==,\
-x-goog-hash: crc32c=AAAAAA==,\
-x-goog-stored-content-length: 0,\
-x-goog-stored-content-encoding: identity,\
-x-goog-metageneration: 1,\
-x-goog-generation: 1559259346696919,\
-x-guploader-uploadid: xxx }
-\"\""
+    Ok (ocamlMissingResponse 0)
 
 [test.serve_v0 missing FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 // We do toString because responseWithHeaders sorts while serve does not
@@ -310,27 +342,7 @@ x-guploader-uploadid: xxx }
           |> Test.regexReplace "X-GUploader-UploadID: [-_a-zA-Z0-9]+" "X-GUploader-UploadID: xxx"
           |> Test.regexReplace "Last-Modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Last-Modified: xxx, xx xxx xxxx xx:xx:xx xxx"
           |> Test.regexReplace "Age: \\d+" "Age: xxxx") =
-    Ok "404 { \
-X-GUploader-UploadID: xxx,\
-x-goog-generation: 1559259346696919,\
-x-goog-metageneration: 1,\
-x-goog-stored-content-encoding: identity,\
-x-goog-stored-content-length: 0,\
-x-goog-hash: crc32c=AAAAAA==,md5=1B2M2Y8AsgTpgAmY7PhCfg==,\
-x-goog-storage-class: STANDARD,\
-Accept-Ranges: bytes,\
-Access-Control-Allow-Origin: *,\
-Access-Control-Expose-Headers: Content-Type,\
-Server: UploadServer,\
-Date: xxx, xx xxx xxxx xx:xx:xx xxx,\
-Cache-Control: public, max-age=3600,\
-Age: xxxx,\
-ETag: \"d41d8cd98f00b204e9800998ecf8427e\",\
-Alt-Svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000,\
-Expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
-Last-Modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
-Content-Type: text/html }
-\"\""
+    Ok (fsharpMissingResponse 0)
 
 [test.serve_v0 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
 // We do toString because responseWithHeaders sorts while serve does not
@@ -344,24 +356,4 @@ Content-Type: text/html }
           |> Test.regexReplace "last-modified: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "last-modified: xxx, xx xxx xxxx xx:xx:xx xxx"
           |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
           |> Test.regexReplace "age: \d+" "age: xxxx") =
-    Ok "404 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
-content-type: text/html,\
-etag: \"d41d8cd98f00b204e9800998ecf8427e\",\
-last-modified: xxx, xx xxx xxxx xx:xx:xx xxx,\
-age: xxxx,cache-control: public, max-age=3600,\
-expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
-date: xxx, xx xxx xxxx xx:xx:xx xxx,\
-server: UploadServer,\
-access-control-expose-headers: Content-Type,\
-access-control-allow-origin: *,\
-content-length: 0,\
-accept-ranges: bytes,\
-x-goog-storage-class: STANDARD,\
-x-goog-hash: md5=1B2M2Y8AsgTpgAmY7PhCfg==,\
-x-goog-hash: crc32c=AAAAAA==,\
-x-goog-stored-content-length: 0,\
-x-goog-stored-content-encoding: identity,\
-x-goog-metageneration: 1,\
-x-goog-generation: 1559259346696919,\
-x-guploader-uploadid: xxx }
-\"\""
+    Ok (ocamlMissingResponse 0)
