@@ -227,6 +227,41 @@ x-guploader-uploadid: xxx }
 \"<html><body>Hello world</body></html>
 \""
 
+[test.serve_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// We do toString because responseWithHeaders sorts while serve does not
+(StaticAssets.serve_v0 "abcdef1234" "index.html")
+  |> Result.map_v1
+       (fun s ->
+          s
+          |> toString_v0
+          |> Test.regexReplace "Expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "Date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "Date: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "X-GUploader-UploadID: [-_a-zA-Z0-9]+" "X-GUploader-UploadID: xxx"
+          |> Test.regexReplace "Age: \\d+" "Age: xxxx") =
+    Ok "200 { \
+X-GUploader-UploadID: xxx,\
+x-goog-generation: 1649369109123964,\
+x-goog-metageneration: 1,\
+x-goog-stored-content-encoding: identity,\
+x-goog-stored-content-length: 38,\
+x-goog-hash: crc32c=64O3OA==,md5=9I0VCF13+YEqE7pZI1vb9A==,\
+x-goog-storage-class: STANDARD,\
+Accept-Ranges: bytes,\
+Access-Control-Allow-Origin: *,\
+Access-Control-Expose-Headers: Content-Type,\
+Server: UploadServer,\
+Date: xxx, xx xxx xxxx xx:xx:xx xxx,\
+Cache-Control: public, max-age=3600,\
+Age: xxxx,\
+ETag: \"f48d15085d77f9812a13ba59235bdbf4\",\
+Alt-Svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000,\
+Expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
+Last-Modified: Thu, 07 Apr 2022 22:05:09 GMT,\
+Content-Type: text/html }
+\"<html><body>Hello world</body></html>
+\""
+
+
 
 [test.serve_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.serve_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"

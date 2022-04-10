@@ -317,9 +317,13 @@ let fns : List<BuiltInFn> =
             let headers =
               headers
               |> List.map (fun (k, v) -> (k, v.Trim()))
-              |> List.filter (fun (k, v) -> not (k.Contains("Content-Length")))
+              // The OCaml version trimmed Cache-Control and Content-Length, except
+              // it didn't work as it used the wrong casing. We trim Content-Length
+              // anyway as asp.net likes to do that itself and doesn't need our help.
+              // Note that Cache-Control has any meaning since we don't do anything
+              // with it.
               |> List.filter (fun (k, v) -> not (k.Contains("Transfer-Encoding")))
-              |> List.filter (fun (k, v) -> not (k.Contains("Cache-Control")))
+              |> List.filter (fun (k, v) -> not (k.Contains("Content-Length")))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             match UTF8.ofBytesOpt body with
@@ -346,9 +350,13 @@ let fns : List<BuiltInFn> =
             let headers =
               headers
               |> List.map (fun (k, v) -> (k, v.Trim()))
+              // The OCaml version trimmed Cache-Control and Content-Length, except
+              // it didn't work as it used the wrong casing. We trim Content-Length
+              // anyway as asp.net likes to do that itself and doesn't need our help.
+              // Note that Cache-Control has any meaning since we don't do anything
+              // with it.
               |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
               |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-              |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             return DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
@@ -376,9 +384,13 @@ let fns : List<BuiltInFn> =
               let headers =
                 headers
                 |> List.map (fun (k, v) -> (k, v.Trim()))
+                // The OCaml version trimmed Cache-Control and Content-Length, except
+                // it didn't work as it used the wrong casing. We trim Content-Length
+                // anyway as asp.net likes to do that itself and doesn't need our help.
+                // Note that Cache-Control has any meaning since we don't do anything
+                // with it.
                 |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
                 |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-                |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
                 |> List.filter (fun (k, v) -> not (k.Trim() = ""))
                 |> List.filter (fun (k, v) -> not (v.Trim() = ""))
               return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
@@ -405,9 +417,13 @@ let fns : List<BuiltInFn> =
               let headers =
                 headers
                 |> List.map (fun (k, v) -> (k, v.Trim()))
+                // The OCaml version trimmed Cache-Control and Content-Length, except
+                // it didn't work as it used the wrong casing. We trim Content-Length
+                // anyway as asp.net likes to do that itself and doesn't need our help.
+                // Note that Cache-Control has any meaning since we don't do anything
+                // with it.
                 |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
                 |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-                |> List.filter (fun (k, v) -> not (k.Contains "Cache-Control"))
                 |> List.filter (fun (k, v) -> not (k.Trim() = ""))
                 |> List.filter (fun (k, v) -> not (v.Trim() = ""))
               return
