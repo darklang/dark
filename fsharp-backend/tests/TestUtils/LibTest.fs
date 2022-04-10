@@ -262,5 +262,26 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+    { name = fn "Test" "regexReplace" 0
+      parameters =
+        [ Param.make "subject" TStr ""
+          Param.make "pattern" TStr ""
+          Param.make "replacement" TStr "" ]
+      returnType = TStr
+      description = "Replaces regex patterns in a string"
+      fn =
+        (function
+        | _, [ DStr str; DStr pattern; DStr replacement ] ->
+          FsRegEx.replace
+            (debug "pattern" pattern)
+            (debug "replacement" replacement)
+            (debug "str" str)
+          |> debug "replaced"
+          |> DStr
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
     ]

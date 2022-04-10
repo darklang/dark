@@ -472,7 +472,26 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = false }
+  ; { prefix_names = ["Test::regexReplace"]
+    ; infix_names = []
+    ; parameters = [Lib.par "subject" TStr; Lib.par "pattern" TStr; Lib.par "replacement" TStr]
+    ; return_type = TStr
+    ; description = "Replaces regex patterns in a string"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr str; DStr pattern; DStr replacement] ->
+              let regex = Re2.create_exn (Unicode_string.to_string pattern) in
+              let str = Unicode_string.to_string str in
+              Re2.replace_exn regex str ~f:(fun _ -> Unicode_string.to_string replacement)
+              |> Unicode_string.of_string_exn
+              |> DStr
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+     ]
 
 
 let exec_state : Types.RuntimeT.exec_state =

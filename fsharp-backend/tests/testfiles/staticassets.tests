@@ -82,33 +82,33 @@ StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "No deploy hash fo
 
 
 // fetch_v0
-[test.fetchhtml] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
-[test.fetch text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetch png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
-[test.fetch missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
-[test.fetch nohash] with ExactCanvasName test-static-assets-deploy
+[test.fetch_v0 nohash] with ExactCanvasName test-static-assets-deploy
 StaticAssets.fetch_v0 "xx" "index.html" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/xx/index.html"
 
 
 // fetch_v1
-[test.fetchv1html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v1 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
-[test.fetchv1text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v1 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetchv1png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
-[test.fetchv1missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+[test.fetch_v1 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
 [test.fetch nohash] with ExactCanvasName test-static-assets-deploy
@@ -190,3 +190,53 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "Dark Exception.D
 
 [test.fetchLatestBytes_v0 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
 StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash found"
+
+
+// serve_v0
+[test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// We do toString because responseWithHeaders sorts while serve does not
+(StaticAssets.serve_v0 "abcdef1234" "index.html")
+  |> Result.map_v1
+       (fun s ->
+          s
+          |> toString_v0
+          |> Test.regexReplace "expires: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "expires: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "date: \\w{3}, \\d\\d \\w{3} \\d\\d\\d\\d \\d\\d:\\d\\d:\\d\\d \\w{3}" "date: xxx, xx xxx xxxx xx:xx:xx xxx"
+          |> Test.regexReplace "x-guploader-uploadid: [-_a-zA-Z0-9]+" "x-guploader-uploadid: xxx"
+          |> Test.regexReplace "age: \d+" "age: xxxx") =
+    Ok "200 { alt-svc: h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\",\
+content-type: text/html,\
+etag: \"f48d15085d77f9812a13ba59235bdbf4\",\
+last-modified: Thu, 07 Apr 2022 22:05:09 GMT,\
+age: xxxx,cache-control: public, max-age=3600,\
+expires: xxx, xx xxx xxxx xx:xx:xx xxx,\
+date: xxx, xx xxx xxxx xx:xx:xx xxx,\
+server: UploadServer,\
+access-control-expose-headers: Content-Type,\
+access-control-allow-origin: *,\
+content-length: 38,\
+accept-ranges: bytes,\
+x-goog-storage-class: STANDARD,\
+x-goog-hash: md5=9I0VCF13+YEqE7pZI1vb9A==,\
+x-goog-hash: crc32c=64O3OA==,\
+x-goog-stored-content-length: 38,\
+x-goog-stored-content-encoding: identity,\
+x-goog-metageneration: 1,\
+x-goog-generation: 1649369109123964,\
+x-guploader-uploadid: xxx }
+\"<html><body>Hello world</body></html>
+\""
+
+
+[test.serve_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.serve_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
+
+[test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
+
+[test.serve_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
+
+[test.serve_v0 nohash] with ExactCanvasName test-static-assets-deploy
+StaticAssets.serve_v0 "xx" "index.html" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/xx/index.html"
+
