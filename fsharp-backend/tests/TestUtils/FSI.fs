@@ -1,8 +1,12 @@
+/// <summary>
+/// Parses a file as F# and executes it against a new test canvas
+/// </summary>
+///
+/// <remarks>
+/// This isn't really for tests, it's for utilities to tests things in FSI.
+/// There just wasn't a better place for this.
+/// </remarks>
 module TestUtils.FSI
-
-// This isn't really for tests, it's for utilities to tests things in FSI. I
-// didn't have a better place for this.
-
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -37,6 +41,3 @@ let executeOCaml (code : string) : RT.Dval =
 
   Task.WaitAll [| t :> Task |]
   t.Result
-
-let toBytes (dv : RT.Dval) : string =
-  dv |> string |> UTF8.toBytes |> System.BitConverter.ToString
