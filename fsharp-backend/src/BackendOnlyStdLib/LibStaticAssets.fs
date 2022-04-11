@@ -324,6 +324,9 @@ let fns : List<BuiltInFn> =
               // with it.
               |> List.filter (fun (k, v) -> not (k.Contains("Transfer-Encoding")))
               |> List.filter (fun (k, v) -> not (k.Contains("Content-Length")))
+              // The OCaml version didn't expose the Server header so no need for
+              // this version to either
+              |> List.filter (fun (k, v) -> not (k.Contains "Server"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             match UTF8.ofBytesOpt body with
@@ -357,6 +360,9 @@ let fns : List<BuiltInFn> =
               // with it.
               |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
               |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+              // The OCaml version didn't expose the Server header so no need for
+              // this version to either
+              |> List.filter (fun (k, v) -> not (k.Contains "Server"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
             return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
@@ -391,6 +397,9 @@ let fns : List<BuiltInFn> =
                 // with it.
                 |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
                 |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+                // The OCaml version didn't expose the Server header so no need for
+                // this version to either
+                |> List.filter (fun (k, v) -> not (k.Contains "Server"))
                 |> List.filter (fun (k, v) -> not (k.Trim() = ""))
                 |> List.filter (fun (k, v) -> not (v.Trim() = ""))
               return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
@@ -424,6 +433,9 @@ let fns : List<BuiltInFn> =
                 // with it.
                 |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
                 |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
+                // The OCaml version didn't expose the Server header so no need for
+                // this version to either
+                |> List.filter (fun (k, v) -> not (k.Contains "Server"))
                 |> List.filter (fun (k, v) -> not (k.Trim() = ""))
                 |> List.filter (fun (k, v) -> not (v.Trim() = ""))
               return

@@ -18,7 +18,7 @@ Content-Length: 38
 Content-Type: text/html
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Server: nginx/1.16.1 // OCAMLONLY
-Server: UploadServer // FSHARPONLY
+Server: darklang // FSHARPONLY
 accept-ranges: bytes // OCAMLONLY
 Accept-Ranges: bytes // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
