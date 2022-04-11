@@ -1,4 +1,4 @@
-# Static assets tests
+# Static Assets Tests
 
 These files are used for testing static assets. They were uploaded to the
 dark-static-assets google cloud bucket for the canvas test-static-assets-deploy
