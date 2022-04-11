@@ -539,7 +539,8 @@ let fileTests () : Test =
     finish ()
     let tests = testList $"Tests from {filename}" fileTests
     // Staticassets.tests use a combination of ExactCanvasName and
-    // StaticAssetsDeployHash, which can be racy. See comment in staticassets.tests.
+    // StaticAssetsDeployHash, which can have race conditions. See comment in
+    // staticassets.tests.
     if filename = "staticassets.tests" then
       testSequencedGroup "staticAssetsInSequence" tests
     else
