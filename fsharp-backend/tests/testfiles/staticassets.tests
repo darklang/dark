@@ -197,7 +197,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
 // Serve
 // ----------------------------
 
-[fn.ocaml200HtmlHeaders i:int]
+[fn.ocaml200HtmlHeaders _:int]
 [
   ["accept-ranges"; "bytes"]
   ["access-control-allow-origin"; "*"]
@@ -221,7 +221,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["x-guploader-uploadid"; "xxx"]
 ]
 
-[fn.ocaml200PngHeaders i:int]
+[fn.ocaml200PngHeaders _:int]
 [
   ["accept-ranges"; "bytes"]
   ["access-control-allow-origin"; "*"]
@@ -245,7 +245,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["x-guploader-uploadid"; "xxx"]
 ]
 
-[fn.ocaml404Headers i:int]
+[fn.ocaml404Headers _:int]
 [
   ["accept-ranges"; "bytes"]
   ["access-control-allow-origin"; "*"]
@@ -269,7 +269,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["x-guploader-uploadid"; "xxx"]
 ]
 
-[fn.fsharp200HtmlHeaders i:int]
+[fn.fsharp200HtmlHeaders _:int]
 [
   ["Accept-Ranges"; "bytes"]
   ["Access-Control-Allow-Origin"; "*"]
@@ -290,7 +290,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["x-goog-stored-content-length"; "38"]
 ]
 
-[fn.fsharp200PngHeaders i:int]
+[fn.fsharp200PngHeaders _:int]
 [
   ["Accept-Ranges"; "bytes"]
   ["Access-Control-Allow-Origin"; "*"]
@@ -312,7 +312,7 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
 ]
 
 
-[fn.fsharp404Headers i:int]
+[fn.fsharp404Headers _:int]
 [
   ["Accept-Ranges"; "bytes"]
   ["Access-Control-Allow-Origin"; "*"]
