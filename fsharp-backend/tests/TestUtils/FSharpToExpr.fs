@@ -46,7 +46,9 @@ let parse (input) : SynExpr =
     // Extract declarations and walk over them
     expr
   | _ ->
-    Exception.raiseInternal $"wrong shape tree" [ "parseTree", results.ParseTree ]
+    Exception.raiseInternal
+      $"wrong shape tree"
+      [ "parseTree", results.ParseTree; "input", input ]
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")

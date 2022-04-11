@@ -21,7 +21,7 @@ let compile
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
-    let! meta = createTestCanvas (randomString 8)
+    let! meta = createTestCanvas (Randomized "sqlcompiler")
     let! state = executionStateFor meta Map.empty Map.empty
 
     try

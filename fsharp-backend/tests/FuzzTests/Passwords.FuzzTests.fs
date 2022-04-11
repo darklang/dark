@@ -28,7 +28,7 @@ type Generator =
 let hashCheckRoundtrip (rawPassword : string) : bool =
   let t =
     task {
-      let! meta = initializeTestCanvas "executePure"
+      let! meta = initializeTestCanvas (Randomized "executePure")
       let! state = executionStateFor meta Map.empty Map.empty
 
       let ast =

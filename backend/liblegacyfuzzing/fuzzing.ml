@@ -472,6 +472,83 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               Lib.fail args)
     ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::regexReplace"]
+    ; infix_names = []
+    ; parameters =
+        [ Lib.par "subject" TStr
+        ; Lib.par "pattern" TStr
+        ; Lib.par "replacement" TStr ]
+    ; return_type = TStr
+    ; description = "Replaces regex patterns in a string"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr str; DStr pattern; DStr replacement] ->
+              let regex = Re2.create_exn (Unicode_string.to_string pattern) in
+              let str = Unicode_string.to_string str in
+              Re2.replace_exn regex str ~f:(fun _ ->
+                  Unicode_string.to_string replacement)
+              |> Unicode_string.of_string_exn
+              |> DStr
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::httpResponseHeaders"]
+    ; infix_names = []
+    ; parameters = [Lib.par "response" TResp]
+    ; return_type = TList
+    ; description = "Get headers from a HttpResponse"
+    ; func =
+        InProcess
+          (function
+          | state, [DResp response] ->
+            ( match response with
+            | Redirect _, _ ->
+                DList []
+            | Response (_, headers), _ ->
+                headers
+                |> List.map ~f:(fun (k, v) ->
+                       DList
+                         [ DStr (Unicode_string.of_string_exn k)
+                         ; DStr (Unicode_string.of_string_exn v) ])
+                |> fun l -> DList l )
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::httpResponseStatusCode"]
+    ; infix_names = []
+    ; parameters = [Lib.par "response" TResp]
+    ; return_type = TList
+    ; description = "Get status code from a HttpResponse"
+    ; func =
+        InProcess
+          (function
+          | state, [DResp response] ->
+            ( match response with
+            | Redirect _, _ ->
+                Dval.dint 302
+            | Response (code, _), _ ->
+                Dval.dint code )
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::httpResponseBody"]
+    ; infix_names = []
+    ; parameters = [Lib.par "response" TResp]
+    ; return_type = TList
+    ; description = "Get status code from a HttpResponse"
+    ; func =
+        InProcess
+          (function
+          | state, [DResp response] ->
+            (match response with _, body -> body)
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]
 
 

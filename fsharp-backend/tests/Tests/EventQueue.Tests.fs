@@ -29,7 +29,7 @@ let p (code : string) = FSharpToExpr.parsePTExpr code
 let testEventQueueRoundtrip =
   testTask "event queue roundtrip" {
     // set up handler
-    let! meta = initializeTestCanvas "event-queue-roundtrip"
+    let! meta = initializeTestCanvas (Randomized "event-queue-roundtrip")
 
     let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
     let oplists = [ handlerOp h ]
@@ -69,7 +69,7 @@ let testEventQueueRoundtrip =
 
 let testEventQueueIsFifo =
   testTask "event queue is fifo" {
-    let! meta = initializeTestCanvas "event-queue-is-fifo"
+    let! meta = initializeTestCanvas (Randomized "event-queue-is-fifo")
     let apple = testWorker "apple" (p "event")
     let banana = testWorker "banana" (p "event")
 
@@ -112,7 +112,7 @@ let testEventQueueIsFifo =
 
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
-    let! meta = initializeTestCanvas "worker-schedules"
+    let! meta = initializeTestCanvas (Randomized "worker-schedules")
 
     let apple = testWorker "apple" (p "1")
     let banana = testWorker "banana" (p "1")
