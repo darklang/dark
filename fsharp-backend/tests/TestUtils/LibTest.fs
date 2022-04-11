@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "Test" "httpResponseHeaders" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
-      // CLEANUP make tuple
+      // CLEANUP make this is a list of string*string tuples
       returnType = TList(TList TStr)
       description = "Get headers from a HttpResponse"
       fn =
