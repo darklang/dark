@@ -530,7 +530,7 @@ let fns : Types.RuntimeT.fn list =
             ( match response with
             | Redirect _, _ ->
                 Dval.dint 302
-            | Response (code, headers), _ ->
+            | Response (code, _), _ ->
                 Dval.dint code )
           | args ->
               Lib.fail args)
