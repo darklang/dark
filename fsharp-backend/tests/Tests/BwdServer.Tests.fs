@@ -265,18 +265,18 @@ let t filename =
       (hs : (string * string) list)
       : (string * string) list =
       hs
-      |> List.map (fun (k, v) ->
+      |> List.filterMap (fun (k, v) ->
         match k, v with
-        | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
+        | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
         | "expires", _
-        | "Expires", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
-        | "x-darklang-execution-id", _ -> k, "0123456789"
+        | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+        | "x-darklang-execution-id", _ -> Some(k, "0123456789")
         | "age", _
-        | "Age", _ -> k, "xxxx"
+        | "Age", _ -> None
         | "X-GUploader-UploadID", _
-        | "x-guploader-uploadid", _ -> k, "xxxx"
-        | "x-goog-generation", _ -> k, "xxxx"
-        | other -> (k, v))
+        | "x-guploader-uploadid", _ -> Some(k, "xxxx")
+        | "x-goog-generation", _ -> Some(k, "xxxx")
+        | other -> Some(k, v))
       |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders

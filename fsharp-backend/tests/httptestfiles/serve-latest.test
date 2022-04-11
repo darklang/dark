@@ -25,8 +25,6 @@ access-control-allow-origin: * // OCAMLONLY
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-expose-headers: Content-Type // OCAMLONLY
 Access-Control-Expose-Headers: Content-Type // FSHARPONLY
-age: xxxx // OCAMLONLY
-Age: xxxx // FSHARPONLY
 alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000,h3-Q050=":443"; ma=2592000,h3-Q046=":443"; ma=2592000,h3-Q043=":443"; ma=2592000,quic=":443"; ma=2592000; v="46,43" // OCAMLONLY
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000,h3-Q050=":443"; ma=2592000,h3-Q046=":443"; ma=2592000,h3-Q043=":443"; ma=2592000,quic=":443"; ma=2592000 // FSHARPONLY
 cache-control: public, max-age=3600 // OCAMLONLY

@@ -202,7 +202,6 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["accept-ranges"; "bytes"]
   ["access-control-allow-origin"; "*"]
   ["access-control-expose-headers"; "Content-Type"]
-  ["age"; "xxxx"]
   ["alt-svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\""]
   ["cache-control"; "public, max-age=3600"];
   ["content-length"; "38"]
@@ -227,7 +226,6 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["accept-ranges"; "bytes"]
   ["access-control-allow-origin"; "*"]
   ["access-control-expose-headers"; "Content-Type"]
-  ["age"; "xxxx"]
   ["alt-svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\""]
   ["cache-control"; "public, max-age=3600"];
   ["content-length"; "685"]
@@ -252,7 +250,6 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["accept-ranges"; "bytes"]
   ["access-control-allow-origin"; "*"]
   ["access-control-expose-headers"; "Content-Type"]
-  ["age"; "xxxx"]
   ["alt-svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\""]
   ["cache-control"; "public, max-age=3600"];
   ["content-length"; "0"]
@@ -277,7 +274,6 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["Accept-Ranges"; "bytes"]
   ["Access-Control-Allow-Origin"; "*"]
   ["Access-Control-Expose-Headers"; "Content-Type"]
-  ["Age"; "xxxx"]
   ["Alt-Svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000"]
   ["Cache-Control"; "public, max-age=3600"]
   ["Content-Type"; "text/html"]
@@ -299,7 +295,6 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["Accept-Ranges"; "bytes"]
   ["Access-Control-Allow-Origin"; "*"]
   ["Access-Control-Expose-Headers"; "Content-Type"]
-  ["Age"; "xxxx"]
   ["Alt-Svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000"]
   ["Cache-Control"; "public, max-age=3600"]
   ["Content-Type"; "image/png"]
@@ -322,7 +317,6 @@ StaticAssets.fetchLatestBytes_v0 "index.html" = Test.typeError "No deploy hash f
   ["Accept-Ranges"; "bytes"]
   ["Access-Control-Allow-Origin"; "*"]
   ["Access-Control-Expose-Headers"; "Content-Type"]
-  ["Age"; "xxxx"]
   ["Alt-Svc"; "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000"]
   ["Cache-Control"; "public, max-age=3600"]
   ["Content-Type"; "text/html"]
@@ -345,13 +339,13 @@ result |> Result.map_v1
   (fun response ->
     let headers =
       (Test.httpResponseHeaders response)
-      |> List.map (fun h ->
+      |> List.filterMap (fun h ->
         match h |> List.head_v0 with
-        | "expires" -> ["expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "date" -> ["date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "age" -> ["age"; "xxxx"]
-        | "x-guploader-uploadid" -> ["x-guploader-uploadid"; "xxx"]
-        | _ -> h)
+        | "expires" -> Just ["expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "date" -> Just ["date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "age" -> Nothing // sometimes missing from CDN response
+        | "x-guploader-uploadid" -> Just ["x-guploader-uploadid"; "xxx"]
+        | _ -> Just h)
       |> List.sortBy (fun h -> List.head_v0 h)
     { code = Test.httpResponseStatusCode response; body = Test.httpResponseBody response; headers = headers})
 
@@ -360,14 +354,14 @@ result |> Result.map_v1
   (fun response ->
     let headers =
       (Test.httpResponseHeaders response)
-      |> List.map (fun h ->
+      |> List.filterMap (fun h ->
         match h |> List.head_v0 with
-        | "expires" -> ["expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "date" -> ["date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "last-modified" -> ["last-modified"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "age" -> ["age"; "xxxx"]
-        | "x-guploader-uploadid" -> ["x-guploader-uploadid"; "xxx"]
-        | _ -> h)
+        | "expires" -> Just ["expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "date" -> Just ["date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "last-modified" -> Just ["last-modified"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "age" -> Nothing // sometimes missing from CDN response
+        | "x-guploader-uploadid" -> Just ["x-guploader-uploadid"; "xxx"]
+        | _ -> Just h)
       |> List.sortBy (fun h -> List.head_v0 h)
     { code = Test.httpResponseStatusCode response; body = Test.httpResponseBody response; headers = headers})
 
@@ -376,13 +370,13 @@ result |> Result.map_v1
   (fun response ->
     let headers =
       (Test.httpResponseHeaders response)
-      |> List.map (fun h ->
+      |> List.filterMap (fun h ->
         match h |> List.head_v0 with
-        | "Expires" -> ["Expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "Date" -> ["Date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "Age" -> ["Age"; "xxxx"]
-        | "X-GUploader-UploadID" -> ["X-GUploader-UploadID"; "xxx"]
-        | _ -> h)
+        | "Expires" -> Just ["Expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "Date" -> Just ["Date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "Age" -> Nothing // sometimes missing from CDN response
+        | "X-GUploader-UploadID" -> Just ["X-GUploader-UploadID"; "xxx"]
+        | _ -> Just h)
       |> List.sortBy (fun h -> List.head_v0 h)
     { code = Test.httpResponseStatusCode response; body = Test.httpResponseBody response; headers = headers})
 
@@ -391,14 +385,14 @@ result |> Result.map_v1
   (fun response ->
     let headers =
       (Test.httpResponseHeaders response)
-      |> List.map (fun h ->
+      |> List.filterMap (fun h ->
         match h |> List.head_v0 with
-        | "Expires" -> ["Expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "Date" -> ["Date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "Age" -> ["Age"; "xxxx"]
-        | "Last-Modified" -> ["Last-Modified"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
-        | "X-GUploader-UploadID" -> ["X-GUploader-UploadID"; "xxx"]
-        | _ -> h)
+        | "Expires" -> Just ["Expires"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "Date" -> Just ["Date"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "Age" -> Nothing // sometimes missing from CDN response
+        | "Last-Modified" -> Just ["Last-Modified"; "xxx, xx xxx xxxx xx:xx:xx xxx"]
+        | "X-GUploader-UploadID" -> Just ["X-GUploader-UploadID"; "xxx"]
+        | _ -> Just h)
       |> List.sortBy (fun h -> List.head_v0 h)
     { code = Test.httpResponseStatusCode response; body = Test.httpResponseBody response; headers = headers})
 
