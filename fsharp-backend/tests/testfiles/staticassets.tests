@@ -1,4 +1,5 @@
-// These tests are racy, and therefore they are run using testSequencedGroup in
+// These tests share the same canvas, and if they were run in parallel there would be
+// races between them. Therefore they are run using testSequencedGroup in
 // LibExecution.Tests.fs.
 //
 // We have uploaded files to the cloud storage bucket for the dev-environment canvas
