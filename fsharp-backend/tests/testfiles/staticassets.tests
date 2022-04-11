@@ -549,10 +549,8 @@ canonicalizeFSharpBadResponse (StaticAssets.serveLatest_v1 "no-file-with-this-na
   Ok { body = Test.intArrayToBytes []; headers = fsharp404Headers 0; code = 404 }
 
 [test.serveLatest_v1 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
-canonicalizeOCamlBadResponse (StaticAssets.serveLatest_v1 "index.html") =
-  Test.typeError "Dark Exception.DarkStorage Err: Expected one result, got none"
+StaticAssets.serveLatest_v1 "index.html" = Test.typeError "Dark Exception.DarkStorage Err: Expected one result, got none"
 
 [test.serveLatest_v1 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
-canonicalizeFSharpBadResponse (StaticAssets.serveLatest_v1 "index.html") =
-  Test.typeError "No deploy hash found"
+StaticAssets.serveLatest_v1 "index.html" = Test.typeError "No deploy hash found"
 
