@@ -91,6 +91,9 @@ StaticAssets.fetch_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet,
 [test.fetch_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
+[test.fetch_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+
 [test.fetch_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
@@ -108,6 +111,9 @@ StaticAssets.fetch_v1 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet,
 [test.fetch_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
+[test.fetch_v1 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+
 [test.fetch_v1 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
@@ -124,6 +130,9 @@ StaticAssets.fetchLatest_v0 "plain.txt" = Ok "Lorem ipsum dolor sit amet, consec
 
 [test.fetchLatest_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatest_v0 "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
+
+[test.fetchLatest_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatest_v0 "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
 [test.fetchLatest_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatest_v0 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -145,6 +154,9 @@ StaticAssets.fetchLatest_v1 "plain.txt" = Ok "Lorem ipsum dolor sit amet, consec
 [test.fetchLatest_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatest_v1 "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
+[test.fetchLatest_v1 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatest_v1 "index.html" = Ok "<html><body>Hello world</body></html>\n"
+
 [test.fetchLatest_v1 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatest_v1 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
@@ -165,6 +177,9 @@ StaticAssets.fetchBytes_v0 "abcdef1234" "plain.txt" = Ok (String.toBytes_v0 "Lor
 [test.fetchBytes_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchBytes_v0 "abcdef1234" "favicon-32x32.png" = Ok (getPng 0)
 
+[test.fetchBytes_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchBytes_v0 "abcdef1234" "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
+
 [test.fetchBytes_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchBytes_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
 
@@ -181,6 +196,9 @@ StaticAssets.fetchLatestBytes_v0 "plain.txt" = Ok (String.toBytes_v0 "Lorem ipsu
 
 [test.fetchLatestBytes_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatestBytes_v0 "favicon-32x32.png" = Ok (getPng 0)
+
+[test.fetchLatestBytes_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+StaticAssets.fetchLatestBytes_v0 "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
 
 [test.fetchLatestBytes_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatestBytes_v0 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -409,6 +427,14 @@ canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html")
 [test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
+[test.serve_v0 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
+  Ok { body = "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+
+[test.serve_v0 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
+  Ok { body = "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
+
 [test.serve_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") =
   Ok { body = ""; headers = ocaml404Headers 0; code = 404 }
@@ -446,6 +472,14 @@ canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "favicon-32x32.png")
   Ok { body = getPng 0
        headers = fsharp200PngHeaders 0;
        code = 200 }
+
+[test.serveLatest_v0 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+
+[test.serveLatest_v0 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
 
 [test.serveLatest_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponse (StaticAssets.serveLatest_v0 "no-file-with-this-name") =
@@ -489,6 +523,18 @@ canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "favicon-32x3
        headers = fsharp200PngHeaders 0;
        code = 200 }
 
+[test.serve_v1 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofilesshere, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+       headers = ocaml200HtmlHeaders 0;
+       code = 200 }
+
+[test.serve_v1 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+       headers = fsharp200HtmlHeaders 0;
+       code = 200 }
+
 [test.serve_v1 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponse (StaticAssets.serve_v1 "abcdef1234" "no-file-with-this-name") =
   Ok { body = Test.intArrayToBytes []; headers = ocaml404Headers 0; code = 404 }
@@ -529,6 +575,18 @@ canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") 
 canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") =
   Ok { body = getPng 0
        headers = fsharp200PngHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v1 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+       headers = ocaml200HtmlHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v1 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+       headers = fsharp200HtmlHeaders 0;
        code = 200 }
 
 [test.serveLatest_v1 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234

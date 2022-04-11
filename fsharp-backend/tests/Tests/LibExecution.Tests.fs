@@ -274,7 +274,7 @@ let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras 
     | [ "StaticAssetsDeployHash"; hash ] ->
       let hash = String.trim hash
       { extras with
-          staticAssetsDeployHashes = hash :: extras.staticAssetsDeployHashes }
+          staticAssetsDeployHashes = extras.staticAssetsDeployHashes @ [ hash ] }
     | other -> Exception.raiseInternal "invalid option" [ "annotation", other ])
 
 
