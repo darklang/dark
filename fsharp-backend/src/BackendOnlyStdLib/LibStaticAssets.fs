@@ -359,7 +359,7 @@ let fns : List<BuiltInFn> =
               |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
-            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes(body)))))
+            return DResult(Ok(DHttpResponse(Response(code, headers, DBytes body))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

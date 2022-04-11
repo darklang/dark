@@ -28,6 +28,8 @@ type Test =
   { handlers : List<string * string * string>
     cors : Option<string>
     secrets : List<string * string>
+    /// Allow testing of a specific canvas name
+    canvasName : Option<string>
     customDomain : Option<string>
     request : byte array
     response : byte array }
@@ -87,6 +89,7 @@ let parseTest (bytes : byte array) : Test =
       cors = None
       secrets = []
       customDomain = None
+      canvasName = None
       request = [||]
       response = [||] }
   lines
@@ -109,6 +112,8 @@ let parseTest (bytes : byte array) : Test =
         (Limbo, { result with secrets = secrets @ result.secrets })
       | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
         (Limbo, { result with customDomain = Some customDomain })
+      | Regex "\[canvas-name (\S+)]" [ canvasName ] ->
+        (Limbo, { result with canvasName = Some canvasName })
       | "[request]" -> (InRequest, result)
       | "[response]" -> (InResponse, result)
       | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
@@ -200,12 +205,17 @@ let t filename =
     let name =
       let withoutPrefix = if skip then String.dropLeft 1 filename else filename
       withoutPrefix |> String.dropRight 5 // ".test"
-    let! (meta : Canvas.Meta) = initializeTestCanvas (Randomized $"bwdserver-{name}")
 
     let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
 
     let test = parseTest contents
+    let canvasName =
+      match test.canvasName with
+      | Some name -> Exact name
+      | None -> Randomized $"bwdserver-{name}"
+
+    let! (meta : Canvas.Meta) = initializeTestCanvas canvasName
 
     let oplists =
       test.handlers
@@ -258,7 +268,14 @@ let t filename =
       |> List.map (fun (k, v) ->
         match k, v with
         | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
+        | "expires", _
+        | "Expires", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
         | "x-darklang-execution-id", _ -> k, "0123456789"
+        | "age", _
+        | "Age", _ -> k, "xxxx"
+        | "X-GUploader-UploadID", _
+        | "x-guploader-uploadid", _ -> k, "xxxx"
+        | "x-goog-generation", _ -> k, "xxxx"
         | other -> (k, v))
       |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
 
