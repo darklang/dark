@@ -7,26 +7,25 @@ Host: HOST
 
 ""
 [response]
-HTTP/1.1 200 OK
+HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Content-type: text/plain; charset=utf-8
-Arbitrary-header: Test value
-Content-Length: LENGTH
+Location: /v1/response-redirect-dest-post-with-form-urlencoded-content-type-no-body
 
-Redirect destination reached
 
 [test]
-// This is here to be a destination for valid redirect tests
-(let response = HttpClient.post "http://URL" "" {} {} in
- let respHeaders = response.headers |> Dict.remove_v0 "Date" in
+(let response = HttpClient.post_v1 "http://URL" "" {} {``Content-Type`` = "application/x-www-form-urlencoded" }
+ let respHeaders = response.headers |> Dict.remove_v0 "Date"
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
      headers =
       {
         ``Arbitrary-header`` = "Test value"
-        ``Content-Length`` = "LENGTH"
+        ``Content-Length`` = "28"
         ``Content-Type`` = "text/plain; charset=utf-8"
         ``HTTP/1.1 200 OK`` = ""
+        ``HTTP/1.1 302 Found`` = ""
+        ``Location`` = "/v1/response-redirect-dest-post-with-form-urlencoded-content-type-no-body"
         Server = "Kestrel"
+        ``Transfer-Encoding`` = "chunked"
       }
      raw = "Redirect destination reached"}
