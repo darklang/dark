@@ -1,7 +1,7 @@
+[canvas-name test-static-assets-deploy]
+
 [http-handler GET /]
 StaticAssets.serve_v1_ster "abcdef1234" "index.html"
-
-[canvas-name test-static-assets-deploy]
 
 [request]
 GET / HTTP/1.1
