@@ -435,6 +435,44 @@ canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "xx" "index.html") =
   Ok { body = ""; headers = fsharp404Headers 0; code = 404 }
 
 
+// serveLatest_v0
+[test.serveLatest_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+
+[test.serveLatest_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
+
+[test.serveLatest_v0 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "favicon-32x32.png") =
+  Ok { body = getPng 0
+       headers = ocaml200PngHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v0 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "favicon-32x32.png") =
+  Ok { body = getPng 0
+       headers = fsharp200PngHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlBadResponse (StaticAssets.serveLatest_v0 "no-file-with-this-name") =
+  Ok { body = Test.intArrayToBytes []; headers = ocaml404Headers 0; code = 404 }
+
+[test.serveLatest_v0 missing FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpBadResponse (StaticAssets.serveLatest_v0 "no-file-with-this-name") =
+  Ok { body = Test.intArrayToBytes []; headers = fsharp404Headers 0; code = 404 }
+
+[test.serveLatest_v0 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
+StaticAssets.serveLatest_v0 "index.html" = Test.typeError "Dark Exception.DarkStorage Err: Expected one result, got none"
+
+[test.serveLatest_v0 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
+StaticAssets.serveLatest_v0 "index.html" = Test.typeError "No deploy hash found"
+
+
+
+
 // serve_v1
 [test.serve_v1 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
@@ -475,4 +513,46 @@ canonicalizeOCamlBadResponse (StaticAssets.serve_v1 "xx" "index.html") =
 [test.serve_v1 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
 canonicalizeFSharpBadResponse (StaticAssets.serve_v1 "xx" "index.html") =
   Ok { body = Test.intArrayToBytes []; headers = fsharp404Headers 0; code = 404 }
+
+
+// serveLatest_v1
+[test.serveLatest_v1 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+       headers = ocaml200HtmlHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v1 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+       headers = fsharp200HtmlHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v1 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") =
+  Ok { body = getPng 0
+       headers = ocaml200PngHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v1 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") =
+  Ok { body = getPng 0
+       headers = fsharp200PngHeaders 0;
+       code = 200 }
+
+[test.serveLatest_v1 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeOCamlBadResponse (StaticAssets.serveLatest_v1 "no-file-with-this-name") =
+  Ok { body = Test.intArrayToBytes []; headers = ocaml404Headers 0; code = 404 }
+
+[test.serveLatest_v1 missing FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+canonicalizeFSharpBadResponse (StaticAssets.serveLatest_v1 "no-file-with-this-name") =
+  Ok { body = Test.intArrayToBytes []; headers = fsharp404Headers 0; code = 404 }
+
+[test.serveLatest_v1 nohash OCAMLONLY] with ExactCanvasName test-static-assets-deploy
+canonicalizeOCamlBadResponse (StaticAssets.serveLatest_v1 "index.html") =
+  Test.typeError "Dark Exception.DarkStorage Err: Expected one result, got none"
+
+[test.serveLatest_v1 nohash FSHARPONLY] with ExactCanvasName test-static-assets-deploy
+canonicalizeFSharpBadResponse (StaticAssets.serveLatest_v1 "index.html") =
+  Test.typeError "No deploy hash found"
 
