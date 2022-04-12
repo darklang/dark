@@ -31,17 +31,10 @@ spec:
     - to:
         - namespaceSelector:
             matchLabels:
-              k8s-namespace: darklang
+              name: darklang
           podSelector:
             matchLabels:
               app: tunnel2-app
-        # TODO: I do not know why this is needed, shouldn't the selectors handle
-        # this? If we remove this, dark-executors are not able to access
-        # tunnel2-service anymore. Even if we make this more specific (eg
-        # 10.0.0.0/24). This seems like a bug but google hasn't found what it is.
-        # Discussed in https://github.com/darklang/dark/issues/3679
-        - ipBlock:
-            cidr: 10.0.0.0/8
       ports:
         - protocol: TCP
           port: 1080
