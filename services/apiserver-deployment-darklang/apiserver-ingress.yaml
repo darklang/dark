@@ -5,7 +5,7 @@ metadata:
   namespace: darklang
   annotations:
     kubernetes.io/ingress.class: gce
-    kubernetes.io/ingress.global-static-ip-name: darklang-tls-ip # FSTODO
+    kubernetes.io/ingress.global-static-ip-name: darklang-tls-ip2
 spec:
   defaultBackend:
     service:
