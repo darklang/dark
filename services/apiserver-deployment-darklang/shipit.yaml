@@ -5,8 +5,7 @@ k8s:
       - apiserver-network-policy.yaml
       - apiserver-service.yaml
       - apiserver-service-backendconfig.yaml
-      #- darklang-ingress.yaml
-      #- darklang-nodeport.yaml
+      - apiserver-ingress.yaml
       - darklang.com-tls.yaml
 
     # Manually deployed so it can be used to override
