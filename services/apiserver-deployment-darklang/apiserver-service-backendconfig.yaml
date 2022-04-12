@@ -3,9 +3,11 @@ apiVersion: cloud.google.com/v1
 metadata:
   name: apiserver-service-backendconfig
   namespace: darklang
+# A BackendConfig allows us to configure how a load balancer talks to a service. Note
+# that the BackendConfig is for the service, not the ingress, but the ingress uses
+# its configuration to determine how to run.
 spec:
-  # A backendconfig allows us to configure how a load balancer talks to a service.
-  # There is one healthcheck per node (VM) to add it to the service.
+
   healthCheck:
     requestPath: "/k8s/livenessProbe"
     type: HTTP
@@ -15,8 +17,13 @@ spec:
     # host: gce-ingress-healthcheck
     healthyThreshold: 1
     unhealthyThreshold: 1
+
   logging:
     # Changing this setting didn't seem to do anything - I needed to Edit it in the
     # GCP web console (or presumably using the gcloud command line utilily)
     # Note that only a change is status is logged.
     enable: true
+
+  # Cloud armor
+  securityPolicy:
+    name: apiserver-service-security-policy
