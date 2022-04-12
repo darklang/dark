@@ -24,6 +24,8 @@ spec:
       ports:
         - protocol: UDP
           port: 53
+        - protocol: TCP
+          port: 53
 
     # Allow access to tunnel2
     - to:
@@ -33,7 +35,11 @@ spec:
           podSelector:
             matchLabels:
               app: tunnel2-app
-        # TODO: I do not know why this is needed, shouldn't the selectors handle this?
+        # TODO: I do not know why this is needed, shouldn't the selectors handle
+        # this? If we remove this, dark-executors are not able to access
+        # tunnel2-service anymore. Even if we make this more specific (eg
+        # 10.0.0.0/24). This seems like a bug but google hasn't found what it is.
+        # Discussed in https://github.com/darklang/dark/issues/3679
         - ipBlock:
             cidr: 10.0.0.0/8
       ports:
@@ -66,7 +72,7 @@ spec:
               # Exclude any local addresses. We allow some of these above, but rules
               # are ORed together, so it's fine to exclude them here.
               - 169.254.0.0/16
-              # - 10.0.0.0/8
+              - 10.0.0.0/8
               - 172.16.0.0/12
               - 192.168.0.0/16
               - 127.0.0.0/8
@@ -78,3 +84,5 @@ spec:
           protocol: TCP
         - port: 53
           protocol: UDP
+        - port: 53
+          protocol: TCP
