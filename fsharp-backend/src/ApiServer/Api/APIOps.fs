@@ -56,10 +56,13 @@ let addOp (ctx : HttpContext) : Task<T> =
     let canvasID = canvasInfo.id
 
     let! isLatest = Serialize.isLatestOpRequest p.clientOpCtrId p.opCtr canvasInfo.id
-    Telemetry.addTags [ "op_ctr", p.opCtr; "clientOpCtrId", p.clientOpCtrId ]
 
     let newOps = Convert.ocamlOplist2PT p.ops
     let newOps = if isLatest then newOps else Op.filterOpsReceivedOutOfOrder newOps
+    let opTLIDs = List.map Op.tlidOf newOps
+    Telemetry.addTags [ "opCtr", p.opCtr
+                        "clientOpCtrId", p.clientOpCtrId
+                        "opTLIDs", opTLIDs ]
 
     t.next "load-saved-ops"
     let! dbTLIDs =
@@ -70,7 +73,7 @@ let addOp (ctx : HttpContext) : Task<T> =
       // and not just the tlids in the API payload.
       | Op.AllDatastores -> Serialize.fetchTLIDsForAllDBs canvasInfo.id
 
-    let allTLIDs = (List.map Op.tlidOf newOps) @ dbTLIDs
+    let allTLIDs = opTLIDs @ dbTLIDs
     // We're going to save this, so we need all the ops
     let! oldOps =
       Serialize.loadOplists Serialize.IncludeDeletedToplevels canvasInfo.id allTLIDs
@@ -102,7 +105,7 @@ let addOp (ctx : HttpContext) : Task<T> =
         (oldOps @ newOps)
         |> Op.oplist2TLIDOplists
         |> List.map (fun (tlid, oplists) ->
-          let (tl, deleted) =
+          let (tl, isDeleted) =
             match Map.get tlid toplevels with
             | Some tl -> tl, C.NotDeleted
             | None ->
@@ -111,9 +114,9 @@ let addOp (ctx : HttpContext) : Task<T> =
               | None ->
                 Exception.raiseInternal
                   "couldn't find the TL we supposedly just looked up"
-                  [ "tlid", tlid ]
+                  [ "tlid", tlid; "dbTLIDs", dbTLIDs; "ops", p.ops ]
 
-          (tlid, oplists, tl, deleted))
+          (tlid, oplists, tl, isDeleted))
         |> C.saveTLIDs canvasInfo
 
 
