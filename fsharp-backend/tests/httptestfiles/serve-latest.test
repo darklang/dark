@@ -1,7 +1,11 @@
-[canvas-name test-static-assets-deploy]
+[canvas-name test-httpclient-static-assets-deploy]
 
 [http-handler GET /]
 StaticAssets.serve_v1_ster "abcdef1234" "index.html"
+// `index.html` has been uploaded to a new bucket for this test.
+//
+// The hash of `test-httpclient-static-assets-deploy` is `q80gm_txk39kbiy4l35hejeekxc`.
+// https://github.com/darklang/dark/issues/3674#issuecomment-1096963098
 
 [request]
 GET / HTTP/1.1
