@@ -2,7 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: apiserver-service
-  namespace: default
+  namespace: darklang
   annotations:
     cloud.google.com/backend-config: '{"default": "apiserver-service-backendconfig"}'
 spec:
