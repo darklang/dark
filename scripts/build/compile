@@ -176,7 +176,6 @@ def test_nginx():
   start = time.time()
   result = run_backend(start, "sudo nginx -t -c /etc/nginx-ocaml/nginx.conf")
   result &= run_backend(start, "sudo nginx -t -c /etc/nginx-apiserver/nginx.conf")
-  result &= run_backend(start, "sudo nginx -t -c /etc/nginx-bwdserver/nginx.conf")
   return result
 
 
