@@ -1,4 +1,4 @@
-[canvas-name test-static-assets-deploy]
+[canvas-name test-httpclient-static-assets-deploy]
 
 [http-handler GET /]
 StaticAssets.serve_v1_ster "abcdef1234" "index.html"
@@ -33,8 +33,8 @@ etag: "f48d15085d77f9812a13ba59235bdbf4" // OCAMLONLY
 ETag: "f48d15085d77f9812a13ba59235bdbf4" // FSHARPONLY
 expires: xxx, xx xxx xxxx xx:xx:xx xxx // OCAMLONLY
 Expires: xxx, xx xxx xxxx xx:xx:xx xxx // FSHARPONLY
-last-modified: Thu, 07 Apr 2022 22:05:09 GMT // OCAMLONLY
-Last-Modified: Thu, 07 Apr 2022 22:05:09 GMT // FSHARPONLY
+last-modified: Tue, 12 Apr 2022 17:04:31 GMT // OCAMLONLY
+Last-Modified: Tue, 12 Apr 2022 17:04:31 GMT // FSHARPONLY
 x-darklang-execution-id: 0123456789
 x-goog-generation: xxxx
 x-goog-hash: crc32c=64O3OA== // OCAMLONLY
