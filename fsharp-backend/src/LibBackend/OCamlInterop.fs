@@ -42,8 +42,10 @@ let client =
      // In .NET 6, this is fine without having to do anything about socket exhaustion or
      // DNS.
      let client = new System.Net.Http.HttpClient(handler, disposeHandler = false)
-     // We prefer that this raise than hang
-     client.Timeout <- System.TimeSpan.FromSeconds 5
+     // Since this is now only used for saving as part of AddOps, we have have a
+     // longer window. People were running up against the 5 second limit, so make
+     // this 10s. But the real solution is to remove OCamlInterop.
+     client.Timeout <- System.TimeSpan.FromSeconds 10
      client)
 
 /// Make a request to the legacy OCaml server
