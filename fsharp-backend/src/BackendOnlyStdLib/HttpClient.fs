@@ -211,7 +211,7 @@ let httpCall'
           // lot
           let latin1 =
             try
-              let charset = response.Content.Headers.ContentType.CharSet
+              let charset = response.Content.Headers.ContentType.CharSet.ToLower()
               match charset with
               | "latin1"
               | "us-ascii"
@@ -439,6 +439,7 @@ let sendRequest
       |> Option.defaultValue (guessContentType reqBody)
     let reqHeaders =
       Map encodedReqHeaders |> Map.add "Content-Type" contentType |> Map.toList
+
     let encodedReqBody = encodeRequestBody reqBody reqHeaders
 
     match! httpCall 0 false uri query verb reqHeaders encodedReqBody with

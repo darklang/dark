@@ -319,7 +319,7 @@ let makeHttpCall
           // lot
           let latin1 =
             try
-              let charset = response.Content.Headers.ContentType.CharSet
+              let charset = response.Content.Headers.ContentType.CharSet.ToLower()
               match charset with
               | "latin1"
               | "us-ascii"
