@@ -1,63 +1,16 @@
-# CLEANUP don't delete this, it's needed for F# too. Move to apiserver directory
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: darklang-tls-ingress
-  namespace: default
+  namespace: darklang
   annotations:
     kubernetes.io/ingress.class: gce
+    kubernetes.io/ingress.global-static-ip-name: darklang-tls-ip # FSTODO
 spec:
-  # The default backend goes to the OCaml service (editor-deployment)
   defaultBackend:
     service:
-      name: darklang-nodeport
+      name: apiserver-service
       port:
         number: 80
-  rules:
-    # See
-    # https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress
-    # These rules are intended to enable anyone to test out the F# backend, while we
-    # see what works.
-    - http:
-        paths:
-          # Due to an unknown issue with the load balancer, we cannot change the
-          # defaultBackend without causing the service to go down. So instead we'll
-          # just make a rule that sends everything to the F# backend.  I'm leaving
-          # everything else alone on purpose.
-          # CLEANUP Later, I'll just add a new load balancer and change the DNS over.
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: apiserver-service
-                port:
-                  number: 80
-
-          # Testing so that any user can use these
-          - path: /a-testing-fsharp/*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: apiserver-service
-                port:
-                  number: 80
-
-          # Api - CLEANUP remove
-          - path: /api-testing-fsharp/*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: apiserver-service
-                port:
-                  number: 80
-
-          # Static assets test - CLEANUP remove
-          - path: /api/paul-testing-static-assets/*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: apiserver-service
-                port:
-                  number: 80
   tls:
     - secretName: darklang.com-tls
