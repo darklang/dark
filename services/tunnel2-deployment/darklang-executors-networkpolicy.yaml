@@ -80,6 +80,7 @@ spec:
       ports:
         - port: 443
           protocol: TCP
+        # CLEANUP remove when rollbar no longer requires this
         - port: 80 # Only opened to let the rollbar ConnectivityMonitor reach out to www.rollbar.com
           protocol: TCP
         - port: 53
