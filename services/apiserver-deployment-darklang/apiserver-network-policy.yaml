@@ -20,7 +20,8 @@ spec:
           port: 9002
 
   # Allow this pod to reach darklang-nodeport service so that it can pass
-  # static_assets API calls to the editor-deployment
+  # static_assets API calls to the editor-deployment. Note that this uses the port of
+  # the pod, not the port of the service.
   egress:
     - to:
         - namespaceSelector:
@@ -30,7 +31,5 @@ spec:
             matchLabels:
               app: editor-app
       ports:
-        - protocol: TCP
-          port: 80
         - protocol: TCP
           port: 8000
