@@ -86,7 +86,8 @@ let testHttpLoadIgnoresDeletedFns =
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let f = testUserFn "testfn" [] (parse "5 + 3")
-    let f2 = testUserFn "testfn" [] (parse "6 + 4")
+    let f2 = testUserFn "testfn2" [] (parse "6 + 4")
+    let fNew = testUserFn "testfnNew" [] (parse "6 + 4")
 
     do!
       Canvas.saveTLIDs
@@ -95,7 +96,8 @@ let testHttpLoadIgnoresDeletedFns =
            [ hop handler ],
            PT.Toplevel.TLHandler handler,
            Canvas.NotDeleted)
-          (f.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted) ]
+          (f.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted)
+          (f2.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted) ]
     // TLIDs are saved in parallel, so do them in separate calls
     do!
       Canvas.saveTLIDs
@@ -105,8 +107,12 @@ let testHttpLoadIgnoresDeletedFns =
            PT.Toplevel.TLFunction f,
            Canvas.Deleted)
           (f2.tlid,
-           [ PT.SetFunction f2 ],
+           [ PT.DeleteFunctionForever f2.tlid ],
            PT.Toplevel.TLFunction f2,
+           Canvas.DeletedForever)
+          (fNew.tlid,
+           [ PT.SetFunction fNew ],
+           PT.Toplevel.TLFunction fNew,
            Canvas.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
@@ -117,7 +123,7 @@ let testHttpLoadIgnoresDeletedFns =
 
     Expect.equal c2.handlers[handler.tlid] handler "handler is loaded "
     Expect.equal c2.userFunctions.Count 1 "only one function is loaded from cache"
-    Expect.equal c2.userFunctions[f2.tlid] f2 "later func is loaded"
+    Expect.equal c2.userFunctions[fNew.tlid] fNew "later func is loaded"
   }
 
 
@@ -405,16 +411,16 @@ let testCanvasClone =
     let canvasOpsLength oplists =
       oplists |> List.map Tuple2.second |> List.concat |> List.length
 
-    Expect.equal
+    Expect.isTrue
       (hasCreationOps sourceOplists)
-      true
       "only_ops_since_last_savepoint retrieve latest ops from the last complete op"
 
-    Expect.equal
-      (canvasOpsLength sourceOplists > canvasOpsLength targetOplists)
-      true
+    Expect.isGreaterThan (canvasOpsLength targetOplists) 0 "make sure it exists"
+
+    Expect.isGreaterThan
+      (canvasOpsLength sourceOplists)
+      (canvasOpsLength targetOplists)
       "fewer ops means we removed old history"
-    return ()
 
     Expect.equal sourceCanvas.dbs targetCanvas.dbs "Same DBs when loading from db"
 
@@ -433,6 +439,8 @@ let testCanvasClone =
       tweakedSourceHandlers
       (Map.values targetCanvas.handlers)
       "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
+
+    return ()
   }
 
 
