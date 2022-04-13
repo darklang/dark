@@ -279,6 +279,16 @@ let debugByteArray (msg : string) (a : byte array) : byte array =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
   a
 
+let debugList (msg : string) (list : List<'a>) : List<'a> =
+  if list = [] then
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+  else
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {List.length list}, ["
+    List.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}") list
+    NonBlockingConsole.WriteLine $"])"
+  list
+
+
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} {f v}"
   v
