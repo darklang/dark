@@ -27,11 +27,8 @@ JSON.read_v1 "[97, 2, 30, 4,]" = Test.typeError "The JSON array contains a trail
 JSON.read_v1 "{Id : 1.0}" = {Id = 1.0} // OCAMLONLY
 JSON.read_v1 "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
-JSON.read_v1 "{Id : 1.}" = Test.typeError "Json Err: Line 1, bytes 7-9:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
-JSON.read_v1 "{Id : 1.}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
-
-JSON.read_v1 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ] // OCAMLONLY
-JSON.read_v1 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = Test.typeError_v0 "'d' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 3." // FSHARPONLY
+JSON.read_v1 "{\"Id\" : 1.}" = Test.typeError "Json Err: Line 1, bytes 9-11:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
+JSON.read_v1 "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10." // FSHARPONLY
 
 JSON.read_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"} // OCAMLONLY
 JSON.read_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
@@ -65,11 +62,8 @@ JSON.parse_v0 "[97, 2, 30, 4,]" = Test.typeError "The JSON array contains a trai
 JSON.parse_v0 "{Id : 1.0}" = {Id = 1.0} // OCAMLONLY
 JSON.parse_v0 "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
-JSON.parse_v0 "{Id : 1.}" = Test.typeError_v0 "Json Err: Line 1, bytes 7-9:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
-JSON.parse_v0 "{Id : 1.}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
-
-JSON.parse_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ] // OCAMLONLY
-JSON.parse_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = Test.typeError_v0 "'d' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 3." // FSHARPONLY
+JSON.parse_v0 "{\"Id\" : 1.}" = Test.typeError_v0 "Json Err: Line 1, bytes 9-11:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
+JSON.parse_v0 "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")" // FSHARPONLY
 
 JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"} // OCAMLONLY
 JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
