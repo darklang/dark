@@ -283,7 +283,16 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
-
+    - host: xumx-sqkii.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
 
   tls:
     - secretName: builtwithdark.com-tls
