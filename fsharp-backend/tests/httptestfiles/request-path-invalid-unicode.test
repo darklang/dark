@@ -1,4 +1,5 @@
 [http-handler GET /hello/þþÿÿ]
+// This doesn't reach the dark http stack
 "þþÿÿ"
 
 [request]
