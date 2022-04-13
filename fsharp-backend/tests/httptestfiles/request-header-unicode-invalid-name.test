@@ -1,4 +1,5 @@
 [http-handler GET /]
+// Doesn't reach dark stack
 request.headers
 
 [request]

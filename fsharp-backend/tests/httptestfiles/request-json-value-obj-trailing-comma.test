@@ -13,15 +13,12 @@ Content-Length: 23
 [response]
 HTTP/1.1 400 Bad Request
 Date: xxx, xx xxx xxxx xx:xx:xx xxx // OCAMLONLY
-Connection: keep-alive // OCAMLONLY
-Content-Length: LENGTH // OCAMLONLY
-Server: nginx/1.16.1 // OCAMLONLY
-x-darklang-execution-id: 0123456789 // OCAMLONLY
-Content-Length: LENGTH // FSHARPONLY
-Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Date: xxx, xx xxx xxxx xx:xx:xx xxx // FSHARPONLY
+Connection: keep-alive // OCAMLONLY
+Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-x-darklang-execution-id: 0123456789 // FSHARPONLY
+x-darklang-execution-id: 0123456789
+Content-Length: LENGTH
+Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 
-Invalid json: { "field1": "value1", } // OCAMLONLY
-Invalid json: { "field1": "value1", } // FSHARPONLY
+Invalid json: { "field1": "value1", }

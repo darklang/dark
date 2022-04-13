@@ -1,4 +1,5 @@
 [http-handler GET /hello/:name]
+// Dark doesn't get the chance to see this
 "hello " ++ name
 
 [request]
