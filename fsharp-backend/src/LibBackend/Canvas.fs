@@ -462,6 +462,7 @@ let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
 
 type Deleted =
   | Deleted
+  | DeletedForever
   | NotDeleted
 
 let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
@@ -522,11 +523,6 @@ let saveTLIDs
         let string2option (s : string) : Option<string> =
           if s = "" then None else Some s
 
-        let deleted =
-          match deleted with
-          | Deleted -> true
-          | NotDeleted -> false
-
         let routingNames =
           match tl with
           | PT.Toplevel.TLHandler ({ spec = spec }) ->
@@ -552,10 +548,14 @@ let saveTLIDs
           | PT.Toplevel.TLFunction _ -> None
 
         let (module_, name, modifier) =
-          match routingNames with
-          | Some (module_, name, modifier) ->
-            (string2option module_, string2option name, string2option modifier)
-          | None -> None, None, None
+          // Only save info used to find handlers when the handler has not been deleted
+          if deleted = NotDeleted then
+            match routingNames with
+            | Some (module_, name, modifier) ->
+              (string2option module_, string2option name, string2option modifier)
+            | None -> None, None, None
+          else
+            None, None, None
 
         let pos =
           match tl with
@@ -570,42 +570,63 @@ let saveTLIDs
         let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
         let fsharpOplistCache = BinarySerialization.serializeToplevel tl
 
+        let deletedOption =
+          match deleted with
+          | Deleted -> Some true
+          | NotDeleted -> Some false
+          | DeletedForever -> None
+
         return!
-          Sql.query
-            "INSERT INTO toplevel_oplists
-                  (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
-                   rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
-                  VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                          @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
-                          @oplist, @oplistCache)
-                  ON CONFLICT (canvas_id, tlid) DO UPDATE
-                  SET account_id = @accountID,
-                      digest = @digest,
-                      tipe = @typ::toplevel_type,
-                      name = @name,
-                      module = @module,
-                      modifier = @modifier,
-                      data = @data,
-                      rendered_oplist_cache = @renderedOplistCache,
-                      deleted = @deleted,
-                      pos = @pos,
-                      oplist = @oplist,
-                      oplist_cache = @oplistCache"
-          |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                              "accountID", Sql.uuid meta.owner
-                              "tlid", Sql.id tlid
-                              "digest", Sql.string (OCamlInterop.digest ())
-                              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
-                              "name", Sql.stringOrNone name
-                              "module", Sql.stringOrNone module_
-                              "modifier", Sql.stringOrNone modifier
-                              "data", Sql.bytea ocamlOplist
-                              "renderedOplistCache", Sql.bytea ocamlOplistCache
-                              "deleted", Sql.bool deleted
-                              "pos", Sql.jsonbOrNone pos
-                              "oplist", Sql.bytea fsharpOplist
-                              "oplistCache", Sql.bytea fsharpOplistCache ]
-          |> Sql.executeStatementAsync
+          match deletedOption with
+          | None ->
+            // CLEANUP: delete from table where `deleted IS NULL`
+            // CLEANUP: set deleted to be not nullable
+            Sql.query
+              "DELETE from toplevel_oplists
+                WHERE canvas_id = @canvasID
+                  AND account_id = @accountID
+                  AND tlid = @tlid"
+            |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                                "accountID", Sql.uuid meta.owner
+                                "tlid", Sql.id tlid ]
+            |> Sql.executeStatementAsync
+          | Some deleted ->
+            Sql.query
+              "INSERT INTO toplevel_oplists
+                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
+                    rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
+                    VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
+                            @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
+                            @oplist, @oplistCache)
+                    ON CONFLICT (canvas_id, tlid) DO UPDATE
+                    SET account_id = @accountID,
+                        digest = @digest,
+                        tipe = @typ::toplevel_type,
+                        name = @name,
+                        module = @module,
+                        modifier = @modifier,
+                        data = @data,
+                        rendered_oplist_cache = @renderedOplistCache,
+                        deleted = @deleted,
+                        pos = @pos,
+                        oplist = @oplist,
+                        oplist_cache = @oplistCache"
+            |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                                "accountID", Sql.uuid meta.owner
+                                "tlid", Sql.id tlid
+                                "digest", Sql.string (OCamlInterop.digest ())
+                                "typ",
+                                Sql.string (PTParser.Toplevel.toDBTypeString tl)
+                                "name", Sql.stringOrNone name
+                                "module", Sql.stringOrNone module_
+                                "modifier", Sql.stringOrNone modifier
+                                "data", Sql.bytea ocamlOplist
+                                "renderedOplistCache", Sql.bytea ocamlOplistCache
+                                "deleted", Sql.bool deleted
+                                "pos", Sql.jsonbOrNone pos
+                                "oplist", Sql.bytea fsharpOplist
+                                "oplistCache", Sql.bytea fsharpOplistCache ]
+            |> Sql.executeStatementAsync
       })
   with
   | e ->
