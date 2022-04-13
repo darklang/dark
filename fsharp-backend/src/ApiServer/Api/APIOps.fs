@@ -97,6 +97,16 @@ let addOp (ctx : HttpContext) : Task<T> =
         user_tipes = types
         deleted_user_tipes = dTypes }
 
+    let emptyHandler (tlid : tlid) : PT.Toplevel.T =
+      let ids : PT.Handler.ids =
+        { moduleID = gid (); nameID = gid (); modifierID = gid () }
+      PT.Toplevel.TLHandler
+        { pos = { x = 0; y = 0 }
+          tlid = tlid
+          ast = PT.EBlank(gid ())
+          spec = PT.Handler.HTTP("", "", ids) }
+
+
     t.next "save-to-disk"
     // work out the result before we save it, in case it has a
     // stackoverflow or other crashing bug
@@ -112,10 +122,10 @@ let addOp (ctx : HttpContext) : Task<T> =
               match Map.get tlid deletedToplevels with
               | Some tl -> tl, C.Deleted
               | None ->
-                Exception.raiseInternal
-                  "couldn't find the TL we supposedly just looked up"
-                  [ "tlid", tlid; "dbTLIDs", dbTLIDs; "ops", p.ops ]
-
+                // If we don't find anything, this was deletedForever, or undone
+                // completely. We'll choose the latter for now and see where it takes
+                // us. https://github.com/darklang/dark/issues/3675 for discussion.
+                (emptyHandler tlid, C.DeletedForever)
           (tlid, oplists, tl, isDeleted))
         |> C.saveTLIDs canvasInfo
 
