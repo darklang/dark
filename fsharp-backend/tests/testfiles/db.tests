@@ -393,7 +393,7 @@ DB.count X = 0
  let _ = DB.set_v1 { x = "cheers" } "four" X in
  DB.count X) = 4
 
-
+// CLEANUP put into one test
 [test.db.delete_v0 does not exist for ocaml OCAMLONLY] with DB X
 DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete is DEPRECATED"
 

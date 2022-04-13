@@ -122,7 +122,7 @@ Float.sqrt_v0 0.0 = 0.0
 Float.subtract_v0 1.0 0.2 = 0.8
 
 Float.sum_v0 [1.0;0.2] = 1.2
-Float.sum_v0 [1.0;"a"] = Test.typeError_v0 "Expected the argument `a` to be a list of floats, but it was `[ \n  1., \"a\"\n]`" // FSHARPONLY
 Float.sum_v0 [1.0;"a"] = Test.typeError_v0 "Sum expects you to pass a list of floats" // OCAMLONLY
+Float.sum_v0 [1.0;"a"] = Test.typeError_v0 "Expected the argument `a` to be a list of floats, but it was `[ \n  1., \"a\"\n]`" // FSHARPONLY
 
 Test.nan_v0 != Test.nan_v0
