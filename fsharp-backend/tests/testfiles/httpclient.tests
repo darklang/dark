@@ -112,7 +112,6 @@ HttpClient.get_v0 "/just-a-path" {} {} {} = Test.typeError_v0 "Internal HTTP-sta
 HttpClient.get_v0 "/just-a-path" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
 
 // No F# version as these work in F#
-// FSTODO ensure these are tested in httpclient test files
 HttpClient.get_v5 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v4 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
