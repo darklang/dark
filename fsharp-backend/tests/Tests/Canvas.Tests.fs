@@ -83,6 +83,54 @@ let testHttpOplistLoadsUserTypes =
     Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
   }
 
+let testUndoTooFarDoesntBreak =
+  testTask "undo too far doesnt break" {
+    let! meta = initializeTestCanvas (Randomized "undo too far doesnt break")
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid,
+           [ hop handler
+             PT.UndoTL handler.tlid
+             PT.UndoTL handler.tlid
+             PT.UndoTL handler.tlid ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.NotDeleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
+
+    Expect.equal c2.handlers[handler.tlid] handler "handler is not loaded"
+
+    // In addition, check that the row is formatted correctly in the DB. We expect
+    // name, module, and modifier to be null because otherwise they can be found by
+    // Http searches
+    let! dbRow =
+      Sql.query
+        "SELECT name, module, modifier, deleted
+         FROM toplevel_oplists
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid"
+      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.executeRowAsync (fun read ->
+        read.stringOrNone "name",
+        read.stringOrNone "module",
+        read.stringOrNone "modifier",
+        read.boolOrNone "deleted")
+
+    Expect.equal
+      dbRow
+      (Some "/path", Some "HTTP", Some "GET", Some false)
+      "Row should be there"
+  }
+
+
+
 
 let testHttpLoadIgnoresDeletedHandler =
   testTask "Http load ignores deleted handler" {
@@ -490,6 +538,7 @@ let tests =
       testHttpOplistLoadsUserTypes
       testHttpLoadIgnoresDeletedFns
       testHttpLoadIgnoresDeletedHandler
+      testUndoTooFarDoesntBreak
       testDbCreateWithOrblankName
       testDbRename
       testSetHandlerAfterDelete
