@@ -188,7 +188,7 @@ Dict.get_v2 response.headers "content-type"
 // `content-type`: `"text/html; charset=utf-8"`
 //
 // The subsequent response to https://www.google.com includes a response header
-// of `content-type`: .`"text/html; charset=ISO-8859-1"`
+// of `content-type`: `"text/html; charset=ISO-8859-1"`
 //
 // The expected/correct content-type header that a Dark user should receive is
 // `"text/html; charset=ISO-8859-1"`, since that's the charset of the actual content
