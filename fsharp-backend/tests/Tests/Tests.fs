@@ -43,26 +43,24 @@ let main (args : string array) : int =
         Tests.Undo.tests
         Tests.UserDB.tests ]
 
-    if args.Length = 1 && args[0] = "--regenerate-test-files" then
-      BinarySerialization.generateBinarySerializationTestFiles ()
-      print "Serialized to backend/serialization"
-      0
-    else
-      let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-      let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-      let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-      Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
-      (LibBackend.Account.initTestAccounts ()).Wait()
+    let cancelationTokenSource = new System.Threading.CancellationTokenSource()
+    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
+    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
+    Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
+    (LibBackend.Account.initTestAccounts ()).Wait()
 
-      // this does async stuff within it, so do not run it from a task/async
-      // context or it may hang
-      let exitCode = runTestsWithCLIArgs [] args (testList "tests" tests)
+    // Generate this so that we can see if the format has changed in a git diff
+    BinarySerialization.generateBinarySerializationTestFiles ()
 
-      NonBlockingConsole.wait () // flush stdout
-      cancelationTokenSource.Cancel()
-      bwdServerTestsTask.Wait()
-      httpClientTestsTask.Wait()
-      exitCode
+    // this does async stuff within it, so do not run it from a task/async
+    // context or it may hang
+    let exitCode = runTestsWithCLIArgs [] args (testList "tests" tests)
+
+    NonBlockingConsole.wait () // flush stdout
+    cancelationTokenSource.Cancel()
+    bwdServerTestsTask.Wait()
+    httpClientTestsTask.Wait()
+    exitCode
   with
   | e ->
     print e.Message

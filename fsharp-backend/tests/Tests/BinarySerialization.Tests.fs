@@ -425,37 +425,38 @@ let oplistRoundtripTest =
 /// (though they will not necessarily have the same output). If we make changes to
 /// the binary serialization format (or to the test cases), we generate the files
 /// and commit them.
-/// Regenerate using ./scripts/build/regenerate-test-files
 let generateBinarySerializationTestFiles () : unit =
   let binaryData = testOplist |> BinarySerialization.serializeOplist 0UL
   let jsonData = testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
 
-  let timestamp = NodaTime.Instant.now().ToString("yyyy-MM-dd-HH-mm-ss", null)
-  File.writefileBytes
-    Config.Serialization
-    $"oplist-format-{timestamp}.bin"
-    binaryData
+  let sha1 =
+    System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan binaryData)
+    |> SimpleBase.Base16.LowerCase.Encode
+
+  File.writefileBytes Config.Serialization $"oplist-format-{sha1}.bin" binaryData
   File.writefileBytes Config.Serialization "oplist-format-latest.bin" binaryData
 
-  File.writefile Config.Serialization $"oplist-format-{timestamp}.json" jsonData
+  File.writefile Config.Serialization $"oplist-format-{sha1}.json" jsonData
   File.writefile Config.Serialization "oplist-format-latest.json" jsonData
 
 let testTestFiles =
   test "check test files are correct" {
     // We can just check the oplists as expressions and toplevels are contained inside
 
-    // Check that the generated JSON matches what we have saved
-    let expected = File.readfile Config.Serialization "oplist-format-latest.json"
-    let actual = testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
+    // Check that the generated JSON matches what we have saved. This ensures the
+    // format have not diverged.
+    let expectedJsonContents =
+      File.readfile Config.Serialization "oplist-format-latest.json"
+    let actualJson = testOplist |> BinarySerialization.Test.serializeOplistToJson 0UL
     // There are times where the json would be the same but the binary would be different
-    Expect.equal actual expected "check generates the same json"
+    Expect.equal actualJson expectedJsonContents "check generates the same json"
 
-    // Check that the generated binary data matches what we have saved
-    let expected =
+    // Check that the generated binary data matches what we have saved. This ensures
+    // the format has not changed.
+    let actualBinary = testOplist |> BinarySerialization.serializeOplist 0UL
+    let expectedBinaryBytes =
       File.readfileBytes Config.Serialization "oplist-format-latest.bin"
-      |> BinarySerialization.deserializeOplist 0UL
-    let actual = testOplist
-    Expect.equal actual expected "check can read the saved file"
+    Expect.equal actualBinary expectedBinaryBytes "check can read the saved file"
 
     // Check that all .bin files can be parsed and give us the expected answer (this
     // might not be true as we get more formats, so this may need to be adapted)
