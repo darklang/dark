@@ -407,11 +407,8 @@ let testOplist : PT.Oplist =
     PT.DeleteDBCol(tlid, id)
     PT.RenameDBname(tlid, "newname")
     PT.CreateDBWithBlankOr(tlid, testPos, id, "User")
-    PT.DeleteTLForever tlid
-    PT.DeleteFunctionForever tlid
     PT.SetType(testUserTypes[0])
-    PT.DeleteType tlid
-    PT.DeleteTypeForever tlid ]
+    PT.DeleteType tlid ]
 
 let oplistRoundtripTest =
   test "roundtrip oplists" {

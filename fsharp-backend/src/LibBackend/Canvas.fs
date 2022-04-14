@@ -165,11 +165,6 @@ let deleteFunction (tlid : tlid) (c : T) : T =
         userFunctions = Map.remove tlid c.userFunctions
         deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
 
-let deleteFunctionForever (tlid : tlid) (c : T) : T =
-  { c with
-      userFunctions = Map.remove tlid c.userFunctions
-      deletedUserFunctions = Map.remove tlid c.deletedUserFunctions }
-
 let deleteType (tlid : tlid) (c : T) : T =
   match Map.get tlid c.userTypes with
   | None -> c
@@ -177,18 +172,6 @@ let deleteType (tlid : tlid) (c : T) : T =
     { c with
         userTypes = Map.remove tlid c.userTypes
         deletedUserTypes = Map.add tlid t c.deletedUserTypes }
-
-let deleteTypeForever (tlid : tlid) (c : T) : T =
-  { c with
-      userTypes = Map.remove tlid c.userTypes
-      deletedUserTypes = Map.remove tlid c.deletedUserTypes }
-
-let deleteTLForever (tlid : tlid) (c : T) : T =
-  { c with
-      dbs = Map.remove tlid c.dbs
-      handlers = Map.remove tlid c.handlers
-      deletedDBs = Map.remove tlid c.deletedDBs
-      deletedHandlers = Map.remove tlid c.deletedHandlers }
 
 // CLEANUP Historically, on the backend, toplevel meant handler or DB
 let deleteToplevel (tlid : tlid) (c : T) : T =
@@ -253,11 +236,8 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
       setDB (UserDB.create2 tlid name pos id) c
-    | PT.DeleteTLForever tlid -> deleteTLForever tlid c
-    | PT.DeleteFunctionForever tlid -> deleteFunctionForever tlid c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
-    | PT.DeleteTypeForever tlid -> deleteTypeForever tlid c
   with
   | e ->
     // Log here so we have context, but then re-raise

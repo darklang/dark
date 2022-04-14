@@ -219,11 +219,8 @@ type Op =
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
   | CreateDBWithBlankOr of tlid * Position * id * string
-  | DeleteTLForever of tlid // CLEANUP not used, can be removed (carefully)
-  | DeleteFunctionForever of tlid // CLEANUP not used, can be removed (carefully)
   | SetType of UserType.T
   | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | DeleteTypeForever of tlid // CLEANUP not used, can be removed (carefully)
 
 type Oplist = List<Op>
 
