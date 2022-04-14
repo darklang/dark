@@ -88,6 +88,7 @@ let httpClient : HttpClient =
 exception InvalidEncodingException of int
 
 let httpCall'
+  // CLEANUP remove this unused param
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
@@ -211,7 +212,7 @@ let httpCall'
           // lot
           let latin1 =
             try
-              let charset = response.Content.Headers.ContentType.CharSet
+              let charset = response.Content.Headers.ContentType.CharSet.ToLower()
               match charset with
               | "latin1"
               | "us-ascii"
@@ -335,7 +336,7 @@ let rec httpCall
               (fun redirectResult ->
                 // Keep all headers along the way, mirroring the OCaml version
                 { redirectResult with
-                    headers = redirectResult.headers @ result.headers })
+                    headers = result.headers @ redirectResult.headers })
               newResponse
         | _ -> return response
       | _ -> return response
@@ -439,6 +440,7 @@ let sendRequest
       |> Option.defaultValue (guessContentType reqBody)
     let reqHeaders =
       Map encodedReqHeaders |> Map.add "Content-Type" contentType |> Map.toList
+
     let encodedReqBody = encodeRequestBody reqBody reqHeaders
 
     match! httpCall 0 false uri query verb reqHeaders encodedReqBody with
