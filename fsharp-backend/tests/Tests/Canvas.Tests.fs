@@ -5,6 +5,10 @@ open FSharp.Control.Tasks
 
 open Expecto
 
+open Npgsql.FSharp
+open Npgsql
+open LibBackend.Db
+
 open Prelude
 open Tablecloth
 open TestUtils.TestUtils
@@ -79,6 +83,46 @@ let testHttpOplistLoadsUserTypes =
     Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
   }
 
+
+let testHttpLoadIgnoresDeletedHandler =
+  testTask "Http load ignores deleted handler" {
+    let! meta = initializeTestCanvas (Randomized "http-load-ignores-deleted-handler")
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid,
+           [ hop handler; PT.DeleteTL handler.tlid ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.Deleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
+
+    Expect.equal c2.handlers.Count 0 "handler is not loaded"
+
+    // In addition, check that the row is formatted correctly in the DB. We expect
+    // name, module, and modifier to be null because otherwise they can be found by
+    // Http searches
+    let! dbRow =
+      Sql.query
+        "SELECT name, module, modifier, deleted
+         FROM toplevel_oplists
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid"
+      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.executeRowAsync (fun read ->
+        read.stringOrNone "name",
+        read.stringOrNone "module",
+        read.stringOrNone "modifier",
+        read.boolOrNone "deleted")
+
+    Expect.equal dbRow (None, None, None, Some true) "Row should be cleared"
+  }
 
 let testHttpLoadIgnoresDeletedFns =
   testTask "Http load ignores deleted fns" {
@@ -445,6 +489,7 @@ let tests =
       testDBOplistRoundtrip
       testHttpOplistLoadsUserTypes
       testHttpLoadIgnoresDeletedFns
+      testHttpLoadIgnoresDeletedHandler
       testDbCreateWithOrblankName
       testDbRename
       testSetHandlerAfterDelete
