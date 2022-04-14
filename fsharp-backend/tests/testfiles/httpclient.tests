@@ -195,11 +195,20 @@ Dict.get_v2 response.headers "content-type"
 //
 // F# respects this, but OCaml returns the wrong charset.
 
-[test.google redirect charset set incorrectly v5 OCAMLONLY]
-getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=ISO-8859-1"
+[tests.test with confusing results]
+(HttpClient.get_v5_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type"= Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+(HttpClient.get_v5_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type" = Just "text/html; charset=UTF-8" // OCAMLONLY
+(HttpClient.get_v4_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type"= Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+(HttpClient.get_v4_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type" = Just "text/html; charset=UTF-8" // OCAMLONLY
+(HttpClient.get_v3_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type"= Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+(HttpClient.get_v3_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type" = Just "text/html; charset=UTF-8" // OCAMLONLY
+(HttpClient.get_v2_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type"= Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+(HttpClient.get_v2_ster "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type" = Just "text/html; charset=UTF-8" // OCAMLONLY
+(HttpClient.get_v1 "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type"= Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+(HttpClient.get_v1 "https://google.com" {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type" = Just "text/html; charset=UTF-8" // OCAMLONLY
+(HttpClient.get_v0 "https://google.com" {} {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type"= Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+(HttpClient.get_v0 "https://google.com" {} {} {}) |> (fun r -> r.headers) |> Dict.get_v2 "content-type" = Just "text/html; charset=UTF-8" // OCAMLONLY
 
-[test.google redirect charset set correctly v5  FSHARPONLY]
-getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8"
 
 
 [test.http2 v5]
