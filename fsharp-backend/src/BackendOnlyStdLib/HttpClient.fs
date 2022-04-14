@@ -88,6 +88,7 @@ let httpClient : HttpClient =
 exception InvalidEncodingException of int
 
 let httpCall'
+  // CLEANUP remove this unused param
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
@@ -335,7 +336,7 @@ let rec httpCall
               (fun redirectResult ->
                 // Keep all headers along the way, mirroring the OCaml version
                 { redirectResult with
-                    headers = redirectResult.headers @ result.headers })
+                    headers = result.headers @ redirectResult.headers })
               newResponse
         | _ -> return response
       | _ -> return response
