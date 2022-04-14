@@ -11,6 +11,7 @@ open Prelude
 open Tablecloth
 open Db
 
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes

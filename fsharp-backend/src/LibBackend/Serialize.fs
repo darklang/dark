@@ -17,6 +17,7 @@ open Tablecloth
 open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PTParser = LibExecution.ProgramTypesParser
 module Telemetry = LibService.Telemetry
 

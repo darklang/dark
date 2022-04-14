@@ -9,7 +9,7 @@ open TestUtils.TestUtils
 module File = LibBackend.File
 module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
-module BinarySerialization = LibBackend.BinarySerialization
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 
 /// The test values below are used to check the exact output of test file. So we need
 /// the test inputs to be consistent, which is why we never use `gid ()` below, or
