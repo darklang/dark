@@ -325,6 +325,8 @@ NUGET
     runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography.OpenSsl (4.3.3)
     runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl (4.3.3)
     runtime.ubuntu.18.04-x64.runtime.native.System.Security.Cryptography.OpenSsl (4.3.3)
+    SimpleBase (3.1)
+      System.Memory (>= 4.5.4)
     Sodium.Core (1.2.3)
       libsodium (>= 1.0.18)
       System.ValueTuple (>= 4.5)

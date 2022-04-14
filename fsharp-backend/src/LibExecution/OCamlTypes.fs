@@ -552,11 +552,11 @@ module Convert =
     | CreateDBWithBlankOr (tlid, pos, id, string) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
       Some(PT.CreateDBWithBlankOr(tlid, position, id, string))
-    | DeleteTLForever tlid -> Some(PT.DeleteTLForever tlid)
-    | DeleteFunctionForever tlid -> Some(PT.DeleteFunctionForever tlid)
     | SetType tipe -> Some(PT.SetType(ocamlUserType2PT tipe))
     | DeleteType tlid -> Some(PT.DeleteType tlid)
-    | DeleteTypeForever tlid -> Some(PT.DeleteTypeForever tlid)
+    | DeleteTLForever _
+    | DeleteFunctionForever _
+    | DeleteTypeForever _ -> None
 
 
   let ocamlOplist2PT (list : oplist<ORT.fluidExpr>) : PT.Oplist =
@@ -954,11 +954,8 @@ module Convert =
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
       let pos : pos = { x = pos.x; y = pos.y }
       CreateDBWithBlankOr(tlid, pos, id, string)
-    | PT.DeleteTLForever tlid -> DeleteTLForever tlid
-    | PT.DeleteFunctionForever tlid -> DeleteFunctionForever tlid
     | PT.SetType tipe -> SetType(pt2ocamlUserType tipe)
     | PT.DeleteType tlid -> DeleteType tlid
-    | PT.DeleteTypeForever tlid -> DeleteTypeForever tlid
 
 
   let pt2ocamlOplist (list : PT.Oplist) : oplist<ORT.fluidExpr> =

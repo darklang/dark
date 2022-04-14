@@ -728,11 +728,8 @@ and op =
   | DeleteDBCol(TLID.t, ID.t)
   | RenameDBname(TLID.t, dbName)
   | CreateDBWithBlankOr(TLID.t, pos, ID.t, dbName)
-  | DeleteTLForever(TLID.t)
-  | DeleteFunctionForever(TLID.t)
   | SetType(userTipe)
   | DeleteType(TLID.t)
-  | DeleteTypeForever(TLID.t)
 
 /* ------------------- */
 /* APIs */
@@ -755,6 +752,8 @@ and executeFunctionAPIParams = {
   efpArgs: list<dval>,
   efpFnName: string,
 }
+
+and deleteToplevelForeverAPIParams = {dtfTLID: TLID.t}
 
 and uploadFnAPIParams = {uplFn: userFunction}
 
@@ -1195,6 +1194,7 @@ and modification =
   | ExecutingFunctionAPICall(TLID.t, ID.t, string)
   | TriggerHandlerAPICall(TLID.t)
   | UpdateDBStatsAPICall(TLID.t)
+  | DeleteToplevelForeverAPICall(TLID.t)
   /* End API Calls */
   | Select(TLID.t, tlidSelectTarget)
   | SetHover(TLID.t, ID.t)
@@ -1370,6 +1370,8 @@ and msg =
   | WorkerStatePush(Map.String.t<string>)
   | @printer(opaque("Delete404APICallback"))
   Delete404APICallback(delete404APIParams, Tea.Result.t<unit, httpError>)
+  | @printer(opaque("DeleteToplevelForeverAPICallback"))
+  DeleteToplevelForeverAPICallback(deleteToplevelForeverAPIParams, Tea.Result.t<unit, httpError>)
   | @printer(opaque("InitialLoadAPICallback"))
   InitialLoadAPICallback(focus, modification, Tea.Result.t<initialLoadAPIResult, httpError>)
   | @printer(opaque("FetchAllTracesAPICallback"))

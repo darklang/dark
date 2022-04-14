@@ -225,36 +225,38 @@ module Toplevel =
     | ST.Toplevel.TLType ut -> PT.Toplevel.TLType(UserType.toPT ut)
 
 module Op =
-  let toPT (op : ST.Op) : PT.Op =
+  let toPT (op : ST.Op) : Option<PT.Op> =
     match op with
     | ST.SetHandler (tlid, pos, handler) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.SetHandler(tlid, position, Handler.toPT handler)
+      Some(PT.SetHandler(tlid, position, Handler.toPT handler))
     | ST.CreateDB (tlid, pos, name) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.CreateDB(tlid, position, name)
-    | ST.AddDBCol (tlid, id1, id2) -> PT.AddDBCol(tlid, id1, id2)
-    | ST.SetDBColName (tlid, id, name) -> PT.SetDBColName(tlid, id, name)
-    | ST.SetDBColType (tlid, id, string) -> PT.SetDBColType(tlid, id, string)
-    | ST.DeleteTL tlid -> PT.DeleteTL tlid
+      Some(PT.CreateDB(tlid, position, name))
+    | ST.AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
+    | ST.SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
+    | ST.SetDBColType (tlid, id, string) -> Some(PT.SetDBColType(tlid, id, string))
+    | ST.DeleteTL tlid -> Some(PT.DeleteTL tlid)
     | ST.MoveTL (tlid, pos) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.MoveTL(tlid, position)
-    | ST.SetFunction fn -> PT.SetFunction(UserFunction.toPT fn)
-    | ST.ChangeDBColName (tlid, id, string) -> PT.ChangeDBColName(tlid, id, string)
-    | ST.ChangeDBColType (tlid, id, string) -> PT.ChangeDBColType(tlid, id, string)
-    | ST.UndoTL tlid -> PT.UndoTL tlid
-    | ST.RedoTL tlid -> PT.RedoTL tlid
-    | ST.SetExpr (tlid, id, e) -> PT.SetExpr(tlid, id, Expr.toPT e)
-    | ST.TLSavepoint tlid -> PT.TLSavepoint tlid
-    | ST.DeleteFunction tlid -> PT.DeleteFunction tlid
-    | ST.DeleteDBCol (tlid, id) -> PT.DeleteDBCol(tlid, id)
-    | ST.RenameDBname (tlid, string) -> PT.RenameDBname(tlid, string)
+      Some(PT.MoveTL(tlid, position))
+    | ST.SetFunction fn -> Some(PT.SetFunction(UserFunction.toPT fn))
+    | ST.ChangeDBColName (tlid, id, string) ->
+      Some(PT.ChangeDBColName(tlid, id, string))
+    | ST.ChangeDBColType (tlid, id, string) ->
+      Some(PT.ChangeDBColType(tlid, id, string))
+    | ST.UndoTL tlid -> Some(PT.UndoTL tlid)
+    | ST.RedoTL tlid -> Some(PT.RedoTL tlid)
+    | ST.SetExpr (tlid, id, e) -> Some(PT.SetExpr(tlid, id, Expr.toPT e))
+    | ST.TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
+    | ST.DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
+    | ST.DeleteDBCol (tlid, id) -> Some(PT.DeleteDBCol(tlid, id))
+    | ST.RenameDBname (tlid, string) -> Some(PT.RenameDBname(tlid, string))
     | ST.CreateDBWithBlankOr (tlid, pos, id, string) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
-      PT.CreateDBWithBlankOr(tlid, position, id, string)
-    | ST.DeleteTLForever tlid -> PT.DeleteTLForever tlid
-    | ST.DeleteFunctionForever tlid -> PT.DeleteFunctionForever tlid
-    | ST.SetType tipe -> PT.SetType(UserType.toPT tipe)
-    | ST.DeleteType tlid -> PT.DeleteType tlid
-    | ST.DeleteTypeForever tlid -> PT.DeleteTypeForever tlid
+      Some(PT.CreateDBWithBlankOr(tlid, position, id, string))
+    | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
+    | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
+    | ST.DeleteTLForever _
+    | ST.DeleteFunctionForever _
+    | ST.DeleteTypeForever _ -> None

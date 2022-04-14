@@ -5,6 +5,10 @@ open FSharp.Control.Tasks
 
 open Expecto
 
+open Npgsql.FSharp
+open Npgsql
+open LibBackend.Db
+
 open Prelude
 open Tablecloth
 open TestUtils.TestUtils
@@ -79,6 +83,94 @@ let testHttpOplistLoadsUserTypes =
     Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
   }
 
+let testUndoTooFarDoesntBreak =
+  testTask "undo too far doesnt break" {
+    let! meta = initializeTestCanvas (Randomized "undo too far doesnt break")
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid,
+           [ hop handler
+             PT.UndoTL handler.tlid
+             PT.UndoTL handler.tlid
+             PT.UndoTL handler.tlid ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.NotDeleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
+
+    Expect.equal c2.handlers[handler.tlid] handler "handler is not loaded"
+
+    // In addition, check that the row is formatted correctly in the DB. We expect
+    // name, module, and modifier to be null because otherwise they can be found by
+    // Http searches
+    let! dbRow =
+      Sql.query
+        "SELECT name, module, modifier, deleted
+         FROM toplevel_oplists
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid"
+      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.executeRowAsync (fun read ->
+        read.stringOrNone "name",
+        read.stringOrNone "module",
+        read.stringOrNone "modifier",
+        read.boolOrNone "deleted")
+
+    Expect.equal
+      dbRow
+      (Some "/path", Some "HTTP", Some "GET", Some false)
+      "Row should be there"
+  }
+
+
+
+
+let testHttpLoadIgnoresDeletedHandler =
+  testTask "Http load ignores deleted handler" {
+    let! meta = initializeTestCanvas (Randomized "http-load-ignores-deleted-handler")
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid,
+           [ hop handler; PT.DeleteTL handler.tlid ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.Deleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
+
+    Expect.equal c2.handlers.Count 0 "handler is not loaded"
+
+    // In addition, check that the row is formatted correctly in the DB. We expect
+    // name, module, and modifier to be null because otherwise they can be found by
+    // Http searches
+    let! dbRow =
+      Sql.query
+        "SELECT name, module, modifier, deleted
+         FROM toplevel_oplists
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid"
+      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.executeRowAsync (fun read ->
+        read.stringOrNone "name",
+        read.stringOrNone "module",
+        read.stringOrNone "modifier",
+        read.boolOrNone "deleted")
+
+    Expect.equal dbRow (None, None, None, Some true) "Row should be cleared"
+  }
 
 let testHttpLoadIgnoresDeletedFns =
   testTask "Http load ignores deleted fns" {
@@ -86,7 +178,7 @@ let testHttpLoadIgnoresDeletedFns =
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let f = testUserFn "testfn" [] (parse "5 + 3")
-    let f2 = testUserFn "testfn" [] (parse "6 + 4")
+    let fNew = testUserFn "testfnNew" [] (parse "6 + 4")
 
     do!
       Canvas.saveTLIDs
@@ -104,9 +196,9 @@ let testHttpLoadIgnoresDeletedFns =
            [ PT.DeleteFunction f.tlid ],
            PT.Toplevel.TLFunction f,
            Canvas.Deleted)
-          (f2.tlid,
-           [ PT.SetFunction f2 ],
-           PT.Toplevel.TLFunction f2,
+          (fNew.tlid,
+           [ PT.SetFunction fNew ],
+           PT.Toplevel.TLFunction fNew,
            Canvas.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
@@ -117,7 +209,7 @@ let testHttpLoadIgnoresDeletedFns =
 
     Expect.equal c2.handlers[handler.tlid] handler "handler is loaded "
     Expect.equal c2.userFunctions.Count 1 "only one function is loaded from cache"
-    Expect.equal c2.userFunctions[f2.tlid] f2 "later func is loaded"
+    Expect.equal c2.userFunctions[fNew.tlid] fNew "later func is loaded"
   }
 
 
@@ -405,16 +497,16 @@ let testCanvasClone =
     let canvasOpsLength oplists =
       oplists |> List.map Tuple2.second |> List.concat |> List.length
 
-    Expect.equal
+    Expect.isTrue
       (hasCreationOps sourceOplists)
-      true
       "only_ops_since_last_savepoint retrieve latest ops from the last complete op"
 
-    Expect.equal
-      (canvasOpsLength sourceOplists > canvasOpsLength targetOplists)
-      true
+    Expect.isGreaterThan (canvasOpsLength targetOplists) 0 "make sure it exists"
+
+    Expect.isGreaterThan
+      (canvasOpsLength sourceOplists)
+      (canvasOpsLength targetOplists)
       "fewer ops means we removed old history"
-    return ()
 
     Expect.equal sourceCanvas.dbs targetCanvas.dbs "Same DBs when loading from db"
 
@@ -433,6 +525,8 @@ let testCanvasClone =
       tweakedSourceHandlers
       (Map.values targetCanvas.handlers)
       "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
+
+    return ()
   }
 
 
@@ -443,6 +537,8 @@ let tests =
       testDBOplistRoundtrip
       testHttpOplistLoadsUserTypes
       testHttpLoadIgnoresDeletedFns
+      testHttpLoadIgnoresDeletedHandler
+      testUndoTooFarDoesntBreak
       testDbCreateWithOrblankName
       testDbRename
       testSetHandlerAfterDelete

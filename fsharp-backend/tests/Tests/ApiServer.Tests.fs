@@ -577,6 +577,11 @@ let testInsertDeleteSecrets (client : C) (canvasName : CanvasName.T) =
     Expect.equal fResponse oResponse "compare responses"
   }
 
+let canonicalize404s (fofs : List<TI.F404>) : List<TI.F404> =
+  fofs
+  |> List.map (fun ((space, name, modifier, datetime, traceID) : TI.F404) ->
+    (space, name, modifier, datetime.truncate (), traceID))
+
 let testDelete404s (client : C) (canvasName : CanvasName.T) =
   task {
 
@@ -587,7 +592,7 @@ let testDelete404s (client : C) (canvasName : CanvasName.T) =
 
         Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
         let! body = o.Content.ReadAsStringAsync()
-        return (deserialize<F404s.List.T> body).f404s
+        return (deserialize<F404s.List.T> body).f404s |> canonicalize404s
       }
 
     let path = $"/some-missing-handler-{randomString 5}"
@@ -773,7 +778,9 @@ let testPackages =
     ps |> List.map (fun p -> { p with body = canonicalizeAst p.body })
   postApiTest "packages" "" (deserialize<Packages.List.T>) canonicalizePackages
 
-let test404s = postApiTest "get_404s" "" (deserialize<F404s.List.T>) ident
+let test404s =
+  postApiTest "get_404s" "" deserialize<F404s.List.T> (fun x ->
+    { x with f404s = canonicalize404s x.f404s })
 
 let localOnlyTests =
 

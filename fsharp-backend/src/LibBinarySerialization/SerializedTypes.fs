@@ -21,7 +21,7 @@ type Sign = Prelude.Sign
 // the serializer will raise an exception. (It seems to be OK to not annotate some
 // variants but not others; since it's unclear we annotate them all)
 //
-// All "code" is Dark is serialized using these types and stored in the DB, and we
+// All "code" in Dark is serialized using these types and stored in the DB, and we
 // need to be very careful about changes to the types. "Safe" changes allow data
 // saved in files in the old format to continue to be read by the serializers for the
 // new format.

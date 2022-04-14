@@ -787,8 +787,6 @@ let op = (j): op =>
       ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
       ("ChangeDBColType", variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string)),
       ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
-      /* deprecated, can't happen */
-      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
       (
         "CreateDBMigration",
         variant4(
@@ -831,11 +829,13 @@ let op = (j): op =>
         "CreateDBWithBlankOr",
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
-      ("DeleteFunctionForever", variant1(t => DeleteFunctionForever(t), tlid)),
-      ("DeleteTLForever", variant1(t => DeleteTLForever(t), tlid)),
       ("SetType", variant1(t => SetType(t), userTipe)),
       ("DeleteType", variant1(t => DeleteType(t), tlid)),
-      ("DeleteTypeForever", variant1(t => DeleteTypeForever(t), tlid)),
+      // deprecated, can't happen
+      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteFunctionForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteTLForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteTypeForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
     },
     j,
   )

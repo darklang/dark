@@ -76,7 +76,7 @@ let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte [] =
 let deserializeOplist (tlid : tlid) (data : byte []) : PT.Oplist =
   wrapSerializationException tlid (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip)
-    |> List.map ST2PT.Op.toPT)
+    |> List.filterMap ST2PT.Op.toPT)
 
 module Test =
   let serializeOplistToJson (tlid : tlid) (oplist : PT.Oplist) : string =

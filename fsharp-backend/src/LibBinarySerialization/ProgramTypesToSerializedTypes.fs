@@ -254,8 +254,5 @@ module Op =
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
       let position : ST.Position = { x = pos.x; y = pos.y }
       ST.CreateDBWithBlankOr(tlid, position, id, string)
-    | PT.DeleteTLForever tlid -> ST.DeleteTLForever tlid
-    | PT.DeleteFunctionForever tlid -> ST.DeleteFunctionForever tlid
     | PT.SetType tipe -> ST.SetType(UserType.toST tipe)
     | PT.DeleteType tlid -> ST.DeleteType tlid
-    | PT.DeleteTypeForever tlid -> ST.DeleteTypeForever tlid

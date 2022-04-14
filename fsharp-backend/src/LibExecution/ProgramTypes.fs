@@ -206,7 +206,7 @@ type Op =
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
-  | DeleteTL of tlid
+  | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
   | MoveTL of tlid * Position
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
@@ -215,15 +215,12 @@ type Op =
   | RedoTL of tlid
   | SetExpr of tlid * id * Expr
   | TLSavepoint of tlid
-  | DeleteFunction of tlid
+  | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
   | CreateDBWithBlankOr of tlid * Position * id * string
-  | DeleteTLForever of tlid
-  | DeleteFunctionForever of tlid
   | SetType of UserType.T
-  | DeleteType of tlid
-  | DeleteTypeForever of tlid
+  | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
 
 type Oplist = List<Op>
 

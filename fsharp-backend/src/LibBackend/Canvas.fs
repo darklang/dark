@@ -165,11 +165,6 @@ let deleteFunction (tlid : tlid) (c : T) : T =
         userFunctions = Map.remove tlid c.userFunctions
         deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
 
-let deleteFunctionForever (tlid : tlid) (c : T) : T =
-  { c with
-      userFunctions = Map.remove tlid c.userFunctions
-      deletedUserFunctions = Map.remove tlid c.deletedUserFunctions }
-
 let deleteType (tlid : tlid) (c : T) : T =
   match Map.get tlid c.userTypes with
   | None -> c
@@ -177,18 +172,6 @@ let deleteType (tlid : tlid) (c : T) : T =
     { c with
         userTypes = Map.remove tlid c.userTypes
         deletedUserTypes = Map.add tlid t c.deletedUserTypes }
-
-let deleteTypeForever (tlid : tlid) (c : T) : T =
-  { c with
-      userTypes = Map.remove tlid c.userTypes
-      deletedUserTypes = Map.remove tlid c.deletedUserTypes }
-
-let deleteTLForever (tlid : tlid) (c : T) : T =
-  { c with
-      dbs = Map.remove tlid c.dbs
-      handlers = Map.remove tlid c.handlers
-      deletedDBs = Map.remove tlid c.deletedDBs
-      deletedHandlers = Map.remove tlid c.deletedHandlers }
 
 // CLEANUP Historically, on the backend, toplevel meant handler or DB
 let deleteToplevel (tlid : tlid) (c : T) : T =
@@ -253,11 +236,8 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
       setDB (UserDB.create2 tlid name pos id) c
-    | PT.DeleteTLForever tlid -> deleteTLForever tlid c
-    | PT.DeleteFunctionForever tlid -> deleteFunctionForever tlid c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
-    | PT.DeleteTypeForever tlid -> deleteTypeForever tlid c
   with
   | e ->
     // Log here so we have context, but then re-raise
@@ -505,6 +485,19 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith userType
   |> Option.orElseWith deletedUserType
 
+let deleteToplevelForever (meta : Meta) (tlid : tlid) : Task<unit> =
+  // CLEANUP: delete from table where `deleted IS NULL`
+  // CLEANUP: set deleted column in toplevel_oplists to be not nullable
+  Sql.query
+    "DELETE from toplevel_oplists
+      WHERE canvas_id = @canvasID
+        AND account_id = @accountID
+        AND tlid = @tlid"
+  |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                      "accountID", Sql.uuid meta.owner
+                      "tlid", Sql.id tlid ]
+  |> Sql.executeStatementAsync
+
 
 // Save just the TLIDs listed (a canvas may load more tlids to support
 // calling/testing these TLs, even though those TLs do not need to be updated)
@@ -521,11 +514,6 @@ let saveTLIDs
       task {
         let string2option (s : string) : Option<string> =
           if s = "" then None else Some s
-
-        let deleted =
-          match deleted with
-          | Deleted -> true
-          | NotDeleted -> false
 
         let routingNames =
           match tl with
@@ -552,10 +540,14 @@ let saveTLIDs
           | PT.Toplevel.TLFunction _ -> None
 
         let (module_, name, modifier) =
-          match routingNames with
-          | Some (module_, name, modifier) ->
-            (string2option module_, string2option name, string2option modifier)
-          | None -> None, None, None
+          // Only save info used to find handlers when the handler has not been deleted
+          if deleted = NotDeleted then
+            match routingNames with
+            | Some (module_, name, modifier) ->
+              (string2option module_, string2option name, string2option modifier)
+            | None -> None, None, None
+          else
+            None, None, None
 
         let pos =
           match tl with
@@ -570,27 +562,32 @@ let saveTLIDs
         let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
         let fsharpOplistCache = BinarySerialization.serializeToplevel tl
 
+        let deleted =
+          match deleted with
+          | Deleted -> true
+          | NotDeleted -> false
+
         return!
           Sql.query
             "INSERT INTO toplevel_oplists
-                  (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
-                   rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
-                  VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                          @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
-                          @oplist, @oplistCache)
-                  ON CONFLICT (canvas_id, tlid) DO UPDATE
-                  SET account_id = @accountID,
-                      digest = @digest,
-                      tipe = @typ::toplevel_type,
-                      name = @name,
-                      module = @module,
-                      modifier = @modifier,
-                      data = @data,
-                      rendered_oplist_cache = @renderedOplistCache,
-                      deleted = @deleted,
-                      pos = @pos,
-                      oplist = @oplist,
-                      oplist_cache = @oplistCache"
+                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
+                    rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
+                    VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
+                            @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
+                            @oplist, @oplistCache)
+                    ON CONFLICT (canvas_id, tlid) DO UPDATE
+                    SET account_id = @accountID,
+                        digest = @digest,
+                        tipe = @typ::toplevel_type,
+                        name = @name,
+                        module = @module,
+                        modifier = @modifier,
+                        data = @data,
+                        rendered_oplist_cache = @renderedOplistCache,
+                        deleted = @deleted,
+                        pos = @pos,
+                        oplist = @oplist,
+                        oplist_cache = @oplistCache"
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
