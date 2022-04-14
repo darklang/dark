@@ -506,6 +506,19 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith userType
   |> Option.orElseWith deletedUserType
 
+let deleteToplevelForever (meta : Meta) (tlid : tlid) : Task<unit> =
+  // CLEANUP: delete from table where `deleted IS NULL`
+  // CLEANUP: set deleted column in toplevel_oplists to be not nullable
+  Sql.query
+    "DELETE from toplevel_oplists
+      WHERE canvas_id = @canvasID
+        AND account_id = @accountID
+        AND tlid = @tlid"
+  |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                      "accountID", Sql.uuid meta.owner
+                      "tlid", Sql.id tlid ]
+  |> Sql.executeStatementAsync
+
 
 // Save just the TLIDs listed (a canvas may load more tlids to support
 // calling/testing these TLs, even though those TLs do not need to be updated)
@@ -578,18 +591,7 @@ let saveTLIDs
 
         return!
           match deletedOption with
-          | None ->
-            // CLEANUP: delete from table where `deleted IS NULL`
-            // CLEANUP: set deleted to be not nullable
-            Sql.query
-              "DELETE from toplevel_oplists
-                WHERE canvas_id = @canvasID
-                  AND account_id = @accountID
-                  AND tlid = @tlid"
-            |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                                "accountID", Sql.uuid meta.owner
-                                "tlid", Sql.id tlid ]
-            |> Sql.executeStatementAsync
+          | None -> deleteToplevelForever meta tlid
           | Some deleted ->
             Sql.query
               "INSERT INTO toplevel_oplists

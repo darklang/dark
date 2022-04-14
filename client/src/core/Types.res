@@ -756,6 +756,8 @@ and executeFunctionAPIParams = {
   efpFnName: string,
 }
 
+and deleteToplevelForeverAPIParams = {dtfTLID: TLID.t}
+
 and uploadFnAPIParams = {uplFn: userFunction}
 
 and triggerHandlerAPIParams = {
@@ -1195,6 +1197,7 @@ and modification =
   | ExecutingFunctionAPICall(TLID.t, ID.t, string)
   | TriggerHandlerAPICall(TLID.t)
   | UpdateDBStatsAPICall(TLID.t)
+  | DeleteToplevelForeverAPICall(TLID.t)
   /* End API Calls */
   | Select(TLID.t, tlidSelectTarget)
   | SetHover(TLID.t, ID.t)
@@ -1370,6 +1373,8 @@ and msg =
   | WorkerStatePush(Map.String.t<string>)
   | @printer(opaque("Delete404APICallback"))
   Delete404APICallback(delete404APIParams, Tea.Result.t<unit, httpError>)
+  | @printer(opaque("DeleteToplevelForeverAPICallback"))
+  DeleteToplevelForeverAPICallback(deleteToplevelForeverAPIParams, Tea.Result.t<unit, httpError>)
   | @printer(opaque("InitialLoadAPICallback"))
   InitialLoadAPICallback(focus, modification, Tea.Result.t<initialLoadAPIResult, httpError>)
   | @printer(opaque("FetchAllTracesAPICallback"))

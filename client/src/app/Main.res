@@ -380,6 +380,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
     | Get404sAPICall => (m, API.get404s(m))
     | UpdateDBStatsAPICall(tlid) => Analysis.updateDBStats(m, tlid)
     | GetWorkerStatsAPICall(tlid) => Analysis.getWorkerStats(m, tlid)
+    | DeleteToplevelForeverAPICall(tlid) => (m, API.deleteToplevelForever(m, {dtfTLID: tlid}))
     | NoChange => (m, Cmd.none)
     | TriggerIntegrationTest(name) =>
       let expect = IntegrationTest.trigger(name)
@@ -1275,7 +1276,7 @@ let update_ = (msg: msg, m: model): modification => {
     |> Option.unwrap(~default=NoChange)
   | ToplevelDeleteForever(tlid) =>
     Many(list{
-      AddOps(list{DeleteTLForever(tlid)}, FocusSame),
+      DeleteToplevelForeverAPICall(tlid),
       ReplaceAllModificationsWithThisOne(
         m => (
           {
@@ -1520,6 +1521,23 @@ let update_ = (msg: msg, m: model): modification => {
             ~context="Delete404",
             ~importance=ImportantError,
             ~requestParams=Encoders.fof(params),
+            ~reload=false,
+            err,
+          ),
+        ),
+      })
+    }
+  | DeleteToplevelForeverAPICallback(params, result) =>
+    switch result {
+    | Ok(_) => NoChange
+    | Error(err) =>
+      Many(list{
+        // Rollback the intended deletion
+        HandleAPIError(
+          APIError.make(
+            ~context="DeleteToplevelForeverAPICallback",
+            ~importance=ImportantError,
+            ~requestParams=Encoders.deleteToplevelForeverAPIParams(params),
             ~reload=false,
             err,
           ),

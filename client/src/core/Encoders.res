@@ -327,6 +327,9 @@ and executeFunctionAPIParams = (params: Types.executeFunctionAPIParams): Js.Json
     ("fnname", string(params.efpFnName)),
   })
 
+and deleteToplevelForeverAPIParams = (params: Types.deleteToplevelForeverAPIParams): Js.Json.t =>
+  object_(list{("tlid", tlid(params.dtfTLID))})
+
 and packageFnParameter = (pfp: Types.packageFnParameter): Js.Json.t =>
   object_(list{
     ("name", string(pfp.name)),

@@ -165,6 +165,16 @@ let delete404 = (m: model, params: delete404APIParams): Tea.Cmd.t<msg> =>
     ~callback=x => Delete404APICallback(params, x),
   )
 
+let deleteToplevelForever = (m: model, params: deleteToplevelForeverAPIParams): Tea.Cmd.t<msg> =>
+  apiCall(
+    m,
+    "/delete-toplevel-forever",
+    ~decoder=_ => (),
+    ~encoder=Encoders.deleteToplevelForeverAPIParams,
+    ~params,
+    ~callback=x => DeleteToplevelForeverAPICallback(params, x),
+  )
+
 let insertSecret = (m: model, params: SecretTypes.t): Tea.Cmd.t<msg> =>
   apiCall(
     m,

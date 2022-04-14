@@ -77,7 +77,7 @@ let addRoutes
     addRoute "POST" testingRoute std perm handler
 
   let apiOption name perm f =
-    let handler = (jsonOptionHandler f)
+    let handler = jsonOptionHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
     // CLEANUP remove - these are for testing only
@@ -107,6 +107,7 @@ let addRoutes
   api "add_op" RW AddOps.addOp
   api "all_traces" R Traces.AllTraces.fetchAll
   api "delete_404" RW F404s.Delete.delete
+  apiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
   api "delete_secret" RW Secrets.Delete.delete
   api "execute_function" RW Execution.Function.execute
   api "get_404s" R F404s.List.get
