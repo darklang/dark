@@ -31,9 +31,10 @@ module Delete =
         Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasInfo [ p.tlid ]
 
       t.next "delete-toplevel"
-      // CLEANUP move usertypes and userfunctions to use this
       if Map.containsKey p.tlid c.deletedHandlers
-         || Map.containsKey p.tlid c.deletedDBs then
+         || Map.containsKey p.tlid c.deletedDBs
+         || Map.containsKey p.tlid c.deletedUserTypes
+         || Map.containsKey p.tlid c.deletedUserFunctions then
         do! Canvas.deleteToplevelForever canvasInfo p.tlid
         return Some { result = "deleted" }
       else

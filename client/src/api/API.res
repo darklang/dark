@@ -336,10 +336,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
       | DeleteColInDBMigration(_)
       | DeleteDBCol(_)
       | CreateDBWithBlankOr(_)
-      | DeleteTLForever(_)
-      | DeleteFunctionForever(_)
-      | DeleteType(_)
-      | DeleteTypeForever(_) => true
+      | DeleteType(_) => true
       }
     )
 

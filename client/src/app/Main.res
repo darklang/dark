@@ -1296,7 +1296,7 @@ let update_ = (msg: msg, m: model): modification => {
     AddOps(list{UndoTL(tlid)}, FocusPageAndCursor(page, Selecting(tlid, None)))
   | DeleteUserFunctionForever(tlid) =>
     Many(list{
-      AddOps(list{DeleteFunctionForever(tlid)}, FocusSame),
+      DeleteToplevelForeverAPICall(tlid),
       ReplaceAllModificationsWithThisOne(
         m => (
           {
@@ -1320,7 +1320,7 @@ let update_ = (msg: msg, m: model): modification => {
     Tooltips.update(m.tooltipState, msg)
   | DeleteUserTypeForever(tlid) =>
     Many(list{
-      AddOps(list{DeleteTypeForever(tlid)}, FocusSame),
+      DeleteToplevelForeverAPICall(tlid),
       ReplaceAllModificationsWithThisOne(
         m => (
           {

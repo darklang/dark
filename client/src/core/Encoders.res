@@ -190,11 +190,8 @@ and tlidOf = (op: Types.op): TLID.t =>
   | DeleteDBCol(tlid, _) => tlid
   | RenameDBname(tlid, _) => tlid
   | CreateDBWithBlankOr(tlid, _, _, _) => tlid
-  | DeleteFunctionForever(tlid) => tlid
-  | DeleteTLForever(tlid) => tlid
   | SetType(ut) => ut.utTLID
   | DeleteType(tlid) => tlid
-  | DeleteTypeForever(tlid) => tlid
   }
 
 and ops = (ops: list<Types.op>): Js.Json.t =>
@@ -303,11 +300,8 @@ and op = (call: Types.op): Js.Json.t => {
   | RenameDBname(t, name) => ev("RenameDBname", list{tlid(t), string(name)})
   | CreateDBWithBlankOr(t, p, i, name) =>
     ev("CreateDBWithBlankOr", list{tlid(t), pos(p), id(i), string(name)})
-  | DeleteFunctionForever(t) => ev("DeleteFunctionForever", list{tlid(t)})
-  | DeleteTLForever(t) => ev("DeleteTLForever", list{tlid(t)})
   | SetType(t) => ev("SetType", list{userTipe(t)})
   | DeleteType(t) => ev("DeleteType", list{tlid(t)})
-  | DeleteTypeForever(t) => ev("DeleteTypeForever", list{tlid(t)})
   }
 }
 

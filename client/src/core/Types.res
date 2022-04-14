@@ -728,11 +728,8 @@ and op =
   | DeleteDBCol(TLID.t, ID.t)
   | RenameDBname(TLID.t, dbName)
   | CreateDBWithBlankOr(TLID.t, pos, ID.t, dbName)
-  | DeleteTLForever(TLID.t)
-  | DeleteFunctionForever(TLID.t)
   | SetType(userTipe)
   | DeleteType(TLID.t)
-  | DeleteTypeForever(TLID.t)
 
 /* ------------------- */
 /* APIs */

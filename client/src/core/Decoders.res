@@ -831,11 +831,8 @@ let op = (j): op =>
         "CreateDBWithBlankOr",
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
-      ("DeleteFunctionForever", variant1(t => DeleteFunctionForever(t), tlid)),
-      ("DeleteTLForever", variant1(t => DeleteTLForever(t), tlid)),
       ("SetType", variant1(t => SetType(t), userTipe)),
       ("DeleteType", variant1(t => DeleteType(t), tlid)),
-      ("DeleteTypeForever", variant1(t => DeleteTypeForever(t), tlid)),
     },
     j,
   )
