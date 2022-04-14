@@ -579,7 +579,6 @@ let testInsertDeleteSecrets (client : C) (canvasName : CanvasName.T) =
 
 let canonicalize404s (fofs : List<TI.F404>) : List<TI.F404> =
   fofs
-
   |> List.map (fun ((space, name, modifier, datetime, traceID) : TI.F404) ->
     (space, name, modifier, datetime.truncate (), traceID))
 
