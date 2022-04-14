@@ -462,7 +462,6 @@ let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
 
 type Deleted =
   | Deleted
-  | DeletedForever
   | NotDeleted
 
 let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
@@ -583,18 +582,14 @@ let saveTLIDs
         let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
         let fsharpOplistCache = BinarySerialization.serializeToplevel tl
 
-        let deletedOption =
+        let deleted =
           match deleted with
-          | Deleted -> Some true
-          | NotDeleted -> Some false
-          | DeletedForever -> None
+          | Deleted -> true
+          | NotDeleted -> false
 
         return!
-          match deletedOption with
-          | None -> deleteToplevelForever meta tlid
-          | Some deleted ->
-            Sql.query
-              "INSERT INTO toplevel_oplists
+          Sql.query
+            "INSERT INTO toplevel_oplists
                     (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
                     rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
                     VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
@@ -613,22 +608,21 @@ let saveTLIDs
                         pos = @pos,
                         oplist = @oplist,
                         oplist_cache = @oplistCache"
-            |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                                "accountID", Sql.uuid meta.owner
-                                "tlid", Sql.id tlid
-                                "digest", Sql.string (OCamlInterop.digest ())
-                                "typ",
-                                Sql.string (PTParser.Toplevel.toDBTypeString tl)
-                                "name", Sql.stringOrNone name
-                                "module", Sql.stringOrNone module_
-                                "modifier", Sql.stringOrNone modifier
-                                "data", Sql.bytea ocamlOplist
-                                "renderedOplistCache", Sql.bytea ocamlOplistCache
-                                "deleted", Sql.bool deleted
-                                "pos", Sql.jsonbOrNone pos
-                                "oplist", Sql.bytea fsharpOplist
-                                "oplistCache", Sql.bytea fsharpOplistCache ]
-            |> Sql.executeStatementAsync
+          |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                              "accountID", Sql.uuid meta.owner
+                              "tlid", Sql.id tlid
+                              "digest", Sql.string (OCamlInterop.digest ())
+                              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
+                              "name", Sql.stringOrNone name
+                              "module", Sql.stringOrNone module_
+                              "modifier", Sql.stringOrNone modifier
+                              "data", Sql.bytea ocamlOplist
+                              "renderedOplistCache", Sql.bytea ocamlOplistCache
+                              "deleted", Sql.bool deleted
+                              "pos", Sql.jsonbOrNone pos
+                              "oplist", Sql.bytea fsharpOplist
+                              "oplistCache", Sql.bytea fsharpOplistCache ]
+          |> Sql.executeStatementAsync
       })
   with
   | e ->

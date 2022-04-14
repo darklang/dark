@@ -86,7 +86,6 @@ let testHttpLoadIgnoresDeletedFns =
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let f = testUserFn "testfn" [] (parse "5 + 3")
-    let f2 = testUserFn "testfn2" [] (parse "6 + 4")
     let fNew = testUserFn "testfnNew" [] (parse "6 + 4")
 
     do!
@@ -96,8 +95,7 @@ let testHttpLoadIgnoresDeletedFns =
            [ hop handler ],
            PT.Toplevel.TLHandler handler,
            Canvas.NotDeleted)
-          (f.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted)
-          (f2.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted) ]
+          (f.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted) ]
     // TLIDs are saved in parallel, so do them in separate calls
     do!
       Canvas.saveTLIDs
@@ -106,10 +104,6 @@ let testHttpLoadIgnoresDeletedFns =
            [ PT.DeleteFunction f.tlid ],
            PT.Toplevel.TLFunction f,
            Canvas.Deleted)
-          (f2.tlid,
-           [ PT.DeleteFunctionForever f2.tlid ],
-           PT.Toplevel.TLFunction f2,
-           Canvas.DeletedForever)
           (fNew.tlid,
            [ PT.SetFunction fNew ],
            PT.Toplevel.TLFunction fNew,

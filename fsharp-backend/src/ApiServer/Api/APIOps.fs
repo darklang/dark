@@ -114,19 +114,20 @@ let addOp (ctx : HttpContext) : Task<T> =
       do!
         (oldOps @ newOps)
         |> Op.oplist2TLIDOplists
-        |> List.map (fun (tlid, oplists) ->
-          let (tl, isDeleted) =
+        |> List.filterMap (fun (tlid, oplists) ->
+          let tlPair =
             match Map.get tlid toplevels with
-            | Some tl -> tl, C.NotDeleted
+            | Some tl -> Some(tl, C.NotDeleted)
             | None ->
               match Map.get tlid deletedToplevels with
-              | Some tl -> tl, C.Deleted
+              | Some tl -> Some(tl, C.Deleted)
               | None ->
-                // If we don't find anything, this was deletedForever, or undone
-                // completely. We'll choose the latter for now and see where it takes
-                // us. https://github.com/darklang/dark/issues/3675 for discussion.
-                (emptyHandler tlid, C.DeletedForever)
-          (tlid, oplists, tl, isDeleted))
+                Telemetry.addEvent "Undone handler" [ "tlid", tlid ]
+                // If we don't find anything, this was Undo-ed completely. Let's not
+                // do anything.
+                // https://github.com/darklang/dark/issues/3675 for discussion.
+                None
+          Option.map (fun (tl, deleted) -> (tlid, oplists, tl, deleted)) tlPair)
         |> C.saveTLIDs canvasInfo
 
 
