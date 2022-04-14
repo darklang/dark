@@ -2,12 +2,11 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
 HTTP/1.1 308 Permanent Redirect
-Location: /v5/response-redirect-destination
+Location: /v3/response-redirect-destination
 Redirect-header-0: 0
 Redirect-header: 0
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -15,12 +14,11 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 
 [test]
 // OCAMLONLY
-(let response = HttpClient.get_v5_ster "http://URL" {} {}
+(let response = HttpClient.get_v3_ster "http://URL" {} {}
  let respHeaders = response.headers |> Dict.remove_v0 "Date"
  Dict.set_v0 response "headers" respHeaders) =
   { body = "Redirect destination reached"
     code = 200
-    error = ""
     headers =
       {
         ``Arbitrary-header`` = "Test value"
@@ -30,7 +28,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
         ``Redirect-header-0`` = "0"
         ``Redirect-header`` = "0"
         ``HTTP/1.1 200 OK`` = ""
-        Location = "/v5/response-redirect-destination"
+        Location = "/v3/response-redirect-destination"
         Server = "Kestrel"
         ``Transfer-Encoding`` = "chunked"
       }

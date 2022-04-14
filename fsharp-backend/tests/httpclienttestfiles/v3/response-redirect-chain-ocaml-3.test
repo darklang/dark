@@ -8,15 +8,17 @@ Host: HOST
 HTTP/1.1 303 See Other
 Redirect-header-3: 3
 Redirect-header: 3
-Location: /v2/response-redirect-chain-2
+Location: /v3/response-redirect-chain-ocaml-2
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 
 
 [test]
-(let response = HttpClient.get_v2_ster "http://URL" {} {}
+// OCAMLONLY
+(let response = HttpClient.get_v3_ster "http://URL" {} {}
  let respHeaders = response.headers |> Dict.remove_v0 "Date"
  Dict.set_v0 response "headers" respHeaders) =
   { body = "Redirect destination reached"
+    code = 200
     headers =
       {
         ``Arbitrary-header`` = "Test value"
@@ -27,7 +29,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
         ``HTTP/1.1 302 Found`` = ""
         ``HTTP/1.1 303 See Other`` = ""
         ``HTTP/1.1 308 Permanent Redirect`` = ""
-        Location = "/v2/response-redirect-chain-2"
+        Location = "/v3/response-redirect-chain-ocaml-2"
         ``Redirect-header-0`` = "0"
         ``Redirect-header-1`` = "1"
         ``Redirect-header-2`` = "2"
