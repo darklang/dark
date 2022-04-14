@@ -2,7 +2,6 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
@@ -15,13 +14,12 @@ Content-Length: LENGTH
 Redirect destination reached
 
 [test]
+// OCAMLONLY
 // This is here to be a destination for valid redirect tests
-(let response = HttpClient.get_v5_ster "http://URL" {} {} in
+(let response = HttpClient.get_v0 "http://URL" {} {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
-     code = 200
-     error = ""
      headers =
       {
         ``Arbitrary-header`` = "Test value"
