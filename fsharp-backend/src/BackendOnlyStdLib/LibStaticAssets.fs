@@ -16,13 +16,14 @@ let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = Errors.incorrectArgs
 
-open System.IO
-open System.IO.Compression
 open System.Net.Http
 
 let httpClient =
   let socketHandler : HttpMessageHandler =
     let handler = new SocketsHttpHandler()
+
+    handler.UseProxy <- true
+    handler.Proxy <- System.Net.WebProxy(LibBackend.Config.httpclientProxyUrl, false)
 
     // Cookies shouldn't be necessary
     handler.UseCookies <- false
