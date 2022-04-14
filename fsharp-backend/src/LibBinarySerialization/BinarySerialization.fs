@@ -1,19 +1,18 @@
 /// Conversion to/from Dark values to binary formats
-module LibBackend.BinarySerialization
+module LibBinarySerialization.BinarySerialization
 
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-
-open Npgsql.FSharp
-open Npgsql
-open LibBackend.Db
 
 open Prelude
 open Tablecloth
 open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module ST = SerializedTypes
+module ST2PT = SerializedTypesToProgramTypes
+module PT2ST = ProgramTypesToSerializedTypes
 
 open MessagePack
 open MessagePack.Resolvers
@@ -49,31 +48,38 @@ let wrapSerializationException (tlid : tlid) (f : unit -> 'a) : 'a =
 
 let serializeExpr (tlid : tlid) (e : PT.Expr) : byte [] =
   wrapSerializationException tlid (fun () ->
-    MessagePack.MessagePackSerializer.Serialize(e, optionsWithoutZip))
+    let serializableValue = PT2ST.Expr.toST e
+    MessagePack.MessagePackSerializer.Serialize(serializableValue, optionsWithoutZip))
 
 let deserializeExpr (tlid : tlid) (data : byte []) : PT.Expr =
   wrapSerializationException tlid (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip))
+    MessagePack.MessagePackSerializer.Deserialize<ST.Expr>(data, optionsWithoutZip)
+    |> ST2PT.Expr.toPT)
 
 let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
   wrapSerializationException (PT.Toplevel.toTLID tl) (fun () ->
-    MessagePack.MessagePackSerializer.Serialize(tl, optionsWithoutZip))
+    let v = PT2ST.Toplevel.toST tl
+    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
 let deserializeToplevel (tlid : tlid) (data : byte []) : PT.Toplevel.T =
   wrapSerializationException tlid (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip))
+    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+    |> ST2PT.Toplevel.toST)
 
 
 let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte [] =
   wrapSerializationException tlid (fun () ->
-    MessagePack.MessagePackSerializer.Serialize(oplist, optionsWithZip))
+    let v = List.map PT2ST.Op.toST oplist
+    MessagePack.MessagePackSerializer.Serialize(v, optionsWithZip))
 
 
 let deserializeOplist (tlid : tlid) (data : byte []) : PT.Oplist =
   wrapSerializationException tlid (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip))
+    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip)
+    |> List.map ST2PT.Op.toPT)
 
 module Test =
   let serializeOplistToJson (tlid : tlid) (oplist : PT.Oplist) : string =
     wrapSerializationException tlid (fun () ->
-      MessagePack.MessagePackSerializer.SerializeToJson(oplist, optionsWithZip))
+      let v = List.map PT2ST.Op.toST oplist
+      MessagePack.MessagePackSerializer.SerializeToJson(v, optionsWithZip))

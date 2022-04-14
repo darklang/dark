@@ -12,7 +12,7 @@ open TestUtils.TestUtils
 
 module Account = LibBackend.Account
 module Serialize = LibBackend.Serialize
-module BinarySerialization = LibBackend.BinarySerialization
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module Canvas = LibBackend.Canvas
 module Execution = LibExecution.Execution
 module RT = LibExecution.RuntimeTypes
