@@ -190,7 +190,7 @@ let configureServices (services : IServiceCollection) : unit =
        LibService.Telemetry.TraceDBQueries
   |> LibService.Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> fun s -> s.AddServerTiming()
-  |> fun s -> s.AddHsts (LibService.HSTS.setConfig)
+  |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
 
 let run (packages : Packages) : unit =

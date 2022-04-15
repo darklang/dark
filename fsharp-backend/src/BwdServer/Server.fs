@@ -488,7 +488,7 @@ let configureServices (services : IServiceCollection) : unit =
   |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> Rollbar.AspNet.addRollbarToServices
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
-  |> fun s -> s.AddHsts (LibService.HSTS.setConfig)
+  |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
 
 let noLogger (builder : ILoggingBuilder) : unit =
