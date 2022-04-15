@@ -550,6 +550,24 @@ friendsError (fun p -> let x = 32 in true && p.height > y) =
 [test.db sql injection] with DB Person
 friendsError (fun p -> "; select * from users;" = p.name ) = []
 
+[test.db invalid type comparison OCAMLONLY] with DB Person
+friendsError (fun p -> p.height == "string") =
+  Test.sqlError "A type error occurred at run-time"
+
+[test.db invalid type comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+friendsError (fun p -> p.height == "string") =
+  Test.sqlError "An error occurred while querying the Datastore"
+
+// This test checks do we look up dates correctly when the function type is not a date
+[test.db invalid date comparison OCAMLONLY] with DB Person
+friendsError (fun p -> p.dob != Date.now_v0) =
+  Test.sqlError "A type error occurred at run-time"
+
+// This test checks do we look up dates correctly when the function type is not a date
+[test.db invalid date comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+friendsError (fun p -> p.dob != Date.now_v0) =
+  Test.sqlError "An error occurred while querying the Datastore"
+
 // ------------
 // Test compiled functions
 // ------------
