@@ -554,6 +554,7 @@ friendsError (fun p -> "; select * from users;" = p.name ) = []
 friendsError (fun p -> p.height == "string") =
   Test.sqlError "A type error occurred at run-time"
 
+// CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
 [test.db invalid type comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
 friendsError (fun p -> p.height == "string") =
   Test.sqlError "An error occurred while querying the Datastore"

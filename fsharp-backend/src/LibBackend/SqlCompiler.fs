@@ -200,7 +200,11 @@ let rec lambdaToSql
             $"{FQFnName.StdlibFnName.toString fn.name} has {paramCount} functions but we have {argCount} arguments"
 
       match fn, argSqls with
-      | { sqlSpec = SqlBinOp op }, [ argL; argR ] -> $"({argL} {op} {argR})", sqlVars
+      | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
+        // CLEANUP there's a type checking bug here. If the parameter types of fn are
+        // both (TVariable "a"), we do not check that they are the same type. If they
+        // are not, it becomes a runtime error when we actually make the call to the DB
+        $"({argL} {op} {argR})", sqlVars
       | { sqlSpec = SqlUnaryOp op }, [ argSql ] -> $"({op} {argSql})", sqlVars
       | { sqlSpec = SqlFunction fnname }, _ ->
         let argSql = String.concat ", " argSqls
@@ -258,6 +262,8 @@ let rec lambdaToSql
     let fieldname = escapeFieldname fieldname
     let typename = typeToSqlType dbFieldType
 
+    // CLEANUP this should be dbFieldType, since we know it. We could have a TAny
+    // function with a Date field and this would query it wrong
     (match expectedType with
      | TDate ->
        // This match arm handles types that are serialized in
