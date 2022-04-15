@@ -1,3 +1,8 @@
+/// Tests the built-with-Dark server (`BwdServer`),
+/// which is the server that runs Dark users' HTTP handlers.
+///
+/// Test files are stored in the `tests/httptestfiles` directory,
+/// which includes a README.md of how these tests work.
 module Tests.BwdServer
 
 open Expecto
