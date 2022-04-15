@@ -315,6 +315,5 @@ spec:
                   number: 80
 
 
-
   tls:
     - secretName: builtwithdark.com-tls
