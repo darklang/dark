@@ -246,16 +246,17 @@ let rec lambdaToSql
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ]
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
-    let typ =
+    let dbFieldType =
       match Map.get fieldname dbFields with
       | Some v -> v
       | None -> error2 "The datastore does not have a field named" fieldname
 
-    if expectedType <> TNull (* Fields are allowed be null *) then
-      typecheck fieldname typ expectedType
+    if expectedType <> TNull // Fields are allowed to be null
+    then
+      typecheck fieldname dbFieldType expectedType
 
     let fieldname = escapeFieldname fieldname
-    let typename = typeToSqlType typ
+    let typename = typeToSqlType dbFieldType
 
     (match expectedType with
      | TDate ->
