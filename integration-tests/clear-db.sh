@@ -13,6 +13,20 @@ function run_sql { psql -d "$DB" -c "$@" >> "$DBLOG" ; }
 
 function fetch_sql { psql -d "$DB" -t -c "$@"; }
 
+# If you're looking to purge a _lot_ of data, here's some advice:
+#
+# - uncomment these lines and run the script to see how many delete-able canvases you have:
+#CANVAS_COUNT=$(fetch_sql "SELECT count(1) FROM canvases WHERE substring(name, 0, 6) = 'test-'")
+#echo "canvases $CANVAS_COUNT"
+# - edit the CANVASES below to include a `LIMIT 143`,
+#   (which is apparently the most the script can handle at once.)
+# - figure out how many times you need to run the script (CANVAS_COUNT / 143)
+# - run the script that # of times with
+#   `for i in `seq 1 [CANVAS_COUNT / 143]`; do ./integration-tests/clear-db.sh; done`
+#
+# Ideally, we'd replace this hacky system with a better script,
+# but this is something for now.
+
 CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 = 'test-';")
 SCRIPT=""
