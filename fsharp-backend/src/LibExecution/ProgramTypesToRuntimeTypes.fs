@@ -128,7 +128,8 @@ module Expr =
         toRT mexpr,
         List.map (Tuple2.mapFirst Pattern.toRT << Tuple2.mapSecond toRT) pairs
       )
-    | PT.EPipeTarget id -> Exception.raiseInternal "No EPipeTargets should remain" []
+    | PT.EPipeTarget id ->
+      Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
 
