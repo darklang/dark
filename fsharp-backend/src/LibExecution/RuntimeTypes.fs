@@ -168,8 +168,6 @@ type Expr =
   /// This is a function call, the first expression is the value of the function.
   | EApply of id * Expr * List<Expr> * IsInPipe * SendToRail
 
-  | EPartial of id * Expr
-
   /// Reference a fully-qualified function name
   /// Since functions aren't real values in the symbol table, we look them up directly
   | EFQFnValue of id * FQFnName.T
@@ -406,7 +404,6 @@ module Expr =
     | EBlank id
     | ELet (id, _, _, _)
     | EIf (id, _, _, _)
-    | EPartial (id, _)
     | EApply (id, _, _, _, _)
     | EList (id, _)
     | ERecord (id, _)

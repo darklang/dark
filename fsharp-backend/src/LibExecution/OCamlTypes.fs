@@ -745,7 +745,6 @@ module Convert =
     | RT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       ORT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EPartial (id, oldExpr) -> ORT.EPartial(id, "partial", r oldExpr)
     | RT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
     | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | RT.EConstructor (id, name, exprs) ->

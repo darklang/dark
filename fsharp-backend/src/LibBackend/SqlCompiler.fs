@@ -416,9 +416,6 @@ let partiallyEvaluate
             | EConstructor (id, name, exprs) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EConstructor(id, name, exprs)
-            | EPartial (id, oldExpr) ->
-              let! oldExpr = r oldExpr
-              return EPartial(id, oldExpr)
             | EFeatureFlag (id, cond, casea, caseb) ->
               let! cond = r cond
               let! casea = r casea
