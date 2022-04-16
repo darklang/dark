@@ -20,4 +20,4 @@ export PGPASSWORD
 # If we're in a terminal (not a pipe), use pgcli, which has nice interactive features like autocomplete of columns.
 # If we're in a pipe, then use psql (pgcli doesn't let you pipe in a query, psql does)
 echo "Connecting to port $PORT"
-psql -h localhost -p "${PORT}" --user=${PGUSERNAME} postgres $@
+psql -h localhost -p "${PORT}" --user=${PGUSERNAME} postgres "$@"
