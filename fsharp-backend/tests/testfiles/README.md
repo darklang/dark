@@ -27,6 +27,14 @@ The code is written using F#, which is very similar to Dark. It is parsed by the
   editor). You can send them to the errorRail by calling the function with the suffix
   `_ster`.
 
+- to get a blank, use the word `blank`
+
+- to get a partial, use `partial "message" innerExpr`
+
+- to produce results that are hard to otherwise create, you can add functions to
+  LibTest.fs. For example, `Test.nan_v0` produces a NaN float, and `Test.typeError`
+  produces a built-in error.
+
 # Test file format
 
 Test file format is as follows:
@@ -76,9 +84,3 @@ indicator)
 `[packagefn.name arg1:int arg2:str]` creates a function which is available to all
 subsequent tests. The following lines are part of the function body (until we hit
 another test indicator). Package functions call be called as `Test.Test.Test.myFn`
-
-# Test functions
-
-To produce results that are hard to otherwise create, you can add functions to
-LibTest.fs. For example, `Test.nan_v0` produces a NaN float, and `Test.typeError`
-produces a built-in error.
