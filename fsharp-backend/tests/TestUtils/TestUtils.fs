@@ -632,7 +632,6 @@ module Expect =
     | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       check path s s'
       eqList (s :: path) ts ts'
-    | EPartial (_, e), EPartial (_, e') -> eq ("partial" :: path) e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
@@ -664,7 +663,6 @@ module Expect =
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
-    | EPartial _, _
     | ELambda _, _
     | EMatch _, _ -> check path actual expected
 

@@ -78,9 +78,9 @@ module Expr =
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
-    | PT.EPartial (id, _, oldExpr)
-    | PT.ERightPartial (id, _, oldExpr)
-    | PT.ELeftPartial (id, _, oldExpr) -> RT.EPartial(id, toRT oldExpr)
+    | PT.EPartial (_, _, oldExpr)
+    | PT.ERightPartial (_, _, oldExpr)
+    | PT.ELeftPartial (_, _, oldExpr) -> toRT oldExpr
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ERecord (id, pairs) ->
       RT.ERecord(id, List.map (Tuple2.mapSecond toRT) pairs)
