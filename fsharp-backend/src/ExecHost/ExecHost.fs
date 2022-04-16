@@ -76,6 +76,7 @@ let help () : unit =
     "  ExecHost trigger-rollbar"
     "  ExecHost trigger-pageable-rollbar"
     "  ExecHost convert-packages"
+    "  ExecHost convert-st-to-rt"
     "  ExecHost help" ]
   |> List.join "\n"
   |> print
@@ -88,6 +89,7 @@ type Options =
   | TriggerPagingRollbar
   | ConvertPackages
   | InvalidUsage
+  | ConvertST2RT of string
   | Help
 
 let parse (args : string []) : Options =
@@ -98,6 +100,7 @@ let parse (args : string []) : Options =
   | [| "trigger-rollbar" |] -> TriggerRollbar
   | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
   | [| "convert-packages" |] -> ConvertPackages
+  | [| "convert-st-to-rt"; canvasName |] -> ConvertST2RT canvasName
   | [| "help" |] -> Help
   | _ -> InvalidUsage
 
@@ -110,6 +113,7 @@ let usesDB (options : Options) =
   | TriggerRollbar
   | TriggerPagingRollbar
   | InvalidUsage
+  | ConvertST2RT _
   | Help -> false
 
 
@@ -149,6 +153,14 @@ let run (executionID : ExecutionID) (options : Options) : Task<int> =
       do! LibBackend.PackageManager.convertPackagesToFSharpBinary ()
       return 0
 
+    | ConvertST2RT canvasName ->
+      let canvasName = CanvasName.create canvasName
+      let! canvasInfo = LibBackend.Canvas.getMeta canvasName
+      let! canvas = LibBackend.Canvas.loadAll canvasInfo
+      let program = LibBackend.Canvas.toProgram canvas
+      debuG "program" program
+      return 0
+
     | Help ->
       help ()
       return 0
@@ -174,6 +186,7 @@ let main (args : string []) : int =
   | e ->
     // Don't reraise or report as ExecHost is only run interactively
     print e.Message
+    print (e |> Exception.toMetadata |> string)
     print e.StackTrace
     if e.InnerException <> null then
       print e.InnerException.Message
