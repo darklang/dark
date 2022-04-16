@@ -116,7 +116,7 @@ module Expr =
               )
             // If there's a hole, run the computation right through it as if it wasn't there
             | PT.EBlank _ -> prev
-            // Partials break
+            // We can ignore partials as we just want whatever is inside them
             | PT.EPartial (_, _, oldExpr) -> convert oldExpr
             // Here, the expression evaluates to an FnValue. This is for eg variables containing values
             | other ->
