@@ -360,6 +360,7 @@ let loadFrom
   : Task<T> =
   task {
     try
+      Telemetry.addTags [ "tlids", tlids; "loadAmount", loadAmount ]
       // CLEANUP: rename "rendered" and "cached" to be consistent
 
       // load
