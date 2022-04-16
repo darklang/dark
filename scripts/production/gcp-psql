@@ -3,12 +3,7 @@
 
 set -euo pipefail
 
-# Despite the name, this launches either pgcli (interactive mode) or psql (allowing piped input) - see comment at the bottom
-
-# Don't call this for the user - if their kubectl context is set to another
-# cluster, this will break that.
-# ./scripts/production/gcp-authorize-kubectl
-
+./scripts/production/gcp-authorize-kubectl
 ./scripts/production/_gcp-proxy-db &
 # Make sure it has time to come up before we try to connect to it
 sleep 1s
