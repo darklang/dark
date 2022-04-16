@@ -94,30 +94,35 @@ module Expr =
       List.fold
         inner
         (fun prev next ->
-          match next with
-          // TODO: support currying
-          | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs, rail) ->
-            RT.EApply(
-              id,
-              RT.EFQFnValue(ptID, FQFnName.toRT name),
-              prev :: List.map toRT exprs,
-              RT.InPipe pipeID,
-              SendToRail.toRT rail
-            )
-          // TODO: support currying
-          | PT.EBinOp (id, name, PT.EPipeTarget ptID, expr2, rail) ->
-            RT.EApply(
-              id,
-              RT.EFQFnValue(ptID, FQFnName.toRT name),
-              [ prev; toRT expr2 ],
-              RT.InPipe pipeID,
-              SendToRail.toRT rail
-            )
-          // If there's a hole, run the computation right through it as if it wasn't there
-          | PT.EBlank _ -> prev
-          // Here, the expression evaluates to an FnValue. This is for eg variables containing values
-          | other ->
-            RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID, RT.NoRail))
+          let rec convert thisExpr =
+            match thisExpr with
+            // TODO: support currying
+            | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs, rail) ->
+              RT.EApply(
+                id,
+                RT.EFQFnValue(ptID, FQFnName.toRT name),
+                prev :: List.map toRT exprs,
+                RT.InPipe pipeID,
+                SendToRail.toRT rail
+              )
+            // TODO: support currying
+            | PT.EBinOp (id, name, PT.EPipeTarget ptID, expr2, rail) ->
+              RT.EApply(
+                id,
+                RT.EFQFnValue(ptID, FQFnName.toRT name),
+                [ prev; toRT expr2 ],
+                RT.InPipe pipeID,
+                SendToRail.toRT rail
+              )
+            // If there's a hole, run the computation right through it as if it wasn't there
+            | PT.EBlank _ -> prev
+            // Partials break
+            | PT.EPartial (_, _, oldExpr) -> convert oldExpr
+            // Here, the expression evaluates to an FnValue. This is for eg variables containing values
+            | other ->
+              RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID, RT.NoRail)
+          convert next)
+
         (expr2 :: rest)
 
     | PT.EConstructor (id, name, exprs) ->
