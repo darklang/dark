@@ -1,4 +1,4 @@
-/// Tests the built-with-Dark server (`BwdServer`),
+/// Tests the builtwithdark.com server (`BwdServer`),
 /// which is the server that runs Dark users' HTTP handlers.
 ///
 /// Test files are stored in the `tests/httptestfiles` directory,
