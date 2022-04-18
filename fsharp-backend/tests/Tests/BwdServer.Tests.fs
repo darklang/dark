@@ -166,7 +166,6 @@ let replaceByteStrings
   : byte array =
   let patternBytes = UTF8.toBytes pattern
   let replacementBytes = UTF8.toBytes replacement |> Array.toList |> List.reverse
-  let _list = Array.toList bytes // TODO: can we remove this? it's unused.
 
   if pattern.Length = 0 || bytes.Length < pattern.Length then
     bytes
