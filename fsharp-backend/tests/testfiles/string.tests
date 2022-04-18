@@ -80,8 +80,8 @@ String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
 String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
 String.endsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷"= true
 
-String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark" // FSHARPONLY
 String.foreach_v0 "a string" (fun x -> x) = Test.typeError "This function no longer exists." // OCAMLONLY
+String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark" // FSHARPONLY
 String.foreach_v1 "a string" (fun x -> x) = "a string"
 String.foreach_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 String.foreach_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
@@ -91,8 +91,8 @@ String.foreach_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 String.foreach_v1 "abcdef" (fun x -> blank) = blank
 
 // fromChar
-String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark" // FSHARPONLY
 String.fromChar_v0 (c "1") = Test.typeError "This function no longer exists." // OCAMLONLY
+String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark" // FSHARPONLY
 String.fromChar_v1 'a' = "a" // FSHARPONLY
 String.fromChar_v1 (c "1") = "1"
 String.fromChar_v1 (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
@@ -205,8 +205,8 @@ String.random_v1 -1 = Error "l should be a positive integer"
 String.length_v1 (String.random_v2_ster 10) = 10
 String.length_v1 (String.random_v2_ster 5) = 5
 String.length_v1 (String.random_v2_ster 0) = 0
-String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`" // FSHARPONLY
 String.random_v2 -1 = Error "l should be a positive integer" // OCAMLONLY
+String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`" // FSHARPONLY
 (String.random_v2 5) == (String.random_v2 5) = false
 
 
@@ -397,19 +397,20 @@ String.split_v0 "x333y" "3" = ["x"; ""; ""; "y"]
 String.split_v0 "x22y" "2" = ["x"; ""; "y"]
 String.split_v0 "x1y" "1" = ["x"; "y"]
 String.split_v0 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""]
+String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = Test.typeError "Unknown Err: \"Invalid UTF-8 String: \\240\"" // OCAMLONLY
 String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"] // FSHARPONLY
 
-String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`" // FSHARPONLY
 String.toInt_v0 "" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
+String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`" // FSHARPONLY
 String.toInt_v0 "-4611686018427387903" = -4611686018427387903I
 String.toInt_v0 "-4611686018427387904" = -4611686018427387904I
 String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
 String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"-4611686018427387905\"`" // FSHARPONLY
 String.toInt_v0 "4611686018427387903" = 4611686018427387903I
-String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387904\"`" // FSHARPONLY
-String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387905\"`" // FSHARPONLY
 String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
+String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387904\"`" // FSHARPONLY
 String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
+String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387905\"`" // FSHARPONLY
 String.toInt_v0 "+333" = 333
 String.toInt_v0 "-11111" = -11111
 String.toInt_v0 "-11111" = -11111
@@ -426,12 +427,12 @@ String.toInt_v1 "-4611686018427387904" = Ok -4611686018427387904I
 String.toInt_v1 "-4611686018427387905" = Error "Expected a string with only numbers, got -4611686018427387905" // OCAMLONLY
 String.toInt_v1 "-4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"-4611686018427387905\"" // FSHARPONLY
 String.toInt_v1 "4611686018427387903" = Ok 4611686018427387903I
-String.toInt_v1 "4611686018427387904" = Error "Expected to parse string with only numbers, instead got \"4611686018427387904\"" // FSHARPONLY
 String.toInt_v1 "4611686018427387904" = Error "Expected a string with only numbers, got 4611686018427387904" // OCAMLONLY
-String.toInt_v1 "4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"4611686018427387905\"" // FSHARPONLY
+String.toInt_v1 "4611686018427387904" = Error "Expected to parse string with only numbers, instead got \"4611686018427387904\"" // FSHARPONLY
 String.toInt_v1 "4611686018427387905" = Error "Expected a string with only numbers, got 4611686018427387905" // OCAMLONLY
-String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\"" // FSHARPONLY
+String.toInt_v1 "4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"4611686018427387905\"" // FSHARPONLY
 String.toInt_v1 "" = Error "Expected a string with only numbers, got " // OCAMLONLY
+String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\"" // FSHARPONLY
 String.toInt_v1 "0" = Ok 0
 String.toInt_v1 "1" = Ok 1
 
@@ -557,8 +558,8 @@ String.toUppercase_v1 "ჾ" = "Ჾ"
 // https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
 
 String.toUppercase_v1 "ﬁﬂ" = "FIFL" // OCAMLONLY
-String.toUppercase_v1 "և" = "ԵՒ" // OCAMLONLY
 String.toUppercase_v1 "ﬁﬂ" = "ﬁﬂ" // FSHARPONLY
+String.toUppercase_v1 "և" = "ԵՒ" // OCAMLONLY
 String.toUppercase_v1 "և" = "և" // FSHARPONLY
 
 

@@ -60,6 +60,8 @@ val check_tier_one_hosts : bool
 
 val static_assets_bucket : string option
 
+val static_assets_salt_suffix : string
+
 val build_hash : string
 
 (* Do we use the new login service - login.darklang.com - or depend on local

@@ -78,9 +78,9 @@ module Expr =
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
-    | PT.EPartial (id, _, oldExpr)
-    | PT.ERightPartial (id, _, oldExpr)
-    | PT.ELeftPartial (id, _, oldExpr) -> RT.EPartial(id, toRT oldExpr)
+    | PT.EPartial (_, _, oldExpr)
+    | PT.ERightPartial (_, _, oldExpr)
+    | PT.ELeftPartial (_, _, oldExpr) -> toRT oldExpr
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ERecord (id, pairs) ->
       RT.ERecord(id, List.map (Tuple2.mapSecond toRT) pairs)
@@ -94,30 +94,35 @@ module Expr =
       List.fold
         inner
         (fun prev next ->
-          match next with
-          // TODO: support currying
-          | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs, rail) ->
-            RT.EApply(
-              id,
-              RT.EFQFnValue(ptID, FQFnName.toRT name),
-              prev :: List.map toRT exprs,
-              RT.InPipe pipeID,
-              SendToRail.toRT rail
-            )
-          // TODO: support currying
-          | PT.EBinOp (id, name, PT.EPipeTarget ptID, expr2, rail) ->
-            RT.EApply(
-              id,
-              RT.EFQFnValue(ptID, FQFnName.toRT name),
-              [ prev; toRT expr2 ],
-              RT.InPipe pipeID,
-              SendToRail.toRT rail
-            )
-          // If there's a hole, run the computation right through it as if it wasn't there
-          | PT.EBlank _ -> prev
-          // Here, the expression evaluates to an FnValue. This is for eg variables containing values
-          | other ->
-            RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID, RT.NoRail))
+          let rec convert thisExpr =
+            match thisExpr with
+            // TODO: support currying
+            | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs, rail) ->
+              RT.EApply(
+                id,
+                RT.EFQFnValue(ptID, FQFnName.toRT name),
+                prev :: List.map toRT exprs,
+                RT.InPipe pipeID,
+                SendToRail.toRT rail
+              )
+            // TODO: support currying
+            | PT.EBinOp (id, name, PT.EPipeTarget ptID, expr2, rail) ->
+              RT.EApply(
+                id,
+                RT.EFQFnValue(ptID, FQFnName.toRT name),
+                [ prev; toRT expr2 ],
+                RT.InPipe pipeID,
+                SendToRail.toRT rail
+              )
+            // If there's a hole, run the computation right through it as if it wasn't there
+            | PT.EBlank _ -> prev
+            // We can ignore partials as we just want whatever is inside them
+            | PT.EPartial (_, _, oldExpr) -> convert oldExpr
+            // Here, the expression evaluates to an FnValue. This is for eg variables containing values
+            | other ->
+              RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID, RT.NoRail)
+          convert next)
+
         (expr2 :: rest)
 
     | PT.EConstructor (id, name, exprs) ->
@@ -128,7 +133,8 @@ module Expr =
         toRT mexpr,
         List.map (Tuple2.mapFirst Pattern.toRT << Tuple2.mapSecond toRT) pairs
       )
-    | PT.EPipeTarget id -> Exception.raiseInternal "No EPipeTargets should remain" []
+    | PT.EPipeTarget id ->
+      Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
 

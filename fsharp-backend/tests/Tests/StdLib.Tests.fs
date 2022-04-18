@@ -27,7 +27,7 @@ let equalsOCaml =
   let checkEquality ((fn, args) : PT.FQFnName.StdlibFnName * List<RT.Dval>) : bool =
     task {
       // evaluate the fn call against both backends
-      let! meta = initializeTestCanvas "ExecutePureFunction"
+      let! meta = initializeTestCanvas (Randomized "ExecutePureFunction")
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
       let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 

@@ -52,7 +52,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   uply {
     match e with
     | EBlank id -> return (incomplete id)
-    | EPartial (_, expr) -> return! eval state st expr
     | ELet (_id, lhs, rhs, body) ->
       let! rhs = eval state st rhs
 

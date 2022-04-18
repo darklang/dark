@@ -18,7 +18,7 @@ let p = FSharpToExpr.parseRTExpr
 
 let nullsAddedToMissingColumn =
   testTask "test for the hack that columns get null in all rows to start" {
-    let! meta = initializeTestCanvas "null-added-to-col"
+    let! meta = initializeTestCanvas (Randomized "null-added-to-col")
 
     // Add DB with 1 col, add value
     let db1 : RT.DB.T =

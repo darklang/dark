@@ -46,7 +46,9 @@ let parse (input) : SynExpr =
     // Extract declarations and walk over them
     expr
   | _ ->
-    Exception.raiseInternal $"wrong shape tree" [ "parseTree", results.ParseTree ]
+    Exception.raiseInternal
+      $"wrong shape tree"
+      [ "parseTree", results.ParseTree; "input", input ]
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")
@@ -57,8 +59,8 @@ let (|Placeholder|_|) (input : PT.Expr) =
 
 let nameOrBlank (v : string) : string = if v = "___" then "" else v
 
-let rec convertToExpr (ast : SynExpr) : PT.Expr =
-  let c = convertToExpr
+let rec convertToExpr' (ast : SynExpr) : PT.Expr =
+  let c = convertToExpr'
 
   let rec convertPattern (pat : SynPat) : PT.Pattern =
     let id = gid ()
@@ -372,6 +374,19 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.FromParseError _ as expr ->
     Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
   | expr -> Exception.raiseInternal "Unsupported expression" [ "ast", ast ]
+
+let convertToExpr e =
+  e
+  |> convertToExpr'
+  |> LibExecution.ProgramTypesAst.postTraversal (fun e ->
+    match e with
+    | PT.EFnCall (id, PT.FQFnName.User "partial", [ PT.EString (_, msg); arg ], _) ->
+      PT.EPartial(gid (), msg, arg)
+    | PT.EFnCall (id,
+                  PT.FQFnName.User "partial",
+                  [ PT.EPipeTarget _; PT.EString (_, msg); arg ],
+                  _) -> PT.EPartial(gid (), msg, arg)
+    | e -> e)
 
 let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
   // Split equality into actual vs expected in tests.

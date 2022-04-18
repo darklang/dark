@@ -2,6 +2,3 @@ Ply
 FSharp.Core
 FSharpPlus
 Newtonsoft.Json
-MessagePack
-MessagePack.NodaTime
-MessagePack.FSharpExtensions

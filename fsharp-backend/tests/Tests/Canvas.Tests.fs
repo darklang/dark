@@ -5,6 +5,10 @@ open FSharp.Control.Tasks
 
 open Expecto
 
+open Npgsql.FSharp
+open Npgsql
+open LibBackend.Db
+
 open Prelude
 open Tablecloth
 open TestUtils.TestUtils
@@ -22,7 +26,7 @@ let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
-    let! meta = initializeTestCanvas "db_oplist_roundtrip"
+    let! meta = initializeTestCanvas (Randomized "db_oplist_roundtrip")
 
     let db = testDB "myDB" []
     let oplist =
@@ -39,7 +43,7 @@ let testDBOplistRoundtrip : Test =
 
 let testHttpOplistRoundtrip =
   testTask "test http oplist roundtrip" {
-    let! meta = initializeTestCanvas "http_oplist_roundtrip"
+    let! meta = initializeTestCanvas (Randomized "http_oplist_roundtrip")
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let oplist = [ hop handler ]
@@ -58,7 +62,7 @@ let testHttpOplistRoundtrip =
 
 let testHttpOplistLoadsUserTypes =
   testTask "httpOplistLoadsUserTypes" {
-    let! meta = initializeTestCanvas "http_oplist_loads_user_tipes"
+    let! meta = initializeTestCanvas (Randomized "http_oplist_loads_user_tipes")
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let typ = testUserType "test-tipe" [ ("age", PT.TInt) ]
@@ -79,14 +83,102 @@ let testHttpOplistLoadsUserTypes =
     Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
   }
 
+let testUndoTooFarDoesntBreak =
+  testTask "undo too far doesnt break" {
+    let! meta = initializeTestCanvas (Randomized "undo too far doesnt break")
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid,
+           [ hop handler
+             PT.UndoTL handler.tlid
+             PT.UndoTL handler.tlid
+             PT.UndoTL handler.tlid ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.NotDeleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
+
+    Expect.equal c2.handlers[handler.tlid] handler "handler is not loaded"
+
+    // In addition, check that the row is formatted correctly in the DB. We expect
+    // name, module, and modifier to be null because otherwise they can be found by
+    // Http searches
+    let! dbRow =
+      Sql.query
+        "SELECT name, module, modifier, deleted
+         FROM toplevel_oplists
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid"
+      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.executeRowAsync (fun read ->
+        read.stringOrNone "name",
+        read.stringOrNone "module",
+        read.stringOrNone "modifier",
+        read.boolOrNone "deleted")
+
+    Expect.equal
+      dbRow
+      (Some "/path", Some "HTTP", Some "GET", Some false)
+      "Row should be there"
+  }
+
+
+
+
+let testHttpLoadIgnoresDeletedHandler =
+  testTask "Http load ignores deleted handler" {
+    let! meta = initializeTestCanvas (Randomized "http-load-ignores-deleted-handler")
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (handler.tlid,
+           [ hop handler; PT.DeleteTL handler.tlid ],
+           PT.Toplevel.TLHandler handler,
+           Canvas.Deleted) ]
+
+    let! (c2 : Canvas.T) =
+      Canvas.loadHttpHandlers
+        meta
+        (PTParser.Handler.Spec.toName handler.spec)
+        (PTParser.Handler.Spec.toModifier handler.spec)
+
+    Expect.equal c2.handlers.Count 0 "handler is not loaded"
+
+    // In addition, check that the row is formatted correctly in the DB. We expect
+    // name, module, and modifier to be null because otherwise they can be found by
+    // Http searches
+    let! dbRow =
+      Sql.query
+        "SELECT name, module, modifier, deleted
+         FROM toplevel_oplists
+         WHERE canvas_id = @canvasID
+           AND tlid = @tlid"
+      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.executeRowAsync (fun read ->
+        read.stringOrNone "name",
+        read.stringOrNone "module",
+        read.stringOrNone "modifier",
+        read.boolOrNone "deleted")
+
+    Expect.equal dbRow (None, None, None, Some true) "Row should be cleared"
+  }
 
 let testHttpLoadIgnoresDeletedFns =
   testTask "Http load ignores deleted fns" {
-    let! meta = initializeTestCanvas "http-load-ignores-deleted-fns"
+    let! meta = initializeTestCanvas (Randomized "http-load-ignores-deleted-fns")
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let f = testUserFn "testfn" [] (parse "5 + 3")
-    let f2 = testUserFn "testfn" [] (parse "6 + 4")
+    let fNew = testUserFn "testfnNew" [] (parse "6 + 4")
 
     do!
       Canvas.saveTLIDs
@@ -104,9 +196,9 @@ let testHttpLoadIgnoresDeletedFns =
            [ PT.DeleteFunction f.tlid ],
            PT.Toplevel.TLFunction f,
            Canvas.Deleted)
-          (f2.tlid,
-           [ PT.SetFunction f2 ],
-           PT.Toplevel.TLFunction f2,
+          (fNew.tlid,
+           [ PT.SetFunction fNew ],
+           PT.Toplevel.TLFunction fNew,
            Canvas.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
@@ -117,13 +209,13 @@ let testHttpLoadIgnoresDeletedFns =
 
     Expect.equal c2.handlers[handler.tlid] handler "handler is loaded "
     Expect.equal c2.userFunctions.Count 1 "only one function is loaded from cache"
-    Expect.equal c2.userFunctions[f2.tlid] f2 "later func is loaded"
+    Expect.equal c2.userFunctions[fNew.tlid] fNew "later func is loaded"
   }
 
 
 let testDbCreateWithOrblankName =
   testTask "DB create with orblank name" {
-    let! meta = initializeTestCanvas "db-create-with-orblank-name"
+    let! meta = initializeTestCanvas (Randomized "db-create-with-orblank-name")
 
     let dbid = gid ()
     let nameID = gid ()
@@ -149,7 +241,7 @@ let testDbCreateWithOrblankName =
 
 let testDbRename =
   testTask "DB rename" {
-    let! meta = initializeTestCanvas "db-rename"
+    let! meta = initializeTestCanvas (Randomized "db-rename")
 
     let dbid = gid ()
     let nameID = gid ()
@@ -167,7 +259,7 @@ let testDbRename =
 
 let testSetHandlerAfterDelete =
   testTask "handler set after delete" {
-    let! meta = initializeTestCanvas "set-handlder-after-delete"
+    let! meta = initializeTestCanvas (Randomized "set-handlder-after-delete")
     let e1 = (parse "5 + 3")
     let e2 = (parse "5 + 2")
     let h1 = testHttpRouteHandler "/path" "GET" e1
@@ -204,7 +296,7 @@ let testSetHandlerAfterDelete =
 
 let testSetFunctionAfterDelete =
   testTask "function set after delete" {
-    let! meta = initializeTestCanvas "db-set-function-after-delete"
+    let! meta = initializeTestCanvas (Randomized "db-set-function-after-delete")
     let f1 = testUserFn "testfn" [] (parse "5 + 3")
     let f2 = testUserFn "testfn" [] (parse "6 + 4")
     let op1 = PT.SetFunction f1
@@ -240,7 +332,7 @@ let testSetFunctionAfterDelete =
 
 let testLoadAllDBs =
   testTask "load all dbs" {
-    let! meta = initializeTestCanvas "load-all-dbs"
+    let! meta = initializeTestCanvas (Randomized "load-all-dbs")
     let dbid1, dbid2, dbid3 = gid (), gid (), gid ()
     let nameid1, nameid2, nameid3 = gid (), gid (), gid ()
     let ops1 =
@@ -263,7 +355,8 @@ let testLoadAllDBs =
 
 let testCanvasVerificationDuplicationCreation =
   testTask "canvas verification duplication creation" {
-    let! meta = initializeTestCanvas "canvas-verification-duplication-creation"
+    let! meta =
+      initializeTestCanvas (Randomized "canvas-verification-duplication-creation")
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -279,7 +372,9 @@ let testCanvasVerificationDuplicationCreation =
 let testCanvasVerificationDuplicationCreationOffDisk =
   testTask "canvas verification duplication creation off disk" {
     let! meta =
-      initializeTestCanvas "canvas-verification-duplication-creation-off-disk"
+      initializeTestCanvas (
+        Randomized "canvas-verification-duplication-creation-off-disk"
+      )
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     // same name
@@ -306,7 +401,8 @@ let testCanvasVerificationDuplicationCreationOffDisk =
 
 let testCanvasVerificationDuplicationRenaming =
   testTask "canvas verification duplication renaming" {
-    let! meta = initializeTestCanvas "canvas-verification-duplication-renaming"
+    let! meta =
+      initializeTestCanvas (Randomized "canvas-verification-duplication-renaming")
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -322,7 +418,7 @@ let testCanvasVerificationDuplicationRenaming =
 
 let testCanvasVerificationNoError =
   testTask "canvas verification no error" {
-    let! meta = initializeTestCanvas "canvas-verification-no-error"
+    let! meta = initializeTestCanvas (Randomized "canvas-verification-no-error")
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -336,7 +432,8 @@ let testCanvasVerificationNoError =
 
 let testCanvasVerificationUndoRenameDupedName =
   testTask "canvas verification undo rename duped name" {
-    let! meta = initializeTestCanvas "canvas-verification-undo-rename-duped-name"
+    let! meta =
+      initializeTestCanvas (Randomized "canvas-verification-undo-rename-duped-name")
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops1 =
@@ -400,16 +497,16 @@ let testCanvasClone =
     let canvasOpsLength oplists =
       oplists |> List.map Tuple2.second |> List.concat |> List.length
 
-    Expect.equal
+    Expect.isTrue
       (hasCreationOps sourceOplists)
-      true
       "only_ops_since_last_savepoint retrieve latest ops from the last complete op"
 
-    Expect.equal
-      (canvasOpsLength sourceOplists > canvasOpsLength targetOplists)
-      true
+    Expect.isGreaterThan (canvasOpsLength targetOplists) 0 "make sure it exists"
+
+    Expect.isGreaterThan
+      (canvasOpsLength sourceOplists)
+      (canvasOpsLength targetOplists)
       "fewer ops means we removed old history"
-    return ()
 
     Expect.equal sourceCanvas.dbs targetCanvas.dbs "Same DBs when loading from db"
 
@@ -428,6 +525,8 @@ let testCanvasClone =
       tweakedSourceHandlers
       (Map.values targetCanvas.handlers)
       "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
+
+    return ()
   }
 
 
@@ -438,6 +537,8 @@ let tests =
       testDBOplistRoundtrip
       testHttpOplistLoadsUserTypes
       testHttpLoadIgnoresDeletedFns
+      testHttpLoadIgnoresDeletedHandler
+      testUndoTooFarDoesntBreak
       testDbCreateWithOrblankName
       testDbRename
       testSetHandlerAfterDelete

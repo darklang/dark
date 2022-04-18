@@ -19,10 +19,7 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.CreateDBWithBlankOr _
   | PT.SetType _ -> true
   | PT.DeleteFunction _
-  | PT.DeleteTLForever _
-  | PT.DeleteFunctionForever _
   | PT.DeleteType _
-  | PT.DeleteTypeForever _
   | PT.DeleteTL _
   | PT.DeleteDBCol _
   | PT.RenameDBname _

@@ -196,6 +196,7 @@ let prependInternalErrorMessage errorMessage =
   $"Internal HTTP-stack exception: {errorMessage}"
 
 let makeHttpCall
+  // CLEANUP remove this unused param
   (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
@@ -319,7 +320,7 @@ let makeHttpCall
           // lot
           let latin1 =
             try
-              let charset = response.Content.Headers.ContentType.CharSet
+              let charset = response.Content.Headers.ContentType.CharSet.ToLower()
               match charset with
               | "latin1"
               | "us-ascii"
@@ -473,7 +474,7 @@ let rec httpCall
               (fun redirectResult ->
                 // Keep all headers along the way, mirroring the OCaml version
                 { redirectResult with
-                    headers = redirectResult.headers @ result.headers })
+                    headers = result.headers @ redirectResult.headers })
               newResponse
         | _ -> return response
       | _ -> return response

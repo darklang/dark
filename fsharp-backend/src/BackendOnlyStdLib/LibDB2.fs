@@ -8,6 +8,8 @@ module UserDB = LibBackend.UserDB
 module Errors = LibExecution.Errors
 module Db = LibBackend.Db
 
+open LibService.Exception
+
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
@@ -23,6 +25,21 @@ let keysParam = Param.make "keys" (TList TStr) ""
 let tableParam = Param.make "table" dbType ""
 let ocamlCompatibleSpecParam = Param.make "spec" ocamlTObj ""
 let queryParam = Param.makeWithArgs "filter" (TFn([ varA ], TBool)) "" [ "value" ]
+
+let handleUnexpectedExceptionDuringQuery
+  (state : ExecutionState)
+  (dbname : string)
+  (query : LambdaImpl)
+  (e : System.Exception)
+  : Dval =
+  match e with
+  | :? CodeException -> e.Reraise()
+  | e ->
+    state.reportException
+      state
+      [ "dbName", dbname; "lambda", query; "db", state.program.dbs[dbname] ]
+      e
+    LibBackend.SqlCompiler.error "An error occurred while querying the Datastore"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DB" "set" 1
@@ -653,9 +670,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryValues state db b
-            return results |> Dval.list
+            try
+              let db = state.program.dbs[dbname]
+              let! results = UserDB.queryValues state db b
+              return results |> Dval.list
+            with
+            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -672,9 +692,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.query state db b
-            return results |> Map.ofList |> DObj
+            try
+              let db = state.program.dbs[dbname]
+              let! results = UserDB.query state db b
+              return results |> Map.ofList |> DObj
+            with
+            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -691,15 +714,18 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.query state db b
+            try
+              let db = state.program.dbs[dbname]
+              let! results = UserDB.query state db b
 
-            match results with
-            | [ (_, v) ] -> return Dval.optionJust v
-            | _ -> return DOption None
+              match results with
+              | [ (_, v) ] -> return Dval.optionJust v
+              | _ -> return DOption None
+            with
+            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
+      sqlSpec = QueryFunction
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOne" 4) }
 
@@ -713,12 +739,15 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.query state db b
+            try
+              let db = state.program.dbs[dbname]
+              let! results = UserDB.query state db b
 
-            match results with
-            | [ (_, v) ] -> return Dval.optionJust v
-            | _ -> return DOption None
+              match results with
+              | [ (_, v) ] -> return Dval.optionJust v
+              | _ -> return DOption None
+            with
+            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -735,15 +764,18 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.query state db b
+            try
+              let db = state.program.dbs[dbname]
+              let! results = UserDB.query state db b
 
-            match results with
-            | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
-            | _ -> return DOption None
+              match results with
+              | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
+              | _ -> return DOption None
+            with
+            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
+      sqlSpec = QueryFunction
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -757,11 +789,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! result = UserDB.queryCount state db b
-            return Dval.int result
+            try
+              let db = state.program.dbs[dbname]
+              let! result = UserDB.queryCount state db b
+              return Dval.int result
+            with
+            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
+      sqlSpec = QueryFunction
       previewable = Impure
       deprecated = NotDeprecated } ]

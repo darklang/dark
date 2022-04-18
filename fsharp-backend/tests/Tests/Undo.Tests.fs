@@ -40,7 +40,7 @@ let testUndoCount : Test =
 
 let testUndo : Test =
   testTask "test undo" {
-    let! meta = initializeTestCanvas "undo"
+    let! meta = initializeTestCanvas (Randomized "undo")
     let tlid = 7UL
     let ha code = setHandler ({ handler code with tlid = tlid })
     let sp = PT.TLSavepoint tlid
@@ -87,7 +87,7 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     let dbID2 = gid ()
     let nameID2 = gid ()
     let pos : PT.Position = { x = 0; y = 0 }
-    let! meta = createTestCanvas "undo-verification"
+    let! meta = createTestCanvas (Randomized "undo-verification")
 
     let ops1 =
       [ PT.CreateDBWithBlankOr(dbID, pos, nameID, "Books")

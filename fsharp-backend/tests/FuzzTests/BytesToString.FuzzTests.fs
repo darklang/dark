@@ -22,7 +22,7 @@ type Generator =
 /// the same string for both OCaml and F# runtimes
 let toStringTest (bytes : byte []) : bool =
   task {
-    let! meta = initializeTestCanvas "bytes-to-string"
+    let! meta = initializeTestCanvas (Randomized "bytes-to-string")
 
     let ast = $"toString_v0 myValue" |> FSharpToExpr.parsePTExpr
     let symtable = Map [ "myvalue", RT.DBytes bytes ]

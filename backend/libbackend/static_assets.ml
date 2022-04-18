@@ -67,7 +67,7 @@ let app_hash (canvas_id : Uuidm.t) =
        ( name_for_id canvas_id
        (* enough to make this hash not easily discoverable *)
        ^ "SOME SALT HERE"
-       ^ Config.env_display_name ))
+       ^ Config.static_assets_salt_suffix ))
   |> Cstruct.to_string
   |> B64.encode ~alphabet:B64.uri_safe_alphabet
   |> Util.maybe_chop_suffix ~suffix:"="

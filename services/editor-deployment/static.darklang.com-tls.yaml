@@ -1,8 +1,5 @@
-# CLEANUP don't delete this, it's needed for F# too. Move to apiserver directory
 # CLEANUP: ended up using a Google-managed cert for this, so this can be removed
 
-# Note this is not actually used, we are currently using *.darklang.com
-# instead, as k8s certs cannot be added to storage buckets at the moment.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

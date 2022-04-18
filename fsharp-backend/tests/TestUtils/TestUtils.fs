@@ -79,7 +79,6 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
       :> Task
 
-
     let storedEventsV2 =
       Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
@@ -114,25 +113,31 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
     return ()
   }
 
+type TestCanvasName =
+  /// Use exactly this canvas name for the test. This is needed to test some features
+  /// which use the canvas name within them, such as static assets.
+  | Exact of string
+  /// Randomized test name using the provided base. This allows tests to avoid
+  /// sharing the same canvas so they can be parallelized, etc
+  | Randomized of string
 
-let nameToTestName (name : string) : string =
-  // We want to avoid tests sharing the same canvas, so they can be parallelized, so
-  // generate something that's roughly what's provided, that fits in a canvas name,
-  // and that's random. Tests are expected to use the canvasName returned, not the
-  // one they provide.
-  let name =
-    name
-    |> String.toLowercase
-    // replace invalid chars with a single hyphen
-    |> FsRegEx.replace "[^-a-z0-9]+" "-"
-    |> FsRegEx.replace "[-_]+" "-"
-    |> String.take 50
-  let suffix = randomString 5 |> String.toLowercase
-  $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
+let nameToTestName (name : TestCanvasName) : string =
+  match name with
+  | Exact name -> name
+  | Randomized name ->
+    let name =
+      name
+      |> String.toLowercase
+      // replace invalid chars with a single hyphen
+      |> FsRegEx.replace "[^-a-z0-9]+" "-"
+      |> FsRegEx.replace "[-_]+" "-"
+      |> String.take 50
+    let suffix = randomString 5 |> String.toLowercase
+    $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
 
 let initializeCanvasForOwner
   (owner : Account.UserInfo)
-  (name : string)
+  (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
     let canvasName = CanvasName.create (nameToTestName name)
@@ -141,7 +146,7 @@ let initializeCanvasForOwner
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
+let initializeTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! initializeCanvasForOwner owner name
@@ -151,7 +156,7 @@ let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
 // Same as initializeTestCanvas, for tests that don't need to hit the DB
 let createCanvasForOwner
   (owner : Account.UserInfo)
-  (name : string)
+  (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
     let canvasName = CanvasName.create (nameToTestName name)
@@ -159,7 +164,7 @@ let createCanvasForOwner
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let createTestCanvas (name : string) : Task<Canvas.Meta> =
+let createTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! createCanvasForOwner owner name
@@ -456,6 +461,12 @@ let rec debugDval (v : Dval) : string =
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DObj {{\n  {contents}}}"
+  | DBytes b ->
+    b
+    |> Array.toList
+    |> List.map string
+    |> String.concat ", "
+    |> fun s -> $"[|{s}|]"
 
   | _ -> v.ToString()
 
@@ -621,7 +632,6 @@ module Expect =
     | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       check path s s'
       eqList (s :: path) ts ts'
-    | EPartial (_, e), EPartial (_, e') -> eq ("partial" :: path) e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
@@ -653,7 +663,6 @@ module Expect =
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
-    | EPartial _, _
     | ELambda _, _
     | EMatch _, _ -> check path actual expected
 
@@ -738,7 +747,6 @@ module Expect =
     | DErrorRail _, _
     | DOption _, _
     | DStr _, _
-    // All others can be directly compared
     | DInt _, _
     | DDate _, _
     | DBool _, _

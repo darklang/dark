@@ -241,5 +241,86 @@ let fns : List<BuiltInFn> =
         | _, [ DStr message ] -> raise (System.Exception(message))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "intArrayToBytes" 0
+      parameters = [ Param.make "bytes" (TList TInt) "" ]
+      returnType = TBytes
+      description = "Create a bytes structure from an array of ints"
+      fn =
+        (function
+        | _, [ DList bytes ] ->
+          bytes
+          |> List.toArray
+          |> Array.map (function
+            | DInt i -> byte i
+            | other -> Exception.raiseCode "Expected int" [ "actual", other ])
+          |> DBytes
+          |> Ply
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "regexReplace" 0
+      parameters =
+        [ Param.make "subject" TStr ""
+          Param.make "pattern" TStr ""
+          Param.make "replacement" TStr "" ]
+      returnType = TStr
+      description = "Replaces regex patterns in a string"
+      fn =
+        (function
+        | _, [ DStr str; DStr pattern; DStr replacement ] ->
+          FsRegEx.replace pattern replacement str |> DStr |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "httpResponseStatusCode" 0
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
+      returnType = TInt
+      description = "Get the status code from a HttpResponse"
+      fn =
+        (function
+        | _, [ DHttpResponse response ] ->
+          match response with
+          | Redirect _ -> DInt 302 |> Ply
+          | Response (code, _, _) -> DInt code |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "httpResponseHeaders" 0
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
+      // CLEANUP make this is a list of string*string tuples
+      returnType = TList(TList TStr)
+      description = "Get headers from a HttpResponse"
+      fn =
+        (function
+        | _, [ DHttpResponse response ] ->
+          match response with
+          | Redirect _ -> Ply(DList [])
+          | Response (_, headers, _) ->
+            headers
+            |> List.map (fun (k, v) -> DList [ DStr k; DStr v ])
+            |> DList
+            |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "httpResponseBody" 0
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
+      returnType = varA
+      description = "Get the body from a HttpResponse"
+      fn =
+        (function
+        | _, [ DHttpResponse response ] ->
+          match response with
+          | Redirect _ -> DStr "" |> Ply
+          | Response (_, _, body) -> body |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]

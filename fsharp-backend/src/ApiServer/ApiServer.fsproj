@@ -23,6 +23,7 @@
     <Compile Include="Api/API404.fs" />
     <Compile Include="Api/APIPackages.fs" />
     <Compile Include="Api/APISecrets.fs" />
+    <Compile Include="Api/APIToplevels.fs" />
     <Compile Include="Api/APITraces.fs" />
     <Compile Include="Api/APIWorkers.fs" />
     <Compile Include="Api/APIInitialLoad.fs" />

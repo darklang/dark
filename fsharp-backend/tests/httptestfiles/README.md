@@ -15,7 +15,9 @@ An example HTTP handler looks like this
 ```
 
 The header has the method and path. The body is Dark code using the same F#
-syntax we use elsewhere (see tests/testfiles/README.md for a guide)
+syntax we use elsewhere (see tests/testfiles/README.md for a guide).
+
+Multiple handlers are allowed.
 
 # Requests
 
@@ -96,33 +98,78 @@ The response is expected to be perfect down to the byte. However, JSON
 responses are not necessarily identical as the F# server gives slightly
 different JSON to the OCaml server. JSON is parsed and compared.
 
+Response headers are normalized, removing the specific values from Date, Expires,
+x-darklang-execution-id, and some other headers. See BwdServer.Tests.fs for full
+details.
+
 It may be a struggle to edit these files, since automatic changes made by text
 editors can change the contents, for example stripping \r characters, or adding or
 removing newlines. To get around this, you can use a hex editor, or `vim -b` with
 `noeol` set. You should also add the files to .gitattributes in this directory.
 
-In case you're not a `vim` expert, here are some steps to follow:
+In case you're not well-versed in `vim`, here are some steps to follow:
 - `vim ./file-path.test -b`
 - hit `i` to enter insert mode
-- type/paste your changes, being careful to not edit anything you don't mean to
+- type/paste your changes
 - hit `esc` to escape edit mode
 - type `:wq` and press `enter` to escape
 
 # Adjusting for minor differences
+# Configuration
 
-## Json responses
+## ALLOW-INCORRECT-CONTENT-LENGTH
 
-See above
+You can allow a test to have the incorrect content-length.
+
+## CORS
+
+You can add CORS settings:
+
+```
+[cors https://somewebsite.com]
+```
+
+## Secrets
+
+You can add Secrets:
+
+```
+[secrets NAME1:value1,NAME2:value2]
+```
+
+## Custom domain
+
+You can add a custom domains:
+
+```
+[custom-domain my.special.domainname.com]
+```
+
+## Canvas name
+
+You can set the canvas name for the test:
+
+```
+[canvas-name test-static-assets-deploys]
+```
+
 
 ## LENGTH
 
-The token "LENGTH" will be replaced with the length of the request body or the response body.
+The token "LENGTH" will be replaced with the length of the request body or the
+response body.
 
 ## HOST
 
 The token "HOST" will be replaced with host the request is being sent to. This
 is useful as the tests use different servers for OCaml and F#.
 
+## CANVAS
+
+The token "CANVAS" will be replaced with the canvas name the request is being sent
+to. This is useful as the tests use different servers for OCaml and F#.
+
+
 ## FSHARPONLY and OCAMLONLY
 
-Lines containing FSHARPONLY are stripped from being sent/compared to the Ocaml request/response, and vice-versa for OCAMLONLY.
+Lines containing FSHARPONLY are stripped from being sent/compared to the OCaml request/response, and vice-versa for OCAMLONLY.

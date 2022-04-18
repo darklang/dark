@@ -393,7 +393,7 @@ DB.count X = 0
  let _ = DB.set_v1 { x = "cheers" } "four" X in
  DB.count X) = 4
 
-
+// CLEANUP put into one test
 [test.db.delete_v0 does not exist for ocaml OCAMLONLY] with DB X
 DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete is DEPRECATED"
 
@@ -478,6 +478,10 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 [fn.rossDOB x:any]
 (Date.parse_v1_ster  "1967-05-12T00:00:00Z")
 
+[fn.friendsError lambda:any]
+(let _ = prepFriends null in
+ DB.query_v4 Person lambda)
+
 [fn.friends lambda:any]
 (let _ = prepFriends null in
  ((DB.query_v4 Person lambda)
@@ -528,19 +532,42 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
   [" Chandler "; "Rachel"; "Ross" ]
 
 [test.db nested fieldaccess] with DB Person
-(friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 )) =
+friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
   [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db lambda doesnt return a bool] with DB Person
-(friends (fun p -> "x")) =
-  Test.typeError_v0 "Fn called with an error as an argument"
+[test.db lambda doesnt return a bool OCAMLONLY] with DB Person
+friendsError (fun p -> "x") =
+  Test.sqlError "Incorrect type in `\"x\"`, expected Bool but got a Str in \"x\""
+
+[test.db lambda doesnt return a bool FSHARPONLY] with DB Person
+friendsError (fun p -> "x") =
+  Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a Str"
 
 [test.db bad variable name] with DB Person
-(friends (fun p -> let x = 32 in true && p.height > y)) =
-  Test.typeError_v0 "Fn called with an error as an argument"
+friendsError (fun p -> let x = 32 in true && p.height > y) =
+  Test.sqlError "This variable is not defined: y"
 
 [test.db sql injection] with DB Person
-(friends (fun p -> "; select * from users;" = p.name )) = []
+friendsError (fun p -> "; select * from users;" = p.name ) = []
+
+[test.db invalid type comparison OCAMLONLY] with DB Person
+friendsError (fun p -> p.height == "string") =
+  Test.sqlError "A type error occurred at run-time"
+
+// CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
+[test.db invalid type comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+friendsError (fun p -> p.height == "string") =
+  Test.sqlError "An error occurred while querying the Datastore"
+
+// This test checks do we look up dates correctly when the function type is not a date
+[test.db invalid date comparison OCAMLONLY] with DB Person
+friendsError (fun p -> p.dob != Date.now_v0) =
+  Test.sqlError "A type error occurred at run-time"
+
+// This test checks do we look up dates correctly when the function type is not a date
+[test.db invalid date comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+friendsError (fun p -> p.dob != Date.now_v0) =
+  Test.sqlError "An error occurred while querying the Datastore"
 
 // ------------
 // Test compiled functions

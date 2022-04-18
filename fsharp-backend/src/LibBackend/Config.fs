@@ -154,6 +154,7 @@ let hashStaticFilenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
 let checkTierOneHosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
 
 let staticAssetsBucket = stringOption "DARK_CONFIG_STATIC_ASSETS_BUCKET"
+let staticAssetsSaltSuffix = string "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX"
 
 
 let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"

@@ -17,6 +17,7 @@ open Tablecloth
 open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PTParser = LibExecution.ProgramTypesParser
 module Telemetry = LibService.Telemetry
 
@@ -251,16 +252,19 @@ let loadOplists
   : Task<List<tlid * PT.Oplist>> =
   let query =
     // CLEANUP stop loading ocaml data
+    // Deleted can be null is which case it is DeletedForever
     match loadAmount with
     | LiveToplevels ->
       "SELECT tlid, data, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
-            AND deleted IS NOT TRUE"
+            AND deleted IS FALSE"
     | IncludeDeletedToplevels ->
+      // IS NOT NULL just skipped DeletedForever
       "SELECT tlid, data, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)"
+            AND tlid = ANY(@tlids)
+            AND deleted IS NOT NULL"
 
   Sql.query query
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
@@ -361,8 +365,6 @@ let fetchReleventTLIDsForHTTP
   (path : string)
   (method : string)
   : Task<List<tlid>> =
-  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
-
   // The pattern `$2 like name` is deliberate, to leverage the DB's
   // pattern matching to solve our routing.
   Sql.query
@@ -372,18 +374,19 @@ let fetchReleventTLIDsForHTTP
        AND ((module = 'HTTP'
              AND @path like name
              AND modifier = @method)
-         OR tipe <> 'handler'::toplevel_type)"
+         OR tipe <> 'handler'::toplevel_type)
+       AND deleted IS FALSE"
   |> Sql.parameters [ "path", Sql.string path
                       "method", Sql.string method
                       "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
-  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
   Sql.query
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = @canvasID
-      AND tipe <> 'handler'::toplevel_type"
+      AND tipe <> 'handler'::toplevel_type
+      AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -391,14 +394,14 @@ let fetchRelevantTLIDsForEvent
   (canvasID : CanvasID)
   (event : EventQueue.T)
   : Task<List<tlid>> =
-  // CLEANUP any reason to not have `AND deleted is FALSE` in here?
   Sql.query
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = @canvasID
         AND ((module = @space
               AND name = @name
               AND modifier = @modifier)
-              OR tipe <> 'handler'::toplevel_type)"
+              OR tipe <> 'handler'::toplevel_type)
+        AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "space", Sql.string event.space
                       "name", Sql.string event.name
@@ -410,7 +413,8 @@ let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevel_oplists
      WHERE canvas_id = @canvasID
-       AND tipe = 'db'::toplevel_type"
+       AND tipe = 'db'::toplevel_type
+       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -421,7 +425,8 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
        AND tipe = 'handler'::toplevel_type
        AND module <> 'CRON'
        AND module <> 'REPL'
-       AND module <> 'HTTP'"
+       AND module <> 'HTTP'
+       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -429,7 +434,8 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
 let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevel_oplists
-     WHERE canvas_id = @canvasID"
+     WHERE canvas_id = @canvasID
+       AND deleted is NOT NULL"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -467,7 +473,8 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
       WHERE module = 'CRON'
         AND modifier IS NOT NULL
         AND modifier <> ''
-        AND toplevel_oplists.name IS NOT NULL"
+        AND toplevel_oplists.name IS NOT NULL
+        AND deleted IS FALSE"
   |> Sql.executeAsync (fun read ->
     let interval = read.string "modifier"
     let canvasID = read.uuid "canvas_id"
@@ -484,88 +491,6 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
              "Could not parse cron modifier"
              [ "interval", interval; "canvasID", canvasID; "accountID", ownerID ] })
 
-
-
-
-
-
-// let transactionally_migrate_oplist
-//     ~(canvas_id : Uuidm.t)
-//     ~host
-//     ~tlid
-//     ~(oplist_f : Types.oplist -> Types.oplist)
-//     ~(handler_f :
-//        Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.HandlerT.handler)
-//     ~(db_f : Types.RuntimeT.DbT.db -> Types.RuntimeT.DbT.db)
-//     ~(user_fn_f : Types.RuntimeT.user_fn -> Types.RuntimeT.user_fn)
-//     ~(user_tipe_f : Types.RuntimeT.user_tipe -> Types.RuntimeT.user_tipe)
-//     () : (string, unit) Tc.Result.t =
-//   Log.inspecT "migrating oplists for" (host, tlid) ;
-//   try
-//     Db.transaction ~name:"oplist migration" (fun () ->
-//         let oplist, rendered =
-//           Db.fetch
-//             ~name:"load_all_from_db"
-//             (* SELECT FOR UPDATE locks row! *)
-//             "SELECT data, rendered_oplist_cache FROM toplevel_oplists
-//          WHERE canvas_id = $1
-//          AND tlid = $2
-//          FOR UPDATE"
-//             ~params:[Uuid canvas_id; ID tlid]
-//             ~result:BinaryResult
-//           |> List.hd_exn
-//           |> function
-//           | [data; rendered_oplist_cache] ->
-//               ( Binary_serialization.oplist_of_binary_string data
-//               , rendered_oplist_cache )
-//           | _ ->
-//               Exception.internal "invalid oplists"
-//         in
-//         let try_convert f () = try Some (f rendered) with _ -> None in
-//         let rendered =
-//           if rendered = ""
-//           then Db.Null
-//           else
-//             try_convert
-//               (Binary_serialization.translate_handler_as_binary_string
-//                  ~f:handler_f)
-//               ()
-//             |> Tc.Option.or_else_lazy
-//                  (try_convert
-//                     (Binary_serialization.translate_db_as_binary_string ~f:db_f))
-//             |> Tc.Option.or_else_lazy
-//                  (try_convert
-//                     (Binary_serialization
-//                      .translate_user_function_as_binary_string
-//                        ~f:user_fn_f))
-//             |> Tc.Option.or_else_lazy
-//                  (try_convert
-//                     (Binary_serialization.translate_user_tipe_as_binary_string
-//                        ~f:user_tipe_f))
-//             |> Tc.Option.map ~f:(fun str -> Db.Binary str)
-//             |> Tc.Option.or_else_lazy (fun () ->
-//                    Exception.internal "none of the decoders worked on the cache")
-//             |> Tc.Option.withDefault ~default:Db.Null
-//         in
-//         let converted_oplist = oplist |> oplist_f in
-//         Db.run
-//           ~name:"save per tlid oplist"
-//           "UPDATE toplevel_oplists
-//        SET data = $1,
-//            digest = $2,
-//            rendered_oplist_cache = $3
-//        WHERE canvas_id = $4
-//          AND tlid = $5"
-//           ~params:
-//             [ Binary
-//                 (Binary_serialization.oplist_to_binary_string converted_oplist)
-//             ; String Binary_serialization.digest
-//             ; rendered
-//             ; Uuid canvas_id
-//             ; ID tlid ]) ;
-//     Ok ()
-//   with e -> Error (Exception.to_string e)
-//
 
 // -------------------------
 // hosts

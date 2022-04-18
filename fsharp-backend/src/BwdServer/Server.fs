@@ -314,8 +314,8 @@ let runDarkHandler
       // and leave it to middleware to say what it wants to do with that
       let searchMethod = if method = "HEAD" then "GET" else method
 
-      // Canvas to process request against,
-      // with enough loaded to handle this request
+      // Canvas to process request against, with enough loaded to handle this
+      // request
       let! canvas = Canvas.loadHttpHandlers meta requestPath searchMethod
 
       let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
