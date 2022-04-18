@@ -499,8 +499,8 @@ let deleteToplevelForever (meta : Meta) (tlid : tlid) : Task<unit> =
   |> Sql.executeStatementAsync
 
 
-// Save just the TLIDs listed (a canvas may load more tlids to support
-// calling/testing these TLs, even though those TLs do not need to be updated)
+/// Save just the TLIDs listed (a canvas may load more tlids to support
+/// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
   (meta : Meta)
   (oplists : List<tlid * PT.Oplist * PT.Toplevel.T * Deleted>)
