@@ -43,5 +43,6 @@ Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 x-darklang-execution-id: 0123456789 // FSHARPONLY
 Server: darklang // FSHARPONLY
 Content-Length: LENGTH // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 // FSHARPONLY
 Invalid request body: Reading the request body timed out due to data arriving too slowly // FSHARPONLY

@@ -20,5 +20,6 @@ Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 
 404 Not Found: No route matches

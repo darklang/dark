@@ -22,5 +22,6 @@ Server: darklang // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
 Content-Length: 1 // OCAMLONLY
 Content-Length: 20 // FSHARPONLY - this is no longer supported
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 
 wrong content length

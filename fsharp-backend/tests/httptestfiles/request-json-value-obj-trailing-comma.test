@@ -22,6 +22,7 @@ Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Date: xxx, xx xxx xxxx xx:xx:xx xxx // FSHARPONLY
 Server: darklang // FSHARPONLY
 x-darklang-execution-id: 0123456789 // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 
 Invalid json: { "field1": "value1", } // OCAMLONLY
 Invalid json: { "field1": "value1", } // FSHARPONLY

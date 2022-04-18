@@ -101,6 +101,13 @@ editors can change the contents, for example stripping \r characters, or adding 
 removing newlines. To get around this, you can use a hex editor, or `vim -b` with
 `noeol` set. You should also add the files to .gitattributes in this directory.
 
+In case you're not a `vim` expert, here are some steps to follow:
+- `vim ./file-path.test -b`
+- hit `i` to enter insert mode
+- type/paste your changes, being careful to not edit anything you don't mean to
+- hit `esc` to escape edit mode
+- type `:wq` and press `enter` to escape
+
 # Adjusting for minor differences
 
 ## Json responses

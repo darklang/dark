@@ -22,5 +22,6 @@ Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 content-encoding: deflate, gzip, br // OCAMLONLY
 Content-Encoding: deflate, gzip, br // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 
 test // looks like nothing magical happens

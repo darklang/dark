@@ -24,6 +24,7 @@ Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
 Access-Control-Allow-Origin: * // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 
 {
   "b": { "a": "field" },

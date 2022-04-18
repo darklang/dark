@@ -314,8 +314,8 @@ let runDarkHandler
       // and leave it to middleware to say what it wants to do with that
       let searchMethod = if method = "HEAD" then "GET" else method
 
-      /// Canvas to process request against,
-      /// with enough loaded to handle this request
+      // Canvas to process request against,
+      // with enough loaded to handle this request
       let! canvas = Canvas.loadHttpHandlers meta requestPath searchMethod
 
       let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
@@ -423,6 +423,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     (task {
       let executionID = LibService.Telemetry.executionID ()
       ctx.Items[ "executionID" ] <- executionID
+      setHeader ctx "Strict-Transport-Security" "max-age=31536000; includeSubDomains; preload"
       setHeader ctx "x-darklang-execution-id" (string executionID)
       setHeader ctx "Server" "darklang"
 
@@ -480,7 +481,6 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
-  |> fun app -> app.UseHsts()
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -488,7 +488,6 @@ let configureServices (services : IServiceCollection) : unit =
   |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> Rollbar.AspNet.addRollbarToServices
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
-  |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
 
 let noLogger (builder : ILoggingBuilder) : unit =

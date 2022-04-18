@@ -264,7 +264,7 @@ let t filename =
         match k, v with
         | "Date", _ -> k, "xxx, xx xxx xxxx xx:xx:xx xxx"
         | "x-darklang-execution-id", _ -> k, "0123456789"
-        | other -> (k, v))
+        | _other -> (k, v))
       |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
 
     let normalizeExpectedHeaders

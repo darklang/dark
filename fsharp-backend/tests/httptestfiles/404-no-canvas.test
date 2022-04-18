@@ -19,6 +19,7 @@ access-control-allow-origin: * // OCAMLONLY
 Access-Control-Allow-Origin: * // FSHARPONLY
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 x-darklang-execution-id: 0123456789
 
 404 Not Found: No route matches

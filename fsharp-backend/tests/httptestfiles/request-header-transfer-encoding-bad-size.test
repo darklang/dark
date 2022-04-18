@@ -26,6 +26,7 @@ Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 Content-Length: LENGTH
 
 Invalid request body: Bad chunk size data.// FSHARPONLY

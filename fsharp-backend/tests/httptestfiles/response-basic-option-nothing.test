@@ -21,6 +21,7 @@ Content-Length: LENGTH
 Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 x-darklang-execution-id: 0123456789
 
 Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error).

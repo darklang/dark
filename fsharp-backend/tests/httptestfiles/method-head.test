@@ -22,3 +22,4 @@ Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 Content-Length: 31
 Connection: keep-alive // OCAMLONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
