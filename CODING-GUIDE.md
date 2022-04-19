@@ -5,7 +5,7 @@
 - Every file should start with a comment describing it.
 
 - all files have a formatter, which should be setup automatically in VSCode. Use
-  `scripts/format format` to format otherwise. Unformatted files fail in CI.
+  `./scripts/formatting format` to format otherwise. Unformatted files fail in CI.
 
 - imports should be ordered:
   - First stdlib and language builtins
@@ -31,7 +31,7 @@
 - `ignore` should always use a type signature (this should be enforced by the
   compiler)
 
-- use `print` instead of `Console.WriteLine` or similar, the latter deadlocks
+- use `print` instead of `Console.WriteLine` or similar; the latter deadlocks
 
 - ensure that `try` do not have a `uply`/`task` in the body unless you know what you
   are doing and provide a comment. Typically, the `uply`/`task` should be on the
@@ -68,11 +68,13 @@
 ### Types
 
 - Avoid using bools for function parameters to configure. Instead use a type with two
-  cases. Do match on the type to ensure
+  cases. `match` on the type to ensure exhaustive checks
 
 - Unless impossible or impractical to do so, avoid using wildcards in pattern
   matches. When changing a type we would like the compiler to tell us everywhere that
   has to be changed.
+
+- Include type annotations for parameters of all functions
 
 #### Creating types
 
