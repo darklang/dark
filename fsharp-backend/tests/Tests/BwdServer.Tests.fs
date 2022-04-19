@@ -248,11 +248,11 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     | None -> ()
 
     // Secrets
-    // TODO turn this back into a `do!`
-    let! _ignored =
+    do!
       test.secrets
       |> List.map (fun (name, value) -> LibBackend.Secret.insert meta.id name value)
       |> Task.WhenAll
+      |> Task.map (fun _ -> ())
 
     return meta
   }
