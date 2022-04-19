@@ -330,6 +330,19 @@ let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
       $"Assertion equality failure: {msg}"
       [ "expected", expected :> obj; "actual", actual :> obj ]
 
+let assertFn
+  (msg : string)
+  (fn : 'a -> 'b -> bool)
+  (expected : 'a)
+  (actual : 'b)
+  : unit =
+  if not (fn expected actual) then
+    Exception.raiseInternal
+      $"Function failure: {msg}"
+      [ "expected", expected :> obj; "actual", actual :> obj ]
+
+
+
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
 
