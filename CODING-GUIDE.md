@@ -74,7 +74,7 @@
   matches. When changing a type we would like the compiler to tell us everywhere that
   has to be changed.
 
-- Include type annotations for parameters of all functions
+- Include types for parameters, as well as the return type, of all functions.
 
 #### Creating types
 
