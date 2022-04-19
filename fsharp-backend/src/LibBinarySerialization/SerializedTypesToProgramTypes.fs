@@ -7,6 +7,7 @@ open Tablecloth
 // Used for conversion functions
 module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 module FQFnName =
   module PackageFnName =
@@ -24,6 +25,18 @@ module FQFnName =
   let toPT (fqfn : ST.FQFnName.T) : PT.FQFnName.T =
     match fqfn with
     | ST.FQFnName.User u -> PT.FQFnName.User u
+    // CLEANUP We accidentally parsed user functions with versions (that is, named
+    // like "myFunction_v2") into StdLib functions. Those names are saved in the
+    // serialized opcodes in the DB, and need to be migrated. However, we can
+    // identify them and convert them back to UserFunctions here
+    | ST.FQFnName.Stdlib fn when
+      fn.module_ = ""
+      && not (Set.contains fn.function_ PTParser.FQFnName.oneWordFunctions)
+      && not (Set.contains fn.function_ PTParser.FQFnName.infixFunctions)
+      ->
+      // It must have had a "_v0" or similar to get here, so always print the
+      // version, even if it's 0
+      PT.FQFnName.User($"{fn.function_}_v{fn.version}")
     | ST.FQFnName.Stdlib fn -> PT.FQFnName.Stdlib(StdlibFnName.toPT fn)
     | ST.FQFnName.Package p -> PT.FQFnName.Package(PackageFnName.toPT p)
 

@@ -4,8 +4,10 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
-module RT = LibExecution.RuntimeTypes
+module ST = LibBinarySerialization.SerializedTypes
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module ST2PT = LibBinarySerialization.SerializedTypesToProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module S = TestUtils.RTShortcuts
@@ -40,6 +42,7 @@ let parseTests =
            PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 })
           ("", PT.FQFnName.User "someUserFn")
           ("capital letter", PT.FQFnName.User "SomeUserFn") // CLEANUP shouldn't be needed
+          ("has _v0 in it", PT.FQFnName.User "myfunction_v2")
           ("", p "String::toInt_v1")
           ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 })
           ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 })
@@ -77,10 +80,17 @@ let parseTests =
            Some(
              PT.FQFnName.Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }
            ))
+          ("dissoc_v0",
+           Some(
+             PT.FQFnName.Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }
+           ))
+          ("emit_v1",
+           Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "emit"; version = 1 }))
           ("toForm",
            Some(
              PT.FQFnName.Stdlib { module_ = ""; function_ = "toForm"; version = 0 }
            ))
+          ("myFunction_v2", Some(PT.FQFnName.User "myFunction_v2"))
           ("++",
            Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 }))
           ("+",
@@ -144,5 +154,39 @@ let testPipesToRuntimeTypes =
     Expect.equalExprIgnoringIDs actual expected
   }
 
+// We didn't use a special infix type in serialized types, so check it converts OK
+let testInfixSerializedTypesToProgramTypes =
+  testMany
+    "serialized infix types to program types"
+    ST2PT.Expr.toPT
+    [ ST.EBinOp(
+        8UL,
+        ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
+        ST.EInteger(9UL, 6),
+        ST.EInteger(10UL, 6),
+        ST.NoRail
+      ),
+      PT.EBinOp(8UL, "+", PT.EInteger(9UL, 6), PT.EInteger(10UL, 6), PT.NoRail) ]
+
+
+
+/// We have functions that were written as user functions, but accidentally
+/// converted to StdLibFns before being saved to the DB
+let testVersionedSerializedTypesToProgramTypes =
+  testMany
+    "versioned user functions migrated"
+    ST2PT.FQFnName.toPT
+    [ ST.FQFnName.Stdlib { module_ = ""; function_ = "myFunction"; version = 2 },
+      (PT.FQFnName.User "myFunction_v2")
+      ST.FQFnName.Stdlib { module_ = ""; function_ = "myFunction"; version = 0 },
+      (PT.FQFnName.User "myFunction_v0") ]
+
+
 let tests =
-  testList "ProgramTypes" [ parseTests; testPipesToRuntimeTypes; ptFQFnName ]
+  testList
+    "ProgramTypes"
+    [ parseTests
+      testPipesToRuntimeTypes
+      ptFQFnName
+      testInfixSerializedTypesToProgramTypes
+      testVersionedSerializedTypesToProgramTypes ]

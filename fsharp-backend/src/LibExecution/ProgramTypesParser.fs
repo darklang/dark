@@ -38,6 +38,23 @@ module FQFnName =
           "emit_v0"
           "emit_v1" ]
 
+  let infixFunctions =
+    Set [ "+"
+          "-"
+          "*"
+          "/"
+          "++"
+          ">"
+          ">="
+          "<"
+          "<="
+          "%"
+          "^"
+          "=="
+          "!="
+          "&&"
+          "||" ]
+
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
@@ -103,7 +120,6 @@ module FQFnName =
   let binopFqName (op : string) : PT.FQFnName.T = stdlibFqName "" op 0
 
   let parse (fnName : string) : PT.FQFnName.T =
-    // These should match up with the regexes in RuntimeTypes
     match fnName with
     | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
             [ owner; package; module_; name; version ] ->
@@ -117,8 +133,6 @@ module FQFnName =
             [ module_; name; version ] -> stdlibFqName module_ name (int version)
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
       stdlibFqName module_ name 0
-    | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
-      stdlibFqName "" name (int version)
     | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "Date" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
@@ -136,7 +150,7 @@ module FQFnName =
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> userFqName name
     // CLEANUP People have the most ridiculous names in userFunctions. One user had a
     // fully qualified url in there! Ridiculous. This needs a data cleanup before it
-    // can be removed.
+    // can be removed. Also some functions have "_v2" or similar in them.
     | Regex "^(.*)$" [ name ] -> userFqName name
     | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
 
