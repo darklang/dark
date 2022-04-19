@@ -46,5 +46,6 @@ x-goog-stored-content-encoding: identity
 x-goog-stored-content-length: 38
 x-guploader-uploadid: xxxx // OCAMLONLY
 X-GUploader-UploadID: xxxx // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 
 <html><body>Hello world</body></html>
