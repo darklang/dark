@@ -680,18 +680,7 @@ let canonicalizeAst (e : OT.RuntimeT.fluidExpr) =
 
 
 let testHsts (client : C) (canvasName : CanvasName.T) =
-  task {
-    let server = FSharp
-    let requestBody = ""
-    // TODO: should we check a few, instead of just initial_load?
-    // How many would be reasonable? Any particular ones come to mind?
-    // If we test a few, we'll have to pair the `api` variable
-    // with appropriate `requestBody`s.
-    let api = "initial_load"
-
-    let! (response : HttpResponseMessage) =
-      postAsync server client $"/api/{canvasName}/{api}" requestBody
-
+  let testHstsHeader (response : HttpResponseMessage) =
     let hstsHeader =
       response.Headers
       |> Seq.toList
@@ -704,8 +693,34 @@ let testHsts (client : C) (canvasName : CanvasName.T) =
     Expect.equal
       [ "max-age=31536000; includeSubDomains; preload" ]
       hstsHeader
-      "strict-transport-security header not present"
+      "Strict-Transport-Security header either missing or incorrect"
+
+  task {
+    let server = FSharp
+
+    let! responses =
+      [ getAsync server client $"/api/{canvasName}/login"
+        getAsync server client $"/api/{canvasName}/logout"
+        getAsync server client $"/api/check-apiserver"
+
+        getAsync server client $"/api/{canvasName}"
+        postAsync server client $"/api/{canvasName}/initial_load" ""
+        postAsync server client $"/api/{canvasName}/packages" ""
+        postAsync server client $"/api/{canvasName}/get_worker_stats" ""
+        postAsync server client $"/api/{canvasName}/get_404s" ""
+        postAsync server client $"/api/{canvasName}/all_traces" ""
+        postAsync server client $"/api/{canvasName}/get_db_stats" ""
+        postAsync server client $"/api/{canvasName}/get_trace_data" ""
+        postAsync server client $"/api/{canvasName}/get_unlocked_dbs" ""
+
+        getAsync server client $"/completely-fake-url"
+        postAsync server client $"/completely-fake-url" "" ]
+      |> Task.WhenAll
+
+    responses |> Array.iter testHstsHeader
   }
+
+
 
 let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
   let deserialize v = Json.OCamlCompatible.deserialize<InitialLoad.T> v
