@@ -199,7 +199,7 @@ let replaceByteStrings
     result |> List.reverse |> List.toArray
 
 /// Initializes and sets up a test canvas (handlers, secrets, etc.)
-let setupTestCanvas testName test : Task<Canvas.Meta> =
+let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
   task {
     let! (meta : Canvas.Meta) =
       let canvasName =
@@ -306,7 +306,12 @@ let createClient (port : int) : Task<TcpClient> =
 
 /// Makes the test request to one of the servers,
 /// testing the response matches expectations
-let runTestRequest canvasName testRequest testResponse server : Task<unit> =
+let runTestRequest
+  (canvasName : string)
+  (testRequest : byte array)
+  (testResponse : byte array)
+  (server : Server)
+  : Task<unit> =
   task {
     let port =
       match server with
@@ -431,7 +436,7 @@ let runTestRequest canvasName testRequest testResponse server : Task<unit> =
   }
 
 /// Makes a test to be run
-let t filename =
+let t (filename : string) =
   testTask $"Httpfiles: {filename}" {
     let shouldSkip = String.startsWith "_" filename
 
