@@ -14,6 +14,9 @@ module FQFnName =
   /// Standard Library Function Name
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
+  /// Standard Library Infix Function Name
+  type InfixStdlibFnName = string
+
   /// A UserFunction is a function written by a Developer in their canvas
   type UserFnName = string
 
@@ -25,6 +28,7 @@ module FQFnName =
       function_ : string
       version : int }
 
+  // We don't include InfixStdlibFnName here as that is used directly by EBinOp
   type T =
     | User of UserFnName
     | Stdlib of StdlibFnName
@@ -64,7 +68,7 @@ type Expr =
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  | EBinOp of id * FQFnName.T * Expr * Expr * SendToRail
+  | EBinOp of id * FQFnName.InfixStdlibFnName * Expr * Expr * SendToRail
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string

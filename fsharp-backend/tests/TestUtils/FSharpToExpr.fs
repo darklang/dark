@@ -144,8 +144,7 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
       |> Exception.unwrapOptionInternal
            "can't find operation"
            [ "name", ident.idText ]
-    let name = PTParser.FQFnName.stdlibFqName "" op 0
-    PT.EBinOp(id, name, placeholder, placeholder, PT.NoRail)
+    PT.EBinOp(id, op, placeholder, placeholder, PT.NoRail)
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
     let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [], PT.NoRail)

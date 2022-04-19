@@ -370,7 +370,10 @@ module Convert =
         ocamlSter2PT ster
       )
     | ORT.EBinOp (id, name, arg1, arg2, ster) ->
-      PT.EBinOp(id, PTParser.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
+      assert_
+        "is a valid infix function"
+        (Set.contains name ProgramTypesParser.FQFnName.infixFunctions)
+      PT.EBinOp(id, name, r arg1, r arg2, ocamlSter2PT ster)
     | ORT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
     | ORT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
     | ORT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -689,16 +692,7 @@ module Convert =
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
-      ORT.EBinOp(
-        id,
-        name
-        |> PT2RT.FQFnName.toRT
-        |> RT.FQFnName.toString
-        |> String.replace "_v0" "",
-        r arg1,
-        r arg2,
-        pt2ocamlSter ster
-      )
+      ORT.EBinOp(id, name, r arg1, r arg2, pt2ocamlSter ster)
     | PT.ELambda (id, vars, body) -> ORT.ELambda(id, vars, r body)
     | PT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->

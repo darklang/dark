@@ -65,8 +65,17 @@ module Expr =
       PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, FQFnName.toPT name, List.map toPT args, SendToRail.toPT ster)
-    | ST.EBinOp (id, name, arg1, arg2, ster) ->
-      PT.EBinOp(id, FQFnName.toPT name, toPT arg1, toPT arg2, SendToRail.toPT ster)
+    | ST.EBinOp (id, ST.FQFnName.Stdlib name, arg1, arg2, ster) ->
+      assertEq "serialized binop should have blank module" name.module_ ""
+      assertEq "serialized binop should have zero version" name.version 0
+      let fns = PTParser.FQFnName.infixFunctions
+      assertFn "serialized binop should be infix" Set.contains name.function_ fns
+      PT.EBinOp(id, name.function_, toPT arg1, toPT arg2, SendToRail.toPT ster)
+    // CLEANUP remove from format
+    | ST.EBinOp (_, ST.FQFnName.User name, _, _, _) ->
+      Exception.raiseInternal "userfn serialized as a binop" [ "name", name ]
+    | ST.EBinOp (_, ST.FQFnName.Package name, _, _, _) ->
+      Exception.raiseInternal "package serialized as a binop" [ "name", name ]
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
     | ST.EIf (id, cond, thenExpr, elseExpr) ->

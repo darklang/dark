@@ -72,7 +72,9 @@ module Expr =
         RT.NotInPipe,
         SendToRail.toRT ster
       )
-    | PT.EBinOp (id, name, arg1, arg2, ster) ->
+    | PT.EBinOp (id, fnName, arg1, arg2, ster) ->
+      let name =
+        PT.FQFnName.Stdlib({ module_ = ""; function_ = fnName; version = 0 })
       toRT (PT.EFnCall(id, name, [ arg1; arg2 ], ster))
     | PT.ELambda (id, vars, body) -> RT.ELambda(id, vars, toRT body)
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
@@ -106,7 +108,9 @@ module Expr =
                 SendToRail.toRT rail
               )
             // TODO: support currying
-            | PT.EBinOp (id, name, PT.EPipeTarget ptID, expr2, rail) ->
+            | PT.EBinOp (id, fnName, PT.EPipeTarget ptID, expr2, rail) ->
+              let name =
+                PT.FQFnName.Stdlib({ module_ = ""; function_ = fnName; version = 0 })
               RT.EApply(
                 id,
                 RT.EFQFnValue(ptID, FQFnName.toRT name),
