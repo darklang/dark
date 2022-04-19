@@ -423,10 +423,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     (task {
       let executionID = LibService.Telemetry.executionID ()
       ctx.Items[ "executionID" ] <- executionID
-      setHeader
-        ctx
-        "Strict-Transport-Security"
-        "max-age=31536000; includeSubDomains; preload"
+      setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
       setHeader ctx "x-darklang-execution-id" (string executionID)
       setHeader ctx "Server" "darklang"
 
