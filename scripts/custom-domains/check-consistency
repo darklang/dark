@@ -29,20 +29,23 @@ fi
 tmpfile=$(mktemp /tmp/custom_domain.XXXXXX)
 select_query="SELECT host FROM custom_domains"
 echo "\\copy (${select_query}) TO ${tmpfile}" \
-    | ./scripts/production/gcp-psql --production
+    | ./scripts/production/gcp-psql
 DBHOSTS=$(sort ${tmpfile})
 
 CERTMANAGER_JSON=$(kubectl get ingress darkcustomdomain-l4-ingress -o json)
 TLSES=$(printf "%s" "${CERTMANAGER_JSON}" \
   | jq -r '.spec.tls | map ( .hosts[0] ) | sort | .[] ' \
-  | grep -v ops-placeholder.darkcustomdomain.com)
+  | grep -v ops-placeholder.darkcustomdomain.com \
+  | sort)
 RULES=$(printf "%s" "${CERTMANAGER_JSON}" \
   | jq -r '.spec.rules | map ( .host ) | sort | .[] ' \
-  | grep -v ops-placeholder.darkcustomdomain.com)
+  | grep -v ops-placeholder.darkcustomdomain.com \
+  | sort)
 # the letsencrypt-prod filter skips the wildcards which are not part of custom-domains
 CERTS=$(kubectl get certs -o json \
   | jq -r '.items | map (select ( .spec.issuerRef.name == "letsencrypt-prod" )) | map ( .spec.dnsNames[0] ) | sort | .[] ' \
-  | grep -v ops-placeholder.darkcustomdomain.com)
+  | grep -v ops-placeholder.darkcustomdomain.com \
+  | sort)
 
 if [[ "${TLSES}"x == "${DBHOSTS}"x && "${RULES}"x == "${DBHOSTS}"x && "${CERTS}"x == "${DBHOSTS}"x ]]; then
   echo -e "\nAll entries match"
