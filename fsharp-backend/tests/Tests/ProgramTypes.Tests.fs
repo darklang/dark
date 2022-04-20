@@ -43,7 +43,7 @@ let parseTests =
            PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 })
           ("", PT.FQFnName.User "someUserFn")
           ("capital letter", PT.FQFnName.User "SomeUserFn") // CLEANUP shouldn't be needed
-          ("has _v0 in it", PT.FQFnName.User "myfunction_v2")
+          ("has _v2 in it", PT.FQFnName.User "myfunction_v2")
           ("has _v0 in it", PT.FQFnName.User "myfunction_v0")
           ("", p "String::toInt_v1")
           ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 })
