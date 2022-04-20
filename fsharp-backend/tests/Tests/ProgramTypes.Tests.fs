@@ -8,6 +8,7 @@ module ST = LibBinarySerialization.SerializedTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module ST2PT = LibBinarySerialization.SerializedTypesToProgramTypes
+module PT2ST = LibBinarySerialization.ProgramTypesToSerializedTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module S = TestUtils.RTShortcuts
@@ -159,16 +160,67 @@ let testInfixSerializedTypesToProgramTypes =
   testMany
     "serialized infix types to program types"
     ST2PT.Expr.toPT
-    [ ST.EBinOp(
+    [ (ST.EBinOp(
         8UL,
         ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
         ST.EInteger(9UL, 6),
         ST.EInteger(10UL, 6),
         ST.NoRail
-      ),
-      PT.EBinOp(8UL, "+", PT.EInteger(9UL, 6), PT.EInteger(10UL, 6), PT.NoRail) ]
+       ),
+       PT.EBinOp(
+         8UL,
+         { module_ = None; function_ = "+" },
+         PT.EInteger(9UL, 6),
+         PT.EInteger(10UL, 6),
+         PT.NoRail
+       ))
+      (ST.EBinOp(
+        8UL,
+        ST.FQFnName.Stdlib { module_ = "Date"; function_ = "<"; version = 0 },
+        ST.EInteger(9UL, 6),
+        ST.EInteger(10UL, 6),
+        ST.NoRail
+       ),
+       PT.EBinOp(
+         8UL,
+         { module_ = Some "Date"; function_ = "<" },
+         PT.EInteger(9UL, 6),
+         PT.EInteger(10UL, 6),
+         PT.NoRail
+       )) ]
 
-
+let testInfixProgramTypesToSerializedTypes =
+  testMany
+    "infix program types to serialized types"
+    PT2ST.Expr.toST
+    [ (PT.EBinOp(
+        8UL,
+        { module_ = None; function_ = "+" },
+        PT.EInteger(9UL, 6),
+        PT.EInteger(10UL, 6),
+        PT.NoRail
+       ),
+       ST.EBinOp(
+         8UL,
+         ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
+         ST.EInteger(9UL, 6),
+         ST.EInteger(10UL, 6),
+         ST.NoRail
+       ))
+      (PT.EBinOp(
+        8UL,
+        { module_ = Some "Date"; function_ = "<" },
+        PT.EInteger(9UL, 6),
+        PT.EInteger(10UL, 6),
+        PT.NoRail
+       ),
+       ST.EBinOp(
+         8UL,
+         ST.FQFnName.Stdlib { module_ = "Date"; function_ = "<"; version = 0 },
+         ST.EInteger(9UL, 6),
+         ST.EInteger(10UL, 6),
+         ST.NoRail
+       )) ]
 
 /// We have functions that were written as user functions, but accidentally
 /// converted to StdLibFns before being saved to the DB

@@ -70,7 +70,7 @@ module FQFnName =
     : StdlibFnName =
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
     assertRe "stdlib function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
   module StdlibFnName =

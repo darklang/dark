@@ -32,7 +32,7 @@ module FQFnName =
     | ST.FQFnName.Stdlib fn when
       fn.module_ = ""
       && not (Set.contains fn.function_ PTParser.FQFnName.oneWordFunctions)
-      && not (Set.contains fn.function_ PTParser.FQFnName.infixFunctions)
+      && not (LibExecutionStdLib.StdLib.isInfixName fn.module_ fn.function_)
       ->
       // It must have had a "_v0" or similar to get here, so always print the
       // version, even if it's 0
@@ -78,12 +78,22 @@ module Expr =
       PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, FQFnName.toPT name, List.map toPT args, SendToRail.toPT ster)
-    | ST.EBinOp (id, ST.FQFnName.Stdlib name, arg1, arg2, ster) ->
-      assertEq "serialized binop should have blank module" name.module_ ""
-      assertEq "serialized binop should have zero version" name.version 0
-      let fns = PTParser.FQFnName.infixFunctions
-      assertFn "serialized binop should be infix" Set.contains name.function_ fns
-      PT.EBinOp(id, name.function_, toPT arg1, toPT arg2, SendToRail.toPT ster)
+    | ST.EBinOp (id, ST.FQFnName.Stdlib fn, arg1, arg2, ster) ->
+      assertIn
+        "serialized binop should have blank/Date module"
+        [ ""; "Date" ]
+        fn.module_
+      assertEq "serialized binop should have zero version" 0 fn.version
+      let isInfix = LibExecutionStdLib.StdLib.isInfixName
+      assertFn2 "serialized binop should be infix" isInfix fn.module_ fn.function_
+      let module_ = if fn.module_ = "" then None else Some fn.module_
+      PT.EBinOp(
+        id,
+        { module_ = module_; function_ = fn.function_ },
+        toPT arg1,
+        toPT arg2,
+        SendToRail.toPT ster
+      )
     // CLEANUP remove from format
     | ST.EBinOp (_, ST.FQFnName.User name, _, _, _) ->
       Exception.raiseInternal "userfn serialized as a binop" [ "name", name ]

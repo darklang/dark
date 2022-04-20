@@ -64,8 +64,7 @@ let main (args : string array) : int =
   with
   | e ->
     print e.Message
-    let metadata = Exception.toMetadata e
-    LibService.Rollbar.printMetadata metadata
+    printMetadata (Exception.toMetadata e)
     print e.StackTrace
     NonBlockingConsole.wait () // flush stdout
     1

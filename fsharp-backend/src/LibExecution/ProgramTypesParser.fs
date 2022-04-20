@@ -38,23 +38,6 @@ module FQFnName =
           "emit_v0"
           "emit_v1" ]
 
-  let infixFunctions =
-    Set [ "+"
-          "-"
-          "*"
-          "/"
-          "++"
-          ">"
-          ">="
-          "<"
-          "<="
-          "%"
-          "^"
-          "=="
-          "!="
-          "&&"
-          "||" ]
-
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
@@ -72,7 +55,7 @@ module FQFnName =
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
     assertRe "package function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
     { owner = owner
       package = package
@@ -105,7 +88,7 @@ module FQFnName =
     : PT.FQFnName.StdlibFnName =
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
     assertRe "stdlib function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
   let stdlibFqName

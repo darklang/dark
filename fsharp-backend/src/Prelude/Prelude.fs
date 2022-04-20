@@ -89,7 +89,6 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 let mutable exceptionCallback = (fun (e : exn) -> ())
 
 module Exception =
-
   let rec toMetadata (e : exn) : Metadata =
     let innerMetadata =
       if e.InnerException <> null then toMetadata e.InnerException else []
@@ -313,6 +312,14 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     return a
   }
 
+let printMetadata (metadata : Metadata) =
+  try
+    List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
+  with
+  | _ -> ()
+
+
+
 
 
 // ----------------------
@@ -321,8 +328,11 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 // Asserts are problematic because they don't run in prod, and if they did they
 // wouldn't be caught by the webserver
 
-let assert_ (msg : string) (cond : bool) : unit =
-  if cond then () else Exception.raiseInternal $"Assertion failure: {msg}" []
+let assert_ (msg : string) (metadata : Metadata) (cond : bool) : unit =
+  if cond then
+    ()
+  else
+    Exception.raiseInternal $"Assertion failure: {msg}" metadata
 
 let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
   if expected <> actual then
@@ -330,22 +340,38 @@ let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
       $"Assertion equality failure: {msg}"
       [ "expected", expected :> obj; "actual", actual :> obj ]
 
-let assertFn
-  (msg : string)
-  (fn : 'a -> 'b -> bool)
-  (expected : 'a)
-  (actual : 'b)
-  : unit =
-  if not (fn expected actual) then
+let assertIn (msg : string) (expected : List<'a>) (actual : 'a) : unit =
+  if not (Tablecloth.List.includes actual expected) then
     Exception.raiseInternal
-      $"Function failure: {msg}"
+      $"Assertion equality failure: {msg}"
       [ "expected", expected :> obj; "actual", actual :> obj ]
 
+
+let assertFn (msg : string) (fn : 'a -> bool) (arg : 'a) : unit =
+  if not (fn arg) then
+    Exception.raiseInternal $"Function failure: {msg}" [ "arg", arg :> obj ]
+
+let assertFn2 (msg : string) (fn : 'a -> 'b -> bool) (arg1 : 'a) (arg2 : 'b) : unit =
+  if not (fn arg1 arg2) then
+    Exception.raiseInternal
+      $"Function failure: {msg}"
+      [ "arg1", arg1 :> obj; "arg2", arg2 :> obj ]
+
+let assertFn3
+  (msg : string)
+  (fn : 'a -> 'b -> 'c -> bool)
+  (arg1 : 'a)
+  (arg2 : 'b)
+  (arg3 : 'c)
+  : unit =
+  if not (fn arg1 arg2 arg3) then
+    Exception.raiseInternal
+      $"Function failure: {msg}"
+      [ "arg1", arg1 :> obj; "arg2", arg2 :> obj; "arg3", arg3 :> obj ]
 
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
-
   if m.Success then
     ()
   else
@@ -404,8 +430,8 @@ let readFloat (f : float) : (Sign * string * string) =
 
 let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
   try
-    if whole <> "" then assert_ "non-zero string" (whole[0] <> '-')
-    if whole <> "0" then assertRe $"makefloat: {whole}" "[1-9][0-9]*" whole
+    if whole <> "" then assert_ "non-zero string" [] (whole[0] <> '-')
+    if whole <> "0" then assertRe $"makefloat" "[1-9][0-9]*" whole
     let sign =
       match sign with
       | Positive -> ""

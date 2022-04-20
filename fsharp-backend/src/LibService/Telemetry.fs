@@ -55,6 +55,7 @@ module Span =
   let root (name : string) : T =
     assert_
       "Telemetry must be initialized before creating root"
+      []
       (Internal._source <> null)
     // Deliberately created with no parent to make this a root
     // From https://github.com/open-telemetry/opentelemetry-dotnet/issues/984
@@ -80,6 +81,7 @@ module Span =
   let child (name : string) (parent : T) (tags : Metadata) : T =
     assert_
       "Telemetry must be initialized before creating root"
+      []
       (Internal._source <> null)
     let tags = tags |> List.map Tuple2.toKeyValuePair
     let parentId = if parent = null then null else parent.Id

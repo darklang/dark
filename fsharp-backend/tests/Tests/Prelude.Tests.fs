@@ -159,9 +159,11 @@ let dateTests =
 let assertions =
   testList
     "Assertions"
-    [ test "assertFn" { assertFn "msg" Tablecloth.String.includes "x" "xxx" }
+    [ test "assertFn" { assertFn "msg" System.Double.IsFinite 6.0 }
+      test "assertFn2" { assertFn2 "msg" Tablecloth.String.includes "x" "xxx" }
       test "assertEq" { assertEq "msg" "x" "x" }
-      test "assert_" { assert_ "_" true } ]
+      test "assertIn" { assertIn "msg" [ "x" ] "x" }
+      test "assert_" { assert_ "_" [] true } ]
 
 
 let tests =

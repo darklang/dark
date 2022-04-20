@@ -79,7 +79,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
     description = fn.description
     return_type = typToApiString fn.returnType
     preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
-    infix = LibExecutionStdLib.StdLib.isInfixName fn.name
+    infix = LibExecutionStdLib.StdLib.isInfixName fn.name.module_ fn.name.function_
     deprecated = fn.deprecated <> RT.NotDeprecated
     is_supported_in_query = fn.sqlSpec.isQueryable () }
 

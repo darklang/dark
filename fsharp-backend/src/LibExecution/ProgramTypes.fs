@@ -15,7 +15,9 @@ module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
   /// Standard Library Infix Function Name
-  type InfixStdlibFnName = string
+  // CLEANUP The module is only there for a few functions in the Date module, such as
+  // Date::<. Making these infix wasn't a great idea, and we should remove them.
+  type InfixStdlibFnName = { module_ : Option<string>; function_ : string }
 
   /// A UserFunction is a function written by a Developer in their canvas
   type UserFnName = string

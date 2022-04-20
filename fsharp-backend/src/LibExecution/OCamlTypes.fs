@@ -344,6 +344,32 @@ module Convert =
     | ORT.Rail -> PT.Rail
     | ORT.NoRail -> PT.NoRail
 
+  // Copied from LibExecutionStdlib.Stdlib, which isn't accessible from here (and
+  // this file can't be moved easily). This file will be deleted "soon" so it doesn't
+  // matter.
+  let infixNames =
+    [ "+"
+      "-"
+      "*"
+      ">"
+      ">="
+      "<="
+      "<"
+      "^"
+      "%"
+      "/"
+      "Date::<"
+      "Date::>"
+      "Date::<="
+      "Date::>="
+      "++"
+      "=="
+      "!="
+      "&&"
+      "||" ]
+    |> Set
+
+
   let rec ocamlExpr2PT (o : ORT.fluidExpr) : PT.Expr =
     let r = ocamlExpr2PT
 
@@ -372,8 +398,23 @@ module Convert =
     | ORT.EBinOp (id, name, arg1, arg2, ster) ->
       assert_
         "is a valid infix function"
-        (Set.contains name ProgramTypesParser.FQFnName.infixFunctions)
-      PT.EBinOp(id, name, r arg1, r arg2, ocamlSter2PT ster)
+        [ "name", name ]
+        (Set.contains name infixNames)
+      let (module_, fn) =
+        match String.split "::" name with
+        | [ "Date"; fn ] -> Some "Date", fn
+        | [ fn ] -> None, fn
+        | other ->
+          Exception.raiseInternal
+            "invalid split fnName"
+            [ "value", other; "name", name ]
+      PT.EBinOp(
+        id,
+        { module_ = module_; function_ = fn },
+        r arg1,
+        r arg2,
+        ocamlSter2PT ster
+      )
     | ORT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
     | ORT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
     | ORT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -692,6 +733,10 @@ module Convert =
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
+      let name =
+        match name.module_ with
+        | Some module_ -> $"{module_}::{name.function_}"
+        | None -> name.function_
       ORT.EBinOp(id, name, r arg1, r arg2, pt2ocamlSter ster)
     | PT.ELambda (id, vars, body) -> ORT.ELambda(id, vars, r body)
     | PT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)

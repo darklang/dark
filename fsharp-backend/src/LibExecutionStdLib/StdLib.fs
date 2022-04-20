@@ -78,7 +78,8 @@ let infixFnNames =
   infixFnMapping |> Map.toSeq |> Seq.map FSharpPlus.Operators.item2 |> Set
 
 // Is this the name of an infix function?
-let isInfixName (name : FQFnName.StdlibFnName) = infixFnNames.Contains name
+let isInfixName (module_ : string) (fnName : string) =
+  infixFnNames.Contains { module_ = module_; function_ = fnName; version = 0 }
 
 let infixFns : List<BuiltInFn> =
   let fns =

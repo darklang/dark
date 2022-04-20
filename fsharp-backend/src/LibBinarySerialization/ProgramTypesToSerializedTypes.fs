@@ -67,8 +67,12 @@ module Expr =
     | PT.EFnCall (id, name, args, ster) ->
       ST.EFnCall(id, FQFnName.toST name, List.map toST args, SendToRail.toST ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
-      assertFn "is a binop" Set.contains name PTParser.FQFnName.infixFunctions
-      let name = ST.FQFnName.Stdlib { module_ = ""; function_ = name; version = 0 }
+      let module_ = Option.unwrap "" name.module_
+      let isInfix = LibExecutionStdLib.StdLib.isInfixName
+      assertFn2 "is a binop" isInfix module_ name.function_
+      let name =
+        ST.FQFnName.Stdlib
+          { module_ = module_; function_ = name.function_; version = 0 }
       ST.EBinOp(id, name, toST arg1, toST arg2, SendToRail.toST ster)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)
     | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
