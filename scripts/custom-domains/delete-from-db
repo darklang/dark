@@ -28,7 +28,7 @@ DOMAIN=$1
 tmpfile=$(mktemp /tmp/custom_domain.XXXXXX)
 delete_query="DELETE FROM custom_domains WHERE host = '${DOMAIN}'"
 echo "\\copy (${delete_query} RETURNING (host, canvas)) TO ${tmpfile}" \
-    | ./scripts/production/gcp-psql --production
+    | ./scripts/production/gcp-psql
 if ( grep . < "${tmpfile}" > /dev/null ); then
     echo "Deleted ${DOMAIN} from custom_domains table."
 else
