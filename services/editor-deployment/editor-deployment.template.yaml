@@ -10,7 +10,7 @@ spec:
   selector:
     matchLabels:
       app: editor-app
-  replicas: 36
+  replicas: 10
   template:
     metadata:
       labels:
