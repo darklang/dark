@@ -90,6 +90,7 @@ type Options =
   | ConvertPackages
   | InvalidUsage
   | ConvertST2RT of string
+  | ConvertST2RTAll
   | Help
 
 let parse (args : string []) : Options =
@@ -100,6 +101,7 @@ let parse (args : string []) : Options =
   | [| "trigger-rollbar" |] -> TriggerRollbar
   | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
   | [| "convert-packages" |] -> ConvertPackages
+  | [| "convert-st-to-rt"; "all" |] -> ConvertST2RTAll
   | [| "convert-st-to-rt"; canvasName |] -> ConvertST2RT canvasName
   | [| "help" |] -> Help
   | _ -> InvalidUsage
@@ -114,7 +116,23 @@ let usesDB (options : Options) =
   | TriggerPagingRollbar
   | InvalidUsage
   | ConvertST2RT _
+  | ConvertST2RTAll
   | Help -> false
+
+let convertToRT (canvasName : string) : Task<unit> =
+  task {
+    let canvasName = CanvasName.create canvasName
+    let! canvasInfo = LibBackend.Canvas.getMeta canvasName
+    let! canvas = LibBackend.Canvas.loadAll canvasInfo
+    let _program = LibBackend.Canvas.toProgram canvas
+    let _handlers =
+      canvas.handlers
+      |> Map.values
+      |> List.map (fun h -> LibExecution.ProgramTypesToRuntimeTypes.Handler.toRT h)
+    return ()
+  }
+
+
 
 
 
@@ -154,12 +172,14 @@ let run (executionID : ExecutionID) (options : Options) : Task<int> =
       return 0
 
     | ConvertST2RT canvasName ->
-      let canvasName = CanvasName.create canvasName
-      let! canvasInfo = LibBackend.Canvas.getMeta canvasName
-      let! canvas = LibBackend.Canvas.loadAll canvasInfo
-      let program = LibBackend.Canvas.toProgram canvas
-      debuG "program" program
+      do! convertToRT canvasName
       return 0
+
+    | ConvertST2RTAll ->
+      let! allCanvases = LibBackend.Serialize.currentHosts ()
+      do! Task.iterWithConcurrency 25 convertToRT allCanvases
+      return 0
+
 
     | Help ->
       help ()
