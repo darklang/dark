@@ -2,11 +2,8 @@ k8s:
   namespace: default
   manually-deployed:
     configs:
-      - darklang-ingress.yaml
       - darklang-nodeport.yaml
-      - darklang.com-tls.yaml
       - editor-network-policy.yaml
-      - static.darklang.com-tls.yaml
   release:
     config-template: editor-deployment.template.yaml
     versioned-configmaps:
