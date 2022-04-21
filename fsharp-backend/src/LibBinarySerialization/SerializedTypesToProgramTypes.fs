@@ -7,6 +7,7 @@ open Tablecloth
 // Used for conversion functions
 module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 module FQFnName =
   module PackageFnName =
@@ -24,6 +25,18 @@ module FQFnName =
   let toPT (fqfn : ST.FQFnName.T) : PT.FQFnName.T =
     match fqfn with
     | ST.FQFnName.User u -> PT.FQFnName.User u
+    // CLEANUP We accidentally parsed user functions with versions (that is, named
+    // like "myFunction_v2") into StdLib functions. Those names are saved in the
+    // serialized opcodes in the DB, and need to be migrated. However, we can
+    // identify them and convert them back to UserFunctions here
+    | ST.FQFnName.Stdlib fn when
+      fn.module_ = ""
+      && not (Set.contains fn.function_ PTParser.FQFnName.oneWordFunctions)
+      && not (LibExecutionStdLib.StdLib.isInfixName fn.module_ fn.function_)
+      ->
+      // It must have had a "_v0" or similar to get here, so always print the
+      // version, even if it's 0
+      PT.FQFnName.User($"{fn.function_}_v{fn.version}")
     | ST.FQFnName.Stdlib fn -> PT.FQFnName.Stdlib(StdlibFnName.toPT fn)
     | ST.FQFnName.Package p -> PT.FQFnName.Package(PackageFnName.toPT p)
 
@@ -65,8 +78,27 @@ module Expr =
       PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, FQFnName.toPT name, List.map toPT args, SendToRail.toPT ster)
-    | ST.EBinOp (id, name, arg1, arg2, ster) ->
-      PT.EBinOp(id, FQFnName.toPT name, toPT arg1, toPT arg2, SendToRail.toPT ster)
+    | ST.EBinOp (id, ST.FQFnName.Stdlib fn, arg1, arg2, ster) ->
+      assertIn
+        "serialized binop should have blank/Date module"
+        [ ""; "Date" ]
+        fn.module_
+      assertEq "serialized binop should have zero version" 0 fn.version
+      let isInfix = LibExecutionStdLib.StdLib.isInfixName
+      assertFn2 "serialized binop should be infix" isInfix fn.module_ fn.function_
+      let module_ = if fn.module_ = "" then None else Some fn.module_
+      PT.EBinOp(
+        id,
+        { module_ = module_; function_ = fn.function_ },
+        toPT arg1,
+        toPT arg2,
+        SendToRail.toPT ster
+      )
+    // CLEANUP remove from format
+    | ST.EBinOp (_, ST.FQFnName.User name, _, _, _) ->
+      Exception.raiseInternal "userfn serialized as a binop" [ "name", name ]
+    | ST.EBinOp (_, ST.FQFnName.Package name, _, _, _) ->
+      Exception.raiseInternal "package serialized as a binop" [ "name", name ]
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
     | ST.EIf (id, cond, thenExpr, elseExpr) ->

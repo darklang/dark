@@ -21,14 +21,6 @@ let fuzzedTests =
       FuzzTests.OCamlInterop.yojsonExprRoundtrip
       [ ("norail was copied wrong",
          PT.EFnCall(0UL, PTParser.FQFnName.parse "b/k/C::r_v1", [], PT.NoRail))
-        ("",
-         PT.EBinOp(
-           0UL,
-           PTParser.FQFnName.parse "b/k/C::r_v1",
-           PT.ERecord(0UL, []),
-           PT.EVariable(0UL, ""),
-           PT.NoRail
-         ))
         ("constructors were compared wrong",
          PT.EMatch(
            0UL,

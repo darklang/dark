@@ -267,12 +267,6 @@ let sendError
   Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
   |> ignore<Rollbar.ILogger>
 
-let printMetadata (metadata : Metadata) =
-  try
-    List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
-  with
-  | _ -> ()
-
 // If there is an exception while processing the exception
 let exceptionWhileProcessingException
   (original : exn)

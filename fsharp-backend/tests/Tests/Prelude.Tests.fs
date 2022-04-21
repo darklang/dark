@@ -156,8 +156,24 @@ let dateTests =
         [ "2000-10-01T16:01:01Z",
           NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1) ] ]
 
+let assertions =
+  testList
+    "Assertions"
+    [ test "assertFn" { assertFn "msg" System.Double.IsFinite 6.0 }
+      test "assertFn2" { assertFn2 "msg" Tablecloth.String.includes "x" "xxx" }
+      test "assertEq" { assertEq "msg" "x" "x" }
+      test "assertIn" { assertIn "msg" [ "x" ] "x" }
+      test "assert_" { assert_ "_" [] true } ]
+
 
 let tests =
   testList
     "prelude"
-    [ canvasName; userName; asyncTests; mapTests; listTests; floatTests; dateTests ]
+    [ canvasName
+      userName
+      asyncTests
+      mapTests
+      listTests
+      floatTests
+      dateTests
+      assertions ]

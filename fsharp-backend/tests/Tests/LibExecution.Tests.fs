@@ -207,6 +207,7 @@ let t
       with
       | e ->
         let metadata = Exception.toMetadata e
+        printMetadata metadata
         return
           Expect.equal
             (e.Message, metadata, e.StackTrace)

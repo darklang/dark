@@ -45,7 +45,8 @@ myvar = Test.typeError_v0 "There is no variable named: myvar"
 
 
 [tests.fncall]
-(5 + 3) = 8
+5 + 3 = 8
+"xx" ++ "yy" = "xxyy"
 (5 + (partial "three" 3)) = 8
 Int.add_v0 5 3 = 8
 
@@ -479,6 +480,13 @@ stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to s
 stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
 throwsException 6 = Test.typeError "Unknown Err: (Failure \"throwsException message\")" // OCAMLONLY
 throwsException 6 = Test.typeError "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
+
+
+[fn.myUserFunction_v2 str:str]
+6
+
+[test.user function with _v2 in it]
+(myUserFunction_v2 "x") = 6
 
 // ---------------------------
 // Package manager function calls

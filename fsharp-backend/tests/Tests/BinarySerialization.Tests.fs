@@ -68,16 +68,14 @@ let testExpr =
                           729246077UL,
                           PT.EBinOp(
                             94793109UL,
-                            PT.FQFnName.Stdlib
-                              { module_ = ""; function_ = "!="; version = 0 },
+                            { module_ = None; function_ = "!=" },
                             PT.EInteger(264400705UL, 5L),
                             PT.EInteger(335743639UL, 6L),
                             PT.NoRail
                           ),
                           PT.EBinOp(
                             775118986UL,
-                            PT.FQFnName.Stdlib
-                              { module_ = ""; function_ = "+"; version = 0 },
+                            { module_ = None; function_ = "+" },
                             PT.EInteger(803876589UL, 5L),
                             PT.EInteger(219131014UL, 2L),
                             PT.NoRail
@@ -87,8 +85,7 @@ let testExpr =
                             [ (180359194UL, "y") ],
                             PT.EBinOp(
                               140609068UL,
-                              PT.FQFnName.Stdlib
-                                { module_ = ""; function_ = "+"; version = 0 },
+                              { module_ = None; function_ = "+" },
                               PT.EInteger(450951790UL, 2L),
                               PT.EVariable(402203255UL, "y"),
                               PT.NoRail
@@ -97,12 +94,10 @@ let testExpr =
                         ),
                         PT.EBinOp(
                           265463935UL,
-                          PT.FQFnName.Stdlib
-                            { module_ = ""; function_ = "+"; version = 0 },
+                          { module_ = None; function_ = "+" },
                           PT.EBinOp(
                             312092282UL,
-                            PT.FQFnName.Stdlib
-                              { module_ = ""; function_ = "+"; version = 0 },
+                            { module_ = None; function_ = "+" },
                             PT.EFieldAccess(
                               974664608UL,
                               PT.EVariable(1002893266UL, "x"),
@@ -138,8 +133,7 @@ let testExpr =
                                PT.EInteger(555880460UL, 5L),
                                PT.EBinOp(
                                  1021880969UL,
-                                 PT.FQFnName.Stdlib
-                                   { module_ = ""; function_ = "+"; version = 0 },
+                                 { module_ = None; function_ = "+" },
                                  PT.EPipeTarget 936577032UL,
                                  PT.EInteger(962393769UL, 2L),
                                  PT.NoRail
@@ -193,8 +187,7 @@ let testExpr =
                               (PT.PVariable(722099983UL, "var"),
                                PT.EBinOp(
                                  275666765UL,
-                                 PT.FQFnName.Stdlib
-                                   { module_ = ""; function_ = "+"; version = 0 },
+                                 { module_ = None; function_ = "+" },
                                  PT.EInteger(739193732UL, 6L),
                                  PT.EVariable(880556562UL, "var"),
                                  PT.NoRail

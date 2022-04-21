@@ -54,7 +54,7 @@ module CD =
     | e ->
       print $"No test file found or test file error: {filename}"
       print e.Message
-      print (Exception.toMetadata e |> string)
+      printMetadata (Exception.toMetadata e)
       print e.StackTrace
       System.Environment.Exit(-1)
 
@@ -109,7 +109,7 @@ let catchException (failOnError : bool) (e : exn) =
   try
     if failOnError then print "exiting" else print "error found"
     print e.Message
-    print (Exception.toMetadata e |> string)
+    printMetadata (Exception.toMetadata e)
     if failOnError then
       CD.saveCheckpointData ()
       e.StackTrace

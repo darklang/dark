@@ -185,10 +185,12 @@ let main (args : string []) : int =
   with
   | e ->
     // Don't reraise or report as ExecHost is only run interactively
-    print e.Message
-    print (e |> Exception.toMetadata |> string)
-    print e.StackTrace
-    if e.InnerException <> null then
-      print e.InnerException.Message
-      print e.InnerException.StackTrace
+    let rec printException (e : exn) : unit =
+      print e.Message
+      printMetadata (Exception.toMetadata e)
+      print e.StackTrace
+      let inner = e.InnerException
+      if inner <> null then printException inner
+    printException e
+
     1

@@ -43,10 +43,10 @@ let parserTests =
         "(5 + 3) == 8"
         (PT.EBinOp(
           id,
-          PTParser.FQFnName.stdlibFqName "" "==" 0,
+          { module_ = None; function_ = "==" },
           PT.EBinOp(
             id,
-            PTParser.FQFnName.stdlibFqName "" "+" 0,
+            { module_ = None; function_ = "+" },
             PT.EInteger(id, 5),
             PT.EInteger(id, 3),
             PT.NoRail
