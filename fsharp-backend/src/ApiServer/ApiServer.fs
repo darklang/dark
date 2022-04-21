@@ -108,8 +108,8 @@ let addRoutes
   api "initial_load" R InitialLoad.initialLoad
   api "insert_secret" RW Secrets.Insert.insert
   api "packages" R (Packages.List.packages packages)
-  // FSLATER: packages/upload_function
-  // FSLATER: save_test handler
+  // CLEANUP: packages/upload_function
+  // CLEANUP: save_test handler
   api "trigger_handler" RW Execution.Handler.trigger
   api "worker_schedule" RW Workers.Scheduler.updateSchedule
   app.UseRouter(builder.Build())

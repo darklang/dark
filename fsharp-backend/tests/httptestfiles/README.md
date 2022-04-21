@@ -1,13 +1,14 @@
 # Dark HTTP server tests
 
-The files in this directory are tests of the Http server. A test typically
-comprises a request and a response, and may also include one or more handler.
+The files in this directory are tests of the HTTP server known as BwdServer,
+which supports Dark users' handlers. A test typically comprises a request and a
+response, and may also include one or more handler.
 
-The implementation of the tests is in Tests/BwdServer.Tests.fs.
+The implementation of the tests is in `Tests/BwdServer.Tests.fs`.
 
-# Http handlers
+# HTTP handlers
 
-An example HTTP handler looks like this
+An example HTTP handler looks like this:
 
 ```
 [http-handler POST /]
@@ -37,12 +38,12 @@ Content-Length: 22
 ```
 
 Responses are sent to the server, where presumably they'll hit the HTTP handler
-that you've set up (or not, if that's what you're testing)
+that you've set up (or not, if that's what you're testing).
 
-Note that while HTTP requires headers to end lines with \r\n instead of \n, the test
-files use \n (the files are parsed and corrected before being sent to the server).
-They also request an empty line after the headers - this is how HTTP indicates that
-the headers are finished.
+Note that while HTTP requires headers to end lines with `\r\n` instead of `\n`,
+the test files use `\n` (the files are parsed and corrected before being sent
+to the server). They also request an empty line after the headers - this is how
+HTTP indicates that the headers are finished.
 
 The Content-Length must be set correctly (it's also allowed to not send it). The test
 suite will check that the Content-length matches the request body's length. After the
