@@ -270,7 +270,7 @@ let normalizeActualHeaders (hs : (string * string) list) : (string * string) lis
     | "X-GUploader-UploadID", _
     | "x-guploader-uploadid", _ -> Some(k, "xxxx")
     | "x-goog-generation", _ -> Some(k, "xxxx")
-    | other -> Some(k, v))
+    | _other -> Some(k, v))
   |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
 
 let normalizeExpectedHeaders

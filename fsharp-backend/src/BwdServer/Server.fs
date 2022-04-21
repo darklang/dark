@@ -423,6 +423,13 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     (task {
       let executionID = LibService.Telemetry.executionID ()
       ctx.Items[ "executionID" ] <- executionID
+      // The traditional methods of using `UseHsts` and `AddHsts` within BwdServer
+      // were ineffective. Somehow, the Strict-Transport-Security header was not
+      // included in HTTP Reponses as a result of these efforts. Here, we manually
+      // work around this by setting it manually.
+      // CLEANUP: replace this with the more additional approach, if possible
+      setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
+
       setHeader ctx "x-darklang-execution-id" (string executionID)
       setHeader ctx "Server" "darklang"
 

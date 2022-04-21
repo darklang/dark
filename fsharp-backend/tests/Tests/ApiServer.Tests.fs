@@ -44,7 +44,7 @@ let portFor (server : Server) : int =
 let forceLogin (username : UserName.T) : Task<Client> =
   task {
     let! user = LibBackend.Account.getUser username // validate user exists
-    let user = Exception.unwrapOptionInternal "" [] user
+    let _user = Exception.unwrapOptionInternal "" [] user
     let! authData = LibBackend.Session.insert username
     let cookie =
       System.Net.Cookie(
@@ -97,7 +97,6 @@ let login (username : string) (password : string) : Task<Client> =
 
     return { http = client; csrf = csrfToken }
   }
-
 
 let getAsync
   (server : Server)
@@ -155,26 +154,32 @@ let getInitialLoad (client : C) (canvasName : CanvasName.T) : Task<InitialLoad.T
 
 let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
   task {
-    let! (o : HttpResponseMessage) =
+    let! (ocamlResponse : HttpResponseMessage) =
       try
         getAsync OCaml client $"/a/{canvas}/"
       with
       | e ->
         Exception.raiseInternal "exception getting ocaml data" [ "canvas", canvas ] e
 
-    let! (f : HttpResponseMessage) =
+    let! (fsharpResponse : HttpResponseMessage) =
       try
         getAsync FSharp client $"/a/{canvas}/"
       with
       | e ->
-        Exception.raiseInternal "exception getting fs data" [ "canvas", canvas ] e
+        Exception.raiseInternal
+          "exception getting fsharp data"
+          [ "canvas", canvas ]
+          e
 
-    Expect.equal o.StatusCode f.StatusCode $"status code in {canvas}"
+    Expect.equal
+      ocamlResponse.StatusCode
+      fsharpResponse.StatusCode
+      $"status code in {canvas}"
 
-    let! oc = o.Content.ReadAsStringAsync()
-    let! fc = f.Content.ReadAsStringAsync()
+    let! ocamlContent = ocamlResponse.Content.ReadAsStringAsync()
+    let! fsharpContent = fsharpResponse.Content.ReadAsStringAsync()
 
-    let parse (s : string) : string * List<Functions.FunctionMetadata> =
+    let parseFns (s : string) : string * List<Functions.FunctionMetadata> =
       match s with
       | RegexAny "(.*const complete = )(\[.*\])(;\n.*)" [ before; fns; after ] ->
         let text = $"{before}{after}"
@@ -187,87 +192,83 @@ let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
         (text, fns)
       | _ -> Exception.raiseInternal "doesn't match" [ "string", s ]
 
-    let oc, ocfns = parse oc
-    let fc, fcfns = parse fc
+    let ocamlContent, ocamlFns = parseFns ocamlContent
+    let actualFsharpContent, fsharpFns = parseFns fsharpContent
 
     let port = portFor OCaml
 
-    // There have been some tiny changes, let's work around them. The values here are the NEW values
-    let ocfns =
-      List.map
-        (fun (fn : Functions.FunctionMetadata) ->
-          match fn.name with
-          | "assoc" ->
-            { fn with
-                description = "Returns a copy of `dict` with the `key` set to `val`."
-                parameters =
-                  [ { name = "dict"
-                      tipe = "Dict"
-                      block_args = []
-                      optional = false
-                      description = "" }
-                    { name = "key"
-                      tipe = "Str"
-                      block_args = []
-                      optional = false
-                      description = "" }
-                    { name = "val"
-                      tipe = "Any"
-                      block_args = []
-                      optional = false
-                      description = "" } ] }
-          | "dissoc" ->
-            { fn with
-                parameters =
-                  [ { name = "dict"
-                      tipe = "Dict"
-                      block_args = []
-                      optional = false
-                      description = "" }
-                    { name = "key"
-                      tipe = "Str"
-                      block_args = []
-                      optional = false
-                      description = "" } ]
-                description =
-                  "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged." }
-          | "Object::empty" ->
-            { fn with description = "Returns an empty dictionary." }
-          | "Object::merge" ->
-            { fn with
-                description =
-                  "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`." }
-          | "Object::toJSON_v1" ->
-            { fn with
-                description = "Returns `dict` as a JSON string."
-                parameters =
-                  [ { name = "dict"
-                      tipe = "Dict"
-                      block_args = []
-                      optional = false
-                      description = "" } ] }
-          | "DB::queryOneWithKey_v2" ->
-            { fn with
-                description =
-                  fn.description + ". Previously called DB::queryOnewithKey_v2" }
-          | "DB::queryWithKey_v2" ->
-            { fn with
-                description =
-                  fn.description + ". Previous called DB::queryWithKey_v2" }
-          | "DB::query_v3" ->
-            { fn with
-                description = fn.description + ". Previously called DB::query_v3" }
-          | "DB::query_v2" ->
-            { fn with
-                description = fn.description + ". Previously called DB::query_v3" }
-          | "DB::queryOne_v2" ->
-            { fn with
-                description = fn.description + ". Previously called DB::queryOne_v2" }
-          | _ -> fn)
-        ocfns
+    // There have been some tiny changes, let's work around them.
+    // The values here are the NEW values
+    let ocamlFns =
+      ocamlFns
+      |> List.map (fun (fn : Functions.FunctionMetadata) ->
+        match fn.name with
+        | "assoc" ->
+          { fn with
+              description = "Returns a copy of `dict` with the `key` set to `val`."
+              parameters =
+                [ { name = "dict"
+                    tipe = "Dict"
+                    block_args = []
+                    optional = false
+                    description = "" }
+                  { name = "key"
+                    tipe = "Str"
+                    block_args = []
+                    optional = false
+                    description = "" }
+                  { name = "val"
+                    tipe = "Any"
+                    block_args = []
+                    optional = false
+                    description = "" } ] }
+        | "dissoc" ->
+          { fn with
+              parameters =
+                [ { name = "dict"
+                    tipe = "Dict"
+                    block_args = []
+                    optional = false
+                    description = "" }
+                  { name = "key"
+                    tipe = "Str"
+                    block_args = []
+                    optional = false
+                    description = "" } ]
+              description =
+                "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged." }
+        | "Object::empty" -> { fn with description = "Returns an empty dictionary." }
+        | "Object::merge" ->
+          { fn with
+              description =
+                "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`." }
+        | "Object::toJSON_v1" ->
+          { fn with
+              description = "Returns `dict` as a JSON string."
+              parameters =
+                [ { name = "dict"
+                    tipe = "Dict"
+                    block_args = []
+                    optional = false
+                    description = "" } ] }
+        | "DB::queryOneWithKey_v2" ->
+          { fn with
+              description =
+                fn.description + ". Previously called DB::queryOnewithKey_v2" }
+        | "DB::queryWithKey_v2" ->
+          { fn with
+              description = fn.description + ". Previous called DB::queryWithKey_v2" }
+        | "DB::query_v3" ->
+          { fn with description = fn.description + ". Previously called DB::query_v3" }
+        | "DB::query_v2" ->
+          { fn with description = fn.description + ". Previously called DB::query_v3" }
+        | "DB::queryOne_v2" ->
+          { fn with
+              description = fn.description + ". Previously called DB::queryOne_v2" }
+        | _ -> fn)
 
-    let oc =
-      oc
+    let expectedFsharpContent =
+      ocamlContent
         // a couple of specific ones
         .Replace(
           $"static.darklang.localhost:{port}",
@@ -283,12 +284,12 @@ let testUiReturnsTheSame (client : C) (canvas : CanvasName.T) : Task<unit> =
           $"localhost:{LibService.Config.apiServerNginxPort}"
         )
 
-    Expect.equal fc oc ""
+    Expect.equal actualFsharpContent expectedFsharpContent ""
 
     List.iter2
       (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
-      fcfns
-      ocfns
+      fsharpFns
+      ocamlFns
   }
 
 type ApiResponse<'a> = Task<'a * System.Net.HttpStatusCode * Map<string, string>>
@@ -314,21 +315,22 @@ let postApiTestCase
       with
       | e ->
         print
-          $"Error deserializing {server} in {canvasName}/{api} with body\n\n{requestBody}\n\n and response\n\n{responseBody}"
+          $"Error deserializing or canonicalizing {server} in {canvasName}/{api} with body\n\n{requestBody}\n\n and response\n\n{responseBody}"
         e.Reraise()
 
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
       let clear str =
         if h.Contains str then
-          (h.Remove str |> ignore<bool>
-           h.TryAddWithoutValidation(str, "XXX") |> ignore<bool>)
+          h.Remove str |> ignore<bool>
+          h.TryAddWithoutValidation(str, "XXX") |> ignore<bool>
 
       clear "Date"
       clear "Server"
       clear "Server-Timing"
       clear "x-darklang-execution-id"
-      let (_ : bool) = h.Remove "Connection" // not useful, not in new API
-      let (_ : bool) = h.Remove "Strict-Transport-Security" // only in new API
+
+      h.Remove "Connection" |> ignore<bool> // not useful, not in new API
+      h.Remove "Strict-Transport-Security" |> ignore<bool> // only in new API
 
       h
       |> Seq.toList
@@ -337,7 +339,6 @@ let postApiTestCase
 
     let headers = headerMap response.Headers
     return (result, response.StatusCode, headers)
-
   }
 
 let postApiTest
@@ -355,12 +356,11 @@ let postApiTest
     let! (fContent, fStatus, fHeaders) as f =
       postApiTestCase client canvasName FSharp api body deserialize canonicalizeBody
 
-    let () =
-      if oStatus <> fStatus then
-        print (
-          $"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
-          + $"ocaml:\n{o}\n\nfsharp:\n{f}"
-        )
+    if oStatus <> fStatus then
+      print (
+        $"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
+        + $"ocaml:\n{o}\n\nfsharp:\n{f}"
+      )
 
     Expect.equal fStatus oStatus "status"
     Expect.equal fContent oContent "content"
@@ -368,7 +368,7 @@ let postApiTest
   }
 
 
-let testGetTraceData (client : C) (canvasName : CanvasName.T) =
+let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
     let! (o : HttpResponseMessage) =
       postAsync OCaml client $"/api/{canvasName}/all_traces" ""
@@ -387,14 +387,15 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) =
                     timestamp = td.timestamp.truncate ()
                     input = td.input |> List.sortBy (fun (k, v) -> k) }) })
 
-    return!
+    do!
       body
       |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
       |> Task.iterInParallel (fun (tlid, traceID) ->
         task {
           let (ps : Traces.TraceData.Params) = { tlid = tlid; trace_id = traceID }
-          return!
+
+          do!
             postApiTest
               "get_trace_data"
               (serialize ps)
@@ -416,7 +417,7 @@ let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
       |> List.map (fun db -> db.tlid)
       |> fun tlids -> ({ tlids = tlids } : DBs.DBStats.Params)
 
-    return!
+    do!
       postApiTest
         "get_db_stats"
         (serialize parameters)
@@ -471,7 +472,7 @@ let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
         input = [ "user", ORT.DStr "test" ]
         trace_id = System.Guid.NewGuid() }
 
-    return!
+    do!
       postApiTest
         "trigger_handler"
         (serialize body)
@@ -488,7 +489,7 @@ let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
     let! canvas = Canvas.getMeta canvasName
     let! canvasWithJustWorkers = Canvas.loadAllWorkers canvas
 
-    return!
+    do!
       canvasWithJustWorkers.handlers
       |> Map.values
       |> List.filterMap (fun h ->
@@ -677,6 +678,50 @@ let canonicalizeAst (e : OT.RuntimeT.fluidExpr) =
     | other -> other)
     e
 
+
+let testHsts (client : C) (canvasName : CanvasName.T) =
+  let testHstsHeader (response : HttpResponseMessage) =
+    let hstsHeader =
+      response.Headers
+      |> Seq.toList
+      |> List.choose (fun (KeyValue (x, y)) ->
+        if x.ToLower() = "strict-transport-security" then
+          Some(String.concat "," y)
+        else
+          None)
+
+    Expect.equal
+      [ "max-age=31536000; includeSubDomains; preload" ]
+      hstsHeader
+      "Strict-Transport-Security header either missing or incorrect"
+
+  task {
+    let server = FSharp
+
+    let! responses =
+      [ getAsync server client $"/api/{canvasName}/login"
+        getAsync server client $"/api/{canvasName}/logout"
+        getAsync server client $"/api/check-apiserver"
+
+        getAsync server client $"/api/{canvasName}"
+        postAsync server client $"/api/{canvasName}/initial_load" ""
+        postAsync server client $"/api/{canvasName}/packages" ""
+        postAsync server client $"/api/{canvasName}/get_worker_stats" ""
+        postAsync server client $"/api/{canvasName}/get_404s" ""
+        postAsync server client $"/api/{canvasName}/all_traces" ""
+        postAsync server client $"/api/{canvasName}/get_db_stats" ""
+        postAsync server client $"/api/{canvasName}/get_trace_data" ""
+        postAsync server client $"/api/{canvasName}/get_unlocked_dbs" ""
+
+        getAsync server client $"/completely-fake-url"
+        postAsync server client $"/completely-fake-url" "" ]
+      |> Task.WhenAll
+
+    responses |> Array.iter testHstsHeader
+  }
+
+
+
 let testInitialLoadReturnsTheSame (client : C) (canvasName : CanvasName.T) =
   let deserialize v = Json.OCamlCompatible.deserialize<InitialLoad.T> v
 
@@ -805,10 +850,11 @@ let localOnlyTests =
         "packages", testPackages
         "trigger handler", testTriggerHandler
         "delete 404s", testDelete404s
+        "hsts", testHsts
         // TODO upload_package
         // worker_schedule tested by hand
         ]
-      |> List.map (fun (name, fn) -> testTask name { return! fn c cn })
+      |> List.map (fun (name, fn) -> testTask name { do! fn c cn })
     else
       []
 
@@ -940,6 +986,5 @@ let cookies =
        Some("", pw),
        (302, None, Some "/login?error=Invalid+username+or+password"))
       (local, None, (302, None, Some "/login?error=Invalid+username+or+password")) ]
-
 
 let tests = testList "ApiServer" [ localOnlyTests; permissions; cookies ]

@@ -22,6 +22,7 @@ Connection: keep-alive // OCAMLONLY
 Content-Length: 61
 Access-Control-Allow-Origin: * // FSHARPONLY
 access-control-allow-origin: * // OCAMLONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 x-darklang-execution-id: 0123456789
 
 500 Internal Server Error: More than one handler for route: /

@@ -163,6 +163,7 @@ let configureApp (packages : Packages) (appBuilder : WebApplication) =
   |> fun app ->
        LibService.Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseHttpsRedirection()
+  |> fun app -> app.UseHsts()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> LibService.Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
@@ -180,6 +181,7 @@ let configureServices (services : IServiceCollection) : unit =
        LibService.Telemetry.TraceDBQueries
   |> LibService.Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> fun s -> s.AddServerTiming()
+  |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
 
 let run (packages : Packages) : unit =

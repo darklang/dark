@@ -21,6 +21,7 @@ Content-Type: text/plain; charset=utf-8
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 Content-Length: 17
 
 "hello alice-bob"

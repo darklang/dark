@@ -18,6 +18,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 Content-Type: text/plain; charset=utf-8
 Content-Length: 23
 

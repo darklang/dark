@@ -108,6 +108,14 @@ editors can change the contents, for example stripping \r characters, or adding 
 removing newlines. To get around this, you can use a hex editor, or `vim -b` with
 `noeol` set. You should also add the files to .gitattributes in this directory.
 
+In case you're not well-versed in `vim`, here are some steps to follow:
+- `vim ./file-path.test -b`
+- hit `i` to enter insert mode
+- type/paste your changes
+- hit `esc` to escape edit mode
+- type `:wq` and press `enter` to escape
+
+# Adjusting for minor differences
 # Configuration
 
 ## ALLOW-INCORRECT-CONTENT-LENGTH
