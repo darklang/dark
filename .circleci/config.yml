@@ -331,11 +331,11 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
+            - fsharp-backend/Build/out/ApiServer/Release/net7.0/linux-x64/publish/
+            - fsharp-backend/Build/out/BwdServer/Release/net7.0/linux-x64/publish/
+            - fsharp-backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/
+            - fsharp-backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish/
+            - fsharp-backend/Build/out/ExecHost/Release/net7.0/linux-x64/publish/
             - backend/static/BlazorWorker.js
             - backend/static/blazor
       - show-large-files-and-directories
@@ -467,7 +467,7 @@ jobs:
           command: |
             # Run the server long enough to ensure it runs the migrations
             cd fsharp-backend
-            ./Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost migrations run
+            ./Build/out/ExecHost/Release/net7.0/linux-x64/publish/ExecHost migrations run
       - run:
           name: Run queue-scheduler tests
           command: scripts/run-rust-tests containers/queue-scheduler

@@ -7,7 +7,7 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 #I "../../fsharp-backend"
 #I "../../fsharp-backend/Build/out"
 
-#load ".paket/load/net60/main.group.fsx"
+#load ".paket/load/net70/main.group.fsx"
 #r "Prelude.dll"
 #r "LibService.dll"
 #r "LibExecution.dll"

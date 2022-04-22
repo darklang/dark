@@ -1,4 +1,2 @@
 FSharp.Core
-
-group Wasm
-  Microsoft.AspNetCore.Components.WebAssembly
+Microsoft.AspNetCore.Components.WebAssembly

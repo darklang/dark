@@ -38,9 +38,9 @@ killall -9 Benchmark || true
 ./scripts/run-ocaml-legacy-server
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Benchmark/Release/net6.0/linux-x64/Benchmark
+  EXE=Build/out/Benchmark/Release/net7.0/linux-x64/Benchmark
 else
-  EXE=Build/out/Benchmark/Debug/net6.0/linux-x64/Benchmark
+  EXE=Build/out/Benchmark/Debug/net7.0/linux-x64/Benchmark
 fi
 
 cd fsharp-backend

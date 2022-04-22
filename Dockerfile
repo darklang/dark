@@ -325,14 +325,16 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 
 ####################################
 # dotnet / F#
+#
+# See instructions in `docs/updating-dotnet.md` for any updates to SDK
 ####################################
 
 # This section was created copying the commands from the dotnet dockerfiles.
 # Note that the Dockerfiles are split among 3 different dockerfile
 # (runtime-deps, runtime, and sdk), see
-# https://github.com/dotnet/dotnet-docker/blob/master/src
+# https://github.com/dotnet/dotnet-docker/blob/main/src
 
-ENV DOTNET_SDK_VERSION=6.0.201 \
+ENV DOTNET_SDK_VERSION=7.0.100-preview.3.22179.4 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
@@ -344,9 +346,8 @@ ENV DOTNET_SDK_VERSION=6.0.201 \
     DOTNET_NOLOGO=true \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
-
 RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
-    && dotnet_sha512='a4d96b6ca2abb7d71cc2c64282f9bd07cedc52c03d8d6668346ae0cd33a9a670d7185ab0037c8f0ecd6c212141038ed9ea9b19a188d1df2aae10b2683ce818ce' \
+    && dotnet_sha512='ec4db3742fd9342d9f876ba3b5b15d71c2ef6e9ce57ea6f5a18c1753118b930797863cb19bb6661b5ab15fab097f8aa47294e60cf74cfbc2953d354c3e6f38cf' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && sudo mkdir -p /usr/share/dotnet \
     && sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz . \
@@ -361,6 +362,7 @@ RUN dotnet tool install -g dotnet-sos
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
+# todo: upgrade fantomas
 RUN dotnet tool install fantomas-tool --version 4.6.3 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"

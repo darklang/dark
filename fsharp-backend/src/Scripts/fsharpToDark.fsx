@@ -12,7 +12,7 @@
 
 // If there's a problem, you need to run:
 // $ ./scripts/build/dotnet-regen-fsi
-#load "../../.paket/load/net60/main.group.fsx"
+#load "../../.paket/load/net70/main.group.fsx"
 #r "../../Build/out/Tests.dll"
 #r "../../Build/out/TestUtils.dll"
 #r "../../Build/out/Prelude.dll"
