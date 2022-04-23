@@ -249,7 +249,7 @@ module UserFunction =
       body = Expr.toPT f.body }
 
 module Toplevel =
-  let toST (tl : ST.Toplevel.T) : PT.Toplevel.T =
+  let toPT (tl : ST.Toplevel.T) : PT.Toplevel.T =
     match tl with
     | ST.Toplevel.TLHandler h -> PT.Toplevel.TLHandler(Handler.toPT h)
     | ST.Toplevel.TLDB db -> PT.Toplevel.TLDB(DB.toPT db)
