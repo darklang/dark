@@ -313,7 +313,77 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+    - host: xtopherbrandt-skistatus.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
 
+    # - host: julius-tokimeki-unfollow.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
+    # - host: dungahk.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
+    # - host: briangreenhill.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
+    # - host: jec-abc.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
+    # - host: dmiller-replaybot.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
+    # - host: xtopherbrandt-avs-ifttt.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
 
   tls:
     - secretName: builtwithdark.com-tls
