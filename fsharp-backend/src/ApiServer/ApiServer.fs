@@ -95,6 +95,7 @@ let addRoutes
   addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
 
   api "add_op" RW AddOps.addOp
+  api "clean_ops" RW AddOps.clean
   api "all_traces" R Traces.AllTraces.fetchAll
   api "delete_404" RW F404s.Delete.delete
   apiOption "delete-toplevel-forever" RW Toplevels.Delete.delete

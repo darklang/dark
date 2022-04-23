@@ -116,6 +116,8 @@ let cloneCanvas
   task {
     let! fromMeta = Canvas.getMeta fromCanvasName
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
+    // CLEANUP this could be substantially simplified once we know that oplist_cache is
+    // non-null.
     let! fromOps =
       Serialize.loadOplists Serialize.LiveToplevels fromMeta.id fromTLIDs
     let! fromCanvas = Canvas.loadAll fromMeta
