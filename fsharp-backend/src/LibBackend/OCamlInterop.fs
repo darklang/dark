@@ -44,8 +44,9 @@ let client =
      let client = new System.Net.Http.HttpClient(handler, disposeHandler = false)
      // Since this is now only used for saving as part of AddOps, we have have a
      // longer window. People were running up against the 5 second limit, so make
-     // this 10s. But the real solution is to remove OCamlInterop.
-     client.Timeout <- System.TimeSpan.FromSeconds 10
+     // this 10s [edit: 10 was too short for big toplevels]. But the real solution is
+     // to remove OCamlInterop.
+     client.Timeout <- System.TimeSpan.FromSeconds 20
      client)
 
 /// Make a request to the legacy OCaml server
