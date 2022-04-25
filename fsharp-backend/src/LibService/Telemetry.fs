@@ -248,18 +248,26 @@ let configureAspNetCore
         // which is done by the library and does not use the same prefixes
         let ipAddress =
           try
-            httpRequest.Headers.["x-forward-for"].[0]
-            |> String.split ";"
+            httpRequest.Headers.["x-forwarded-for"].[0]
+            |> String.split ","
             |> List.head
             |> Option.unwrap (
               string httpRequest.HttpContext.Connection.RemoteIpAddress
             )
           with
           | _ -> ""
+        let proto =
+          try
+            httpRequest.Headers.["x-forwarded-proto"].[0]
+          with
+          | _ -> ""
+
+
 
         activity
         |> Span.addTags [ "meta.type", "http_request"
                           "http.remote_addr", ipAddress
+                          "http.proto", proto
                           "request.method", httpRequest.Method
                           "request.path", httpRequest.Path
                           "request.remote_addr", ipAddress
