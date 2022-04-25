@@ -27,6 +27,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: ops-documentation.builtwithdark.com
       http:
         paths:
@@ -37,6 +38,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: xtopherbrandt-calculator.builtwithdark.com
       http:
         paths:
@@ -47,6 +49,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: xtopherbrandt-race-sense.builtwithdark.com
       http:
         paths:
@@ -57,6 +60,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: benwaffle.builtwithdark.com
       http:
         paths:
@@ -67,6 +71,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: hgad.builtwithdark.com
       http:
         paths:
@@ -77,6 +82,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: juliankrispel.builtwithdark.com
       http:
         paths:
@@ -87,6 +93,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: juliankrispel-rob.builtwithdark.com
       http:
         paths:
@@ -97,6 +104,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: luolong.builtwithdark.com
       http:
         paths:
@@ -107,6 +115,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: wiskirz.builtwithdark.com
       http:
         paths:
@@ -172,7 +181,6 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
-
 
     - host: teeks-scratchpad.builtwithdark.com
       http:
@@ -283,6 +291,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: xumx-sqkii.builtwithdark.com
       http:
         paths:
@@ -293,6 +302,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: ops-pinger.builtwithdark.com
       http:
         paths:
@@ -303,6 +313,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: builtwithdark.com
       http:
         paths:
@@ -313,6 +324,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: xtopherbrandt-skistatus.builtwithdark.com
       http:
         paths:
@@ -323,6 +335,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: ops-adduser.builtwithdark.com
       http:
         paths:
@@ -344,6 +357,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: dungahk.builtwithdark.com
       http:
         paths:
@@ -354,6 +368,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: briangreenhill.builtwithdark.com
       http:
         paths:
@@ -364,6 +379,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: jec-abc.builtwithdark.com
       http:
         paths:
@@ -374,6 +390,7 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: dmiller-replaybot.builtwithdark.com
       http:
         paths:
@@ -384,7 +401,162 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
     - host: xtopherbrandt-avs-ifttt.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: cameron-google-cache.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: colinplamondon.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: janiczek-nuashworld.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: clintgibler.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: rainier.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: johnverrone-gamechanger.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: mause-banking.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: jwalter-chatters.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: sensenich-elrrqrdmigdnyhxrkjmpkodojurdgvgy.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: janiczek-ellies.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: saimiri-deployed.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: syadali-crud.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: syadali.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: ike.builtwithdark.com
       http:
         paths:
           - path: /*
