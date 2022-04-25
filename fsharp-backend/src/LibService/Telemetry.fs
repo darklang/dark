@@ -346,12 +346,14 @@ let addTelemetry
          Config.telemetryExporters
   |> fun b ->
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
-  |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
        b.AddHttpClientInstrumentation (fun options ->
          options.SetHttpFlavor <- true // Record HTTP version
          options.RecordException <- true
          ())
+  // TODO HttpClient instrumentation isn't working, so let's to add it before
+  // AspNetCoreInstrumentation
+  |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
        match traceDBQueries with
        | TraceDBQueries -> b.AddNpgsql()
