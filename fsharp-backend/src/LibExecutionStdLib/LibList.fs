@@ -1047,7 +1047,7 @@ let fns : List<BuiltInFn> =
           uply {
             let abortReason = ref None
 
-            let rec f (l: List<Dval>): Ply<List<Dval>> =
+            let rec f (l : List<Dval>) : Ply<List<Dval>> =
               match l with
               | [] -> Ply []
               | dv :: dvs ->
