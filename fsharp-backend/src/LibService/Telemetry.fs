@@ -351,8 +351,8 @@ let addTelemetry
          options.SetHttpFlavor <- true // Record HTTP version
          options.RecordException <- true
          ())
-  // TODO HttpClient instrumentation isn't working, so let's to add it before
-  // AspNetCoreInstrumentation
+  // TODO HttpClient instrumentation isn't working, so let's try to add it
+  // before AspNetCoreInstrumentation
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
        match traceDBQueries with
