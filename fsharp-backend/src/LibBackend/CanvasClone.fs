@@ -137,12 +137,12 @@ let cloneCanvas
           (tlid, ops)
         else
           (tlid, onlyOpsSinceLastSavepoint ops))
-      |> List.map (fun (tlid, ops) ->
+      |> List.filterMap (fun (tlid, ops) ->
         let newOps = List.map (updateHostsInOp fromCanvasName toCanvasName) ops
-        let (isDeleted, toplevel) =
-          Canvas.getToplevel tlid fromCanvas
-          |> Exception.unwrapOptionInternal "gettoplevel" [ "tlid", tlid ]
-        (tlid, newOps, toplevel, isDeleted))
+        // Deleted forever handlers won't be present but better safe than sorry
+        match Canvas.getToplevel tlid fromCanvas with
+        | None -> None
+        | Some (isDeleted, toplevel) -> Some(tlid, newOps, toplevel, isDeleted))
 
     do! Canvas.saveTLIDs toMeta toOps
     return ()
