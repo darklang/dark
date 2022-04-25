@@ -27,16 +27,17 @@ rm -Rf fsharp-backend/src/*/obj
 rm -Rf fsharp-backend/tests/*/obj
 rm -Rf fsharp-backend/Build
 
+# See Dockerfile for an explanation of uid/gid.
+gid="$(id -g)"
+# Below is max($gid, 1000); on OS X, the user's group might be staff, with
+# gid=20, which conflicts with ubuntu group dialout.
+gid=$((gid > 1000 ? gid : 1000))
+
 # --------------
 # Build image from clean start
 # --------------
 if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   echo "Building docker image"
-  # See Dockerfile for an explanation of uid/gid.
-  gid="$(id -g)"
-  # Below is max($gid, 1000); on OS X, the user's group might be staff, with
-  # gid=20, which conflicts with ubuntu group dialout.
-  gid=$((gid > 1000 ? gid : 1000))
   docker build -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
