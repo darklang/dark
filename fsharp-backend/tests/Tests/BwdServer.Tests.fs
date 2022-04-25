@@ -305,6 +305,65 @@ let createClient (port : int) : Task<TcpClient> =
     return client
   }
 
+let prepareRequest
+  (request : byte array)
+  (host : string)
+  (canvasName : string)
+  : byte array =
+  let request =
+    request
+    |> replaceByteStrings "HOST" host
+    |> replaceByteStrings "CANVAS" canvasName
+    |> Http.setHeadersToCRLF
+
+  // Check body matches content-length
+  let incorrectContentTypeAllowed =
+    request
+    |> UTF8.ofBytesWithReplacement
+    |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
+
+  if not incorrectContentTypeAllowed then
+    let parsedTestRequest = Http.split request
+    let contentLength =
+      parsedTestRequest.headers
+      |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
+    match contentLength with
+    | None -> ()
+    | Some (_, v) ->
+      if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
+        ()
+      else
+        Expect.equal parsedTestRequest.body.Length (int v) ""
+
+  // Check input LENGTH not set
+  if request |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
+     && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
+    Expect.isFalse true "LENGTH substitution not done on request"
+
+  request
+
+let makeRequest (request : byte array) (port : int) : Task<Http.T> =
+  task {
+    // Make the request
+    use! client = createClient port
+    use stream = client.GetStream()
+    stream.ReadTimeout <- 1000 // responses should be instant, right?
+
+    do! stream.WriteAsync(request, 0, request.Length)
+    do! stream.FlushAsync()
+
+    // Read the response
+    let length = 10000
+    let responseBuffer = Array.zeroCreate length
+    let! byteCount = stream.ReadAsync(responseBuffer, 0, length)
+    stream.Close()
+    client.Close()
+    let response = Array.take byteCount responseBuffer
+    return Http.split response
+  }
+
+
+
 /// Makes the test request to one of the servers,
 /// testing the response matches expectations
 let runTestRequest
@@ -321,54 +380,11 @@ let runTestRequest
 
     let host = $"{canvasName}.builtwithdark.localhost:{port}"
 
-    let request =
-      testRequest
-      |> replaceByteStrings "HOST" host
-      |> replaceByteStrings "CANVAS" canvasName
-      |> Http.setHeadersToCRLF
-
-    // Check body matches content-length
-    let incorrectContentTypeAllowed =
-      testRequest
-      |> UTF8.ofBytesWithReplacement
-      |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
-
-    if not incorrectContentTypeAllowed then
-      let parsedTestRequest = Http.split request
-      let contentLength =
-        parsedTestRequest.headers
-        |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
-      match contentLength with
-      | None -> ()
-      | Some (_, v) ->
-        if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
-          ()
-        else
-          Expect.equal parsedTestRequest.body.Length (int v) ""
-
-    // Check input LENGTH not set
-    if testRequest |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
-       && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
-      Expect.isFalse true "LENGTH substitution not done on request"
-
-    // Make the request
-    use! client = createClient (port)
-    use stream = client.GetStream()
-    stream.ReadTimeout <- 1000 // responses should be instant, right?
-
-    do! stream.WriteAsync(request, 0, request.Length)
-    do! stream.FlushAsync()
-
-    // Read the response
-    let length = 10000
-    let responseBuffer = Array.zeroCreate length
-    let! byteCount = stream.ReadAsync(responseBuffer, 0, length)
-    stream.Close()
-    client.Close()
-    let response = Array.take byteCount responseBuffer
+    let request = prepareRequest testRequest host canvasName
+    let! actual = makeRequest request port
 
     // Prepare expected response
-    let expectedResponse =
+    let expected =
       testResponse
       |> splitAtNewlines
       |> List.filterMap (fun line ->
@@ -397,10 +413,9 @@ let runTestRequest
       |> replaceByteStrings "HOST" host
       |> replaceByteStrings "CANVAS" canvasName
       |> Http.setHeadersToCRLF
+      |> Http.split
 
-    // Parse and normalize the response
-    let actual = Http.split response
-    let expected = Http.split expectedResponse
+    // Normalize the responses
     let expectedHeaders = normalizeExpectedHeaders expected.headers actual.body
     let actualHeaders = normalizeActualHeaders actual.headers
 
