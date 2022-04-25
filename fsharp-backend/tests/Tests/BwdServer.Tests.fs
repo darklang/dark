@@ -21,6 +21,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
+module DvalRepr = LibExecution.DvalReprExternal
 
 open TestUtils.TestUtils
 open System.Text.Json
@@ -403,7 +404,9 @@ let runTestRequest
     let expectedHeaders = normalizeExpectedHeaders expected.headers actual.body
     let actualHeaders = normalizeActualHeaders actual.headers
 
-    // Decompress the body if returned with a content-encoding. Throws an exception if content-encoding is set and the body is not encrypted. This lets us test that the server returns compressed content
+    // Decompress the body if returned with a content-encoding. Throws an exception
+    // if content-encoding is set and the body is not encrypted. This lets us test
+    // that the server returns compressed content
     let actual =
       { actual with body = Http.decompressIfNeeded actual.headers actual.body }
 
@@ -411,16 +414,15 @@ let runTestRequest
     let asJson =
       try
         Some(
-          LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe actual.body),
-          LibExecution.DvalReprExternal.parseJson (UTF8.ofBytesUnsafe expected.body)
+          DvalRepr.parseJson (UTF8.ofBytesUnsafe actual.body),
+          DvalRepr.parseJson (UTF8.ofBytesUnsafe expected.body)
         )
       with
       | e -> None
 
     match asJson with
     | Some (aJson, eJson) ->
-      let serialize (json : JsonDocument) =
-        LibExecution.DvalReprExternal.writePrettyJson json.WriteTo
+      let serialize (json : JsonDocument) = DvalRepr.writePrettyJson json.WriteTo
       Expect.equal
         (actual.status, actualHeaders, serialize aJson)
         (expected.status, expectedHeaders, serialize eJson)
