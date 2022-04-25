@@ -969,20 +969,27 @@ let fns : List<BuiltInFn> =
         "Drops the longest prefix of `list` which satisfies the predicate `val`"
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, [ DList l; DFnVal condition ] ->
           uply {
             let abortReason = ref None
 
-            let rec f : List<Dval> -> Ply<List<Dval>> =
-              function
+            let rec f (l : List<Dval>) : Ply<List<Dval>> =
+              match l with
               | [] -> Ply []
               | dv :: dvs ->
                 uply {
                   let run = abortReason.Value = None
 
                   if run then
+                    // does the condition pass/fail?
                     let! result =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                      Interpreter.applyFnVal
+                        state
+                        (id 0)
+                        condition
+                        [ dv ]
+                        NotInPipe
+                        NoRail
 
                     match result with
                     | DBool true -> return! f dvs
@@ -1040,8 +1047,8 @@ let fns : List<BuiltInFn> =
           uply {
             let abortReason = ref None
 
-            let rec f : List<Dval> -> Ply<List<Dval>> =
-              function
+            let rec f (l: List<Dval>): Ply<List<Dval>> =
+              match l with
               | [] -> Ply []
               | dv :: dvs ->
                 uply {
