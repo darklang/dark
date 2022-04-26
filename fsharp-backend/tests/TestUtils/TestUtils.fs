@@ -1034,9 +1034,6 @@ module Http =
       |> List.find (fun (k, v) -> String.toLowercase k = "content-encoding")
       |> Option.map Tuple2.second
       |> Option.map String.toLowercase
-    print $"headers: {headers}"
-
-    LibBackend.File.writefileBytes LibBackend.Config.NoCheck "contents.file" body
 
     // If the transfer-encoding=chunked header is set, we need to process it before
     // we have a gzip/brotli/etc output
@@ -1045,7 +1042,6 @@ module Http =
       // tests for the transfer-encoding format and we don't want to break them by
       // transfer-encoding test bodies
       if Option.isSome contentEncodingHeader then
-        print "hanve contentencodingheader"
         let isTransferEncodingChunked =
           headers
           |> List.find (fun (k, v) ->
@@ -1081,7 +1077,6 @@ module Http =
         new GZipStream(inputStream, CompressionMode.Decompress)
       use outputStream = new MemoryStream()
       decompressionStream.CopyTo(outputStream)
-      print "done gunzipping"
       outputStream.ToArray()
     | Some "br" ->
       let inputStream = new MemoryStream(body)
@@ -1089,7 +1084,6 @@ module Http =
         new BrotliStream(inputStream, CompressionMode.Decompress)
       use outputStream = new MemoryStream()
       decompressionStream.CopyTo(outputStream)
-      print "done unbrotliing"
       outputStream.ToArray()
     | Some ce -> Exception.raiseInternal $"unsupported content encoding {ce}" []
     | None -> body
