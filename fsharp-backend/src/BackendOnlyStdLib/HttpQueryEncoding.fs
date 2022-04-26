@@ -49,7 +49,7 @@ let rec toUrlString (dv : RT.Dval) : string =
   | RT.DBytes bytes -> Base64.defaultEncodeToString bytes
 
 // Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
-let queryToEncodedString (queryParams : (List<string * List<string>>)) : string =
+let queryToEncodedString_ (queryParams : (List<string * List<string>>)) : string =
   match queryParams with
   | [ key, [] ] -> urlEncodeKey key
   | _ ->
@@ -90,9 +90,11 @@ let ofQuery (query : List<string * List<string>>) : RT.Dval =
   |> Map
   |> RT.DObj
 
-let parseQueryString (queryString : string) : List<string * List<string>> =
-  // This will eat any intended question mark, so add one
-  let nvc = System.Web.HttpUtility.ParseQueryString("?" + queryString)
+let parseQueryString_ (queryString : string) : List<string * List<string>> =
+  let queryString =
+    // This will eat any intended question mark, so add one
+    if String.startsWith "?" queryString then queryString else "?" + queryString
+  let nvc = System.Web.HttpUtility.ParseQueryString(queryString)
   nvc.AllKeys
   |> Array.map (fun key ->
     let values = nvc.GetValues key
@@ -106,26 +108,17 @@ let parseQueryString (queryString : string) : List<string * List<string>> =
       [ (key, split) ])
   |> List.concat
 
-
-
-
-let ofQueryString (queryString : string) : RT.Dval =
-  queryString |> parseQueryString |> ofQuery
+let createQueryString
+  (existingQuery : string)
+  (queryParams : List<string * List<string>>)
+  : string =
+  (queryParams @ parseQueryString_ existingQuery) |> queryToEncodedString_
 
 // -------------------------
 // Forms
 // -------------------------
 
 let toFormEncoding (dv : RT.Dval) : Result<string, string> =
-  toQuery dv |> Result.map queryToEncodedString
+  toQuery dv |> Result.map queryToEncodedString_
 
-let ofFormEncoding (f : string) : RT.Dval = f |> parseQueryString |> ofQuery
-
-
-let createQueryString
-  (existingQuery : string)
-  (queryParams : List<string * List<string>>)
-  : string =
-  // Remove leading '?'
-  let queryString = if existingQuery = "" then "" else existingQuery.Substring 1
-  (queryParams @ parseQueryString queryString) |> queryToEncodedString
+let ofFormEncoding (f : string) : RT.Dval = f |> parseQueryString_ |> ofQuery

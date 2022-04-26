@@ -52,9 +52,8 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
     parse mt reqbody
 
 
-let parseQueryString (queryvals : List<string * List<string>>) =
-  BackendOnlyStdLib.HttpQueryEncoding.ofQuery queryvals
-
+let parseQueryString (query : string) : RT.Dval =
+  BackendOnlyStdLib.HttpQueryEncoding.ofFormEncoding query
 
 let parseHeaders (headers : (string * string) list) =
   headers
@@ -118,7 +117,7 @@ let fromRequest
   (allowUnparseable : bool)
   (uri : string)
   (headers : List<string * string>)
-  (query : List<string * List<string>>)
+  (query : string)
   (body : byte array)
   : RT.Dval =
   let parseBody =
