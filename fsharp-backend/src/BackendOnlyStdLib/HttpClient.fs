@@ -438,17 +438,7 @@ let sendRequest
     | Ok response ->
       let body = UTF8.ofBytesOpt response.body
       let parsedResponseBody =
-        // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
-        if false then // HttpHeaders.hasFormHeader response.headers
-          try
-            body
-            |> Exception.unwrapOptionInternal
-                 "Invalid query string"
-                 [ "bytes", response.body ]
-            |> HttpQueryEncoding.ofQueryString
-          with
-          | _ -> DStr "form decoding error"
-        elif hasJsonHeader response.headers then
+        if hasJsonHeader response.headers then
           try
             body
             |> Exception.unwrapOptionInternal "invalid json string" []
