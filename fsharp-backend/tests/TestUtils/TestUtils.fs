@@ -1053,24 +1053,27 @@ module Http =
             && String.toLowercase v = "chunked")
           |> Option.isSome
         if isTransferEncodingChunked then
-          print "have transferencoding header"
           let decoder = new ChunkDecoder.Decoder()
-          print "created decider"
           let mutable (byteArray : byte array) = null
-          print "created bytearray"
-          print $"body{body}"
+          // asp.net doesn't add the final sequence required by
+          // `transfer-encoding:chunked`, relying instead on closing the connection
+          // to indicate that the data in complete. However, the ChunkDecoder library
+          // does not support this, and hangs while waiting on the final chunk. We
+          // add the final chunk ourselves to allow the library to finish its work.
+          let body =
+            match body with
+            | [||] -> body
+            | body ->
+              let bytesToAppend = UTF8.toBytes "0\r\n"
+              Array.append body bytesToAppend
           let success = decoder.Decode(body, &byteArray)
-          print $"decoded {success}"
           if not success then Exception.raiseInternal "could not dechunk chunks" []
-          print "done dechunking"
           byteArray
         else
           body
       else
         body
 
-
-    print $"stating to dezip {contentEncodingHeader}"
     match contentEncodingHeader with
     | Some "gzip" ->
       let inputStream = new MemoryStream(body)
