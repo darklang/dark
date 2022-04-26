@@ -282,9 +282,10 @@ access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Transfer-Encoding: chunked
-Vary: Accept-Encoding // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
+Vary: Accept-Encoding // FSHARPONLY
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Transfer-Encoding: chunked
 
 /*! * * * * * * * * * * * * * * * * * * * *
       CSShake :: shake
