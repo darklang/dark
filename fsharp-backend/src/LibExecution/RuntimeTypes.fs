@@ -1017,6 +1017,7 @@ let renameFunctions
   let newFns =
     renames
     |> List.fold Map.empty (fun renamedFns (oldName, newName) ->
+      printfn "Working on %A -> %A rename" oldName newName
       let newFn =
         Map.tryFind newName (Map.mergeFavoringLeft renamedFns existingMap)
         |> Exception.unwrapOptionInternal

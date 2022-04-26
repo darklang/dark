@@ -18,8 +18,8 @@ let renames =
     fn "JSON" "read" 1, fn "JSON" "parse" 0
     fn "Object" "empty" 0, fn "Dict" "empty" 0
     fn "Object" "merge" 0, fn "Dict" "merge" 0
-    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0 ]
-
+    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0
+  ]
 
 let prefixFns : List<BuiltInFn> =
   [ LibBool.fns
@@ -42,7 +42,7 @@ let prefixFns : List<BuiltInFn> =
     LibResult.fns
     LibString.fns ]
   |> List.concat
-  |> renameFunctions renames
+  //|> renameFunctions renames
 
 // -------------------------
 // Infix fns
@@ -88,9 +88,8 @@ let infixFns : List<BuiltInFn> =
       let opName = infixFnMapping.TryFind builtin.name
       Option.map (fun newName -> { builtin with name = newName }) opName)
 
-  assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
+  //assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
   fns
-
 
 
 // -------------------------

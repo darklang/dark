@@ -289,16 +289,6 @@ def fsharp_backend_quick_build():
 
   result = run_backend(start, build)
 
-  start = time.time()
-  # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
-  if result and optimize:
-    build = f"./scripts/build/_dotnet-wrapper build \
-        --verbosity {verbosity} \
-        --configuration {configuration} \
-        src/Wasm/Wasm.fsproj"
-
-    result = run_backend(start, build)
-
   return result
 
 
@@ -320,16 +310,6 @@ def fsharp_backend_full_build():
 
   result = run_backend(start, build)
 
-  start = time.time()
-  # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
-  # if result and optimize:
-  #   # I don't get it - is this always done? is "result" only nonempty in case of failure?
-  #   build = f"unbuffer ./scripts/build/_dotnet-wrapper build \
-  #       --verbosity {verbosity} \
-  #       --configuration {configuration} \
-  #       src/Wasm/Wasm.fsproj"
-
-  #   result = run_backend(start, build)
   return result
 
 

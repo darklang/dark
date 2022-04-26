@@ -782,3 +782,6 @@ NUGET
     System.ValueTuple (4.5)
     System.Windows.Extensions (6.0)
       System.Drawing.Common (>= 6.0)
+    Wasi.Sdk (0.1)
+      Microsoft.Build.Framework (>= 17.0)
+      Microsoft.Build.Utilities.Core (>= 17.0)

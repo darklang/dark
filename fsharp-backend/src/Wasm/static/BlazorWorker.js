@@ -892,6 +892,7 @@ D-REMOVED */
         "[Wasm]Wasm.EvalWorker:OnMessage",
       );
       self.onmessage = msg => {
+        console.log("F# EvalWorker being called", JSON.stringify(msg.data));
         messageHandler(msg.data);
       };
       self.onerror = msg => {

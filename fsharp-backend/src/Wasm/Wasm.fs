@@ -192,21 +192,33 @@ module Eval =
             |> Map
           secrets = [] }
 
+      printfn "prepping libraries..."
       let stdlib =
-        LibExecutionStdLib.StdLib.fns
-        |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+        let fns = LibExecutionStdLib.StdLib.fns
+
+        fns
+        |> Map.fromListBy (fun fn ->
+          //printfn "Processing fn %A" fn.name
+          RT.FQFnName.Stdlib fn.name
+        )
 
       // TODO: get packages from caller
       let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
+
       let dvalResults, traceDvalFn = Exe.traceDvals ()
+
+      printfn "prepping fn results..."
       let functionResults = traceData.function_results
 
+      printfn "prepping tracing..."
       let tracing =
         { LibExecution.Execution.noTracing RT.Preview with
             traceDval = traceDvalFn
             loadFnResult = loadFromTrace functionResults }
 
       let executionID = ExecutionID "analysis"
+
+      printfn "prepping state..."
       let state =
         Exe.createState
           executionID
@@ -217,11 +229,14 @@ module Eval =
           tlid
           program
 
+      printfn "prepping ast..."
       let ast = expr |> OT.Convert.ocamlExpr2PT |> PT2RT.Expr.toRT
+      printfn "prepping input..."
       let inputVars = Map traceData.input
+      printfn "prepping result..."
       let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
 
-
+      printfn "converting to ocaml..."
       let ocamlResults =
         dvalResults
         |> Dictionary.toList
@@ -234,6 +249,7 @@ module Eval =
             ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
         |> Dictionary.fromList
 
+      printfn "returning..."
       return (traceID, ocamlResults)
     }
 
@@ -302,18 +318,17 @@ type EvalWorker =
     let (_ : obj) = EvalWorker.postMessageDelegate.Invoke("postMessage", message)
     ()
 
-
-  // receive messages from the BlazorWorker.js
-  member this.OnMessage(message : string) =
+  static member HandleMessage (message: string) =
     task {
+      printfn "Handling message"
       let args =
         try
-          Ok(
-            Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams>
-              message
-          )
+          let deserialized = Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams> message
+          printfn "Deserialized message"
+          Ok(deserialized)
         with
         | e ->
+          printfn "Error parsing %A" e
           let metadata = Exception.toMetadata e
           System.Console.WriteLine("Error parsing analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
@@ -326,7 +341,15 @@ type EvalWorker =
       | Error e -> return Error e
       | Ok args ->
         try
+          printfn "Getting a result"
           let! result = Eval.performAnalysis args
+
+          printfn "Got a result..."
+          printfn "%A" result
+          //result |> snd |> printfn "Snd %A"
+          // result |> snd
+          // |> Dictionary.toList
+          // |> List.iter(fun (k, v) -> printfn "Key %A Value %A" k v)
           return Ok result
         with
         | e ->
@@ -338,6 +361,12 @@ type EvalWorker =
           )
           return Error($"exception: {e.Message}, metadata: {metadata}")
     }
+
+
+  // receive messages from the BlazorWorker.js
+  member this.OnMessage(message : string) =
+    EvalWorker.HandleMessage message
     |> Task.map Json.OCamlCompatible.serialize
     |> Task.map EvalWorker.postMessage
     |> ignore<Task<unit>>
+

@@ -59,6 +59,7 @@ let executeExpr
   : Task<RT.Dval> =
   task {
     let symtable = Interpreter.withGlobals state inputVars
+    printfn "Expr to evaluate %A" expr
     let! result = Interpreter.eval state symtable expr
     // Does nothing in non-tests
     state.test.postTestExecutionHook state.test result

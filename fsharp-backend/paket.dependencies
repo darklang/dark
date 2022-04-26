@@ -58,3 +58,4 @@ nuget Argu = 6.1.1
 
 // WASM
 nuget Microsoft.AspNetCore.Components.WebAssembly = 6.0.1
+nuget Wasi.Sdk prerelease

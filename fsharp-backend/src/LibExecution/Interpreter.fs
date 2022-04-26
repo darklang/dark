@@ -33,6 +33,7 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 /// Interprets an expression and reduces to a Dark value
 /// (or task that should result in such)
 let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
+  printfn "Evaluating %A" e
   // Design doc for execution results and previews:
   // https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
   // TODO remove link from code or avail document - it is either gone or hidden behind login

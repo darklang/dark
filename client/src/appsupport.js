@@ -275,6 +275,9 @@ window.Dark = {
     requestAnalysis: function (params) {
       const analysis = window.Dark.fsharpAnalysis;
       const worker = window.BlazorWorker;
+
+      console.log("F# requestAnalysis called")
+
       if (!analysis.initialized) {
         console.log("BlazorWorker not loaded yet");
         setTimeout(function () {
@@ -283,6 +286,7 @@ window.Dark = {
         }, 500);
         return;
       }
+      console.log("... and it has already been initialized")
 
       // OCaml would take a value that would be converted on the other side of
       // the worker, we need to stringify here to get the value to the worker.
@@ -293,16 +297,20 @@ window.Dark = {
         params = params.json;
       }
 
-      if (analysis.busy) {
-        // analysis queue: run immediately or store if busy
-        // busy: record for next time
-        analysis.next = params;
-      } else {
-        // not busy: run it immediately
+      // todo: undo below changes
 
-        worker.postMessage(params);
-        analysis.busy = true;
-      }
+      worker.postMessage(params);
+
+      // if (analysis.busy) {
+      //   // analysis queue: run immediately or store if busy
+      //   // busy: record for next time
+      //   analysis.next = params;
+      // } else {
+      //   // not busy: run it immediately
+
+      //   worker.postMessage(params);
+      //   analysis.busy = true;
+      // }
     },
     initializeBlazorWorker: function () {
       const analysis = window.Dark.fsharpAnalysis;
