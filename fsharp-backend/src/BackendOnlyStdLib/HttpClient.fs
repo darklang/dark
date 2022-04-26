@@ -111,16 +111,7 @@ let httpCall'
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
-
-        let queryString =
-          // Remove leading '?'
-          if uri.Query = "" then "" else uri.Query.Substring 1
-
-        reqUri.Query <-
-          DvalReprExternal.queryToEncodedString (
-            queryParams @ DvalReprExternal.parseQueryString queryString
-          )
-
+        reqUri.Query <- HttpQueryEncoding.createQueryString uri.Query queryParams
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -405,7 +396,7 @@ let encodeRequestBody (body : Dval option) (headers : HttpHeaders.T) : Content =
       StringContent s
     // CLEANUP if there is a charset here, it uses json encoding
     | DObj _ when hasFormHeader headers ->
-      match DvalReprExternal.toFormEncoding dv with
+      match HttpQueryEncoding.toFormEncoding dv with
       | Ok content -> FormContent(content)
       | Error msg -> Exception.raiseCode msg
     | dv when hasTextHeader headers ->
@@ -430,7 +421,7 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalReprExternal.toQuery query |> Exception.unwrapResultCode
+    let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
     // Headers
     let encodedReqHeaders =
@@ -454,7 +445,7 @@ let sendRequest
             |> Exception.unwrapOptionInternal
                  "Invalid query string"
                  [ "bytes", response.body ]
-            |> DvalReprExternal.ofQueryString
+            |> HttpQueryEncoding.ofQueryString
           with
           | _ -> DStr "form decoding error"
         elif hasJsonHeader response.headers then
