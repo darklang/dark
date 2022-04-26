@@ -93,20 +93,25 @@ let ofQuery (query : List<string * List<string>>) : RT.Dval =
 let parseQueryString_ (queryString : string) : List<string * List<string>> =
   let queryString =
     // This will eat any intended question mark, so add one
-    if String.startsWith "?" queryString then queryString else "?" + queryString
-  let nvc = System.Web.HttpUtility.ParseQueryString(queryString)
-  nvc.AllKeys
-  |> Array.map (fun key ->
-    let values = nvc.GetValues key
-    let split =
-      values[values.Length - 1] |> FSharpPlus.String.split [| "," |] |> Seq.toList
-
-    if isNull key then
-      // All the values with no key are by GetValues, so make each one a value
-      values |> Array.toList |> List.map (fun k -> (k, []))
+    if String.startsWith "?" queryString then
+      String.dropLeft 1 queryString
     else
-      [ (key, split) ])
-  |> List.concat
+      queryString
+
+  queryString
+  |> (fun s -> if s = "" then [] else String.split "&" s)
+  |> List.filterMap (fun kvPair ->
+    let kv =
+      match String.split "=" kvPair with
+      | [ k; v ] -> Some(k, v)
+      | [ k ] -> Some(k, "")
+      | k :: vs -> Some(k, vs |> String.concat "=")
+      | [] -> None
+    kv
+    |> Option.map (fun (k, v) ->
+      let urlDecode = System.Web.HttpUtility.UrlDecode
+      urlDecode k, v |> String.split "," |> List.map urlDecode))
+
 
 let createQueryString
   (existingQuery : string)
