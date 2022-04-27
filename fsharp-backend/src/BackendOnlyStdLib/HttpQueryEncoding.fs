@@ -1,5 +1,15 @@
 module BackendOnlyStdLib.HttpQueryEncoding
 
+/// Parsing and generating HTTP query strings.
+///
+/// CLEANUP: This file is used by both HttpClients and also the Http framework. We
+/// prefer not to share code like this as we may need to mutate one and don't want to
+/// change how other parts of the framework and standard library work. If we do
+/// further work on any of this, we may want to split functionality out in some way,
+/// including dupliucating code.
+///
+/// CLEANUP: this isn't a great place for this file, at time of writing we don't have
+/// a better idea.
 
 type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
