@@ -10,6 +10,7 @@ module RT = LibExecution.RuntimeTypes
 module ContentType = HeadersV0.ContentType
 module MediaType = HeadersV0.MediaType
 module DvalReprExternal = LibExecution.DvalReprExternal
+module HttpQueryEncoding = BackendOnlyStdLib.HttpQueryEncoding
 
 
 // Internal invariant, _must_ be a DObj
@@ -28,7 +29,7 @@ let parse (p : Option<MediaType.T>) (body : byte array) : RT.Dval =
      | e ->
        Exception.raiseGrandUser $"Invalid json: {UTF8.ofBytesWithReplacement body}")
   | Some MediaType.Form ->
-    body |> UTF8.ofBytesUnsafe |> DvalReprExternal.ofFormEncoding
+    body |> UTF8.ofBytesUnsafe |> HttpQueryEncoding.ofFormEncoding
   // CLEANUP: text should just be text
   | Some (MediaType.Text _)
   | Some (MediaType.Xml _)
@@ -51,9 +52,10 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
     parse mt reqbody
 
 
-let parseQueryString (queryvals : List<string * List<string>>) =
-  DvalReprExternal.ofQuery queryvals
-
+let parseQueryString (query : string) : RT.Dval =
+  // Drop leading ?
+  let query = if query.Length > 0 then String.dropLeft 1 query else query
+  BackendOnlyStdLib.HttpQueryEncoding.ofFormEncoding query
 
 let parseHeaders (headers : (string * string) list) =
   headers
@@ -118,7 +120,7 @@ let fromRequest
   (allowUnparseable : bool)
   (uri : string)
   (headers : List<string * string>)
-  (query : List<string * List<string>>)
+  (query : string)
   (body : byte array)
   : RT.Dval =
   let parseBody =

@@ -16,6 +16,7 @@ open FuzzTests.Utils
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
+module HttpQueryEncoding = BackendOnlyStdLib.HttpQueryEncoding
 module G = Generators
 
 type Generator =
@@ -44,34 +45,34 @@ type QueryStringGenerator =
 let dvalToUrlStringExn (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
 
-  DvalReprExternal.toUrlString dv .=. (OCamlInterop.toUrlString dv).Result
+  HttpQueryEncoding.toUrlString dv .=. (OCamlInterop.toUrlString dv).Result
 
 /// Checks that a Dval is consistently converted
 /// to a querystring-safe string across OCaml and F# backends
 let dvalToQuery (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
-  (DvalReprExternal.toQuery dv |> Exception.unwrapResultInternal [ "dv", dv ])
+  (HttpQueryEncoding.toQuery dv |> Exception.unwrapResultInternal [ "dv", dv ])
   .=. (OCamlInterop.dvalToQuery dv).Result
 
 /// Checks that a Dval is consistently converted
 /// to a form-encoding-safe string across OCaml and F# backends
 let dvalToFormEncoding (l : List<string * RT.Dval>) : bool =
   let dv = RT.DObj(Map l)
-  (DvalReprExternal.toFormEncoding dv
+  (HttpQueryEncoding.toFormEncoding dv
    |> Exception.unwrapResultInternal [ "dv", dv ])
   .=. (OCamlInterop.dvalToFormEncoding dv).Result
 
 /// Checks that provided query strings are parsed as URL route parameters
 /// consistently across OCaml and F# backends
 let queryStringToParams (s : string) : bool =
-  DvalReprExternal.parseQueryString s
+  HttpQueryEncoding.parseQueryString_ s
   .=. (OCamlInterop.queryStringToParams s).Result
 
 let queryToDval (q : List<string * List<string>>) : bool =
-  DvalReprExternal.ofQuery q .=. (OCamlInterop.queryToDval q).Result
+  HttpQueryEncoding.ofQuery q .=. (OCamlInterop.queryToDval q).Result
 
 let queryToEncodedString (q : List<string * List<string>>) : bool =
-  DvalReprExternal.queryToEncodedString q
+  HttpQueryEncoding.queryToEncodedString_ q
   .=. (OCamlInterop.paramsToQueryString q).Result
 
 // FSTODO replace with simple `let tests = ...` once issues resolved

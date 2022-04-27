@@ -115,7 +115,7 @@ let createRequest
   (allowUnparseable : bool)
   (url : string)
   (headers : List<string * string>)
-  (query : List<string * string list>)
+  (query : string)
   (body : byte array)
   : RT.Dval =
   Req.fromRequest allowUnparseable url headers query body
@@ -157,7 +157,7 @@ let executeHandler
   (url : string)
   (routeVars : List<string * RT.Dval>)
   (headers : HttpHeaders.T)
-  (query : List<string * List<string>>)
+  (query : string)
   (body : byte array)
   // the program we're executing
   (program : RT.ProgramContext)

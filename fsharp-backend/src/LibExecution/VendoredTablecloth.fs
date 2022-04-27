@@ -53,7 +53,10 @@ module String =
   let startsWith (prefix : string) (s : string) : bool = s.StartsWith(prefix)
   let endsWith (suffix : string) (s : string) : bool = s.EndsWith(suffix)
   let includes (substring : string) (s : string) : bool = s.Contains(substring)
-  let split (on : string) (s : string) : List<string> = s.Split(on) |> List.ofArray
+
+  let split (on : string) (s : string) : List<string> =
+    // Splitting an empty string with `Split` produces `[""]`, which is unexpected
+    if s = "" then [] else s.Split(on) |> List.ofArray
 
   let trim (s : string) : string = s.Trim()
   let dropLeft (count : int) (s : string) : string = s[count..]

@@ -32,7 +32,7 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalRepr.toQuery query |> Exception.unwrapResultCode
+    let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
     let encodedReqHeaders =
       DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultCode

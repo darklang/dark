@@ -57,6 +57,9 @@ let fuzzedTests =
       FuzzTests.HttpClient.queryStringToParams
       [ "empty", ""
         "newline", "\n"
+        "comma key", "a,b,c"
+        "comma", "p=a,b,c"
+        "encoded comma", "p=a%2Cb"
         "newline with value", "\n=6"
         "just equals", "="
         "equals and", "c=&"

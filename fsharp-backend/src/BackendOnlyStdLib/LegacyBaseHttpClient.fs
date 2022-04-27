@@ -221,13 +221,10 @@ let makeHttpCall
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
-        let queryString =
-          // Remove leading '?'
-          if uri.Query = "" then "" else uri.Query.Substring 1
-        reqUri.Query <-
-          DvalReprExternal.queryToEncodedString (
-            queryParams @ DvalReprExternal.parseQueryString queryString
-          )
+        // Remove the question mark
+        let query =
+          if uri.Query.Length > 0 then String.dropLeft 1 uri.Query else uri.Query
+        reqUri.Query <- HttpQueryEncoding.createQueryString query queryParams
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -404,7 +401,7 @@ let encodeRequestBody
   | Some dv ->
     match dv with
     | RT.DObj _ when ContentType.hasFormHeaderWithoutCharset headers ->
-      match DvalReprExternal.toFormEncoding dv with
+      match HttpQueryEncoding.toFormEncoding dv with
       | Ok content -> FormContent(content)
       | Error msg -> Exception.raiseCode msg
     | _ when ContentType.hasNoContentType headers ->
