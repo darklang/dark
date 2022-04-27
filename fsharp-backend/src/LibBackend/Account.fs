@@ -180,7 +180,8 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
        WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
-  |> Task.map (function
+  |> Task.map (fun user ->
+    match user with
     | Some v -> v
     | None -> Exception.raiseGrandUser "User not found")
 

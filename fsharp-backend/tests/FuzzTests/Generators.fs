@@ -160,7 +160,8 @@ module RuntimeTypes =
 
   let Dval =
     Arb.Default.Derive()
-    |> Arb.filter (function
+    |> Arb.filter (fun dval ->
+      match dval with
       // These all break the serialization to OCaml
       // CLEANUP allow all Dvals to be generated
       | RT.DPassword _ -> false
@@ -168,9 +169,8 @@ module RuntimeTypes =
       | _ -> true)
 
   let DType =
-    let rec isSupportedType =
-
-      function
+    let rec isSupportedType dtype =
+      match dtype with
       | RT.TInt
       | RT.TStr
       | RT.TVariable _

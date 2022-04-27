@@ -218,7 +218,8 @@ let addOp (ctx : HttpContext) : Task<T> =
     // NB: I believe we only send one op at a time, but the type is op list
     newOps
     // MoveTL and TLSavepoint make for noisy data, so exclude it from heapio
-    |> List.filter (function
+    |> List.filter (fun op ->
+      match op with
       | PT.MoveTL _
       | PT.TLSavepoint _ -> false
       | _ -> true)

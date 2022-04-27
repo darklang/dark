@@ -41,7 +41,8 @@ let ocamlDateTimeFormats : array<string> =
     millisecondFormat
     tzSuffixes ]
   |> product
-  |> Seq.map (function
+  |> Seq.map (fun parts ->
+    match parts with
     | [ dfs; dts; ts; ss; tt; msf; tzs ] ->
       // Dont use a time separator for seconds if there are no seconds
       let ss = if ss = "" then "" else ts + ss

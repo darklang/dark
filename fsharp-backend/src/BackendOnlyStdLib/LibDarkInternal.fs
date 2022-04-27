@@ -602,7 +602,8 @@ that's already taken, returns an error."
                   | Some (DStr "*") -> Ok(Some Canvas.AllOrigins)
                   | Some (DList os) ->
                     os
-                    |> List.map (function
+                    |> List.map (fun dv ->
+                      match dv with
                       | DStr v -> v
                       | _ -> Exception.raiseCode "Invalid origin string")
                     |> Canvas.Origins

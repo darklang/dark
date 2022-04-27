@@ -42,13 +42,14 @@ let normalizeHeaders
   (headers : (string * string) list)
   : (string * string) list =
   headers
-  |> List.map (function
+  |> List.map (fun (key, value) ->
+    match value with
     // make writing tests easier
-    | (key, "HOST") when String.equalsCaseInsensitive "Host" key -> (key, host)
+    | "HOST" when String.equalsCaseInsensitive "Host" key -> (key, host)
     // optionally change content length for writing responses more easily
-    | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
-      (key, string body.Length)
-    | other -> other)
+    | "LENGTH" when String.equalsCaseInsensitive "Content-length" key ->
+      key, string body.Length
+    | other -> key, other)
 
 let randomBytes =
   [ 0x2euy; 0x0Auy; 0xE8uy; 0xE6uy; 0xF1uy; 0xE0uy; 0x9Buy; 0xA6uy; 0xEuy ]

@@ -27,7 +27,8 @@ type Generator =
 
   static member Dval() : Arbitrary<RT.Dval> =
     Arb.Default.Derive()
-    |> Arb.filter (function
+    |> Arb.filter (fun dval ->
+      match dval with
       | RT.DFnVal _ -> false
       | _ -> true)
 

@@ -30,7 +30,8 @@ let routeToPostgresPattern (route : string) : string =
 
   // https://www.postgresql.org/docs/9.6/functions-matching.html
   route
-  |> String.collect (function
+  |> String.collect (fun str ->
+    match str with
     | '%' -> "\\%"
     | '_' -> "\\_"
     | other -> string other)

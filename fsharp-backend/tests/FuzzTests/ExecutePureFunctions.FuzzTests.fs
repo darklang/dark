@@ -399,7 +399,8 @@ type Generator =
             G.isValidOCamlInt (e - i)
           | 0, RT.DList l, _, "Int", "sum", 0 ->
             l
-            |> List.map (function
+            |> List.map (fun dval ->
+              match dval with
               | RT.DInt i -> i
               | _ -> 0L)
             |> List.fold 0L (+)

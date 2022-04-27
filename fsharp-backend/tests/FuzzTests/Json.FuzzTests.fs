@@ -36,7 +36,8 @@ module PrettyMachineJson =
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter (fun dval ->
+        match dval with
         | RT.DFnVal _ -> false
         | _ -> true)
 
@@ -76,7 +77,8 @@ module PrettyResponseJson =
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter (fun dval ->
+        match dval with
         | RT.DFnVal _ -> false
         | _ -> true)
 
@@ -119,7 +121,8 @@ module PrettyRequestJson =
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter (fun dval ->
+        match dval with
         | RT.DFnVal _ -> false
         | _ -> true)
 
@@ -155,7 +158,8 @@ module LibJwtJson =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter (fun dval ->
+        match dval with
         // They're all printed as blocks, but the OCamlInterop doesn't work great - no point in fixing though
         | RT.DFnVal _ -> false
         | _ -> true)

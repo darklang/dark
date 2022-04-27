@@ -149,7 +149,8 @@ let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
   | JList [ JString "Response"; JInteger code; JList headers ] ->
     let headers =
       headers
-      |> List.map (function
+      |> List.map (fun header ->
+        match header with
         | JList [ JString k; JString v ] -> (k, v)
         | h ->
           Exception.raiseInternal "Invalid DHttpResponse headers" [ "header", h ])

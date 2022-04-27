@@ -999,8 +999,8 @@ module Json =
         let listType = typedefof<list<_>>.MakeGenericType (itemType)
         let cases = FSharpType.GetUnionCases(listType)
 
-        let rec make =
-          function
+        let rec make collection =
+          match collection with
           | [] -> FSharpValue.MakeUnion(cases[0], [||])
           | head :: tail -> FSharpValue.MakeUnion(cases[1], [| head; (make tail) |])
 

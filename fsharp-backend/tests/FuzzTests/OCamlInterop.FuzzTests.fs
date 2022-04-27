@@ -71,7 +71,8 @@ type Generator =
 
   static member Expr() =
     Arb.Default.Derive()
-    |> Arb.filter (function
+    |> Arb.filter (fun expr ->
+      match expr with
       // characters are not supported in OCaml
       // CLEANUP can be removed once OCaml gone
       | PT.ECharacter _ -> false
@@ -79,7 +80,8 @@ type Generator =
 
   static member Pattern() =
     Arb.Default.Derive()
-    |> Arb.filter (function
+    |> Arb.filter (fun pattern ->
+      match pattern with
       // characters are not supported in OCaml
       // CLEANUP can be removed once OCaml gone
       | PT.PCharacter _ -> false
@@ -228,9 +230,10 @@ module Queryable =
       isInteroperableWithOCamlBackend
         OCamlInterop.toInternalQueryableV1
         OCamlInterop.ofInternalQueryableV1
-        (function
-        | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
-        | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
+        (fun dval ->
+          match dval with
+          | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
+          | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
         DvalReprInternal.ofInternalQueryableV1
         Expect.dvalEquality
         (RT.DObj dvm)

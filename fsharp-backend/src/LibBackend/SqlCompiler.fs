@@ -134,16 +134,17 @@ let rec inline'
   (expr : Expr)
   : Expr =
   RuntimeTypesAst.postTraversal
-    (function
-    | ELet (_, name, expr, body) ->
-      inline' paramName (Map.add name expr symtable) body
-    | EVariable (_, name) as expr when name <> paramName ->
-      (match Map.get name symtable with
-       | Some found -> found
-       | None ->
-         // the variable might be in the symtable, so put it back to fill in later
-         expr)
-    | expr -> expr)
+    (fun expr ->
+      match expr with
+      | ELet (_, name, expr, body) ->
+        inline' paramName (Map.add name expr symtable) body
+      | EVariable (_, name) as expr when name <> paramName ->
+        (match Map.get name symtable with
+         | Some found -> found
+         | None ->
+           // the variable might be in the symtable, so put it back to fill in later
+           expr)
+      | expr -> expr)
     expr
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (pattern : Expr) =
@@ -336,14 +337,15 @@ let partiallyEvaluate
         | EApply (_, EFQFnValue (_, name), args, _, _) when
           // functions that are fully specified
           List.all
-            (function
-            | EInteger _
-            | EBool _
-            | ENull _
-            | EFloat _
-            | EString _
-            | EVariable _ -> true
-            | _ -> false)
+            (fun expr ->
+              match expr with
+              | EInteger _
+              | EBool _
+              | ENull _
+              | EFloat _
+              | EString _
+              | EVariable _ -> true
+              | _ -> false)
             args
           ->
           // TODO: should limit this further to pure functions.
