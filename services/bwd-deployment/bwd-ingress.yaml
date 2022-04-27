@@ -413,16 +413,16 @@ spec:
                 port:
                   number: 80
 
-    - host: cameron-google-cache.builtwithdark.com
-      http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: bwdserver-service
-                port:
-                  number: 80
+    # - host: cameron-google-cache.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
 
     - host: colinplamondon.builtwithdark.com
       http:
@@ -566,6 +566,18 @@ spec:
                 name: bwdserver-service
                 port:
                   number: 80
+
+    - host: danielsokil-esf-locations.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
 
   tls:
     - secretName: builtwithdark.com-tls
