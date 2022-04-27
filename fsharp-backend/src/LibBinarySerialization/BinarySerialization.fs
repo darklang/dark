@@ -64,7 +64,7 @@ let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
 let deserializeToplevel (tlid : tlid) (data : byte []) : PT.Toplevel.T =
   wrapSerializationException tlid (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> ST2PT.Toplevel.toST)
+    |> ST2PT.Toplevel.toPT)
 
 
 let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte [] =

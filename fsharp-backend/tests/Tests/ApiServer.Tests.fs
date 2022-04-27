@@ -692,8 +692,8 @@ let testHsts (client : C) (canvasName : CanvasName.T) =
           None)
 
     Expect.equal
-      [ "max-age=31536000; includeSubDomains; preload" ]
       hstsHeader
+      [ "max-age=31536000; includeSubDomains; preload" ]
       "Strict-Transport-Security header either missing or incorrect"
 
   task {

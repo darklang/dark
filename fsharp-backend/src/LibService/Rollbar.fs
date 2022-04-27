@@ -101,7 +101,7 @@ let init (serviceName : string) : unit =
   dsOpts.ScrubFields <-
     Array.append
       config.RollbarLoggerConfig.RollbarDataSecurityOptions.ScrubFields
-      [| "Set-Cookie"; "Cookie"; "Authorization" |]
+      [| "Set-Cookie"; "Cookie"; "Authorization"; "x-csrf-token" |]
   config.RollbarLoggerConfig.RollbarDataSecurityOptions.Reconfigure dsOpts
   |> ignore<Rollbar.IRollbarDataSecurityOptions>
 
