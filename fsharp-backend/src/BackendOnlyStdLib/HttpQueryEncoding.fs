@@ -20,7 +20,7 @@ let rec toUrlString (dv : RT.Dval) : string =
   let r = toUrlString
   match dv with
   | RT.DFnVal _ ->
-    (* See docs/dblock-serialization.ml *)
+    // See docs/dblock-serialization.ml
     "<block>"
   | RT.DIncomplete _ -> "<incomplete>"
   | RT.DPassword _ -> "<password>"
