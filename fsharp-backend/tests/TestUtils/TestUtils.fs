@@ -834,8 +834,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   state
 
 let containsPassword (dv : Dval) : bool =
-  let isPassword =
-    function
+  let isPassword dval =
+    match dval with
     | RT.DPassword _ -> true
     | _ -> false
   dv |> visitDval isPassword |> List.any Fun.identity

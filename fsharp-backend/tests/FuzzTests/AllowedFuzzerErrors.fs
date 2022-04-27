@@ -60,7 +60,8 @@ let errorIsAllowed
     true
   else
     allowedErrors.knownErrors
-    |> List.any (function
+    |> List.any (fun knownError ->
+      match knownError with
       | [ namePat; actualPat; expectedPat ] ->
         let regexMatch str regex = Regex.Match(str, regex, RegexOptions.Singleline)
 

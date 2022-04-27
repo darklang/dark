@@ -609,7 +609,8 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
           DStr(
             l
-            |> List.map (function
+            |> List.map (fun dval ->
+              match dval with
               | DChar c -> c
               | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TChar "l" dv))
             |> String.concat ""

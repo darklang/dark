@@ -27,14 +27,14 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
         // A user's orgs for this purpose do not include orgs it has
         // read-only access to
         orgs
-        |> List.filter (function
-          | _, rw -> rw = Authorization.ReadWrite)
+        |> List.filter (fun (_orgName, perm) -> perm = Authorization.ReadWrite)
         // If you have one org, that's your org! If you have no orgs, or
         // more than one, then we just use your username. This is because
         // Heap's properties/traits don't support lists.
-        |> (function
-        | [ (orgName, _) ] -> orgName
-        | _ -> username |> string |> OrgName.create)
+        |> (fun org ->
+          match org with
+          | [ (orgName, _perm) ] -> orgName
+          | _ -> username |> string |> OrgName.create)
 
       let heapioMetadata =
         heapioMetadataJson

@@ -448,7 +448,8 @@ let unsafeOfUnknownJsonV0 str : Dval =
     | JList [ JString "Response"; JInteger code; JList headers ] ->
       let headers =
         headers
-        |> List.map (function
+        |> List.map (fun header ->
+          match header with
           | JList [ JString k; JString v ] -> (k, v)
           | h ->
             Exception.raiseInternal "Invalid DHttpResponse headers" [ "headers", h ])
@@ -558,7 +559,8 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
   | DObj obj ->
     obj
     |> Map.toList
-    |> List.map (function
+    |> List.map (fun pair ->
+      match pair with
       | (k, DStr v) -> Ok(k, v)
       | (k, v) ->
         // CLEANUP: this is just to keep the error messages the same with OCaml. It's safe to change the error message

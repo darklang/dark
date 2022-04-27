@@ -34,10 +34,7 @@ let equal (b1 : bool) (b2 : bool) = b1 = b2
 
 let compare (b1 : bool) (b2 : bool) = b1.CompareTo b2
 
-let toString =
-  function
-  | true -> "true"
-  | false -> "false"
+let toString b = if b = true then "true" else "false"
 
 let to_string b = toString b
 

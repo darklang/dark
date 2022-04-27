@@ -211,7 +211,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
       let parameters =
         parameters
-        |> List.choose (function
+        |> List.choose (fun param ->
+          match param with
           | _, "" -> None
           | id, name -> Some(id, name))
 
@@ -635,16 +636,17 @@ and execFn
 
       let badArg =
         List.tryFind
-          (function
-          // CLEANUP: does anyone use Bool.isError?
-          | DError _ when
-            fnDesc = FQFnName.Stdlib
-                       { module_ = "Bool"; function_ = "isError"; version = 0 }
-            ->
-            false
-          | DError _
-          | DIncomplete _ -> true
-          | _ -> false)
+          (fun expr ->
+            match expr with
+            // CLEANUP: does anyone use Bool.isError?
+            | DError _ when
+              fnDesc = FQFnName.Stdlib
+                         { module_ = "Bool"; function_ = "isError"; version = 0 }
+              ->
+              false
+            | DError _
+            | DIncomplete _ -> true
+            | _ -> false)
           arglist
 
       match badArg, isInPipe with

@@ -252,7 +252,8 @@ let fns : List<BuiltInFn> =
         | _, [ DList bytes ] ->
           bytes
           |> List.toArray
-          |> Array.map (function
+          |> Array.map (fun dval ->
+            match dval with
             | DInt i -> byte i
             | other -> Exception.raiseCode "Expected int" [ "actual", other ])
           |> DBytes

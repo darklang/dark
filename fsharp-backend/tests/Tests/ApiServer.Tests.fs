@@ -659,23 +659,24 @@ let testDelete404s (client : C) (canvasName : CanvasName.T) =
 
 let canonicalizeAst (e : OT.RuntimeT.fluidExpr) =
   LibExecution.OCamlTypesAst.preTraversal
-    (function
-    // This is a random number so make it zero so they can be compared
-    | LibExecution.OCamlTypes.RuntimeT.EPipeTarget _ as p ->
-      LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
-    // This is inconsistent in stored code
-    | LibExecution.OCamlTypes.RuntimeT.EFnCall (id, name, args, ster) ->
-      LibExecution.OCamlTypes.RuntimeT.EFnCall(
-        id,
-        name |> String.replace "_v0" "",
-        args,
-        ster
-      )
-    | LibExecution.OCamlTypes.RuntimeT.EInteger (id, i) ->
-      // CLEANUP some values have '+' in them
-      let i = if i.Length > 0 && i[0] = '+' then i.Substring(1) else i
-      LibExecution.OCamlTypes.RuntimeT.EInteger(id, i)
-    | other -> other)
+    (fun expr ->
+      match expr with
+      // This is a random number so make it zero so they can be compared
+      | LibExecution.OCamlTypes.RuntimeT.EPipeTarget _ as p ->
+        LibExecution.OCamlTypes.RuntimeT.EPipeTarget 0UL
+      // This is inconsistent in stored code
+      | LibExecution.OCamlTypes.RuntimeT.EFnCall (id, name, args, ster) ->
+        LibExecution.OCamlTypes.RuntimeT.EFnCall(
+          id,
+          name |> String.replace "_v0" "",
+          args,
+          ster
+        )
+      | LibExecution.OCamlTypes.RuntimeT.EInteger (id, i) ->
+        // CLEANUP some values have '+' in them
+        let i = if i.Length > 0 && i[0] = '+' then i.Substring(1) else i
+        LibExecution.OCamlTypes.RuntimeT.EInteger(id, i)
+      | other -> other)
     e
 
 

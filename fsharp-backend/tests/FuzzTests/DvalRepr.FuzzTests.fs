@@ -33,7 +33,8 @@ module DeveloperRepr =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter (fun dval ->
+        match dval with
         | RT.DFnVal _ -> false
         | RT.DFloat 0.0 -> false
         | RT.DFloat infinity -> false // TODO I don't think this is doing what we want it to!!
@@ -60,7 +61,8 @@ module EnduserReadable =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter (fun dval ->
+        match dval with
         | RT.DFnVal _ -> false
         | _ -> true)
 
@@ -85,7 +87,8 @@ module Hashing =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter (fun dval ->
+        match dval with
         // not supported in OCaml
         | RT.DFnVal _ -> false
         | _ -> true)

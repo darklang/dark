@@ -170,9 +170,10 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             // Don't use HTTP filtering stack for non-HTTP traces
             Some traceID)
         // If there's no matching traces, add the default trace
-        |> (function
-        | [] -> [ traceIDofTLID h.tlid ]
-        | x -> x)
+        |> (fun traces ->
+          match traces with
+          | [] -> [ traceIDofTLID h.tlid ]
+          | x -> x)
     | None ->
       // If the event description isn't complete, add the default trace
       return [ traceIDofTLID h.tlid ]

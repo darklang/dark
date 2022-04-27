@@ -77,13 +77,15 @@ let updateHostsInOp
     String.replace (host oldHost) (host newHost) str
   let rec updateHostsInPattern (pattern : PT.Pattern) : PT.Pattern =
     ProgramTypesAst.patternPostTraversal
-      (function
-      | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
-      | pat -> pat)
+      (fun pat ->
+        match pat with
+        | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
+        | pat -> pat)
       pattern
   Op.astOf op
   |> Option.map (
-    ProgramTypesAst.preTraversal (function
+    ProgramTypesAst.preTraversal (fun pat ->
+      match pat with
       | PT.EString (id, str) -> PT.EString(id, replaceHost str)
       | PT.EMatch (id, cond, branches) ->
         let newBranches =

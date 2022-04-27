@@ -73,7 +73,8 @@ let requiredContextToValidateOplist (oplist : PT.Oplist) : RequiredContext =
   else
     oplist
     |> List.map requiredContextToValidate
-    |> List.maxBy (function
+    |> List.maxBy (fun requiredContext ->
+      match requiredContext with
       | AllDatastores -> 1
       | NoContext -> 0)
 

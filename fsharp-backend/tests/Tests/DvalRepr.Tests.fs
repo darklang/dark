@@ -246,14 +246,15 @@ let allRoundtrips =
 
   let all =
     sampleDvals
-    |> List.filter (function
+    |> List.filter (fun (_, dval) ->
+      match dval with
       // interoperable tests do not support passwords because it's very
       // hard/risky to get legacyserver to roundtrip them correctly without
       // compromising the redaction protections. We do password tests in the
       // rest of the file so lets not confuse these tests.
-      | (_, RT.DPassword _) -> false
+      | RT.DPassword _ -> false
       // These can't be parsed by the roundtrip tests so skip
-      | (_, RT.DInt i) -> i > -4611686018427387904L && i < 4611686018427387904L
+      | RT.DInt i -> i > -4611686018427387904L && i < 4611686018427387904L
       | _ -> true)
 
   let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
@@ -373,9 +374,10 @@ module Password =
 
         let wrappedSerialize dval =
           dval
-          |> (function
-          | RT.DObj dvalMap -> dvalMap
-          | _ -> Exception.raiseInternal "dobj only here" [])
+          |> (fun dval ->
+            match dval with
+            | RT.DObj dvalMap -> dvalMap
+            | _ -> Exception.raiseInternal "dobj only here" [])
           |> serialize
 
         Expect.equalDval

@@ -298,7 +298,8 @@ let rec convertToExpr' (ast : SynExpr) : PT.Expr =
     PT.EMatch(id, c cond, List.map convertClause clauses)
   | SynExpr.Record (_, _, fields, _) ->
     fields
-    |> List.map (function
+    |> List.map (fun field ->
+      match field with
       | SynExprRecordField ((LongIdentWithDots ([ name ], _), _), _, Some expr, _) ->
         (nameOrBlank name.idText, c expr)
       | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
