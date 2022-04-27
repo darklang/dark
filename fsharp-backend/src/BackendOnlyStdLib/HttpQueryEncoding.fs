@@ -91,26 +91,20 @@ let ofQuery (query : List<string * List<string>>) : RT.Dval =
   |> RT.DObj
 
 let parseQueryString_ (queryString : string) : List<string * List<string>> =
-  let queryString =
-    // This will eat any intended question mark, so add one
-    if String.startsWith "?" queryString then
-      String.dropLeft 1 queryString
-    else
-      queryString
-
   queryString
   |> (fun s -> if s = "" then [] else String.split "&" s)
   |> List.filterMap (fun kvPair ->
-    let kv =
-      match String.split "=" kvPair with
-      | [ k; v ] -> Some(k, v)
-      | [ k ] -> Some(k, "")
-      | k :: vs -> Some(k, vs |> String.concat "=")
-      | [] -> None
-    kv
-    |> Option.map (fun (k, v) ->
-      let urlDecode = System.Web.HttpUtility.UrlDecode
-      urlDecode k, v |> String.split "," |> List.map urlDecode))
+    match String.split "=" kvPair with
+    | [ k; v ] -> Some(k, [ v ])
+    | [ k ] -> Some(k, [])
+    | k :: vs -> Some(k, vs)
+    | [] -> None)
+  |> List.map (fun (k, vs) ->
+    let urlDecode = System.Web.HttpUtility.UrlDecode
+    let v = vs |> String.concat "="
+    // split adds one element regardless
+    let vs = if v = "" then [] else String.split "," v
+    urlDecode k, vs |> List.map urlDecode)
 
 
 let createQueryString
