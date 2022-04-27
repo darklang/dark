@@ -221,7 +221,10 @@ let makeHttpCall
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
-        reqUri.Query <- HttpQueryEncoding.createQueryString uri.Query queryParams
+        // Remove the question mark
+        let query =
+          if uri.Query.Length > 0 then String.dropLeft 1 uri.Query else uri.Query
+        reqUri.Query <- HttpQueryEncoding.createQueryString query queryParams
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in

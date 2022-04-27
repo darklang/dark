@@ -53,6 +53,7 @@ let parseBody (headers : List<string * string>) (reqbody : byte array) =
 
 
 let parseQueryString (query : string) : RT.Dval =
+  let query = if query.Length > 0 then String.dropLeft 1 query else query
   BackendOnlyStdLib.HttpQueryEncoding.ofFormEncoding query
 
 let parseHeaders (headers : (string * string) list) =
