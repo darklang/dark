@@ -92,19 +92,21 @@ let ofQuery (query : List<string * List<string>>) : RT.Dval =
 
 let parseQueryString_ (queryString : string) : List<string * List<string>> =
   queryString
-  |> (fun s -> if s = "" then [] else String.split "&" s)
+  |> String.split "&"
   |> List.filterMap (fun kvPair ->
     match String.split "=" kvPair with
     | [ k; v ] -> Some(k, [ v ])
     | [ k ] -> Some(k, [])
     | k :: vs -> Some(k, vs)
-    | [] -> None)
+    | [] -> Some("", []))
   |> List.map (fun (k, vs) ->
     let urlDecode = System.Web.HttpUtility.UrlDecode
-    let v = vs |> String.concat "="
-    // split adds one element regardless
-    let vs = if v = "" then [] else String.split "," v
-    urlDecode k, vs |> List.map urlDecode)
+    let v =
+      if vs = [ "" ] then
+        vs
+      else
+        vs |> String.concat "=" |> String.split "," |> List.map urlDecode
+    urlDecode k, v)
 
 
 let createQueryString
