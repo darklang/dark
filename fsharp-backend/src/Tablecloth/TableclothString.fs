@@ -54,7 +54,8 @@ let dropRight (count : int) (s : string) = s[0 .. (s.Length - (count + 1))]
 
 let drop_right count s = dropRight count s
 
-let split (on : string) (s : string) = s.Split(on) |> List.fromArray
+let split (on : string) (s : string) =
+  if s = "" then [] else s.Split(on) |> List.fromArray
 
 let startsWith (prefix : string) (s : string) = s.StartsWith(prefix)
 

@@ -720,7 +720,10 @@ module String =
     }
 
   let splitOnNewline (str : string) : List<string> =
-    str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
+    if str = "" then
+      []
+    else
+      str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
