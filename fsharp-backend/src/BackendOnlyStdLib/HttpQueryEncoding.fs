@@ -48,7 +48,8 @@ let rec toUrlString (dv : RT.Dval) : string =
   | RT.DResult (Ok v) -> r v
   | RT.DBytes bytes -> Base64.defaultEncodeToString bytes
 
-// Convert strings into queryParams. This matches the OCaml Uri.query function. Note that keys and values use slightly different encodings
+/// Convert strings into queryParams. This matches the OCaml Uri.query function.
+/// Note that keys and values use slightly different encodings
 let queryToEncodedString_ (queryParams : (List<string * List<string>>)) : string =
   match queryParams with
   | [ key, [] ] -> urlEncodeKey key
