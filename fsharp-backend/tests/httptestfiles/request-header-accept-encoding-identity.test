@@ -19,7 +19,6 @@ access-control-allow-origin: * // OCAMLONLY
 x-darklang-execution-id: 0123456789
 Server: nginx/1.16.1 // OCAMLONLY
 Server: darklang // FSHARPONLY
-Vary: Accept-Encoding // FSHARPONLY
 Connection: keep-alive // OCAMLONLY
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
 Content-Length: LENGTH
