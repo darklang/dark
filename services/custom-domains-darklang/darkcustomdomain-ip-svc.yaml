@@ -3,16 +3,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-ingress-lb
+  name: custom-domains-nginx-ingress-lb
   namespace: darklang
   labels:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/name: custom-domains-nginx-ingress-lb
+    app.kubernetes.io/part-of: custom-domains
 spec:
   externalTrafficPolicy: Local
   type: LoadBalancer
-  # FSTODO needs new IP
-  loadBalancerIP: 35.197.124.122 # TODO Can we make this named ("darkcustomdomain-ip")?
+  loadBalancerIP: 35.227.153.217 # darkcustomdomain-ip2
   ports:
     - port: 80
       name: http
@@ -22,5 +21,5 @@ spec:
       targetPort: 443
   selector:
     # Selects nginx-ingress-controller pods
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/name: custom-domains-nginx-controller
+    app.kubernetes.io/part-of: custom-domains

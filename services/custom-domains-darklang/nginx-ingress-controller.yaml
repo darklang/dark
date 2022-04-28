@@ -5,7 +5,7 @@
 
 # Note that in GCE, a TCP load balancer (currently
 # ad1a603ffb59a4e5f8bde1e1a96c4a15) points to this deployment and marks all the
-# nodes except the one running ngins as unhealthy. However, they're not
+# nodes except the ones running nginx as unhealthy. However, they're not
 # actually unhealthy, it's just that there's (deliberately) not one
 # pod-per-node and it doesn't know what to do with that.
 
@@ -13,10 +13,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-ingress-controller
-  namespace: default
+  namespace: darklang
   labels:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/name: custom-domains-ingress-nginx
+    app.kubernetes.io/part-of: custom-domains
 spec:
   revisionHistoryLimit: 10
   # All darkcustomdomain traffic comes through this deployment, so we may need
@@ -24,14 +24,14 @@ spec:
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: ingress-nginx
-      app.kubernetes.io/part-of: ingress-nginx
+      app.kubernetes.io/name: custom-domains-ingress-nginx
+      app.kubernetes.io/part-of: custom-domains
   template:
     metadata:
       namespace: default
       labels:
-        app.kubernetes.io/name: ingress-nginx
-        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/name: custom-domains-ingress-nginx
+        app.kubernetes.io/part-of: custom-domains
     spec:
       serviceAccountName: cert-manager
       # hostNetwork makes it possible to use ipv6 and to preserve the source IP correctly regardless of docker configuration
@@ -41,7 +41,7 @@ spec:
       # hostNetwork: true
       terminationGracePeriodSeconds: 60
       containers:
-        - image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.30.0
+        - image: k8s.gcr.io/ingress-nginx/controller:v1.0.5
           name: nginx-ingress-controller
           readinessProbe:
             httpGet:
@@ -71,7 +71,7 @@ spec:
                   fieldPath: metadata.namespace
           args:
             - /nginx-ingress-controller
-            - --publish-service=default/nginx-ingress-lb
+            - --publish-service=darklang/custom-domains-nginx-ingress-lb
 ---
 kind: ClusterRoleBinding
 # kubernetes versions before 1.8.0 should use rbac.authorization.k8s.io/v1beta1
