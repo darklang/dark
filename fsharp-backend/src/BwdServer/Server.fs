@@ -472,47 +472,15 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     (person, metadata)
 
   Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
-  |> fun app -> app.UseResponseCompression()
+  |> Compression.addToApp
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
-type CustomCompressionProvider(services, options) =
-  inherit ResponseCompressionProvider(services, options)
-  override this.ShouldCompressResponse(ctx : HttpContext) : bool =
-    // Compress responses unless they're too small
-    let default_ = base.ShouldCompressResponse ctx
-    let tooSmall =
-      // This was the setting we had in the ocaml nginx
-      if ctx.Response.ContentLength.HasValue then
-        ctx.Response.ContentLength.Value < 1024
-      else
-        false
-    default_ && not tooSmall
-
-let configureResponseCompression
-  (services : IServiceCollection)
-  : IServiceCollection =
-  let configureOptions (options : ResponseCompressionOptions) : unit =
-    // CLEANUP: This is set to the same values as we used in nginx for the ocaml
-    // bwdserver. By default, .net also has a few others: text/javascript,
-    // application/xml, text/xml, text/json, application/wasm. They aren't that
-    // interesting to us right now.
-    options.MimeTypes <-
-      [ "text/html"
-        "text/plain"
-        "text/css"
-        "application/javascript"
-        "application/json" ]
-  services.Configure(configureOptions) |> ignore<IServiceCollection>
-  services.TryAddSingleton<IResponseCompressionProvider, CustomCompressionProvider>()
-  services
-
-
 let configureServices (services : IServiceCollection) : unit =
   services
-  |> configureResponseCompression
+  |> Compression.configureServices
   |> Kubernetes.configureServices [ LibBackend.Init.legacyServerCheck ]
   |> Rollbar.AspNet.addRollbarToServices
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries

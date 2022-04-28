@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Compression.fs" />
     <Compile Include="Server.fs" />
   </ItemGroup>
   <ItemGroup>
