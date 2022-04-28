@@ -420,7 +420,7 @@ let runTestRequest
     let actualHeaders = normalizeActualHeaders actual.headers
 
     // Decompress the body if returned with a content-encoding. Throws an exception
-    // if content-encoding is set and the body is not encrypted. This lets us test
+    // if content-encoding is set and the body is not compressed. This lets us test
     // that the server returns compressed content
     let actual =
       { actual with body = Http.decompressIfNeeded actual.headers actual.body }

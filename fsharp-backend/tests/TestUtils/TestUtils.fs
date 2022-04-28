@@ -1053,7 +1053,7 @@ module Http =
           let mutable (byteArray : byte array) = null
           // asp.net doesn't add the final sequence required by
           // `transfer-encoding:chunked`, relying instead on closing the connection
-          // to indicate that the data in complete. However, the ChunkDecoder library
+          // to indicate that the data is complete. However, the ChunkDecoder library
           // does not support this, and hangs while waiting on the final chunk. We
           // add the final chunk ourselves to allow the library to finish its work.
           let body =
