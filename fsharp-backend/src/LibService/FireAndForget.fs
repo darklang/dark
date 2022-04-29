@@ -17,14 +17,16 @@ let fireAndForgetTask
   : unit =
   task {
     use _ =
-      Telemetry.child "fireAndForget" [ "name", name; "executionID", executionID ]
+      Telemetry.child
+        "fireAndForget"
+        [ "taskName", name; "executionID", executionID ]
     try
       let! (_ : 'b) = f ()
       Telemetry.addTag "success" true
       return ()
     with
     | e ->
-      Telemetry.addTag "success" true
+      Telemetry.addTag "success" false
       Rollbar.sendException
         executionID
         Rollbar.emptyPerson
