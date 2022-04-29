@@ -578,16 +578,16 @@ spec:
                 port:
                   number: 80
 
-    - host: listo-shopify.builtwithdark.com
-      http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: bwdserver-service
-                port:
-                  number: 80
+    # - host: listo-shopify.builtwithdark.com
+    #   http:
+    #     paths:
+    #       - path: /*
+    #         pathType: ImplementationSpecific
+    #         backend:
+    #           service:
+    #             name: bwdserver-service
+    #             port:
+    #               number: 80
 
     - host: listo-smsreminder.builtwithdark.com
       http:
