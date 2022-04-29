@@ -324,6 +324,7 @@ let runDarkHandler
 
         match routeVars with
         | Some routeVars ->
+          Telemetry.addTag "handler.routeVars" routeVars
           // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
           // and entirely into code in some middleware
           let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
@@ -341,6 +342,7 @@ let runDarkHandler
             Pusher.pushNewTraceID executionID meta.id traceID touchedTLIDs
 
           // Do request
+          use _ = Telemetry.child "executeHandler" []
           let! result =
             Middleware.executeHandler
               tlid
