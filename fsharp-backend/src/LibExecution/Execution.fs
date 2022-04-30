@@ -12,9 +12,9 @@ module AT = AnalysisTypes
 let traceNoDvals : RT.TraceDval = fun _ _ _ -> ()
 let traceNoTLIDs : RT.TraceTLID = fun _ -> ()
 let loadNoFnResults : RT.LoadFnResult = fun _ _ -> None
-let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> task { return () }
+let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> ()
 let loadNoFnArguments : RT.LoadFnArguments = fun _ -> []
-let storeNoFnArguments : RT.StoreFnArguments = fun _ _ -> task { return () }
+let storeNoFnArguments : RT.StoreFnArguments = fun _ _ -> ()
 
 let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
   { traceDval = traceNoDvals

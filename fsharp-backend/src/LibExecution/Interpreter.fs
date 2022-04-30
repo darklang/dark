@@ -704,7 +704,7 @@ and execFn
               }
             // there's no point storing data we'll never ask for
             if fn.previewable <> Pure then
-              do! state.tracing.storeFnResult fnRecord arglist result
+              state.tracing.storeFnResult fnRecord arglist result
 
             return result
         | PackageFunction (_tlid, body) ->
@@ -733,13 +733,13 @@ and execFn
                   // handler/call site.
                   let! result = eval state argsWithGlobals body
 
-                  do! state.tracing.storeFnResult fnRecord arglist result
+                  state.tracing.storeFnResult fnRecord arglist result
 
                   return
                     result |> Dval.unwrapFromErrorRail |> typeErrorOrValue Map.empty
                 }
             // For now, always store these results
-            do! state.tracing.storeFnResult fnRecord arglist result
+            state.tracing.storeFnResult fnRecord arglist result
 
             return
               result
@@ -765,11 +765,11 @@ and execFn
             | _ ->
               // It's okay to execute user functions in both Preview and Real contexts,
               // But in Preview we might not have all the data we need
-              do! state.tracing.storeFnArguments tlid args
+              state.tracing.storeFnArguments tlid args
 
               let state = { state with tlid = tlid }
               let! result = eval state argsWithGlobals body
-              do! state.tracing.storeFnResult fnRecord arglist result
+              state.tracing.storeFnResult fnRecord arglist result
 
               return
                 result

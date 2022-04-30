@@ -59,10 +59,23 @@ let createState
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
     HashSet.add tlid touchedTLIDs
 
+    // CLEANUP: we should really just store these in memory and then upload the trace
+    // at the very end.
     let tracing =
       { Exe.noTracing RT.Real with
-          storeFnResult = TraceFunctionResults.store canvasID traceID
-          storeFnArguments = TraceFunctionArguments.store canvasID traceID
+          storeFnResult =
+            (fun record args result ->
+              LibService.FireAndForget.fireAndForgetTask
+                executionID
+                "traceFunctionResults"
+                (fun () ->
+                  TraceFunctionResults.store canvasID traceID record args result))
+          storeFnArguments =
+            (fun tlid args ->
+              LibService.FireAndForget.fireAndForgetTask
+                executionID
+                "traceFunctionArguments"
+                (fun () -> TraceFunctionArguments.store canvasID traceID tlid args))
           traceTLID = traceTLIDFn }
 
     let! libraries = Lazy.force libraries
