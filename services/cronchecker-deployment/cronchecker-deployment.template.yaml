@@ -32,10 +32,10 @@ spec:
             # Observed in practice using 670m and 74Mi when going full-tilt
             requests:
               memory: "180Mi"
-              cpu: "500m"
+              cpu: "600m"
             limits:
               memory: "400Mi"
-              cpu: "800m"
+              cpu: "1000m"
           # lifecycle:
           #   preStop:
           #     We implement the SIGTERM handler instead (even if we used preStop we'd

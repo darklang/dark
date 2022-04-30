@@ -76,10 +76,10 @@ spec:
           resources:
             requests:
               memory: "100Mi"
-              cpu: "100m"
+              cpu: "200m"
             limits:
-              memory: "100Mi"
-              cpu: "100m"
+              memory: "200Mi"
+              cpu: "400m"
 
           #####################
           # Lifecycles probes
