@@ -240,14 +240,32 @@ let testFunctionTracesAreStored =
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-    // check for traces
-    let! testFnResult = TFR.load meta.id traceID state.tlid
+    // check for traces - they're saved in the background so wait for them
+    let waitForResult id : Task<List<AT.FunctionResult>> =
+      task {
+        let mutable testFnResult = None
+        for i in 1..10 do
+          do!
+            task {
+              if testFnResult = None then
+                let! result = TFR.load meta.id traceID id
+                testFnResult <- Some result
+                return ()
+              else
+                do! Task.Delay 300
+                return ()
+            }
+        return testFnResult |> Option.unwrap []
+      }
+
+
+    let! testFnResult = waitForResult state.tlid
     Expect.equal
       (List.length testFnResult)
-      1
+      (1)
       "handler should only have fn result for test_fn"
 
-    let! dbGenerateResult = TFR.load meta.id traceID fnid
+    let! dbGenerateResult = waitForResult fnid
     Expect.equal
       (List.length dbGenerateResult)
       1
