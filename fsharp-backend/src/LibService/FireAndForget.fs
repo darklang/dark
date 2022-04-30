@@ -1,6 +1,7 @@
 module LibService.FireAndForget
 
 open System.Threading.Tasks
+open System.Threading
 open FSharp.Control.Tasks
 
 open Prelude
@@ -15,11 +16,17 @@ let fireAndForgetTask
   (f : unit -> Task<'b>)
   : unit =
   task {
+    use _ =
+      Telemetry.child
+        "fireAndForget"
+        [ "taskName", name; "executionID", executionID ]
     try
       let! (_ : 'b) = f ()
+      Telemetry.addTag "success" true
       return ()
     with
     | e ->
+      Telemetry.addTag "success" false
       Rollbar.sendException
         executionID
         Rollbar.emptyPerson

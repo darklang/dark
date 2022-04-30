@@ -17,6 +17,7 @@ open LibExecution
 open LibBackend
 open VendoredTablecloth
 
+module Telemetry = LibService.Telemetry
 
 module RT = RuntimeTypes
 
@@ -206,6 +207,8 @@ let makeHttpCall
   : Task<Result<HttpResult, ClientError>> =
   task {
     try
+      use _ =
+        Telemetry.child "LegacyHttpClient.call" [ "url", url; "method", method ]
       let uri = System.Uri(url, System.UriKind.Absolute)
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return
@@ -289,6 +292,7 @@ let makeHttpCall
               req.Content.Headers.Add(k, v))
 
         // send request
+        Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
         use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
@@ -296,6 +300,7 @@ let makeHttpCall
         // some reason.
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
+        Telemetry.addTag "response.encoding" encoding
         use! responseStream = response.Content.ReadAsStreamAsync()
         use contentStream : Stream =
           let decompress = CompressionMode.Decompress
@@ -318,6 +323,9 @@ let makeHttpCall
           let latin1 =
             try
               let charset = response.Content.Headers.ContentType.CharSet.ToLower()
+              Telemetry.addTag
+                "response.content_type"
+                response.Content.Headers.ContentType
               match charset with
               | "latin1"
               | "us-ascii"
@@ -332,6 +340,7 @@ let makeHttpCall
             respBody
 
         let code = int response.StatusCode
+        Telemetry.addTag "response.status_code" code
 
         let isHttp2 = (response.Version = System.Net.HttpVersion.Version20)
 
@@ -361,9 +370,11 @@ let makeHttpCall
     with
     | InvalidEncodingException code ->
       let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
+      Telemetry.addTags [ "error", true; "errorMsg", error ]
       return
         Error { url = url; code = code; error = prependInternalErrorMessage error }
     | :? TaskCanceledException -> // only timeouts
+      Telemetry.addTags [ "error", true; "errorMsg", "Timeout" ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
@@ -372,16 +383,20 @@ let makeHttpCall
           prependInternalErrorMessage "Unsupported protocol"
         else
           prependInternalErrorMessage e.Message
+      Telemetry.addTags [ "error", true; "errorMsg", message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage message }
     | :? System.UriFormatException ->
+      Telemetry.addTags [ "error", true; "errorMsg", "Invalid URI" ]
       return
         Error
           { url = url; code = 0; error = prependInternalErrorMessage "Invalid URI" }
     | :? IOException as e ->
+      Telemetry.addTags [ "error", true; "errorMsg", e.Message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
     | :? HttpRequestException as e ->
+      Telemetry.addTags [ "error", true; "errorMsg", e.Message ]
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
       return
         Error
