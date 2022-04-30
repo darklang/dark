@@ -58,12 +58,32 @@ let storeMany
   (traceID : AT.TraceID)
   (functionResults : List<FunctionResultStore>)
   : Task<unit> =
-  task {
-    do!
+  if canvasID = TraceInputs.throttled then
+    Task.FromResult()
+  else
+    let transactionData =
       functionResults
-      |> Task.iterWithConcurrency 3 (fun (tlid, fnName, id, args, result) ->
-        store canvasID traceID (tlid, fnName, id) args result)
-  }
+      |> List.map (fun (tlid, fnDesc, id, argList, result) ->
+        [ "canvasID", Sql.uuid canvasID
+          "traceID", Sql.uuid traceID
+          "tlid", Sql.tlid tlid
+          "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
+          "id", Sql.id id
+          ("hash",
+           argList
+           |> DvalReprInternal.hash DvalReprInternal.currentHashVersion
+           |> Sql.string)
+          "hashVersion", Sql.int DvalReprInternal.currentHashVersion
+          ("value",
+           result |> DvalReprInternal.toInternalRoundtrippableV0 |> Sql.string) ])
+    LibService.DBConnection.connect ()
+    |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
+          (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
+          VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)",
+                                     transactionData ]
+    |> Task.map ignore<List<int>>
+
+
 
 let load
   (canvasID : CanvasID)
