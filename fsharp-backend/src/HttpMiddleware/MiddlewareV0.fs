@@ -18,6 +18,8 @@ module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Req = RequestV0
 module Resp = ResponseV0
+module TFR = LibBackend.TraceFunctionResults
+module TFA = LibBackend.TraceFunctionArguments
 
 // TODO: Remove access to LibBackend from here
 module Canvas = LibBackend.Canvas
@@ -128,9 +130,9 @@ let executeProgram
   (routeVars : List<string * RT.Dval>)
   (request : RT.Dval)
   (expr : RT.Expr)
-  : Task<Resp.HttpResponse * HashSet.T<tlid>> =
+  : Task<Resp.HttpResponse * RealExe.TraceResult> =
   task {
-    let! state, touchedTLIDs = RealExe.createState executionID traceID tlid program
+    let! state, traceResult = RealExe.createState executionID traceID tlid program
 
     // Build request
     let symtable =
@@ -141,20 +143,21 @@ let executeProgram
     // Execute
     let! result = Interpreter.eval state symtable expr
 
-    return (Resp.toHttpResponse result, touchedTLIDs)
+    return (Resp.toHttpResponse result, traceResult)
   }
 
 
 
 let executeHandler
   // framework stuff
+  (canvasID : CanvasID)
   (tlid : tlid)
   (executionID : ExecutionID)
   (traceID : LibExecution.AnalysisTypes.TraceID)
-  (traceHook : RT.Dval -> unit)
-  (notifyHook : List<tlid> -> unit)
   // received from granduser
   (url : string)
+  (requestPath : string)
+  (requestMethod : string)
   (routeVars : List<string * RT.Dval>)
   (headers : HttpHeaders.T)
   (query : string)
@@ -168,14 +171,19 @@ let executeHandler
     let request = createRequest false url headers query body
 
     // Both hooks fire off into the ether, to avoid waiting for the IO to complete
-    traceHook request
+    RealExe.traceInputHook
+      canvasID
+      traceID
+      executionID
+      ("HTTP", requestPath, requestMethod)
+      request
 
-    let! (result, touchedTLIDs) =
+    let! (result, traceResult) =
       executeProgram executionID program tlid traceID routeVars request expr
     let result = addCorsHeaders headers corsSetting result
 
     // Both hooks fire off into the ether, to avoid waiting for the IO to complete
-    notifyHook (HashSet.toList touchedTLIDs)
+    RealExe.traceResultHook canvasID traceID executionID traceResult
 
     return result
   }

@@ -45,13 +45,18 @@ let libraries : Lazy<Task<RT.Libraries>> =
       return { stdlib = stdlibFns; packageFns = packageFns }
     })
 
+type TraceResult =
+  { tlids : HashSet.T<tlid>
+    functionResults : HashSet.T<TraceFunctionResults.FunctionResultStore>
+    functionArguments : HashSet.T<TraceFunctionArguments.FunctionArgumentStore> }
+
 
 let createState
   (executionID : ExecutionID)
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
-  : Task<RT.ExecutionState * HashSet.T<tlid>> =
+  : Task<RT.ExecutionState * TraceResult> =
   task {
     let canvasID = program.canvasID
 
@@ -59,23 +64,22 @@ let createState
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
     HashSet.add tlid touchedTLIDs
 
+    let savedFunctionResult : HashSet.T<TraceFunctionResults.FunctionResultStore> =
+      HashSet.empty ()
+
+    let savedFunctionArguments : HashSet.T<TraceFunctionArguments.FunctionArgumentStore> =
+      HashSet.empty ()
+
+
     // CLEANUP: we should really just store these in memory and then upload the trace
     // at the very end.
     let tracing =
       { Exe.noTracing RT.Real with
           storeFnResult =
-            (fun record args result ->
-              LibService.FireAndForget.fireAndForgetTask
-                executionID
-                "traceFunctionResults"
-                (fun () ->
-                  TraceFunctionResults.store canvasID traceID record args result))
+            (fun (tlid, name, id) args result ->
+              HashSet.add (tlid, name, id, args, result) savedFunctionResult)
           storeFnArguments =
-            (fun tlid args ->
-              LibService.FireAndForget.fireAndForgetTask
-                executionID
-                "traceFunctionArguments"
-                (fun () -> TraceFunctionArguments.store canvasID traceID tlid args))
+            (fun tlid args -> HashSet.add (tlid, args) savedFunctionArguments)
           traceTLID = traceTLIDFn }
 
     let! libraries = Lazy.force libraries
@@ -110,8 +114,53 @@ let createState
         notify
         tlid
         program,
-       touchedTLIDs)
+       { tlids = touchedTLIDs
+         functionResults = savedFunctionResult
+         functionArguments = savedFunctionArguments })
   }
+
+// Store trace - Do not resolve task, send this into the ether
+let traceInputHook
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (executionID : ExecutionID)
+  (eventDesc : string * string * string)
+  (request : RT.Dval)
+  : unit =
+  LibService.FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
+    TraceInputs.storeEvent canvasID traceID eventDesc request)
+
+// Store trace results once the request is done
+let traceResultHook
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (executionID : ExecutionID)
+  (traceResult : TraceResult)
+  : unit =
+  LibService.FireAndForget.fireAndForgetTask
+    executionID
+    "traceResultHook"
+    (fun () ->
+      task {
+        do!
+          TraceFunctionArguments.storeMany
+            canvasID
+            traceID
+            (HashSet.toList traceResult.functionArguments)
+        do!
+          TraceFunctionResults.storeMany
+            canvasID
+            traceID
+            (HashSet.toList traceResult.functionResults)
+        // Send to Pusher - Do not resolve task, send this into the ether
+        Pusher.pushNewTraceID
+          executionID
+          canvasID
+          traceID
+          (HashSet.toList traceResult.tlids)
+      })
+
+
 
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =

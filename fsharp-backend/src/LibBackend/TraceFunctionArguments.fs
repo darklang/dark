@@ -19,6 +19,10 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 // External
 // -------------------------
 
+// FSTODO: use a transaction
+// FSTODO: pull out the timestamp
+type FunctionArgumentStore = tlid * RT.DvalMap
+
 let store
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
@@ -40,6 +44,18 @@ let store
                            DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj args)
                          )) ]
     |> Sql.executeStatementAsync
+
+let storeMany
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (functionResults : List<tlid * RT.DvalMap>)
+  : Task<unit> =
+  task {
+    do!
+      functionResults
+      |> Task.iterWithConcurrency 3 (fun (tlid, args) ->
+        store canvasID traceID tlid args)
+  }
 
 
 let loadForAnalysis

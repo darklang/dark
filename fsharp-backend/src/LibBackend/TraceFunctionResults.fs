@@ -19,6 +19,9 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 // External
 // -------------------------
 
+// The data we save to store this
+type FunctionResultStore = tlid * RT.FQFnName.T * id * List<RT.Dval> * RT.Dval
+
 let store
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
@@ -49,6 +52,18 @@ let store
                          |> DvalReprInternal.toInternalRoundtrippableV0
                          |> Sql.string) ]
     |> Sql.executeStatementAsync
+
+let storeMany
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (functionResults : List<FunctionResultStore>)
+  : Task<unit> =
+  task {
+    do!
+      functionResults
+      |> Task.iterWithConcurrency 3 (fun (tlid, fnName, id, args, result) ->
+        store canvasID traceID (tlid, fnName, id) args result)
+  }
 
 let load
   (canvasID : CanvasID)

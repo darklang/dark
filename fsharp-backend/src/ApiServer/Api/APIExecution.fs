@@ -57,12 +57,13 @@ module Function =
 
       t.next "load-execution-state"
       let program = Canvas.toProgram c
-      let! (state, touchedTLIDs) =
+      let! (state, traceResult) =
         RealExe.createState executionID p.trace_id p.tlid program
 
       t.next "execute-function"
       let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
       let! result = Exe.executeFunction state p.caller_id args fnname
+      RealExe.traceResultHook canvasInfo.id p.trace_id executionID traceResult
 
       t.next "get-unlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
@@ -75,7 +76,7 @@ module Function =
         { result = Convert.rt2ocamlDval result
           hash = hash
           hashVersion = hashVersion
-          touched_tlids = HashSet.toList touchedTLIDs
+          touched_tlids = HashSet.toList traceResult.tlids
           unlocked_dbs = unlocked }
 
       return result
@@ -111,7 +112,7 @@ module Handler =
       let expr = c.handlers[p.tlid].ast |> PT2RT.Expr.toRT
 
       t.next "load-execution-state"
-      let! state, touchedTLIDs =
+      let! state, traceResult =
         RealExe.createState executionID p.trace_id p.tlid program
 
       t.next "execute-handler"
@@ -119,7 +120,8 @@ module Handler =
       // since this ignores the result, it doesn't go through the http result
       // handling function. This might not matter
       let! (_result : RT.Dval) = Exe.executeHandler state inputVars expr
+      RealExe.traceResultHook canvasInfo.id p.trace_id executionID traceResult
 
       t.next "write-api"
-      return { touched_tlids = touchedTLIDs |> HashSet.toList }
+      return { touched_tlids = traceResult.tlids |> HashSet.toList }
     }
