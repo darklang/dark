@@ -2,6 +2,7 @@ STORAGE: NONE
 RESTRICTION: == net6.0
 NUGET
   remote: https://api.nuget.org/v3/index.json
+    altcover (8.2.837)
     Argu (6.1.1)
       FSharp.Core (>= 4.3.2)
       System.Configuration.ConfigurationManager (>= 4.4)
@@ -122,6 +123,7 @@ NUGET
       System.Configuration.ConfigurationManager (>= 4.7)
       System.Security.Permissions (>= 4.7)
       System.Text.Encoding.CodePages (>= 4.0.1)
+    Microsoft.CodeCoverage (17.1)
     Microsoft.Extensions.Configuration (6.0)
       Microsoft.Extensions.Configuration.Abstractions (>= 6.0)
       Microsoft.Extensions.Primitives (>= 6.0)
@@ -193,8 +195,17 @@ NUGET
     Microsoft.NET.StringTools (1.0)
       System.Memory (>= 4.5.4)
       System.Runtime.CompilerServices.Unsafe (>= 5.0)
+    Microsoft.NET.Test.Sdk (17.1.0-preview-20211109-03)
+      Microsoft.CodeCoverage (>= 17.1.0-preview-20211109-03)
+      Microsoft.TestPlatform.TestHost (>= 17.1.0-preview-20211109-03)
     Microsoft.NETCore.Platforms (5.0.4)
     Microsoft.NETCore.Targets (5.0)
+    Microsoft.TestPlatform.ObjectModel (17.1)
+      NuGet.Frameworks (>= 5.11)
+      System.Reflection.Metadata (>= 1.6)
+    Microsoft.TestPlatform.TestHost (17.1)
+      Microsoft.TestPlatform.ObjectModel (>= 17.1)
+      Newtonsoft.Json (>= 9.0.1)
     Microsoft.Win32.Primitives (4.3)
       Microsoft.NETCore.Platforms (>= 1.1)
       Microsoft.NETCore.Targets (>= 1.1)
@@ -225,6 +236,7 @@ NUGET
       Microsoft.Extensions.Logging (>= 2.0)
       Microsoft.Extensions.Logging.Configuration (>= 2.0)
       Microsoft.Extensions.Options.ConfigurationExtensions (>= 2.0)
+    NuGet.Frameworks (6.1)
     OpenTelemetry (1.2.0-rc2)
       Microsoft.Extensions.Logging (>= 2.1)
       Microsoft.Extensions.Logging.Configuration (>= 2.1)
@@ -759,6 +771,10 @@ NUGET
     System.ValueTuple (4.5)
     System.Windows.Extensions (5.0)
       System.Drawing.Common (>= 5.0)
+    YoloDev.Expecto.TestSdk (0.12.12)
+      Expecto (>= 9.0 < 10.0)
+      FSharp.Core (>= 4.6)
+      System.Collections.Immutable (>= 1.5)
 
 GROUP Wasm
 NUGET

@@ -4,3 +4,6 @@ Expecto
 FsCheck
 Expecto.FsCheck
 SimpleBase
+Microsoft.NET.Test.Sdk
+YoloDev.Expecto.TestSdk
+altcover

@@ -357,6 +357,7 @@ RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$
 
 RUN sudo dotnet workload install wasm-tools
 RUN dotnet tool install -g dotnet-sos
+
 # TODO: is this the right directory?
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
@@ -364,6 +365,10 @@ RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotn
 RUN dotnet tool install fantomas-tool --version 4.6.3 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
+
+# code coverage
+RUN dotnet tool install -g altcover.global
+RUN dotnet tool install -g dotnet-reportgenerator-globaltool
 
 #############
 # tunnel user

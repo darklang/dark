@@ -11,6 +11,7 @@
     <!-- <PublishSingleFile>true</PublishSingleFile> -->
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
