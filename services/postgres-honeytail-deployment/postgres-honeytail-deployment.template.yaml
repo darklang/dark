@@ -24,10 +24,10 @@ spec:
           resources:
             requests:
               memory: "128Mi"
-              cpu: "1000m"
+              cpu: "300m"
             limits:
               memory: "384Mi"
-              cpu: "2000m"
+              cpu: "1000m"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"

@@ -20,6 +20,9 @@ spec:
     metadata:
       labels:
         app: cronchecker
+      annotations:
+        # We use EmptyDir to allow read-only pods, but they need this annotation to scale down
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
       containers:
 
@@ -190,3 +193,8 @@ spec:
         - name: cloudsql-instance-credentials
           secret:
             secretName: cloudsql-instance-credentials
+
+        # Main container
+        # to allow readOnlyRootFilesystem
+        - name: rundir
+          emptyDir: { }

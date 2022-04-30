@@ -20,6 +20,9 @@ spec:
     metadata:
       labels:
         app: exechost-app
+      annotations:
+        # We use EmptyDir to allow read-only pods, but they need this annotation to scale down
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
 
     spec:
       # ---------------------

@@ -8,7 +8,7 @@ metadata:
 
 spec:
   revisionHistoryLimit: 10
-  replicas: 3
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -22,6 +22,9 @@ spec:
       labels:
         app: bwdserver-app
         dark-executor: "true"
+      annotations:
+        # We use EmptyDir to allow read-only pods, but they need this annotation to scale down
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
       # ---------------------
       # Pod-level security
@@ -76,7 +79,7 @@ spec:
           resources:
             requests:
               memory: "2000Mi"
-              cpu: "3"
+              cpu: "2"
             limits:
               memory: "3000Mi"
               cpu: "4"

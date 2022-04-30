@@ -22,6 +22,9 @@ spec:
       labels:
         app: queueworker-app
         dark-executor: "true"
+      annotations:
+        # We use EmptyDir to allow read-only pods, but they need this annotation to scale down
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
       # ---------------------
       # Pod-level security
@@ -70,11 +73,11 @@ spec:
           # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "400Mi"
-              cpu: "100m"
+              memory: "2000Mi"
+              cpu: "3"
             limits:
-              memory: "800Mi"
-              cpu: "200m"
+              memory: "3000Mi"
+              cpu: "4"
 
           # ---------------------
           # Lifecycles probes
@@ -114,8 +117,6 @@ spec:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
-            - name: DARK_CONFIG_RUNNING_IN_GKE
-              value: "true"
             # rollbar
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
@@ -342,6 +343,7 @@ spec:
             periodSeconds: 1
             timeoutSeconds: 5
             failureThreshold: 20
+
 
       # ---------------------
       # Pod volume definitions
