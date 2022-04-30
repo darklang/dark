@@ -25,10 +25,10 @@ spec:
           resources:
             requests:
               memory: "400Mi"
-              cpu: "100m"
+              cpu: "150m"
             limits:
               memory: "1000Mi"
-              cpu: "200m"
+              cpu: "250m"
           envFrom:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"

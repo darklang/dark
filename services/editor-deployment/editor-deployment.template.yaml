@@ -24,7 +24,7 @@ spec:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "200Mi"
+              memory: "400Mi"
               cpu: "50m"
             limits:
               memory: "1000Mi"
