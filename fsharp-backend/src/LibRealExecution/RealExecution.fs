@@ -152,13 +152,34 @@ let traceResultHook
             canvasID
             traceID
             (HashSet.toList traceResult.functionResults)
-        // Send to Pusher - Do not resolve task, send this into the ether
+        // Send to Pusher
         Pusher.pushNewTraceID
           executionID
           canvasID
           traceID
           (HashSet.toList traceResult.tlids)
       })
+
+module Test =
+  let saveTraceResult
+    (canvasID : CanvasID)
+    (traceID : AT.TraceID)
+    (traceResult : TraceResult)
+    : Task<unit> =
+    task {
+      do!
+        TraceFunctionArguments.storeMany
+          canvasID
+          traceID
+          (HashSet.toList traceResult.functionArguments)
+      do!
+        TraceFunctionResults.storeMany
+          canvasID
+          traceID
+          (HashSet.toList traceResult.functionResults)
+      return ()
+    }
+
 
 
 
