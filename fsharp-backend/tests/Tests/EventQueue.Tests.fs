@@ -58,7 +58,13 @@ let testEventQueueRoundtrip =
         |> Exception.unwrapOptionInternal "missing eventID" []
         |> Tuple2.first
 
-      let! functionResults = TFR.load meta.id traceID h.tlid
+      // Saving happens in the background so wait for it
+      let mutable functionResults = []
+      for i in 1..10 do
+        if functionResults = [] then
+          let! result = TFR.load meta.id traceID h.tlid
+          functionResults <- result
+          if functionResults = [] then do! Task.Delay 300
 
       Expect.equal (List.length functionResults) 1 "should have stored fn result"
       Expect.equal (RT.DInt 123L) resultDval "Round tripped value"
