@@ -53,6 +53,7 @@ let store
                          |> Sql.string) ]
     |> Sql.executeStatementAsync
 
+// CLEANUP store these in Cloud Storage instead of the DB
 let storeMany
   (canvasID : CanvasID)
   (traceID : AT.TraceID)

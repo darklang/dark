@@ -71,8 +71,6 @@ let createState
       Dictionary.empty ()
 
 
-    // CLEANUP: we should really just store these in memory and then upload the trace
-    // at the very end.
     let tracing =
       { Exe.noTracing RT.Real with
           storeFnResult =
