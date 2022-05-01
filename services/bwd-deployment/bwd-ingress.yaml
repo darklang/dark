@@ -622,16 +622,16 @@ spec:
                 port:
                   number: 80
 
-    # - host: jwalter-teamschedule.builtwithdark.com
-    #   http:
-    #     paths:
-    #       - path: /*
-    #         pathType: ImplementationSpecific
-    #         backend:
-    #           service:
-    #             name: bwdserver-service
-    #             port:
-    #               number: 80
+    - host: jwalter-teamschedule.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
 
     - host: alex.builtwithdark.com
       http:
