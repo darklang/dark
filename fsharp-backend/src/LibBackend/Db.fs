@@ -127,6 +127,9 @@ module Sql =
   let instantWithoutTimeZone (i : NodaTime.Instant) : SqlValue =
     Sql.timestamp (i.toUtcLocalTimeZone().ToDateTimeUnspecified())
 
+  let instantWithTimeZone (i : NodaTime.Instant) : SqlValue =
+    Sql.timestamptz (i.ToDateTimeUtc())
+
 
 
 // Extension methods

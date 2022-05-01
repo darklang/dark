@@ -47,8 +47,8 @@ let libraries : Lazy<Task<RT.Libraries>> =
 
 type TraceResult =
   { tlids : HashSet.T<tlid>
-    functionResults : HashSet.T<TraceFunctionResults.FunctionResultStore>
-    functionArguments : HashSet.T<TraceFunctionArguments.FunctionArgumentStore> }
+    functionResults : Dictionary.T<TraceFunctionResults.FunctionResultStore, NodaTime.Instant>
+    functionArguments : Dictionary.T<TraceFunctionArguments.FunctionArgumentStore, NodaTime.Instant> }
 
 
 let createState
@@ -64,11 +64,11 @@ let createState
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
     HashSet.add tlid touchedTLIDs
 
-    let savedFunctionResult : HashSet.T<TraceFunctionResults.FunctionResultStore> =
-      HashSet.empty ()
+    let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultStore, NodaTime.Instant> =
+      Dictionary.empty ()
 
-    let savedFunctionArguments : HashSet.T<TraceFunctionArguments.FunctionArgumentStore> =
-      HashSet.empty ()
+    let savedFunctionArguments : Dictionary.T<TraceFunctionArguments.FunctionArgumentStore, NodaTime.Instant> =
+      Dictionary.empty ()
 
 
     // CLEANUP: we should really just store these in memory and then upload the trace
@@ -77,9 +77,16 @@ let createState
       { Exe.noTracing RT.Real with
           storeFnResult =
             (fun (tlid, name, id) args result ->
-              HashSet.add (tlid, name, id, args, result) savedFunctionResult)
+              Dictionary.add
+                (tlid, name, id, args, result)
+                (NodaTime.Instant.now ())
+                savedFunctionResult)
           storeFnArguments =
-            (fun tlid args -> HashSet.add (tlid, args) savedFunctionArguments)
+            (fun tlid args ->
+              Dictionary.add
+                (tlid, args)
+                (NodaTime.Instant.now ())
+                savedFunctionArguments)
           traceTLID = traceTLIDFn }
 
     let! libraries = Lazy.force libraries
@@ -146,12 +153,12 @@ let traceResultHook
           TraceFunctionArguments.storeMany
             canvasID
             traceID
-            (HashSet.toList traceResult.functionArguments)
+            (Dictionary.toList traceResult.functionArguments)
         do!
           TraceFunctionResults.storeMany
             canvasID
             traceID
-            (HashSet.toList traceResult.functionResults)
+            (Dictionary.toList traceResult.functionResults)
         // Send to Pusher
         Pusher.pushNewTraceID
           executionID
@@ -171,12 +178,12 @@ module Test =
         TraceFunctionArguments.storeMany
           canvasID
           traceID
-          (HashSet.toList traceResult.functionArguments)
+          (Dictionary.toList traceResult.functionArguments)
       do!
         TraceFunctionResults.storeMany
           canvasID
           traceID
-          (HashSet.toList traceResult.functionResults)
+          (Dictionary.toList traceResult.functionResults)
       return ()
     }
 

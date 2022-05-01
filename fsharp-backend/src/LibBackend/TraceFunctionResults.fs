@@ -56,19 +56,20 @@ let store
 let storeMany
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  (functionResults : List<FunctionResultStore>)
+  (functionResults : List<FunctionResultStore * NodaTime.Instant>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
     Task.FromResult()
   else
     let transactionData =
       functionResults
-      |> List.map (fun (tlid, fnDesc, id, argList, result) ->
+      |> List.map (fun ((tlid, fnDesc, id, argList, result), timestamp) ->
         [ "canvasID", Sql.uuid canvasID
           "traceID", Sql.uuid traceID
           "tlid", Sql.tlid tlid
           "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
           "id", Sql.id id
+          "timestamp", Sql.instantWithTimeZone timestamp
           ("hash",
            argList
            |> DvalReprInternal.hash DvalReprInternal.currentHashVersion
@@ -79,7 +80,7 @@ let storeMany
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
           (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
-          VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)",
+          VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, @timestamp, @value)",
                                      transactionData ]
     |> Task.map ignore<List<int>>
 
