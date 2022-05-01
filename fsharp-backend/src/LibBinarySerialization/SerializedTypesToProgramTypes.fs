@@ -79,6 +79,7 @@ module Expr =
     | ST.EFnCall (id, name, args, ster) ->
       PT.EFnCall(id, FQFnName.toPT name, List.map toPT args, SendToRail.toPT ster)
     | ST.EBinOp (id, ST.FQFnName.Stdlib fn, arg1, arg2, ster) ->
+      // CLEANUP remove Date by making Date not allowed anymore
       assertIn
         "serialized binop should have blank/Date module"
         [ ""; "Date" ]
