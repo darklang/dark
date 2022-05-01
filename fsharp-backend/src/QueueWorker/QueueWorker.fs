@@ -109,7 +109,7 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                   do! EQ.putBack event EQ.Missing
                   return Ok None
                 | Some h ->
-                  let! (state, touchedTLIDs) =
+                  let! (state, traceResult) =
                     RealExecution.createState
                       executionID
                       traceID
@@ -124,11 +124,13 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                     |> PT2RT.Expr.toRT
                     |> Execution.executeHandler state symtable
 
-                  Pusher.pushNewTraceID
-                    executionID
+                  HashSet.add h.tlid traceResult.tlids
+
+                  RealExecution.traceResultHook
                     canvasID
                     traceID
-                    (h.tlid :: HashSet.toList touchedTLIDs)
+                    executionID
+                    traceResult
 
                   let resultType =
                     match result with

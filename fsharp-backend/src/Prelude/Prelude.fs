@@ -771,9 +771,9 @@ module Dictionary =
   let get (k : 'k) (t : T<'k, 'v>) : Option<'v> =
     FSharpPlus.Dictionary.tryGetValue k t
 
-  let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : T<'k, 'v> =
+  let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : unit =
     d[k] <- v
-    d
+    ()
 
   let empty () : T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>()
 

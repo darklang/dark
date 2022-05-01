@@ -19,6 +19,8 @@ module DvalReprInternal = LibExecution.DvalReprInternal
 // External
 // -------------------------
 
+type FunctionArgumentStore = tlid * RT.DvalMap
+
 let store
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
@@ -40,6 +42,33 @@ let store
                            DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj args)
                          )) ]
     |> Sql.executeStatementAsync
+
+let storeMany
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (functionArguments : List<(tlid * RT.DvalMap) * NodaTime.Instant>)
+  : Task<unit> =
+  if canvasID = TraceInputs.throttled then
+    Task.FromResult()
+  else
+    let transactionData =
+      functionArguments
+      |> List.map (fun ((tlid, args), timestamp) ->
+        [ "canvasID", Sql.uuid canvasID
+          "traceID", Sql.uuid traceID
+          "tlid", Sql.tlid tlid
+          "timestamp", Sql.instantWithTimeZone timestamp
+          ("args",
+           Sql.string (DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj args))) ])
+
+    LibService.DBConnection.connect ()
+    |> Sql.executeTransactionAsync [ ("INSERT INTO function_arguments
+             (canvas_id, trace_id, tlid, timestamp, arguments_json)
+           VALUES
+             (@canvasID, @traceID, @tlid, @timestamp, @args)",
+                                      transactionData) ]
+    |> Task.map ignore<List<int>>
+
 
 
 let loadForAnalysis

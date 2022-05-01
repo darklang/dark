@@ -866,11 +866,11 @@ and TraceTLID = tlid -> unit
 
 and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instant>
 
-and StoreFnResult = FunctionRecord -> Dval list -> Dval -> Task<unit>
+and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
 and LoadFnArguments = tlid -> List<DvalMap * NodaTime.Instant>
 
-and StoreFnArguments = tlid -> DvalMap -> Task<unit>
+and StoreFnArguments = tlid -> DvalMap -> unit
 
 /// Every part of a user's program
 and ProgramContext =

@@ -15,12 +15,15 @@ let fireAndForgetTask
   (name : string)
   (f : unit -> Task<'b>)
   : unit =
+  // CLEANUP: this should be a backgroundTask, but that doesn't work due to
+  // https://github.com/dotnet/fsharp/issues/12761
   task {
     use _ =
       Telemetry.child
         "fireAndForget"
         [ "taskName", name; "executionID", executionID ]
     try
+      // Resolve to make sure we catch the exception
       let! (_ : 'b) = f ()
       Telemetry.addTag "success" true
       return ()

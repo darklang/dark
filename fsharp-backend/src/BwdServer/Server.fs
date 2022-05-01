@@ -332,25 +332,17 @@ let runDarkHandler
           let program = Canvas.toProgram canvas
           let expr = PT2RT.Expr.toRT expr
 
-          // Store trace - Do not resolve task, send this into the ether
-          let traceHook (request : RT.Dval) : unit =
-            FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-              TI.storeEvent meta.id traceID ("HTTP", requestPath, method) request)
-
-          // Send to Pusher - Do not resolve task, send this into the ether
-          let notifyHook (touchedTLIDs : List<tlid>) : unit =
-            Pusher.pushNewTraceID executionID meta.id traceID touchedTLIDs
-
           // Do request
           use _ = Telemetry.child "executeHandler" []
           let! result =
             Middleware.executeHandler
+              meta.id
               tlid
               executionID
               traceID
-              traceHook
-              notifyHook
               url
+              requestPath
+              method
               routeVars
               reqHeaders
               reqQuery

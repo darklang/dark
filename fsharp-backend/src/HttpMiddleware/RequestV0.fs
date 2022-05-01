@@ -111,7 +111,7 @@ let url (headers : List<string * string>) (uri : string) =
 
 
 // -------------------------
-// Exported *)
+// Exported
 // -------------------------
 
 // If allow_unparsed is true, we fall back to DNull; this allows us to create a

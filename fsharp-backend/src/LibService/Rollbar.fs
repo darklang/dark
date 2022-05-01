@@ -221,10 +221,7 @@ let createCustom
   // CLEANUP rollbar has a built-in way to do this called "Service links"
   custom["message.honeycomb"] <- honeycombLinkOfExecutionID executionID
   custom["execution_id"] <- string executionID
-  List.iter
-    (fun (k, v) ->
-      Dictionary.add k (v :> obj) custom |> ignore<Dictionary.T<string, obj>>)
-    metadata
+  List.iter (fun (k, v) -> Dictionary.add k (v :> obj) custom) metadata
   custom
 
 // -------------------------------
