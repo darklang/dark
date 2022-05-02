@@ -9,6 +9,8 @@ k8s:
       # - darkcustomdomain-nginx-network-policy.yaml
       # - cert-manager-serviceaccount.yaml
       # - cert-manager-clusterrolebinding.yaml
+      # Does not need to be a configmap as we're just making it a regular yaml
+      # - darkcustomdomain-nginx-configmap.yaml
       # This enables just enough to allow the builtwithdark certs needed for bwdserver-tls-ingress
       - cert-manager-issuer.yaml
       - cert-manager-wildcard-issuer.yaml

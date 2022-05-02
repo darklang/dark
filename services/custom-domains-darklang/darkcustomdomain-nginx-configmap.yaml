@@ -1,0 +1,30 @@
+# Configuration for nginx-ingress-controller.
+#
+# We mostly use this to make the nginx controller behave the same as the gce load
+# balancer.
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: darkcustomdomain-nginx-configmap
+  namespace: darklang
+data:
+  # Allow the "server" header
+  server-tokens: "true" # Allow the "server" response header
+  allow-backend-server-header: "true" # Use the backend "server" response header
+
+  # Remove extra headers
+  generate-request-id: "false" # don't add a request-id header
+
+  # FSTODO: remove the following headers, to match gce-ingress
+  # x-scheme": "https"
+  # x-real-ip": "69.204.249.142",
+  # x-forwarded-host": "dark-cm-v120.paulbiggar.com",
+  # x-forwarded-port": "443",
+  # x-forwarded-scheme": "443",
+
+  # FSTODO: add the following headers, to match gce-ingress
+  # "via: ",
+
+  # FSTODO: to match gce, add the IP address at the start of the x-forwarded-for
+  # headers, like so
+  # "x-forwarded-for": "69.xxx.xxx.xxx, 35.227.208.117",

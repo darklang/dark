@@ -76,3 +76,4 @@ spec:
             - /nginx-ingress-controller
             - --publish-service=darklang/darkcustomdomain-nginx-service
             - --watch-namespace=darklang
+            - --configmap=darklang/darkcustomdomain-nginx-configmap
