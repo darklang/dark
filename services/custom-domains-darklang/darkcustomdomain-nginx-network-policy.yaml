@@ -1,0 +1,39 @@
+# Network policy for darkcustomdomain-nginx-ingress-controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: darkcustomdomain-nginx-network-policy
+  namespace: darklang
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: darkcustomdomain-nginx-ingress-controller
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 10254
+  # https://github.com/kubernetes/ingress-nginx/issues/7132#issuecomment-912001388
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.1/8
+    - ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443

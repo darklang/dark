@@ -21,5 +21,5 @@ spec:
       targetPort: 443
   selector:
     # Selects nginx-ingress-controller pods
-    app.kubernetes.io/name: darkcustomdomain-nginx-controller
+    app.kubernetes.io/name: darkcustomdomain-nginx-ingress-controller
     app.kubernetes.io/part-of: custom-domains

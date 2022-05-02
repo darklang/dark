@@ -5,7 +5,8 @@ k8s:
       # FSTODO: we haven't started the darkcustomdomain migration to F# and the
       # darklang namesace, so these haven't been enabled
       # - darkcustomdomain-nginx-service.yaml
-      # - darkcustomdomain-nginx-deployment.yaml
+      # - darkcustomdomain-nginx-ingress-controller.yaml
+      # - darkcustomdomain-nginx-network-policy.yaml
       # - cert-manager-serviceaccount.yaml
       # - cert-manager-clusterrolebinding.yaml
       # This enables just enough to allow the builtwithdark certs needed for bwdserver-tls-ingress
