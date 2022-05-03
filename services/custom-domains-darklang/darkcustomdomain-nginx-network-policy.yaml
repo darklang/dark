@@ -19,21 +19,26 @@ spec:
           port: 443
         - protocol: TCP
           port: 10254
-  # https://github.com/kubernetes/ingress-nginx/issues/7132#issuecomment-912001388
   egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              name: kube-system
-    - to:
-        - ipBlock:
-            cidr: 10.0.0.1/8
+    # Proxy to BwdServer
     - ports:
+        - protocol: TCP
+          port: 11001
+      to:
+        - podSelector:
+            matchLabels:
+              app: bwdserver-app
+    # It needs access to the k8s apiserver
+    - ports:
+        - protocol: TCP
+          port: 443
+    # DNS
+    - to:
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
         - protocol: TCP
           port: 53
         - protocol: UDP
           port: 53
-        - protocol: TCP
-          port: 80
-        - protocol: TCP
-          port: 443
