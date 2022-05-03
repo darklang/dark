@@ -787,6 +787,27 @@ spec:
                 port:
                   number: 80
 
+    - host: dabblefox-shelf.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
+
+    - host: xumx-keyreply.builtwithdark.com
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bwdserver-service
+                port:
+                  number: 80
 
   tls:
     - secretName: builtwithdark.com-tls
