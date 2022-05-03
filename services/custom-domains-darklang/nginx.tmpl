@@ -2,12 +2,12 @@
 #
 # This file is the nginx-ingress-controller's template file. We were not able
 # to do everything we wanted via configuration options, so we modify the
-# template instead.
+# template instead. Any changes are wrapped with DARKLANGCHANGES.
 #
 # Docs on using this file: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/custom-template/
 #
 # This file was created by running:
-# kubectl exec -n darklang deploy/darkcustomdomain-nginx-ingress-controller cat /etc/nginx/template/nginx.tmpl 
+# kubectl exec -n darklang deploy/darkcustomdomain-nginx-ingress-controller cat /etc/nginx/template/nginx.tmpl
 
 {{ $all := . }}
 {{ $servers := .Servers }}
@@ -789,7 +789,7 @@ stream {
     access_log {{ or $cfg.StreamAccessLogPath $cfg.AccessLogPath }} log_stream {{ $cfg.AccessLogParams }};
     {{ end }}
 
-   
+
     error_log  {{ $cfg.ErrorLogPath }} {{ $cfg.ErrorLogLevel }};
     {{ if $cfg.EnableRealIp }}
     {{ range $trusted_ip := $cfg.ProxyRealIPCIDR }}
@@ -958,7 +958,7 @@ stream {
         set $proxy_upstream_name "-";
 
         {{ if not ( empty $server.CertificateAuth.MatchCN ) }}
-        {{ if gt (len $server.CertificateAuth.MatchCN) 0 }}  
+        {{ if gt (len $server.CertificateAuth.MatchCN) 0 }}
         if ( $ssl_client_s_dn !~ {{ $server.CertificateAuth.MatchCN }} ) {
             return 403 "client certificate unauthorized";
         }
@@ -1357,20 +1357,20 @@ stream {
             {{ end }}
 
             {{ $proxySetHeader }} X-Request-ID           $req_id;
-            {{ $proxySetHeader }} X-Real-IP              $remote_addr;
+            #DARKCHANGES {{ $proxySetHeader }} X-Real-IP              $remote_addr;
             {{ if and $all.Cfg.UseForwardedHeaders $all.Cfg.ComputeFullForwardedFor }}
             {{ $proxySetHeader }} X-Forwarded-For        $full_x_forwarded_for;
             {{ else }}
             {{ $proxySetHeader }} X-Forwarded-For        $remote_addr;
             {{ end }}
-            {{ $proxySetHeader }} X-Forwarded-Host       $best_http_host;
-            {{ $proxySetHeader }} X-Forwarded-Port       $pass_port;
+            #DARKCHANGES {{ $proxySetHeader }} X-Forwarded-Host       $best_http_host;
+            #DARKCHANGES {{ $proxySetHeader }} X-Forwarded-Port       $pass_port;
             {{ $proxySetHeader }} X-Forwarded-Proto      $pass_access_scheme;
-            {{ $proxySetHeader }} X-Forwarded-Scheme     $pass_access_scheme;
+            #DARKCHANGES {{ $proxySetHeader }} X-Forwarded-Scheme     $pass_access_scheme;
             {{ if $all.Cfg.ProxyAddOriginalURIHeader }}
             {{ $proxySetHeader }} X-Original-URI         $request_uri;
             {{ end }}
-            {{ $proxySetHeader }} X-Scheme               $pass_access_scheme;
+            #DARKCHANGES {{ $proxySetHeader }} X-Scheme               $pass_access_scheme;
 
             # Pass the original X-Forwarded-For
             {{ $proxySetHeader }} X-Original-Forwarded-For {{ buildForwardedFor $all.Cfg.ForwardedForHeader }};
