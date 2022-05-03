@@ -15,8 +15,8 @@ k8s:
         text-file: nginx.tmpl
 
     # You don't need to apply for the ingress-controller configmap changes, but you do for others.
-    # custom-post-apply:
-    #  - kubectl rollout restart --namespace darklang deploy/darkcustomdomain-nginx-ingress-controller
+    custom-post-apply:
+      - kubectl rollout restart --namespace darklang deploy/darkcustomdomain-nginx-ingress-controller
 
 # Note that services/custom-domains-darklang/darkcustomdomain-ingress.yaml is NOT checked in.
 # This ingress is `kubectl patch`'d to add new custom domains; `kubectl apply`ing the
