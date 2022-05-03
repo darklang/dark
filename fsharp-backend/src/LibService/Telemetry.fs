@@ -333,9 +333,8 @@ type TraceDBQueries =
 let mutable tracerProvider : TracerProvider = null
 
 /// Flush all Telemetry. Used on shutdown
-let flush() : unit =
-  if tracerProvider <> null
-  then tracerProvider.ForceFlush() |> ignore<bool>
+let flush () : unit =
+  if tracerProvider <> null then tracerProvider.ForceFlush() |> ignore<bool>
 
 
 
@@ -412,5 +411,6 @@ module AspNet =
     : IServiceCollection =
     services.AddOpenTelemetryTracing (fun builder ->
       // TODO: save tracerProvider to flush when it's finished
-      addTelemetry serviceName traceDBQueries builder |> ignore<TracerProviderBuilder>
+      addTelemetry serviceName traceDBQueries builder
+      |> ignore<TracerProviderBuilder>
       ())
