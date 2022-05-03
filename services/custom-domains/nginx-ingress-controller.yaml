@@ -74,20 +74,6 @@ spec:
             - --publish-service=default/nginx-ingress-lb
             - --watch-namespace=default
 ---
-kind: ClusterRoleBinding
-# kubernetes versions before 1.8.0 should use rbac.authorization.k8s.io/v1beta1
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: cert-manager
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-  - kind: ServiceAccount
-    name: cert-manager
-    namespace: default
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
