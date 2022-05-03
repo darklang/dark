@@ -22,4 +22,4 @@ spec:
     solvers:
       - http01:
           ingress:
-            name: darkcustomdomain-l4-ingress
+            name: darkcustomdomain-tls-ingress

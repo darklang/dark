@@ -29,9 +29,9 @@ fi
 
 DOMAIN=$1
 
-BACKUPFILE="darkcustomdomain-l4-ingress.backup.$(date -u +"%FT%H%MZ").json"
-kubectl get ingress darkcustomdomain-l4-ingress -o json | jq . > "${BACKUPFILE}"
-echo -e "Saving backup of darkcustomdomain-l4-ingress to ${BACKUPFILE}. If " \
+BACKUPFILE="darkcustomdomain-tls-ingress.backup.$(date -u +"%FT%H%MZ").json"
+kubectl get -n darklang ingress darkcustomdomain-tls-ingress -o json | jq . > "${BACKUPFILE}"
+echo -e "Saving backup of darkcustomdomain-tls-ingress to ${BACKUPFILE}. If " \
          "something goes wrong, you can roll it back with: \n" \
          "  kubectl apply -f ${BACKUPFILE}"
 

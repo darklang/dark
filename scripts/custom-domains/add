@@ -15,7 +15,7 @@ in place, and extract the desired canvas name from it.
 
 Once that's done, we:
 - add a record to the db that webserver.ml will use to route domain->canvas
-- add annotations (rules.hosts[] and tls[]) to the darkcustomdomain-l4-ingress,
+- add annotations (rules.hosts[] and tls[]) to the darkcustomdomain-tls-ingress,
   that cert-manager notices and sets up a cert for (talks to Let's Encrypt and
 stores the provisioned cert in a k8s secret)
 
