@@ -79,13 +79,13 @@ spec:
             - --configmap=darklang/darkcustomdomain-nginx-configmap
           # Add Dark's custom template
           volumeMounts:
-            - mountPath: /etc/nginx/template/nginx.tmpl
+            - mountPath: /etc/nginx/template
               name: nginx-template-volume
               readOnly: true
       volumes:
         - name: nginx-template-volume
           configMap:
-            name: nginx-template
+            name: darkcustomdomain-nginx-template
             items:
               - key: nginx.tmpl
                 path: nginx.tmpl
