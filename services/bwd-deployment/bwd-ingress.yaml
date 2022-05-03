@@ -13,29 +13,7 @@ spec:
       port:
         number: 80
   rules:
-    # Currently 400-ing
-    - host: listo-shopify.builtwithdark.com
-      http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: bwd-nodeport
-                port:
-                  number: 80
-    # This user asked to go last
-    - host: nomnomdata.builtwithdark.com
-      http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: bwd-nodeport
-                port:
-                  number: 80
-    # Everyone else to the new service. Note that we do this here rather than
+    # Everyone is now on the new service. Note that we do this here rather than
     # changing the defaultBackend as when we changed over the editor/ApiServer using
     # defaultBackend, something went wrong and it wasn't clear what. We'll be
     # removing this shortly once we switch DNS over anyway.
