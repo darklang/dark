@@ -15,16 +15,12 @@ data:
   # Remove extra headers
   generate-request-id: "false" # don't add a request-id header
 
-  # FSTODO: remove the following headers, to match gce-ingress
-  # x-scheme": "https"
-  # x-real-ip": "69.204.249.142",
-  # x-forwarded-host": "dark-cm-v120.paulbiggar.com",
-  # x-forwarded-port": "443",
-  # x-forwarded-scheme": "443",
+  # CLEANUP We'd like to match the gce-ingress headers, for which we'd want to prevent
+  # nginx from setting x-scheme, x-real-ip, x-forwarded-host, x-forwarded-port, x-forwarded-scheme
+  # Sadly, they can't be removed in any way I tried, include lua plugin,
+  # location-snippet with proxy_set_header, the proxySetHeaders setting, and
+  # more_clear_headers. You can see why lua and some others don't work here:
+  # https://github.com/kubernetes/ingress-nginx/blob/aa813972cbc290e44e57de6718a6ca910a7b5b25/rootfs/etc/nginx/template/nginx.tmpl#L1349
 
-  # FSTODO: add the following headers, to match gce-ingress
-  # "via: ",
-
-  # FSTODO: to match gce, add the IP address at the start of the x-forwarded-for
-  # headers, like so
-  # "x-forwarded-for": "69.xxx.xxx.xxx, 35.227.208.117",
+  location-snippet: |
+    proxy_set_header "via" "nginx";

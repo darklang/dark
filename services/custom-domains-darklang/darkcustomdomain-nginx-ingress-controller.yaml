@@ -77,3 +77,15 @@ spec:
             - --publish-service=darklang/darkcustomdomain-nginx-service
             - --watch-namespace=darklang
             - --configmap=darklang/darkcustomdomain-nginx-configmap
+          # Add Dark's custom template
+          volumeMounts:
+            - mountPath: /etc/nginx/template/nginx.tmpl
+              name: nginx-template-volume
+              readOnly: true
+      volumes:
+        - name: nginx-template-volume
+          configMap:
+            name: nginx-template
+            items:
+              - key: nginx.tmpl
+                path: nginx.tmpl
