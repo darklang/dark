@@ -93,7 +93,7 @@ let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
 // --------------------
 // Launchdarkly
 // --------------------
-let launchDarklyApiKey = string "DARK_CONFIG_LAUNCHDARKLY_API_KEY"
+let launchDarklyApiKey = stringOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY"
 
 // --------------------
 // db
