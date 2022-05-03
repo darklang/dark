@@ -50,6 +50,7 @@ let main _ : int =
       (run ()).Result
     else
       Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []
+    LibService.Init.flush name
     0
   with
   | e -> Rollbar.lastDitchBlockAndPage "Error starting cronchecker" e

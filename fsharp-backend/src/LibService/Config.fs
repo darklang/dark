@@ -67,6 +67,9 @@ let honeycombApiKey = string "DARK_CONFIG_HONEYCOMB_API_KEY"
 let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET_NAME"
 let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 
+// --------------------
+// ports
+// --------------------
 // Don't use DARK_CONFIG_HEALTH_CHECK_PORT as that's part of the ocaml service
 let apiServerPort = int "DARK_CONFIG_APISERVER_BACKEND_PORT"
 let apiServerNginxPort = int "DARK_CONFIG_APISERVER_NGINX_PORT"
@@ -87,6 +90,10 @@ let legacySerializationServerHost =
 let croncheckerKubernetesPort = int "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT"
 let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
 
+// --------------------
+// Launchdarkly
+// --------------------
+let launchDarklyApiKey = string "DARK_CONFIG_LAUNCHDARKLY_API_KEY"
 
 // --------------------
 // db

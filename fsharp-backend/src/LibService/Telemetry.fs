@@ -330,6 +330,15 @@ type TraceDBQueries =
   | TraceDBQueries
   | DontTraceDBQueries
 
+let mutable tracerProvider : TracerProvider = null
+
+/// Flush all Telemetry. Used on shutdown
+let flush() : unit =
+  if tracerProvider <> null
+  then tracerProvider.ForceFlush() |> ignore<bool>
+
+
+
 let addTelemetry
   (serviceName : string)
   (traceDBQueries : TraceDBQueries)
@@ -381,10 +390,11 @@ module Console =
   /// For webservers, tracing is added by ASP.NET middlewares.
   /// For non-webservers, we also need to add tracing. This does that.
   let loadTelemetry (serviceName : string) (traceDBQueries : TraceDBQueries) : unit =
-    Sdk.CreateTracerProviderBuilder()
-    |> addTelemetry serviceName traceDBQueries
-    |> fun tp -> tp.Build()
-    |> ignore<TracerProvider>
+    let tp =
+      Sdk.CreateTracerProviderBuilder()
+      |> addTelemetry serviceName traceDBQueries
+      |> fun tp -> tp.Build()
+    tracerProvider <- tp
 
     // Create a default root span, to ensure that one exists. This span will not be
     // cleaned up, and therefor it will not be printed in real-time (and you won't be
@@ -401,5 +411,6 @@ module AspNet =
     (services : IServiceCollection)
     : IServiceCollection =
     services.AddOpenTelemetryTracing (fun builder ->
-      addTelemetry serviceName traceDBQueries builder
-      |> ignore<TracerProviderBuilder>)
+      // TODO: save tracerProvider to flush when it's finished
+      addTelemetry serviceName traceDBQueries builder |> ignore<TracerProviderBuilder>
+      ())

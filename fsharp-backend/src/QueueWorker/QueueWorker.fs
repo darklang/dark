@@ -221,6 +221,7 @@ let main _ : int =
     else
       Telemetry.createRoot "Pointing at prodclone; will not dequeue"
       |> ignore<Telemetry.Span.T>
+    LibService.Init.flush name
     0
 
   with
