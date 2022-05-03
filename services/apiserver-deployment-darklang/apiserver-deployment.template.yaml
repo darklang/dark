@@ -128,6 +128,12 @@ spec:
                 secretKeyRef:
                   name: rollbar-account-credentials
                   key: post_token
+            # honeycomb
+            - name: DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: launchdarkly-account-credentials
+                  key: key
             # pusher
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:

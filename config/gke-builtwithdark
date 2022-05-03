@@ -82,6 +82,10 @@ DARK_CONFIG_TELEMETRY_EXPORTER=honeycomb
 DARK_CONFIG_HONEYCOMB_DATASET_NAME=kubernetes-bwd-ocaml
 DARK_CONFIG_HONEYCOMB_API_ENDPOINT=https://api.honeycomb.io:443
 
+# Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
+#DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=k8s
+DARK_CONFIG_LAUNCHDARKLY_CLIENT_SIDE_ID=627162f9b2bab01530ddc355
+
 # DB
 DARK_CONFIG_DB_DBNAME=postgres
 #DARK_CONFIG_DB_HOST=k8s
