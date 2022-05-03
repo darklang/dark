@@ -11,8 +11,8 @@ anything has gone wrong.
 
 The three places are:
 - the custom_domains table in the DB
-- the .spec.tls array in darkcustomdomain-l4-ingress
-- the .spec.rules in darkcustomdomain-l4-ingress
+- the .spec.tls array in darklang/darkcustomdomain-tls-ingress
+- the .spec.rules in darklang/darkcustomdomain-tls-ingress
 
 For more docs, see docs/custom-domains.md
 EOF
@@ -32,7 +32,7 @@ echo "\\copy (${select_query}) TO ${tmpfile}" \
     | ./scripts/production/gcp-psql
 DBHOSTS=$(sort ${tmpfile})
 
-CERTMANAGER_JSON=$(kubectl get ingress darkcustomdomain-l4-ingress -o json)
+CERTMANAGER_JSON=$(kubectl get -n darklang ingress darkcustomdomain-tls-ingress -o json)
 TLSES=$(printf "%s" "${CERTMANAGER_JSON}" \
   | jq -r '.spec.tls | map ( .hosts[0] ) | sort | .[] ' \
   | grep -v ops-placeholder.darkcustomdomain.com \

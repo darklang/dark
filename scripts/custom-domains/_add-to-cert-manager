@@ -72,7 +72,7 @@ PATCH
 # control ("delete the nth entry in the spec.tls array" risks race conditions).
 #
 # So we may as well do it the easy way:
-# kubectl get ingress darkcustomdomain-l4-ingress -o yaml > tmp.yaml
+# kubectl get ingress -n darklang darkcustomdomain-tls-ingress -o yaml > tmp.yaml
 # Edit tmp.yaml to remove the duplicate objects from both spec.rules and
 # spec.tls
 # kubectl diff -f tmp.yaml # check that the diff is what you expect
@@ -81,11 +81,11 @@ PATCH
 # Note: if changes have been made between `kubectl get` and `kubectl apply`, you
 # WILL LOSE THOSE CHANGES. So exercise caution. `kubectl diff` helps reduce the
 # window of exposure but does not eliminate it.
-if ( kubectl get ingress darkcustomdomain-l4-ingress -o json | jq ".spec.tls[] | select(.hosts[0] == \"${DOMAIN}\")" | grep . ); then
+if ( kubectl get ingress -n darklang darkcustomdomain-tls-ingress -o json | jq ".spec.tls[] | select(.hosts[0] == \"${DOMAIN}\")" | grep . ); then
     echo "Can't continue - you already have a TLS cert for this domain."
     exit 1
 fi
 
-kubectl patch ingress darkcustomdomain-l4-ingress --type=json -p "${PATCH}"
+kubectl patch ingress -n darklang darkcustomdomain-tls-ingress --type=json -p "${PATCH}"
 
 echo "Done adding cert. (Run ./scripts/custom-domains/_check-cert-added to check on it)"

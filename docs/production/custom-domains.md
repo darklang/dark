@@ -27,13 +27,13 @@
 
 Deleting custom domains is inherently lossy cause k8s sucks.
 
-Domains are stored in three places: in our custom_domains table in the main DB,
-and also in the `darkcustomdomain-l4-ingress` in `.spec.tls[]` and also in
-`.spec.rules[]`. The latter is to enable SSL, the former is to connect the
-request to the appropriate canvas.
+Domains are stored in three places: in our custom_domains table in the main DB, and
+also in the `darklang/darkcustomdomain-tls-ingress` in `.spec.tls[]` and also in
+`.spec.rules[]`. The latter is to enable SSL, the former is to connect the request to
+the appropriate canvas.
 
 Removing from the DB is straightforward with SQL. Removing from
-`darkcustomdomain-l4-ingress` is not. They are lists, and there is no safe way
+`darkcustomdomain-tls-ingress` is not. They are lists, and there is no safe way
 to remove a single entry from a list in k8s (it does not have a "remove the
 array element with this value" command).
 
@@ -56,11 +56,10 @@ instructions](https://cert-manager.io/docs/installation/kubernetes/), see
 "installing with regular manifests" since we don't use Helm. The [cert-manager
 Concepts doc](https://cert-manager.io/docs/concepts/) may also be useful.
 
-tl;dr: adding a tls host to the `darkcustomdomain-l4-ingress` resource causes
+tl;dr: adding a tls host to the `darkcustomdomain-tls-ingress` resource causes
 Cert Manager to request a cert from Let's Encrypt and launch a pod to respond to
 [Let's Encrypt/ACME's HTTP-01 challenge](https://letsencrypt.org/docs/challenge-types/).
 
 If you're interested in `darkcustomdomain-ingress.yaml`,
-`nginx-ingress-controller.yaml`, or `darkcustomdomain-ip-svc.yaml`, those are
-derived from the [kubernetes/ingress-nginx static-ip
-example](https://github.com/kubernetes/ingress-nginx/tree/master/docs/examples/static-ip).
+`darkcustomdomain-nginx-ingress-controller.yaml`, or `darkcustomdomain-service.yaml`,
+those are derived from the [kubernetes/ingress-nginx static-ip example](https://github.com/kubernetes/ingress-nginx/tree/master/docs/examples/static-ip).

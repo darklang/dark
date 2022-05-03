@@ -14,3 +14,6 @@ subjects:
   - kind: ServiceAccount
     name: cert-manager
     namespace: darklang
+  - kind: ServiceAccount
+    name: cert-manager
+    namespace: default

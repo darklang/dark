@@ -41,5 +41,5 @@ else
     echo "Cert is still not ready. You should check the events at"
     echo "kubectl describe certificate ${DOMAIN}-tls"
     echo "or possibly on the ingress"
-    echo "kubectl describe ingress darkcustomdomain-l4-ingress"
+    echo "kubectl describe ingress -n darklang darkcustomdomain-tls-ingress"
 fi
