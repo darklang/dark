@@ -19,6 +19,7 @@ module Pusher = LibBackend.Pusher
 module RealExecution = LibRealExecution.RealExecution
 module Canvas = LibBackend.Canvas
 
+module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
@@ -169,9 +170,9 @@ let run () : Task<unit> =
     while not shutdown.Value do
       try
         use _span = Telemetry.createRoot "QueueWorker.run"
-        // Comment out just in case for now
-        // let! result = dequeueAndProcess ()
-        let result = Ok None
+        let allowedCount = LD.intVar "workers-per-queueworker" 0
+        let! result =
+          if allowedCount > 0 then dequeueAndProcess () else Task.FromResult(Ok None)
         match result with
         | Ok None -> do! Task.Delay 1000
         | Ok (Some _) -> return ()
@@ -215,8 +216,7 @@ let main _ : int =
     LibService.Kubernetes.runKubernetesServer name healthChecks port shutdownCallback
     |> ignore<Task>
 
-    if false then
-      // LibBackend.Config.triggerQueueWorkers then
+    if LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else
       Telemetry.createRoot "Pointing at prodclone; will not dequeue"
