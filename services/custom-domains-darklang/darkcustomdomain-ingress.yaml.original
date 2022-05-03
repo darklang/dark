@@ -12,14 +12,14 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: darkcustomdomain-l4-ingress
+  name: darkcustomdomain-tls-ingress
   namespace: darklang
   annotations:
     # We use an nginx ingress as GCE ingresses are only able to do a maximum of
     # 10 certs while nginx can do infinite (though after 5000 it will use a
     # cache and fetch uncached certs from secrets).
     kubernetes.io/ingress.class: nginx
-    kubernetes.io/ingress.global-static-ip-name: darkcustomdomain-ip
+    kubernetes.io/ingress.global-static-ip-name: darkcustomdomain-ip2
     # I believe this is necessary to allow ACME to work, but we'll see!
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/issuer: letsencrypt-prod
@@ -32,7 +32,7 @@ spec:
         - 'ops-placeholder.darkcustomdomain.com'
   defaultBackend:
     service:
-      name: bwd-nodeport
+      name: bwdserver-service
       port:
         number: 80
   rules:
@@ -45,6 +45,6 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: bwd-nodeport
+                name: bwdserver-service
                 port:
                   number: 80
