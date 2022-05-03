@@ -72,6 +72,7 @@ spec:
           args:
             - /nginx-ingress-controller
             - --publish-service=default/nginx-ingress-lb
+            - --watch-namespace=default
 ---
 kind: ClusterRoleBinding
 # kubernetes versions before 1.8.0 should use rbac.authorization.k8s.io/v1beta1
