@@ -28,6 +28,14 @@ spec:
         - podSelector:
             matchLabels:
               app: bwdserver-app
+    # http-solver pods created by cert-manager
+    - ports:
+        - protocol: TCP
+          port: 8089
+      to:
+        - podSelector:
+            matchLabels:
+              acme.cert-manager.io/http01-solver: "true"
     # It needs access to the k8s apiserver
     - ports:
         - protocol: TCP
