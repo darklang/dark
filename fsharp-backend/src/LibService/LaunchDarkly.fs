@@ -35,4 +35,10 @@ let client =
 let intVar (name : string) (default_ : int) : int =
   client.Force().IntVariation(name, null, default_)
 
+/// [someID] here doesn't have to be a darklang account id or username or whatever.
+/// We can just use whateever we want to turn a knob on, such as for example
+/// canvasname.
+let boolUserVar (name : string) (someID : string) (default_ : bool) : bool =
+  client.Force().BoolVariation(name, User.WithKey(someID), default_)
+
 let flush () : unit = client.Force().Dispose()
