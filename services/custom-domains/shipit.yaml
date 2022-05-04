@@ -2,11 +2,5 @@ k8s:
   namespace: default
   manually-deployed:
     configs:
-      - darkcustomdomain-ip-svc.yaml
-      - nginx-ingress-controller.yaml
-      - cert-manager-issuer.yaml
+      # CLEANUP Keeping this here until default/bwd-ingress
       - cert-manager-wildcard-issuer.yaml
-
-# Note that services/custom-domains/darkcustomdomain-ingress.yaml is NOT checked in.
-# This ingress is `kubectl patch`'d to add new custom domains; `kubectl apply`ing the
-# file over that would lose us those custom domains, so we don't want to do that.
