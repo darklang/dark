@@ -23,7 +23,7 @@ check_k8s_files() {
   xargs \
     kubeconform \
       -strict \
-      -kubernetes-version 1.20.12 \
+      -kubernetes-version 1.20.15 \
       -skip CustomResourceDefinition \
       -schema-location default \
       -schema-location 'scripts/linting/crd-schemas/{{ .ResourceKind }}_{{ .ResourceAPIVersion }}.json'
