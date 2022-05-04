@@ -33,7 +33,7 @@ PATCH=$(cat <<-PATCH
           {
             "backend": {
               "service": {
-                "name": "bwd-nodeport",
+                "name": "bwdserver-service",
                 "port": {
                   "number": 80
                 }
