@@ -14,9 +14,14 @@ spec:
     matchLabels:
       acme.cert-manager.io/http01-solver: "true"
   policyTypes:
-    - Egress
     - Ingress
+  # Only requests coming in via the nginx ingress
   ingress:
-    - {}
-  egress:
-    - {}
+    - ports:
+        - protocol: TCP
+          port: 8089
+      from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: darkcustomdomain-nginx-ingress-controller
+
