@@ -10,11 +10,6 @@ function check {
   else
     echo "not kubernetes so no kubeconform: $1"
   fi
-  # Too big to fuck with right now
-  if [[ "$1" != *"/cert-manager.yaml" ]]; then
-    echo "yamllint $1"
-    yamllint "$1"
-  fi
 }
 
 all_k8s_files() {
@@ -36,7 +31,6 @@ check_k8s_files() {
 
 all_yaml_files() {
   find ./* -type f \
-    -path "./services/cert-manager/cert-manager.yaml" -prune \
     -o \( -name "*.yml" \
     -o -name "*.yaml" \) -print \
     -o -path ".git" -prune \
