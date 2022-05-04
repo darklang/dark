@@ -25,7 +25,7 @@ beyond that, something is probably wrong, check events in kubernetes for the
 certificate resource".
 # shellcheck disable=SC2034
 for i in {1..12}; do
-    cert_ready=$(kubectl get certs | awk "\$1 == \"${DOMAIN}-tls\" { print \$2 }")
+    cert_ready=$(kubectl get certs -n darklang | awk "\$1 == \"${DOMAIN}-tls\" { print \$2 }")
     if [[ "$cert_ready" == "True" ]]; then
         break;
     else
@@ -39,7 +39,7 @@ if [[ "$cert_ready" == "True" ]]; then
     echo "Cert is ready!"
 else
     echo "Cert is still not ready. You should check the events at"
-    echo "kubectl describe certificate ${DOMAIN}-tls"
+    echo "kubectl describe certificate -n darklang ${DOMAIN}-tls"
     echo "or possibly on the ingress"
     echo "kubectl describe ingress -n darklang darkcustomdomain-tls-ingress"
 fi
