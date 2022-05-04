@@ -1,5 +1,0 @@
-k8s:
-  namespace: cert-manager
-  manually-deployed:
-    configs:
-      - cert-manager.yaml
