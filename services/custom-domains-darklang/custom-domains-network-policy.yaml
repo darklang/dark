@@ -24,4 +24,3 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: darkcustomdomain-nginx-ingress-controller
-

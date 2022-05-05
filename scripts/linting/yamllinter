@@ -31,7 +31,7 @@ check_k8s_files() {
 
 all_yaml_files() {
   find ./* -type f \
-    -o \( -name "*.yml" \
+    \( -name "*.yml" \
     -o -name "*.yaml" \) -print \
     -o -path ".git" -prune \
     -o -path "_build" -prune \
