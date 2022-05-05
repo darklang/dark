@@ -1,6 +1,0 @@
-k8s:
-  namespace: default
-  manually-deployed:
-    configs:
-      # CLEANUP Keeping this here until default/bwd-ingress
-      - cert-manager-wildcard-issuer.yaml
