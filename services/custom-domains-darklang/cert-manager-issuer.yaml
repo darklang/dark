@@ -1,7 +1,7 @@
 # See doc at https://cert-manager.io/docs/configuration/acme/; ACME is the Let's
 # Encrypt client protocol
 # See docs/custom-domains.md for more detail.
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: letsencrypt-prod
@@ -15,10 +15,10 @@ spec:
     server: https://acme-v02.api.letsencrypt.org/directory
     # For staging:
     # server: https://acme-staging-v02.api.letsencrypt.org/directory
+    preferredChain: ""
     privateKeySecretRef:
       # Secret resource that will be used to store the account's private key.
       name: letsencrypt-prod
-    # Add a single challenge solver, HTTP01 using nginx
     solvers:
       - http01:
           ingress:

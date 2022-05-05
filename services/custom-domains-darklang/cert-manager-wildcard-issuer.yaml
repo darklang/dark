@@ -20,6 +20,7 @@ spec:
     # Let's Encrypt uses this to contact you about expiring
     # certificates, and issues related to your account.
     email: ops@darklang.com
+    preferredChain: ""
     server: https://acme-v02.api.letsencrypt.org/directory
     # For staging:
     # server: https://acme-staging-v02.api.letsencrypt.org/directory

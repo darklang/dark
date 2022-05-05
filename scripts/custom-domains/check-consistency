@@ -42,7 +42,7 @@ RULES=$(printf "%s" "${CERTMANAGER_JSON}" \
   | grep -v ops-placeholder.darkcustomdomain.com \
   | sort)
 # the letsencrypt-prod filter skips the wildcards which are not part of custom-domains
-CERTS=$(kubectl get certs -o json \
+CERTS=$(kubectl get certs -n darklang -o json \
   | jq -r '.items | map (select ( .spec.issuerRef.name == "letsencrypt-prod" )) | map ( .spec.dnsNames[0] ) | sort | .[] ' \
   | grep -v ops-placeholder.darkcustomdomain.com \
   | sort)
