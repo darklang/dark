@@ -12,7 +12,7 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
+      maxUnavailable: 0
 
   selector:
     matchLabels:
@@ -79,10 +79,10 @@ spec:
           resources:
             requests:
               memory: "2000Mi"
-              cpu: "3"
+              cpu: "2"
             limits:
               memory: "3000Mi"
-              cpu: "4"
+              cpu: "3"
 
           # ---------------------
           # Lifecycles probes
