@@ -8,7 +8,7 @@ metadata:
 
 spec:
   revisionHistoryLimit: 10
-  replicas: 2 # FSTODO
+  replicas: 1 # FSTODO
   strategy:
     type: RollingUpdate
     rollingUpdate:
