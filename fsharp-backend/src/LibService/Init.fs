@@ -11,3 +11,7 @@ let init (serviceName : string) : unit =
   Telemetry.init serviceName
 
   print $" Inited LibService in {serviceName}"
+
+let flush (serviceName : string) : unit =
+  LaunchDarkly.flush ()
+  Telemetry.flush ()

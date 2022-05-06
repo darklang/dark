@@ -193,15 +193,17 @@ let run (executionID : ExecutionID) (options : Options) : Task<int> =
 
 [<EntryPoint>]
 let main (args : string []) : int =
+  let name = "ExecHost"
   try
-    let name = "ExecHost"
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     let options = parse args
     if usesDB options then
       (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let executionID = Telemetry.executionID ()
-    (run executionID options).Result
+    let result = (run executionID options).Result
+    LibService.Init.flush name
+    result
   with
   | e ->
     // Don't reraise or report as ExecHost is only run interactively
@@ -212,5 +214,5 @@ let main (args : string []) : int =
       let inner = e.InnerException
       if inner <> null then printException inner
     printException e
-
+    LibService.Init.flush name
     1

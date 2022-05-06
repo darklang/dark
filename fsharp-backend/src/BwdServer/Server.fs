@@ -519,6 +519,8 @@ let main _ =
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
     run ()
+    // CLEANUP I suspect this isn't called
+    LibService.Init.flush name
     0
   with
   | e -> Rollbar.lastDitchBlockAndPage "error starting bwdserver" e

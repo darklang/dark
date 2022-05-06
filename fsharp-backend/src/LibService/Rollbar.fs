@@ -378,6 +378,8 @@ let lastDitchBlockAndPage (msg : string) (e : exn) : int =
   with
   | processingException ->
     exceptionWhileProcessingException e processingException
+    Telemetry.flush ()
+    LaunchDarkly.flush ()
     // Pause so that the exceptions can send
     Task.Delay(10000).Wait()
     (-1)

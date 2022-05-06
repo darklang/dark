@@ -87,6 +87,7 @@ if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   lldb -- "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
@@ -95,6 +96,7 @@ else
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
 fi
 

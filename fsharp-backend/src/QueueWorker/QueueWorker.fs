@@ -19,6 +19,7 @@ module Pusher = LibBackend.Pusher
 module RealExecution = LibRealExecution.RealExecution
 module Canvas = LibBackend.Canvas
 
+module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
@@ -39,8 +40,18 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
               Task.FromResult(Error e)
 
           match event with
-          | Ok (None) ->
+          | Ok None ->
             Telemetry.addTag "event_queue.no_events" true
+            return Ok None
+          | Ok (Some event) when
+            not
+              (LD.boolUserVar LD.RunWorkerForCanvas (string event.canvasName) false)
+            ->
+            Telemetry.addTag "event_queue.skipped_in_fsharp" event.canvasName
+            // Only run for users we've explicitly allowed, so the default is to go
+            // here and do nothing. The transaction will end without updating the
+            // queue, so the row will be unlocked, allowing someone else to take it.
+            // So we don't need to "putBack".
             return Ok None
           | Ok (Some event) ->
             let! canvas =
@@ -48,8 +59,15 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                 // Span creation might belong inside
                 // Canvas.loadForEvent, but then so would the
                 // error handling ... this may want a refactor
-                use (span : Telemetry.Span.T) =
-                  Telemetry.child "Canvas.load_for_event_from_cache" []
+                use _ =
+                  Telemetry.child
+                    "Canvas.load_for_event_from_cache"
+                    [ "event_id", event.id :> obj
+                      "value", event.value
+                      "retries", event.retries
+                      "canvasName", string event.canvasName
+                      "desc", (event.space, event.name, event.modifier)
+                      "delay", event.delay ]
                 try
                   let! c = Canvas.loadForEvent event
                   Telemetry.addTag "load_event_succeeded" true
@@ -69,14 +87,7 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
               let traceID = System.Guid.NewGuid()
               let canvasID = c.meta.id
               let desc = EQ.toEventDesc event
-
-              Telemetry.addTags [ "canvas", host
-                                  "trace_id", traceID
-                                  "canvas_id", canvasID
-                                  "module", event.space
-                                  "handler_name", event.name
-                                  "method", event.modifier
-                                  "retries", event.retries ]
+              Telemetry.addTags [ "trace_id", traceID; "canvas_id", canvasID ]
 
               try
                 let! eventTimestamp = TI.storeEvent canvasID traceID desc event.value
@@ -87,10 +98,6 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
                   |> List.filter (fun h ->
                     Some desc = PTParser.Handler.Spec.toEventDesc h.spec)
                   |> List.head
-
-                Telemetry.addTags [ "host", host
-                                    "event", desc
-                                    "event_id", event.id ]
 
                 match h with
                 | None ->
@@ -169,9 +176,9 @@ let run () : Task<unit> =
     while not shutdown.Value do
       try
         use _span = Telemetry.createRoot "QueueWorker.run"
-        // Comment out just in case for now
-        // let! result = dequeueAndProcess ()
-        let result = Ok None
+        let allowedCount = LD.intVar LD.WorkersPerQueueWorker 0
+        let! result =
+          if allowedCount > 0 then dequeueAndProcess () else Task.FromResult(Ok None)
         match result with
         | Ok None -> do! Task.Delay 1000
         | Ok (Some _) -> return ()
@@ -215,12 +222,12 @@ let main _ : int =
     LibService.Kubernetes.runKubernetesServer name healthChecks port shutdownCallback
     |> ignore<Task>
 
-    if false then
-      // LibBackend.Config.triggerQueueWorkers then
+    if LibBackend.Config.triggerQueueWorkers then
       (run ()).Result
     else
       Telemetry.createRoot "Pointing at prodclone; will not dequeue"
       |> ignore<Telemetry.Span.T>
+    LibService.Init.flush name
     0
 
   with

@@ -93,6 +93,10 @@ DARK_CONFIG_HONEYCOMB_API_KEY=none
 DARK_CONFIG_HONEYCOMB_DATASET_NAME=backend
 DARK_CONFIG_HONEYCOMB_API_ENDPOINT=https://api.honeycomb.io:443
 
+# Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
+DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none
+DARK_CONFIG_LAUNCHDARKLY_CLIENT_SIDE_ID=627162f9b2bab01530ddc354
+
 # DB
 DARK_CONFIG_DB_HOST=localhost
 DARK_CONFIG_DB_DBNAME=devdb
