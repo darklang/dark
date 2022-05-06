@@ -381,8 +381,9 @@ let addTelemetry
 /// execution ID should be constant no matter when this is called in a thread, but for
 /// safety, call it at the top and pass it down.
 /// </remarks>
-let executionID () = ExecutionID(string System.Diagnostics.Activity.Current.TraceId)
-
+let executionID () =
+  let trace = System.Diagnostics.Activity.Current
+  if isNull trace then ExecutionID("null") else ExecutionID(string trace.TraceId)
 
 
 module Console =
