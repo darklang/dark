@@ -57,7 +57,8 @@ let client =
 
 /// IntVariation, with a default and no user
 let intVar (flag : Flag) (default_ : int) : int =
-  client.Force().IntVariation(string flag, null, default_)
+  let user = User.WithKey("__system-user__")
+  client.Force().IntVariation(string flag, user, default_)
 
 /// [someID] here doesn't have to be a darklang account id or username or whatever.
 /// We can just use whateever we want to turn a knob on, such as for example
