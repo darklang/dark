@@ -45,8 +45,9 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
             return Ok None
           | Ok (Some event) when
             not
-              (LD.boolUserVar "run-worker-for-canvas" (string event.canvasName) false)
+              (LD.boolUserVar LD.RunWorkerForCanvas (string event.canvasName) false)
             ->
+            Telemetry.addTag "event_queue.skipped_in_fsharp" event.canvasName
             // Only run for users we've explicitly allowed, so the default is to go
             // here and do nothing. The transaction will end without updating the
             // queue, so the row will be unlocked, allowing someone else to take it.
@@ -175,7 +176,7 @@ let run () : Task<unit> =
     while not shutdown.Value do
       try
         use _span = Telemetry.createRoot "QueueWorker.run"
-        let allowedCount = LD.intVar "workers-per-queueworker" 0
+        let allowedCount = LD.intVar LD.WorkersPerQueueWorker 0
         let! result =
           if allowedCount > 0 then dequeueAndProcess () else Task.FromResult(Ok None)
         match result with

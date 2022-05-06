@@ -4,8 +4,30 @@ module LibService.LaunchDarkly
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
+open Prelude
+open Tablecloth
+
 open LaunchDarkly.Sdk
 open LaunchDarkly.Sdk.Server
+
+// Flags are defined here to allow static typing
+type Flag =
+  | RunWorkerForCanvas
+  | WorkersPerQueueWorker
+
+  override f.ToString() : string =
+    match f with
+    | RunWorkerForCanvas -> "run-worker-for-canvas"
+    | WorkersPerQueueWorker -> "workers-per-queueworker"
+
+/// Set global testing values here. You can set per-"user" settings in a test, but
+/// make sure they don't conflict with other tests
+// See https://docs.launchdarkly.com/sdk/features/test-data-sources#net-server-side
+let testData =
+  let td = Integrations.TestData.DataSource()
+  td
+    .Update(td.Flag(string RunWorkerForCanvas).ValueForAllUsers(LdValue.Of true))
+    .Update(td.Flag(string WorkersPerQueueWorker).ValueForAllUsers(LdValue.Of 1))
 
 let client =
   lazy
@@ -23,22 +45,24 @@ let client =
      | None ->
        let config =
          Configuration
-           .Builder("")
+           .Builder("test")
+           .DataSource(testData)
            .StartWaitTime(System.TimeSpan.FromSeconds(0))
            .DiagnosticOptOut(true)
-           .Offline(true)
+           .Offline(false)
            .Logging(Components.NoLogging)
            .Build()
        new LdClient(config))
 
+
 /// IntVariation, with a default and no user
-let intVar (name : string) (default_ : int) : int =
-  client.Force().IntVariation(name, null, default_)
+let intVar (flag : Flag) (default_ : int) : int =
+  client.Force().IntVariation(string flag, null, default_)
 
 /// [someID] here doesn't have to be a darklang account id or username or whatever.
 /// We can just use whateever we want to turn a knob on, such as for example
 /// canvasname.
-let boolUserVar (name : string) (someID : string) (default_ : bool) : bool =
-  client.Force().BoolVariation(name, User.WithKey(someID), default_)
+let boolUserVar (flag : Flag) (someID : string) (default_ : bool) : bool =
+  client.Force().BoolVariation(string flag, User.WithKey(someID), default_)
 
 let flush () : unit = client.Force().Dispose()
