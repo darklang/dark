@@ -177,6 +177,7 @@ let run () : Task<unit> =
       try
         use _span = Telemetry.createRoot "QueueWorker.run"
         let allowedCount = LD.intVar LD.WorkersPerQueueWorker 0
+        Telemetry.addTag "allowed-count" allowedCount
         let! result =
           if allowedCount > 0 then dequeueAndProcess () else Task.FromResult(Ok None)
         match result with
