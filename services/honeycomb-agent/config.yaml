@@ -58,6 +58,7 @@ watchers:
   # the apiserver itself uses opentelemetry to write directly, but the legacyserver
   # still uses json logs like the rest of ocaml containers
   - labelSelector: "app in (apiserver-app, bwdserver-app, queueworker-app)"
+    namespace: darklang
     containerName: legacy-ctr
     dataset: kubernetes-bwd-ocaml
     parser: json
