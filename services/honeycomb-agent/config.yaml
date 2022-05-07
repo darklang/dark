@@ -10,7 +10,7 @@ metrics:
     - pod
     - container
 watchers:
-  - labelSelector: "app in (bwd-app, editor-app, qw-worker)"
+  - labelSelector: "app in (editor-app, qw-worker)"
     containerName: stroller
     dataset: kubernetes-stroller
     processors:
@@ -30,7 +30,7 @@ watchers:
     containerName: scheduler-ctr
     dataset: kubernetes-scheduler
     parser: json
-  - labelSelector: "app in (bwd-app, editor-app)"
+  - labelSelector: "app=editor-app"
     containerName: bwd-ctr
     dataset: kubernetes-bwd-ocaml
     parser: json
@@ -51,14 +51,6 @@ watchers:
             - /api/:canvas/delete_404
             - /api/:canvas/static_assets
             - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
-  - labelSelector: "app=cron-checker"
-    containerName: cron-ctr
-    dataset: kubernetes-bwd-ocaml
-    parser: json
-    processors:
-      - timefield:
-          field: timestamp
-          format: "2006-01-02T15:04:05.999999999Z07:00"
   - labelSelector: "app=qw-worker"
     containerName: qw-ctr
     dataset: kubernetes-bwd-ocaml
@@ -69,7 +61,7 @@ watchers:
     containerName: legacy-ctr
     dataset: kubernetes-bwd-ocaml
     parser: json
-  - labelSelector: "app in (bwd-app, editor-app, apiserver-app)"
+  - labelSelector: "app in (editor-app, apiserver-app)"
     containerName: http-proxy
     dataset: kubernetes-bwd-nginx
     parser:
@@ -99,21 +91,6 @@ watchers:
             - /api/:canvas/delete_404
             - /api/:canvas/static_assets
             - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
-  - labelSelector: "app=bwdserver-app"
-    containerName: http-proxy
-    dataset: kubernetes-bwd-nginx
-    parser:
-      name: nginx
-      dataset: kubernetes-bwd-nginx
-      options:
-        config_file: /etc/nginx/conf.d/nginx.conf
-        log_format: '$remote_addr - $remote_user [$time_local] $host "$request" $status $bytes_sent $body_bytes_sent $request_time "$http_referer" "$http_user_agent" $request_length "$http_authorization" "$http_x_forwarded_proto" "$http_x_forwarded_for" $server_name "$upstream_http_x_darklang_execution_id" "$upstream_http_x_darklang_server_version"'
-    processors:
-      - drop_field:
-          field: http_authorization
-      - drop_field:
-          field: http_cookie
-
 verbosity: info
 # splitLogging directs trace, debug, info, and warn log levels to stdout
 # rather than stderr.
