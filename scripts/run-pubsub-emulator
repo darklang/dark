@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+echo "Running PubSub emulator"
+
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+
+pgrep --full 'cloud-pubsub-emulator-0.6.0.jar' | xargs kill 2> /dev/null || true
+pgrep --full 'cloud-pubsub-emulator-0.6.0.jar' | xargs kill -9 2> /dev/null || true
+
+gcloud beta emulators pubsub start > "$LOGS/pub-sub-emulator.log" 2>&1 &
+
+echo "Finished loading PubSub emulator"

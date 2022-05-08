@@ -71,6 +71,9 @@ cd ..
 ./scripts/run-ocaml-test-server
 ./scripts/run-nginx-server
 
+echo "Waiting for pubsub"
+./scripts/run-pubsub-emulator
+
 # CLEANUP This is where the migrations are run for testdb at the moment
 DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVER_NGINX_PORT}" ./scripts/devcontainer/_wait-until-server-ready
 
