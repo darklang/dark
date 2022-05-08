@@ -37,6 +37,7 @@ nuget Rollbar.NetCore.AspNet = 5.0.5-beta
 nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.1
 nuget AspNetCore.HealthChecks.Npgsql = 6.0.1
 nuget LaunchDarkly.ServerSdk = 6.3.2
+nuget Google.Cloud.PubSub.V1 = 2.9.0
 
 // Tracing
 nuget Honeycomb.OpenTelemetry = 0.18.0-beta

@@ -9,6 +9,8 @@ open Npgsql.FSharp
 open Npgsql
 open Db
 
+open Google.Cloud.PubSub.V1
+
 type Instant = NodaTime.Instant
 
 open Prelude
@@ -47,11 +49,28 @@ type T =
     lockedAt : Option<Instant>
     enqueuedAt : Instant }
 
+let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
+  lazy (SubscriberServiceApiClient.CreateAsync())
+
 let dequeue () : Task<Notification> =
-  task { return { id = 0UL; canvasID = System.Guid.NewGuid() } }
+  task {
+    let! subscriber = subscriber.Force()
+    let projectID = "balmy-ground-195100"
+    let subscriptionName = SubscriptionName(projectID, "sub-queueworker-v1")
+    let topicName = TopicName(projectID, "topic-queueworker-v1")
+    let! response = subscriber.PullAsync(subscriptionName, maxMessages = 1)
+    return
+      response.ReceivedMessages[ 0 ].Message.Data.ToByteArray()
+      |> UTF8.ofBytesUnsafe
+      |> Json.Vanilla.deserialize<Notification>
+  }
 
 let enqueue (delayUntil : Instant) (n : Notification) : Task<unit> =
   task { return () }
+
+let requeueEvent (n : Notification) : Task<unit> = task { return () }
+let acknowledgeEvent (n : Notification) : Task<unit> = task { return () }
+
 
 let loadEvent (n : Notification) : Task<Option<T>> =
   Sql.query
@@ -90,9 +109,6 @@ let deleteEvent (event : T) : Task<unit> =
   |> Sql.parameters [ "eventID", Sql.id event.id
                       "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
-
-let requeueEvent (n : Notification) : Task<unit> = task { return () }
-let acknowledgeEvent (n : Notification) : Task<unit> = task { return () }
 
 let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
   task {
