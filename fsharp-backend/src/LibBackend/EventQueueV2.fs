@@ -37,6 +37,7 @@ type Notification = { id : id; canvasID : CanvasID }
 /// should be executed. When they are complete, they are deleted.
 type T =
   { id : id
+    canvasID : CanvasID
     module' : string
     name : string
     modifier : string
@@ -64,6 +65,7 @@ let loadEvent (n : Notification) : Task<Option<T>> =
   |> Sql.executeRowOptionAsync (fun read ->
     let e =
       { id = n.id
+        canvasID = n.canvasID
         module' = read.string "module"
         name = read.string "name"
         modifier = read.string "modifier"
@@ -83,7 +85,12 @@ let loadEvent (n : Notification) : Task<Option<T>> =
                         ("locked_at", e.lockedAt) ]
     e)
 
-let deleteEvent (event : T) : Task<unit> = task { return () }
+let deleteEvent (event : T) : Task<unit> =
+  Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvasID = @canvasID"
+  |> Sql.parameters [ "eventID", Sql.id event.id
+                      "canvasID", Sql.uuid event.canvasID ]
+  |> Sql.executeStatementAsync
+
 let requeueEvent (n : Notification) : Task<unit> = task { return () }
 let acknowledgeEvent (n : Notification) : Task<unit> = task { return () }
 
