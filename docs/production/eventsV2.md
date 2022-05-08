@@ -1,4 +1,4 @@
-# Events V2 (updated May 7, 2022)
+# Events V2 (updated May 8, 2022)
 
 ## Design of Events V2
 
@@ -109,41 +109,54 @@ always fine to put it back in so long as the record exists (which means it's don
 
 
 ```mermaid
-  %% Happy path
-  Queue[Queue] -->|Receive notification| EventLoad
-  EventLoad --> |EventPresent| PauseCheck
-  PauseCheck -->|PauseNone| DelayCheck
+graph LR
+  %% # Happy path
+  %% Load
+  Queue -->|Receive notification| EventLoad
+  EventLoad --> |EventPresent| DelayCheck
+
+  %% Checks
+  %% LockCheck, DelayCheck and RuleCheck are all required before we do a LockClaim.
+  %% It's not essential that they are run in any particular order: since LockClaim does
+  %% not happen in the same transaction of LockCheck, we can't rely on it anyway. So we
+  %% just do these in the most convenient order based on when the information is
+  %% loaded.
   DelayCheck -->|DelayNone| LockCheck
-  LockCheck -->|LockNone| LockClaim
-  LockCheck -->|LockExpired| LockClaim
-  LockClaim --> |Claimed| Process
+  LockCheck -->|LockNone| RuleCheck
+  LockCheck -->|LockExpired| RuleCheck
+  RuleCheck -->|RuleNone| LockClaim
+
+  %% Running
+  LockClaim --> |LockClaimed| Process
   Process --> |ExecutesToCompletion| Delete
   Delete --> End
 
   %% Error checking
 
-  %% Done, so don't requeue
+  %% This means the event was completed, so don't requeue
   EventLoad -->|EventMissing| End
 
-  %% Might need to try again if the locked item fails
+  %% Presumably someone else is running this, but let's reenqueue this to be safe.
   LockCheck -->|IsLocked| Queue
 
-  %% We got this too early
+  %% We got this too early, so reenqueue it.
   DelayCheck -->|DelayNotYet| Queue
 
-  %% Drop the notification, we'll reload it upon unpause
-  PauseCheck -->|Paused| End
-  PauseCheck -->|Blocked| End
+  %% Drop the notification, we'll reload it upon unpause/unblock
+  RuleCheck -->|RulePaused| End
+  RuleCheck -->|RuleBlocked| End
 
-  %% Probably another event beside us, no harm requeuing
+  %% There's another besides us, no harm requeuing
   LockClaim --> |LockClaimFailed| Queue
 
-  %% Allow retries
+  %% Retries are allowed, so requ
   Process --> |Exception| RetryCheck
   RetryCheck --> |RetryAllowed: increment, delay| Queue
 
-  %% That's enough, we're done
+  %% That's enough retries, we're done
   RetryCheck --> |RetryTooMany| Delete
-  %% Will probably be dropped in EventMissing
+
+  %% Don't know what's wrong, must be another worker running it. This will probably
+  %% be dropped on the next iteration.
   RetryCheck --> |Exception| Queue
 ```

@@ -392,7 +392,9 @@ let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
 
 let fetchRelevantTLIDsForEvent
   (canvasID : CanvasID)
-  (event : EventQueue.T)
+  (module' : string)
+  (name : string)
+  (modifier : string)
   : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevel_oplists
@@ -403,9 +405,9 @@ let fetchRelevantTLIDsForEvent
               OR tipe <> 'handler'::toplevel_type)
         AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "space", Sql.string event.space
-                      "name", Sql.string event.name
-                      "modifier", Sql.string event.modifier ]
+                      "space", Sql.string module'
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> read.id "tlid")
 
 

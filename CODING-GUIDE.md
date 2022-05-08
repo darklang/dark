@@ -45,6 +45,11 @@
 - For file header comments, use `///` and add them to the first line of the file
   before the module declaration
 
+### Telemetry
+
+- use `camel_case` names for tags
+- prefer adding more attributes to a span vs events (events cost money and you can't search across them in honeycomb)
+
 ### SQL migrations
 
 - add `set statement_timeout = '1s'` or `set lock_timeout = '1s'` to the first line

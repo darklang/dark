@@ -44,6 +44,7 @@
     <Compile Include="Secret.fs" />
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
+    <Compile Include="EventQueueV2.fs" />
     <Compile Include="Traces.fs" />
     <Compile Include="CanvasClone.fs" />
     <Compile Include="Stats.fs" />
