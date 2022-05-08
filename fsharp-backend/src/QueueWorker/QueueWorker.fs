@@ -109,12 +109,12 @@ let dequeueAndProcess () : Task<int> =
             Telemetry.addTags [ "queue.rule.type", rule.ruleType
                                 "queue.rule.id", rule.id ]
             return! stop $"RuleCheckPaused/Blocked" EQ.NoRetry
-          | None -> // RuldNone
+          | None -> // RuleNone
 
             // -------
             // LockClaim
             // -------
-            match! EQ.claimLock notification with
+            match! EQ.claimLock event notification with
             | Error _ -> return! stop "LockClaimFailed" EQ.Retry
             | Ok () -> // LockClaimed
 

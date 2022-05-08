@@ -94,7 +94,30 @@ let deleteEvent (event : T) : Task<unit> =
 let requeueEvent (n : Notification) : Task<unit> = task { return () }
 let acknowledgeEvent (n : Notification) : Task<unit> = task { return () }
 
-let claimLock (n : Notification) : Task<Result<unit, unit>> = task { return Ok() }
+let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
+  task {
+    let currentLockedAt =
+      match event.lockedAt with
+      | None -> SqlValue.Null
+      | Some instant -> Sql.instantWithTimeZone instant
+
+    let! rowCount =
+      Sql.query
+        "UPDATE events_v2
+        SET lockedAt = CURRENT_TIMESTAMP
+        WHERE id = @eventID
+          AND canvasID = @canvasID
+          AND lockedAT = @currentLockedAt"
+      |> Sql.parameters [ "eventID", Sql.id event.id
+                          "canvasID", Sql.uuid event.canvasID
+                          "currentLockedAt", currentLockedAt ]
+      |> Sql.executeNonQueryAsync
+    if rowCount = 1 then return Ok()
+    else if rowCount = 0 then return Error "LockNotClaimed"
+    else return Error $"LockError: Invalid count: {rowCount}"
+  }
+
+
 
 let getRule
   (canvasID : CanvasID)
