@@ -168,12 +168,11 @@ let dequeueAndProcess () : Task<int> =
                   result |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
                 Telemetry.addTag "resultType" typ
 
-                do! EQ.acknowledgeEvent notification
-
                 // -------
                 // Delete
                 // -------
                 do! EQ.deleteEvent event
+                do! EQ.acknowledgeEvent notification
 
                 // -------
                 // End
