@@ -55,7 +55,7 @@ module Internal =
     |> ignore<Integrations.TestData>
     fun () -> intVar name "system" default_
 
-  // Functions to set per-canvas values
+  // Functions to use per-canvas values
   let canvasBool
     (name : string)
     (default_ : bool)
@@ -79,10 +79,17 @@ module Internal =
 let flush () : unit = Internal.client.Force().Dispose()
 
 
-/// Canvas Flags - these are per-canvas settings
+// --------------
+// Canvas Flags - these are per-canvas settings
+// --------------
+
 let useEventsV2 = Internal.canvasBool "use-events-v2" false false
 
-/// Dynamic configuration - this allows us to change the run-time values of system configuration. This is the preferred way of
+// --------------
+// Dynamic configuration - this allows us to change the run-time values of system
+// configuration. This is the preferred way of setting arbitrary numbers
+// --------------
+
 let queueAllowedExecutionTime = // seconds
   Internal.intConfig "queue-allowed-execution-time" 300 300
 

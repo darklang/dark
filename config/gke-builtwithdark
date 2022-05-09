@@ -91,6 +91,12 @@ DARK_CONFIG_DB_DBNAME=postgres
 #DARK_CONFIG_DB_PASSWORD=k8s
 DARK_CONFIG_DB_POOL_SIZE=20
 
+# Queue / pubsub - this should fail if possible in prodclone
+DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=balmy-ground-195100
+DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME=topic-queueworker-1
+DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME=topic-subscription-1
+DARK_CONFIG_QUEUE_PUBSUB_SHOULD_CREATE=n
+
 # Httpclient
 # This is used by OCaml, do not include a port
 DARK_CONFIG_CURL_TUNNEL_URL=socks5://tunnel2-service.darklang

@@ -30,6 +30,8 @@ module RT = LibExecution.RuntimeTypes
 
 module TI = TraceInputs
 
+module LD = LibService.LaunchDarkly
+
 /// -----------------
 /// Types
 /// -----------------
@@ -155,19 +157,24 @@ let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
 /// PubSub
 /// -----------------
 
-let projectID = "balmy-ground-195100"
-let topicName = TopicName(projectID, "topic-queueworker-v1")
-let subscriptionName = SubscriptionName(projectID, "sub-queueworker-v1")
+
+let topicName = TopicName(Config.queuePubSubProjectID, Config.queuePubSubTopicName)
+
+let subscriptionName =
+  SubscriptionName(Config.queuePubSubProjectID, Config.queuePubSubSubscriptionName)
 
 let publisher : Lazy<Task<PublisherServiceApiClient>> =
   lazy
     (task {
       let! service = PublisherServiceApiClient.CreateAsync()
-      try
-        let! (_ : Topic) = service.CreateTopicAsync(topicName)
-        return ()
-      with
-      | _ -> ()
+
+      // Ensure the topic is created locally
+      if Config.queuePubSubShouldCreate then
+        let! topic = service.GetTopicAsync(topicName)
+        if topic <> null then
+          let! (_ : Topic) = service.CreateTopicAsync(topicName)
+          ()
+
       return service
     })
 
@@ -175,21 +182,22 @@ let publisher : Lazy<Task<PublisherServiceApiClient>> =
 let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
   lazy
     (task {
-      // Ensure the topic is created locally
       let! (_ : PublisherServiceApiClient) = publisher.Force()
 
+      // Ensure subscription is created locally
       let! service = SubscriberServiceApiClient.CreateAsync()
-      try
-        let! (_ : Subscription) =
-          service.CreateSubscriptionAsync(
-            subscriptionName,
-            topicName,
-            pushConfig = null,
-            ackDeadlineSeconds = 60
-          )
-        return ()
-      with
-      | _ -> ()
+      if Config.queuePubSubShouldCreate then
+        let! subscription = service.GetSubscriptionAsync(subscriptionName)
+        if subscription <> null then
+          let! (_ : Subscription) =
+            service.CreateSubscriptionAsync(
+              subscriptionName,
+              topicName,
+              pushConfig = null,
+              ackDeadlineSeconds = 60
+            )
+          ()
+
       return service
     })
 
@@ -210,7 +218,7 @@ let dequeue () : Task<Notification> =
           |> Json.Vanilla.deserialize<NotificationData>
         notification <- Some { data = data; pubSubID = message.MessageId }
       else
-        do! Task.Delay 1000
+        do! Task.Delay(LD.queueDelayBetweenPulls ())
 
     return Exception.unwrapOptionInternal "expect a notification" [] notification
   }
@@ -253,8 +261,7 @@ let enqueueInAQueue
   (modifier : string)
   (value : RT.Dval)
   : Task<unit> =
-  // FSTODO: add feature flag here, but disabled for now to be careful
-  if false then
+  if LD.useEventsV2 canvasName then
     enqueue canvasID module' name modifier value
   else
     EventQueue.enqueue canvasName canvasID accountID module' name modifier value
@@ -275,7 +282,12 @@ let requeueEvent (n : Notification) (delay : int) : Task<unit> =
 let extendDeadline (n : Notification) : Task<unit> =
   task {
     let! subscriber = subscriber.Force()
-    let! _ = subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubID ], 300)
+    let! _ =
+      subscriber.ModifyAckDeadlineAsync(
+        subscriptionName,
+        [ n.pubSubID ],
+        LD.queueAllowedExecutionTime ()
+      )
     return ()
   }
 
