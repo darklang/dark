@@ -20,6 +20,17 @@ type Flag =
     | RunWorkerForCanvas -> "run-worker-for-canvas"
     | WorkersPerQueueWorker -> "workers-per-queueworker"
 
+type User =
+  | System // For dealing with system-wide values
+  | UserName of string
+  | CanvasName of string
+
+  override this.ToString() =
+    match this with
+    | System -> "system"
+    | UserName username -> $"username-{username}"
+    | CanvasName canvasName -> $"canvasname-{canvasName}"
+
 /// Set global testing values here. You can set per-"user" settings in a test, but
 /// make sure they don't conflict with other tests
 // See https://docs.launchdarkly.com/sdk/features/test-data-sources#net-server-side
@@ -55,15 +66,10 @@ let client =
        new LdClient(config))
 
 
-/// IntVariation, with a default and no user
-let intVar (flag : Flag) (default_ : int) : int =
-  let user = User.WithKey("__system-user__")
-  client.Force().IntVariation(string flag, user, default_)
+let intVar (flag : Flag) (user : User) (default_ : int) : int =
+  client.Force().IntVariation(string flag, User.WithKey(string user), default_)
 
-/// [someID] here doesn't have to be a darklang account id or username or whatever.
-/// We can just use whateever we want to turn a knob on, such as for example
-/// canvasname.
-let boolUserVar (flag : Flag) (someID : string) (default_ : bool) : bool =
-  client.Force().BoolVariation(string flag, User.WithKey(someID), default_)
+let boolVar (flag : Flag) (user : User) (default_ : bool) : bool =
+  client.Force().BoolVariation(string flag, User.WithKey(string user), default_)
 
 let flush () : unit = client.Force().Dispose()
