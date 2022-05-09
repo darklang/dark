@@ -279,8 +279,6 @@ let extendDeadline (n : Notification) : Task<unit> =
     return ()
   }
 
-
-
 /// Tell PubSub that we have handled this event. This drops the event.
 let acknowledgeEvent (n : Notification) : Task<unit> =
   task {
@@ -304,3 +302,5 @@ let getRule
       |> List.head
     return rule
   }
+
+let flush () = () // FSTODO
