@@ -49,20 +49,63 @@ type T =
     lockedAt : Option<Instant>
     enqueuedAt : Instant }
 
+let projectID = "balmy-ground-195100"
+let topicName = TopicName(projectID, "topic-queueworker-v1")
+let subscriptionName = SubscriptionName(projectID, "sub-queueworker-v1")
+
+let publisher : Lazy<Task<PublisherServiceApiClient>> =
+  lazy
+    (task {
+      let! service = PublisherServiceApiClient.CreateAsync()
+      try
+        let! (_ : Topic) = service.CreateTopicAsync(topicName)
+        return ()
+      with
+      | _ -> ()
+      return service
+    })
+
+
 let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
-  lazy (SubscriberServiceApiClient.CreateAsync())
+  lazy
+    (task {
+      // Ensure the topic is created locally
+      let! (_ : PublisherServiceApiClient) = publisher.Force()
+
+      let! service = SubscriberServiceApiClient.CreateAsync()
+      try
+        let! (_ : Subscription) =
+          service.CreateSubscriptionAsync(
+            subscriptionName,
+            topicName,
+            pushConfig = null,
+            ackDeadlineSeconds = 60
+          )
+        return ()
+      with
+      | _ -> ()
+      return service
+    })
 
 let dequeue () : Task<Notification> =
   task {
     let! subscriber = subscriber.Force()
-    let projectID = "balmy-ground-195100"
-    let subscriptionName = SubscriptionName(projectID, "sub-queueworker-v1")
-    let topicName = TopicName(projectID, "topic-queueworker-v1")
     let! response = subscriber.PullAsync(subscriptionName, maxMessages = 1)
-    return
-      response.ReceivedMessages[ 0 ].Message.Data.ToByteArray()
-      |> UTF8.ofBytesUnsafe
-      |> Json.Vanilla.deserialize<Notification>
+    let mutable message : Option<Notification> = None
+    while message = None do
+      // Messages is allowed return no messages. It will wait a while by default
+      let messages = response.ReceivedMessages
+      let count = messages.Count
+      if count > 0 then
+        message <-
+          messages[ 0 ].Message.Data.ToByteArray()
+          |> UTF8.ofBytesUnsafe
+          |> Json.Vanilla.deserialize<Notification>
+          |> Some
+      else
+        do! Task.Delay 1000
+
+    return Exception.unwrapOptionInternal "expect a notification" [] message
   }
 
 let enqueue (delayUntil : Instant) (n : Notification) : Task<unit> =
