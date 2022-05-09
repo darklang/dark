@@ -3,12 +3,31 @@
 ## Design of Events V2
 
 Goals:
-- do not DB queries to find events to run (scheduling outside DB)
-- support existing queue features (paused/blocked)
-- preferably do not run a scheduling service
 
-This is accomplished by using Google Cloud Pub/Sub to schedule events, and use the DB
-as the actual source of truth for the event.
+- do not do DB queries to find events to run (that is, move scheduling outside DB)
+- support existing queue features (paused/blocked, retries, delays)
+- do not run a scheduling service
+
+## High level description
+
+The Queue is made of 3 parts:
+
+- `events table`: the backing store and source of truth for all events
+- `QueueWorker`: workers that execute events
+- `scheduler`: sends notifications to workers to run an Event (we use Google PubSub for this).
+
+When an event is added, we save it in the events table, and add a message in PubSub.
+The QueueWorkers pull messages from PubSub when they have capacity. They then fetch
+the event from the EventsTable, and perform some logic to verify it should be run
+(eg, is this handler paused, is something else running this events, etc). It may
+decide to put the notification back into PubSub if it's not time to run it yet, or it
+may decide that it should not be run and to drop the PubSub notification.
+
+Why use PubSub? Because it is extremely operationally intensive to implement queue scheduling
+in the DB.
+
+Why not use PubSub for everything? Because it deletes messages after a week, and
+doesn't have a `pause` option.
 
 ## What is an Event?
 
@@ -57,7 +76,7 @@ pausing.
 
 ### Scheduling rules
 
-Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to lock a  queue for operational purposes.
+Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to lock a queue for operational purposes.
 
 ```
  id           | integer                     | not null default nextval('scheduling_rules_id_seq'::regclass)
@@ -106,7 +125,6 @@ us not to run it, whether it's not time to run it yet, or if the event is missin
 In most cases it put the event back in PubSub (except for the situations where that
 doesn't make sense). Because the event is just a notifcation, it's basically almost
 always fine to put it back in so long as the record exists (which means it's done).
-
 
 ```mermaid
 graph LR
