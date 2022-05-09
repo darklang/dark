@@ -31,14 +31,20 @@ module RT = LibExecution.RuntimeTypes
 
 module TI = TraceInputs
 
+/// -----------------
+/// Types
+/// -----------------
+
+type EventID = System.Guid
+
 /// Notifications are sent by PubSub to say that now would be a good time to try this
 /// event. We only load events in response to notifications.
-type Notification = { id : id; canvasID : CanvasID }
+type Notification = { id : EventID; canvasID : CanvasID }
 
 /// Events are stored in the DB and are the source of truth for when and how an event
 /// should be executed. When they are complete, they are deleted.
 type T =
-  { id : id
+  { id : EventID
     canvasID : CanvasID
     module' : string
     name : string
@@ -48,6 +54,106 @@ type T =
     delayUntil : Instant
     lockedAt : Option<Instant>
     enqueuedAt : Instant }
+
+
+/// -----------------
+/// Database
+/// The events_v2 is the source of truth for the queue
+/// -----------------
+
+let createEvent
+  (canvasID : CanvasID)
+  (id : EventID)
+  (module' : string)
+  (name : string)
+  (modifier : string)
+  (value : RT.Dval)
+  : Task<unit> =
+  Sql.query
+    "INSERT INTO events_v2
+       (id, canvasID, module, name, modifier, value,
+        delay_until, enqueued_at, retries, locked_at)
+     VALUES
+       (@id, @canvasID, @module, @name, @modifier, @value,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL)"
+  |> Sql.parameters [ "id", Sql.uuid id
+                      "canvasID", Sql.uuid canvasID
+                      "module", Sql.string module'
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier
+                      "value",
+                      Sql.string (DvalReprInternal.toInternalRoundtrippableV0 value) ]
+  |> Sql.executeStatementAsync
+
+
+/// -----------------
+/// Database
+/// The events_v2 is the source of truth for the queue
+/// -----------------
+let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
+  Sql.query
+    "SELECT module, name, modifier,
+            delay_until, enqueued_at, retries, locked_at,
+            value
+     FROM events_v2
+     WHERE id = @eventID
+       AND canvasID = @canvasID"
+  |> Sql.parameters [ "id", Sql.uuid id; "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeRowOptionAsync (fun read ->
+    let e =
+      { id = id
+        canvasID = canvasID
+        module' = read.string "module"
+        name = read.string "name"
+        modifier = read.string "modifier"
+        delayUntil = read.instant "delay_until"
+        enqueuedAt = read.instant "enqueued_at"
+        retries = read.int "retries"
+        lockedAt = read.instantOrNone "locked_at"
+        // FSTODO: what's the right format to encode these with?
+        value = read.string "value" |> DvalReprInternal.ofInternalRoundtrippableV0 }
+    Telemetry.addTags [ ("queue_delay", Instant.now().Minus(e.enqueuedAt))
+                        ("module", e.module')
+                        ("name", e.name)
+                        ("modifier", e.modifier)
+                        ("enqueued_at", e.enqueuedAt)
+                        ("delay_until", e.delayUntil)
+                        ("retries", e.retries)
+                        ("locked_at", e.lockedAt) ]
+    e)
+
+let deleteEvent (event : T) : Task<unit> =
+  Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvasID = @canvasID"
+  |> Sql.parameters [ "eventID", Sql.uuid event.id
+                      "canvasID", Sql.uuid event.canvasID ]
+  |> Sql.executeStatementAsync
+
+let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
+  task {
+    let currentLockedAt =
+      match event.lockedAt with
+      | None -> SqlValue.Null
+      | Some instant -> Sql.instantWithTimeZone instant
+
+    let! rowCount =
+      Sql.query
+        "UPDATE events_v2
+        SET lockedAt = CURRENT_TIMESTAMP
+        WHERE id = @eventID
+          AND canvasID = @canvasID
+          AND lockedAT = @currentLockedAt"
+      |> Sql.parameters [ "eventID", Sql.uuid event.id
+                          "canvasID", Sql.uuid event.canvasID
+                          "currentLockedAt", currentLockedAt ]
+      |> Sql.executeNonQueryAsync
+    if rowCount = 1 then return Ok()
+    else if rowCount = 0 then return Error "LockNotClaimed"
+    else return Error $"LockError: Invalid count: {rowCount}"
+  }
+
+/// -----------------
+/// PubSub
+/// -----------------
 
 let projectID = "balmy-ground-195100"
 let topicName = TopicName(projectID, "topic-queueworker-v1")
@@ -108,74 +214,55 @@ let dequeue () : Task<Notification> =
     return Exception.unwrapOptionInternal "expect a notification" [] message
   }
 
-let enqueue (delayUntil : Instant) (n : Notification) : Task<unit> =
-  task { return () }
-
-let requeueEvent (n : Notification) : Task<unit> = task { return () }
-let acknowledgeEvent (n : Notification) : Task<unit> = task { return () }
-
-
-let loadEvent (n : Notification) : Task<Option<T>> =
-  Sql.query
-    "SELECT module, name, modifier,
-            delay_until, enqueued_at, retries, locked_at,
-            value
-     FROM events_v2
-     WHERE id = @eventID
-       AND canvasID = @canvasID"
-  |> Sql.parameters [ "id", Sql.id n.id; "canvasID", Sql.uuid n.canvasID ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    let e =
-      { id = n.id
-        canvasID = n.canvasID
-        module' = read.string "module"
-        name = read.string "name"
-        modifier = read.string "modifier"
-        delayUntil = read.instant "delay_until"
-        enqueuedAt = read.instant "enqueued_at"
-        retries = read.int "retries"
-        lockedAt = read.instantOrNone "locked_at"
-        // FSTODO: what's the right format to encode these with?
-        value = read.string "value" |> DvalReprInternal.ofInternalRoundtrippableV0 }
-    Telemetry.addTags [ ("queue_delay", Instant.now().Minus(e.enqueuedAt))
-                        ("module", e.module')
-                        ("name", e.name)
-                        ("modifier", e.modifier)
-                        ("enqueued_at", e.enqueuedAt)
-                        ("delay_until", e.delayUntil)
-                        ("retries", e.retries)
-                        ("locked_at", e.lockedAt) ]
-    e)
-
-let deleteEvent (event : T) : Task<unit> =
-  Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvasID = @canvasID"
-  |> Sql.parameters [ "eventID", Sql.id event.id
-                      "canvasID", Sql.uuid event.canvasID ]
-  |> Sql.executeStatementAsync
-
-let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
+let enqueue
+  (canvasID : CanvasID)
+  (module' : string)
+  (name : string)
+  (modifier : string)
+  (value : RT.Dval)
+  : Task<unit> =
   task {
-    let currentLockedAt =
-      match event.lockedAt with
-      | None -> SqlValue.Null
-      | Some instant -> Sql.instantWithTimeZone instant
-
-    let! rowCount =
-      Sql.query
-        "UPDATE events_v2
-        SET lockedAt = CURRENT_TIMESTAMP
-        WHERE id = @eventID
-          AND canvasID = @canvasID
-          AND lockedAT = @currentLockedAt"
-      |> Sql.parameters [ "eventID", Sql.id event.id
-                          "canvasID", Sql.uuid event.canvasID
-                          "currentLockedAt", currentLockedAt ]
-      |> Sql.executeNonQueryAsync
-    if rowCount = 1 then return Ok()
-    else if rowCount = 0 then return Error "LockNotClaimed"
-    else return Error $"LockError: Invalid count: {rowCount}"
+    use _ =
+      Telemetry.child
+        "enqueue"
+        [ "canvasID", canvasID
+          "module", module'
+          "name", name
+          "modifier", modifier ]
+    // save the event
+    let id = System.Guid.NewGuid()
+    do! createEvent id canvasID module' name modifier value
+    let notification = { id = id; canvasID = canvasID }
+    let! publisher = publisher.Force()
+    let contents =
+      notification
+      |> Json.Vanilla.serialize
+      |> Google.Protobuf.ByteString.CopyFromUtf8
+    Telemetry.addTag "content_length" contents.Length
+    let message = PubsubMessage(Data = contents)
+    let! response = publisher.PublishAsync(topicName, [ message ])
+    Telemetry.addTag "pubsub_id" response.MessageIds[0]
+    return ()
   }
 
+let enqueueInAQueue
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (accountID : UserID)
+  (module' : string)
+  (name : string)
+  (modifier : string)
+  (value : RT.Dval)
+  : Task<unit> =
+  // FSTODO: add feature flag here, but disabled for now to be careful
+  if false then
+    enqueue canvasID module' name modifier value
+  else
+    EventQueue.enqueue canvasName canvasID accountID module' name modifier value
+
+let requeueEvent (n : Notification) : Task<unit> = task { return () } // FSTODO
+
+let acknowledgeEvent (n : Notification) : Task<unit> = task { return () } // FSTODO
 
 
 let getRule
@@ -192,9 +279,3 @@ let getRule
       |> List.head
     return rule
   }
-
-// The algorithm here is described in docs/production/eventsV2.md. The algorithm
-// below is annotated with names from chart.
-type ShouldRetry =
-  | Retry
-  | NoRetry

@@ -49,6 +49,12 @@ let executeEvent
     return result
   }
 
+type ShouldRetry =
+  | Retry
+  | NoRetry
+
+/// The algorithm here is described in docs/production/eventsV2.md. The algorithm
+/// below is annotated with names from chart.
 /// Returns the number of events it executed (0 or 1)
 let dequeueAndProcess () : Task<int> =
   task {
@@ -58,14 +64,15 @@ let dequeueAndProcess () : Task<int> =
     // cleanup required.
     let! notification = EQ.dequeue ()
 
-    let stop (reason : string) (retry : EQ.ShouldRetry) : Task<int> =
+    // Function used to quit this event
+    let stop (reason : string) (retry : ShouldRetry) : Task<int> =
       task {
         Telemetry.addTags [ "queue.completion_reason", reason
                             "queue.success", false
-                            "queue.retrying", retry = EQ.Retry ]
+                            "queue.retrying", retry = Retry ]
         match retry with
-        | EQ.Retry -> return! EQ.requeueEvent notification
-        | EQ.NoRetry -> return! EQ.acknowledgeEvent notification
+        | Retry -> return! EQ.requeueEvent notification
+        | NoRetry -> return! EQ.acknowledgeEvent notification
         return 0 // no events executed
       }
 
@@ -77,15 +84,15 @@ let dequeueAndProcess () : Task<int> =
     // -------
     // EventLoad
     // -------
-    match! EQ.loadEvent notification with
-    | None -> return! stop "EventMissing" EQ.NoRetry
+    match! EQ.loadEvent notification.canvasID notification.id with
+    | None -> return! stop "EventMissing" NoRetry
     | Some event -> // EventPresent
 
       // -------
       // DelayCheck
       // -------
       if event.delayUntil < Instant.now () then
-        return! stop "DelayNotYet" EQ.Retry
+        return! stop "DelayNotYet" Retry
       else // DelayNone
 
         // -------
@@ -97,7 +104,7 @@ let dequeueAndProcess () : Task<int> =
             lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0) > (Instant.now ())
           | None -> false // LockNone
         if isLocked then
-          return! stop "IsLocked" EQ.Retry
+          return! stop "IsLocked" Retry
         else // LockNone/LockExpired
 
           // -------
@@ -108,14 +115,14 @@ let dequeueAndProcess () : Task<int> =
             // Drop the notification - we'll requeue it if someone unpauses
             Telemetry.addTags [ "queue.rule.type", rule.ruleType
                                 "queue.rule.id", rule.id ]
-            return! stop $"RuleCheckPaused/Blocked" EQ.NoRetry
+            return! stop $"RuleCheckPaused/Blocked" NoRetry
           | None -> // RuleNone
 
             // -------
             // LockClaim
             // -------
             match! EQ.claimLock event notification with
-            | Error _ -> return! stop "LockClaimFailed" EQ.Retry
+            | Error _ -> return! stop "LockClaimFailed" Retry
             | Ok () -> // LockClaimed
 
               // -------
@@ -144,8 +151,11 @@ let dequeueAndProcess () : Task<int> =
                 // they can use it to build. So just drop it immediately.
                 let! (_ : Instant) = TI.storeEvent meta.id traceID desc event.value
                 do! EQ.deleteEvent event
-                return! stop "MissingHandler" EQ.NoRetry
+                return! stop "MissingHandler" NoRetry
               | Some h ->
+
+                // FSTODO: not all the flow graph has been modelled here
+                do! EQ.acknowledgeEvent notification
                 let! result = executeEvent c h traceID event
                 let typ =
                   result |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
@@ -167,8 +177,6 @@ let run () : Task<unit> =
     while not shutdown.Value do
       try
         use _span = Telemetry.createRoot "QueueWorker.run"
-        let allowedCount = LD.intVar LD.WorkersPerQueueWorker 0
-        Telemetry.addTag "allowed-count" allowedCount
         let! count = dequeueAndProcess ()
         if count > 0 then return () else return! Task.Delay 1000
       with
