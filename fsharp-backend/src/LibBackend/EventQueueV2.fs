@@ -260,9 +260,35 @@ let enqueueInAQueue
   else
     EventQueue.enqueue canvasName canvasID accountID module' name modifier value
 
-let requeueEvent (n : Notification) : Task<unit> = task { return () } // FSTODO
+/// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do so
+let requeueEvent (n : Notification) (delay : int) : Task<unit> =
+  task {
+    let! subscriber = subscriber.Force()
+    // set the deadline to zero so it'll run again
+    let delay = min 600 delay
+    let delay = max 0 delay
+    let! _ =
+      subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubID ], delay)
+    return ()
+  }
 
-let acknowledgeEvent (n : Notification) : Task<unit> = task { return () } // FSTODO
+/// Tell PubSub not to try again for 5 minutes
+let extendDeadline (n : Notification) : Task<unit> =
+  task {
+    let! subscriber = subscriber.Force()
+    let! _ = subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubID ], 300)
+    return ()
+  }
+
+
+
+/// Tell PubSub that we have handled this event. This drops the event.
+let acknowledgeEvent (n : Notification) : Task<unit> =
+  task {
+    let! subscriber = subscriber.Force()
+    let! _ = subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubID ])
+    return ()
+  }
 
 
 let getRule

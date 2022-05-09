@@ -50,7 +50,7 @@ let executeEvent
   }
 
 type ShouldRetry =
-  | Retry
+  | Retry of int // How many seconds to wait before trying again
   | NoRetry
 
 /// The algorithm here is described in docs/production/eventsV2.md. The algorithm
@@ -69,42 +69,46 @@ let dequeueAndProcess () : Task<int> =
       task {
         Telemetry.addTags [ "queue.completion_reason", reason
                             "queue.success", false
-                            "queue.retrying", retry = Retry ]
+                            "queue.retrying", retry <> NoRetry ]
         match retry with
-        | Retry -> return! EQ.requeueEvent notification
+        | Retry delay -> return! EQ.requeueEvent notification delay
         | NoRetry -> return! EQ.acknowledgeEvent notification
         return 0 // no events executed
       }
 
-    let! meta = Canvas.getMetaFromID notification.canvasID
-    Telemetry.addTags [ "canvas_id", notification.canvasID
-                        "queue.event_id", notification.id
+    let! meta = Canvas.getMetaFromID notification.data.canvasID
+    Telemetry.addTags [ "canvas_id", notification.data.canvasID
+                        "queue.event_id", notification.data.id
+                        "queue.pubsub_id", notification.pubSubID
                         "canvas_name", meta.name ]
 
     // -------
     // EventLoad
     // -------
-    match! EQ.loadEvent notification.canvasID notification.id with
+    match! EQ.loadEvent notification.data.canvasID notification.data.id with
     | None -> return! stop "EventMissing" NoRetry
     | Some event -> // EventPresent
 
       // -------
       // DelayCheck
       // -------
-      if event.delayUntil < Instant.now () then
-        return! stop "DelayNotYet" Retry
+      let timeLeft = event.delayUntil - Instant.now ()
+      if timeLeft.TotalSeconds > 0 then
+        return! stop "DelayNotYet" (Retry(int timeLeft.TotalSeconds))
       else // DelayNone
 
         // -------
         // LockCheck
         // -------
-        let isLocked =
+        let secondsLeft =
           match event.lockedAt with
           | Some lockedAt -> // LockExpired
-            lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0) > (Instant.now ())
-          | None -> false // LockNone
-        if isLocked then
-          return! stop "IsLocked" Retry
+            let expiryTime = lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0)
+            let timeLeft = expiryTime - Instant.now ()
+            int timeLeft.TotalSeconds
+          | None -> 0 // LockNone
+        if secondsLeft > 0 then
+          return! stop "IsLocked" (Retry secondsLeft)
         else // LockNone/LockExpired
 
           // -------
@@ -122,7 +126,7 @@ let dequeueAndProcess () : Task<int> =
             // LockClaim
             // -------
             match! EQ.claimLock event notification with
-            | Error _ -> return! stop "LockClaimFailed" Retry
+            | Error _ -> return! stop "LockClaimFailed" (Retry 5)
             | Ok () -> // LockClaimed
 
               // -------
@@ -154,12 +158,17 @@ let dequeueAndProcess () : Task<int> =
                 return! stop "MissingHandler" NoRetry
               | Some h ->
 
-                // FSTODO: not all the flow graph has been modelled here
-                do! EQ.acknowledgeEvent notification
+                // If we acknowledge the event here, and the machine goes down, the
+                // event is lost forever. So instead give ourselves enough time to
+                // run the job and then acknowledge completion after.
+                do! EQ.extendDeadline notification
+
                 let! result = executeEvent c h traceID event
                 let typ =
                   result |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
                 Telemetry.addTag "resultType" typ
+
+                do! EQ.acknowledgeEvent notification
 
                 // -------
                 // Delete
