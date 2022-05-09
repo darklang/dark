@@ -39,7 +39,8 @@ type EventID = System.Guid
 
 /// Notifications are sent by PubSub to say that now would be a good time to try this
 /// event. We only load events in response to notifications.
-type Notification = { id : EventID; canvasID : CanvasID }
+type NotificationData = { id : EventID; canvasID : CanvasID }
+type Notification = { data : NotificationData; pubSubID : string }
 
 /// Events are stored in the DB and are the source of truth for when and how an event
 /// should be executed. When they are complete, they are deleted.
@@ -197,21 +198,22 @@ let dequeue () : Task<Notification> =
   task {
     let! subscriber = subscriber.Force()
     let! response = subscriber.PullAsync(subscriptionName, maxMessages = 1)
-    let mutable message : Option<Notification> = None
-    while message = None do
+    let mutable notification : Option<Notification> = None
+    while notification = None do
       // Messages is allowed return no messages. It will wait a while by default
       let messages = response.ReceivedMessages
       let count = messages.Count
       if count > 0 then
-        message <-
-          messages[ 0 ].Message.Data.ToByteArray()
+        let message = messages[0].Message
+        let data =
+          message.Data.ToByteArray()
           |> UTF8.ofBytesUnsafe
-          |> Json.Vanilla.deserialize<Notification>
-          |> Some
+          |> Json.Vanilla.deserialize<NotificationData>
+        notification <- Some { data = data; pubSubID = message.MessageId }
       else
         do! Task.Delay 1000
 
-    return Exception.unwrapOptionInternal "expect a notification" [] message
+    return Exception.unwrapOptionInternal "expect a notification" [] notification
   }
 
 let enqueue
@@ -232,12 +234,10 @@ let enqueue
     // save the event
     let id = System.Guid.NewGuid()
     do! createEvent id canvasID module' name modifier value
-    let notification = { id = id; canvasID = canvasID }
+    let data = { id = id; canvasID = canvasID }
     let! publisher = publisher.Force()
     let contents =
-      notification
-      |> Json.Vanilla.serialize
-      |> Google.Protobuf.ByteString.CopyFromUtf8
+      data |> Json.Vanilla.serialize |> Google.Protobuf.ByteString.CopyFromUtf8
     Telemetry.addTag "content_length" contents.Length
     let message = PubsubMessage(Data = contents)
     let! response = publisher.PublishAsync(topicName, [ message ])
