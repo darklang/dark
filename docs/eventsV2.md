@@ -10,54 +10,81 @@ Goals:
 
 ## High level description
 
+The queue implements the following features:
+
+- events are added by calling `emit`
+- events are run in `WORKER` handlers on the canvas with the same name that the event was emitted to
+- events are run asynchronously on separate worker machines
+- workers can be paused
+- workers can be blocked by Dark admins to prevent operational issues
+- the UI shows the number of items in the queue
+- at least once execution (events which experience issues after partial execution are retried)
+- completed events are never retried (even if they complete with an error value,
+  including `incomplete` or a type error)
+- errors during execution cause events to be retried 5 minutes later (at most twice,
+  after which they are dropped)
+
+The queue also has the following accidental features:
+
+- events do not have an execution time-limit
+- events may be cancelled if the machine they are running on turns off. This should
+  only happen to events that run longer than 28 seconds.
+
+### Design of the queue
+
 The Queue is made of 3 parts:
 
-- `events table`: the backing store and source of truth for all events
+- `events_v2` table: the backing store and source of truth for all events
 - `QueueWorker`: workers that execute events
-- `scheduler`: sends notifications to workers to run an Event (we use Google PubSub for this).
+- `Google PubSub` scheduler: sends notifications to workers to potentially an Event
 
-When an event is added, we save it in the events table, and add a message in PubSub.
-The QueueWorkers pull messages from PubSub when they have capacity. They then fetch
-the event from the EventsTable, and perform some logic to verify it should be run
-(eg, is this handler paused, is something else running this events, etc). It may
-decide to put the notification back into PubSub if it's not time to run it yet, or it
-may decide that it should not be run and to drop the PubSub notification.
+When an event is first `emit`ted, we save it in the `events_v2` table, and add a
+**Notification** in PubSub. The QueueWorkers pull messages from PubSub when they
+have capacity. They then fetch the event from the `events_v2`, and perform some logic
+to verify it should be run (eg, is this handler paused, is something else already
+running this events, etc), possibly updating the stored event. It may decide to put
+the notification back into PubSub if it's not time to run it yet, or it may decide
+that it should not be run and to drop the PubSub notification. Completed events are
+deleted.
 
-Why use PubSub? Because it is extremely operationally intensive to implement queue scheduling
-in the DB.
+**Important**: The scheduling of events is handled by a Pub/Sub subscription, which
+**only** handles notifying the worker to try running an event. The worker may know that it should not The presence of
+an event in the subscription does not mean an event.
 
-Why not use PubSub for everything? Because it deletes messages after a week, and
-doesn't have a `pause` option.
+### Design decisions
 
-## What is an Event?
+Why use PubSub?
 
-Events are generated any time a handler calls `emit` or automatically by a cron
-handler on a set interval. They have a specific destination handler and a
-lifecycle of processing. Events are stored mutably in Postgres, in the `eventsV2`
-table. Completed events are deleted.
+- we spent over 50% of our DB managing worker scheduling
 
-The scheduling of events is handled by a Pub/Sub subscription, which strictly only
-handles the notification of the worker to try running an event. The presence of an
-event in the subscription does not mean an event, since Pub/Sub does not handle
-pausing.
+Why not use PubSub for everything?
 
-### Scheduling related metadata
-
-- `delayUntil` is used to delay processing of an event until a specified time
-- `retries` counts the number of times this event has been retried on error
-- `lockedAt` a worker will claim a lock before processing. DB locks are bad for this
-  purpose since we're doing DB work at the same time. This "lock" is simply a timestamp to stake a claim.
-- `enqueuedAt`: set when first enqueued
-
-### Metadata
-
-- `canvas_id`, `name` together specify the exact handler (`name`) on which
-  canvas to execute when this event is processed.
-- `value` is the emitted value (`DObj`) that was emitted to the handler
+- PubSub deletes messages after a week, so we'd have to implement extra (and difficult logic) to handle pausing
+- Similarly, emiting events in the far future would be harder to implement
+- PubSub does not support pausing
+- Queues can be paused and unpaused in quick succession by the user, meaning that
+  there can be multiple PubSub items for the same event in the queue.
+- PubSub cannot be used to count the length of the queue, and that's a really cool feature
 
 ## DB schema
 
 ### Events
+
+The `events_v2` table has event data
+
+- `canvas_id`, `module`, `name`, `modifier` together specify the exact handler on
+  which canvas to execute when this event is processed.
+- `value` is the emitted value (`DObj`) that was emitted to the handler
+
+It also holds scheduling metadata for an event:
+
+- `id` an id for the event. Not the same any PubSub id.
+- `delayUntil` is used to delay processing of an event until a specified time
+- `retries` counts the number of times this event has been retried on error
+- `lockedAt` a worker will claim a lock before processing. DB locks are bad for this
+  purpose since we're doing DB work at the same time. This "lock" is simply a timestamp
+  to stake a claim.
+- `enqueuedAt`: set when first enqueued
 
 ```
       Column       |            Type             |                      Modifiers
@@ -74,7 +101,7 @@ pausing.
  locked_at         | timestampz
 ```
 
-### Scheduling rules
+#### Scheduling rules
 
 Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to lock a queue for operational purposes.
 
@@ -87,14 +114,35 @@ Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to l
  created_at   | timestamp without time zone | not null default now()
 ```
 
-#### Scheduling_rules_type
+`scheduling_rules_type` values can be `pause` or `block`.
 
-```
-enumlabel
-----------------------
- pause
- block
-```
+## How features are implemented
+
+## Basic operation
+
+`emit` saved the event in the DB, and sends a notification to PubSub. QueueWorkers
+fetch notifications from PubSub, load the event, execute it, then delete the Event
+from PubSub and the DB.
+
+## Pausing/Unpausing
+
+When the notification is delivered from PubSub to a QueueWorker, the QueueWorker
+checks the scheduling rules for the handler. If it is blocked by an admin or paused
+by the user, the PubSub notification is dropped, but the event remains in the DB.
+When the handler is unpaused, notifications are added the PubSub to schedule them.
+
+If the user pauses and unpauses in quick succession, there could be multiple
+notifications in PubSub for the same event. As a result, there is per-event locking
+using the `lockedAt` column.
+
+## Errors
+
+If a handler completes, then the Event is completed regardless of whether the outcome
+is an error.
+
+If there was an operational error, the QueueWorker will retry the event by increasing
+the retry count, and adding a delay. It will put the Notification back into PubSub to
+retry later. After 2 retries, it fails entirely and deletes the event.
 
 ## Emit
 
@@ -106,16 +154,17 @@ Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
 - `delay_until = CURRENT_TIMESTAMP`
 - `enqueued_at = CURRENT_TIMESTAMP`
 
-Note that `CronChecker` does not use event table information to schedule, it uses
-`cron_records`.
+Note that `CronChecker` does not use `events_v2` table information for Cron
+scheduling, just for running the event after it creates it. It uses `cron_records`
+for Cron scheduling.
 
 Emit also adds an event to the PubSub topic. This will be delivered to a worker to
 tell it to try fetching and running an event. The PubSub worker has:
 
-- `retries not set`
-- `delay_until not set`
+- `retries` not set
+- `delay_until` not set
 
-## Execution
+### QueueWorker Execution
 
 `EventQueue2.dequeue` fetches a notification from PubSub and runs the process to
 execute it. First it will check if it should run it, looking at retries, whether
