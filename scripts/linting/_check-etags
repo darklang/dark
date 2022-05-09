@@ -21,4 +21,5 @@ check_presence app.css
 check_presence app.js
 check_presence reset-normalize.css
 check_presence BlazorWorker.js
+check_presence blazor.webassembly.js
 

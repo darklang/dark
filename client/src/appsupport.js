@@ -6,6 +6,27 @@ const mousewheel = function (callback) {
   });
 };
 
+// WIP...
+let appRoot = `${window.location.protocol}//${staticUrl}`;
+function toDarklangSetupUri(file) {
+  file = file.replace(/_framework\//, "");
+  file = "/blazor/" + file;
+  return `${appRoot}/${file}`;
+}
+window.loadBootResource = (resourceType, file, incomingUrl, hash) => {
+    const params = {ass: resourceType, file, incomingUrl, hash};
+    console.log('Loading...', params);
+
+    const url = toDarklangSetupUri(file);
+    if (resourceType == 'dotnetjs'){
+      return url;
+    } else {
+      return fetch(url, { method: 'GET', cache: 'no-cache', })
+    }
+};
+
+
+
 // ---------------------------
 // Check unsupported browser
 // ---------------------------
@@ -323,7 +344,8 @@ window.Dark = {
   analysis: {
     useBlazor: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("use-blazor");
+      const v = urlParams.get("use-blazor");
+      return v == "true";
     })(),
     requestAnalysis: function (params) {
       if (window.Dark.analysis.useBlazor) {
