@@ -118,13 +118,13 @@ Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to l
 
 ## How features are implemented
 
-## Basic operation
+### Basic operation
 
 `emit` saved the event in the DB, and sends a notification to PubSub. QueueWorkers
 fetch notifications from PubSub, load the event, execute it, then delete the Event
 from PubSub and the DB.
 
-## Pausing/Unpausing
+### Pausing/Unpausing
 
 When the notification is delivered from PubSub to a QueueWorker, the QueueWorker
 checks the scheduling rules for the handler. If it is blocked by an admin or paused
@@ -135,7 +135,7 @@ If the user pauses and unpauses in quick succession, there could be multiple
 notifications in PubSub for the same event. As a result, there is per-event locking
 using the `lockedAt` column.
 
-## Errors
+### Errors
 
 If a handler completes, then the Event is completed regardless of whether the outcome
 is an error.
@@ -144,7 +144,7 @@ If there was an operational error, the QueueWorker will retry the event by incre
 the retry count, and adding a delay. It will put the Notification back into PubSub to
 retry later. After 2 retries, it fails entirely and deletes the event.
 
-## Emit
+### Emit
 
 Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
 `EventQueue2.enqueue`. This adds a new value to the events table with:
