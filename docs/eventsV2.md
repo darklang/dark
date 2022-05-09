@@ -89,7 +89,7 @@ It also holds scheduling metadata for an event:
 ```
       Column       |            Type             |                      Modifiers
 -------------------+-----------------------------+-----------------------
- id                | integer                     | not null default nextval ('events_id_seq'::regclass)
+ id                | uuid                        | not null default nextval ('events_id_seq'::regclass)
  canvas_id         | uuid                        | not null
  module            | text                        | not null
  name              | text                        | not null

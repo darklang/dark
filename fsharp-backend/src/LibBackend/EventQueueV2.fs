@@ -71,7 +71,7 @@ let createEvent
   : Task<unit> =
   Sql.query
     "INSERT INTO events_v2
-       (id, canvasID, module, name, modifier, value,
+       (id, canvas_id, module, name, modifier, value,
         delay_until, enqueued_at, retries, locked_at)
      VALUES
        (@id, @canvasID, @module, @name, @modifier, @value,
@@ -123,7 +123,7 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
     e)
 
 let deleteEvent (event : T) : Task<unit> =
-  Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvasID = @canvasID"
+  Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventID", Sql.uuid event.id
                       "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
@@ -138,10 +138,10 @@ let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
     let! rowCount =
       Sql.query
         "UPDATE events_v2
-        SET lockedAt = CURRENT_TIMESTAMP
-        WHERE id = @eventID
-          AND canvasID = @canvasID
-          AND lockedAT = @currentLockedAt"
+            SET locked_at = CURRENT_TIMESTAMP
+          WHERE id = @eventID
+            AND canvas_id = @canvasID
+            AND locked_at = @currentLockedAt"
       |> Sql.parameters [ "eventID", Sql.uuid event.id
                           "canvasID", Sql.uuid event.canvasID
                           "currentLockedAt", currentLockedAt ]
@@ -226,10 +226,10 @@ let enqueue
     use _ =
       Telemetry.child
         "enqueue"
-        [ "canvasID", canvasID
-          "module", module'
-          "name", name
-          "modifier", modifier ]
+        [ "canvas_id", canvasID
+          "handler.module", module'
+          "handler.name", name
+          "handler.modifier", modifier ]
     // save the event
     let id = System.Guid.NewGuid()
     do! createEvent id canvasID module' name modifier value
@@ -237,10 +237,10 @@ let enqueue
     let! publisher = publisher.Force()
     let contents =
       data |> Json.Vanilla.serialize |> Google.Protobuf.ByteString.CopyFromUtf8
-    Telemetry.addTag "content_length" contents.Length
+    Telemetry.addTag "event.data.content_length" contents.Length
     let message = PubsubMessage(Data = contents)
     let! response = publisher.PublishAsync(topicName, [ message ])
-    Telemetry.addTag "pubsub_id" response.MessageIds[0]
+    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
     return ()
   }
 
