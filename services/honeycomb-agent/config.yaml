@@ -63,7 +63,6 @@ watchers:
     parser: json
 
 
-
   # -------------
   # Sidecars
   # -------------
@@ -158,8 +157,7 @@ watchers:
     dataset: kubernetes-bwd-nginx
     processors:
       - request_shape:
-        field: request
-
+          field: request
 
 
 verbosity: info
