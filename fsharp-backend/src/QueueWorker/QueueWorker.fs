@@ -147,12 +147,8 @@ let dequeueAndProcess () : Task<int> =
               | None ->
                 // If an event gets put in the queue and there's no handler for it,
                 // they're probably emiting to a handler they haven't created yet.
-                // This creates a number of problems. Firstly, the event will sit
-                // in the queue and rattle around forever, which is bad
-                // operationally. However, it will also constantly run while the
-                // user is editing code, until something finally works. This is
-                // annoying, but also unnecessary - so long as they have the trace
-                // they can use it to build. So just drop it immediately.
+                // In this case, all they need to build is the trace. So just drop
+                // this event immediately.
                 let! (_ : Instant) = TI.storeEvent meta.id traceID desc event.value
                 do! EQ.deleteEvent event
                 return! stop "MissingHandler" NoRetry
