@@ -10,14 +10,12 @@ metrics:
     - pod
     - container
 watchers:
-  - labelSelector: "app in (editor-app, qw-worker)"
-    containerName: stroller
-    dataset: kubernetes-stroller
-    processors:
-      - sample:
-          type: static
-          rate: 100 # 1/100 sample rate
-    parser: json
+
+  # -------------
+  # Main apps
+  # -------------
+
+  ## Garbage collector
   - labelSelector: "app=garbagecollector"
     containerName: garbagecollector-ctr
     dataset: kubernetes-garbagecollector
@@ -26,10 +24,14 @@ watchers:
       - sample:
           type: static
           rate: 10 # 1/10 sample rate
+
+  ## Scheduler
   - labelSelector: "app=scheduler-worker"
     containerName: scheduler-ctr
     dataset: kubernetes-scheduler
     parser: json
+
+  ## Editor
   - labelSelector: "app=editor-app"
     containerName: bwd-ctr
     dataset: kubernetes-bwd-ocaml
@@ -51,17 +53,38 @@ watchers:
             - /api/:canvas/delete_404
             - /api/:canvas/static_assets
             - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
+
+  ## qw
   - labelSelector: "app=qw-worker"
     containerName: qw-ctr
     dataset: kubernetes-bwd-ocaml
     parser: json
-  # the apiserver itself uses opentelemetry to write directly, but the legacyserver
-  # still uses json logs like the rest of ocaml containers
+
+
+
+  # -------------
+  # Sidecars
+  # -------------
+
+  ## Stroller
+  - labelSelector: "app in (editor-app, qw-worker)"
+    containerName: stroller
+    dataset: kubernetes-stroller
+    processors:
+      - sample:
+          type: static
+          rate: 100 # 1/100 sample rate
+    parser: json
+
+  ## Legacy-ctr: the apiserver itself uses opentelemetry to write directly, but the
+  ## legacyserver still uses json logs like the rest of ocaml containers
   - labelSelector: "app in (apiserver-app, bwdserver-app, queueworker-app)"
     namespace: darklang
     containerName: legacy-ctr
     dataset: kubernetes-bwd-ocaml
     parser: json
+
+  ## nginx sidecar
   - labelSelector: "app in (editor-app, apiserver-app)"
     containerName: http-proxy
     dataset: kubernetes-bwd-nginx
@@ -92,6 +115,7 @@ watchers:
             - /api/:canvas/delete_404
             - /api/:canvas/static_assets
             - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
+
 verbosity: info
 # splitLogging directs trace, debug, info, and warn log levels to stdout
 # rather than stderr.
