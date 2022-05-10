@@ -72,7 +72,8 @@ let addCorsHeaders
   inferCorsOriginHeader corsSetting reqHeaders
   |> Option.map (fun origin ->
     { response with
-        headers = response.headers @ [ "Access-Control-Allow-Origin", origin ] })
+        // these are added in order, so make sure the user's setting wins
+        headers = [ "Access-Control-Allow-Origin", origin ] @ response.headers })
   |> Option.defaultValue response
 
 
