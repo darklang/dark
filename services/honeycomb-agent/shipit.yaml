@@ -8,9 +8,9 @@ k8s:
   namespace: default
   manually-deployed:
     configs: []
-    configmaps:
-      honeycomb-agent:
-        text-file: config.yaml
+    configmaps: {}
+      # honeycomb-agent:
+      #   text-file: config.yaml
 
     custom-post-apply:
       - kubectl rollout restart ds/honeycomb-agent
