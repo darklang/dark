@@ -9,5 +9,5 @@ k8s:
     # It's not super clear how the honeycomb.yaml file is supposed to be updated via helm.
     configmaps: { }
 
-    #custom-post-apply:
+    # custom-post-apply:
     #  - kubectl rollout restart ds/honeycomb-agent
