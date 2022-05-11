@@ -160,9 +160,10 @@ let dequeueAndProcess () : Task<int> =
                 do! EQ.extendDeadline notification
 
                 let! result = executeEvent c h traceID event
-                let typ =
-                  result |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
-                Telemetry.addTag "resultType" typ
+                result
+                |> RT.Dval.toType
+                |> DvalReprExternal.typeToDeveloperReprV0
+                |> Telemetry.addTag "resultType"
 
                 // -------
                 // Delete
