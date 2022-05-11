@@ -26,52 +26,6 @@ let p (code : string) = FSharpToExpr.parsePTExpr code
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 
-let testEventQueueRoundtrip =
-  testTask "event queue roundtrip" {
-    // set up handler
-    let! meta = initializeTestCanvas (Randomized "event-queue-roundtrip")
-
-    let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
-    let oplists = [ handlerOp h ]
-
-    do!
-      Canvas.saveTLIDs
-        meta
-        [ (h.tlid, oplists, PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
-
-    // enqueue; schedule
-    let input = RT.DNull // I don't believe crons take inputs?
-    do! EQ.enqueue meta.name meta.id meta.owner "CRON" "test" "Daily" input
-
-    do! EQ.testingScheduleAll ()
-
-    // verify roundtrip
-    let! (result : Result<Option<RT.Dval>, exn>) = QueueWorker.dequeueAndProcess ()
-
-    match result with
-    | Ok (Some resultDval) ->
-      // should have at least one trace
-      let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
-      let traceID =
-        eventIDs
-        |> List.head
-        |> Exception.unwrapOptionInternal "missing eventID" []
-        |> Tuple2.first
-
-      // Saving happens in the background so wait for it
-      let mutable functionResults = []
-      for i in 1..10 do
-        if functionResults = [] then
-          let! result = TFR.load meta.id traceID h.tlid
-          functionResults <- result
-          if functionResults = [] then do! Task.Delay 300
-
-      Expect.equal (List.length functionResults) 1 "should have stored fn result"
-      Expect.equal (RT.DInt 123L) resultDval "Round tripped value"
-    | Ok None -> Exception.raiseInternal "Failed: expected Some, got None" []
-    | Error e -> Exception.raiseInternal $"Failed: got error" [ "error", e ]
-  }
-
 
 let testEventQueueIsFifo =
   testTask "event queue is fifo" {
@@ -151,8 +105,4 @@ let testGetWorkerSchedulesForCanvas =
 let tests =
   testSequencedGroup
     "eventQueue"
-    (testList
-      "eventQueue"
-      [ testEventQueueRoundtrip
-        testEventQueueIsFifo
-        testGetWorkerSchedulesForCanvas ])
+    (testList "eventQueue" [ testEventQueueIsFifo; testGetWorkerSchedulesForCanvas ])

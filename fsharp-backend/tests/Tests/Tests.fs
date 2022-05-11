@@ -28,6 +28,7 @@ let main (args : string array) : int =
         Tests.Cron.tests
         Tests.DvalReprExternal.tests
         Tests.EventQueue.tests
+        Tests.EventQueueV2.tests
         Tests.Execution.tests
         Tests.FSharpToExpr.tests
         Tests.HttpClient.tests
