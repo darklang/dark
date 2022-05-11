@@ -130,6 +130,9 @@ module Sql =
   let instantWithTimeZone (i : NodaTime.Instant) : SqlValue =
     Sql.timestamptz (i.ToDateTimeUtc())
 
+  let instantWithTimeZoneOrNone (i : Option<NodaTime.Instant>) : SqlValue =
+    i |> Option.map (fun i -> i.ToDateTimeUtc()) |> Sql.timestamptzOrNone
+
 
 
 // Extension methods

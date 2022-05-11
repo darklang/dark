@@ -94,14 +94,15 @@ let createEvent
 /// The events_v2 is the source of truth for the queue
 /// -----------------
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
+  print $"loadEvent {id}"
   Sql.query
     "SELECT module, name, modifier,
             delay_until, enqueued_at, retries, locked_at,
             value
      FROM events_v2
      WHERE id = @eventID
-       AND canvasID = @canvasID"
-  |> Sql.parameters [ "id", Sql.uuid id; "canvasID", Sql.uuid canvasID ]
+       AND canvas_id = @canvasID"
+  |> Sql.parameters [ "eventId", Sql.uuid id; "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowOptionAsync (fun read ->
     let e =
       { id = id
@@ -133,21 +134,24 @@ let deleteEvent (event : T) : Task<unit> =
 
 let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
   task {
-    let currentLockedAt =
+
+    let (querySegment, args) =
       match event.lockedAt with
-      | None -> SqlValue.Null
-      | Some instant -> Sql.instantWithTimeZone instant
+      | None -> "IS NULL", []
+      | Some instant ->
+        "= @currentLockedAt", [ "currentLockedAt", Sql.instantWithTimeZone instant ]
+    print $"claimLock {n}"
 
     let! rowCount =
       Sql.query
-        "UPDATE events_v2
+        $"UPDATE events_v2
             SET locked_at = CURRENT_TIMESTAMP
           WHERE id = @eventID
             AND canvas_id = @canvasID
-            AND locked_at = @currentLockedAt"
-      |> Sql.parameters [ "eventID", Sql.uuid event.id
-                          "canvasID", Sql.uuid event.canvasID
-                          "currentLockedAt", currentLockedAt ]
+            AND locked_at {querySegment}"
+      |> Sql.parameters (
+        [ "eventID", Sql.uuid event.id; "canvasID", Sql.uuid event.canvasID ] @ args
+      )
       |> Sql.executeNonQueryAsync
     if rowCount = 1 then return Ok()
     else if rowCount = 0 then return Error "LockNotClaimed"
@@ -296,8 +300,9 @@ let enqueue
           "handler.name", name
           "handler.modifier", modifier ]
     // save the event
+    print $"enqueue {name}"
     let id = System.Guid.NewGuid()
-    do! createEvent id canvasID module' name modifier value
+    do! createEvent canvasID id module' name modifier value
     let data = { id = id; canvasID = canvasID }
     let! publisher = publisher.Force()
     let contents =
@@ -352,7 +357,8 @@ let extendDeadline (n : Notification) : Task<unit> =
 let acknowledgeEvent (n : Notification) : Task<unit> =
   task {
     let! subscriber = subscriber.Force()
-    let! _ = subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubID ])
+    print $"anknowledge {n}"
+    do! subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubID ])
     return ()
   }
 

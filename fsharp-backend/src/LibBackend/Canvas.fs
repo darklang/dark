@@ -50,7 +50,7 @@ let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   }
 
 let getMetaFromID (id : CanvasID) : Task<Meta> =
-  Sql.query "SELECT name, account_id FROM canvases WHERE c.id = @canvasID"
+  Sql.query "SELECT name, account_id FROM canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid id ]
   |> Sql.executeRowAsync (fun read ->
     { id = id
