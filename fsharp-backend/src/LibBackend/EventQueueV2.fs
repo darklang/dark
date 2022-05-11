@@ -177,7 +177,7 @@ let credentials : Option<Grpc.Core.ChannelCredentials> =
 let publisher : Lazy<Task<PublisherServiceApiClient>> =
   lazy
     (task {
-      let! service =
+      let! client =
         match credentials with
         | None ->
           PublisherServiceApiClientBuilder(
@@ -190,19 +190,26 @@ let publisher : Lazy<Task<PublisherServiceApiClient>> =
             let channel = Grpc.Core.Channel(endpoint, credentials)
             let grpcClient = Publisher.PublisherClient(channel)
             let settings = PublisherServiceApiSettings()
-            let client = PublisherServiceApiClientImpl(grpcClient, settings)
-            return client
+            return PublisherServiceApiClientImpl(grpcClient, settings)
           }
 
 
       // Ensure the topic is created locally
-      if Config.queuePubSubShouldCreate then
-        let! topic = service.GetTopicAsync(topicName)
-        if topic <> null then
-          let! (_ : Topic) = service.CreateTopicAsync(topicName)
+      if Config.queuePubSubCreateTopic then
+        let! topicFound =
+          task {
+            try
+              let! _ = client.GetTopicAsync(topicName)
+              return true
+            with
+            | _ -> return false
+          }
+        if not topicFound then
+          let! (_ : Topic) = client.CreateTopicAsync(topicName)
           ()
 
-      return service
+
+      return client
     })
 
 
@@ -213,7 +220,7 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
       let! (_ : PublisherServiceApiClient) = publisher.Force()
 
       // Ensure subscription is created locally
-      let! service =
+      let! client =
         match credentials with
         | None ->
           SubscriberServiceApiClientBuilder(
@@ -226,24 +233,29 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
             let channel = Grpc.Core.Channel(endpoint, credentials)
             let grpcClient = Subscriber.SubscriberClient(channel)
             let settings = SubscriberServiceApiSettings()
-            let client = SubscriberServiceApiClientImpl(grpcClient, settings)
-            return client
+            return SubscriberServiceApiClientImpl(grpcClient, settings)
           }
 
 
-      if Config.queuePubSubShouldCreate then
-        let! subscription = service.GetSubscriptionAsync(subscriptionName)
-        if subscription <> null then
+      if Config.queuePubSubCreateTopic then
+        let! subFound =
+          task {
+            try
+              let! _ = client.GetSubscriptionAsync(subscriptionName)
+              return true
+            with
+            | _ -> return false
+          }
+        if not subFound then
           let! (_ : Subscription) =
-            service.CreateSubscriptionAsync(
+            client.CreateSubscriptionAsync(
               subscriptionName,
               topicName,
               pushConfig = null,
               ackDeadlineSeconds = 60
             )
           ()
-
-      return service
+      return client
     })
 
 let dequeue () : Task<Notification> =

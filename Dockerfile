@@ -256,7 +256,7 @@ RUN sudo wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
   && sudo chmod +x /usr/bin/cloud_sql_proxy
 
 # PubSub
-ENV PUBSUB_EMULATOR_HOST=localhost:8085
+ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
 # crcmod for gsutil; this gets us the compiled (faster), not pure Python
 # (slower) crcmod, as described in `gsutil help crcmod`

@@ -151,7 +151,7 @@ let queuePubSubTopicName = string "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"
 
 let queuePubSubSubscriptionName = string "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME"
 
-let queuePubSubShouldCreate = bool "DARK_CONFIG_QUEUE_PUBSUB_SHOULD_CREATE"
+let queuePubSubCreateTopic = bool "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"
 
 let queuePubSubCredentials = stringOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
 
