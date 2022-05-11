@@ -9,6 +9,7 @@ open Npgsql
 open Db
 
 open Google.Cloud.PubSub.V1
+open Grpc.Auth
 
 type Instant = NodaTime.Instant
 
@@ -163,10 +164,36 @@ let topicName = TopicName(Config.queuePubSubProjectID, Config.queuePubSubTopicNa
 let subscriptionName =
   SubscriptionName(Config.queuePubSubProjectID, Config.queuePubSubSubscriptionName)
 
+
+let credentials : Option<Grpc.Core.ChannelCredentials> =
+  Config.queuePubSubCredentials
+  |> Option.map Google.Apis.Auth.OAuth2.GoogleCredential.FromJson
+  |> Option.map (fun c -> c.ToChannelCredentials())
+
+// PublisherClient and Subscriber client have deprecated forms that the Channels as
+// arguments. No idea what we're supposed to use instead.
+#nowarn "44"
+
 let publisher : Lazy<Task<PublisherServiceApiClient>> =
   lazy
     (task {
-      let! service = PublisherServiceApiClient.CreateAsync()
+      let! service =
+        match credentials with
+        | None ->
+          PublisherServiceApiClientBuilder(
+            EmulatorDetection = Google.Api.Gax.EmulatorDetection.EmulatorOrProduction
+          )
+            .BuildAsync()
+        | Some credentials ->
+          task {
+            let endpoint = PublisherServiceApiClient.DefaultEndpoint
+            let channel = Grpc.Core.Channel(endpoint, credentials)
+            let grpcClient = Publisher.PublisherClient(channel)
+            let settings = PublisherServiceApiSettings()
+            let client = PublisherServiceApiClientImpl(grpcClient, settings)
+            return client
+          }
+
 
       // Ensure the topic is created locally
       if Config.queuePubSubShouldCreate then
@@ -179,13 +206,31 @@ let publisher : Lazy<Task<PublisherServiceApiClient>> =
     })
 
 
+
 let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
   lazy
     (task {
       let! (_ : PublisherServiceApiClient) = publisher.Force()
 
       // Ensure subscription is created locally
-      let! service = SubscriberServiceApiClient.CreateAsync()
+      let! service =
+        match credentials with
+        | None ->
+          SubscriberServiceApiClientBuilder(
+            EmulatorDetection = Google.Api.Gax.EmulatorDetection.EmulatorOrProduction
+          )
+            .BuildAsync()
+        | Some credentials ->
+          task {
+            let endpoint = SubscriberServiceApiClient.DefaultEndpoint
+            let channel = Grpc.Core.Channel(endpoint, credentials)
+            let grpcClient = Subscriber.SubscriberClient(channel)
+            let settings = SubscriberServiceApiSettings()
+            let client = SubscriberServiceApiClientImpl(grpcClient, settings)
+            return client
+          }
+
+
       if Config.queuePubSubShouldCreate then
         let! subscription = service.GetSubscriptionAsync(subscriptionName)
         if subscription <> null then
@@ -313,6 +358,13 @@ let getRule
         (r.eventSpace, r.handlerName) = (event.module', event.name))
       |> List.head
     return rule
+  }
+
+let init () : Task<unit> =
+  task {
+    let! (_ : PublisherServiceApiClient) = publisher.Force()
+    let! (_ : SubscriberServiceApiClient) = subscriber.Force()
+    return ()
   }
 
 let flush () = () // FSTODO

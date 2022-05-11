@@ -153,6 +153,8 @@ let queuePubSubSubscriptionName = string "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_
 
 let queuePubSubShouldCreate = bool "DARK_CONFIG_QUEUE_PUBSUB_SHOULD_CREATE"
 
+let queuePubSubCredentials = stringOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
+
 
 // -------------------------
 // Infra
