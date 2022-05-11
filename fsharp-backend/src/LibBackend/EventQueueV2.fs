@@ -72,6 +72,7 @@ let createEvent
   (modifier : string)
   (value : RT.Dval)
   : Task<unit> =
+  print $"createEvent {id}"
   Sql.query
     "INSERT INTO events_v2
        (id, canvas_id, module, name, modifier, value,
@@ -127,6 +128,7 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
     e)
 
 let deleteEvent (event : T) : Task<unit> =
+  print $"deletedEvent {event.id}"
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventID", Sql.uuid event.id
                       "canvasID", Sql.uuid event.canvasID ]
@@ -134,24 +136,18 @@ let deleteEvent (event : T) : Task<unit> =
 
 let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
   task {
-
-    let (querySegment, args) =
-      match event.lockedAt with
-      | None -> "IS NULL", []
-      | Some instant ->
-        "= @currentLockedAt", [ "currentLockedAt", Sql.instantWithTimeZone instant ]
     print $"claimLock {n}"
-
     let! rowCount =
       Sql.query
         $"UPDATE events_v2
             SET locked_at = CURRENT_TIMESTAMP
           WHERE id = @eventID
             AND canvas_id = @canvasID
-            AND locked_at {querySegment}"
-      |> Sql.parameters (
-        [ "eventID", Sql.uuid event.id; "canvasID", Sql.uuid event.canvasID ] @ args
-      )
+            AND locked_at IS NOT DISTINCT FROM @currentLockedAt"
+      |> Sql.parameters [ "eventID", Sql.uuid event.id
+                          "canvasID", Sql.uuid event.canvasID
+                          "currentLockedAt",
+                          Sql.instantWithTimeZoneOrNone event.lockedAt ]
       |> Sql.executeNonQueryAsync
     if rowCount = 1 then return Ok()
     else if rowCount = 0 then return Error "LockNotClaimed"
@@ -278,8 +274,15 @@ let dequeue () : Task<Notification> =
           |> UTF8.ofBytesUnsafe
           |> Json.Vanilla.deserialize<NotificationData>
         notification <- Some { data = data; pubSubID = message.MessageId }
+        print $"dequeue {notification}"
+        Telemetry.addTags [ "canvas_id", data.canvasID
+                            "queue.event.id", data.id
+                            "queue.event.pubsub_id", message.MessageId
+                            "queue.event.time_in_queue",
+                            ((message.PublishTime.ToDateTime()) - System.DateTime.Now)
+                              .TotalMilliseconds ]
       else
-        do! Task.Delay(LD.queueDelayBetweenPulls ())
+        do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
 
     return Exception.unwrapOptionInternal "expect a notification" [] notification
   }
@@ -310,6 +313,8 @@ let enqueue
     Telemetry.addTag "event.data.content_length" contents.Length
     let message = PubsubMessage(Data = contents)
     let! response = publisher.PublishAsync(topicName, [ message ])
+    let ids = seq { response.MessageIds } |> Seq.toList
+    print $"enqueued to {id} as {ids}"
     Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
     return ()
   }
@@ -331,6 +336,7 @@ let enqueueInAQueue
 /// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do so
 let requeueEvent (n : Notification) (delay : int) : Task<unit> =
   task {
+    print $"requeueevent {n}"
     let! subscriber = subscriber.Force()
     // set the deadline to zero so it'll run again
     let delay = min 600 delay
@@ -343,12 +349,13 @@ let requeueEvent (n : Notification) (delay : int) : Task<unit> =
 /// Tell PubSub not to try again for 5 minutes
 let extendDeadline (n : Notification) : Task<unit> =
   task {
+    print $"extendDeadline {n}"
     let! subscriber = subscriber.Force()
-    let! _ =
+    do!
       subscriber.ModifyAckDeadlineAsync(
         subscriptionName,
         [ n.pubSubID ],
-        LD.queueAllowedExecutionTime ()
+        LD.queueAllowedExecutionTimeInSeconds ()
       )
     return ()
   }

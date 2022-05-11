@@ -59,6 +59,8 @@ type ShouldRetry =
 let dequeueAndProcess () : Task<int> =
   task {
     use _span = Telemetry.child "dequeueAndProcess" []
+    let resultType (dv : RT.Dval) : string =
+      dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 
     // Receive Notification - if there's an exception here, we don't have a job so no
     // cleanup required.
@@ -67,6 +69,7 @@ let dequeueAndProcess () : Task<int> =
     // Function used to quit this event
     let stop (reason : string) (retry : ShouldRetry) : Task<int> =
       task {
+        print $"stop: {reason} {notification}"
         Telemetry.addTags [ "queue.completion_reason", reason
                             "queue.success", false
                             "queue.retrying", retry <> NoRetry ]
@@ -77,10 +80,7 @@ let dequeueAndProcess () : Task<int> =
       }
 
     let! meta = Canvas.getMetaFromID notification.data.canvasID
-    Telemetry.addTags [ "canvas_id", notification.data.canvasID
-                        "queue.event_id", notification.data.id
-                        "queue.pubsub_id", notification.pubSubID
-                        "canvas_name", meta.name ]
+    Telemetry.addTags [ "canvas_name", meta.name ]
 
     // -------
     // EventLoad
@@ -88,6 +88,14 @@ let dequeueAndProcess () : Task<int> =
     match! EQ.loadEvent notification.data.canvasID notification.data.id with
     | None -> return! stop "EventMissing" NoRetry
     | Some event -> // EventPresent
+      Telemetry.addTags [ "event.handler.name", event.name
+                          "event.handler.modifier", event.modifier
+                          "event.handler.module", event.module'
+                          "event.retries", event.retries
+                          "event.value.type", (event.value |> resultType :> obj)
+                          "event.delayUntil", event.delayUntil
+                          "event.lockedAt", event.lockedAt
+                          "event.enqueuedAt", event.enqueuedAt ]
 
       // -------
       // DelayCheck
@@ -126,7 +134,7 @@ let dequeueAndProcess () : Task<int> =
             // LockClaim
             // -------
             match! EQ.claimLock event notification with
-            | Error _ -> return! stop "LockClaimFailed" (Retry 5)
+            | Error msg -> return! stop $"LockClaimFailed: {msg}" (Retry 5)
             | Ok () -> // LockClaimed
 
               // -------
@@ -160,10 +168,7 @@ let dequeueAndProcess () : Task<int> =
                 do! EQ.extendDeadline notification
 
                 let! result = executeEvent c h traceID event
-                result
-                |> RT.Dval.toType
-                |> DvalReprExternal.typeToDeveloperReprV0
-                |> Telemetry.addTag "resultType"
+                Telemetry.addTag "resultType" (resultType result)
 
                 // -------
                 // Delete

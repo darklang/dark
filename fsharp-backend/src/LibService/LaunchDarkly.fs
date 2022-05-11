@@ -90,8 +90,8 @@ let useEventsV2 = Internal.canvasBool "use-events-v2" false false
 // configuration. This is the preferred way of setting arbitrary numbers
 // --------------
 
-let queueAllowedExecutionTime = // seconds
-  Internal.intConfig "queue-allowed-execution-time" 300 300
+let queueAllowedExecutionTimeInSeconds =
+  Internal.intConfig "queue-allowed-execution-time-in-seconds" 300 300
 
-let queueDelayBetweenPulls = // milliseconds
-  Internal.intConfig "queue-delay-between-pubsub-pulls" 1000 1000
+let queueDelayBetweenPullsInMillis =
+  Internal.intConfig "queue-delay-between-pubsub-pulls-in-millis" 1000 1000
