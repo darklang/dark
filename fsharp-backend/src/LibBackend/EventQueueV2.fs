@@ -135,6 +135,18 @@ let deleteEvent (event : T) : Task<unit> =
                       "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
 
+let markRetry (event : T) : Task<unit> =
+  Sql.query
+    $"UPDATE events_v2
+         SET delay_until = CURRENT_TIMESTAMP + 5 minutes
+             retries = retries + 1
+       WHERE id = @eventID
+         AND canvas_id = @canvasID"
+  |> Sql.parameters [ "eventID", Sql.uuid event.id
+                      "canvasID", Sql.uuid event.canvasID ]
+  |> Sql.executeStatementAsync
+
+
 let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
   task {
     let! rowCount =
@@ -341,6 +353,7 @@ let requeueEvent (n : Notification) (delay : int) : Task<unit> =
     // set the deadline to zero so it'll run again
     let delay = min 600 delay
     let delay = max 0 delay
+    // FSTODO: is this the right way to set a "don't try again until X" setting
     return!
       subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubAckID ], delay)
   }

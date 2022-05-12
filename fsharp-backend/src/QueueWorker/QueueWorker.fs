@@ -173,20 +173,39 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
 
                 // FSTODO Set a time limit of 3m
 
-                let! (_ : Instant) = TI.storeEvent c.meta.id traceID desc event.value
-                let! result = executeEvent c h traceID event
-                Telemetry.addTag "resultType" (resultType result)
+                try
+                  let! (_ : Instant) =
+                    TI.storeEvent c.meta.id traceID desc event.value
+                  let! result = executeEvent c h traceID event
+                  Telemetry.addTag "resultType" (resultType result)
+                  // ExecutesToCompletion
 
-                // -------
-                // Delete
-                // -------
-                do! EQ.deleteEvent event
-                do! EQ.acknowledgeEvent notification
+                  // -------
+                  // Delete
+                  // -------
+                  do! EQ.deleteEvent event
+                  do! EQ.acknowledgeEvent notification
 
-                // -------
-                // End
-                // -------
-                return Ok(event, notification)
+                  // -------
+                  // End
+                  // -------
+                  return Ok(event, notification)
+                with
+                | _ ->
+                  // RetryTooMany
+                  if event.retries >= 2 then
+
+                    // -------
+                    // Delete
+                    // -------
+                    do! EQ.deleteEvent event
+                    return! stop "RetryTooMany" NoRetry
+                  else
+                    // FSTODO: there are lots of ways this won't work, eg, if the
+                    // machine turns off, so we should use the PubSub retry count
+                    // instead probably.
+                    do! EQ.markRetry event
+                    return! stop "RetryAllowed" (Retry 301)
   }
 
 let run () : Task<unit> =
