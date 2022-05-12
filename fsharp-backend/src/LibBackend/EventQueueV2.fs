@@ -76,7 +76,6 @@ let createEvent
   (modifier : string)
   (value : RT.Dval)
   : Task<unit> =
-  print $"createEvent {id}"
   Sql.query
     "INSERT INTO events_v2
        (id, canvas_id, module, name, modifier, value,
@@ -99,7 +98,6 @@ let createEvent
 /// The events_v2 is the source of truth for the queue
 /// -----------------
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
-  print $"loadEvent {id}"
   Sql.query
     "SELECT module, name, modifier,
             delay_until, enqueued_at, retries, locked_at,
@@ -132,7 +130,6 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
     e)
 
 let deleteEvent (event : T) : Task<unit> =
-  print $"deletedEvent {event.id}"
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventID", Sql.uuid event.id
                       "canvasID", Sql.uuid event.canvasID ]
@@ -140,7 +137,6 @@ let deleteEvent (event : T) : Task<unit> =
 
 let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
   task {
-    print $"claimLock {n}"
     let! rowCount =
       Sql.query
         $"UPDATE events_v2
@@ -283,7 +279,6 @@ let dequeue () : Task<Notification> =
             { data = data
               pubSubMessageID = message.MessageId
               pubSubAckID = envelope.AckId }
-        print $"dequeue {notification}"
         Telemetry.addTags [ "canvas_id", data.canvasID
                             "queue.event.id", data.id
                             "queue.event.pubsub_id", message.MessageId
@@ -312,7 +307,6 @@ let enqueue
           "handler.name", name
           "handler.modifier", modifier ]
     // save the event
-    print $"enqueue {name}"
     let id = System.Guid.NewGuid()
     do! createEvent canvasID id module' name modifier value
     let data = { id = id; canvasID = canvasID }
@@ -322,8 +316,6 @@ let enqueue
     Telemetry.addTag "event.data.content_length" contents.Length
     let message = PubsubMessage(Data = contents)
     let! response = publisher.PublishAsync(topicName, [ message ])
-    let ids = seq { response.MessageIds } |> Seq.toList
-    print $"enqueued to {id} as {ids}"
     Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
     return ()
   }
@@ -345,37 +337,31 @@ let enqueueInAQueue
 /// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do so
 let requeueEvent (n : Notification) (delay : int) : Task<unit> =
   task {
-    print $"requeueevent {n}"
     let! subscriber = subscriber.Force()
     // set the deadline to zero so it'll run again
     let delay = min 600 delay
     let delay = max 0 delay
-    let! _ =
+    return!
       subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubAckID ], delay)
-    return ()
   }
 
 /// Tell PubSub not to try again for 5 minutes
 let extendDeadline (n : Notification) : Task<unit> =
   task {
-    print $"extendDeadline {n}"
     let! subscriber = subscriber.Force()
-    do!
+    return!
       subscriber.ModifyAckDeadlineAsync(
         subscriptionName,
         [ n.pubSubAckID ],
         LD.queueAllowedExecutionTimeInSeconds ()
       )
-    return ()
   }
 
 /// Tell PubSub that we have handled this event. This drops the event.
 let acknowledgeEvent (n : Notification) : Task<unit> =
   task {
     let! subscriber = subscriber.Force()
-    print $"anknowledge {n}"
-    do! subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubAckID ])
-    return ()
+    return! subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubAckID ])
   }
 
 
