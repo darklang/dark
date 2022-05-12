@@ -5,7 +5,7 @@
 Goals:
 
 - do not do DB queries to find events to run (that is, move scheduling outside DB)
-- support existing queue features (paused/blocked, retries, delays)
+- support existing queue features (paused/blocked, delayed retries)
 - do not run a scheduling service
 
 ## Definitions
@@ -98,8 +98,6 @@ The `events_v2` table has event data
 It also holds scheduling metadata for an event:
 
 - `id` an id for the event. Not the same any PubSub id.
-- `delayUntil` is used to delay processing of an event until a specified time
-- `retries` counts the number of times this event has been retried on error
 - `lockedAt` a worker will claim a lock before processing. DB locks are bad for this
   purpose since we're doing DB work at the same time. This "lock" is simply a timestamp
   to stake a claim.
@@ -114,8 +112,6 @@ It also holds scheduling metadata for an event:
  name              | text                        | not null
  modifier          | text                        | not null
  value             | text                        | not null
- retries           | integer                     | not null default 0
- delay_until       | timestampz | not null default now()
  enqueued_at       | timestampz | not null default now()
  locked_at         | timestampz
 ```
@@ -170,7 +166,7 @@ deliver it again. PubSub is configured to try a message 5 times, then it publish
 in a deadletter queue. We do not currently have any automation on the deadletter
 queue.
 
-An event that has more than 2 delays will be deleted by the QueueWorker.
+An event that has more than 5 delays will be deleted by the QueueWorker.
 
 "Bad" notifications (perhaps they can't be read by the queueworker) will be discarded
 by PubSub after a week.
@@ -186,7 +182,6 @@ Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
 `EventQueueV2.enqueue`. This adds a new value to the events table with:
 
 - `locked_at = NULL`
-- `delay_until = CURRENT_TIMESTAMP`
 - `enqueued_at = CURRENT_TIMESTAMP`
 
 Note that `CronChecker` does not use `events_v2` table information for Cron
@@ -195,8 +190,9 @@ that separately in the `cron_records` table and just emits events on the appropr
 schedule, leaving it to the queues to handler after that.
 
 Emit also adds a notification to the PubSub topic. This will be delivered to a
-QueueWorker to tell it to try fetching and running an event. We do not use built-in
-retry limit in PubSub. **FSTODO** but we should
+QueueWorker to tell it to try fetching and running an event. After 5 retries, PubSub
+will drop the notification, sending it to a dead-letter queue (which at the moment
+has no UI or anything).
 
 ### QueueWorker Execution
 
@@ -211,14 +207,13 @@ an event immediately, it will put back the notification by setting the ack deadl
 to a more appropriate time. If it decides it should not be run (eg if paused) it will
 remove it from PubSub by _acknowledging_ it.
 
-**FSTODO**: what happens to the retry count here?
-
 If a QueueWorker decides to runs the event, it will increase the _ack time_ to 5
 minutes to give it time to execute. When it is done, it removes it from the queue by
 _acknowledging_ it.
 
-Because the event is just a notifcation, it's basically almost always fine to
-put it back in so long as the DB row for the event exists (which means it's done).
+Because the event is just a notification, it's basically almost always fine to put it
+back in so long as the DB row for the event exists (which means it's done). However,
+once it has been delivered 5 times, PubSub will stop trying to retry it.
 
 Note that normally, only one notification exists for an event. The exception is when
 workers are unpaused.
@@ -228,18 +223,18 @@ graph LR
   %% # Happy path
   %% Load
   Queue -->|Receive notification| EventLoad
-  EventLoad --> |EventPresent| DelayCheck
+  EventLoad --> |EventPresent| LockCheck
 
   %% Checks
-  %% LockCheck, DelayCheck and RuleCheck are all required before we do a LockClaim.
+  %% LockCheck and RuleCheck are required before we do a LockClaim.
   %% It's not essential that they are run in any particular order: since LockClaim does
   %% not happen in the same transaction of LockCheck, we can't rely on it anyway. So we
   %% just do these in the most convenient order based on when the information is
   %% loaded.
-  DelayCheck -->|DelayNone| LockCheck
   LockCheck -->|LockNone| RuleCheck
   LockCheck -->|LockExpired| RuleCheck
-  RuleCheck -->|RuleNone| LockClaim
+  RuleCheck -->|RuleNone| RetryCheck
+  RetryCheck --> |RetryAllowed| LockClaim
 
   %% Running
   LockClaim --> |LockClaimed| Process
@@ -254,9 +249,6 @@ graph LR
   %% Presumably someone else is running this, but let's reenqueue this to be safe.
   LockCheck -->|IsLocked| Queue
 
-  %% We got this too early, so reenqueue it.
-  DelayCheck -->|DelayNotYet| Queue
-
   %% Drop the notification, we'll reload it upon unpause/unblock
   RuleCheck -->|RulePaused| End
   RuleCheck -->|RuleBlocked| End
@@ -265,8 +257,7 @@ graph LR
   LockClaim --> |LockClaimFailed| Queue
 
   %% Retries are allowed
-  Process --> |Exception| RetryCheck
-  RetryCheck --> |RetryAllowed: increment, delay| Queue
+  Process --> |Exception, Retry with delay| Queue
 
   %% That's enough retries, we're done
   RetryCheck --> |RetryTooMany| Delete
