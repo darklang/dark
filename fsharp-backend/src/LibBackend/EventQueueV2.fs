@@ -46,6 +46,7 @@ type NotificationData = { id : EventID; canvasID : CanvasID }
 type Notification =
   { data : NotificationData
     pubSubMessageID : string
+    deliveryAttempt : int
     pubSubAckID : string }
 
 /// Events are stored in the DB and are the source of truth for when and how an event
@@ -56,9 +57,8 @@ type T =
     module' : string
     name : string
     modifier : string
-    retries : int
     value : RT.Dval
-    delayUntil : Instant
+    delayUntil : Instant // FSTODO: is this needed?
     lockedAt : Option<Instant>
     enqueuedAt : Instant }
 
@@ -79,10 +79,10 @@ let createEvent
   Sql.query
     "INSERT INTO events_v2
        (id, canvas_id, module, name, modifier, value,
-        delay_until, enqueued_at, retries, locked_at)
+        delay_until, enqueued_at, locked_at)
      VALUES
        (@id, @canvasID, @module, @name, @modifier, @value,
-        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL)"
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)"
   |> Sql.parameters [ "id", Sql.uuid id
                       "canvasID", Sql.uuid canvasID
                       "module", Sql.string module'
@@ -100,7 +100,7 @@ let createEvent
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
   Sql.query
     "SELECT module, name, modifier,
-            delay_until, enqueued_at, retries, locked_at,
+            delay_until, enqueued_at, locked_at,
             value
      FROM events_v2
      WHERE id = @eventID
@@ -115,7 +115,6 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
         modifier = read.string "modifier"
         delayUntil = read.instant "delay_until"
         enqueuedAt = read.instant "enqueued_at"
-        retries = read.int "retries"
         lockedAt = read.instantOrNone "locked_at"
         // FSTODO: what's the right format to encode these with?
         value = read.string "value" |> DvalReprInternal.ofInternalRoundtrippableV0 }
@@ -125,7 +124,6 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
                         ("modifier", e.modifier)
                         ("enqueued_at", e.enqueuedAt)
                         ("delay_until", e.delayUntil)
-                        ("retries", e.retries)
                         ("locked_at", e.lockedAt) ]
     e)
 
@@ -134,18 +132,6 @@ let deleteEvent (event : T) : Task<unit> =
   |> Sql.parameters [ "eventID", Sql.uuid event.id
                       "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
-
-let markRetry (event : T) : Task<unit> =
-  Sql.query
-    $"UPDATE events_v2
-         SET delay_until = CURRENT_TIMESTAMP + 5 minutes
-             retries = retries + 1
-       WHERE id = @eventID
-         AND canvas_id = @canvasID"
-  |> Sql.parameters [ "eventID", Sql.uuid event.id
-                      "canvasID", Sql.uuid event.canvasID ]
-  |> Sql.executeStatementAsync
-
 
 let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
   task {
@@ -286,14 +272,19 @@ let dequeue () : Task<Notification> =
           message.Data.ToByteArray()
           |> UTF8.ofBytesUnsafe
           |> Json.Vanilla.deserialize<NotificationData>
+        let deliveryAttempt =
+          let da = message.GetDeliveryAttempt()
+          if da.HasValue then Some da.Value else None
         notification <-
           Some
             { data = data
+              deliveryAttempt = Option.defaultValue 1 deliveryAttempt
               pubSubMessageID = message.MessageId
               pubSubAckID = envelope.AckId }
         Telemetry.addTags [ "canvas_id", data.canvasID
                             "queue.event.id", data.id
                             "queue.event.pubsub_id", message.MessageId
+                            "queue.event.delivery_attempt", deliveryAttempt
                             "queue.event.time_in_queue",
                             ((message.PublishTime.ToDateTime()) - System.DateTime.Now)
                               .TotalMilliseconds ]
@@ -346,16 +337,20 @@ let enqueueInAQueue
   else
     EventQueue.enqueue canvasName canvasID accountID module' name modifier value
 
-/// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do so
-let requeueEvent (n : Notification) (delay : int) : Task<unit> =
+/// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do
+/// so. This expiration of the ack is called NACK in the PubSub docs, and it
+/// increments the deliveryAttempt counter
+let requeueEvent (n : Notification) (delay : NodaTime.Duration) : Task<unit> =
   task {
     let! subscriber = subscriber.Force()
-    // set the deadline to zero so it'll run again
-    let delay = min 600 delay
+    let delay = min 600 (int delay.TotalSeconds)
     let delay = max 0 delay
-    // FSTODO: is this the right way to set a "don't try again until X" setting
     return!
-      subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubAckID ], delay)
+      subscriber.ModifyAckDeadlineAsync(
+        subscriptionName,
+        [ n.pubSubAckID ],
+        int delay
+      )
   }
 
 /// Tell PubSub not to try again for 5 minutes

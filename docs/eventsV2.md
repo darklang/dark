@@ -160,14 +160,17 @@ using the `lockedAt` column.
 If a handler completes, then the Event is completed regardless of whether the outcome
 is an error.
 
-If there was an operational error, the QueueWorker will retry the event by increasing
-the retry count, and adding a delay. It will put the Notification back into PubSub to
-retry later. After 2 retries, it fails entirely and deletes the event.
+If there is an execution error, the QueueWorker will immediately tell PubSub to retry
+in 5 minutes.
 
-**FSTODO**: not yet fully implemented
-If the worker fails catastrophically, PubSub will keep retrying at 5 minute
-intervals, but will set a retries header. A QueueWorker that receives a notification
-with enough retries will delete the event and the notification.
+If there was an operational error, the QueueWorker will not be able to do anything to
+the event. However, the QueueWorker will not acknowledge the PubSub notification, and
+so when the PubSub ack deadline for that notification passes, PubSub will attempt to
+deliver it again. PubSub is configured to try a message 5 times, then it publishes it
+in a deadletter queue. We do not currently have any automation on the deadletter
+queue.
+
+An event that has more than 2 delays will be deleted by the QueueWorker.
 
 "Bad" notifications (perhaps they can't be read by the queueworker) will be discarded
 by PubSub after a week.
@@ -182,7 +185,6 @@ We do a DB query for the number of events for that canvas/handler.
 Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
 `EventQueueV2.enqueue`. This adds a new value to the events table with:
 
-- `retries = 0`
 - `locked_at = NULL`
 - `delay_until = CURRENT_TIMESTAMP`
 - `enqueued_at = CURRENT_TIMESTAMP`
@@ -204,7 +206,7 @@ another worker has set `locked_at` and holds the lock, whether scheduling rules 
 us not to run it, whether it's not time to run it yet, or if the event is missing.
 
 Notifications have a built-in _ack deadline_ - they must be _acknowledged_ within a
-changeable time limit. The default is 1 minute. If a queueworker decides not to run
+changeable time limit. The default is 60 seconds. If a queueworker decides not to run
 an event immediately, it will put back the notification by setting the ack deadline
 to a more appropriate time. If it decides it should not be run (eg if paused) it will
 remove it from PubSub by _acknowledging_ it.
