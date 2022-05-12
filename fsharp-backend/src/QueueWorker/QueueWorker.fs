@@ -139,11 +139,13 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
 
             // -------
             // TooManyRetries
-            // Note that this happens after all the other checks, as we might
-            // have multiple notifications for the same event and we don't want to
-            // delete one that is being executed or isn't ready.
+            // Note that this happens after all the other checks, as we might have
+            // multiple notifications for the same event and we don't want to delete
+            // one that is being executed or isn't ready.  We set 5 here because the
+            // retries might happen for a reason that isn't strictly retries, such as
+            // lockedAt.
             // -------
-            if notification.deliveryAttempt > 3 then
+            if notification.deliveryAttempt >= 5 then
               do! EQ.deleteEvent event
               return! stop "RetryTooMany" NoRetry
             else // RetryAllowed
@@ -153,7 +155,8 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
               // -------
               match! EQ.claimLock event notification with
               | Error msg ->
-                let retryTime = NodaTime.Duration.FromSeconds 5.0
+                // Someone else just claimed the lock!
+                let retryTime = NodaTime.Duration.FromSeconds 300.0
                 return! stop $"LockClaimFailed: {msg}" (Retry retryTime)
               | Ok () -> // LockClaimed
 
