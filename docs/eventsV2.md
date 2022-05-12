@@ -216,7 +216,7 @@ graph LR
   %% There's another besides us, no harm requeuing
   LockClaim --> |LockClaimFailed| Queue
 
-  %% Retries are allowed, so requ
+  %% Retries are allowed
   Process --> |Exception| RetryCheck
   RetryCheck --> |RetryAllowed: increment, delay| Queue
 

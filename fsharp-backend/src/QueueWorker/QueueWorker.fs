@@ -54,9 +54,10 @@ type ShouldRetry =
   | NoRetry
 
 /// The algorithm here is described in docs/production/eventsV2.md. The algorithm
-/// below is annotated with names from chart.
-/// Returns the number of events it executed (0 or 1)
-let dequeueAndProcess () : Task<int> =
+/// below is annotated with names from chart. Will block until receiving a
+/// notification. Returns a Result containing the notification and the event on
+/// success, and just the notifcation on failure. May throw on error.
+let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>> =
   task {
     use _span = Telemetry.child "dequeueAndProcess" []
     let resultType (dv : RT.Dval) : string =
@@ -67,7 +68,10 @@ let dequeueAndProcess () : Task<int> =
     let! notification = EQ.dequeue ()
 
     // Function used to quit this event
-    let stop (reason : string) (retry : ShouldRetry) : Task<int> =
+    let stop
+      (reason : string)
+      (retry : ShouldRetry)
+      : Task<Result<_, EQ.Notification>> =
       task {
         print $"stop: {reason} {notification}"
         Telemetry.addTags [ "queue.completion_reason", reason
@@ -76,7 +80,7 @@ let dequeueAndProcess () : Task<int> =
         match retry with
         | Retry delay -> return! EQ.requeueEvent notification delay
         | NoRetry -> return! EQ.acknowledgeEvent notification
-        return 0 // no events executed
+        return Error notification // no events executed
       }
 
     let! meta = Canvas.getMetaFromID notification.data.canvasID
@@ -182,7 +186,7 @@ let dequeueAndProcess () : Task<int> =
                 // -------
                 // End
                 // -------
-                return 1
+                return Ok(event, notification)
   }
 
 let run () : Task<unit> =
@@ -190,8 +194,8 @@ let run () : Task<unit> =
     while not shutdown.Value do
       try
         use _span = Telemetry.createRoot "QueueWorker.run"
-        let! count = dequeueAndProcess ()
-        if count > 0 then return () else return! Task.Delay 1000
+        let! (_ : Result<_, _>) = dequeueAndProcess ()
+        return ()
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
