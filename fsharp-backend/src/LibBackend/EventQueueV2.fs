@@ -42,7 +42,11 @@ type EventID = System.Guid
 /// Notifications are sent by PubSub to say that now would be a good time to try this
 /// event. We only load events in response to notifications.
 type NotificationData = { id : EventID; canvasID : CanvasID }
-type Notification = { data : NotificationData; pubSubID : string }
+
+type Notification =
+  { data : NotificationData
+    pubSubMessageID : string
+    pubSubAckID : string }
 
 /// Events are stored in the DB and are the source of truth for when and how an event
 /// should be executed. When they are complete, they are deleted.
@@ -268,12 +272,17 @@ let dequeue () : Task<Notification> =
       let messages = response.ReceivedMessages
       let count = messages.Count
       if count > 0 then
-        let message = messages[0].Message
+        let envelope = messages[0]
+        let message = envelope.Message
         let data =
           message.Data.ToByteArray()
           |> UTF8.ofBytesUnsafe
           |> Json.Vanilla.deserialize<NotificationData>
-        notification <- Some { data = data; pubSubID = message.MessageId }
+        notification <-
+          Some
+            { data = data
+              pubSubMessageID = message.MessageId
+              pubSubAckID = envelope.AckId }
         print $"dequeue {notification}"
         Telemetry.addTags [ "canvas_id", data.canvasID
                             "queue.event.id", data.id
@@ -342,7 +351,7 @@ let requeueEvent (n : Notification) (delay : int) : Task<unit> =
     let delay = min 600 delay
     let delay = max 0 delay
     let! _ =
-      subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubID ], delay)
+      subscriber.ModifyAckDeadlineAsync(subscriptionName, [ n.pubSubAckID ], delay)
     return ()
   }
 
@@ -354,7 +363,7 @@ let extendDeadline (n : Notification) : Task<unit> =
     do!
       subscriber.ModifyAckDeadlineAsync(
         subscriptionName,
-        [ n.pubSubID ],
+        [ n.pubSubAckID ],
         LD.queueAllowedExecutionTimeInSeconds ()
       )
     return ()
@@ -365,7 +374,7 @@ let acknowledgeEvent (n : Notification) : Task<unit> =
   task {
     let! subscriber = subscriber.Force()
     print $"anknowledge {n}"
-    do! subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubID ])
+    do! subscriber.AcknowledgeAsync(subscriptionName, [ n.pubSubAckID ])
     return ()
   }
 
