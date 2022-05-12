@@ -167,6 +167,9 @@ let dequeueAndProcess () : Task<int> =
                 // run the job and then acknowledge completion after.
                 do! EQ.extendDeadline notification
 
+                // FSTODO Set a time limit of 3m
+
+                let! (_ : Instant) = TI.storeEvent c.meta.id traceID desc event.value
                 let! result = executeEvent c h traceID event
                 Telemetry.addTag "resultType" (resultType result)
 
