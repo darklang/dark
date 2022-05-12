@@ -1,6 +1,6 @@
-# Events V2 (updated May 8, 2022)
+# Queues V2 (updated May 8, 2022)
 
-## Design of Events V2
+## Design of Dark Queues V2
 
 Goals:
 
@@ -8,16 +8,26 @@ Goals:
 - support existing queue features (paused/blocked, retries, delays)
 - do not run a scheduling service
 
+## Definitions
+
+- `emit` adding an event to the queue from a Cron handler or the `emit` function
+- `event`: refers to the Dark value `emit`ed into the queue and the metadata around
+  it (including what you might call a "job" or "message" in other systems). We say we
+  "run the event" when we execute it, or "retry the event" if we requeue it.
+- `QueueWorker`: one of the machines which is running 1 or more events.
+- `queue`: encompasses everything else here
+
 ## High level description
 
 The queue implements the following features:
 
-- events are added by calling `emit`
-- events are run in `WORKER` handlers on the canvas with the same name that the event was emitted to
+- events are added by calling `emit` or via CronChecker
+- events are run in `WORKER` handlers on the canvas with the same name that the event
+  was emitted to
 - events are run asynchronously on separate worker machines
-- workers can be paused
-- workers can be blocked by Dark admins to prevent operational issues
-- the UI shows the number of items in the queue
+- worker handlers can be paused, meaning we won't start new events from that handler
+- worker handlers can be blocked by Dark admins to prevent operational issues
+- the UI shows the number of events in the queue
 - at least once execution (events which experience issues after partial execution are retried)
 - completed events are never retried (even if they complete with an error value,
   including `incomplete` or a type error)
@@ -35,8 +45,21 @@ The queue also has the following accidental features:
 The Queue is made of 3 parts:
 
 - `events_v2` table: the backing store and source of truth for all events
-- `QueueWorker`: workers that execute events
-- `Google PubSub` scheduler: sends notifications to workers to potentially an Event
+- `QueueWorker`: workers that execute events (also see EventQueueV2.fs)
+- `Google PubSub` scheduler: sends notifications to workers to potentially run an Event
+
+New definitions:
+
+- `notification`: a message containing an event ID, used to tell a queueworker which
+  event to fetch
+- `PubSub subscription`: what we read notifications from. Technically, we emit
+  notifications to a `PubSub Topic`, but the distinction isn't important.
+
+**Important**: The scheduling of events is handled by a Pub/Sub subscription, which
+**only** handles notifying the worker to try running an event. The worker may know
+that it should not run it, for example if the worker is paused. The presence of an
+Message in the PubSub subscription does not mean an actual event will be run. Nor an
+event to be run imply that there must be a
 
 When an event is first `emit`ted, we save it in the `events_v2` table, and add a
 **Notification** in PubSub. The QueueWorkers pull messages from PubSub when they
@@ -46,10 +69,6 @@ running this events, etc), possibly updating the stored event. It may decide to 
 the notification back into PubSub if it's not time to run it yet, or it may decide
 that it should not be run and to drop the PubSub notification. Completed events are
 deleted.
-
-**Important**: The scheduling of events is handled by a Pub/Sub subscription, which
-**only** handles notifying the worker to try running an event. The worker may know that it should not The presence of
-an event in the subscription does not mean an event.
 
 ### Design decisions
 
@@ -126,10 +145,11 @@ from PubSub and the DB.
 
 ### Pausing/Unpausing
 
+**FSTODO**: Not implemented yet
 When the notification is delivered from PubSub to a QueueWorker, the QueueWorker
 checks the scheduling rules for the handler. If it is blocked by an admin or paused
 by the user, the PubSub notification is dropped, but the event remains in the DB.
-When the handler is unpaused, notifications are added the PubSub to schedule them.
+When the handler is unpaused, notifications are added to PubSub to schedule them.
 
 If the user pauses and unpauses in quick succession, there could be multiple
 notifications in PubSub for the same event. As a result, there is per-event locking
@@ -144,10 +164,23 @@ If there was an operational error, the QueueWorker will retry the event by incre
 the retry count, and adding a delay. It will put the Notification back into PubSub to
 retry later. After 2 retries, it fails entirely and deletes the event.
 
+**FSTODO**: not yet fully implemented
+If the worker fails catastrophically, PubSub will keep retrying at 5 minute
+intervals, but will set a retries header. A QueueWorker that receives a notification
+with enough retries will delete the event and the notification.
+
+"Bad" notifications (perhaps they can't be read by the queueworker) will be discarded
+by PubSub after a week.
+
+### Queue counts
+
+**FSTODO**: add an index
+We do a DB query for the number of events for that canvas/handler.
+
 ### Emit
 
 Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
-`EventQueue2.enqueue`. This adds a new value to the events table with:
+`EventQueueV2.enqueue`. This adds a new value to the events table with:
 
 - `retries = 0`
 - `locked_at = NULL`
@@ -155,25 +188,38 @@ Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
 - `enqueued_at = CURRENT_TIMESTAMP`
 
 Note that `CronChecker` does not use `events_v2` table information for Cron
-scheduling, just for running the event after it creates it. It uses `cron_records`
-for Cron scheduling.
+scheduling (eg determining if it has been an hour since the last Cron event). It does
+that separately in the `cron_records` table and just emits events on the appropriate
+schedule, leaving it to the queues to handler after that.
 
-Emit also adds an event to the PubSub topic. This will be delivered to a worker to
-tell it to try fetching and running an event. The PubSub worker has:
-
-- `retries` not set
-- `delay_until` not set
+Emit also adds a notification to the PubSub topic. This will be delivered to a
+QueueWorker to tell it to try fetching and running an event. We do not use built-in
+retry limit in PubSub. **FSTODO** but we should
 
 ### QueueWorker Execution
 
-`EventQueue2.dequeue` fetches a notification from PubSub and runs the process to
+`EventQueueV2.dequeue` fetches a notification from PubSub and runs the process to
 execute it. First it will check if it should run it, looking at retries, whether
 another worker has set `locked_at` and holds the lock, whether scheduling rules tell
 us not to run it, whether it's not time to run it yet, or if the event is missing.
 
-In most cases it put the event back in PubSub (except for the situations where that
-doesn't make sense). Because the event is just a notifcation, it's basically almost
-always fine to put it back in so long as the record exists (which means it's done).
+Notifications have a built-in _ack deadline_ - they must be _acknowledged_ within a
+changeable time limit. The default is 1 minute. If a queueworker decides not to run
+an event immediately, it will put back the notification by setting the ack deadline
+to a more appropriate time. If it decides it should not be run (eg if paused) it will
+remove it from PubSub by _acknowledging_ it.
+
+**FSTODO**: what happens to the retry count here?
+
+If a QueueWorker decides to runs the event, it will increase the _ack time_ to 5
+minutes to give it time to execute. When it is done, it removes it from the queue by
+_acknowledging_ it.
+
+Because the event is just a notifcation, it's basically almost always fine to
+put it back in so long as the DB row for the event exists (which means it's done).
+
+Note that normally, only one notification exists for an event. The exception is when
+workers are unpaused.
 
 ```mermaid
 graph LR
