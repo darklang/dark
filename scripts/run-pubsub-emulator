@@ -7,17 +7,13 @@ echo "Running PubSub emulator"
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
-# Wait for the pubsub emulator to stop, or else it won't start up
-while [[ $(pgrep --full 'cloud-pubsub-emulator-0.6.0.jar') != "" ]] ; do
-  pgrep --full 'cloud-pubsub-emulator-0.6.0.jar' | xargs kill 2> /dev/null || true
-  pgrep --full 'cloud-pubsub-emulator-0.6.0.jar' | xargs kill -9 2> /dev/null || true
-done
-rm rundir/logs/pub-sub-emulator.log
-
-gcloud beta emulators pubsub start \
-  --project="$DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID" \
-  --host-port=0.0.0.0:8085 \
-  > "$LOGS/pub-sub-emulator.log" 2>&1 &
+# This is slow to start up, so if it's already loaded, don't restart
+if [[ $(pgrep --full 'cloud-pubsub-emulator-0.6.0.jar') != "" ]] ; then
+  gcloud beta emulators pubsub start \
+    --project="$DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID" \
+    --host-port=0.0.0.0:8085 \
+    > "$LOGS/pub-sub-emulator.log" 2>&1 &
+fi
 
 # Pubsub takes a second to startup
 while ! curl --output /dev/null --silent --head http://0.0.0.0:8085 ; do
