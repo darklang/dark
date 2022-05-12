@@ -49,6 +49,9 @@ createdb testdb
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
+echo "Waiting for pubsub"
+./scripts/run-pubsub-emulator
+
 # Run the migrations before the other servers start
 echo "Running migrations"
 cd fsharp-backend && \
@@ -58,6 +61,7 @@ cd fsharp-backend && \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
   "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log"
 cd ..
 
@@ -70,9 +74,6 @@ cd ..
 ./scripts/run-ocaml-legacy-server
 ./scripts/run-ocaml-test-server
 ./scripts/run-nginx-server
-
-echo "Waiting for pubsub"
-./scripts/run-pubsub-emulator
 
 # CLEANUP This is where the migrations are run for testdb at the moment
 DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVER_NGINX_PORT}" ./scripts/devcontainer/_wait-until-server-ready
@@ -91,6 +92,7 @@ if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
   lldb -- "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
@@ -100,6 +102,7 @@ else
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
   "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
 fi
 
