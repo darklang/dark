@@ -85,9 +85,6 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
         return Error notification // no events executed
       }
 
-    let! meta = Canvas.getMetaFromID notification.data.canvasID
-    Telemetry.addTags [ "canvas_name", meta.name ]
-
     // -------
     // EventLoad
     // -------
@@ -118,7 +115,7 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
         // -------
         // RuleCheck
         // -------
-        match! EQ.getRule meta.id event with
+        match! EQ.getRule notification.data.canvasID event with
         | Some rule ->
           // Drop the notification - we'll requeue it if someone unpauses
           Telemetry.addTags [ "queue.rule.type", rule.ruleType
@@ -152,57 +149,76 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
               // -------
               // Process
               // -------
-              let traceID = System.Guid.NewGuid()
-              let desc = (event.module', event.name, event.modifier)
-              let! c =
-                Canvas.loadForEventV2 meta event.module' event.name event.modifier
-              // CLEANUP switch events and scheduling rules to use TLIDs instead of eventDescs
-              let h =
-                c.handlers
-                |> Map.values
-                |> List.filter (fun h ->
-                  Some desc = PTParser.Handler.Spec.toEventDesc h.spec)
-                |> List.head
-              match h with
+              let! canvas =
+                Exception.taskCatch (fun () ->
+                  task {
+                    let! meta = Canvas.getMetaFromID notification.data.canvasID
+                    return!
+                      Canvas.loadForEventV2
+                        meta
+                        event.module'
+                        event.name
+                        event.modifier
+                  })
+              match canvas with
               | None ->
-                // If an event gets put in the queue and there's no handler for it,
-                // they're probably emiting to a handler they haven't created yet.
-                // In this case, all they need to build is the trace. So just drop
-                // this event immediately.
-                let! (_ : Instant) = TI.storeEvent meta.id traceID desc event.value
                 do! EQ.deleteEvent event
-                return! stop "MissingHandler" NoRetry
-              | Some h ->
+                return! stop "MissingCanvas" NoRetry
+              | Some c ->
+                let traceID = System.Guid.NewGuid()
+                let desc = (event.module', event.name, event.modifier)
+                Telemetry.addTags [ "canvas_name", c.meta.name; "trace_id", traceID ]
 
-                // If we acknowledge the event here, and the machine goes down,
-                // PubSub will retry this once the ack deadline runs out
-                do! EQ.extendDeadline notification
 
-                // FSTODO Set a time limit of 3m
+                // CLEANUP switch events and scheduling rules to use TLIDs instead of eventDescs
+                let h =
+                  c.handlers
+                  |> Map.values
+                  |> List.filter (fun h ->
+                    Some desc = PTParser.Handler.Spec.toEventDesc h.spec)
+                  |> List.head
 
-                try
+                match h with
+                | None ->
+                  // If an event gets put in the queue and there's no handler for it,
+                  // they're probably emiting to a handler they haven't created yet.
+                  // In this case, all they need to build is the trace. So just drop
+                  // this event immediately.
                   let! (_ : Instant) =
                     TI.storeEvent c.meta.id traceID desc event.value
-                  let! result = executeEvent c h traceID event
-                  Telemetry.addTag "resultType" (resultType result)
-                  // ExecutesToCompletion
-
-                  // -------
-                  // Delete
-                  // -------
                   do! EQ.deleteEvent event
-                  do! EQ.acknowledgeEvent notification
+                  return! stop "MissingHandler" NoRetry
+                | Some h ->
 
-                  // -------
-                  // End
-                  // -------
-                  return Ok(event, notification)
-                with
-                | _ ->
-                  // This automatically increments the deliveryAttempt, so it might
-                  // be deleted at the next iteration.
-                  let timeLeft = NodaTime.Duration.FromSeconds 301.0
-                  return! stop "RetryAllowed" (Retry timeLeft)
+                  // If we acknowledge the event here, and the machine goes down,
+                  // PubSub will retry this once the ack deadline runs out
+                  do! EQ.extendDeadline notification
+
+                  // FSTODO Set a time limit of 3m
+
+                  try
+                    let! (_ : Instant) =
+                      TI.storeEvent c.meta.id traceID desc event.value
+                    let! result = executeEvent c h traceID event
+                    Telemetry.addTag "resultType" (resultType result)
+                    // ExecutesToCompletion
+
+                    // -------
+                    // Delete
+                    // -------
+                    do! EQ.deleteEvent event
+                    do! EQ.acknowledgeEvent notification
+
+                    // -------
+                    // End
+                    // -------
+                    return Ok(event, notification)
+                  with
+                  | _ ->
+                    // This automatically increments the deliveryAttempt, so it might
+                    // be deleted at the next iteration.
+                    let timeLeft = NodaTime.Duration.FromSeconds 301.0
+                    return! stop "RetryAllowed" (Retry timeLeft)
   }
 
 let run () : Task<unit> =
