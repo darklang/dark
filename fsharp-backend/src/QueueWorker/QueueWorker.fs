@@ -76,7 +76,6 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
       (retry : ShouldRetry)
       : Task<Result<_, EQ.Notification>> =
       task {
-        print $"stop: {reason} {notification}"
         Telemetry.addTags [ "queue.completion_reason", reason
                             "queue.success", false
                             "queue.retrying", retry <> NoRetry ]
@@ -99,121 +98,111 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
                           "event.handler.modifier", event.modifier
                           "event.handler.module", event.module'
                           "event.value.type", (event.value |> resultType :> obj)
-                          "event.delayUntil", event.delayUntil
                           "event.lockedAt", event.lockedAt
                           "event.enqueuedAt", event.enqueuedAt ]
 
       // -------
-      // DelayCheck
+      // LockCheck
       // -------
-      let timeLeft = event.delayUntil - Instant.now ()
+      let timeLeft =
+        match event.lockedAt with
+        | Some lockedAt -> // LockExpired
+          let expiryTime = lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0)
+          expiryTime - Instant.now ()
+        | None -> NodaTime.Duration.FromSeconds 0.0 // LockNone
       if timeLeft.TotalSeconds > 0 then
-        // RETRY but not a RETRY
-        return! stop "DelayNotYet" (Retry timeLeft)
-      else // DelayNone
+        // RETRY but it means something else is running it so doesn't matter
+        return! stop "IsLocked" (Retry timeLeft)
+      else // LockNone/LockExpired
 
         // -------
-        // LockCheck
+        // RuleCheck
         // -------
-        let timeLeft =
-          match event.lockedAt with
-          | Some lockedAt -> // LockExpired
-            let expiryTime = lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0)
-            expiryTime - Instant.now ()
-          | None -> NodaTime.Duration.FromSeconds 0.0 // LockNone
-        if timeLeft.TotalSeconds > 0 then
-          // RETRY but it means something else is running it so doesn't matter
-          return! stop "IsLocked" (Retry timeLeft)
-        else // LockNone/LockExpired
+        match! EQ.getRule meta.id event with
+        | Some rule ->
+          // Drop the notification - we'll requeue it if someone unpauses
+          Telemetry.addTags [ "queue.rule.type", rule.ruleType
+                              "queue.rule.id", rule.id ]
+          return! stop "RuleCheckPaused/Blocked" NoRetry
+        | None -> // RuleNone
 
           // -------
-          // RuleCheck
+          // TooManyRetries
+          // Note that this happens after all the other checks, as we might have
+          // multiple notifications for the same event and we don't want to delete
+          // one that is being executed or isn't ready.  We set 4 here because the
+          // retries might happen for a reason that isn't strictly retries, such as
+          // lockedAt.
           // -------
-          match! EQ.getRule meta.id event with
-          | Some rule ->
-            // Drop the notification - we'll requeue it if someone unpauses
-            Telemetry.addTags [ "queue.rule.type", rule.ruleType
-                                "queue.rule.id", rule.id ]
-            return! stop "RuleCheckPaused/Blocked" NoRetry
-          | None -> // RuleNone
+          if notification.deliveryAttempt >= 4 then
+            do! EQ.deleteEvent event
+            return! stop "RetryTooMany" NoRetry
+          else // RetryAllowed
 
             // -------
-            // TooManyRetries
-            // Note that this happens after all the other checks, as we might have
-            // multiple notifications for the same event and we don't want to delete
-            // one that is being executed or isn't ready.  We set 5 here because the
-            // retries might happen for a reason that isn't strictly retries, such as
-            // lockedAt.
+            // LockClaim
             // -------
-            if notification.deliveryAttempt >= 5 then
-              do! EQ.deleteEvent event
-              return! stop "RetryTooMany" NoRetry
-            else // RetryAllowed
+            match! EQ.claimLock event notification with
+            | Error msg ->
+              // Someone else just claimed the lock!
+              let retryTime = NodaTime.Duration.FromSeconds 300.0
+              return! stop $"LockClaimFailed: {msg}" (Retry retryTime)
+            | Ok () -> // LockClaimed
 
               // -------
-              // LockClaim
+              // Process
               // -------
-              match! EQ.claimLock event notification with
-              | Error msg ->
-                // Someone else just claimed the lock!
-                let retryTime = NodaTime.Duration.FromSeconds 300.0
-                return! stop $"LockClaimFailed: {msg}" (Retry retryTime)
-              | Ok () -> // LockClaimed
+              let traceID = System.Guid.NewGuid()
+              let desc = (event.module', event.name, event.modifier)
+              let! c =
+                Canvas.loadForEventV2 meta event.module' event.name event.modifier
+              // CLEANUP switch events and scheduling rules to use TLIDs instead of eventDescs
+              let h =
+                c.handlers
+                |> Map.values
+                |> List.filter (fun h ->
+                  Some desc = PTParser.Handler.Spec.toEventDesc h.spec)
+                |> List.head
+              match h with
+              | None ->
+                // If an event gets put in the queue and there's no handler for it,
+                // they're probably emiting to a handler they haven't created yet.
+                // In this case, all they need to build is the trace. So just drop
+                // this event immediately.
+                let! (_ : Instant) = TI.storeEvent meta.id traceID desc event.value
+                do! EQ.deleteEvent event
+                return! stop "MissingHandler" NoRetry
+              | Some h ->
 
-                // -------
-                // Process
-                // -------
-                let traceID = System.Guid.NewGuid()
-                let desc = (event.module', event.name, event.modifier)
-                let! c =
-                  Canvas.loadForEventV2 meta event.module' event.name event.modifier
-                // CLEANUP switch events and scheduling rules to use TLIDs instead of eventDescs
-                let h =
-                  c.handlers
-                  |> Map.values
-                  |> List.filter (fun h ->
-                    Some desc = PTParser.Handler.Spec.toEventDesc h.spec)
-                  |> List.head
-                match h with
-                | None ->
-                  // If an event gets put in the queue and there's no handler for it,
-                  // they're probably emiting to a handler they haven't created yet.
-                  // In this case, all they need to build is the trace. So just drop
-                  // this event immediately.
-                  let! (_ : Instant) = TI.storeEvent meta.id traceID desc event.value
+                // If we acknowledge the event here, and the machine goes down,
+                // PubSub will retry this once the ack deadline runs out
+                do! EQ.extendDeadline notification
+
+                // FSTODO Set a time limit of 3m
+
+                try
+                  let! (_ : Instant) =
+                    TI.storeEvent c.meta.id traceID desc event.value
+                  let! result = executeEvent c h traceID event
+                  Telemetry.addTag "resultType" (resultType result)
+                  // ExecutesToCompletion
+
+                  // -------
+                  // Delete
+                  // -------
                   do! EQ.deleteEvent event
-                  return! stop "MissingHandler" NoRetry
-                | Some h ->
+                  do! EQ.acknowledgeEvent notification
 
-                  // If we acknowledge the event here, and the machine goes down,
-                  // PubSub will retry this once the ack deadline runs out
-                  do! EQ.extendDeadline notification
-
-                  // FSTODO Set a time limit of 3m
-
-                  try
-                    let! (_ : Instant) =
-                      TI.storeEvent c.meta.id traceID desc event.value
-                    let! result = executeEvent c h traceID event
-                    Telemetry.addTag "resultType" (resultType result)
-                    // ExecutesToCompletion
-
-                    // -------
-                    // Delete
-                    // -------
-                    do! EQ.deleteEvent event
-                    do! EQ.acknowledgeEvent notification
-
-                    // -------
-                    // End
-                    // -------
-                    return Ok(event, notification)
-                  with
-                  | _ ->
-                    // This automatically increments the deliveryAttempt, so it might
-                    // be deleted at the next iteration.
-                    let timeLeft = NodaTime.Duration.FromSeconds 301.0
-                    return! stop "RetryAllowed" (Retry timeLeft)
+                  // -------
+                  // End
+                  // -------
+                  return Ok(event, notification)
+                with
+                | _ ->
+                  // This automatically increments the deliveryAttempt, so it might
+                  // be deleted at the next iteration.
+                  let timeLeft = NodaTime.Duration.FromSeconds 301.0
+                  return! stop "RetryAllowed" (Retry timeLeft)
   }
 
 let run () : Task<unit> =

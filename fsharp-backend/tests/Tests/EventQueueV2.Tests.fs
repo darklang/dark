@@ -111,27 +111,6 @@ let testEventQueueSuccessThree =
     do! checkSuccess meta tlid result
   }
 
-let testEventFailQueueDelayed =
-  testTask "event queue fail delayed" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "event-queue-fail-delayed"
-    do! enqueue meta
-
-    // Delay it
-    let later = Instant.now () + Duration.FromMinutes 5L
-    do!
-      Sql.query
-        "UPDATE events_v2 SET delay_until = @newValue WHERE canvas_id = @canvasID"
-      |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                          "newValue", Sql.instantWithTimeZone later ]
-      |> Sql.executeStatementAsync
-
-    let! result = QueueWorker.dequeueAndProcess ()
-    Expect.isError result "should fail"
-
-    let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
-    Expect.equal eventIDs [] "no events expected"
-  }
-
 let testEventQueueSuccessLockExpired =
   testTask "event queue success lock expired" {
     let! (meta : Canvas.Meta, tlid) =
@@ -190,5 +169,4 @@ let tests =
       [ testEventQueueSuccess
         testEventQueueSuccessThree
         testEventQueueSuccessLockExpired
-        testEventFailLocked
-        testEventFailQueueDelayed ])
+        testEventFailLocked ])

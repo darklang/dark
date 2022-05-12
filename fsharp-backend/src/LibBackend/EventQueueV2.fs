@@ -58,7 +58,6 @@ type T =
     name : string
     modifier : string
     value : RT.Dval
-    delayUntil : Instant // FSTODO: is this needed?
     lockedAt : Option<Instant>
     enqueuedAt : Instant }
 
@@ -79,10 +78,10 @@ let createEvent
   Sql.query
     "INSERT INTO events_v2
        (id, canvas_id, module, name, modifier, value,
-        delay_until, enqueued_at, locked_at)
+        enqueued_at, locked_at)
      VALUES
        (@id, @canvasID, @module, @name, @modifier, @value,
-        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)"
+        CURRENT_TIMESTAMP, NULL)"
   |> Sql.parameters [ "id", Sql.uuid id
                       "canvasID", Sql.uuid canvasID
                       "module", Sql.string module'
@@ -99,9 +98,7 @@ let createEvent
 /// -----------------
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
   Sql.query
-    "SELECT module, name, modifier,
-            delay_until, enqueued_at, locked_at,
-            value
+    "SELECT module, name, modifier, enqueued_at, locked_at, value
      FROM events_v2
      WHERE id = @eventID
        AND canvas_id = @canvasID"
@@ -113,7 +110,6 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
         module' = read.string "module"
         name = read.string "name"
         modifier = read.string "modifier"
-        delayUntil = read.instant "delay_until"
         enqueuedAt = read.instant "enqueued_at"
         lockedAt = read.instantOrNone "locked_at"
         // FSTODO: what's the right format to encode these with?
@@ -123,7 +119,6 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
                         ("name", e.name)
                         ("modifier", e.modifier)
                         ("enqueued_at", e.enqueuedAt)
-                        ("delay_until", e.delayUntil)
                         ("locked_at", e.lockedAt) ]
     e)
 
@@ -142,6 +137,7 @@ let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
           WHERE id = @eventID
             AND canvas_id = @canvasID
             AND locked_at IS NOT DISTINCT FROM @currentLockedAt"
+      // IS NOT DISTINCT FROM is like `=`, but it allows a null value
       |> Sql.parameters [ "eventID", Sql.uuid event.id
                           "canvasID", Sql.uuid event.canvasID
                           "currentLockedAt",
