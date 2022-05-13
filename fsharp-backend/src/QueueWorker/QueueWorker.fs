@@ -60,7 +60,9 @@ type ShouldRetry =
 /// below is annotated with names from chart. Will block until receiving a
 /// notification. Returns a Result containing the notification and the event on
 /// success, and just the notifcation on failure. May throw on error.
-let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>> =
+let dequeueAndProcess
+  ()
+  : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
     use _span = Telemetry.child "dequeueAndProcess" []
     let resultType (dv : RT.Dval) : string =
@@ -74,7 +76,7 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
     let stop
       (reason : string)
       (retry : ShouldRetry)
-      : Task<Result<_, EQ.Notification>> =
+      : Task<Result<_, string * EQ.Notification>> =
       task {
         Telemetry.addTags [ "queue.completion_reason", reason
                             "queue.success", false
@@ -82,7 +84,7 @@ let dequeueAndProcess () : Task<Result<EQ.T * EQ.Notification, EQ.Notification>>
         match retry with
         | Retry delay -> return! EQ.requeueEvent notification delay
         | NoRetry -> return! EQ.acknowledgeEvent notification
-        return Error notification // no events executed
+        return Error(reason, notification) // no events executed
       }
 
     // -------

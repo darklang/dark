@@ -54,7 +54,7 @@ let enqueue (meta : Canvas.Meta) : Task<unit> =
 let checkSuccess
   (meta : Canvas.Meta)
   (tlid : tlid)
-  (result : Result<EQ.T * EQ.Notification, EQ.Notification>)
+  (result : Result<EQ.T * EQ.Notification, string * EQ.Notification>)
   =
   task {
     match result with
