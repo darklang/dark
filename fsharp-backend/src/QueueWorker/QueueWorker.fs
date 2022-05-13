@@ -56,7 +56,7 @@ type ShouldRetry =
 /// The algorithm here is described in the chart in docs/eventsV2.md. The algorithm
 /// below is annotated with names from chart. `dequeueAndProcess` will block until it
 /// receives a notification. Returns a Result containing the notification and the
-/// event on success, and just the notifcation and failure reason on failure. Should
+/// event on success, and just the notification and failure reason on failure. Should
 /// not throw on error.
 let dequeueAndProcess
   ()
