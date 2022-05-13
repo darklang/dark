@@ -48,7 +48,7 @@ let initializeCanvas (name : string) : Task<Canvas.Meta * tlid> =
   }
 
 let enqueue (meta : Canvas.Meta) : Task<unit> =
-  let input = RT.DNull // I don't believe crons take inputs?
+  let input = RT.DNull // crons take inputs, so this could be anything
   EQ.enqueue meta.id "CRON" "test" "Daily" input
 
 let checkSuccess
