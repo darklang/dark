@@ -5,3 +5,4 @@ PusherServer
 System.Diagnostics.DiagnosticSource
 FsRegEx
 Sodium.Core
+Google.Cloud.PubSub.V1

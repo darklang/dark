@@ -13,7 +13,7 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // -------------------------
 // External
@@ -39,7 +39,9 @@ let store
                         "tlid", Sql.tlid tlid
                         ("args",
                          Sql.string (
-                           DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj args)
+                           DvalReprInternalDeprecated.toInternalRoundtrippableV0 (
+                             RT.DObj args
+                           )
                          )) ]
     |> Sql.executeStatementAsync
 
@@ -59,7 +61,9 @@ let storeMany
           "tlid", Sql.tlid tlid
           "timestamp", Sql.instantWithTimeZone timestamp
           ("args",
-           Sql.string (DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj args))) ])
+           Sql.string (
+             DvalReprInternalDeprecated.toInternalRoundtrippableV0 (RT.DObj args)
+           )) ])
 
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ ("INSERT INTO function_arguments
@@ -94,7 +98,7 @@ let loadForAnalysis
                       "traceID", Sql.uuid traceID ]
   |> Sql.executeRowOptionAsync (fun read ->
     (read.string "arguments_json"
-     |> DvalReprInternal.ofInternalRoundtrippableV0
+     |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
      |> fun dv ->
           RT.Dval.toPairs dv |> Exception.unwrapResultInternal [ "dval", dv ],
           read.instant "timestamp"))

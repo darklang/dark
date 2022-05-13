@@ -38,12 +38,13 @@
     <Compile Include="TraceFunctionResults.fs" />
     <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="StaticAssets.fs" />
-    <Compile Include="Cron.fs" />
     <Compile Include="Op.fs" />
     <Compile Include="Pusher.fs" />
     <Compile Include="Secret.fs" />
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
+    <Compile Include="EventQueueV2.fs" />
+    <Compile Include="Cron.fs" />
     <Compile Include="Traces.fs" />
     <Compile Include="CanvasClone.fs" />
     <Compile Include="Stats.fs" />

@@ -42,12 +42,20 @@ let canvasIDForCanvasName
 let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-    // CLEANUP put into single query
+    // CLEANUP put into single query. We'll need to ignore canvas_id, but we only
+    // want when we create a new canvas by going to /a/canvas-name
     let! ownerID = Account.userIDForUserName ownerName
     let! canvasID = canvasIDForCanvasName ownerID canvasName
     return { id = canvasID; owner = ownerID; name = canvasName }
   }
 
+let getMetaFromID (id : CanvasID) : Task<Meta> =
+  Sql.query "SELECT name, account_id FROM canvases WHERE id = @canvasID"
+  |> Sql.parameters [ "canvasID", Sql.uuid id ]
+  |> Sql.executeRowAsync (fun read ->
+    { id = id
+      owner = read.uuid "account_id"
+      name = read.string "name" |> CanvasName.create })
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
@@ -415,12 +423,26 @@ let loadTLIDsWithContext (meta : Meta) (tlids : List<tlid>) : Task<T> =
     return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
+let loadForEventV2
+  (meta : Meta)
+  (module' : string)
+  (name : string)
+  (modifier : string)
+  : Task<T> =
+  task {
+    let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id module' name modifier
+    return! loadFrom Serialize.LiveToplevels meta tlids
+  }
+
 let loadForEvent (e : EventQueue.T) : Task<T> =
   task {
     let meta = { id = e.canvasID; name = e.canvasName; owner = e.ownerID }
-    let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id e
+    let! tlids =
+      Serialize.fetchRelevantTLIDsForEvent meta.id e.space e.name e.modifier
     return! loadFrom Serialize.LiveToplevels meta tlids
   }
+
+
 
 let loadAllDBs (meta : Meta) : Task<T> =
   task {

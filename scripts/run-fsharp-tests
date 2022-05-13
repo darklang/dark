@@ -49,6 +49,9 @@ createdb testdb
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
+echo "Waiting for pubsub"
+./scripts/run-pubsub-emulator
+
 # Run the migrations before the other servers start
 echo "Running migrations"
 cd fsharp-backend && \
@@ -58,6 +61,7 @@ cd fsharp-backend && \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
   "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log"
 cd ..
 
@@ -79,6 +83,10 @@ DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVE
 # spinner and not running the tests in parallel.
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
 
+# Use random to avoid old items being in the pubsub queue. Use this instead of
+# $RANDOM as RANDOM is only 5 digits
+RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
+
 cd fsharp-backend
 if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
@@ -88,6 +96,7 @@ if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
   lldb -- "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
@@ -97,6 +106,7 @@ else
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
   "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
 fi
 

@@ -6,7 +6,7 @@ module BackendOnlyStdLib.LibEvent
 open LibExecution.RuntimeTypes
 open Prelude
 
-module EventQueue = LibBackend.EventQueue
+module EventQueueV2 = LibBackend.EventQueueV2
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
@@ -35,7 +35,15 @@ let fns : List<BuiltInFn> =
 
             // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
             // but we don't need a 3rd one for workers
-            do! EventQueue.enqueue canvasName canvasID accountID space name "_" data
+            do!
+              EventQueueV2.enqueueInAQueue
+                canvasName
+                canvasID
+                accountID
+                space
+                name
+                "_"
+                data
             return data
           }
         | _ -> incorrectArgs ())
@@ -58,7 +66,14 @@ let fns : List<BuiltInFn> =
             do!
               // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
               // but we don't need a 3rd one for workers
-              EventQueue.enqueue canvasName canvasID accountID "WORKER" name "_" data
+              EventQueueV2.enqueueInAQueue
+                canvasName
+                canvasID
+                accountID
+                "WORKER"
+                name
+                "_"
+                data
 
             return data
           }

@@ -37,6 +37,7 @@
     <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="EventQueue.Tests.fs" />
+    <Compile Include="EventQueueV2.Tests.fs" />
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="FSharpToExpr.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />

@@ -11,7 +11,7 @@ open Tablecloth
 open Db
 
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // **********************
 // Types
@@ -131,7 +131,7 @@ let insertUser
                               ("password", Sql.string (string Password.invalid))
                               ("metadata",
                                Sql.jsonb (
-                                 DvalReprInternal.toInternalQueryableV1
+                                 DvalReprInternalDeprecated.toInternalQueryableV1
                                    analyticsMetadata
                                )) ]
           |> Sql.executeStatementAsync

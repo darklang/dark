@@ -333,7 +333,7 @@ let exceptionWhileProcessingException
 /// Sends exception to Rollbar and also to Telemetry (honeycomb). The error is titled
 /// after the exception message - to change it wrap it in another exception. However,
 /// it's better to keep the existing exception and add extra context via metadata.
-let sendException
+let rec sendException
   (executionID : ExecutionID)
   (person : Person)
   (metadata : Metadata)
@@ -344,11 +344,14 @@ let sendException
     print e.StackTrace
     let metadata = Exception.toMetadata e @ metadata
     printMetadata metadata
-    Telemetry.addException metadata e
+    if Telemetry.Span.current () <> null then Telemetry.addException metadata e
     let custom = createCustom executionID metadata
     let package = createPackage e person
     Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
     |> ignore<Rollbar.ILogger>
+    // Do the same for the innerException
+    if e.InnerException <> null then
+      sendException executionID person [] e.InnerException
   with
   | processingException -> exceptionWhileProcessingException e processingException
 

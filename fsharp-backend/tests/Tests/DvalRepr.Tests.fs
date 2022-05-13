@@ -13,19 +13,19 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module Errors = LibExecution.Errors
 
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
   test "internal_roundtrippable doesn't care about key order" {
     Expect.equal
-      (DvalReprInternal.ofInternalRoundtrippableV0
+      (DvalReprInternalDeprecated.ofInternalRoundtrippableV0
         "{
            \"type\": \"option\",
            \"value\": 5
           }")
-      (DvalReprInternal.ofInternalRoundtrippableV0
+      (DvalReprInternalDeprecated.ofInternalRoundtrippableV0
         "{
            \"value\": 5,
            \"type\": \"option\"
@@ -52,8 +52,8 @@ let testDvalOptionQueryableSpecialCase =
     Expect.equal
       (RT.DObj dvm)
       (dvm
-       |> DvalReprInternal.toInternalQueryableV1
-       |> DvalReprInternal.ofInternalQueryableV1)
+       |> DvalReprInternalDeprecated.toInternalQueryableV1
+       |> DvalReprInternalDeprecated.ofInternalQueryableV1)
       "extra"
   }
 
@@ -146,7 +146,7 @@ module ToHashableRepr =
       testTask $"toHashableRepr: {dv}" {
         let! ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
         let fsharpVersion =
-          DvalReprInternal.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
+          DvalReprInternalDeprecated.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -189,7 +189,7 @@ module ToHashableRepr =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV0: {l}" {
         let! ocamlVersion = LibBackend.OCamlInterop.hashV0 l
-        let fsharpVersion = DvalReprInternal.hash 0 l
+        let fsharpVersion = DvalReprInternalDeprecated.hash 0 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -214,7 +214,7 @@ module ToHashableRepr =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV1: {l}" {
         let! ocamlVersion = LibBackend.OCamlInterop.hashV1 l
-        let fsharpVersion = DvalReprInternal.hash 1 l
+        let fsharpVersion = DvalReprInternalDeprecated.hash 1 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -264,19 +264,19 @@ let allRoundtrips =
     [ t
         "roundtrippable"
         FuzzTests.OCamlInterop.Roundtrippable.roundtripsSuccessfully
-        (dvs (DvalReprInternal.isRoundtrippableDval false))
+        (dvs (DvalReprInternalDeprecated.isRoundtrippableDval false))
       t
         "roundtrippable interop"
         FuzzTests.OCamlInterop.Roundtrippable.isInteroperableV0
-        (dvs (DvalReprInternal.isRoundtrippableDval false))
+        (dvs (DvalReprInternalDeprecated.isRoundtrippableDval false))
       t
         "queryable v0"
         FuzzTests.OCamlInterop.Queryable.canV1Roundtrip
-        (dvs DvalReprInternal.isQueryableDval)
+        (dvs DvalReprInternalDeprecated.isQueryableDval)
       t
         "queryable interop v1"
         FuzzTests.OCamlInterop.Queryable.isInteroperableV1
-        (dvs DvalReprInternal.isQueryableDval)
+        (dvs DvalReprInternalDeprecated.isQueryableDval)
       t "enduserReadable" FuzzTests.DvalRepr.EnduserReadable.equalsOCaml all
       t "developerRepr" FuzzTests.DvalRepr.DeveloperRepr.equalsOCaml all
       t "prettyMachineJson" FuzzTests.Json.PrettyMachineJson.equalsOCaml all ]
@@ -292,10 +292,10 @@ module Password =
       Expect.equalDval
         password
         (password
-         |> DvalReprInternal.toInternalRoundtrippableV0
-         |> DvalReprInternal.ofInternalRoundtrippableV0
-         |> DvalReprInternal.toInternalRoundtrippableV0
-         |> DvalReprInternal.ofInternalRoundtrippableV0)
+         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+         |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+         |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0)
         "Passwords serialize and deserialize if there's no redaction."
     }
 
@@ -333,13 +333,13 @@ module Password =
       // doesn't redact
       doesntRedact
         "toInternalRoundtrippableV0"
-        DvalReprInternal.toInternalRoundtrippableV0
+        DvalReprInternalDeprecated.toInternalRoundtrippableV0
 
       // roundtrips
       roundtrips
         "toInternalRoundtrippableV0 roundtrips"
-        DvalReprInternal.toInternalRoundtrippableV0
-        DvalReprInternal.ofInternalRoundtrippableV0
+        DvalReprInternalDeprecated.toInternalRoundtrippableV0
+        DvalReprInternalDeprecated.ofInternalRoundtrippableV0
 
       // redacting
       doesRedact "toEnduserReadableTextV0" DvalReprExternal.toEnduserReadableTextV0
@@ -391,8 +391,8 @@ module Password =
       // roundtrips
       roundtrips
         "toInternalQueryableV1"
-        DvalReprInternal.toInternalQueryableV1
-        DvalReprInternal.ofInternalQueryableV1
+        DvalReprInternalDeprecated.toInternalQueryableV1
+        DvalReprInternalDeprecated.ofInternalQueryableV1
     }
 
   let testNoAutoSerialization =

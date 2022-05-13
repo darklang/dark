@@ -128,7 +128,7 @@ spec:
                 secretKeyRef:
                   name: rollbar-account-credentials
                   key: post_token
-            # honeycomb
+            # launchdarkly
             - name: DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -164,6 +164,12 @@ spec:
                 secretKeyRef:
                   name: honeycomb-account-credentials
                   key: api-key
+            # PubSub - service account JSON file
+            - name: DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-queue-pubsub
+                  key: key.json
 
 
         #########################
@@ -271,7 +277,6 @@ spec:
                 secretKeyRef:
                   name: pusher-account-credentials
                   key: secret
-
 
         #########################
         # Cloudsql proxy container

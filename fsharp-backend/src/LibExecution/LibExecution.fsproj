@@ -16,7 +16,8 @@
     <Compile Include="VendoredTablecloth.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
-    <Compile Include="DvalReprInternal.fs" />
+    <Compile Include="DvalReprInternalDeprecated.fs" />
+    <Compile Include="DvalReprInternalNew.fs" />
     <Compile Include="DvalReprExternal.fs" />
     <Compile Include="Errors.fs" />
     <Compile Include="TypeChecker.fs" />

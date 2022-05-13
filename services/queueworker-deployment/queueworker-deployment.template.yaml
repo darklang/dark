@@ -8,7 +8,7 @@ metadata:
 
 spec:
   revisionHistoryLimit: 10
-  replicas: 2 # FSTODO
+  replicas: 1 # FSTODO
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -159,7 +159,12 @@ spec:
                 secretKeyRef:
                   name: honeycomb-account-credentials
                   key: api-key
-
+            # PubSub - service account JSON file
+            - name: DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-queue-pubsub
+                  key: key.json
 
         #########################
         # Legacyserver container

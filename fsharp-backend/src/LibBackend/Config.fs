@@ -143,6 +143,20 @@ let pusherCluster = string "DARK_CONFIG_PUSHER_CLUSTER"
 
 
 // -------------------------
+// Queues
+// -------------------------
+let queuePubSubProjectID = string "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"
+
+let queuePubSubTopicName = string "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"
+
+let queuePubSubSubscriptionName = string "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME"
+
+let queuePubSubCreateTopic = bool "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"
+
+let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
+
+
+// -------------------------
 // Infra
 // -------------------------
 let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"

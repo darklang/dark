@@ -83,5 +83,7 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     | WaitForDB -> do! _waitForDB ()
     | DontWaitForDB -> ()
 
+    do! EventQueueV2.init ()
+
     print $" Inited LibBackend in {serviceName}"
   }

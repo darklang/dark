@@ -72,6 +72,8 @@ do
 done
 echo "Done waiting for compiled servers"
 
+echo "Waiting for pubsub"
+./scripts/run-pubsub-emulator
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 ./scripts/run-ocaml-legacy-server

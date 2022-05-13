@@ -164,6 +164,12 @@ spec:
                 secretKeyRef:
                   name: honeycomb-account-credentials
                   key: api-key
+            # PubSub - service account JSON file
+            - name: DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-queue-pubsub
+                  key: key.json
 
 
         #########################

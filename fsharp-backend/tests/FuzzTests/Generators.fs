@@ -20,7 +20,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 /// List of all a..z, A..Z, 0..9, and _ characters
 let alphaNumericCharacters =

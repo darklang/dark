@@ -19,7 +19,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module G = Generators
 
 /// Generators and FuzzTests ensuring Runtime Dvals are

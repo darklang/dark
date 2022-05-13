@@ -14,7 +14,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module G = Generators
 
 /// Ensure text representation of Dvals meant to be read by Dark users
@@ -97,15 +97,15 @@ module Hashing =
   let equalsOCamlToHashable (dv : RT.Dval) : bool =
     let ocamlVersion = (OCamlInterop.toHashableRepr dv).Result
     let fsharpVersion =
-      DvalReprInternal.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
+      DvalReprInternalDeprecated.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
     ocamlVersion .=. fsharpVersion
 
   let equalsOCamlV0 (l : List<RT.Dval>) : bool =
-    DvalReprInternal.hash 0 l .=. (OCamlInterop.hashV0 l).Result
+    DvalReprInternalDeprecated.hash 0 l .=. (OCamlInterop.hashV0 l).Result
 
   let equalsOCamlV1 (l : List<RT.Dval>) : bool =
     let ocamlVersion = (OCamlInterop.hashV1 l).Result
-    let fsharpVersion = DvalReprInternal.hash 1 l
+    let fsharpVersion = DvalReprInternalDeprecated.hash 1 l
     ocamlVersion .=. fsharpVersion
 
   let tests config =

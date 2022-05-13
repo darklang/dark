@@ -3,6 +3,8 @@ module QueueWorker
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+type Instant = NodaTime.Instant
+
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
@@ -11,87 +13,165 @@ open LibBackend.Db
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
+module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module EQ = LibBackend.EventQueue
+module EQ = LibBackend.EventQueueV2
 module TI = LibBackend.TraceInputs
 module Execution = LibExecution.Execution
 module Pusher = LibBackend.Pusher
 module RealExecution = LibRealExecution.RealExecution
 module Canvas = LibBackend.Canvas
+module DvalReprExternal = LibExecution.DvalReprExternal
 
 module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
+let shouldShutdown = ref false
+
+let executeEvent
+  (c : Canvas.T)
+  (h : PT.Handler.T)
+  (traceID : AT.TraceID)
+  (e : EQ.T)
+  : Task<RT.Dval> =
   task {
-    use _span = Telemetry.child "dequeue_and_process" []
     let executionID = Telemetry.executionID ()
-    return!
-      Sql.withTransaction (fun () ->
-        task {
-          let! event =
-            try
-              EQ.dequeue () |> Task.map Ok
-            with
-            | e ->
-              // exception occurred while dequeuing, no item to put back
-              Telemetry.addEvent "Exception while dequeuing" []
-              Task.FromResult(Error e)
 
-          match event with
-          | Ok None ->
-            Telemetry.addTag "event_queue.no_events" true
-            return Ok None
-          | Ok (Some event) when
-            not
-              (LD.boolUserVar LD.RunWorkerForCanvas (string event.canvasName) false)
-            ->
-            Telemetry.addTag "event_queue.skipped_in_fsharp" event.canvasName
-            // Only run for users we've explicitly allowed, so the default is to go
-            // here and do nothing. The transaction will end without updating the
-            // queue, so the row will be unlocked, allowing someone else to take it.
-            // So we don't need to "putBack".
-            return Ok None
-          | Ok (Some event) ->
-            let! canvas =
-              task {
-                // Span creation might belong inside
-                // Canvas.loadForEvent, but then so would the
-                // error handling ... this may want a refactor
-                use _ =
-                  Telemetry.child
-                    "Canvas.load_for_event_from_cache"
-                    [ "event_id", event.id :> obj
-                      "value", event.value
-                      "retries", event.retries
-                      "canvasName", string event.canvasName
-                      "desc", (event.space, event.name, event.modifier)
-                      "delay", event.delay ]
-                try
-                  let! c = Canvas.loadForEvent event
-                  Telemetry.addTag "load_event_succeeded" true
-                  return Ok c
-                with
-                | e ->
-                  // exception occurred when processing an item, so put it back as an error
-                  do! EQ.putBack event EQ.Err
-                  // CLEANUP why have these attributes a different name
-                  Telemetry.addTag "event.load_success" false
-                  return Error e
-              }
+    let! (state, traceResult) =
+      RealExecution.createState executionID traceID h.tlid (Canvas.toProgram c)
 
-            match canvas with
-            | Ok c ->
-              let host = c.meta.name
-              let traceID = System.Guid.NewGuid()
-              let canvasID = c.meta.id
-              let desc = EQ.toEventDesc event
-              Telemetry.addTags [ "trace_id", traceID; "canvas_id", canvasID ]
+    let symtable = Map.ofList [ ("event", e.value) ]
+    let ast = PT2RT.Expr.toRT h.ast
+    let! result = Execution.executeHandler state symtable ast
+    HashSet.add h.tlid traceResult.tlids
+    RealExecution.traceResultHook c.meta.id traceID executionID traceResult
+    return result
+  }
 
-              try
-                let! eventTimestamp = TI.storeEvent canvasID traceID desc event.value
+type ShouldRetry =
+  | Retry of NodaTime.Duration
+  | NoRetry
 
+/// The algorithm here is described in the chart in docs/eventsV2.md. The algorithm
+/// below is annotated with names from chart. `dequeueAndProcess` will block until it
+/// receives a notification. Returns a Result containing the notification and the
+/// event on success, and just the notification and failure reason on failure. Should
+/// not throw on error.
+let dequeueAndProcess
+  ()
+  : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
+  task {
+    use _span = Telemetry.child "dequeueAndProcess" []
+    let resultType (dv : RT.Dval) : string =
+      dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
+
+    // Receive Notification - if there's an exception here, we don't have a job so no
+    // cleanup required.
+    let! notification = EQ.dequeue ()
+
+    // Function used to quit this event
+    let stop
+      (reason : string)
+      (retry : ShouldRetry)
+      : Task<Result<_, string * EQ.Notification>> =
+      task {
+        Telemetry.addTags [ "queue.completion_reason", reason
+                            "queue.success", false
+                            "queue.retrying", retry <> NoRetry ]
+        match retry with
+        | Retry delay -> return! EQ.requeueEvent notification delay
+        | NoRetry -> return! EQ.acknowledgeEvent notification
+        return Error(reason, notification) // no events executed
+      }
+
+    // -------
+    // EventLoad
+    // -------
+    match! EQ.loadEvent notification.data.canvasID notification.data.id with
+    | None -> return! stop "EventMissing" NoRetry
+    | Some event -> // EventPresent
+      Telemetry.addTags [ "event.handler.name", event.name
+                          "event.handler.modifier", event.modifier
+                          "event.handler.module", event.module'
+                          "event.value.type", (event.value |> resultType :> obj)
+                          "event.lockedAt", event.lockedAt
+                          "event.enqueuedAt", event.enqueuedAt ]
+
+      // -------
+      // LockCheck
+      // -------
+      let timeLeft =
+        match event.lockedAt with
+        | Some lockedAt -> // LockExpired
+          let expiryTime = lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0)
+          expiryTime - Instant.now ()
+        | None -> NodaTime.Duration.FromSeconds 0.0 // LockNone
+      if timeLeft.TotalSeconds > 0 then
+        // RETRY but it means something else is running it so doesn't matter
+        return! stop "IsLocked" (Retry timeLeft)
+      else // LockNone/LockExpired
+
+        // -------
+        // RuleCheck
+        // -------
+        match! EQ.getRule notification.data.canvasID event with
+        | Some rule ->
+          // Drop the notification - we'll requeue it if someone unpauses
+          Telemetry.addTags [ "queue.rule.type", rule.ruleType
+                              "queue.rule.id", rule.id ]
+          return! stop "RuleCheckPaused/Blocked" NoRetry
+        | None -> // RuleNone
+
+          // -------
+          // DeliveryCheck
+          // Note that this happens after all the other checks, as we might have
+          // multiple notifications for the same event and we don't want to delete
+          // one that is being executed or isn't ready. We stop after 4 retries here
+          // because the retries might happen for a reason that isn't strictly
+          // retries, such as lockedAt.
+          // -------
+          if notification.deliveryAttempt >= 5 then
+            // DeliveryTooManyRetries
+            do! EQ.deleteEvent event
+            return! stop "DeliveryTooMany" NoRetry
+          else // DeliveryPermitted
+
+            // -------
+            // LockClaim
+            // -------
+            match! EQ.claimLock event notification with
+            | Error msg ->
+              // Someone else just claimed the lock!
+              let retryTime = NodaTime.Duration.FromSeconds 300.0
+              return! stop $"LockClaimFailed: {msg}" (Retry retryTime)
+            | Ok () -> // LockClaimed
+
+              // -------
+              // Process
+              // -------
+              let! canvas =
+                Exception.taskCatch (fun () ->
+                  task {
+                    let! meta = Canvas.getMetaFromID notification.data.canvasID
+                    return!
+                      Canvas.loadForEventV2
+                        meta
+                        event.module'
+                        event.name
+                        event.modifier
+                  })
+              match canvas with
+              | None ->
+                do! EQ.deleteEvent event
+                return! stop "MissingCanvas" NoRetry
+              | Some c ->
+                let traceID = System.Guid.NewGuid()
+                let desc = (event.module', event.name, event.modifier)
+                Telemetry.addTags [ "canvas_name", c.meta.name; "trace_id", traceID ]
+
+
+                // CLEANUP switch events and scheduling rules to use TLIDs instead of eventDescs
                 let h =
                   c.handlers
                   |> Map.values
@@ -101,93 +181,57 @@ let dequeueAndProcess () : Task<Result<Option<RT.Dval>, exn>> =
 
                 match h with
                 | None ->
-                  // If an event gets put in the queue and there's no handler for
-                  // it, they're probably emiting to a handler they haven't created
-                  // yet. This creates a number of problems. Firstly, the event
-                  // will sit in the queue and rattle around forever, which is bad
-                  // operationally. However, it will also constantly run while the
-                  // user is editing code, until something finally works. This is
-                  // annoying, but also unnecessary - so long as they have the
-                  // trace they can use it to build. So just drop it immediately.
-                  Telemetry.addTag "delay" event.delay
-                  let space, name, modifier = desc
-                  let f404 = (space, name, modifier, eventTimestamp, traceID)
-                  Pusher.pushNew404 executionID canvasID f404
-                  do! EQ.putBack event EQ.Missing
-                  return Ok None
+                  // If an event gets put in the queue and there's no handler for it,
+                  // they're probably emiting to a handler they haven't created yet.
+                  // In this case, all they need to build is the trace. So just drop
+                  // this event immediately.
+                  let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
+                  Pusher.pushNew404
+                    (Telemetry.executionID ())
+                    c.meta.id
+                    (event.module', event.name, event.modifier, timestamp, traceID)
+                  do! EQ.deleteEvent event
+                  return! stop "MissingHandler" NoRetry
                 | Some h ->
-                  let! (state, traceResult) =
-                    RealExecution.createState
-                      executionID
-                      traceID
-                      h.tlid
-                      (Canvas.toProgram c)
 
-                  Telemetry.addTag "handler_id" h.tlid
-                  let symtable = Map.ofList [ ("event", event.value) ]
+                  // If we acknowledge the event here, and the machine goes down,
+                  // PubSub will retry this once the ack deadline runs out
+                  do! EQ.extendDeadline notification
 
-                  let! result =
-                    h.ast
-                    |> PT2RT.Expr.toRT
-                    |> Execution.executeHandler state symtable
+                  // FSTODO Set a time limit of 3m
 
-                  HashSet.add h.tlid traceResult.tlids
+                  try
+                    let! (_ : Instant) =
+                      TI.storeEvent c.meta.id traceID desc event.value
+                    let! result = executeEvent c h traceID event
+                    Telemetry.addTag "resultType" (resultType result)
+                    // ExecutesToCompletion
 
-                  RealExecution.traceResultHook
-                    canvasID
-                    traceID
-                    executionID
-                    traceResult
+                    // -------
+                    // Delete
+                    // -------
+                    do! EQ.deleteEvent event
+                    do! EQ.acknowledgeEvent notification
 
-                  let resultType =
-                    match result with
-                    | RT.DResult (Ok _) -> "ResOk"
-                    | RT.DResult (Error _) -> "ResError"
-                    | RT.DOption (Some _) -> "OptJust"
-                    | RT.DOption None -> "OptNothing"
-                    | _ -> (RT.Dval.toType result).toOldString ()
-
-
-                  Telemetry.addTags [ "result_tipe", resultType
-                                      "event.execution_success", true ]
-
-                  do! EQ.finish event
-                  return Ok(Some result)
-              with
-              | e ->
-                // exception occurred when processing an item, so put it back as an error
-                Telemetry.addTag "event.execution_success" false
-
-                try
-                  do! EQ.putBack event EQ.Err
-                with
-                | e -> Telemetry.addTag "error.msg" e
-
-                return Error e
-            | Error e -> return Error e
-          | Error e -> return Error e
-        })
+                    // -------
+                    // End
+                    // -------
+                    return Ok(event, notification)
+                  with
+                  | _ ->
+                    // This automatically increments the deliveryAttempt, so it might
+                    // be deleted at the next iteration.
+                    let timeLeft = NodaTime.Duration.FromSeconds 301.0
+                    return! stop "RetryAllowed" (Retry timeLeft)
   }
-
-let shutdown = ref false
 
 let run () : Task<unit> =
   task {
-    while not shutdown.Value do
+    while not shouldShutdown.Value do
       try
         use _span = Telemetry.createRoot "QueueWorker.run"
-        let allowedCount = LD.intVar LD.WorkersPerQueueWorker 0
-        let! result =
-          if allowedCount > 0 then dequeueAndProcess () else Task.FromResult(Ok None)
-        match result with
-        | Ok None -> do! Task.Delay 1000
-        | Ok (Some _) -> return ()
-        | Error (e) ->
-          Rollbar.sendException
-            (Telemetry.executionID ())
-            Rollbar.emptyPerson
-            []
-            (PageableException("Unhandled exception bubbled to queue worker", [], e))
+        let! (_ : Result<_, _>) = dequeueAndProcess ()
+        return ()
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
@@ -197,7 +241,6 @@ let run () : Task<unit> =
           Rollbar.emptyPerson
           []
           (PageableException("Unhandled exception bubbled to run", [], e))
-
   }
 
 
@@ -214,7 +257,7 @@ let main _ : int =
     // Called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "shutting down" []
-      shutdown.Value <- true
+      shouldShutdown.Value <- true
 
     // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.queueWorkerKubernetesPort

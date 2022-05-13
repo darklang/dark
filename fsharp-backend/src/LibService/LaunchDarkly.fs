@@ -10,59 +10,88 @@ open Tablecloth
 open LaunchDarkly.Sdk
 open LaunchDarkly.Sdk.Server
 
-// Flags are defined here to allow static typing
-type Flag =
-  | RunWorkerForCanvas
-  | WorkersPerQueueWorker
+module Internal =
 
-  override f.ToString() : string =
-    match f with
-    | RunWorkerForCanvas -> "run-worker-for-canvas"
-    | WorkersPerQueueWorker -> "workers-per-queueworker"
+  // For testing
+  // See https://docs.launchdarkly.com/sdk/features/test-data-sources#net-server-side
+  let testData = Integrations.TestData.DataSource()
 
-/// Set global testing values here. You can set per-"user" settings in a test, but
-/// make sure they don't conflict with other tests
-// See https://docs.launchdarkly.com/sdk/features/test-data-sources#net-server-side
-let testData =
-  let td = Integrations.TestData.DataSource()
-  td
-    .Update(td.Flag(string RunWorkerForCanvas).ValueForAllUsers(LdValue.Of true))
-    .Update(td.Flag(string WorkersPerQueueWorker).ValueForAllUsers(LdValue.Of 1))
+  let client =
+    lazy
+      (match Config.launchDarklyApiKey with
+       | Some key ->
+         let config =
+           Configuration
+             .Builder(key)
+             .StartWaitTime(System.TimeSpan.FromSeconds(1))
+             .DiagnosticOptOut(false)
+             .Offline(false)
+             .Logging(Components.NoLogging)
+             .Build()
+         new LdClient(config)
+       | None ->
+         let config =
+           Configuration
+             .Builder("test")
+             .DataSource(testData)
+             .StartWaitTime(System.TimeSpan.FromSeconds(0))
+             .DiagnosticOptOut(true)
+             .Offline(false)
+             .Logging(Components.NoLogging)
+             .Build()
+         new LdClient(config))
 
-let client =
-  lazy
-    (match Config.launchDarklyApiKey with
-     | Some key ->
-       let config =
-         Configuration
-           .Builder(key)
-           .StartWaitTime(System.TimeSpan.FromSeconds(1))
-           .DiagnosticOptOut(false)
-           .Offline(false)
-           .Logging(Components.NoLogging)
-           .Build()
-       new LdClient(config)
-     | None ->
-       let config =
-         Configuration
-           .Builder("test")
-           .DataSource(testData)
-           .StartWaitTime(System.TimeSpan.FromSeconds(0))
-           .DiagnosticOptOut(true)
-           .Offline(false)
-           .Logging(Components.NoLogging)
-           .Build()
-       new LdClient(config))
+  // Internal functions to call LD. Should only be used from within
+
+  let intVar (flagName : string) (userSignifier : string) (default_ : int) : int =
+    client.Force().IntVariation(flagName, User.WithKey userSignifier, default_)
+
+  let boolVar (flagName : string) (userSignifier : string) (default_ : bool) : bool =
+    client.Force().BoolVariation(flagName, User.WithKey userSignifier, default_)
+
+  // Functions to create dynamic configuration, which can be set remotely
+  let intConfig (name : string) (default_ : int) (testDefault : int) : unit -> int =
+    testData.Update(testData.Flag(name).ValueForAllUsers(LdValue.Of testDefault))
+    |> ignore<Integrations.TestData>
+    fun () -> intVar name "system" default_
+
+  // Functions to use per-canvas values
+  let canvasBool
+    (name : string)
+    (default_ : bool)
+    (testDefault : bool)
+    : CanvasName.T -> bool =
+    testData.Update(testData.Flag(name).ValueForAllUsers(LdValue.Of testDefault))
+    |> ignore<Integrations.TestData>
+    fun canvasName -> boolVar name $"canvas-{canvasName}" default_
+
+  let canvasInt
+    (name : string)
+    (default_ : int)
+    (testDefault : int)
+    : CanvasName.T -> int =
+    testData.Update(testData.Flag(name).ValueForAllUsers(LdValue.Of testDefault))
+    |> ignore<Integrations.TestData>
+    fun canvasName -> intVar name $"canvas-{canvasName}" default_
 
 
-/// IntVariation, with a default and no user
-let intVar (flag : Flag) (default_ : int) : int =
-  client.Force().IntVariation(string flag, null, default_)
 
-/// [someID] here doesn't have to be a darklang account id or username or whatever.
-/// We can just use whateever we want to turn a knob on, such as for example
-/// canvasname.
-let boolUserVar (flag : Flag) (someID : string) (default_ : bool) : bool =
-  client.Force().BoolVariation(string flag, User.WithKey(someID), default_)
+let flush () : unit = Internal.client.Force().Dispose()
 
-let flush () : unit = client.Force().Dispose()
+
+// --------------
+// Canvas Flags - these are per-canvas settings
+// --------------
+
+let useEventsV2 = Internal.canvasBool "use-events-v2" false false
+
+// --------------
+// Dynamic configuration - this allows us to change the run-time values of system
+// configuration. This is the preferred way of setting arbitrary numbers
+// --------------
+
+let queueAllowedExecutionTimeInSeconds =
+  Internal.intConfig "queue-allowed-execution-time-in-seconds" 300 300
+
+let queueDelayBetweenPullsInMillis =
+  Internal.intConfig "queue-delay-between-pubsub-pulls-in-millis" 1000 1000
