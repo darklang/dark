@@ -250,7 +250,7 @@ let enqueue
                           "modifier", Sql.string modifier
                           "data",
                           Sql.string (
-                            LibExecution.DvalReprInternal.toInternalRoundtrippableV0
+                            LibExecution.DvalReprInternalDeprecated.toInternalRoundtrippableV0
                               data
                           ) ]
       |> Sql.executeStatementAsync
@@ -305,7 +305,9 @@ let dequeue () : Task<Option<T>> =
       return
         Some
           { id = id
-            value = LibExecution.DvalReprInternal.ofInternalRoundtrippableV0 value
+            value =
+              LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+                value
             retries = retries
             canvasID = canvasID
             ownerID = ownerID
@@ -345,7 +347,10 @@ let testingGetQueue canvasID eventName =
       |> Sql.executeAsync (fun read -> read.string "value")
 
     return
-      result |> List.map (LibExecution.DvalReprInternal.ofInternalRoundtrippableV0)
+      result
+      |> List.map (
+        LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+      )
   }
 
 /// Sets all 'new' events to 'scheduled', bypassing actual scheduling logic

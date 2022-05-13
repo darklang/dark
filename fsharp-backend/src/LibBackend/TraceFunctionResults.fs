@@ -13,7 +13,7 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // -------------------------
 // External
@@ -43,13 +43,15 @@ let store
                         "id", Sql.id id
                         ("hash",
                          arglist
-                         |> DvalReprInternal.hash DvalReprInternal.currentHashVersion
+                         |> DvalReprInternalDeprecated.hash
+                              DvalReprInternalDeprecated.currentHashVersion
                          |> Sql.string)
 
-                        "hashVersion", Sql.int DvalReprInternal.currentHashVersion
+                        "hashVersion",
+                        Sql.int DvalReprInternalDeprecated.currentHashVersion
                         ("value",
                          result
-                         |> DvalReprInternal.toInternalRoundtrippableV0
+                         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
                          |> Sql.string) ]
     |> Sql.executeStatementAsync
 
@@ -73,11 +75,14 @@ let storeMany
           "timestamp", Sql.instantWithTimeZone timestamp
           ("hash",
            argList
-           |> DvalReprInternal.hash DvalReprInternal.currentHashVersion
+           |> DvalReprInternalDeprecated.hash
+                DvalReprInternalDeprecated.currentHashVersion
            |> Sql.string)
-          "hashVersion", Sql.int DvalReprInternal.currentHashVersion
+          "hashVersion", Sql.int DvalReprInternalDeprecated.currentHashVersion
           ("value",
-           result |> DvalReprInternal.toInternalRoundtrippableV0 |> Sql.string) ])
+           result
+           |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+           |> Sql.string) ])
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
           (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
@@ -112,4 +117,4 @@ let load
      read.tlid "id",
      read.string "hash",
      read.intOrNone "hash_version" |> Option.unwrap 0,
-     read.string "value" |> DvalReprInternal.ofInternalRoundtrippableV0))
+     read.string "value" |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0))

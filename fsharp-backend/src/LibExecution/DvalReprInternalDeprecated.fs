@@ -8,8 +8,9 @@
 /// We're trying to get rid of JSON.NET. However, these format have saved millions
 /// of values using them, so we need to do a migration from the old serialization
 /// to a new one.
+/// If possible, migrate from serializers in here to serializers in DvalReprInternalDeprecatedNew.
 /// </remarks>
-module LibExecution.DvalReprInternal
+module LibExecution.DvalReprInternalDeprecated
 
 open Prelude
 open VendoredTablecloth

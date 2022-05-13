@@ -14,7 +14,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 module ClientInterop =
   // -----------------------
@@ -137,8 +137,8 @@ module Eval =
     (args : List<RT.Dval>)
     : Option<RT.Dval * NodaTime.Instant> =
     let hashes =
-      DvalReprInternal.supportedHashVersions
-      |> List.map (fun key -> (key, DvalReprInternal.hash key args))
+      DvalReprInternalDeprecated.supportedHashVersions
+      |> List.map (fun key -> (key, DvalReprInternalDeprecated.hash key args))
       |> Map
 
     results

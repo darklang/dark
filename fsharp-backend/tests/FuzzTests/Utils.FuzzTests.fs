@@ -18,7 +18,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 /// Extracts the result from a task
 let result (t : Task<'a>) : 'a = t.Result

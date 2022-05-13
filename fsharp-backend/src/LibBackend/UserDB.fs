@@ -58,7 +58,7 @@ let rec queryExactFields
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
-    match LibExecution.DvalReprInternal.ofInternalQueryableV1 obj with
+    match LibExecution.DvalReprInternalDeprecated.ofInternalQueryableV1 obj with
     | RT.DObj o ->
       // <HACK 1>: some legacy objects were allowed to be saved with `id`
       // keys _in_ the data object itself. they got in the datastore on

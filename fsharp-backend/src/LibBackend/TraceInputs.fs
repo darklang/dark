@@ -96,7 +96,7 @@ let storeEvent
                         "modifier", Sql.string modifier
                         ("value",
                          event
-                         |> LibExecution.DvalReprInternal.toInternalRoundtrippableV0
+                         |> LibExecution.DvalReprInternalDeprecated.toInternalRoundtrippableV0
                          |> Sql.string) ]
     |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
@@ -189,7 +189,8 @@ let loadEvents
     (read.string "path",
      read.uuid "trace_id",
      read.instant "timestamp",
-     read.string "value" |> LibExecution.DvalReprInternal.ofInternalRoundtrippableV0))
+     read.string "value"
+     |> LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0))
 
 
 let loadEventForTrace
@@ -205,7 +206,8 @@ let loadEventForTrace
   |> Sql.executeRowOptionAsync (fun read ->
     (read.string "path",
      read.instant "timestamp",
-     read.string "value" |> LibExecution.DvalReprInternal.ofInternalRoundtrippableV0))
+     read.string "value"
+     |> LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0))
 
 
 let mungePathForPostgres (module_ : string) (path : string) =

@@ -20,7 +20,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module G = Generators
 
 open LibExecution.OCamlTypes.Convert
@@ -150,7 +150,7 @@ module Roundtrippable =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (DvalReprInternal.isRoundtrippableDval false)
+      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval false)
 
   type GeneratorWithBugs =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
@@ -163,12 +163,13 @@ module Roundtrippable =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter (DvalReprInternal.isRoundtrippableDval true)
+      Arb.Default.Derive()
+      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval true)
 
   let roundtripsSuccessfully (dv : RT.Dval) : bool =
     dv
-    |> DvalReprInternal.toInternalRoundtrippableV0
-    |> DvalReprInternal.ofInternalRoundtrippableV0
+    |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+    |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
     |> Expect.dvalEquality dv
 
   let isInteroperableV0 dv =
@@ -178,8 +179,8 @@ module Roundtrippable =
       isInteroperableWithOCamlBackend
         OCamlInterop.toInternalRoundtrippableV0
         OCamlInterop.ofInternalRoundtrippableV0
-        DvalReprInternal.toInternalRoundtrippableV0
-        DvalReprInternal.ofInternalRoundtrippableV0
+        DvalReprInternalDeprecated.toInternalRoundtrippableV0
+        DvalReprInternalDeprecated.ofInternalRoundtrippableV0
         Expect.dvalEquality
         dv
 
@@ -210,14 +211,14 @@ module Queryable =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter DvalReprInternal.isQueryableDval
+      Arb.Default.Derive() |> Arb.filter DvalReprInternalDeprecated.isQueryableDval
 
   let canV1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])
 
     dvm
-    |> DvalReprInternal.toInternalQueryableV1
-    |> DvalReprInternal.ofInternalQueryableV1
+    |> DvalReprInternalDeprecated.toInternalQueryableV1
+    |> DvalReprInternalDeprecated.ofInternalQueryableV1
     |> Expect.dvalEquality (RT.DObj dvm)
 
   let isInteroperableV1 (dv : RT.Dval) =
@@ -232,9 +233,9 @@ module Queryable =
         OCamlInterop.ofInternalQueryableV1
         (fun dval ->
           match dval with
-          | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
+          | RT.DObj dvm -> DvalReprInternalDeprecated.toInternalQueryableV1 dvm
           | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
-        DvalReprInternal.ofInternalQueryableV1
+        DvalReprInternalDeprecated.ofInternalQueryableV1
         Expect.dvalEquality
         (RT.DObj dvm)
 

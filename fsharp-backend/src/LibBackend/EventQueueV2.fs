@@ -19,8 +19,7 @@ open Tablecloth
 
 module Telemetry = LibService.Telemetry
 
-module DvalReprInternal = LibExecution.DvalReprInternal
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprInternalNew = LibExecution.DvalReprInternalNew
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes

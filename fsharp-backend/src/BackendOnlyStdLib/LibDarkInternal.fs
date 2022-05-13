@@ -11,7 +11,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprExternal = LibExecution.DvalReprExternal
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
@@ -710,7 +710,7 @@ that's already taken, returns an error."
                 state.executionID
                 (canvasID |> System.Guid.Parse)
                 event
-                (payload |> DvalReprInternal.toInternalRoundtrippableV0)
+                (payload |> DvalReprInternalDeprecated.toInternalRoundtrippableV0)
               Ply(DResult(Ok payload))
              with
              | e -> Ply(DResult(Error(e |> string |> DStr))))

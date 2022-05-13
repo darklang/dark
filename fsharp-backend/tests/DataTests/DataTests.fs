@@ -236,7 +236,8 @@ let loadAllQueueData (concurrency : int) (failOnError : bool) =
         |> Task.iterInParallel (fun dvalStr ->
           task {
             let fsharpDval =
-              LibExecution.DvalReprInternal.ofInternalRoundtrippableV0 dvalStr
+              LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+                dvalStr
             let! ocamlDval =
               LibBackend.OCamlInterop.ofInternalRoundtrippableV0 dvalStr
             return Expect.equalDval fsharpDval ocamlDval ""
