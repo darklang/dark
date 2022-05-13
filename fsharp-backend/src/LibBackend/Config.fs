@@ -153,7 +153,7 @@ let queuePubSubSubscriptionName = string "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_
 
 let queuePubSubCreateTopic = bool "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"
 
-let queuePubSubCredentials = stringOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
+let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
 
 
 // -------------------------
