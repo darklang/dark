@@ -1,4 +1,4 @@
-# Events (updated May 7, 2022)
+# Events (correct as of May 7, 2022)
 
 ## What is an Event?
 

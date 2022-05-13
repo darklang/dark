@@ -1,4 +1,4 @@
-# Queues V2 (updated May 8, 2022)
+# Queues V2 (correct as of May 13, 2022)
 
 ## Design of Dark Queues V2
 
