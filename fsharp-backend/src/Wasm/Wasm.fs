@@ -149,11 +149,11 @@ module Eval =
     results
     |> List.filterMap (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
       if RT.FQFnName.toString fnName = rFnName
-          && callerID = rCallerID
-          && hash = (Map.get hashVersion hashes
+         && callerID = rCallerID
+         && hash = (Map.get hashVersion hashes
                     |> Exception.unwrapOptionInternal
-                          "Could not find hash"
-                          [ "hashVersion", hashVersion; "hashes", hashes ]) then
+                         "Could not find hash"
+                         [ "hashVersion", hashVersion; "hashes", hashes ]) then
         Some dval
       else
         None)
@@ -285,9 +285,10 @@ type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
 type EvalWorker =
   static member GetGlobalObject(_globalObjectName : string) : unit = ()
 
-  static member selfDelegate: InvokeDelegate =
+  static member selfDelegate : InvokeDelegate =
     let typ =
-      let sourceAssembly : Assembly = Assembly.Load "System.Private.Runtime.InteropServices.JavaScript"
+      let sourceAssembly : Assembly =
+        Assembly.Load "System.Private.Runtime.InteropServices.JavaScript"
       sourceAssembly.GetType "System.Runtime.InteropServices.JavaScript.Runtime"
 
     // I do not have any clue what this does
@@ -315,15 +316,15 @@ type EvalWorker =
     task {
       let args =
         try
-          Ok(
-            Json.Vanilla.deserialize<ClientInterop.performAnalysisParams>
-              message)
+          Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> message)
         with
         | e ->
           let metadata = Exception.toMetadata e
           System.Console.WriteLine("Error parsing analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
-          System.Console.WriteLine($"caught exception: \"{e.Message}\" \"{metadata}\"")
+          System.Console.WriteLine(
+            $"caught exception: \"{e.Message}\" \"{metadata}\""
+          )
           Error($"exception: {e.Message}, metdata: {metadata}")
 
       match args with
