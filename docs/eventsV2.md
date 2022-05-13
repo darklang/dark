@@ -241,8 +241,8 @@ graph LR
   %% loaded.
   LockCheck -->|LockNone| RuleCheck
   LockCheck -->|LockExpired| RuleCheck
-  RuleCheck -->|RuleNone| RetryCheck
-  RetryCheck --> |RetryAllowed| LockClaim
+  RuleCheck -->|RuleNone| DeliveryCheck
+  DeliveryCheck --> |DeliveryAllowed| LockClaim
 
   %% Running
   LockClaim --> |LockClaimed| Process
@@ -268,9 +268,6 @@ graph LR
   Process --> |Exception, Retry with delay| Queue
 
   %% That's enough retries, we're done
-  RetryCheck --> |RetryTooMany| Delete
+  DeliveryCheck --> |DeliveryTooManyRetries| Delete
 
-  %% Don't know what's wrong, must be another worker running it. This will probably
-  %% be dropped on the next iteration.
-  RetryCheck --> |Exception| Queue
 ```

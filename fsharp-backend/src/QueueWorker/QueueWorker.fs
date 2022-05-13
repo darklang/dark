@@ -56,10 +56,11 @@ type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
 
-/// The algorithm here is described in docs/production/eventsV2.md. The algorithm
-/// below is annotated with names from chart. Will block until receiving a
-/// notification. Returns a Result containing the notification and the event on
-/// success, and just the notifcation on failure. May throw on error.
+/// The algorithm here is described in the chart in docs/eventsV2.md. The algorithm
+/// below is annotated with names from chart. `dequeueAndProcess` will block until it
+/// receives a notification. Returns a Result containing the notification and the
+/// event on success, and just the notifcation and failure reason on failure. Should
+/// not throw on error.
 let dequeueAndProcess
   ()
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
@@ -126,17 +127,18 @@ let dequeueAndProcess
         | None -> // RuleNone
 
           // -------
-          // TooManyRetries
+          // DeliveryCheck
           // Note that this happens after all the other checks, as we might have
           // multiple notifications for the same event and we don't want to delete
-          // one that is being executed or isn't ready.  We set 4 here because the
-          // retries might happen for a reason that isn't strictly retries, such as
-          // lockedAt.
+          // one that is being executed or isn't ready. We stop after 4 retries here
+          // because the retries might happen for a reason that isn't strictly
+          // retries, such as lockedAt.
           // -------
-          if notification.deliveryAttempt >= 4 then
+          if notification.deliveryAttempt >= 5 then
+            // DeliveryTooManyRetries
             do! EQ.deleteEvent event
-            return! stop "RetryTooMany" NoRetry
-          else // RetryAllowed
+            return! stop "DeliveryTooMany" NoRetry
+          else // DeliveryPermitted
 
             // -------
             // LockClaim
