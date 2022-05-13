@@ -836,6 +836,7 @@ module Json =
 
     open System.Text.Json
     open System.Text.Json.Serialization
+    open NodaTime.Serialization.SystemTextJson
 
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
@@ -888,6 +889,7 @@ module Json =
       let options = JsonSerializerOptions()
       options.MaxDepth <- System.Int32.MaxValue // infinite
       // CLEANUP we can put these converters on the type or property if appropriate.
+      options.Converters.Add(NodaConverters.InstantConverter)
       options.Converters.Add(TLIDConverter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
