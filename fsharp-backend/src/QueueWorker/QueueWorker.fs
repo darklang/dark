@@ -62,7 +62,7 @@ let dequeueAndProcess
   ()
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
-    use _span = Telemetry.child "dequeueAndProcess" []
+    use _span = Telemetry.createRoot "dequeueAndProcess"
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 
@@ -95,8 +95,8 @@ let dequeueAndProcess
                           "event.handler.modifier", event.modifier
                           "event.handler.module", event.module'
                           "event.value.type", (event.value |> resultType :> obj)
-                          "event.lockedAt", event.lockedAt
-                          "event.enqueuedAt", event.enqueuedAt ]
+                          "event.locked_at", event.lockedAt
+                          "event.enqueued_at", event.enqueuedAt ]
 
       // -------
       // LockCheck
@@ -204,7 +204,9 @@ let dequeueAndProcess
                     let! (_ : Instant) =
                       TI.storeEvent c.meta.id traceID desc event.value
                     let! result = executeEvent c h traceID event
-                    Telemetry.addTag "resultType" (resultType result)
+                    Telemetry.addTags [ "result_type", resultType result
+                                        "queue.success", true
+                                        "queue.completion_reason", "completed" ]
                     // ExecutesToCompletion
 
                     // -------
@@ -229,7 +231,6 @@ let run () : Task<unit> =
   task {
     while not shouldShutdown.Value do
       try
-        use _span = Telemetry.createRoot "QueueWorker.run"
         let! (_ : Result<_, _>) = dequeueAndProcess ()
         return ()
       with
@@ -250,7 +251,7 @@ let main _ : int =
     let name = "QueueWorker"
     print "Starting QueueWorker"
     LibService.Init.init name
-    Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
+    Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 

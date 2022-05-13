@@ -99,22 +99,14 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
        AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventId", Sql.uuid id; "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowOptionAsync (fun read ->
-    let e =
-      { id = id
-        canvasID = canvasID
-        module' = read.string "module"
-        name = read.string "name"
-        modifier = read.string "modifier"
-        enqueuedAt = read.instant "enqueued_at"
-        lockedAt = read.instantOrNone "locked_at"
-        value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 }
-    Telemetry.addTags [ ("queue_delay", Instant.now().Minus(e.enqueuedAt))
-                        ("module", e.module')
-                        ("name", e.name)
-                        ("modifier", e.modifier)
-                        ("enqueued_at", e.enqueuedAt)
-                        ("locked_at", e.lockedAt) ]
-    e)
+    { id = id
+      canvasID = canvasID
+      module' = read.string "module"
+      name = read.string "name"
+      modifier = read.string "modifier"
+      enqueuedAt = read.instant "enqueued_at"
+      lockedAt = read.instantOrNone "locked_at"
+      value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 })
 
 let deleteEvent (event : T) : Task<unit> =
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
@@ -279,9 +271,13 @@ let dequeue () : Task<Notification> =
               pubSubMessageID = message.MessageId
               pubSubAckID = envelope.AckId }
         Telemetry.addTags [ "canvas_id", data.canvasID
+                            "queue.event.content_length", message.Data.Length
                             "queue.event.id", data.id
                             "queue.event.pubsub_id", message.MessageId
+                            "queue.event.ack_id", envelope.AckId
                             "queue.event.delivery_attempt", deliveryAttempt
+                            "queue.event.publish_time",
+                            message.PublishTime.ToDateTime()
                             "queue.event.time_in_queue",
                             ((message.PublishTime.ToDateTime()) - System.DateTime.Now)
                               .TotalMilliseconds ]
