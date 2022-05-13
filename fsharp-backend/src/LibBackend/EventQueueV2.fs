@@ -122,6 +122,10 @@ let deleteEvent (event : T) : Task<unit> =
                       "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
 
+/// Claim the lock by setting the lockedAt field. Must have already determined in
+/// queue logic that this is OK to do. The update checks the old value and this
+/// function will return Error without updating the DB if it does not see the
+/// expected value.
 let claimLock (event : T) (n : Notification) : Task<Result<unit, string>> =
   task {
     let! rowCount =
