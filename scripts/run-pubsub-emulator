@@ -14,7 +14,7 @@ if [[ $(pgrep --full 'cloud-pubsub-emulator-0.6.0.jar') == "" ]] ; then
     > "$LOGS/pub-sub-emulator.log" 2>&1 &
 fi
 
-# Pubsub takes a second to startup
+# Pubsub takes ~1s to startup
 while ! curl --output /dev/null --silent --head http://0.0.0.0:8085 ; do
   sleep 1
   echo .

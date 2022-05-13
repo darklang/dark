@@ -43,8 +43,10 @@ The queue implements the following features:
 The queue also has the following accidental features:
 
 - events do not have an execution time-limit
+
 - events may be cancelled if the machine they are running on turns off. This should
-  only happen to events that run longer than 28 seconds.
+  only happen to events that run longer than the shutdown grace period, currently 28
+  seconds.
 
 ### Design of the queue
 
@@ -204,10 +206,11 @@ has no UI or anything).
 
 ### QueueWorker Execution
 
-`EventQueueV2.dequeue` fetches a notification from PubSub and runs the process to
-execute it. First it will check if it should run it, looking at retries, whether
-another worker has set `locked_at` and holds the lock, whether scheduling rules tell
-us not to run it, whether it's not time to run it yet, or if the event is missing.
+`QueueWorker.dequeueAndProcess` fetches a notification from PubSub and runs the
+process to execute it. First it will check if it should run it, looking at retries,
+whether another worker has set `locked_at` and holds the lock, whether scheduling
+rules tell us not to run it, whether it's not time to run it yet, or if the event is
+missing.
 
 Notifications have a built-in _ack deadline_ - they must be _acknowledged_ within a
 changeable time limit. The default is 60 seconds. If a queueworker decides not to run
@@ -221,10 +224,10 @@ _acknowledging_ it.
 
 Because the event is just a notification, it's basically almost always fine to put it
 back in so long as the DB row for the event exists (which means it's done). However,
-once it has been delivered 5 times, PubSub will stop trying to retry it.
+PubSub will only try to deliver it 5 times.
 
 Note that normally, only one notification exists for an event. The exception is when
-workers are unpaused.
+workers are pause or unpaused.
 
 ```mermaid
 graph LR

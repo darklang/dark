@@ -45,6 +45,7 @@ type NotificationData = { id : EventID; canvasID : CanvasID }
 type Notification =
   { data : NotificationData
     pubSubMessageID : string
+    /// The first delivery has value 1
     deliveryAttempt : int
     pubSubAckID : string }
 
@@ -90,11 +91,6 @@ let createEvent
                       Sql.string (DvalReprInternalNew.toRoundtrippableJsonV0 value) ]
   |> Sql.executeStatementAsync
 
-
-/// -----------------
-/// Database
-/// The events_v2 is the source of truth for the queue
-/// -----------------
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
   Sql.query
     "SELECT module, name, modifier, enqueued_at, locked_at, value
@@ -162,8 +158,8 @@ let credentials : Option<Grpc.Core.ChannelCredentials> =
   |> Option.map Google.Apis.Auth.OAuth2.GoogleCredential.FromJson
   |> Option.map (fun c -> c.ToChannelCredentials())
 
-// PublisherClient and Subscriber client have deprecated forms that the Channels as
-// arguments. No idea what we're supposed to use instead.
+// PublisherClient and SubscriberClient have deprecated constructors that take
+// Channels as arguments. However, it's not clear what we're supposed to use instead.
 #nowarn "44"
 
 let publisher : Lazy<Task<PublisherServiceApiClient>> =
