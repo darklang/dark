@@ -7,7 +7,9 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <RunAOTCompilation>true</RunAOTCompilation>
     <BlazorEnableCompression>false</BlazorEnableCompression>
-
+    <OutputType>Exe</OutputType>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <PackAsTool>true</PackAsTool>
     <PublishTrimmed>false</PublishTrimmed>
     <!-- <EmccCompileOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccCompileOptimizationFlag> -->
     <!-- <EmccLinkOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccLinkOptimizationFlag> -->
@@ -27,6 +29,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Wasm.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
