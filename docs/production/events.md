@@ -50,7 +50,7 @@ enumlabel
  locked # Does not appear to be used
  done # Has succeeded
  error # Has failed (won't be retried)
- missing # Couldn't be found (won't be retried)
+ missing # canvas/handler couldn't be found (won't be retried)
 ```
 
 ### Scheduling rules
@@ -95,6 +95,7 @@ When done, saved again with `status=done`.
 ## Error handling
 
 Cases:
+
 - we tried to load the canvas and couldn't
   - tracked in Telemetry with `event.load_success=false`
   - if `retries < 2`
@@ -112,14 +113,16 @@ Cases:
 
 ## Scheduling rules
 
-Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to lock a  queue for operational purposes.
+Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to lock a
+queue for operational purposes.
 
 ## Scheduling
 
 Code in `queue-scheduler/src/lib.rs`.
 
 Every second, finds `status=new` with `delay_until` reached, so long as there's no
-`block` or `pause` in this handler's `scheduling_rules`.
+`block` or `pause` in this handler's `scheduling_rules`. Then it sets it to
+`status=scheduled`, which the queueworker searches for.
 
 ## Event Lifecycle
 
@@ -145,5 +148,3 @@ entity is run as a separate process (in a separate k8s pod, with a different
 replica count).
 
 ![](events-seq.png)
-
-

@@ -14,8 +14,14 @@ Goals:
 - `event`: refers to the Dark value `emit`ed into the queue and the metadata around
   it (including what you might call a "job" or "message" in other systems). We say we
   "run the event" when we execute it, or "retry the event" if we requeue it.
-- `QueueWorker`: one of the machines which is running 1 or more events.
+- `QueueWorker`: a queueworker is one of the machines which is running 1 or more
+  events. Also the name of the module that implements it, as well as the kubernetes
+  service, etc, around it.
 - `queue`: encompasses everything else here
+- `notification`: The source of truth for our eventing system in the `events_v2`
+  table, so what exactly is being put into PubSub? We call this data a `notification`
+  as it merely serves to notify us that there may be an event to execute (as opposed to
+  PubSub being the source of truth for the queue)
 
 ## High level description
 
@@ -58,8 +64,10 @@ New definitions:
 **Important**: The scheduling of events is handled by a Pub/Sub subscription, which
 **only** handles notifying the worker to try running an event. The worker may know
 that it should not run it, for example if the worker is paused. The presence of a
-Message in the PubSub subscription does not mean an actual event will be run. Nor an
-event to be run imply that there must be a
+notification in the PubSub subscription does not mean an actual event will be run.
+Also, an event in the DB does not imply exactly one notification in PubSub - there
+may be more than one (if the user pressed pause/unpause a bit), or none (if a handler
+is currently paused).
 
 When an event is first `emit`ted, we save it in the `events_v2` table, and add a
 **Notification** in PubSub. The QueueWorkers pull messages from PubSub when they
@@ -97,7 +105,7 @@ The `events_v2` table has event data
 
 It also holds scheduling metadata for an event:
 
-- `id` an id for the event. Not the same any PubSub id.
+- `id` an id for the event. Not the same a PubSub id.
 - `lockedAt` a worker will claim a lock before processing. DB locks are bad for this
   purpose since we're doing DB work at the same time. This "lock" is simply a timestamp
   to stake a claim.
@@ -125,7 +133,7 @@ Code in `EventQueue.fs`. Allows a user to pause a queue, or allows an admin to l
  rule_type    | scheduling_rule_type        | not null
  canvas_id    | uuid                        | not null
  handler_name | text                        | not null
- event_space  | text                        | not null
+ event_space  | text                        | not null # the space/module of the handler
  created_at   | timestamp without time zone | not null default now()
 ```
 
@@ -148,8 +156,8 @@ by the user, the PubSub notification is dropped, but the event remains in the DB
 When the handler is unpaused, notifications are added to PubSub to schedule them.
 
 If the user pauses and unpauses in quick succession, there could be multiple
-notifications in PubSub for the same event. As a result, there is per-event locking
-using the `lockedAt` column.
+notifications in PubSub for the same event. To handle this, there is per-event
+locking using the `lockedAt` column.
 
 ### Errors
 
@@ -161,10 +169,10 @@ in 5 minutes.
 
 If there was an operational error, the QueueWorker will not be able to do anything to
 the event. However, the QueueWorker will not acknowledge the PubSub notification, and
-so when the PubSub ack deadline for that notification passes, PubSub will attempt to
-deliver it again. PubSub is configured to try a message 5 times, then it publishes it
-in a deadletter queue. We do not currently have any automation on the deadletter
-queue.
+so when the PubSub acknowledgement deadline for that notification passes, PubSub will
+attempt to deliver it again. PubSub is configured to try a message 5 times, then it
+publishes it in a deadletter queue. We do not currently have any automation on the
+deadletter queue.
 
 An event that has more than 5 delays will be deleted by the QueueWorker.
 
@@ -185,11 +193,11 @@ Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
 - `enqueued_at = CURRENT_TIMESTAMP`
 
 Note that `CronChecker` does not use `events_v2` table information for Cron
-scheduling (eg determining if it has been an hour since the last Cron event). It does
-that separately in the `cron_records` table and just emits events on the appropriate
-schedule, leaving it to the queues to handle after that.
+scheduling (eg determining if it has been an hour since the last Cron event). That is
+tracked in the `cron_records` table, `CronChecker` just emits events on the
+appropriate schedule, leaving it to the queues to handle after that.
 
-Emit also adds a notification to the PubSub topic. This will be delivered to a
+`emit` also adds a notification to the PubSub topic. This will be delivered to a
 QueueWorker to tell it to try fetching and running an event. After 5 retries, PubSub
 will drop the notification, sending it to a dead-letter queue (which at the moment
 has no UI or anything).
