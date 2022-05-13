@@ -49,9 +49,6 @@ let executeEvent
     return result
   }
 
-[<Measure>]
-type seconds
-
 type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
