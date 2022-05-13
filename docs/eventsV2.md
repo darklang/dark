@@ -78,7 +78,7 @@ Why use PubSub?
 
 Why not use PubSub for everything?
 
-- PubSub deletes messages after a week, so we'd have to implement extra (and difficult logic) to handle pausing
+- PubSub deletes messages after a week, so we'd have to implement extra (and difficult) logic to handle pausing
 - Similarly, emiting events in the far future would be harder to implement
 - PubSub does not support pausing
 - Queues can be paused and unpaused in quick succession by the user, meaning that
