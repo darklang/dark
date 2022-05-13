@@ -466,6 +466,7 @@ jobs:
           name: Run DB migrations
           command: |
             # Run the server long enough to ensure it runs the migrations
+            ./scripts/run-pubsub-emulator
             cd fsharp-backend
             ./Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost migrations run
       - run:
