@@ -323,7 +323,8 @@ window.Dark = {
   analysis: {
     useBlazor: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("use-blazor");
+      const useOcaml = !!urlParams.get("use-ocaml-analysis");
+      return !useOcaml;
     })(),
     requestAnalysis: function (params) {
       if (window.Dark.analysis.useBlazor) {
