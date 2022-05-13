@@ -320,6 +320,9 @@ let enqueue
     return ()
   }
 
+/// This enqueues the value in one of the two queues (the old `events` queue we're
+/// removing, or the new `events_v2` queue we're replacing it with). This is decided
+/// by a per-canvas feature flag.
 let enqueueInAQueue
   (canvasName : CanvasName.T)
   (canvasID : CanvasID)
