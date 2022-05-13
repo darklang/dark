@@ -170,6 +170,8 @@ let publisher : Lazy<Task<PublisherServiceApiClient>> =
   lazy
     (task {
       let! client =
+        // If we have no credentials, then assume we must be trying to use the
+        // PubSub Emulator for local/test development
         match credentials with
         | None ->
           PublisherServiceApiClientBuilder(
@@ -250,16 +252,17 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
       return client
     })
 
+/// Returns the next available notification in the queue, and will pause until it has
+/// done so
 let dequeue () : Task<Notification> =
   task {
     let! subscriber = subscriber.Force()
-    let! response = subscriber.PullAsync(subscriptionName, maxMessages = 1)
     let mutable notification : Option<Notification> = None
     while notification = None do
-      // Messages is allowed return no messages. It will wait a while by default
+      let! response = subscriber.PullAsync(subscriptionName, maxMessages = 1)
       let messages = response.ReceivedMessages
-      let count = messages.Count
-      if count > 0 then
+      // PubSub might return 0 Messages. In that case, pause and loop again
+      if messages.Count > 0 then
         let envelope = messages[0]
         let message = envelope.Message
         let data =
@@ -285,7 +288,7 @@ let dequeue () : Task<Notification> =
       else
         do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
 
-    return Exception.unwrapOptionInternal "expect a notification" [] notification
+    return notification |> Exception.unwrapOptionInternal "expect a notification" []
   }
 
 let enqueue
