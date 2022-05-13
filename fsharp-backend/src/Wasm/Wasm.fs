@@ -198,15 +198,12 @@ module Eval =
           secrets = [] }
 
       let stdlib =
-        let fns = LibExecutionStdLib.StdLib.fns
-
-        fns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+        LibExecutionStdLib.StdLib.fns
+        |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       // TODO: get packages from caller
       let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
-
       let dvalResults, traceDvalFn = Exe.traceDvals ()
-
       let functionResults = traceData.function_results
 
       let tracing =
@@ -215,7 +212,6 @@ module Eval =
             loadFnResult = loadFromTrace functionResults }
 
       let executionID = ExecutionID "analysis"
-
       let state =
         Exe.createState
           executionID
