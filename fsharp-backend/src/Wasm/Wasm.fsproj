@@ -6,7 +6,7 @@
     <LangVersion>6.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
     <RunAOTCompilation>true</RunAOTCompilation>
-    <BlazorEnableCompression>false</BlazorEnableCompression>
+    <!-- <BlazorEnableCompression>false</BlazorEnableCompression> -->
     <OutputType>Exe</OutputType>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <PackAsTool>true</PackAsTool>
