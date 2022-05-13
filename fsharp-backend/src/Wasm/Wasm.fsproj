@@ -7,8 +7,8 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <RunAOTCompilation>true</RunAOTCompilation>
     <BlazorEnableCompression>false</BlazorEnableCompression>
-    
-    <!-- <PublishTrimmed>false</PublishTrimmed> -->
+
+    <PublishTrimmed>false</PublishTrimmed>
     <!-- <EmccCompileOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccCompileOptimizationFlag> -->
     <!-- <EmccLinkOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccLinkOptimizationFlag> -->
     <!-- <WasmNativeStrip>false</WasmNativeStrip> -->
