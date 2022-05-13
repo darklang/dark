@@ -308,10 +308,7 @@ type EvalWorker =
     task {
       let args =
         try
-          Ok(
-            Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams>
-              message
-          )
+          Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> message)
         with
         | e ->
           let metadata = Exception.toMetadata e
@@ -338,6 +335,6 @@ type EvalWorker =
           )
           return Error($"exception: {e.Message}, metadata: {metadata}")
     }
-    |> Task.map Json.OCamlCompatible.serialize
+    |> Task.map Json.Vanilla.serialize
     |> Task.map EvalWorker.postMessage
     |> ignore<Task<unit>>
