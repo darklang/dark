@@ -18,7 +18,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module EQ = LibBackend.EventQueueV2
 module TI = LibBackend.TraceInputs
 module Execution = LibExecution.Execution
-module Pusher = LibBackend.Pusher // FSTODO: we should push events, right?
+module Pusher = LibBackend.Pusher
 module RealExecution = LibRealExecution.RealExecution
 module Canvas = LibBackend.Canvas
 module DvalReprExternal = LibExecution.DvalReprExternal
@@ -186,8 +186,11 @@ let dequeueAndProcess
                   // they're probably emiting to a handler they haven't created yet.
                   // In this case, all they need to build is the trace. So just drop
                   // this event immediately.
-                  let! (_ : Instant) =
-                    TI.storeEvent c.meta.id traceID desc event.value
+                  let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
+                  Pusher.pushNew404
+                    (Telemetry.executionID ())
+                    c.meta.id
+                    (event.module', event.name, event.modifier, timestamp, traceID)
                   do! EQ.deleteEvent event
                   return! stop "MissingHandler" NoRetry
                 | Some h ->

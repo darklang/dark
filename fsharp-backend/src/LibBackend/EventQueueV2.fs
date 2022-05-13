@@ -111,7 +111,6 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
         modifier = read.string "modifier"
         enqueuedAt = read.instant "enqueued_at"
         lockedAt = read.instantOrNone "locked_at"
-        // FSTODO: what's the right format to encode these with?
         value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 }
     Telemetry.addTags [ ("queue_delay", Instant.now().Minus(e.enqueuedAt))
                         ("module", e.module')
