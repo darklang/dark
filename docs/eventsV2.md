@@ -57,7 +57,7 @@ New definitions:
 
 **Important**: The scheduling of events is handled by a Pub/Sub subscription, which
 **only** handles notifying the worker to try running an event. The worker may know
-that it should not run it, for example if the worker is paused. The presence of an
+that it should not run it, for example if the worker is paused. The presence of a
 Message in the PubSub subscription does not mean an actual event will be run. Nor an
 event to be run imply that there must be a
 
