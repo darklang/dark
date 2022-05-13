@@ -3,10 +3,6 @@
 
 [<EntryPoint>]
 let main argv =
-#if DEBUG
-  printfn "WASM-compiled Dark backend running in Debug mode"
-#else
-  printfn "WASM-compiled Dark backend running in Release mode"
-#endif
+  printfn "WASM-compiled Dark backend running"
 
   0
