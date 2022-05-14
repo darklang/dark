@@ -19,6 +19,8 @@ module Stats = LibBackend.Stats
 module EQ = LibBackend.EventQueue
 module Telemetry = LibService.Telemetry
 
+module SchedulingRules = LibBackend.QueueSchedulingRules
+
 module WorkerStats =
   type Params = { tlid : tlid }
 
@@ -39,7 +41,7 @@ module WorkerStats =
 
 module Scheduler =
   type Params = { name : string; schedule : string }
-  type T = EQ.WorkerStates.T
+  type T = SchedulingRules.WorkerStates.T
 
   /// API endpoint to update the Schedule of a Worker
   let updateSchedule (ctx : HttpContext) : Task<T> =
@@ -51,13 +53,13 @@ module Scheduler =
 
       t.next "schedule-worker"
       match p.schedule with
-      | "pause" -> do! EQ.pauseWorker canvasInfo.id p.name
-      | "run" -> do! EQ.unpauseWorker canvasInfo.id p.name
+      | "pause" -> do! SchedulingRules.pauseWorker canvasInfo.id p.name
+      | "run" -> do! SchedulingRules.unpauseWorker canvasInfo.id p.name
       | _ -> Exception.raiseEditor "Invalid schedule"
 
 
       t.next "get-worker-schedule"
-      let! ws = EQ.getWorkerSchedules canvasInfo.id
+      let! ws = SchedulingRules.getWorkerSchedules canvasInfo.id
 
       t.next "update-pusher"
       // TODO: perhaps this update should go closer where it happens, in

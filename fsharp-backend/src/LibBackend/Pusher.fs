@@ -94,7 +94,7 @@ let pushAddOpEvent
 let pushWorkerStates
   (executionID : ExecutionID)
   (canvasID : CanvasID)
-  (ws : EventQueue.WorkerStates.T)
+  (ws : QueueSchedulingRules.WorkerStates.T)
   : unit =
   push executionID canvasID "worker_state" ws
 

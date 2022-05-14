@@ -17,6 +17,7 @@ module RT = LibExecution.RuntimeTypes
 module EQ = LibBackend.EventQueue
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
+module SR = LibBackend.QueueSchedulingRules
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
@@ -46,7 +47,7 @@ let testEventQueueIsFifo =
     do! enqueue "apple" 2L
     do! enqueue "banana" 3L
     do! enqueue "apple" 4L
-    do! EQ.testingScheduleAll ()
+    do! SR.testingScheduleAll ()
 
     let checkDequeue (i : int64) expectedName : Task<unit> =
       task {
@@ -84,12 +85,12 @@ let testGetWorkerSchedulesForCanvas =
          (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
-    do! EQ.pauseWorker meta.id "apple"
-    do! EQ.pauseWorker meta.id "banana"
-    do! EQ.blockWorker meta.id "banana"
-    let! result = EQ.getWorkerSchedules meta.id
+    do! SR.pauseWorker meta.id "apple"
+    do! SR.pauseWorker meta.id "banana"
+    do! SR.blockWorker meta.id "banana"
+    let! result = SR.getWorkerSchedules meta.id
 
-    let check (name : string) (value : EQ.WorkerStates.State) =
+    let check (name : string) (value : SR.WorkerStates.State) =
       let actual =
         Map.get name result
         |> Exception.unwrapOptionInternal "missing workerstate" [ "name", name ]
@@ -97,9 +98,9 @@ let testGetWorkerSchedulesForCanvas =
       let expected = string value
       Expect.equal actual expected ($"{name} is {expected}")
 
-    check "apple" EQ.WorkerStates.Paused
-    check "banana" EQ.WorkerStates.Blocked
-    check "cherry" EQ.WorkerStates.Running
+    check "apple" SR.WorkerStates.Paused
+    check "banana" SR.WorkerStates.Blocked
+    check "cherry" SR.WorkerStates.Running
   }
 
 let tests =

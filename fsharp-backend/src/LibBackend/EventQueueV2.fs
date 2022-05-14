@@ -27,6 +27,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
+module SchedulingRules = QueueSchedulingRules
 
 module TI = TraceInputs
 
@@ -372,10 +373,10 @@ let acknowledgeEvent (n : Notification) : Task<unit> =
 let getRule
   (canvasID : CanvasID)
   (event : T)
-  : Task<Option<EventQueue.SchedulingRule.T>> =
+  : Task<Option<SchedulingRules.SchedulingRule.T>> =
   task {
     // Rules seem to ignore modifiers which is fine as they shouldn't have meaning here
-    let! rules = EventQueue.getSchedulingRules canvasID
+    let! rules = SchedulingRules.getSchedulingRules canvasID
     let rule =
       rules
       |> List.filter (fun r ->
