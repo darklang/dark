@@ -72,11 +72,11 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     Db.init ()
 
     Json.OCamlCompatible.registerConverter (
-      EventQueue.WorkerStates.JsonConverter.WorkerStateConverter()
+      QueueSchedulingRules.WorkerStates.JsonConverter.WorkerStateConverter()
     )
 
     Json.Vanilla.registerConverter (
-      EventQueue.WorkerStates.STJJsonConverter.WorkerStateConverter()
+      QueueSchedulingRules.WorkerStates.STJJsonConverter.WorkerStateConverter()
     )
 
     match shouldWaitForDB with

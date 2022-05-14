@@ -27,6 +27,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
+module SchedulingRules = QueueSchedulingRules
 
 module TI = TraceInputs
 
@@ -99,22 +100,32 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
        AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventId", Sql.uuid id; "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowOptionAsync (fun read ->
-    let e =
-      { id = id
-        canvasID = canvasID
-        module' = read.string "module"
-        name = read.string "name"
-        modifier = read.string "modifier"
-        enqueuedAt = read.instant "enqueued_at"
-        lockedAt = read.instantOrNone "locked_at"
-        value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 }
-    Telemetry.addTags [ ("queue_delay", Instant.now().Minus(e.enqueuedAt))
-                        ("module", e.module')
-                        ("name", e.name)
-                        ("modifier", e.modifier)
-                        ("enqueued_at", e.enqueuedAt)
-                        ("locked_at", e.lockedAt) ]
-    e)
+    { id = id
+      canvasID = canvasID
+      module' = read.string "module"
+      name = read.string "name"
+      modifier = read.string "modifier"
+      enqueuedAt = read.instant "enqueued_at"
+      lockedAt = read.instantOrNone "locked_at"
+      value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 })
+
+let loadEventIDs
+  (canvasID : CanvasID)
+  ((module', name, modifier) : string * string * string)
+  : Task<List<EventID>> =
+  Sql.query
+    "SELECT id
+     FROM events_v2
+     WHERE module = @module
+       AND name = @name
+       AND modifier = @modifier
+       AND canvas_id = @canvasID
+       LIMIT 1000" // don't go overboard
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "module", Sql.string module'
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier ]
+  |> Sql.executeAsync (fun read -> read.uuid "id")
 
 let deleteEvent (event : T) : Task<unit> =
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
@@ -279,9 +290,13 @@ let dequeue () : Task<Notification> =
               pubSubMessageID = message.MessageId
               pubSubAckID = envelope.AckId }
         Telemetry.addTags [ "canvas_id", data.canvasID
+                            "queue.event.content_length", message.Data.Length
                             "queue.event.id", data.id
                             "queue.event.pubsub_id", message.MessageId
+                            "queue.event.ack_id", envelope.AckId
                             "queue.event.delivery_attempt", deliveryAttempt
+                            "queue.event.publish_time",
+                            message.PublishTime.ToDateTime()
                             "queue.event.time_in_queue",
                             ((message.PublishTime.ToDateTime()) - System.DateTime.Now)
                               .TotalMilliseconds ]
@@ -289,6 +304,21 @@ let dequeue () : Task<Notification> =
         do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
 
     return notification |> Exception.unwrapOptionInternal "expect a notification" []
+  }
+
+let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
+  task {
+    let! publisher = publisher.Force()
+    let messages =
+      ids
+      |> List.map (fun id ->
+        { id = id; canvasID = canvasID }
+        |> Json.Vanilla.serialize
+        |> Google.Protobuf.ByteString.CopyFromUtf8
+        |> fun contents -> PubsubMessage(Data = contents))
+    let! response = publisher.PublishAsync(topicName, messages)
+    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
+    return ()
   }
 
 let enqueue
@@ -309,14 +339,7 @@ let enqueue
     // save the event
     let id = System.Guid.NewGuid()
     do! createEvent canvasID id module' name modifier value
-    let data = { id = id; canvasID = canvasID }
-    let! publisher = publisher.Force()
-    let contents =
-      data |> Json.Vanilla.serialize |> Google.Protobuf.ByteString.CopyFromUtf8
-    Telemetry.addTag "event.data.content_length" contents.Length
-    let message = PubsubMessage(Data = contents)
-    let! response = publisher.PublishAsync(topicName, [ message ])
-    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
+    do! createNotifications canvasID [ id ]
     return ()
   }
 
@@ -376,10 +399,10 @@ let acknowledgeEvent (n : Notification) : Task<unit> =
 let getRule
   (canvasID : CanvasID)
   (event : T)
-  : Task<Option<EventQueue.SchedulingRule.T>> =
+  : Task<Option<SchedulingRules.SchedulingRule.T>> =
   task {
     // Rules seem to ignore modifiers which is fine as they shouldn't have meaning here
-    let! rules = EventQueue.getSchedulingRules canvasID
+    let! rules = SchedulingRules.getSchedulingRules canvasID
     let rule =
       rules
       |> List.filter (fun r ->
@@ -388,11 +411,38 @@ let getRule
     return rule
   }
 
+let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    let! ids = loadEventIDs canvasID ("WORKER", handlerName, "_")
+    return! createNotifications canvasID ids
+  }
+
 let init () : Task<unit> =
   task {
     let! (_ : PublisherServiceApiClient) = publisher.Force()
     let! (_ : SubscriberServiceApiClient) = subscriber.Force()
     return ()
   }
+
+
+// DARK INTERNAL FN
+let blockWorker = SchedulingRules.addSchedulingRule "block"
+
+// DARK INTERNAL FN
+let unblockWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    do! SchedulingRules.removeSchedulingRule "block" canvasID handlerName
+    return! requeueSavedEvents canvasID handlerName
+  }
+
+let pauseWorker : CanvasID -> string -> Task<unit> =
+  SchedulingRules.addSchedulingRule "pause"
+
+let unpauseWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    do! SchedulingRules.removeSchedulingRule "pause" canvasID handlerName
+    return! requeueSavedEvents canvasID handlerName
+  }
+
 
 let flush () = () // FSTODO

@@ -44,7 +44,6 @@ let push
   : unit =
   FireAndForget.fireAndForgetTask executionID $"pusher: {eventName}" (fun () ->
     task {
-      use _ = LibService.Telemetry.child "pusher" [ "eventName", eventName ]
       // TODO: handle messages over 10k bytes
       // TODO: make channels private and end-to-end encrypted in order to add public canvases
       let client = Lazy.force pusherClient
@@ -95,7 +94,7 @@ let pushAddOpEvent
 let pushWorkerStates
   (executionID : ExecutionID)
   (canvasID : CanvasID)
-  (ws : EventQueue.WorkerStates.T)
+  (ws : QueueSchedulingRules.WorkerStates.T)
   : unit =
   push executionID canvasID "worker_state" ws
 
