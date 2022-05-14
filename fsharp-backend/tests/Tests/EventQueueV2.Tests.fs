@@ -303,7 +303,7 @@ let testFailBlockPauseAndUnblock =
     do! enqueue meta
 
     // Block it
-    do! EQ.pauseWorker meta.id "test"
+    do! EQ.blockWorker meta.id "test"
 
     // Check blocked
     let! result = QueueWorker.dequeueAndProcess ()
@@ -322,6 +322,90 @@ let testFailBlockPauseAndUnblock =
     do! checkSavedEvents meta.id 1
   }
 
+let testUnpauseMulitpleTimesInSequence =
+  testTask "unpause multiple times in sequence" {
+    let! (meta : Canvas.Meta, tlid) =
+      initializeCanvas "unpaise-multiple-times-in-secquence"
+    do! enqueue meta
+
+    // Block it
+    do! EQ.blockWorker meta.id "test"
+
+    // Pause and unblock  it
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isOk result "should succeed"
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 0
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 0
+  }
+
+let testUnpauseMultipleTimesInParallel =
+  testTask "unpause multiple times in parallel" {
+    let! (meta : Canvas.Meta, tlid) =
+      initializeCanvas "unpause-multiple-times-in-parallel"
+    do! enqueue meta
+
+    // Block it
+    do! EQ.blockWorker meta.id "test"
+
+    // Pause and unblock  it
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+
+    let resultTasks =
+      [ QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess ()
+        QueueWorker.dequeueAndProcess () ]
+    let! results = Task.flatten resultTasks
+    let (success, failure) = List.partition Result.isOk results
+
+    Expect.hasLength success 1 "one success only succeed"
+    Expect.hasLength failure 9 "nine delayed or deleted"
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 0
+  }
+
 let tests =
   testSequencedGroup
     "eventQueueV2"
@@ -336,4 +420,6 @@ let tests =
         testFailPauseBlockAndUnpause
         testFailPauseBlockAndUnblock
         testFailBlockPauseAndUnpause
-        testFailBlockPauseAndUnblock ])
+        testFailBlockPauseAndUnblock
+        testUnpauseMulitpleTimesInSequence
+        testUnpauseMultipleTimesInParallel ])
