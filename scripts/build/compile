@@ -284,7 +284,6 @@ def fsharp_backend_quick_build():
     command = "build"
 
   build = f"./scripts/build/_dotnet-wrapper {command} \
-      -graphBuild:true \
       --no-restore \
       --verbosity {verbosity} \
       --configuration {configuration}"
@@ -316,7 +315,7 @@ def fsharp_backend_full_build():
     command = "build"
 
   # TODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
-  build = f"unbuffer ./scripts/build/_dotnet-wrapper {command} \
+  build = f"./scripts/build/_dotnet-wrapper {command} \
       --verbosity {verbosity} \
       --configuration {configuration}"
 
@@ -325,7 +324,7 @@ def fsharp_backend_full_build():
   start = time.time()
   # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
   if result and optimize:
-    build = f"unbuffer ./scripts/build/_dotnet-wrapper build \
+    build = f"./scripts/build/_dotnet-wrapper build \
         --verbosity {verbosity} \
         --configuration {configuration} \
         src/Wasm/Wasm.fsproj"
