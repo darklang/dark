@@ -22,6 +22,7 @@ module RT = LibExecution.RuntimeTypes
 module EQ = LibBackend.EventQueueV2
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
+module SR = LibBackend.QueueSchedulingRules
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
@@ -36,7 +37,7 @@ let initializeCanvas (name : string) : Task<Canvas.Meta * tlid> =
     // set up handler
     let! meta = initializeTestCanvas (Randomized name)
 
-    let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
+    let h = testWorker "test" (p "let data = Date.now_v0 in 123")
     let oplists = [ handlerOp h ]
 
     do!
@@ -49,7 +50,7 @@ let initializeCanvas (name : string) : Task<Canvas.Meta * tlid> =
 
 let enqueue (meta : Canvas.Meta) : Task<unit> =
   let input = RT.DNull // crons take inputs, so this could be anything
-  EQ.enqueue meta.id "CRON" "test" "Daily" input
+  EQ.enqueue meta.id "WORKER" "test" "_" input
 
 let checkSuccess
   (meta : Canvas.Meta)
@@ -65,9 +66,9 @@ let checkSuccess
     | Error _ -> Expect.isOk result "should have processed"
 
     // should have at least one trace
-    let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
+    let! traceIDs = TI.loadEventIDs meta.id ("WORKER", "test", "_")
     let traceID =
-      eventIDs
+      traceIDs
       |> List.head
       |> Exception.unwrapOptionInternal "missing eventID" []
       |> Tuple2.first
@@ -88,33 +89,53 @@ let checkSuccess
     Expect.isTrue shapeIsAsExpected "should have a date here"
   }
 
+let checkExecutedTraces (canvasID : CanvasID) (count : int) =
+  task {
+    let! traceIDs = TI.loadEventIDs canvasID ("WORKER", "test", "_")
+    Expect.hasLength traceIDs count "wrong execution count"
+  }
 
-let testEventQueueSuccess =
+let checkSavedEvents (canvasID : CanvasID) (count : int) =
+  task {
+    let! queueIDs = EQ.loadEventIDs canvasID ("WORKER", "test", "_")
+    Expect.hasLength queueIDs count "wrong stored event count"
+  }
+
+let testSuccess =
   testTask "event queue success" {
     let! (meta : Canvas.Meta, tlid) = initializeCanvas "event-queue-success"
     do! enqueue meta
     let! result = QueueWorker.dequeueAndProcess ()
     do! checkSuccess meta tlid result
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 0
   }
 
-let testEventQueueSuccessThree =
+let testSuccessThree =
   testTask "event queue success three" {
     let! (meta : Canvas.Meta, tlid) = initializeCanvas "event-queue-success-three"
     do! enqueue meta
     do! enqueue meta
     do! enqueue meta
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 3
     let! result = QueueWorker.dequeueAndProcess ()
     do! checkSuccess meta tlid result
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 2
     let! result = QueueWorker.dequeueAndProcess ()
     do! checkSuccess meta tlid result
+    do! checkExecutedTraces meta.id 2
+    do! checkSavedEvents meta.id 1
     let! result = QueueWorker.dequeueAndProcess ()
     do! checkSuccess meta tlid result
+    do! checkExecutedTraces meta.id 3
+    do! checkSavedEvents meta.id 0
   }
 
-let testEventQueueSuccessLockExpired =
-  testTask "event queue success lock expired" {
-    let! (meta : Canvas.Meta, tlid) =
-      initializeCanvas "event-queue-success-lock-expired"
+let testSuccessLockExpired =
+  testTask "success lock expired" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "success-lock-expired"
     do! enqueue meta
 
     // Lock it
@@ -128,11 +149,13 @@ let testEventQueueSuccessLockExpired =
 
     let! result = QueueWorker.dequeueAndProcess ()
     do! checkSuccess meta tlid result
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 0
   }
 
-let testEventFailLocked =
-  testTask "event queue fail locked" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "event-queue-fail-locked"
+let testFailLocked =
+  testTask "fail locked" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "fail-locked"
     do! enqueue meta
 
     // Delay it
@@ -146,26 +169,171 @@ let testEventFailLocked =
     let! result = QueueWorker.dequeueAndProcess ()
     Expect.isError result "should fail"
 
-    let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
-    Expect.equal eventIDs [] "no events expected"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
   }
 
+let testSuccessBlockAndUnblock =
+  testTask "block and unblock" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "block-and-unblock"
+    let! id = enqueue meta
 
+    // Block it
+    do! EQ.blockWorker meta.id "test"
 
+    // Check blocked
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
 
-// FSTODO: tests to write
-// it's paused (check no retry)
-// it's blocked (check no retry)
-// it fails execution (check DB contents)
-// it fails 3 times (check deleted)
+    // Unblock it
+    do! EQ.unblockWorker meta.id "test"
 
+    // Check unblocked
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isOk result "should success"
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 0
+  }
+
+let testSuccessPauseAndUnpause =
+  testTask "pause and unpause" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "pause-and-unpause"
+    do! enqueue meta
+
+    // Pause it
+    do! EQ.pauseWorker meta.id "test"
+
+    // Check paused
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+
+    // Unpause it
+    do! EQ.unpauseWorker meta.id "test"
+
+    // Check unpaused
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isOk result "should success"
+    do! checkExecutedTraces meta.id 1
+    do! checkSavedEvents meta.id 0
+  }
+
+let testFailPauseBlockAndUnpause =
+  testTask "pause block and unpause" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "pause-block-and-unpause"
+    do! enqueue meta
+
+    // Pause it
+    do! EQ.pauseWorker meta.id "test"
+
+    // Check paused
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+
+    // Block and unpause it
+    do! EQ.blockWorker meta.id "test"
+    do! EQ.unpauseWorker meta.id "test"
+
+    // Check still paused
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+
+  }
+
+let testFailPauseBlockAndUnblock =
+  testTask "pause block and unblock" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "pause-block-and-unblock"
+    do! enqueue meta
+
+    // Pause it
+    do! EQ.pauseWorker meta.id "test"
+
+    // Check paused
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+
+    // Block and unblock it
+    do! EQ.blockWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+
+    // Check still paused
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+  }
+
+let testFailBlockPauseAndUnpause =
+  testTask "block pause and unpause" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "block-pause-and-unpause"
+    do! enqueue meta
+
+    // Block it
+    do! EQ.blockWorker meta.id "test"
+
+    // Check blocked
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+
+    // Pause and unpause it
+    do! EQ.pauseWorker meta.id "test"
+    do! EQ.unpauseWorker meta.id "test"
+
+    // Check still blocked
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+  }
+
+let testFailBlockPauseAndUnblock =
+  testTask "block pause and unblock" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "block-pause-and-unblock"
+    do! enqueue meta
+
+    // Block it
+    do! EQ.pauseWorker meta.id "test"
+
+    // Check blocked
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+
+    // Pause and unblock  it
+    do! EQ.pauseWorker meta.id "test"
+    do! EQ.unblockWorker meta.id "test"
+
+    // Check still paused
+    let! result = QueueWorker.dequeueAndProcess ()
+    Expect.isError result "should fail"
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 1
+  }
 
 let tests =
   testSequencedGroup
     "eventQueueV2"
     (testList
       "eventQueueV2"
-      [ testEventQueueSuccess
-        testEventQueueSuccessThree
-        testEventQueueSuccessLockExpired
-        testEventFailLocked ])
+      [ testSuccess
+        testSuccessThree
+        testSuccessLockExpired
+        testFailLocked
+        testSuccessBlockAndUnblock
+        testSuccessPauseAndUnpause
+        testFailPauseBlockAndUnpause
+        testFailPauseBlockAndUnblock
+        testFailBlockPauseAndUnpause
+        testFailBlockPauseAndUnblock ])

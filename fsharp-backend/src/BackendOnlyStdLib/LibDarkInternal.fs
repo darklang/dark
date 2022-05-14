@@ -1059,7 +1059,7 @@ that's already taken, returns an error."
       returnType = TNull
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-      fn = modifySchedule SchedulingRules.blockWorker
+      fn = modifySchedule EventQueueV2.blockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -1071,7 +1071,7 @@ that's already taken, returns an error."
       returnType = TNull
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-      fn = modifySchedule SchedulingRules.unblockWorker
+      fn = modifySchedule EventQueueV2.unblockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

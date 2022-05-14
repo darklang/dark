@@ -109,6 +109,24 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
       lockedAt = read.instantOrNone "locked_at"
       value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 })
 
+let loadEventIDs
+  (canvasID : CanvasID)
+  ((module', name, modifier) : string * string * string)
+  : Task<List<EventID>> =
+  Sql.query
+    "SELECT id
+     FROM events_v2
+     WHERE module = @module
+       AND name = @name
+       AND modifier = @modifier
+       AND canvas_id = @canvasID
+       LIMIT 1000" // don't go overboard
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "module", Sql.string module'
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier ]
+  |> Sql.executeAsync (fun read -> read.uuid "id")
+
 let deleteEvent (event : T) : Task<unit> =
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventID", Sql.uuid event.id
@@ -288,6 +306,21 @@ let dequeue () : Task<Notification> =
     return notification |> Exception.unwrapOptionInternal "expect a notification" []
   }
 
+let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
+  task {
+    let! publisher = publisher.Force()
+    let messages =
+      ids
+      |> List.map (fun id ->
+        { id = id; canvasID = canvasID }
+        |> Json.Vanilla.serialize
+        |> Google.Protobuf.ByteString.CopyFromUtf8
+        |> fun contents -> PubsubMessage(Data = contents))
+    let! response = publisher.PublishAsync(topicName, messages)
+    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
+    return ()
+  }
+
 let enqueue
   (canvasID : CanvasID)
   (module' : string)
@@ -306,14 +339,7 @@ let enqueue
     // save the event
     let id = System.Guid.NewGuid()
     do! createEvent canvasID id module' name modifier value
-    let data = { id = id; canvasID = canvasID }
-    let! publisher = publisher.Force()
-    let contents =
-      data |> Json.Vanilla.serialize |> Google.Protobuf.ByteString.CopyFromUtf8
-    Telemetry.addTag "event.data.content_length" contents.Length
-    let message = PubsubMessage(Data = contents)
-    let! response = publisher.PublishAsync(topicName, [ message ])
-    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
+    do! createNotifications canvasID [ id ]
     return ()
   }
 
@@ -385,11 +411,38 @@ let getRule
     return rule
   }
 
+let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    let! ids = loadEventIDs canvasID ("WORKER", handlerName, "_")
+    return! createNotifications canvasID ids
+  }
+
 let init () : Task<unit> =
   task {
     let! (_ : PublisherServiceApiClient) = publisher.Force()
     let! (_ : SubscriberServiceApiClient) = subscriber.Force()
     return ()
   }
+
+
+// DARK INTERNAL FN
+let blockWorker = SchedulingRules.addSchedulingRule "block"
+
+// DARK INTERNAL FN
+let unblockWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    do! SchedulingRules.removeSchedulingRule "block" canvasID handlerName
+    return! requeueSavedEvents canvasID handlerName
+  }
+
+let pauseWorker : CanvasID -> string -> Task<unit> =
+  SchedulingRules.addSchedulingRule "pause"
+
+let unpauseWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    do! SchedulingRules.removeSchedulingRule "pause" canvasID handlerName
+    return! requeueSavedEvents canvasID handlerName
+  }
+
 
 let flush () = () // FSTODO

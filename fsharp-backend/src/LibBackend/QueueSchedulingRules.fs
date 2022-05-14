@@ -249,15 +249,3 @@ let removeSchedulingRule
                       "canvasID", Sql.uuid canvasID
                       "workerName", Sql.string workerName ]
   |> Sql.executeStatementAsync
-
-
-
-// DARK INTERNAL FN
-let blockWorker = addSchedulingRule "block"
-
-// DARK INTERNAL FN
-let unblockWorker = removeSchedulingRule "block"
-
-let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
-
-let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"

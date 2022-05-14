@@ -16,7 +16,7 @@ module AT = LibExecution.AnalysisTypes
 module Convert = LibExecution.OCamlTypes.Convert
 
 module Stats = LibBackend.Stats
-module EQ = LibBackend.EventQueue
+module EQ = LibBackend.EventQueueV2
 module Telemetry = LibService.Telemetry
 
 module SchedulingRules = LibBackend.QueueSchedulingRules
@@ -53,8 +53,8 @@ module Scheduler =
 
       t.next "schedule-worker"
       match p.schedule with
-      | "pause" -> do! SchedulingRules.pauseWorker canvasInfo.id p.name
-      | "run" -> do! SchedulingRules.unpauseWorker canvasInfo.id p.name
+      | "pause" -> do! EQ.pauseWorker canvasInfo.id p.name
+      | "run" -> do! EQ.unpauseWorker canvasInfo.id p.name
       | _ -> Exception.raiseEditor "Invalid schedule"
 
 

@@ -15,6 +15,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module EQ = LibBackend.EventQueue
+module EQ2 = LibBackend.EventQueueV2
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
@@ -85,9 +86,9 @@ let testGetWorkerSchedulesForCanvas =
          (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
        |> Canvas.saveTLIDs meta)
 
-    do! SR.pauseWorker meta.id "apple"
-    do! SR.pauseWorker meta.id "banana"
-    do! SR.blockWorker meta.id "banana"
+    do! EQ2.pauseWorker meta.id "apple"
+    do! EQ2.pauseWorker meta.id "banana"
+    do! EQ2.blockWorker meta.id "banana"
     let! result = SR.getWorkerSchedules meta.id
 
     let check (name : string) (value : SR.WorkerStates.State) =
