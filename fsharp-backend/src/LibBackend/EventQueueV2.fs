@@ -298,7 +298,7 @@ let dequeue () : Task<Notification> =
                             "queue.event.publish_time",
                             message.PublishTime.ToDateTime()
                             "queue.event.time_in_queue",
-                            ((message.PublishTime.ToDateTime()) - System.DateTime.Now)
+                            (System.DateTime.Now - message.PublishTime.ToDateTime())
                               .TotalMilliseconds ]
       else
         do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
@@ -365,9 +365,11 @@ let enqueueInAQueue
 /// increments the deliveryAttempt counter
 let requeueEvent (n : Notification) (delay : NodaTime.Duration) : Task<unit> =
   task {
+    Telemetry.addTag "queue.requeue_delay_ms" delay.TotalMilliseconds
     let! subscriber = subscriber.Force()
     let delay = min 600 (int delay.TotalSeconds)
     let delay = max 0 delay
+    Telemetry.addTag "queue.requeue_delay_actual_ms" (delay * 1000)
     return!
       subscriber.ModifyAckDeadlineAsync(
         subscriptionName,

@@ -62,13 +62,13 @@ let dequeueAndProcess
   ()
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
-    use _span = Telemetry.createRoot "dequeueAndProcess"
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 
     // Receive Notification - if there's an exception here, we don't have a job so no
     // cleanup required.
     let! notification = EQ.dequeue ()
+    use _span = Telemetry.child "process" []
 
     // Function used to quit this event
     let stop
@@ -231,6 +231,7 @@ let run () : Task<unit> =
   task {
     while not shouldShutdown.Value do
       try
+        use _span = Telemetry.createRoot "dequeueAndProcess"
         let! (_ : Result<_, _>) = dequeueAndProcess ()
         return ()
       with
