@@ -154,7 +154,6 @@ let testEventFailLocked =
 
 
 // FSTODO: tests to write
-// enqueue 3 items, process 3 items
 // it's paused (check no retry)
 // it's blocked (check no retry)
 // it fails execution (check DB contents)
