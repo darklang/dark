@@ -62,13 +62,13 @@ let dequeueAndProcess
   ()
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
-    use _span = Telemetry.createRoot "dequeueAndProcess"
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 
     // Receive Notification - if there's an exception here, we don't have a job so no
     // cleanup required.
     let! notification = EQ.dequeue ()
+    use _span = Telemetry.child "process" []
 
     // Function used to quit this event
     let stop
@@ -105,6 +105,14 @@ let dequeueAndProcess
         match event.lockedAt with
         | Some lockedAt -> // LockExpired
           let expiryTime = lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0)
+          // Date math is hard so let's spell it out. `timeLeft` measures how long is
+          // left until the lock expires. If there is time left until the lock
+          // expires, `timeLeft` is positive. So
+          //
+          // `timeLeft = expiryTime - now`
+          //
+          // as that way there is positive `timeLeft` if `expiryTime` is later than
+          // `now`.
           expiryTime - Instant.now ()
         | None -> NodaTime.Duration.FromSeconds 0.0 // LockNone
       if timeLeft.TotalSeconds > 0 then
@@ -231,6 +239,7 @@ let run () : Task<unit> =
   task {
     while not shouldShutdown.Value do
       try
+        use _span = Telemetry.createRoot "dequeueAndProcess"
         let! (_ : Result<_, _>) = dequeueAndProcess ()
         return ()
       with
