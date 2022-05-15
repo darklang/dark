@@ -87,3 +87,11 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
 
     print $" Inited LibBackend in {serviceName}"
   }
+
+/// Called when shutting down, probably. Used to explicitly flush any buffered
+/// connections.
+let shutdown (serviceName : string) : Task<unit> =
+  task {
+    print $"Shutting down LibService in {serviceName}"
+    do! EventQueueV2.shutdown ()
+  }

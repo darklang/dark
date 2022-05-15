@@ -12,6 +12,9 @@ let init (serviceName : string) : unit =
 
   print $" Inited LibService in {serviceName}"
 
-let flush (serviceName : string) : unit =
+/// Called when shutting down, probably. Used to explicitly flush any buffered
+/// connections.
+let shutdown (serviceName : string) : unit =
+  print $"Shutting down LibService in {serviceName}"
   LaunchDarkly.flush ()
   Telemetry.flush ()
