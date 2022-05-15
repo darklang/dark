@@ -61,14 +61,14 @@ let mutable memoryUsage : int64 = 0L
 /// numbers say
 let cpuThread =
   let proc = System.Diagnostics.Process.GetCurrentProcess()
-  backgroundTask {
+  let threadFunc () =
     while true do
       // Measure CPU usage over a time period
       // From https://medium.com/@jackwild/getting-cpu-usage-in-net-core-7ef825831b8b
       let startTime = System.DateTime.UtcNow
       let startCpuUsage = proc.TotalProcessorTime
 
-      do! Task.Delay 1000
+      System.Threading.Thread.Sleep 1000
 
       let endTime = System.DateTime.UtcNow
       let endCpuUsage = proc.TotalProcessorTime
@@ -78,8 +78,9 @@ let cpuThread =
         cpuUsedMs / (float System.Environment.ProcessorCount * totalMsPassed)
       cpuUsage <- cpuUsageTotal * 100.0
       memoryUsage <- proc.PrivateMemorySize64
-  }
-  |> ignore<Task<unit>>
+  let thread = System.Threading.Thread(System.Threading.ThreadStart(threadFunc))
+  thread.Start()
+
 
 
 /// The algorithm here is described in the chart in docs/eventsV2.md. The algorithm
