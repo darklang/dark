@@ -406,6 +406,21 @@ let testUnpauseMultipleTimesInParallel =
     do! checkSavedEvents meta.id 0
   }
 
+
+let testCount =
+  testTask "count is right" {
+    let! (meta : Canvas.Meta, tlid) = initializeCanvas "count-is-correct"
+    do! enqueue meta
+    do! enqueue meta
+    do! enqueue meta
+    do! enqueue meta
+    do! enqueue meta
+
+    let! count = LibBackend.Stats.workerStats meta.id tlid
+    Expect.equal count 5 "count should be 5"
+    do! checkSavedEvents meta.id 5
+  }
+
 let tests =
   testSequencedGroup
     "eventQueueV2"
@@ -422,4 +437,5 @@ let tests =
         testFailBlockPauseAndUnpause
         testFailBlockPauseAndUnblock
         testUnpauseMulitpleTimesInSequence
-        testUnpauseMultipleTimesInParallel ])
+        testUnpauseMultipleTimesInParallel
+        testCount ])
