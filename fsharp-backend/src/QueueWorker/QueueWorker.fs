@@ -53,22 +53,50 @@ type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
 
+let mutable cpuUsage : float = 0.0
+let mutable memoryUsage : int64 = 0L
+
+/// Background thread tracking current CPU and memory usage. We intend to use this to
+/// decide whether to schedule more workers, but for now let's just track what the
+/// numbers say
+let cpuThread =
+  let proc = System.Diagnostics.Process.GetCurrentProcess()
+  backgroundTask {
+    while true do
+      // Measure CPU usage over a time period
+      // From https://medium.com/@jackwild/getting-cpu-usage-in-net-core-7ef825831b8b
+      let startTime = System.DateTime.UtcNow
+      let startCpuUsage = proc.TotalProcessorTime
+
+      do! Task.Delay 1000
+
+      let endTime = System.DateTime.UtcNow
+      let endCpuUsage = proc.TotalProcessorTime
+      let cpuUsedMs = (endCpuUsage - startCpuUsage).TotalMilliseconds
+      let totalMsPassed = (endTime - startTime).TotalMilliseconds
+      let cpuUsageTotal =
+        cpuUsedMs / (float System.Environment.ProcessorCount * totalMsPassed)
+      cpuUsage <- cpuUsageTotal * 100.0
+      memoryUsage <- proc.PrivateMemorySize64
+  }
+  |> ignore<Task<unit>>
+
+
 /// The algorithm here is described in the chart in docs/eventsV2.md. The algorithm
 /// below is annotated with names from chart. `dequeueAndProcess` will block until it
 /// receives a notification. Returns a Result containing the notification and the
 /// event on success, and just the notification and failure reason on failure. Should
 /// not throw on error.
-let dequeueAndProcess
-  ()
+let processNotification
+  (notification : EQ.Notification)
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
+    use _span =
+      Telemetry.child
+        "process"
+        [ "process.cpu", cpuUsage; "process.memory", memoryUsage ]
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
-
-    // Receive Notification - if there's an exception here, we don't have a job so no
-    // cleanup required.
-    let! notification = EQ.dequeue ()
-    use _span = Telemetry.child "process" []
 
     // Function used to quit this event
     let stop
@@ -234,13 +262,49 @@ let dequeueAndProcess
                     return! stop "RetryAllowed" (Retry timeLeft)
   }
 
+/// Run in the background, using the semaphore to track completion
+let runInBackground
+  (semaphore : System.Threading.SemaphoreSlim)
+  (notification : EQ.Notification)
+  : unit =
+  backgroundTask {
+    try
+      let! (_ : Result<_, _>) = processNotification notification
+      return ()
+    finally
+      semaphore.Release() |> ignore<int>
+  }
+  |> ignore<Task<unit>>
+
 let run () : Task<unit> =
   task {
+    use _span = Telemetry.createRoot "dequeueAndProcess"
+
+    // Our goal here is to concurrently run a number of events dictated by the amount
+    // of memory and CPU available, adding more until we hit a threshold. Furthermore
+    // we want to limit this with a feature flag to we don't overdo it.  We use a
+    // semaphore to count the number in use - it's updated automatically when an
+    // event finishes.
+    let initialCount = 10000 // just be a high number
+    let semaphore = new System.Threading.SemaphoreSlim(initialCount)
+
+
+    // Only use the semaphore to count the threads that are done
+    let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
     while not shouldShutdown.Value do
       try
-        use _span = Telemetry.createRoot "dequeueAndProcess"
-        let! (_ : Result<_, _>) = dequeueAndProcess ()
-        return ()
+        if initialCount - semaphore.CurrentCount >= maxEventsFn () then
+          do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+        else
+          // FSTODO: include memory and CPU usage checks in here
+          match! EQ.dequeue () with
+          | Some notification ->
+            // We claim a semaphore here instead of in the background thread, as
+            // otherwise we might miscount if it hasn't started yet by the next
+            // iteration
+            do! semaphore.WaitAsync()
+            runInBackground semaphore notification
+          | None -> do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't

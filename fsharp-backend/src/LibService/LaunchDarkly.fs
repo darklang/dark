@@ -93,5 +93,11 @@ let useEventsV2 = Internal.canvasBool "use-events-v2" false false
 let queueAllowedExecutionTimeInSeconds =
   Internal.intConfig "queue-allowed-execution-time-in-seconds" 300 300
 
+/// Limit to the number of events each QueueWorker will run concurrently
+let queueMaxConcurrentEventsPerWorker =
+  // 4 is conservating, we probably set this much higher
+  Internal.intConfig "queue-max-concurrent-events-per-worker" 4 4
+
+/// Delay between fetches from the queue when something goes wrong
 let queueDelayBetweenPullsInMillis =
   Internal.intConfig "queue-delay-between-pubsub-pulls-in-millis" 1000 1000

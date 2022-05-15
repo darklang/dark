@@ -101,11 +101,20 @@ let checkSavedEvents (canvasID : CanvasID) (count : int) =
     Expect.hasLength queueIDs count "wrong stored event count"
   }
 
+let rec dequeueAndProcess () : Task<Result<_, _>> =
+  task {
+    match! EQ.dequeue () with
+    | Some notification -> return! QueueWorker.processNotification notification
+    | None ->
+      do! Task.Delay 1000
+      return! dequeueAndProcess ()
+  }
+
 let testSuccess =
   testTask "event queue success" {
     let! (meta : Canvas.Meta, tlid) = initializeCanvas "event-queue-success"
     do! enqueue meta
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     do! checkSuccess meta tlid result
     do! checkExecutedTraces meta.id 1
     do! checkSavedEvents meta.id 0
@@ -119,15 +128,15 @@ let testSuccessThree =
     do! enqueue meta
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 3
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     do! checkSuccess meta tlid result
     do! checkExecutedTraces meta.id 1
     do! checkSavedEvents meta.id 2
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     do! checkSuccess meta tlid result
     do! checkExecutedTraces meta.id 2
     do! checkSavedEvents meta.id 1
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     do! checkSuccess meta tlid result
     do! checkExecutedTraces meta.id 3
     do! checkSavedEvents meta.id 0
@@ -147,7 +156,7 @@ let testSuccessLockExpired =
                           "newValue", Sql.instantWithTimeZone earlier ]
       |> Sql.executeStatementAsync
 
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     do! checkSuccess meta tlid result
     do! checkExecutedTraces meta.id 1
     do! checkSavedEvents meta.id 0
@@ -166,7 +175,7 @@ let testFailLocked =
                           "newValue", Sql.instantWithTimeZone (Instant.now ()) ]
       |> Sql.executeStatementAsync
 
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
 
     do! checkExecutedTraces meta.id 0
@@ -182,7 +191,7 @@ let testSuccessBlockAndUnblock =
     do! EQ.blockWorker meta.id "test"
 
     // Check blocked
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -191,7 +200,7 @@ let testSuccessBlockAndUnblock =
     do! EQ.unblockWorker meta.id "test"
 
     // Check unblocked
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isOk result "should success"
     do! checkExecutedTraces meta.id 1
     do! checkSavedEvents meta.id 0
@@ -206,7 +215,7 @@ let testSuccessPauseAndUnpause =
     do! EQ.pauseWorker meta.id "test"
 
     // Check paused
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -215,7 +224,7 @@ let testSuccessPauseAndUnpause =
     do! EQ.unpauseWorker meta.id "test"
 
     // Check unpaused
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isOk result "should success"
     do! checkExecutedTraces meta.id 1
     do! checkSavedEvents meta.id 0
@@ -230,7 +239,7 @@ let testFailPauseBlockAndUnpause =
     do! EQ.pauseWorker meta.id "test"
 
     // Check paused
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -240,7 +249,7 @@ let testFailPauseBlockAndUnpause =
     do! EQ.unpauseWorker meta.id "test"
 
     // Check still paused
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -256,7 +265,7 @@ let testFailPauseBlockAndUnblock =
     do! EQ.pauseWorker meta.id "test"
 
     // Check paused
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -266,7 +275,7 @@ let testFailPauseBlockAndUnblock =
     do! EQ.unblockWorker meta.id "test"
 
     // Check still paused
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -281,7 +290,7 @@ let testFailBlockPauseAndUnpause =
     do! EQ.blockWorker meta.id "test"
 
     // Check blocked
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -291,7 +300,7 @@ let testFailBlockPauseAndUnpause =
     do! EQ.unpauseWorker meta.id "test"
 
     // Check still blocked
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -306,7 +315,7 @@ let testFailBlockPauseAndUnblock =
     do! EQ.blockWorker meta.id "test"
 
     // Check blocked
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -316,7 +325,7 @@ let testFailBlockPauseAndUnblock =
     do! EQ.unblockWorker meta.id "test"
 
     // Check still paused
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 0
     do! checkSavedEvents meta.id 1
@@ -342,25 +351,25 @@ let testUnpauseMulitpleTimesInSequence =
     do! EQ.unblockWorker meta.id "test"
     do! EQ.unblockWorker meta.id "test"
 
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isOk result "should succeed"
     do! checkExecutedTraces meta.id 1
     do! checkSavedEvents meta.id 0
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
-    let! result = QueueWorker.dequeueAndProcess ()
+    let! result = dequeueAndProcess ()
     Expect.isError result "should fail"
     do! checkExecutedTraces meta.id 1
     do! checkSavedEvents meta.id 0
@@ -387,16 +396,16 @@ let testUnpauseMultipleTimesInParallel =
     do! EQ.unblockWorker meta.id "test"
 
     let resultTasks =
-      [ QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess ()
-        QueueWorker.dequeueAndProcess () ]
+      [ dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess ()
+        dequeueAndProcess () ]
     let! results = Task.flatten resultTasks
     let (success, failure) = List.partition Result.isOk results
 
