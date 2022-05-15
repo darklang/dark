@@ -206,8 +206,7 @@ let dequeueAndProcess
                   // PubSub will retry this once the ack deadline runs out
                   do! EQ.extendDeadline notification
 
-                  // FSTODO Set a time limit of 3m
-
+                  // CLEANUP Set a time limit of 3m
                   try
                     let! (_ : Instant) =
                       TI.storeEvent c.meta.id traceID desc event.value
@@ -280,7 +279,9 @@ let main _ : int =
     else
       Telemetry.createRoot "Pointing at prodclone; will not dequeue"
       |> ignore<Telemetry.Span.T>
-    LibService.Init.flush name
+
+    (LibBackend.Init.shutdown name).Result
+    LibService.Init.shutdown name
     0
 
   with

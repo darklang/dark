@@ -447,4 +447,10 @@ let unpauseWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
   }
 
 
-let flush () = () // FSTODO
+let shutdown () =
+  task {
+    // https://cloud.google.com/dotnet/docs/reference/help/cleanup#grpc-based-apis-and-channels
+    do! PublisherServiceApiClient.ShutdownDefaultChannelsAsync()
+    do! SubscriberServiceApiClient.ShutdownDefaultChannelsAsync()
+    return ()
+  }

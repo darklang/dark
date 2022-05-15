@@ -202,7 +202,8 @@ let main (args : string []) : int =
       (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let executionID = Telemetry.executionID ()
     let result = (run executionID options).Result
-    LibService.Init.flush name
+    (LibBackend.Init.shutdown name).Result
+    LibService.Init.shutdown name
     result
   with
   | e ->
@@ -214,5 +215,6 @@ let main (args : string []) : int =
       let inner = e.InnerException
       if inner <> null then printException inner
     printException e
-    LibService.Init.flush name
+    (LibBackend.Init.shutdown name).Result
+    LibService.Init.shutdown name
     1
