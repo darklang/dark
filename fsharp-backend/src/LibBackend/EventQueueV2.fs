@@ -308,16 +308,20 @@ let dequeue () : Task<Notification> =
 
 let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
   task {
-    let! publisher = publisher.Force()
-    let messages =
-      ids
-      |> List.map (fun id ->
-        { id = id; canvasID = canvasID }
-        |> Json.Vanilla.serialize
-        |> Google.Protobuf.ByteString.CopyFromUtf8
-        |> fun contents -> PubsubMessage(Data = contents))
-    let! response = publisher.PublishAsync(topicName, messages)
-    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
+    if ids <> [] then
+      let! publisher = publisher.Force()
+      let messages =
+        ids
+        |> List.map (fun id ->
+          { id = id; canvasID = canvasID }
+          |> Json.Vanilla.serialize
+          |> Google.Protobuf.ByteString.CopyFromUtf8
+          |> fun contents -> PubsubMessage(Data = contents))
+      let! response = publisher.PublishAsync(topicName, messages)
+      Telemetry.addTag "event.pubsub_ids" response.MessageIds
+    else
+      // Don't send an empty list of messages to pubsub
+      Telemetry.addTag "event.pubsub_ids" []
     return ()
   }
 
