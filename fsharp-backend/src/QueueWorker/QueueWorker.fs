@@ -105,6 +105,14 @@ let dequeueAndProcess
         match event.lockedAt with
         | Some lockedAt -> // LockExpired
           let expiryTime = lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0)
+          // Date math is hard so let's spell it out. `timeLeft` measures how long is
+          // left until the lock expires. If there is time left until the lock
+          // expires, `timeLeft` is positive. So
+          //
+          // `timeLeft = expiryTime - now`
+          //
+          // as that way there is positive `timeLeft` if `expiryTime` is later than
+          // `now`.
           expiryTime - Instant.now ()
         | None -> NodaTime.Duration.FromSeconds 0.0 // LockNone
       if timeLeft.TotalSeconds > 0 then
