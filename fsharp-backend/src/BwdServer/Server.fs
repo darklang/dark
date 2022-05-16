@@ -520,7 +520,6 @@ let main _ =
     (LibRealExecution.Init.init name).Result
     run ()
     // CLEANUP I suspect this isn't called
-    (LibBackend.Init.shutdown name).Result
     LibService.Init.shutdown name
     0
   with

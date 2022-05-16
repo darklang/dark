@@ -218,7 +218,6 @@ let main _ =
     let packages = LibBackend.PackageManager.allFunctions().Result
     run packages
     // CLEANUP I suspect this isn't called
-    (LibBackend.Init.shutdown name).Result
     LibService.Init.shutdown name
     0
   with

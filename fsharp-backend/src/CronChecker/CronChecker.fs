@@ -50,7 +50,6 @@ let main _ : int =
       (run ()).Result
     else
       Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []
-    (LibBackend.Init.shutdown name).Result
     LibService.Init.shutdown name
     0
   with

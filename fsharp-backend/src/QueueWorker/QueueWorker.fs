@@ -319,7 +319,6 @@ let main _ : int =
       Telemetry.createRoot "Pointing at prodclone; will not dequeue"
       |> ignore<Telemetry.Span.T>
 
-    (LibBackend.Init.shutdown name).Result
     LibService.Init.shutdown name
     0
 
