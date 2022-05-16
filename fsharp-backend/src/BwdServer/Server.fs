@@ -459,7 +459,8 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
       |> Option.defaultValue []
 
-    let person : Rollbar.Person = Some { id = id; username = username; email = None }
+    let person : Rollbar.Person =
+      id |> Option.map (fun id -> { id = id; username = username })
 
     (person, metadata)
 

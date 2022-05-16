@@ -189,13 +189,9 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 // Include person data
 // -------------------------------
 
-type PersonData =
-  { id : Option<UserID>
-    email : Option<string>
-    username : Option<UserName.T> }
+type PersonData = { id : UserID; username : Option<UserName.T> }
 
-/// Optional person data. This is a better interface than expecting a person, as you
-/// can't put in a fake person
+/// Optional person data
 type Person = Option<PersonData>
 
 /// Take a Person and an Exception and create a RollbarPackage that can be reported
@@ -206,9 +202,8 @@ let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
   | Some person ->
     Rollbar.PersonPackageDecorator(
       package,
-      person.id |> Option.map string |> Option.defaultValue null,
-      person.username |> Option.map string |> Option.defaultValue null,
-      person.email |> Option.defaultValue null
+      person.id |> string,
+      person.username |> string
     )
   | None -> package
 
