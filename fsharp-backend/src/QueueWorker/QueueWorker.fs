@@ -27,7 +27,7 @@ module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let shouldShutdown = ref false
+let mutable shouldShutdown = false
 
 let executeEvent
   (c : Canvas.T)
@@ -292,7 +292,7 @@ let run () : Task<unit> =
 
     // Only use the semaphore to count the threads that are done
     let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
-    while not shouldShutdown.Value do
+    while not shouldShutdown do
       try
         if initialCount - semaphore.CurrentCount >= maxEventsFn () then
           do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
@@ -331,7 +331,7 @@ let main _ : int =
     // Called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "shutting down" []
-      shouldShutdown.Value <- true
+      shouldShutdown <- true
 
     // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.queueWorkerKubernetesPort
