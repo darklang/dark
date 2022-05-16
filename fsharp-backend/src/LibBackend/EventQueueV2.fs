@@ -444,12 +444,3 @@ let unpauseWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
     do! SchedulingRules.removeSchedulingRule "pause" canvasID handlerName
     return! requeueSavedEvents canvasID handlerName
   }
-
-
-let shutdown () =
-  task {
-    // https://cloud.google.com/dotnet/docs/reference/help/cleanup#grpc-based-apis-and-channels
-    do! PublisherServiceApiClient.ShutdownDefaultChannelsAsync()
-    do! SubscriberServiceApiClient.ShutdownDefaultChannelsAsync()
-    return ()
-  }
