@@ -150,7 +150,7 @@ let rollbarCtxToMetadata
     try
       loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
     with
-    | _ -> LibService.Rollbar.emptyPerson
+    | _ -> None
   let canvas =
     try
       string (loadCanvasInfo ctx).name

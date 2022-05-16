@@ -21,7 +21,7 @@ let run () : Task<unit> =
       with
       | e ->
         // If there's an exception, alert and continue
-        Rollbar.sendException (ExecutionID "cronchecker") Rollbar.emptyPerson [] e
+        Rollbar.sendException (ExecutionID "cronchecker") None [] e
       do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
     return ()
   }

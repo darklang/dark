@@ -189,23 +189,28 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 // Include person data
 // -------------------------------
 
-type Person =
+type PersonData =
   { id : Option<UserID>
     email : Option<string>
     username : Option<UserName.T> }
 
-let emptyPerson = { id = None; email = None; username = None }
+/// Optional person data. This is a better interface than expecting a person, as you
+/// can't put in a fake person
+type Person = Option<PersonData>
 
 /// Take a Person and an Exception and create a RollbarPackage that can be reported
 let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
   let package : Rollbar.IRollbarPackage =
     new Rollbar.ExceptionPackage(exn, exn.Message)
-  Rollbar.PersonPackageDecorator(
-    package,
-    person.id |> Option.map string |> Option.defaultValue null,
-    person.username |> Option.map string |> Option.defaultValue null,
-    person.email |> Option.defaultValue null
-  )
+  match person with
+  | Some person ->
+    Rollbar.PersonPackageDecorator(
+      package,
+      person.id |> Option.map string |> Option.defaultValue null,
+      person.username |> Option.map string |> Option.defaultValue null,
+      person.email |> Option.defaultValue null
+    )
+  | None -> package
 
 
 
@@ -330,10 +335,9 @@ let exceptionWhileProcessingException
       | _ -> ()
 
 let personMetadata (person : Person) : Metadata =
-  if person = emptyPerson then
-    []
-  else
-    [ "user.id", person.id; "user.username", person.username ]
+  match person with
+  | None -> []
+  | Some person -> [ "user.id", person.id; "user.username", person.username ]
 
 
 /// Sends exception to Rollbar and also to Telemetry (honeycomb). The error is titled
@@ -447,7 +451,7 @@ module AspNet =
                 try
                   rollbarCtx.ctxMetadataFn ctx
                 with
-                | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
+                | _ -> None, [ "exception calling ctxMetadataFn", true ]
               let metadata = metadata @ Exception.toMetadata e
               let custom = createCustom executionID metadata
               let package = createPackage e person
