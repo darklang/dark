@@ -63,6 +63,13 @@ let processNotification
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
     use _span = Telemetry.createRoot "process"
+    Telemetry.addTags [ "event.time_in_queue_ms",
+                        notification.timeInQueue.TotalMilliseconds
+                        "event.id", notification.data.id
+                        "event.canvas_id", notification.data.canvasID
+                        "event.delivery_attempt", notification.deliveryAttempt
+                        "event.pubsub.ack_id", notification.pubSubAckID
+                        "event.pubsub.message_id", notification.pubSubMessageID ]
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 

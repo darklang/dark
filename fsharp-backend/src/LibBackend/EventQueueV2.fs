@@ -48,6 +48,7 @@ type Notification =
     pubSubMessageID : string
     /// The first delivery has value 1
     deliveryAttempt : int
+    timeInQueue : System.TimeSpan
     pubSubAckID : string }
 
 /// Events are stored in the DB and are the source of truth for when and how an event
@@ -281,6 +282,7 @@ let dequeue () : Task<Option<Notification>> =
     if messages.Count > 0 then
       let envelope = messages[0]
       let message = envelope.Message
+      let timeInQueue = System.DateTime.Now - (message.PublishTime.ToDateTime())
       let data =
         message.Data.ToByteArray()
         |> UTF8.ofBytesUnsafe
@@ -288,21 +290,11 @@ let dequeue () : Task<Option<Notification>> =
       let deliveryAttempt =
         let da = message.GetDeliveryAttempt()
         if da.HasValue then Some da.Value else None
-      Telemetry.addTags [ "canvas_id", data.canvasID
-                          "queue.event.content_length", message.Data.Length
-                          "queue.event.id", data.id
-                          "queue.event.pubsub_id", message.MessageId
-                          "queue.event.ack_id", envelope.AckId
-                          "queue.event.delivery_attempt", deliveryAttempt
-                          "queue.event.publish_time",
-                          message.PublishTime.ToDateTime()
-                          "queue.event.time_in_queue",
-                          (System.DateTime.Now - message.PublishTime.ToDateTime())
-                            .TotalMilliseconds ]
       return
         Some
           { data = data
             deliveryAttempt = Option.defaultValue 1 deliveryAttempt
+            timeInQueue = timeInQueue
             pubSubMessageID = message.MessageId
             pubSubAckID = envelope.AckId }
     else
