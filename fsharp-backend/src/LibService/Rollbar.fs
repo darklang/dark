@@ -329,6 +329,12 @@ let exceptionWhileProcessingException
       with
       | _ -> ()
 
+let personMetadata (person : Person) : Metadata =
+  if person = emptyPerson then
+    []
+  else
+    [ "user.id", person.id; "user.username", person.username ]
+
 
 /// Sends exception to Rollbar and also to Telemetry (honeycomb). The error is titled
 /// after the exception message - to change it wrap it in another exception. However,
@@ -340,11 +346,16 @@ let rec sendException
   (e : exn)
   : unit =
   try
-    print $"rollbar: {e.Message}"
+    print $"rollbar: {e.Message} @ {NodaTime.Instant}"
     print e.StackTrace
-    let metadata = Exception.toMetadata e @ metadata
+    let metadata = Exception.toMetadata e @ metadata @ personMetadata person
     printMetadata metadata
-    if Telemetry.Span.current () <> null then Telemetry.addException metadata e
+    use span =
+      if isNull (Telemetry.Span.current ()) then
+        Telemetry.createRoot "sendException"
+      else
+        null // don't use the current span as we don't want `use` to clean it up
+    Telemetry.addException metadata e
     let custom = createCustom executionID metadata
     let package = createPackage e person
     Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
