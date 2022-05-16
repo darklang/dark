@@ -53,37 +53,6 @@ type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
 
-let mutable cpuUsage : float = 0.0
-let mutable memoryUsage : int64 = 0L
-
-/// Background thread tracking current CPU and memory usage. We intend to use this to
-/// decide whether to schedule more workers, but for now let's just track what the
-/// numbers say
-let cpuThread : unit =
-  let proc = System.Diagnostics.Process.GetCurrentProcess()
-  let threadFunc () =
-    while not shouldShutdown do
-      // Measure CPU usage over a time period
-      // From https://medium.com/@jackwild/getting-cpu-usage-in-net-core-7ef825831b8b
-      let startTime = System.DateTime.UtcNow
-      let startCpuUsage = proc.TotalProcessorTime
-
-      System.Threading.Thread.Sleep 1000
-
-      let endTime = System.DateTime.UtcNow
-      let endCpuUsage = proc.TotalProcessorTime
-      let cpuUsedMs = (endCpuUsage - startCpuUsage).TotalMilliseconds
-      let totalMsPassed = (endTime - startTime).TotalMilliseconds
-      let cpuUsageTotal =
-        cpuUsedMs / (float System.Environment.ProcessorCount * totalMsPassed)
-      cpuUsage <- cpuUsageTotal * 100.0
-      memoryUsage <- proc.PrivateMemorySize64
-  let thread = System.Threading.Thread(System.Threading.ThreadStart(threadFunc))
-  thread.IsBackground <- true
-  thread.Start()
-
-
-
 /// The algorithm here is described in the chart in docs/eventsV2.md. The algorithm
 /// below is annotated with names from chart. `dequeueAndProcess` will block until it
 /// receives a notification. Returns a Result containing the notification and the
@@ -94,8 +63,6 @@ let processNotification
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
     use _span = Telemetry.createRoot "process"
-    Telemetry.addTags [ "process.cpu.percentage", cpuUsage
-                        "process.memory.private_bytes", memoryUsage ]
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 
