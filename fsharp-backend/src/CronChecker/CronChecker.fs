@@ -10,11 +10,11 @@ open Tablecloth
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let shouldShutdown = ref false
+let mutable shouldShutdown = false
 
 let run () : Task<unit> =
   task {
-    while not shouldShutdown.Value do
+    while not shouldShutdown do
       try
         use (span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
         do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
@@ -39,7 +39,7 @@ let main _ : int =
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "Shutting down" []
-      shouldShutdown.Value <- true
+      shouldShutdown <- true
 
     // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.croncheckerKubernetesPort

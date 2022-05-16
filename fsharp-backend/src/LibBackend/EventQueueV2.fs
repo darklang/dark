@@ -263,61 +263,68 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
       return client
     })
 
-/// Returns the next available notification in the queue, and will pause until it has
-/// done so
-let dequeue () : Task<Notification> =
+/// Returns the next available notification in the queue, or None if it doesn't find
+/// one within a timeout
+let dequeue () : Task<Option<Notification>> =
   task {
     let! subscriber = subscriber.Force()
-    let mutable notification : Option<Notification> = None
-    while notification = None do
-      let! response = subscriber.PullAsync(subscriptionName, maxMessages = 1)
-      let messages = response.ReceivedMessages
-      // PubSub might return 0 Messages. In that case, pause and loop again
-      if messages.Count > 0 then
-        let envelope = messages[0]
-        let message = envelope.Message
-        let data =
-          message.Data.ToByteArray()
-          |> UTF8.ofBytesUnsafe
-          |> Json.Vanilla.deserialize<NotificationData>
-        let deliveryAttempt =
-          let da = message.GetDeliveryAttempt()
-          if da.HasValue then Some da.Value else None
-        notification <-
-          Some
-            { data = data
-              deliveryAttempt = Option.defaultValue 1 deliveryAttempt
-              pubSubMessageID = message.MessageId
-              pubSubAckID = envelope.AckId }
-        Telemetry.addTags [ "canvas_id", data.canvasID
-                            "queue.event.content_length", message.Data.Length
-                            "queue.event.id", data.id
-                            "queue.event.pubsub_id", message.MessageId
-                            "queue.event.ack_id", envelope.AckId
-                            "queue.event.delivery_attempt", deliveryAttempt
-                            "queue.event.publish_time",
-                            message.PublishTime.ToDateTime()
-                            "queue.event.time_in_queue",
-                            (System.DateTime.Now - message.PublishTime.ToDateTime())
-                              .TotalMilliseconds ]
-      else
-        do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
-
-    return notification |> Exception.unwrapOptionInternal "expect a notification" []
+    let expiration =
+      Google.Api.Gax.Expiration.FromTimeout(System.TimeSpan.FromSeconds 5)
+    let callSettings = Google.Api.Gax.Grpc.CallSettings.FromExpiration expiration
+    let! response =
+      subscriber.PullAsync(
+        subscriptionName,
+        callSettings = callSettings,
+        maxMessages = 1
+      )
+    let messages = response.ReceivedMessages
+    if messages.Count > 0 then
+      let envelope = messages[0]
+      let message = envelope.Message
+      let data =
+        message.Data.ToByteArray()
+        |> UTF8.ofBytesUnsafe
+        |> Json.Vanilla.deserialize<NotificationData>
+      let deliveryAttempt =
+        let da = message.GetDeliveryAttempt()
+        if da.HasValue then Some da.Value else None
+      Telemetry.addTags [ "canvas_id", data.canvasID
+                          "queue.event.content_length", message.Data.Length
+                          "queue.event.id", data.id
+                          "queue.event.pubsub_id", message.MessageId
+                          "queue.event.ack_id", envelope.AckId
+                          "queue.event.delivery_attempt", deliveryAttempt
+                          "queue.event.publish_time",
+                          message.PublishTime.ToDateTime()
+                          "queue.event.time_in_queue",
+                          (System.DateTime.Now - message.PublishTime.ToDateTime())
+                            .TotalMilliseconds ]
+      return
+        Some
+          { data = data
+            deliveryAttempt = Option.defaultValue 1 deliveryAttempt
+            pubSubMessageID = message.MessageId
+            pubSubAckID = envelope.AckId }
+    else
+      return None
   }
 
 let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
   task {
-    let! publisher = publisher.Force()
-    let messages =
-      ids
-      |> List.map (fun id ->
-        { id = id; canvasID = canvasID }
-        |> Json.Vanilla.serialize
-        |> Google.Protobuf.ByteString.CopyFromUtf8
-        |> fun contents -> PubsubMessage(Data = contents))
-    let! response = publisher.PublishAsync(topicName, messages)
-    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
+    if ids <> [] then
+      let! publisher = publisher.Force()
+      let messages =
+        ids
+        |> List.map (fun id ->
+          { id = id; canvasID = canvasID }
+          |> Json.Vanilla.serialize
+          |> Google.Protobuf.ByteString.CopyFromUtf8
+          |> fun contents -> PubsubMessage(Data = contents))
+      let! response = publisher.PublishAsync(topicName, messages)
+      Telemetry.addTag "event.pubsub_ids" response.MessageIds
+    else
+      // Don't send an empty list of messages to pubsub
+      Telemetry.addTag "event.pubsub_ids" []
     return ()
   }
 

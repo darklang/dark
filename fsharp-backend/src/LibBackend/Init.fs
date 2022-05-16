@@ -92,6 +92,6 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
 /// connections.
 let shutdown (serviceName : string) : Task<unit> =
   task {
-    print $"Shutting down LibService in {serviceName}"
+    print $"Shutting down LibBackend in {serviceName}"
     do! EventQueueV2.shutdown ()
   }
