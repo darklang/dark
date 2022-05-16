@@ -93,10 +93,9 @@ let processNotification
   (notification : EQ.Notification)
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
-    use _span =
-      Telemetry.child
-        "process"
-        [ "process.cpu", cpuUsage; "process.memory", memoryUsage ]
+    use _span = Telemetry.createRoot "process"
+    Telemetry.addTags [ "process.cpu.percentage", cpuUsage
+                        "process.memory.private_bytes", memoryUsage ]
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 
