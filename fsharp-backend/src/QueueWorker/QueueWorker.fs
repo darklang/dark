@@ -59,10 +59,10 @@ let mutable memoryUsage : int64 = 0L
 /// Background thread tracking current CPU and memory usage. We intend to use this to
 /// decide whether to schedule more workers, but for now let's just track what the
 /// numbers say
-let cpuThread =
+let cpuThread : unit =
   let proc = System.Diagnostics.Process.GetCurrentProcess()
   let threadFunc () =
-    while true do
+    while not shouldShutdown do
       // Measure CPU usage over a time period
       // From https://medium.com/@jackwild/getting-cpu-usage-in-net-core-7ef825831b8b
       let startTime = System.DateTime.UtcNow
@@ -79,6 +79,7 @@ let cpuThread =
       cpuUsage <- cpuUsageTotal * 100.0
       memoryUsage <- proc.PrivateMemorySize64
   let thread = System.Threading.Thread(System.Threading.ThreadStart(threadFunc))
+  thread.IsBackground <- true
   thread.Start()
 
 
