@@ -273,19 +273,22 @@ let dequeue () : Task<Option<Notification>> =
       Google.Api.Gax.Expiration.FromTimeout(System.TimeSpan.FromSeconds 5)
     let callSettings = Google.Api.Gax.Grpc.CallSettings.FromExpiration expiration
     let! messages =
-      try
-        subscriber.PullAsync(
-          subscriptionName,
-          callSettings = callSettings,
-          maxMessages = 1
-        )
-        |> Task.map (fun r -> r.ReceivedMessages |> Seq.toList)
-      with
-      // We set the deadline above, and then if it didn't find anything it throws a DeadlineExceeded Exception
-      | :? Grpc.Core.RpcException as e when
-        e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded
-        ->
-        Task.FromResult []
+      task {
+        try
+          let! response =
+            subscriber.PullAsync(
+              subscriptionName,
+              callSettings = callSettings,
+              maxMessages = 1
+            )
+          return response.ReceivedMessages |> Seq.toList
+        with
+        // We set the deadline above, and then if it didn't find anything it throws a DeadlineExceeded Exception
+        | :? Grpc.Core.RpcException as e when
+          e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded
+          ->
+          return []
+      }
     match messages with
     | [ envelope ] ->
       let message = envelope.Message
