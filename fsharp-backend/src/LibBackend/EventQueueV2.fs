@@ -264,55 +264,51 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
       return client
     })
 
-/// Returns the next available notification in the queue, or None if it doesn't find
+/// Gets as many messages as allowed the next available notification in the queue, or None if it doesn't find
 /// one within a timeout
-let dequeue () : Task<Option<Notification>> =
+let dequeue (count : int) : Task<List<Notification>> =
   task {
     let! subscriber = subscriber.Force()
+    // We set a deadline in case we get the shutdown signal. We want to go back to
+    // the outer loop if we're told to shutdown.
     let expiration =
       Google.Api.Gax.Expiration.FromTimeout(System.TimeSpan.FromSeconds 5)
     let callSettings = Google.Api.Gax.Grpc.CallSettings.FromExpiration expiration
-    let! messages =
+    let! envelopes =
       task {
         try
           let! response =
             subscriber.PullAsync(
               subscriptionName,
               callSettings = callSettings,
-              maxMessages = 1
+              maxMessages = count
             )
           return response.ReceivedMessages |> Seq.toList
         with
-        // We set the deadline above, and then if it didn't find anything it throws a DeadlineExceeded Exception
+        // We set the deadline above, and then if it didn't find anything it throws a
+        // DeadlineExceeded Exception
         | :? Grpc.Core.RpcException as e when
           e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded
           ->
           return []
       }
-    match messages with
-    | [ envelope ] ->
-      let message = envelope.Message
-      let timeInQueue = System.DateTime.Now - (message.PublishTime.ToDateTime())
-      let data =
-        message.Data.ToByteArray()
-        |> UTF8.ofBytesUnsafe
-        |> Json.Vanilla.deserialize<NotificationData>
-      let deliveryAttempt =
-        let da = message.GetDeliveryAttempt()
-        if da.HasValue then Some da.Value else None
-      return
-        Some
-          { data = data
-            deliveryAttempt = Option.defaultValue 1 deliveryAttempt
-            timeInQueue = timeInQueue
-            pubSubMessageID = message.MessageId
-            pubSubAckID = envelope.AckId }
-    | [] -> return None
-    | list ->
-      return
-        Exception.raiseInternal
-          "Different number of messages than expected"
-          [ "count", List.length list ]
+    return
+      envelopes
+      |> List.map (fun (envelope : ReceivedMessage) ->
+        let message = envelope.Message
+        let timeInQueue = System.DateTime.Now - (message.PublishTime.ToDateTime())
+        let data =
+          message.Data.ToByteArray()
+          |> UTF8.ofBytesUnsafe
+          |> Json.Vanilla.deserialize<NotificationData>
+        let deliveryAttempt =
+          let da = message.GetDeliveryAttempt()
+          if da.HasValue then Some da.Value else None
+        { data = data
+          deliveryAttempt = Option.defaultValue 1 deliveryAttempt
+          timeInQueue = timeInQueue
+          pubSubMessageID = message.MessageId
+          pubSubAckID = envelope.AckId })
   }
 
 let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =

@@ -103,11 +103,14 @@ let checkSavedEvents (canvasID : CanvasID) (count : int) =
 
 let rec dequeueAndProcess () : Task<Result<_, _>> =
   task {
-    match! EQ.dequeue () with
-    | Some notification -> return! QueueWorker.processNotification notification
-    | None ->
+    match! EQ.dequeue 1 with
+    | [ notification ] -> return! QueueWorker.processNotification notification
+    | [] ->
       do! Task.Delay 1000
       return! dequeueAndProcess ()
+    | results ->
+      return!
+        Exception.raiseInternal "got more than 1" [ "count", List.length results ]
   }
 
 let testSuccess =
