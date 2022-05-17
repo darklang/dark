@@ -20,7 +20,9 @@ module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 // -------------------------
 
 // The data we save to store this
-type FunctionResultStore = tlid * RT.FQFnName.T * id * List<RT.Dval> * RT.Dval
+type FunctionResultKey = tlid * RT.FQFnName.T * id * string
+
+type FunctionResultValue = RT.Dval * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
@@ -59,25 +61,22 @@ let store
 let storeMany
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  (functionResults : List<FunctionResultStore * NodaTime.Instant>)
+  (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
     Task.FromResult()
   else
     let transactionData =
       functionResults
-      |> List.map (fun ((tlid, fnDesc, id, argList, result), timestamp) ->
+      |> Dictionary.toList
+      |> List.map (fun ((tlid, fnDesc, id, hash), (result, timestamp)) ->
         [ "canvasID", Sql.uuid canvasID
           "traceID", Sql.uuid traceID
           "tlid", Sql.tlid tlid
           "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
           "id", Sql.id id
           "timestamp", Sql.instantWithTimeZone timestamp
-          ("hash",
-           argList
-           |> DvalReprInternalDeprecated.hash
-                DvalReprInternalDeprecated.currentHashVersion
-           |> Sql.string)
+          "hash", Sql.string hash
           "hashVersion", Sql.int DvalReprInternalDeprecated.currentHashVersion
           ("value",
            result
