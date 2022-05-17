@@ -57,7 +57,7 @@ let triggerRollbar (executionID : ExecutionID) : unit =
 
   // Send async exception
   let e = new System.Exception($"{prefix} sendException exception")
-  Rollbar.sendException executionID Rollbar.emptyPerson tags e
+  Rollbar.sendException executionID None tags e
 
 /// Send a message to Rollbar that should result in a Page (notification)
 /// going out

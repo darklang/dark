@@ -91,7 +91,7 @@ let mutable exceptionCallback = (fun (e : exn) -> ())
 module Exception =
   let rec toMetadata (e : exn) : Metadata =
     let innerMetadata =
-      if e.InnerException <> null then toMetadata e.InnerException else []
+      if not (isNull e.InnerException) then toMetadata e.InnerException else []
     let thisMetadata =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata

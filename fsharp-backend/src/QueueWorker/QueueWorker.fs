@@ -286,7 +286,7 @@ let run () : Task<unit> =
         // continue
         Rollbar.sendException
           (Telemetry.executionID ())
-          Rollbar.emptyPerson
+          None
           []
           (PageableException("Unhandled exception bubbled to run", [], e))
   }

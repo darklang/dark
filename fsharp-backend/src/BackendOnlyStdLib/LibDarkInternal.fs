@@ -42,10 +42,14 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
         if canAccess then
           let fnName =
             state.executingFnName
-            |> Option.map string
+            |> Option.map FQFnName.toString
             |> Option.defaultValue "unknown"
           use _span =
-            Telemetry.child "internal_fn" [ "user", username; "fnName", fnName ]
+            Telemetry.child
+              "internal_fn"
+              [ "canvas", state.program.canvasName
+                "user", username
+                "fnName", fnName ]
           return! f (state, args)
         else
           return

@@ -30,11 +30,7 @@ let fireAndForgetTask
     with
     | e ->
       Telemetry.addTag "success" false
-      Rollbar.sendException
-        executionID
-        Rollbar.emptyPerson
-        [ "fire-and-forget", name ]
-        e
+      Rollbar.sendException executionID None [ "fire-and-forget", name ] e
       return ()
   }
   |> ignore<Task<unit>>
