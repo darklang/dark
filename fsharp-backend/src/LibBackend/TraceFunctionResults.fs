@@ -67,24 +67,30 @@ let storeMany
   else
     let transactionData =
       functionResults
+      // When the same function is called many times with the same argument (eg
+      // Date::now called in a loop), we only fetch the last value that was added. So
+      // let's not save every value.
       |> ResizeArray.map (fun (tlid, fnDesc, id, argList, result, timestamp) ->
+        let hash =
+          argList
+          |> DvalReprInternalDeprecated.hash
+               DvalReprInternalDeprecated.currentHashVersion
+        ((tlid, fnDesc, id, hash), (result, timestamp)))
+      |> Map.ofSeq
+      |> Map.toList
+      |> List.map (fun ((tlid, fnDesc, id, hash), (result, timestamp)) ->
         [ "canvasID", Sql.uuid canvasID
           "traceID", Sql.uuid traceID
           "tlid", Sql.tlid tlid
           "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
           "id", Sql.id id
           "timestamp", Sql.instantWithTimeZone timestamp
-          ("hash",
-           argList
-           |> DvalReprInternalDeprecated.hash
-                DvalReprInternalDeprecated.currentHashVersion
-           |> Sql.string)
+          "hash", Sql.string hash
           "hashVersion", Sql.int DvalReprInternalDeprecated.currentHashVersion
           ("value",
            result
            |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
            |> Sql.string) ])
-      |> ResizeArray.toList
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
           (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
