@@ -47,8 +47,8 @@ let libraries : Lazy<Task<RT.Libraries>> =
 
 type TraceResult =
   { tlids : HashSet.T<tlid>
-    functionResults : Dictionary.T<TraceFunctionResults.FunctionResultStore, NodaTime.Instant>
-    functionArguments : Dictionary.T<TraceFunctionArguments.FunctionArgumentStore, NodaTime.Instant> }
+    functionResults : ResizeArray<TraceFunctionResults.FunctionResultStore>
+    functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
 
 
 let createState
@@ -58,32 +58,28 @@ let createState
   (program : RT.ProgramContext)
   : Task<RT.ExecutionState * TraceResult> =
   task {
-    let canvasID = program.canvasID
-
     // Any real execution needs to track the touched TLIDs in order to send traces to pusher
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
     HashSet.add tlid touchedTLIDs
 
-    let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultStore, NodaTime.Instant> =
-      Dictionary.empty ()
+    let savedFunctionResult : ResizeArray<TraceFunctionResults.FunctionResultStore> =
+      ResizeArray.empty ()
 
-    let savedFunctionArguments : Dictionary.T<TraceFunctionArguments.FunctionArgumentStore, NodaTime.Instant> =
-      Dictionary.empty ()
+    let savedFunctionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> =
+      ResizeArray.empty ()
 
 
     let tracing =
       { Exe.noTracing RT.Real with
           storeFnResult =
             (fun (tlid, name, id) args result ->
-              Dictionary.add
-                (tlid, name, id, args, result)
-                (NodaTime.Instant.now ())
+              ResizeArray.append
+                (tlid, name, id, args, result, NodaTime.Instant.now ())
                 savedFunctionResult)
           storeFnArguments =
             (fun tlid args ->
-              Dictionary.add
-                (tlid, args)
-                (NodaTime.Instant.now ())
+              ResizeArray.append
+                (tlid, args, NodaTime.Instant.now ())
                 savedFunctionArguments)
           traceTLID = traceTLIDFn }
 
@@ -144,7 +140,7 @@ let traceResultHook
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   (executionID : ExecutionID)
-  (traceResult : TraceResult)
+  (result : TraceResult)
   : unit =
   LibService.FireAndForget.fireAndForgetTask
     executionID
@@ -152,40 +148,25 @@ let traceResultHook
     (fun () ->
       task {
         do!
-          TraceFunctionArguments.storeMany
-            canvasID
-            traceID
-            (Dictionary.toList traceResult.functionArguments)
-        do!
-          TraceFunctionResults.storeMany
-            canvasID
-            traceID
-            (Dictionary.toList traceResult.functionResults)
+          TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
+        do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
         // Send to Pusher
         Pusher.pushNewTraceID
           executionID
           canvasID
           traceID
-          (HashSet.toList traceResult.tlids)
+          (HashSet.toList result.tlids)
       })
 
 module Test =
   let saveTraceResult
     (canvasID : CanvasID)
     (traceID : AT.TraceID)
-    (traceResult : TraceResult)
+    (result : TraceResult)
     : Task<unit> =
     task {
-      do!
-        TraceFunctionArguments.storeMany
-          canvasID
-          traceID
-          (Dictionary.toList traceResult.functionArguments)
-      do!
-        TraceFunctionResults.storeMany
-          canvasID
-          traceID
-          (Dictionary.toList traceResult.functionResults)
+      do! TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
+      do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
       return ()
     }
 

@@ -20,7 +20,8 @@ module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 // -------------------------
 
 // The data we save to store this
-type FunctionResultStore = tlid * RT.FQFnName.T * id * List<RT.Dval> * RT.Dval
+type FunctionResultStore =
+  tlid * RT.FQFnName.T * id * List<RT.Dval> * RT.Dval * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
@@ -59,14 +60,14 @@ let store
 let storeMany
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  (functionResults : List<FunctionResultStore * NodaTime.Instant>)
+  (functionResults : ResizeArray<FunctionResultStore>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
     Task.FromResult()
   else
     let transactionData =
       functionResults
-      |> List.map (fun ((tlid, fnDesc, id, argList, result), timestamp) ->
+      |> ResizeArray.map (fun (tlid, fnDesc, id, argList, result, timestamp) ->
         [ "canvasID", Sql.uuid canvasID
           "traceID", Sql.uuid traceID
           "tlid", Sql.tlid tlid
@@ -83,6 +84,7 @@ let storeMany
            result
            |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
            |> Sql.string) ])
+      |> ResizeArray.toList
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
           (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
