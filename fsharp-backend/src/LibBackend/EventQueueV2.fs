@@ -272,15 +272,22 @@ let dequeue () : Task<Option<Notification>> =
     let expiration =
       Google.Api.Gax.Expiration.FromTimeout(System.TimeSpan.FromSeconds 5)
     let callSettings = Google.Api.Gax.Grpc.CallSettings.FromExpiration expiration
-    let! response =
-      subscriber.PullAsync(
-        subscriptionName,
-        callSettings = callSettings,
-        maxMessages = 1
-      )
-    let messages = response.ReceivedMessages
-    if messages.Count > 0 then
-      let envelope = messages[0]
+    let! messages =
+      try
+        subscriber.PullAsync(
+          subscriptionName,
+          callSettings = callSettings,
+          maxMessages = 1
+        )
+        |> Task.map (fun r -> r.ReceivedMessages |> Seq.toList)
+      with
+      // We set the deadline above, and then if it didn't find anything it throws a DeadlineExceeded Exception
+      | :? Grpc.Core.RpcException as e when
+        e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded
+        ->
+        Task.FromResult []
+    match messages with
+    | [ envelope ] ->
       let message = envelope.Message
       let timeInQueue = System.DateTime.Now - (message.PublishTime.ToDateTime())
       let data =
@@ -297,8 +304,12 @@ let dequeue () : Task<Option<Notification>> =
             timeInQueue = timeInQueue
             pubSubMessageID = message.MessageId
             pubSubAckID = envelope.AckId }
-    else
-      return None
+    | [] -> return None
+    | list ->
+      return
+        Exception.raiseInternal
+          "Different number of messages than expected"
+          [ "count", List.length list ]
   }
 
 let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
