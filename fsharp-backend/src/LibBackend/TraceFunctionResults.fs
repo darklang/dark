@@ -20,8 +20,9 @@ module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 // -------------------------
 
 // The data we save to store this
-type FunctionResultStore =
-  tlid * RT.FQFnName.T * id * List<RT.Dval> * RT.Dval * NodaTime.Instant
+type FunctionResultKey = tlid * RT.FQFnName.T * id * string
+
+type FunctionResultValue = RT.Dval * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
@@ -60,24 +61,14 @@ let store
 let storeMany
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  (functionResults : ResizeArray<FunctionResultStore>)
+  (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
     Task.FromResult()
   else
     let transactionData =
       functionResults
-      // When the same function is called many times with the same argument (eg
-      // Date::now called in a loop), we only fetch the last value that was added. So
-      // let's not save every value.
-      |> ResizeArray.map (fun (tlid, fnDesc, id, argList, result, timestamp) ->
-        let hash =
-          argList
-          |> DvalReprInternalDeprecated.hash
-               DvalReprInternalDeprecated.currentHashVersion
-        ((tlid, fnDesc, id, hash), (result, timestamp)))
-      |> Map.ofSeq
-      |> Map.toList
+      |> Dictionary.toList
       |> List.map (fun ((tlid, fnDesc, id, hash), (result, timestamp)) ->
         [ "canvasID", Sql.uuid canvasID
           "traceID", Sql.uuid traceID

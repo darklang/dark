@@ -15,6 +15,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 open LibBackend
 
@@ -47,7 +48,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
 
 type TraceResult =
   { tlids : HashSet.T<tlid>
-    functionResults : ResizeArray<TraceFunctionResults.FunctionResultStore>
+    functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>
     functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
 
 
@@ -62,8 +63,8 @@ let createState
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
     HashSet.add tlid touchedTLIDs
 
-    let savedFunctionResult : ResizeArray<TraceFunctionResults.FunctionResultStore> =
-      ResizeArray.empty ()
+    let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue> =
+      Dictionary.empty ()
 
     let savedFunctionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> =
       ResizeArray.empty ()
@@ -73,8 +74,13 @@ let createState
       { Exe.noTracing RT.Real with
           storeFnResult =
             (fun (tlid, name, id) args result ->
-              ResizeArray.append
-                (tlid, name, id, args, result, NodaTime.Instant.now ())
+              let hash =
+                args
+                |> DvalReprInternalDeprecated.hash
+                     DvalReprInternalDeprecated.currentHashVersion
+              Dictionary.add
+                (tlid, name, id, hash)
+                (result, NodaTime.Instant.now ())
                 savedFunctionResult)
           storeFnArguments =
             (fun tlid args ->
