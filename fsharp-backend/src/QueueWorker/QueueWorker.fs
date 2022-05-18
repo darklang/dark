@@ -242,6 +242,10 @@ let runInBackground
   (semaphore : System.Threading.SemaphoreSlim)
   (notification : EQ.Notification)
   : unit =
+  // Ensure we get a lock before the background task starts. We should always get a
+  // lock here, but if something goes awry it's better that we wait rather than fetch
+  // more events to run.
+  semaphore.Wait()
   backgroundTask {
     try
       let! (_ : Result<_, _>) = processNotification notification
@@ -254,32 +258,34 @@ let runInBackground
 let run () : Task<unit> =
   task {
     use _span = Telemetry.createRoot "dequeueAndProcess"
-
     // Our goal here is to concurrently run a number of events dictated by the amount
-    // of memory and CPU available, adding more until we hit a threshold. Furthermore
-    // we want to limit this with a feature flag to we don't overdo it.  We use a
-    // semaphore to count the number in use - it's updated automatically when an
-    // event finishes.
-    let initialCount = 10000 // just be a high number
+    // of memory and CPU available, adding more until we hit a threshold.
+    // Unfortunately, I think that will involve talking to /proc, which is doable but
+    // some work. We also want to limit this with a feature flag to we don't overdo
+    // it. We use a semaphore to count the number in use - it's updated
+    // automatically when an event finishes.
+
+    // We use a high number because we don't actually know the number of slots: it's
+    // decided somewhat dynamically by a feature flag. Do just pick a high number,
+    // and then use the semaphore to count the events in progress.
+    let initialCount = 100000 // just be a high number
     let semaphore = new System.Threading.SemaphoreSlim(initialCount)
 
-
-    // Only use the semaphore to count the threads that are done
     let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
     while not shouldShutdown do
       try
-        if initialCount - semaphore.CurrentCount >= maxEventsFn () then
-          do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+        // FSTODO: include memory and CPU usage checks in here
+        let runningCount = initialCount - semaphore.CurrentCount
+        let remainingSlots = maxEventsFn () - runningCount
+        if remainingSlots > 0 then
+          let! notifications = EQ.dequeue remainingSlots
+          if notifications = [] then
+            do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+          else
+            List.iter (runInBackground semaphore) notifications
         else
-          // FSTODO: include memory and CPU usage checks in here
-          match! EQ.dequeue () with
-          | Some notification ->
-            // We claim a semaphore here instead of in the background thread, as
-            // otherwise we might miscount if it hasn't started yet by the next
-            // iteration
-            do! semaphore.WaitAsync()
-            runInBackground semaphore notification
-          | None -> do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+          do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
