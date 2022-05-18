@@ -113,6 +113,24 @@ let rec dequeueAndProcess () : Task<Result<_, _>> =
         Exception.raiseInternal "got more than 1" [ "count", List.length results ]
   }
 
+let rec dequeueAndProcessMany (count : int) : Task<List<Result<_, _>>> =
+  task {
+    let! messages = EQ.dequeue count
+    let! theseResults =
+      Task.mapSequentially (fun n -> QueueWorker.processNotification n) messages
+
+    // We aren't guaranteed to get `count` of them, so keep going
+    let receivedCount = List.length messages
+    let! moreResults =
+      if receivedCount < count then
+        dequeueAndProcessMany (count - receivedCount)
+      else
+        Task.FromResult []
+    return theseResults @ moreResults
+  }
+
+
+
 let testSuccess =
   testTask "event queue success" {
     let! (meta : Canvas.Meta, tlid) = initializeCanvas "event-queue-success"
@@ -143,6 +161,24 @@ let testSuccessThree =
     do! checkSuccess meta tlid result
     do! checkExecutedTraces meta.id 3
     do! checkSavedEvents meta.id 0
+  }
+
+let testSuccessThreeAtOnce =
+  testTask "event queue success three at once" {
+    let! (meta : Canvas.Meta, tlid) =
+      initializeCanvas "event-queue-success-three-at-once"
+    do! enqueue meta
+    do! enqueue meta
+    do! enqueue meta
+    do! checkExecutedTraces meta.id 0
+    do! checkSavedEvents meta.id 3
+    let! results = dequeueAndProcessMany 3
+    let results = List.toArray results
+    do! checkExecutedTraces meta.id 3
+    do! checkSavedEvents meta.id 0
+    do! checkSuccess meta tlid results[0]
+    do! checkSuccess meta tlid results[1]
+    do! checkSuccess meta tlid results[2]
   }
 
 let testSuccessLockExpired =
@@ -440,6 +476,7 @@ let tests =
       "eventQueueV2"
       [ testSuccess
         testSuccessThree
+        testSuccessThreeAtOnce
         testSuccessLockExpired
         testFailLocked
         testSuccessBlockAndUnblock
