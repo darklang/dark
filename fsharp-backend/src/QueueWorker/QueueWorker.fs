@@ -27,7 +27,7 @@ module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let shouldShutdown = ref false
+let mutable shouldShutdown = false
 
 let executeEvent
   (c : Canvas.T)
@@ -58,17 +58,20 @@ type ShouldRetry =
 /// receives a notification. Returns a Result containing the notification and the
 /// event on success, and just the notification and failure reason on failure. Should
 /// not throw on error.
-let dequeueAndProcess
-  ()
+let processNotification
+  (notification : EQ.Notification)
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
-    use _span = Telemetry.child "dequeueAndProcess" []
+    use _span = Telemetry.createRoot "process"
+    Telemetry.addTags [ "event.time_in_queue_ms",
+                        notification.timeInQueue.TotalMilliseconds
+                        "event.id", notification.data.id
+                        "event.canvas_id", notification.data.canvasID
+                        "event.delivery_attempt", notification.deliveryAttempt
+                        "event.pubsub.ack_id", notification.pubSubAckID
+                        "event.pubsub.message_id", notification.pubSubMessageID ]
     let resultType (dv : RT.Dval) : string =
       dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
-
-    // Receive Notification - if there's an exception here, we don't have a job so no
-    // cleanup required.
-    let! notification = EQ.dequeue ()
 
     // Function used to quit this event
     let stop
@@ -95,8 +98,8 @@ let dequeueAndProcess
                           "event.handler.modifier", event.modifier
                           "event.handler.module", event.module'
                           "event.value.type", (event.value |> resultType :> obj)
-                          "event.lockedAt", event.lockedAt
-                          "event.enqueuedAt", event.enqueuedAt ]
+                          "event.locked_at", event.lockedAt
+                          "event.enqueued_at", event.enqueuedAt ]
 
       // -------
       // LockCheck
@@ -105,6 +108,14 @@ let dequeueAndProcess
         match event.lockedAt with
         | Some lockedAt -> // LockExpired
           let expiryTime = lockedAt.Plus(NodaTime.Duration.FromMinutes 5.0)
+          // Date math is hard so let's spell it out. `timeLeft` measures how long is
+          // left until the lock expires. If there is time left until the lock
+          // expires, `timeLeft` is positive. So
+          //
+          // `timeLeft = expiryTime - now`
+          //
+          // as that way there is positive `timeLeft` if `expiryTime` is later than
+          // `now`.
           expiryTime - Instant.now ()
         | None -> NodaTime.Duration.FromSeconds 0.0 // LockNone
       if timeLeft.TotalSeconds > 0 then
@@ -198,13 +209,14 @@ let dequeueAndProcess
                   // PubSub will retry this once the ack deadline runs out
                   do! EQ.extendDeadline notification
 
-                  // FSTODO Set a time limit of 3m
-
+                  // CLEANUP Set a time limit of 3m
                   try
                     let! (_ : Instant) =
                       TI.storeEvent c.meta.id traceID desc event.value
                     let! result = executeEvent c h traceID event
-                    Telemetry.addTag "resultType" (resultType result)
+                    Telemetry.addTags [ "result_type", resultType result
+                                        "queue.success", true
+                                        "queue.completion_reason", "completed" ]
                     // ExecutesToCompletion
 
                     // -------
@@ -225,20 +237,62 @@ let dequeueAndProcess
                     return! stop "RetryAllowed" (Retry timeLeft)
   }
 
+/// Run in the background, using the semaphore to track completion
+let runInBackground
+  (semaphore : System.Threading.SemaphoreSlim)
+  (notification : EQ.Notification)
+  : unit =
+  // Ensure we get a lock before the background task starts. We should always get a
+  // lock here, but if something goes awry it's better that we wait rather than fetch
+  // more events to run.
+  semaphore.Wait()
+  backgroundTask {
+    try
+      let! (_ : Result<_, _>) = processNotification notification
+      return ()
+    finally
+      semaphore.Release() |> ignore<int>
+  }
+  |> ignore<Task<unit>>
+
 let run () : Task<unit> =
   task {
-    while not shouldShutdown.Value do
+    use _span = Telemetry.createRoot "dequeueAndProcess"
+    // Our goal here is to concurrently run a number of events dictated by the amount
+    // of memory and CPU available, adding more until we hit a threshold.
+    // Unfortunately, I think that will involve talking to /proc, which is doable but
+    // some work. We also want to limit this with a feature flag to we don't overdo
+    // it. We use a semaphore to count the number in use - it's updated
+    // automatically when an event finishes.
+
+    // We use a high number because we don't actually know the number of slots: it's
+    // decided somewhat dynamically by a feature flag. Do just pick a high number,
+    // and then use the semaphore to count the events in progress.
+    let initialCount = 100000 // just be a high number
+    let semaphore = new System.Threading.SemaphoreSlim(initialCount)
+
+    let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
+    while not shouldShutdown do
       try
-        use _span = Telemetry.createRoot "QueueWorker.run"
-        let! (_ : Result<_, _>) = dequeueAndProcess ()
-        return ()
+        // FSTODO: include memory and CPU usage checks in here
+        let runningCount = initialCount - semaphore.CurrentCount
+        let remainingSlots = maxEventsFn () - runningCount
+        if remainingSlots > 0 then
+          let! notifications = EQ.dequeue remainingSlots
+          if notifications = [] then
+            do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+          else
+            List.iter (runInBackground semaphore) notifications
+        else
+          do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+
       with
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
         Rollbar.sendException
           (Telemetry.executionID ())
-          Rollbar.emptyPerson
+          None
           []
           (PageableException("Unhandled exception bubbled to run", [], e))
   }
@@ -250,14 +304,14 @@ let main _ : int =
     let name = "QueueWorker"
     print "Starting QueueWorker"
     LibService.Init.init name
-    Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
+    Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
     // Called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "shutting down" []
-      shouldShutdown.Value <- true
+      shouldShutdown <- true
 
     // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.queueWorkerKubernetesPort
@@ -270,7 +324,8 @@ let main _ : int =
     else
       Telemetry.createRoot "Pointing at prodclone; will not dequeue"
       |> ignore<Telemetry.Span.T>
-    LibService.Init.flush name
+
+    LibService.Init.shutdown name
     0
 
   with

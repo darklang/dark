@@ -27,6 +27,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
+module SchedulingRules = QueueSchedulingRules
 
 module TI = TraceInputs
 
@@ -47,6 +48,7 @@ type Notification =
     pubSubMessageID : string
     /// The first delivery has value 1
     deliveryAttempt : int
+    timeInQueue : System.TimeSpan
     pubSubAckID : string }
 
 /// Events are stored in the DB and are the source of truth for when and how an event
@@ -99,22 +101,32 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
        AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventId", Sql.uuid id; "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowOptionAsync (fun read ->
-    let e =
-      { id = id
-        canvasID = canvasID
-        module' = read.string "module"
-        name = read.string "name"
-        modifier = read.string "modifier"
-        enqueuedAt = read.instant "enqueued_at"
-        lockedAt = read.instantOrNone "locked_at"
-        value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 }
-    Telemetry.addTags [ ("queue_delay", Instant.now().Minus(e.enqueuedAt))
-                        ("module", e.module')
-                        ("name", e.name)
-                        ("modifier", e.modifier)
-                        ("enqueued_at", e.enqueuedAt)
-                        ("locked_at", e.lockedAt) ]
-    e)
+    { id = id
+      canvasID = canvasID
+      module' = read.string "module"
+      name = read.string "name"
+      modifier = read.string "modifier"
+      enqueuedAt = read.instant "enqueued_at"
+      lockedAt = read.instantOrNone "locked_at"
+      value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 })
+
+let loadEventIDs
+  (canvasID : CanvasID)
+  ((module', name, modifier) : string * string * string)
+  : Task<List<EventID>> =
+  Sql.query
+    "SELECT id
+     FROM events_v2
+     WHERE module = @module
+       AND name = @name
+       AND modifier = @modifier
+       AND canvas_id = @canvasID
+       LIMIT 1000" // don't go overboard
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "module", Sql.string module'
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier ]
+  |> Sql.executeAsync (fun read -> read.uuid "id")
 
 let deleteEvent (event : T) : Task<unit> =
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
@@ -252,19 +264,39 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
       return client
     })
 
-/// Returns the next available notification in the queue, and will pause until it has
-/// done so
-let dequeue () : Task<Notification> =
+/// Gets as many messages as allowed the next available notification in the queue, or None if it doesn't find
+/// one within a timeout
+let dequeue (count : int) : Task<List<Notification>> =
   task {
     let! subscriber = subscriber.Force()
-    let mutable notification : Option<Notification> = None
-    while notification = None do
-      let! response = subscriber.PullAsync(subscriptionName, maxMessages = 1)
-      let messages = response.ReceivedMessages
-      // PubSub might return 0 Messages. In that case, pause and loop again
-      if messages.Count > 0 then
-        let envelope = messages[0]
+    // We set a deadline in case we get the shutdown signal. We want to go back to
+    // the outer loop if we're told to shutdown.
+    let expiration =
+      Google.Api.Gax.Expiration.FromTimeout(System.TimeSpan.FromSeconds 5)
+    let callSettings = Google.Api.Gax.Grpc.CallSettings.FromExpiration expiration
+    let! envelopes =
+      task {
+        try
+          let! response =
+            subscriber.PullAsync(
+              subscriptionName,
+              callSettings = callSettings,
+              maxMessages = count
+            )
+          return response.ReceivedMessages |> Seq.toList
+        with
+        // We set the deadline above, and then if it didn't find anything it throws a
+        // DeadlineExceeded Exception
+        | :? Grpc.Core.RpcException as e when
+          e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded
+          ->
+          return []
+      }
+    return
+      envelopes
+      |> List.map (fun (envelope : ReceivedMessage) ->
         let message = envelope.Message
+        let timeInQueue = System.DateTime.Now - (message.PublishTime.ToDateTime())
         let data =
           message.Data.ToByteArray()
           |> UTF8.ofBytesUnsafe
@@ -272,23 +304,30 @@ let dequeue () : Task<Notification> =
         let deliveryAttempt =
           let da = message.GetDeliveryAttempt()
           if da.HasValue then Some da.Value else None
-        notification <-
-          Some
-            { data = data
-              deliveryAttempt = Option.defaultValue 1 deliveryAttempt
-              pubSubMessageID = message.MessageId
-              pubSubAckID = envelope.AckId }
-        Telemetry.addTags [ "canvas_id", data.canvasID
-                            "queue.event.id", data.id
-                            "queue.event.pubsub_id", message.MessageId
-                            "queue.event.delivery_attempt", deliveryAttempt
-                            "queue.event.time_in_queue",
-                            ((message.PublishTime.ToDateTime()) - System.DateTime.Now)
-                              .TotalMilliseconds ]
-      else
-        do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+        { data = data
+          deliveryAttempt = Option.defaultValue 1 deliveryAttempt
+          timeInQueue = timeInQueue
+          pubSubMessageID = message.MessageId
+          pubSubAckID = envelope.AckId })
+  }
 
-    return notification |> Exception.unwrapOptionInternal "expect a notification" []
+let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
+  task {
+    if ids <> [] then
+      let! publisher = publisher.Force()
+      let messages =
+        ids
+        |> List.map (fun id ->
+          { id = id; canvasID = canvasID }
+          |> Json.Vanilla.serialize
+          |> Google.Protobuf.ByteString.CopyFromUtf8
+          |> fun contents -> PubsubMessage(Data = contents))
+      let! response = publisher.PublishAsync(topicName, messages)
+      Telemetry.addTag "event.pubsub_ids" response.MessageIds
+    else
+      // Don't send an empty list of messages to pubsub
+      Telemetry.addTag "event.pubsub_ids" []
+    return ()
   }
 
 let enqueue
@@ -309,14 +348,7 @@ let enqueue
     // save the event
     let id = System.Guid.NewGuid()
     do! createEvent canvasID id module' name modifier value
-    let data = { id = id; canvasID = canvasID }
-    let! publisher = publisher.Force()
-    let contents =
-      data |> Json.Vanilla.serialize |> Google.Protobuf.ByteString.CopyFromUtf8
-    Telemetry.addTag "event.data.content_length" contents.Length
-    let message = PubsubMessage(Data = contents)
-    let! response = publisher.PublishAsync(topicName, [ message ])
-    Telemetry.addTag "event.pubsub_id" response.MessageIds[0]
+    do! createNotifications canvasID [ id ]
     return ()
   }
 
@@ -342,9 +374,11 @@ let enqueueInAQueue
 /// increments the deliveryAttempt counter
 let requeueEvent (n : Notification) (delay : NodaTime.Duration) : Task<unit> =
   task {
+    Telemetry.addTag "queue.requeue_delay_ms" delay.TotalMilliseconds
     let! subscriber = subscriber.Force()
     let delay = min 600 (int delay.TotalSeconds)
     let delay = max 0 delay
+    Telemetry.addTag "queue.requeue_delay_actual_ms" (delay * 1000)
     return!
       subscriber.ModifyAckDeadlineAsync(
         subscriptionName,
@@ -376,16 +410,22 @@ let acknowledgeEvent (n : Notification) : Task<unit> =
 let getRule
   (canvasID : CanvasID)
   (event : T)
-  : Task<Option<EventQueue.SchedulingRule.T>> =
+  : Task<Option<SchedulingRules.SchedulingRule.T>> =
   task {
     // Rules seem to ignore modifiers which is fine as they shouldn't have meaning here
-    let! rules = EventQueue.getSchedulingRules canvasID
+    let! rules = SchedulingRules.getSchedulingRules canvasID
     let rule =
       rules
       |> List.filter (fun r ->
         (r.eventSpace, r.handlerName) = (event.module', event.name))
       |> List.head
     return rule
+  }
+
+let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    let! ids = loadEventIDs canvasID ("WORKER", handlerName, "_")
+    return! createNotifications canvasID ids
   }
 
 let init () : Task<unit> =
@@ -395,4 +435,22 @@ let init () : Task<unit> =
     return ()
   }
 
-let flush () = () // FSTODO
+
+// DARK INTERNAL FN
+let blockWorker = SchedulingRules.addSchedulingRule "block"
+
+// DARK INTERNAL FN
+let unblockWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    do! SchedulingRules.removeSchedulingRule "block" canvasID handlerName
+    return! requeueSavedEvents canvasID handlerName
+  }
+
+let pauseWorker : CanvasID -> string -> Task<unit> =
+  SchedulingRules.addSchedulingRule "pause"
+
+let unpauseWorker (canvasID : CanvasID) (handlerName : string) : Task<unit> =
+  task {
+    do! SchedulingRules.removeSchedulingRule "pause" canvasID handlerName
+    return! requeueSavedEvents canvasID handlerName
+  }

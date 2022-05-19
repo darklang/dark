@@ -61,6 +61,7 @@ let main (args : string array) : int =
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
     httpClientTestsTask.Wait()
+    QueueWorker.shouldShutdown <- true
     exitCode
   with
   | e ->

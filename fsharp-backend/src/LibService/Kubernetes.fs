@@ -153,11 +153,7 @@ let runKubernetesServer
   registerShutdownCallback shutdownCallback
 
   let app = builder.Build()
-  Rollbar.AspNet.addRollbarToApp
-    app
-    (fun _ -> Rollbar.emptyPerson, [])
-    (Some startupPath)
-
+  Rollbar.AspNet.addRollbarToApp app (fun _ -> None, []) (Some startupPath)
   |> fun app -> app.UseRouting()
   |> configureApp port
   |> ignore<IApplicationBuilder>

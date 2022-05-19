@@ -15,6 +15,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 open LibBackend
 
@@ -47,8 +48,8 @@ let libraries : Lazy<Task<RT.Libraries>> =
 
 type TraceResult =
   { tlids : HashSet.T<tlid>
-    functionResults : Dictionary.T<TraceFunctionResults.FunctionResultStore, NodaTime.Instant>
-    functionArguments : Dictionary.T<TraceFunctionArguments.FunctionArgumentStore, NodaTime.Instant> }
+    functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>
+    functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
 
 
 let createState
@@ -58,46 +59,51 @@ let createState
   (program : RT.ProgramContext)
   : Task<RT.ExecutionState * TraceResult> =
   task {
-    let canvasID = program.canvasID
-
     // Any real execution needs to track the touched TLIDs in order to send traces to pusher
     let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
     HashSet.add tlid touchedTLIDs
 
-    let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultStore, NodaTime.Instant> =
+    let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue> =
       Dictionary.empty ()
 
-    let savedFunctionArguments : Dictionary.T<TraceFunctionArguments.FunctionArgumentStore, NodaTime.Instant> =
-      Dictionary.empty ()
+    let savedFunctionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> =
+      ResizeArray.empty ()
 
 
     let tracing =
       { Exe.noTracing RT.Real with
           storeFnResult =
             (fun (tlid, name, id) args result ->
+              let hash =
+                args
+                |> DvalReprInternalDeprecated.hash
+                     DvalReprInternalDeprecated.currentHashVersion
               Dictionary.add
-                (tlid, name, id, args, result)
-                (NodaTime.Instant.now ())
+                (tlid, name, id, hash)
+                (result, NodaTime.Instant.now ())
                 savedFunctionResult)
           storeFnArguments =
             (fun tlid args ->
-              Dictionary.add
-                (tlid, args)
-                (NodaTime.Instant.now ())
+              ResizeArray.append
+                (tlid, args, NodaTime.Instant.now ())
                 savedFunctionArguments)
           traceTLID = traceTLIDFn }
 
     let! libraries = Lazy.force libraries
 
+    let username () =
+      (Account.ownerNameFromCanvasName program.canvasName).toUserName ()
+
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
-        "traceID", traceID
-        "touchedTLIDs", touchedTLIDs
-        "executingFnName", state.executingFnName
+        "trace_id", traceID
+        "touched_tlids", touchedTLIDs
+        "executing_fn_name", state.executingFnName
         "callstack", state.callstack
-        "canvas", state.program.canvasName
-        "canvasID", state.program.canvasID
-        "accountID", state.program.accountID ]
+        "canvas", program.canvasName
+        "username", username ()
+        "canvas_id", program.canvasID
+        "account_id", program.accountID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
@@ -106,7 +112,7 @@ let createState
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       let metadata = extraMetadata state @ metadata
       let person : LibService.Rollbar.Person =
-        { id = Some state.program.accountID; username = None; email = None }
+        Some { id = program.accountID; username = Some(username ()) }
       LibService.Rollbar.sendException state.executionID person metadata exn
 
 
@@ -140,7 +146,7 @@ let traceResultHook
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   (executionID : ExecutionID)
-  (traceResult : TraceResult)
+  (result : TraceResult)
   : unit =
   LibService.FireAndForget.fireAndForgetTask
     executionID
@@ -148,40 +154,25 @@ let traceResultHook
     (fun () ->
       task {
         do!
-          TraceFunctionArguments.storeMany
-            canvasID
-            traceID
-            (Dictionary.toList traceResult.functionArguments)
-        do!
-          TraceFunctionResults.storeMany
-            canvasID
-            traceID
-            (Dictionary.toList traceResult.functionResults)
+          TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
+        do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
         // Send to Pusher
         Pusher.pushNewTraceID
           executionID
           canvasID
           traceID
-          (HashSet.toList traceResult.tlids)
+          (HashSet.toList result.tlids)
       })
 
 module Test =
   let saveTraceResult
     (canvasID : CanvasID)
     (traceID : AT.TraceID)
-    (traceResult : TraceResult)
+    (result : TraceResult)
     : Task<unit> =
     task {
-      do!
-        TraceFunctionArguments.storeMany
-          canvasID
-          traceID
-          (Dictionary.toList traceResult.functionArguments)
-      do!
-        TraceFunctionResults.storeMany
-          canvasID
-          traceID
-          (Dictionary.toList traceResult.functionResults)
+      do! TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
+      do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
       return ()
     }
 

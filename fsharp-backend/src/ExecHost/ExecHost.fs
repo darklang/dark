@@ -57,7 +57,7 @@ let triggerRollbar (executionID : ExecutionID) : unit =
 
   // Send async exception
   let e = new System.Exception($"{prefix} sendException exception")
-  Rollbar.sendException executionID Rollbar.emptyPerson tags e
+  Rollbar.sendException executionID None tags e
 
 /// Send a message to Rollbar that should result in a Page (notification)
 /// going out
@@ -202,7 +202,7 @@ let main (args : string []) : int =
       (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let executionID = Telemetry.executionID ()
     let result = (run executionID options).Result
-    LibService.Init.flush name
+    LibService.Init.shutdown name
     result
   with
   | e ->
@@ -214,5 +214,5 @@ let main (args : string []) : int =
       let inner = e.InnerException
       if inner <> null then printException inner
     printException e
-    LibService.Init.flush name
+    LibService.Init.shutdown name
     1

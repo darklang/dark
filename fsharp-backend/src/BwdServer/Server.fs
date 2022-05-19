@@ -459,7 +459,8 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
       |> Option.defaultValue []
 
-    let person : Rollbar.Person = { id = id; username = username; email = None }
+    let person : Rollbar.Person =
+      id |> Option.map (fun id -> { id = id; username = username })
 
     (person, metadata)
 
@@ -520,7 +521,7 @@ let main _ =
     (LibRealExecution.Init.init name).Result
     run ()
     // CLEANUP I suspect this isn't called
-    LibService.Init.flush name
+    LibService.Init.shutdown name
     0
   with
   | e -> Rollbar.lastDitchBlockAndPage "error starting bwdserver" e

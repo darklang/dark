@@ -17,6 +17,7 @@ module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
 
 open LibBackend
+module SchedulingRules = LibBackend.QueueSchedulingRules
 
 let fn = FQFnName.stdlibFnName
 
@@ -41,10 +42,14 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
         if canAccess then
           let fnName =
             state.executingFnName
-            |> Option.map string
+            |> Option.map FQFnName.toString
             |> Option.defaultValue "unknown"
           use _span =
-            Telemetry.child "internal_fn" [ "user", username; "fnName", fnName ]
+            Telemetry.child
+              "internal_fn"
+              [ "canvas", state.program.canvasName
+                "user", username
+                "fnName", fnName ]
           return! f (state, args)
         else
           return
@@ -59,7 +64,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
     | state, [ DUuid canvasID; DStr handlerName ] ->
       uply {
         do! fn canvasID handlerName
-        let! s = EventQueue.getWorkerSchedules canvasID
+        let! s = SchedulingRules.getWorkerSchedules canvasID
         Pusher.pushWorkerStates state.executionID canvasID s
         return DNull
       }
@@ -1024,8 +1029,8 @@ that's already taken, returns an error."
         internalFn (function
           | _, [] ->
             uply {
-              let! rules = EventQueue.getAllSchedulingRules ()
-              return rules |> List.map EventQueue.SchedulingRule.toDval |> DList
+              let! rules = SchedulingRules.getAllSchedulingRules ()
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -1043,8 +1048,8 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DUuid canvasID ] ->
             uply {
-              let! rules = EventQueue.getSchedulingRules canvasID
-              return rules |> List.map EventQueue.SchedulingRule.toDval |> DList
+              let! rules = SchedulingRules.getSchedulingRules canvasID
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -1058,7 +1063,7 @@ that's already taken, returns an error."
       returnType = TNull
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-      fn = modifySchedule EventQueue.blockWorker
+      fn = modifySchedule EventQueueV2.blockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -1070,7 +1075,7 @@ that's already taken, returns an error."
       returnType = TNull
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-      fn = modifySchedule EventQueue.unblockWorker
+      fn = modifySchedule EventQueueV2.unblockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

@@ -150,7 +150,7 @@ let rollbarCtxToMetadata
     try
       loadUserInfo ctx |> LibBackend.Account.userInfoToPerson
     with
-    | _ -> LibService.Rollbar.emptyPerson
+    | _ -> None
   let canvas =
     try
       string (loadCanvasInfo ctx).name
@@ -218,7 +218,7 @@ let main _ =
     let packages = LibBackend.PackageManager.allFunctions().Result
     run packages
     // CLEANUP I suspect this isn't called
-    LibService.Init.flush name
+    LibService.Init.shutdown name
     0
   with
   | e -> LibService.Rollbar.lastDitchBlockAndPage "Error starting ApiServer" e

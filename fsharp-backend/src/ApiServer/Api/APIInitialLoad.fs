@@ -20,6 +20,7 @@ module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
 module SA = LibBackend.StaticAssets
+module SchedulingRules = LibBackend.QueueSchedulingRules
 
 type ApiUserInfo =
   { username : string // as opposed to UserName.T
@@ -58,7 +59,7 @@ type T =
     orgs : string list
     account : ApiUserInfo
     creation_date : NodaTime.Instant
-    worker_schedules : LibBackend.EventQueue.WorkerStates.T
+    worker_schedules : SchedulingRules.WorkerStates.T
     secrets : List<ApiSecret> }
 
 /// API endpoint called when client initially loads a Canvas
@@ -100,7 +101,7 @@ let initialLoad (ctx : HttpContext) : Task<T> =
     let! orgList = Account.orgs user.id
 
     t.next "get-worker-schedules"
-    let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.meta.id
+    let! workerSchedules = SchedulingRules.getWorkerSchedules canvas.meta.id
 
     t.next "get-secrets"
     let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id

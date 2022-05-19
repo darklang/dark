@@ -10,17 +10,14 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module FireAndForget = LibService.FireAndForget
 
-// PusherClient has own internal serializer which matches this interface.
-type Serializer() =
-  interface PusherServer.ISerializeObjectsToJson with
-    member this.Serialize(x : obj) : string = Json.OCamlCompatible.serialize x
-
 
 let pusherClient : Lazy<PusherServer.Pusher> =
   lazy
     (let options = PusherServer.PusherOptions()
      options.Cluster <- Config.pusherCluster
-     options.set_JsonSerializer (Serializer())
+     options.Encrypted <- true
+     // Use the raw serializer and expect everywhere to serialize appropriately
+     options.set_JsonSerializer (PusherServer.RawBodySerializer())
 
      PusherServer.Pusher(
        Config.pusherID,
@@ -40,11 +37,10 @@ let push
   (executionID : ExecutionID)
   (canvasID : CanvasID)
   (eventName : string)
-  (payload : 'x)
+  (payload : string) // The raw string is sent, it's the job of the caller to have it as appropriate json
   : unit =
   FireAndForget.fireAndForgetTask executionID $"pusher: {eventName}" (fun () ->
     task {
-      use _ = LibService.Telemetry.child "pusher" [ "eventName", eventName ]
       // TODO: handle messages over 10k bytes
       // TODO: make channels private and end-to-end encrypted in order to add public canvases
       let client = Lazy.force pusherClient
@@ -65,7 +61,7 @@ let pushNewTraceID
   (traceID : AT.TraceID)
   (tlids : tlid list)
   : unit =
-  push executionID canvasID "new_trace" (traceID, tlids)
+  push executionID canvasID "new_trace" (Json.Vanilla.serialize (traceID, tlids))
 
 
 let pushNew404
@@ -73,7 +69,7 @@ let pushNew404
   (canvasID : CanvasID)
   (f404 : TraceInputs.F404)
   =
-  push executionID canvasID "new_404" f404
+  push executionID canvasID "new_404" (Json.Vanilla.serialize f404)
 
 
 let pushNewStaticDeploy
@@ -81,7 +77,7 @@ let pushNewStaticDeploy
   (canvasID : CanvasID)
   (asset : StaticAssets.StaticDeploy)
   =
-  push executionID canvasID "new_static_deploy" asset
+  push executionID canvasID "new_static_deploy" (Json.Vanilla.serialize asset)
 
 
 // For exposure as a DarkInternal function
@@ -90,14 +86,14 @@ let pushAddOpEvent
   (canvasID : CanvasID)
   (event : Op.AddOpEvent)
   =
-  push executionID canvasID "add_op" event
+  push executionID canvasID "add_op" (Json.OCamlCompatible.serialize event)
 
 let pushWorkerStates
   (executionID : ExecutionID)
   (canvasID : CanvasID)
-  (ws : EventQueue.WorkerStates.T)
+  (ws : QueueSchedulingRules.WorkerStates.T)
   : unit =
-  push executionID canvasID "worker_state" ws
+  push executionID canvasID "worker_state" (Json.Vanilla.serialize ws)
 
 type JsConfig = { enabled : bool; key : string; cluster : string }
 

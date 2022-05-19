@@ -151,7 +151,6 @@ from PubSub and the DB.
 
 ### Pausing/Unpausing
 
-**FSTODO**: Not implemented yet
 When the notification is delivered from PubSub to a QueueWorker, the QueueWorker
 checks the scheduling rules for the handler. If it is blocked by an admin or paused
 by the user, the PubSub notification is dropped, but the event remains in the DB.
@@ -183,7 +182,6 @@ by PubSub after a week.
 
 ### Queue counts
 
-**FSTODO**: add an index
 We do a DB query for the number of events for that canvas/handler.
 
 ### Emit

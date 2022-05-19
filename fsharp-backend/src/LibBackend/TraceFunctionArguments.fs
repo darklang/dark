@@ -19,7 +19,7 @@ module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 // External
 // -------------------------
 
-type FunctionArgumentStore = tlid * RT.DvalMap
+type FunctionArgumentStore = tlid * RT.DvalMap * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
@@ -48,14 +48,14 @@ let store
 let storeMany
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  (functionArguments : List<(tlid * RT.DvalMap) * NodaTime.Instant>)
+  (functionArguments : ResizeArray<FunctionArgumentStore>)
   : Task<unit> =
   if canvasID = TraceInputs.throttled then
     Task.FromResult()
   else
     let transactionData =
       functionArguments
-      |> List.map (fun ((tlid, args), timestamp) ->
+      |> ResizeArray.map (fun (tlid, args, timestamp) ->
         [ "canvasID", Sql.uuid canvasID
           "traceID", Sql.uuid traceID
           "tlid", Sql.tlid tlid
@@ -64,6 +64,7 @@ let storeMany
            Sql.string (
              DvalReprInternalDeprecated.toInternalRoundtrippableV0 (RT.DObj args)
            )) ])
+      |> ResizeArray.toList
 
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ ("INSERT INTO function_arguments

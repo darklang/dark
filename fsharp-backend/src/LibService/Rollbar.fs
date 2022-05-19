@@ -128,8 +128,8 @@ let init (serviceName : string) : unit =
 
   // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
   // Enabling this callback lets us see what actually happens when it's processed
-  // Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
-  //   (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
+  Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
+    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
 
   // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
   // We actually want to call
@@ -189,23 +189,23 @@ let honeycombLinkOfExecutionID (executionID : ExecutionID) : string =
 // Include person data
 // -------------------------------
 
-type Person =
-  { id : Option<UserID>
-    email : Option<string>
-    username : Option<UserName.T> }
+type PersonData = { id : UserID; username : Option<UserName.T> }
 
-let emptyPerson = { id = None; email = None; username = None }
+/// Optional person data
+type Person = Option<PersonData>
 
 /// Take a Person and an Exception and create a RollbarPackage that can be reported
 let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
   let package : Rollbar.IRollbarPackage =
     new Rollbar.ExceptionPackage(exn, exn.Message)
-  Rollbar.PersonPackageDecorator(
-    package,
-    person.id |> Option.map string |> Option.defaultValue null,
-    person.username |> Option.map string |> Option.defaultValue null,
-    person.email |> Option.defaultValue null
-  )
+  match person with
+  | Some person ->
+    Rollbar.PersonPackageDecorator(
+      package,
+      person.id |> string,
+      person.username |> string
+    )
+  | None -> package
 
 
 
@@ -329,6 +329,11 @@ let exceptionWhileProcessingException
       with
       | _ -> ()
 
+let personMetadata (person : Person) : Metadata =
+  match person with
+  | None -> []
+  | Some person -> [ "user.id", person.id; "user.username", person.username ]
+
 
 /// Sends exception to Rollbar and also to Telemetry (honeycomb). The error is titled
 /// after the exception message - to change it wrap it in another exception. However,
@@ -340,11 +345,16 @@ let rec sendException
   (e : exn)
   : unit =
   try
-    print $"rollbar: {e.Message}"
+    print $"rollbar: {e.Message} @ {NodaTime.Instant}"
     print e.StackTrace
-    let metadata = Exception.toMetadata e @ metadata
+    let metadata = Exception.toMetadata e @ metadata @ personMetadata person
     printMetadata metadata
-    if Telemetry.Span.current () <> null then Telemetry.addException metadata e
+    use span =
+      if isNull (Telemetry.Span.current ()) then
+        Telemetry.createRoot "sendException"
+      else
+        null // don't use the current span as we don't want `use` to clean it up
+    Telemetry.addException metadata e
     let custom = createCustom executionID metadata
     let package = createPackage e person
     Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
@@ -436,7 +446,7 @@ module AspNet =
                 try
                   rollbarCtx.ctxMetadataFn ctx
                 with
-                | _ -> emptyPerson, [ "exception calling ctxMetadataFn", true ]
+                | _ -> None, [ "exception calling ctxMetadataFn", true ]
               let metadata = metadata @ Exception.toMetadata e
               let custom = createCustom executionID metadata
               let package = createPackage e person

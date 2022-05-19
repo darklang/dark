@@ -232,6 +232,7 @@ def fsharp_backend_test():
 def fsharp_tool_restore():
   start = time.time()
   build = "./scripts/build/_dotnet-wrapper tool restore"
+
   return run_backend(start, build)
 
 
@@ -281,7 +282,9 @@ def fsharp_backend_quick_build():
     verbosity = "minimal"
     command = "build"
 
-  build = f"unbuffer ./scripts/build/_dotnet-wrapper {command} \
+
+  build = f"./scripts/build/_dotnet-wrapper {command} \
+      /clp:ForceConsoleColor \
       --no-restore \
       --verbosity {verbosity} \
       --configuration {configuration}"
@@ -302,7 +305,8 @@ def fsharp_backend_full_build():
     verbosity = "minimal"
     command = "build"
 
-  build = f"unbuffer ./scripts/build/_dotnet-wrapper {command} \
+  build = f"./scripts/build/_dotnet-wrapper {command} \
+      /clp:ForceConsoleColor \
       --verbosity {verbosity} \
       --configuration {configuration}"
 

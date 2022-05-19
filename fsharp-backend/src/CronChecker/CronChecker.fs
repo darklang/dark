@@ -10,18 +10,18 @@ open Tablecloth
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let shouldShutdown = ref false
+let mutable shouldShutdown = false
 
 let run () : Task<unit> =
   task {
-    while not shouldShutdown.Value do
+    while not shouldShutdown do
       try
         use (span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
         do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
       with
       | e ->
         // If there's an exception, alert and continue
-        Rollbar.sendException (ExecutionID "cronchecker") Rollbar.emptyPerson [] e
+        Rollbar.sendException (ExecutionID "cronchecker") None [] e
       do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
     return ()
   }
@@ -39,7 +39,7 @@ let main _ : int =
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =
       Telemetry.addEvent "Shutting down" []
-      shouldShutdown.Value <- true
+      shouldShutdown <- true
 
     // Set up healthchecks and shutdown with k8s
     let port = LibService.Config.croncheckerKubernetesPort
@@ -50,7 +50,7 @@ let main _ : int =
       (run ()).Result
     else
       Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []
-    LibService.Init.flush name
+    LibService.Init.shutdown name
     0
   with
   | e -> Rollbar.lastDitchBlockAndPage "Error starting cronchecker" e

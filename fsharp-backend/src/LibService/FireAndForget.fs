@@ -20,8 +20,8 @@ let fireAndForgetTask
   task {
     use _ =
       Telemetry.child
-        "fireAndForget"
-        [ "taskName", name; "executionID", executionID ]
+        $"fireAndForget: {name}"
+        [ "task_name", name; "execution_id", executionID ]
     try
       // Resolve to make sure we catch the exception
       let! (_ : 'b) = f ()
@@ -30,11 +30,7 @@ let fireAndForgetTask
     with
     | e ->
       Telemetry.addTag "success" false
-      Rollbar.sendException
-        executionID
-        Rollbar.emptyPerson
-        [ "fire-and-forget", name ]
-        e
+      Rollbar.sendException executionID None [ "fire-and-forget", name ] e
       return ()
   }
   |> ignore<Task<unit>>
