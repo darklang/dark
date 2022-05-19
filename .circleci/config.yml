@@ -308,7 +308,7 @@ jobs:
 
   build-fsharp-backend:
     executor: in-container
-    resource_class: large
+    resource_class: xlarge
     steps:
       - darkcheckout
       - setup-app
