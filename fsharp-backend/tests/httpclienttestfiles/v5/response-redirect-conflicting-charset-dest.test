@@ -15,7 +15,6 @@ Content-Length: LENGTH
 Redirect destination reached
 
 [test]
-// OCAMLONLY
 // This is here to be a destination for valid redirect tests
 (let response = HttpClient.get_v5_ster "http://URL" {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in

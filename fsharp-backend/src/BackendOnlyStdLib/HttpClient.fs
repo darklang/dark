@@ -342,9 +342,11 @@ let rec httpCall
           return
             Result.map
               (fun redirectResult ->
-                // Keep all headers along the way, mirroring the OCaml version
+                // Keep all headers along the way, mirroring the OCaml version. The
+                // first request's headers win when there are duplicates.
+                // CLEANUP: really the redirect target should win
                 { redirectResult with
-                    headers = result.headers @ redirectResult.headers })
+                    headers = redirectResult.headers @ result.headers })
               newResponse
         | _ -> return response
       | _ -> return response
