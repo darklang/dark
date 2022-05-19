@@ -16,11 +16,11 @@ Integration tests can be run in three forms:
 
 ### On your machine
 
-The debugger and trace tooling can be used on your machine. To simply run the tests on your machine, use:
-`./integration-tests/run.sh `
-
 You need playwright installed on your machine:
 `cd integration-tests && npm install`
+
+The debugger and trace tooling can be used on your machine. To simply run the tests on your machine, use:
+`./integration-tests/run.sh `
 
 ### Limit tests
 

@@ -308,7 +308,7 @@ jobs:
 
   build-fsharp-backend:
     executor: in-container
-    resource_class: large
+    resource_class: xlarge
     steps:
       - darkcheckout
       - setup-app
@@ -406,6 +406,7 @@ jobs:
   integration-tests:
     executor: in-container
     parallelism: 4
+    resource_class: large
     steps:
       - darkcheckout
       - setup-app

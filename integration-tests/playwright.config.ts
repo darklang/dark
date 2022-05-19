@@ -7,7 +7,8 @@ const config: PlaywrightTestConfig = {
   expect: {
     // timeout: 5000,
   },
-  timeout: 30000,
+  // in ms. 90000 = 90s
+  timeout: 90000,
   use: {
     // actionTimeout: 1000,
     headless: true,

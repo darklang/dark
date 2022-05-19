@@ -71,7 +71,7 @@ function createLibfrontendLoadPromise(
   let ti = <TestInfo & AnalyisLoadPromiseHolder>testInfo;
   ti.analysisLoadPromise = new Promise((resolve, reject) => {
     page.on("console", async (msg: ConsoleMessage) => {
-      if (msg.text() === "libfrontend reporting in") {
+      if (msg.text() === "Blazor loaded") {
         resolve(true);
       }
     });
@@ -125,7 +125,7 @@ test.describe.parallel("Integration Tests", async () => {
       saveMessage(testInfo, msg);
     });
     const testname = testInfo.title;
-    var url = `/a/test-${testname}?integration-test=true`;
+    var url = `/a/test-${testname}?integration-test=true&use-blazor=true`;
 
     var username = "test";
     if (testname.match(/_as_admin/)) {
@@ -139,6 +139,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click("text=Login");
     await page.waitForSelector("#finishIntegrationTest");
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
+    await awaitAnalysisLoad(testInfo);
     await page.pause();
   });
 
