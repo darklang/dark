@@ -384,6 +384,12 @@ let assertRe (msg : string) (pattern : string) (input : string) : unit =
 // ----------------------
 // There are multiple ways to convert things in dotnet. Let's have a consistent set we use.
 
+let parseInt (str : string) : Option<int> =
+  try
+    Some(int str)
+  with
+  | _ -> None
+
 let parseInt64 (str : string) : int64 =
   try
     assertRe "int64" @"-?\d+" str
