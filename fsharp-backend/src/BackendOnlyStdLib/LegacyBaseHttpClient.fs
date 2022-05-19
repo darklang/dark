@@ -251,16 +251,40 @@ let makeHttpCall
               Base64.defaultEncodeToString (UTF8.toBytes authString)
             )
 
+        // If the user set the content-length, then we want to try to set the content
+        // length of the data. Don't let it be set too large though, as that allows
+        // the server to hang in OCaml, and isn't allowed in .NET.
+        let contentLengthHeader : Option<int> =
+          reqHeaders
+          |> List.find (fun (k, v) -> String.equalsCaseInsensitive k "content-length")
+          // Note: in ocaml it would send nonsense headers, .NET doesn't allow it
+          |> Option.bind (fun (k, v) -> parseInt v)
+
         // content
         let utf8 = System.Text.Encoding.UTF8
         match reqBody with
         | FormContent s ->
+          let s =
+            match contentLengthHeader with
+            | None -> s
+            | Some count when count >= s.Length -> s
+            | Some count -> s.Substring(0, count)
           req.Content <-
             new StringContent(s, utf8, "application/x-www-form-urlencoded")
         | StringContent str ->
+          let str =
+            match contentLengthHeader with
+            | None -> str
+            | Some count when count >= str.Length -> str
+            | Some count -> str.Substring(0, count)
           req.Content <- new StringContent(str, utf8, "text/plain")
         | NoContent -> req.Content <- new ByteArrayContent [||]
         | FakeFormContentToMatchCurl s ->
+          let s =
+            match contentLengthHeader with
+            | None -> s
+            | Some count when count >= s.Length -> s
+            | Some count -> s.Substring(0, count)
           req.Content <-
             new StringContent(s, utf8, "application/x-www-form-urlencoded")
           req.Content.Headers.ContentType.CharSet <- System.String.Empty
@@ -281,6 +305,9 @@ let makeHttpCall
             with
             | :? System.FormatException ->
               Exception.raiseCode "Invalid content-type header"
+          elif String.equalsCaseInsensitive k "content-length" then
+            // Handled above
+            ()
           else
             // Dark headers can only be added once, as they use a Dict. Remove them
             // so they don't get added twice (eg via Authorization headers above)
