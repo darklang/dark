@@ -2,10 +2,10 @@
 POST PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
+Content-Type: application/x-www-form-urlencoded
 Host: HOST
 
-moreth
+"moret
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -16,12 +16,10 @@ Content-Length: LENGTH
 
 [test]
 (let reqHeaders = { ``Content-length`` = "6" }
- let response = HttpClient.post_v5_ster "http://URL" "morethansix" {} reqHeaders in
+ let response = HttpClient.post_v1 "http://URL" "morethansix" {} reqHeaders in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""
-     code = 200
-     error = ""
      headers =
       {
         ``Content-Length`` = "LENGTH"

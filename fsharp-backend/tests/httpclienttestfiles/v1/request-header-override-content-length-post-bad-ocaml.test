@@ -2,10 +2,10 @@
 POST PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip, br
-Content-Type: text/plain; charset=utf-8
+Content-Type: application/x-www-form-urlencoded
 Host: HOST
 
-moreth
+"moret
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
@@ -17,19 +17,5 @@ Content-Length: LENGTH
 [test]
 // OCAMLONLY
 (let reqHeaders = { ``Content-length`` = "nonsense"; }
- let response = HttpClient.post_v5 "http://URL" "morethansix" {} reqHeaders in
- match response with
- | Error response ->
-    let respHeaders = response.headers |> Dict.remove_v0 "Date" in
-    Dict.set_v0 response "headers" respHeaders) =
-   { body = ""
-     code = 400
-     error = ""
-     headers =
-      {
-        ``Content-Length`` = "0"
-        ``HTTP/1.1 400 Bad Request`` = ""
-        Server = "Kestrel"
-        Connection = "close"
-      }
-     raw = ""}
+ HttpClient.post_v1 "http://URL" "morethansix" {} reqHeaders) =
+ Test.typeError "Bad HTTP response (400) in call to http://test.builtwithdark.localhost:10030/v1/request-header-override-content-length-post-bad-ocaml"
