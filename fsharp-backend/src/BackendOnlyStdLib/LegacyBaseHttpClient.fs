@@ -506,7 +506,11 @@ let rec httpCall
 
           // Unlike HttpClient, do not drop the authorization header
           let! newResponse =
-            httpCall newCount rawBytes newUrl queryParams method reqHeaders reqBody
+            // Query params are part of the client's creation of the url. Once the
+            // server redirects, it gives us a new url and we shouldn't append the
+            // query param to it.
+            // Consider: http://redirect.to?url=xyz.com/path
+            httpCall newCount rawBytes newUrl [] method reqHeaders reqBody
 
           return
             Result.map
