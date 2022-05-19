@@ -199,15 +199,15 @@ Dict.get_v2 response.headers "content-type"
 getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
 getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=ISO-8859-1" // FSHARPONLY
+getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 
 
 [test.http2 v5]
