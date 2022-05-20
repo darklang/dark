@@ -88,7 +88,8 @@ module Handler =
 
   /// API endpoint to trigger the execution of a Handler
   ///
-  /// Handlers are handled asynchronously, so the result is not returned
+  /// Handlers are handled asynchronously, so the result is not returned. The result
+  /// is instead added to the trace, which is then loaded by the client again.
   let trigger (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
@@ -98,8 +99,9 @@ module Handler =
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       let inputVars =
-        p.input |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
-      // FSTODO: there's only ever one, right?
+        p.input
+        |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
+        |> Map
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
@@ -108,13 +110,7 @@ module Handler =
 
       t.next "execute-handler"
       let! (_, traceResults) =
-        RealExe.executeExpr
-          c
-          p.tlid
-          p.trace_id
-          (List.head inputVars)
-          RealExe.ReExecution
-          expr
+        RealExe.executeExpr c p.tlid p.trace_id inputVars RealExe.ReExecution expr
 
       t.next "write-api"
       return { touched_tlids = traceResults.tlids |> HashSet.toList }

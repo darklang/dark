@@ -330,20 +330,21 @@ let runDarkHandler
           Telemetry.addTag "handler.routeVars" routeVars
           // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
           // and entirely into code in some middleware
-          let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
+          let! corsSetting = Canvas.fetchCORSSetting meta.id
 
           // Do request
           use _ = Telemetry.child "executeHandler" []
           let expr = PT2RT.Expr.toRT expr
 
           let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+          let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeExpr
               canvas
               tlid
               traceID
-              (Some("request", request))
-              (RealExe.InitialExecution desc)
+              inputVars
+              (RealExe.InitialExecution(desc, request))
               expr
 
           // Execute
@@ -365,7 +366,7 @@ let runDarkHandler
         return! faviconResponse ctx
 
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
+        let! corsSetting = Canvas.fetchCORSSetting meta.id
         let reqHeaders = getHeaders ctx
         match Cors.optionsResponse reqHeaders corsSetting with
         | Some response -> do! writeResponseToContext ctx response

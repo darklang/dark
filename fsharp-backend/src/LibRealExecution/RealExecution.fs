@@ -95,7 +95,7 @@ let createState
 type ExecutionReason =
   /// The first time a trace is executed. This means more data should be stored and
   /// more users notified.
-  | InitialExecution of (string * string * string)
+  | InitialExecution of (string * string * string) * RT.Dval
 
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
@@ -104,25 +104,22 @@ let executeExpr
   (c : Canvas.T)
   (tlid : tlid)
   (traceID : AT.TraceID)
-  (inputVar : Option<string * RT.Dval>)
+  (inputVars : Map<string, RT.Dval>)
   (executionType : ExecutionReason)
   (expr : RT.Expr)
   : Task<RT.Dval * Tracing.TraceResults> =
   task {
     let executionID = LibService.Telemetry.executionID ()
 
-    match executionType, inputVar with
-    | InitialExecution eventDesc, Some (_, var) ->
-      Tracing.storeTraceInput c.meta.id traceID eventDesc executionID var
-    | InitialExecution _, None
-    | ReExecution, Some _
-    | ReExecution, None -> ()
+    match executionType with
+    | InitialExecution (eventDesc, inputVar) ->
+      Tracing.storeTraceInput c.meta.id traceID eventDesc executionID inputVar
+    | ReExecution -> ()
 
     let! (state, traceResults) =
       createState executionID traceID tlid (Canvas.toProgram c)
     HashSet.add tlid traceResults.tlids
 
-    let inputVars = inputVar |> Option.toList |> Map
     let! result = Exe.executeExpr state inputVars expr
 
     Tracing.storeTraceCompletion c.meta.id traceID executionID traceResults
