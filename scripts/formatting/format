@@ -98,7 +98,11 @@ is_fsharp() {
 }
 
 is_allowed() {
-  [[ $1 == *.fs || $1 == *.fsi || $1 == *.mli || $1 == *.ml || $1 == *.css || $1 == *.scss || $1 == *.js || $1 == *.html || $1 == *.rs ]]
+  [[ $1 == *.fs || $1 == *.fsi \
+    || $1 == *.mli || $1 == *.ml \
+    || $1 == *.css || $1 == *.scss \
+    || $1 == *.js || $1 == *.ts \
+    || $1 == *.html || $1 == *.rs ]]
 }
 
 all_prettier_files() {
@@ -133,6 +137,7 @@ all_prettier_files() {
     \( -name "*.css" \
     -o -name "*.scss" \
     -o -name "*.js" \
+    -o -name "*.ts" \
     -o -name "*.html" \
     -o -path "bsconfig.json" \
     -o -path "package.json" \

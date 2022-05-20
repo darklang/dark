@@ -1,10 +1,4 @@
-import {
-  test,
-  expect,
-  ConsoleMessage,
-  Page,
-  TestInfo,
-} from "@playwright/test";
+import { test, expect, ConsoleMessage, Page, TestInfo } from "@playwright/test";
 import fs from "fs";
 
 const BASE_URL = process.env.BASE_URL;
@@ -233,9 +227,7 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   function bwdUrl(testInfo: TestInfo, path: string) {
-    return (
-      "http://test-" + testInfo.title + options.bwdBaseURL + path
-    );
+    return "http://test-" + testInfo.title + options.bwdBaseURL + path;
   }
 
   async function pressShortcut(page: Page, shortcut: string) {
@@ -752,11 +744,15 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.waitForSelector(".return-value");
 
-    try { // text when against F# backend
-      const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
+    try {
+      // text when against F# backend
+      const expectedText =
+        "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
-    } catch { // text when against OCaml backend
-      const expectedText = "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
+    } catch {
+      // text when against OCaml backend
+      const expectedText =
+        "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
     }
   });
