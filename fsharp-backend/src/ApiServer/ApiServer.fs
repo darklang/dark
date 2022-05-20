@@ -59,7 +59,7 @@ let addRoutes
       pattern,
       (fun appBuilder ->
         appBuilder.UseMiddleware(middleware)
-        // Do this inside the other middleware so we still get executionID, etc
+        // Do this inside the other middleware so we still get canvas, etc
         Option.tap (fun perm -> appBuilder.UseMiddleware(canvasMiddleware perm)) perm
         appBuilder.Run(handler))
     )

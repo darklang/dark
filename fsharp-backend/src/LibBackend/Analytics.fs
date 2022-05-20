@@ -13,8 +13,8 @@ module FireAndForget = LibService.FireAndForget
 
 
 // We call this in two contexts: DarkInternal:: fns
-let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
-  FireAndForget.fireAndForgetTask executionID "identify user" (fun () ->
+let identifyUser (username : UserName.T) : unit =
+  FireAndForget.fireAndForgetTask "identify user" (fun () ->
     task {
       let! data = Account.getUserAndCreatedAtAndAnalyticsMetadata username
       let (userInfoAndCreatedAt, heapioMetadataJson) =
@@ -54,9 +54,6 @@ let identifyUser (executionID : ExecutionID) (username : UserName.T) : unit =
       // If we wanted to harden this later, we could List.filter the
       // heapio_metadata yojson
       let payload = Map(payload @ Map.toList heapioMetadata)
-      LibService.HeapAnalytics.emitIdentifyUserEvent
-        executionID
-        userInfoAndCreatedAt.id
-        payload
+      LibService.HeapAnalytics.emitIdentifyUserEvent userInfoAndCreatedAt.id payload
       return ()
     })

@@ -32,7 +32,6 @@ let noTestContext : RT.TestContext =
     postTestExecutionHook = fun _ _ -> () }
 
 let createState
-  (executionID : ExecutionID)
   (libraries : RT.Libraries)
   (tracing : RT.Tracing)
   (reportException : RT.ExceptionReporter)
@@ -46,7 +45,6 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    executionID = executionID
     tlid = tlid
     callstack = Set.empty
     onExecutionPath = true

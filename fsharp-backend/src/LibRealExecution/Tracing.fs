@@ -62,11 +62,9 @@ let storeTraceInput
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   (desc : string * string * string)
-  (executionID : ExecutionID)
   (input : RT.Dval)
   : unit =
   LibService.FireAndForget.fireAndForgetTask
-    executionID
     "traceResultHook"
     (fun () ->
       task {
@@ -81,11 +79,9 @@ let storeTraceInput
 let storeTraceCompletion
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  (executionID : ExecutionID)
   (results : TraceResults)
   : unit =
   LibService.FireAndForget.fireAndForgetTask
-    executionID
     "traceResultHook"
     (fun () ->
       task {

@@ -110,6 +110,10 @@ let child (name : string) (tags : Metadata) : Span.T =
 
 let createRoot (name : string) : Span.T = Span.root name
 
+let rootID () : string =
+  let root = System.Diagnostics.Activity.Current.RootId
+  if isNull root then "null" else string root
+
 let addTag (name : string) (value : obj) : unit =
   Span.addTag name value (Span.current ())
 
@@ -368,22 +372,6 @@ let addTelemetry
        | DontTraceDBQueries -> b
   |> fun b -> b.AddSource("Dark")
   |> fun b -> b.SetSampler(sampler)
-
-
-/// <summary>
-/// Returns an executionID used to tie together everything
-/// that happens within a BWD request
-/// </summary>
-/// <remarks>
-/// An execution ID was an int64 ID in the OCaml version, but since we're using
-/// OpenTelemetry from the start, we use the Trace ID instead. This should be used to
-/// create a TraceID for anywhere there's a thread and a trace available. The
-/// execution ID should be constant no matter when this is called in a thread, but for
-/// safety, call it at the top and pass it down.
-/// </remarks>
-let executionID () =
-  let trace = System.Diagnostics.Activity.Current
-  if isNull trace then ExecutionID("null") else ExecutionID(string trace.TraceId)
 
 
 module Console =

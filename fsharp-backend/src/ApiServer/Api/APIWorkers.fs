@@ -64,8 +64,7 @@ module Scheduler =
       t.next "update-pusher"
       // TODO: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
-      let executionID = loadExecutionID ctx
-      LibBackend.Pusher.pushWorkerStates executionID canvasInfo.id ws
+      LibBackend.Pusher.pushWorkerStates canvasInfo.id ws
 
       return ws
     }

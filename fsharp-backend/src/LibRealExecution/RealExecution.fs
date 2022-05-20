@@ -47,7 +47,6 @@ let libraries : Lazy<Task<RT.Libraries>> =
     })
 
 let createState
-  (executionID : ExecutionID)
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
@@ -72,23 +71,16 @@ let createState
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
-      LibService.Rollbar.notify state.executionID msg metadata
+      LibService.Rollbar.notify msg metadata
 
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       let metadata = extraMetadata state @ metadata
       let person : LibService.Rollbar.Person =
         Some { id = program.accountID; username = Some(username ()) }
-      LibService.Rollbar.sendException state.executionID person metadata exn
+      LibService.Rollbar.sendException person metadata exn
 
     return
-      (Exe.createState
-        executionID
-        libraries
-        tracing
-        sendException
-        notify
-        tlid
-        program,
+      (Exe.createState libraries tracing sendException notify tlid program,
        tracingState)
   }
 
@@ -109,29 +101,23 @@ let executeExpr
   (expr : RT.Expr)
   : Task<RT.Dval * Tracing.TraceResults> =
   task {
-    let executionID = LibService.Telemetry.executionID ()
 
     match executionType with
     | InitialExecution (eventDesc, inputVar) ->
-      Tracing.storeTraceInput c.meta.id traceID eventDesc executionID inputVar
+      Tracing.storeTraceInput c.meta.id traceID eventDesc inputVar
     | ReExecution -> ()
 
-    let! (state, traceResults) =
-      createState executionID traceID tlid (Canvas.toProgram c)
+    let! (state, traceResults) = createState traceID tlid (Canvas.toProgram c)
     HashSet.add tlid traceResults.tlids
 
     let! result = Exe.executeExpr state inputVars expr
 
-    Tracing.storeTraceCompletion c.meta.id traceID executionID traceResults
+    Tracing.storeTraceCompletion c.meta.id traceID traceResults
 
     match executionType with
     | ReExecution -> ()
     | InitialExecution _ ->
-      Pusher.pushNewTraceID
-        executionID
-        c.meta.id
-        traceID
-        (HashSet.toList traceResults.tlids)
+      Pusher.pushNewTraceID c.meta.id traceID (HashSet.toList traceResults.tlids)
 
     return (result, traceResults)
   }
@@ -144,14 +130,11 @@ let executeFunction
   (args : List<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults> =
   task {
-    let executionID = LibService.Telemetry.executionID ()
-
-    let! (state, traceResults) =
-      createState executionID traceID callerID (Canvas.toProgram c)
+    let! (state, traceResults) = createState traceID callerID (Canvas.toProgram c)
 
     let! result = Exe.executeFunction state callerID name args
 
-    Tracing.storeTraceCompletion c.meta.id traceID executionID traceResults
+    Tracing.storeTraceCompletion c.meta.id traceID traceResults
 
     return result, traceResults
   }

@@ -232,11 +232,9 @@ let testFunctionTracesAreStored =
         secrets = [] }
 
     // call the user fn, which should result in a trace being stored
-    let executionID = LibService.Telemetry.executionID ()
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResults) =
-      RealExecution.createState executionID traceID (gid ()) program
+    let! (state, traceResults) = RealExecution.createState traceID (gid ()) program
 
     let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
 
@@ -277,11 +275,9 @@ let testErrorTracesAreStored =
         secrets = [] }
 
     // call the user fn, which should result in a trace being stored
-    let executionID = LibService.Telemetry.executionID ()
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResults) =
-      RealExecution.createState executionID traceID (gid ()) program
+    let! (state, traceResults) = RealExecution.createState traceID (gid ()) program
 
     // the DB has no columns, but the code expects one, causing it to fail
     let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"

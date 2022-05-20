@@ -44,7 +44,6 @@ module Function =
     task {
       use t = startTimer "read-api" ctx
       let canvasInfo = loadCanvasInfo ctx
-      let executionID = loadExecutionID ctx
       let! p = ctx.ReadJsonAsync<Params>()
       let args = List.map Convert.ocamlDval2rt p.args
       Telemetry.addTags [ "tlid", p.tlid
@@ -93,7 +92,6 @@ module Handler =
   let trigger (ctx : HttpContext) : Task<T> =
     task {
       use t = startTimer "read-api" ctx
-      let executionID = loadExecutionID ctx
       let canvasInfo = loadCanvasInfo ctx
       let! p = ctx.ReadJsonAsync<Params>()
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]

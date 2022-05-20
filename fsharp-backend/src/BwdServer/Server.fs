@@ -269,10 +269,7 @@ exception NotFoundException of msg : string with
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
-let runDarkHandler
-  (executionID : ExecutionID)
-  (ctx : HttpContext)
-  : Task<HttpContext> =
+let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
@@ -356,7 +353,7 @@ let runDarkHandler
           return ctx
 
         | None -> // vars didnt parse
-          FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
+          FireAndForget.fireAndForgetTask "store-event" (fun () ->
             let request = Req.fromRequest false url reqHeaders reqQuery reqBody
             TI.storeEvent meta.id traceID desc request)
 
@@ -383,7 +380,6 @@ let runDarkHandler
 
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.pushNew404
-          executionID
           meta.id
           ("HTTP", requestPath, requestMethod, timestamp, traceID)
 
@@ -398,8 +394,6 @@ let runDarkHandler
 let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task =
     (task {
-      let executionID = LibService.Telemetry.executionID ()
-      ctx.Items[ "executionID" ] <- executionID
       // The traditional methods of using `UseHsts` and `AddHsts` within BwdServer
       // were ineffective. Somehow, the Strict-Transport-Security header was not
       // included in HTTP Reponses as a result of these efforts. Here, we manually
@@ -407,7 +401,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // CLEANUP: replace this with the more additional approach, if possible
       setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
-      setHeader ctx "x-darklang-execution-id" (string executionID)
+      setHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())
       setHeader ctx "Server" "darklang"
 
       try
@@ -415,7 +409,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         if shouldRedirect ctx then
           return httpsRedirect ctx
         else
-          return! runDarkHandler executionID ctx
+          return! runDarkHandler ctx
       with
       // These errors are the only ones we want to handle here. We don't want to give
       // GrandUsers any info not intended for them. We want the rest to be caught by

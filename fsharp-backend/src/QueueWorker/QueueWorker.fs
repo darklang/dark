@@ -178,7 +178,6 @@ let processNotification
                   // this event immediately.
                   let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
                   Pusher.pushNew404
-                    (Telemetry.executionID ())
                     c.meta.id
                     (event.module', event.name, event.modifier, timestamp, traceID)
                   do! EQ.deleteEvent event
@@ -280,11 +279,8 @@ let run () : Task<unit> =
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
-        Rollbar.sendException
-          (Telemetry.executionID ())
-          None
-          []
-          (PageableException("Unhandled exception bubbled to run", [], e))
+        let e = (PageableException("Unhandled exception bubbled to run", [], e))
+        Rollbar.sendException None [] e
   }
 
 

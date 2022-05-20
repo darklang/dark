@@ -34,12 +34,11 @@ let pusherClient : Lazy<PusherServer.Pusher> =
 /// You cannot wait for it, by design.
 /// </remarks>
 let push
-  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (eventName : string)
   (payload : string) // The raw string is sent, it's the job of the caller to have it as appropriate json
   : unit =
-  FireAndForget.fireAndForgetTask executionID $"pusher: {eventName}" (fun () ->
+  FireAndForget.fireAndForgetTask $"pusher: {eventName}" (fun () ->
     task {
       // TODO: handle messages over 10k bytes
       // TODO: make channels private and end-to-end encrypted in order to add public canvases
@@ -56,44 +55,30 @@ let push
 
 
 let pushNewTraceID
-  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   (tlids : tlid list)
   : unit =
-  push executionID canvasID "new_trace" (Json.Vanilla.serialize (traceID, tlids))
+  push canvasID "new_trace" (Json.Vanilla.serialize (traceID, tlids))
 
 
-let pushNew404
-  (executionID : ExecutionID)
-  (canvasID : CanvasID)
-  (f404 : TraceInputs.F404)
-  =
-  push executionID canvasID "new_404" (Json.Vanilla.serialize f404)
+let pushNew404 (canvasID : CanvasID) (f404 : TraceInputs.F404) =
+  push canvasID "new_404" (Json.Vanilla.serialize f404)
 
 
-let pushNewStaticDeploy
-  (executionID : ExecutionID)
-  (canvasID : CanvasID)
-  (asset : StaticAssets.StaticDeploy)
-  =
-  push executionID canvasID "new_static_deploy" (Json.Vanilla.serialize asset)
+let pushNewStaticDeploy (canvasID : CanvasID) (asset : StaticAssets.StaticDeploy) =
+  push canvasID "new_static_deploy" (Json.Vanilla.serialize asset)
 
 
 // For exposure as a DarkInternal function
-let pushAddOpEvent
-  (executionID : ExecutionID)
-  (canvasID : CanvasID)
-  (event : Op.AddOpEvent)
-  =
-  push executionID canvasID "add_op" (Json.OCamlCompatible.serialize event)
+let pushAddOpEvent (canvasID : CanvasID) (event : Op.AddOpEvent) =
+  push canvasID "add_op" (Json.OCamlCompatible.serialize event)
 
 let pushWorkerStates
-  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (ws : QueueSchedulingRules.WorkerStates.T)
   : unit =
-  push executionID canvasID "worker_state" (Json.Vanilla.serialize ws)
+  push canvasID "worker_state" (Json.Vanilla.serialize ws)
 
 type JsConfig = { enabled : bool; key : string; cluster : string }
 
