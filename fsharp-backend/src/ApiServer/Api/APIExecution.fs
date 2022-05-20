@@ -55,15 +55,11 @@ module Function =
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
 
-      t.next "load-execution-state"
-      let program = Canvas.toProgram c
-      let! (state, traceResult) =
-        RealExe.createState executionID p.trace_id p.tlid program
-
       t.next "execute-function"
       let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
-      let! result = Exe.executeFunction state p.caller_id args fnname
-      RealExe.traceResultHook canvasInfo.id p.trace_id executionID traceResult
+
+      let! (result, traceResults) =
+        RealExe.executeFunction c p.tlid p.trace_id fnname args
 
       t.next "get-unlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
@@ -76,7 +72,7 @@ module Function =
         { result = Convert.rt2ocamlDval result
           hash = hash
           hashVersion = hashVersion
-          touched_tlids = HashSet.toList traceResult.tlids
+          touched_tlids = HashSet.toList traceResults.tlids
           unlocked_dbs = unlocked }
 
       return result
@@ -102,26 +98,24 @@ module Handler =
       Telemetry.addTags [ "tlid", p.tlid; "trace_id", p.trace_id ]
 
       let inputVars =
-        p.input
-        |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
-        |> Map.ofList
+        p.input |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
+      // FSTODO: there's only ever one, right?
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
-      let program = Canvas.toProgram c
-      let expr = c.handlers[p.tlid].ast |> PT2RT.Expr.toRT
-
-      t.next "load-execution-state"
-      let! state, traceResult =
-        RealExe.createState executionID p.trace_id p.tlid program
+      let handler = c.handlers[p.tlid]
+      let expr = handler.ast |> PT2RT.Expr.toRT
 
       t.next "execute-handler"
-      // CLEANUP
-      // since this ignores the result, it doesn't go through the http result
-      // handling function. This might not matter
-      let! (_result : RT.Dval) = Exe.executeHandler state inputVars expr
-      RealExe.traceResultHook canvasInfo.id p.trace_id executionID traceResult
+      let! (_, traceResults) =
+        RealExe.executeExpr
+          c
+          p.tlid
+          p.trace_id
+          (List.head inputVars)
+          RealExe.ReExecution
+          expr
 
       t.next "write-api"
-      return { touched_tlids = traceResult.tlids |> HashSet.toList }
+      return { touched_tlids = traceResults.tlids |> HashSet.toList }
     }

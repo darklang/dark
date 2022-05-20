@@ -37,8 +37,10 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module Middleware = HttpMiddleware.MiddlewareV0
 module Resp = HttpMiddleware.ResponseV0
+module Req = HttpMiddleware.RequestV0
+module Cors = HttpMiddleware.Cors
+module RealExe = LibRealExecution.RealExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -288,8 +290,9 @@ let runDarkHandler
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = System.Guid.NewGuid()
-      let method = ctx.Request.Method
+      let requestMethod = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
+      let desc = ("HTTP", requestPath, requestMethod)
 
       Telemetry.addTags [ "canvas.name", canvasName
                           "canvas.id", meta.id
@@ -298,7 +301,7 @@ let runDarkHandler
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
       // and leave it to middleware to say what it wants to do with that
-      let searchMethod = if method = "HEAD" then "GET" else method
+      let searchMethod = if requestMethod = "HEAD" then "GET" else requestMethod
 
       // Canvas to process request against, with enough loaded to handle this
       // request
@@ -329,27 +332,23 @@ let runDarkHandler
           // and entirely into code in some middleware
           let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
 
-          let program = Canvas.toProgram canvas
-          let expr = PT2RT.Expr.toRT expr
-
           // Do request
           use _ = Telemetry.child "executeHandler" []
-          let! result =
-            Middleware.executeHandler
-              meta.id
+          let expr = PT2RT.Expr.toRT expr
+
+          let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+          let! (result, _) =
+            RealExe.executeExpr
+              canvas
               tlid
-              executionID
               traceID
-              url
-              requestPath
-              method
-              routeVars
-              reqHeaders
-              reqQuery
-              reqBody
-              program
+              (Some("request", request))
+              (RealExe.InitialExecution desc)
               expr
-              corsSetting
+
+          // Execute
+          let result = Resp.toHttpResponse result
+          let result = Cors.addCorsHeaders reqHeaders corsSetting result
 
           do! writeResponseToContext ctx result
 
@@ -357,9 +356,8 @@ let runDarkHandler
 
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-            let request =
-              Middleware.createRequest false url reqHeaders reqQuery reqBody
-            TI.storeEvent meta.id traceID ("HTTP", requestPath, method) request)
+            let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+            TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
 
@@ -369,7 +367,7 @@ let runDarkHandler
       | [] when ctx.Request.Method = "OPTIONS" ->
         let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
         let reqHeaders = getHeaders ctx
-        match Middleware.optionsResponse reqHeaders corsSetting with
+        match Cors.optionsResponse reqHeaders corsSetting with
         | Some response -> do! writeResponseToContext ctx response
         | None -> ()
         return ctx
@@ -379,16 +377,14 @@ let runDarkHandler
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
-        let event = Middleware.createRequest true url reqHeaders reqQuery reqBody
-
-        let! timestamp =
-          TI.storeEvent meta.id traceID ("HTTP", requestPath, method) event
+        let event = Req.fromRequest true url reqHeaders reqQuery reqBody
+        let! timestamp = TI.storeEvent meta.id traceID desc event
 
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.pushNew404
           executionID
           meta.id
-          ("HTTP", requestPath, method, timestamp, traceID)
+          ("HTTP", requestPath, requestMethod, timestamp, traceID)
 
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx

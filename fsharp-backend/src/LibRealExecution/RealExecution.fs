@@ -46,49 +46,14 @@ let libraries : Lazy<Task<RT.Libraries>> =
       return { stdlib = stdlibFns; packageFns = packageFns }
     })
 
-type TraceResult =
-  { tlids : HashSet.T<tlid>
-    functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>
-    functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
-
-
 let createState
   (executionID : ExecutionID)
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
-  : Task<RT.ExecutionState * TraceResult> =
+  : Task<RT.ExecutionState * Tracing.TraceResults> =
   task {
-    // Any real execution needs to track the touched TLIDs in order to send traces to pusher
-    let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
-    HashSet.add tlid touchedTLIDs
-
-    let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue> =
-      Dictionary.empty ()
-
-    let savedFunctionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> =
-      ResizeArray.empty ()
-
-
-    let tracing =
-      { Exe.noTracing RT.Real with
-          storeFnResult =
-            (fun (tlid, name, id) args result ->
-              let hash =
-                args
-                |> DvalReprInternalDeprecated.hash
-                     DvalReprInternalDeprecated.currentHashVersion
-              Dictionary.add
-                (tlid, name, id, hash)
-                (result, NodaTime.Instant.now ())
-                savedFunctionResult)
-          storeFnArguments =
-            (fun tlid args ->
-              ResizeArray.append
-                (tlid, args, NodaTime.Instant.now ())
-                savedFunctionArguments)
-          traceTLID = traceTLIDFn }
-
+    let (tracingState, tracing) = Tracing.createStandardTracer ()
     let! libraries = Lazy.force libraries
 
     let username () =
@@ -97,7 +62,7 @@ let createState
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
         "trace_id", traceID
-        "touched_tlids", touchedTLIDs
+        "touched_tlids", tracingState.tlids
         "executing_fn_name", state.executingFnName
         "callstack", state.callstack
         "canvas", program.canvasName
@@ -115,7 +80,6 @@ let createState
         Some { id = program.accountID; username = Some(username ()) }
       LibService.Rollbar.sendException state.executionID person metadata exn
 
-
     return
       (Exe.createState
         executionID
@@ -125,58 +89,75 @@ let createState
         notify
         tlid
         program,
-       { tlids = touchedTLIDs
-         functionResults = savedFunctionResult
-         functionArguments = savedFunctionArguments })
+       tracingState)
   }
 
-// Store trace - Do not resolve task, send this into the ether
-let traceInputHook
-  (canvasID : CanvasID)
+type ExecutionReason =
+  /// The first time a trace is executed. This means more data should be stored and
+  /// more users notified.
+  | InitialExecution of (string * string * string)
+
+  /// A reexecution is a trace that already exists, being amended with new values
+  | ReExecution
+
+let executeExpr
+  (c : Canvas.T)
+  (tlid : tlid)
   (traceID : AT.TraceID)
-  (executionID : ExecutionID)
-  (eventDesc : string * string * string)
-  (request : RT.Dval)
-  : unit =
-  LibService.FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-    TraceInputs.storeEvent canvasID traceID eventDesc request)
+  (inputVar : Option<string * RT.Dval>)
+  (executionType : ExecutionReason)
+  (expr : RT.Expr)
+  : Task<RT.Dval * Tracing.TraceResults> =
+  task {
+    let executionID = LibService.Telemetry.executionID ()
 
-// Store trace results once the request is done
-let traceResultHook
-  (canvasID : CanvasID)
+    match executionType, inputVar with
+    | InitialExecution eventDesc, Some (_, var) ->
+      Tracing.storeTraceInput c.meta.id traceID eventDesc executionID var
+    | InitialExecution _, None
+    | ReExecution, Some _
+    | ReExecution, None -> ()
+
+    let! (state, traceResults) =
+      createState executionID traceID tlid (Canvas.toProgram c)
+    HashSet.add tlid traceResults.tlids
+
+    let inputVars = inputVar |> Option.toList |> Map
+    let! result = Exe.executeExpr state inputVars expr
+
+    Tracing.storeTraceCompletion c.meta.id traceID executionID traceResults
+
+    match executionType with
+    | ReExecution -> ()
+    | InitialExecution _ ->
+      Pusher.pushNewTraceID
+        executionID
+        c.meta.id
+        traceID
+        (HashSet.toList traceResults.tlids)
+
+    return (result, traceResults)
+  }
+
+let executeFunction
+  (c : Canvas.T)
+  (callerID : tlid)
   (traceID : AT.TraceID)
-  (executionID : ExecutionID)
-  (result : TraceResult)
-  : unit =
-  LibService.FireAndForget.fireAndForgetTask
-    executionID
-    "traceResultHook"
-    (fun () ->
-      task {
-        do!
-          TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
-        do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
-        // Send to Pusher
-        Pusher.pushNewTraceID
-          executionID
-          canvasID
-          traceID
-          (HashSet.toList result.tlids)
-      })
+  (name : RT.FQFnName.T)
+  (args : List<RT.Dval>)
+  : Task<RT.Dval * Tracing.TraceResults> =
+  task {
+    let executionID = LibService.Telemetry.executionID ()
 
-module Test =
-  let saveTraceResult
-    (canvasID : CanvasID)
-    (traceID : AT.TraceID)
-    (result : TraceResult)
-    : Task<unit> =
-    task {
-      do! TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
-      do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
-      return ()
-    }
+    let! (state, traceResults) =
+      createState executionID traceID callerID (Canvas.toProgram c)
 
+    let! result = Exe.executeFunction state callerID name args
 
+    Tracing.storeTraceCompletion c.meta.id traceID executionID traceResults
+
+    return result, traceResults
+  }
 
 
 /// Ensure library is ready to be called. Throws if it cannot initialize.

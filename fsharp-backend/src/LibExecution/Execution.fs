@@ -65,19 +65,12 @@ let executeExpr
     return result
   }
 
-let executeHandler
-  (state : RT.ExecutionState)
-  (inputVars : RT.Symtable)
-  (expr : RT.Expr)
-  : Task<RT.Dval> =
-  executeExpr state inputVars expr
-
 
 let executeFunction
   (state : RT.ExecutionState)
   (callerID : tlid)
-  (args : List<RT.Dval>)
   (name : RT.FQFnName.T)
+  (args : List<RT.Dval>)
   : Task<RT.Dval> =
   task {
     let! result = Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail

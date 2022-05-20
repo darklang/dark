@@ -21,6 +21,7 @@ module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
 module RealExecution = LibRealExecution.RealExecution
+module Tracing = LibRealExecution.Tracing
 
 let testTraceIDsOfTlidsMatch =
   test "traceIDs from tlids are as expected" {
@@ -234,14 +235,14 @@ let testFunctionTracesAreStored =
     let executionID = LibService.Telemetry.executionID ()
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResult) =
+    let! (state, traceResults) =
       RealExecution.createState executionID traceID (gid ()) program
 
     let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-    do! RealExecution.Test.saveTraceResult meta.id traceID traceResult
+    do! Tracing.Test.saveTraceResult meta.id traceID traceResults
 
     // check for traces - they're saved in the background so wait for them
 
@@ -279,7 +280,7 @@ let testErrorTracesAreStored =
     let executionID = LibService.Telemetry.executionID ()
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResult) =
+    let! (state, traceResults) =
       RealExecution.createState executionID traceID (gid ()) program
 
     // the DB has no columns, but the code expects one, causing it to fail
@@ -289,7 +290,7 @@ let testErrorTracesAreStored =
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-    do! RealExecution.Test.saveTraceResult meta.id traceID traceResult
+    do! Tracing.Test.saveTraceResult meta.id traceID traceResults
 
     // check for traces
     let! testFnResult = TFR.load meta.id traceID state.tlid

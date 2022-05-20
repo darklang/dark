@@ -74,7 +74,7 @@ let testExecFunctionTLIDs : Test =
           tracing =
             { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
-    let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
+    let! value = Exe.executeFunction state (gid ()) (FQFnName.User name) []
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"

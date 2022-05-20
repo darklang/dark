@@ -63,6 +63,7 @@ type T =
     lockedAt : Option<Instant>
     enqueuedAt : Instant }
 
+let toEventDesc t = (t.module', t.name, t.modifier)
 
 /// -----------------
 /// Database

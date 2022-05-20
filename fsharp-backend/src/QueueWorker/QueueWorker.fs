@@ -29,26 +29,6 @@ module Rollbar = LibService.Rollbar
 
 let mutable shouldShutdown = false
 
-let executeEvent
-  (c : Canvas.T)
-  (h : PT.Handler.T)
-  (traceID : AT.TraceID)
-  (e : EQ.T)
-  : Task<RT.Dval> =
-  task {
-    let executionID = Telemetry.executionID ()
-
-    let! (state, traceResult) =
-      RealExecution.createState executionID traceID h.tlid (Canvas.toProgram c)
-
-    let symtable = Map.ofList [ ("event", e.value) ]
-    let ast = PT2RT.Expr.toRT h.ast
-    let! result = Execution.executeHandler state symtable ast
-    HashSet.add h.tlid traceResult.tlids
-    RealExecution.traceResultHook c.meta.id traceID executionID traceResult
-    return result
-  }
-
 type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
@@ -211,11 +191,18 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
-                    let! (_ : Instant) =
-                      TI.storeEvent c.meta.id traceID desc event.value
-                    let! result = executeEvent c h traceID event
+                    let! (result, traceResults) =
+                      RealExecution.executeExpr
+                        c
+                        h.tlid
+                        traceID
+                        (Some("event", event.value))
+                        (RealExecution.InitialExecution(EQ.toEventDesc event))
+                        (PT2RT.Expr.toRT h.ast)
+
                     Telemetry.addTags [ "result_type", resultType result
                                         "queue.success", true
+                                        "executed_tlids", traceResults.tlids
                                         "queue.completion_reason", "completed" ]
                     // ExecutesToCompletion
 
