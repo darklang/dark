@@ -123,32 +123,6 @@ let createRequest
   : RT.Dval =
   Req.fromRequest allowUnparseable url headers query body
 
-let executeProgram
-  (executionID : ExecutionID)
-  (program : RT.ProgramContext)
-  (tlid : tlid)
-  (traceID : LibExecution.AnalysisTypes.TraceID)
-  (routeVars : List<string * RT.Dval>)
-  (request : RT.Dval)
-  (expr : RT.Expr)
-  : Task<Resp.HttpResponse * RealExe.TraceResult> =
-  task {
-    let! state, traceResult = RealExe.createState executionID traceID tlid program
-
-    // Build request
-    let symtable =
-      Map.ofList routeVars
-      |> Interpreter.withGlobals state
-      |> Map.add "request" request
-
-    // Execute
-    let! result = Interpreter.eval state symtable expr
-
-    return (Resp.toHttpResponse result, traceResult)
-  }
-
-
-
 let executeHandler
   // framework stuff
   (canvasID : CanvasID)
@@ -179,8 +153,17 @@ let executeHandler
       ("HTTP", requestPath, requestMethod)
       request
 
-    let! (result, traceResult) =
-      executeProgram executionID program tlid traceID routeVars request expr
+    let! state, traceResult = RealExe.createState executionID traceID tlid program
+
+    // Build request
+    let symtable =
+      Map.ofList routeVars
+      |> Interpreter.withGlobals state
+      |> Map.add "request" request
+
+    // Execute
+    let! result = Interpreter.eval state symtable expr
+    let result = Resp.toHttpResponse result
     let result = addCorsHeaders headers corsSetting result
 
     // Both hooks fire off into the ether, to avoid waiting for the IO to complete
