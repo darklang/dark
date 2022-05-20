@@ -95,14 +95,6 @@ let traceTLIDs () : HashSet.T<tlid> * RT.TraceTLID =
   let traceTLID tlid : unit = HashSet.add tlid touchedTLIDs
   (touchedTLIDs, traceTLID)
 
-let updateTracing
-  (fn : RT.Tracing -> RT.Tracing)
-  (state : RT.ExecutionState)
-  : RT.ExecutionState =
-  { state with tracing = fn state.tracing }
-
-
-
 /// Return a function to trace Dvals (add it to state via
 /// state.tracing.traceDval), and a mutable dictionary which updates when the
 /// traceFn is used
