@@ -378,6 +378,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let event = Req.fromRequest true url reqHeaders reqQuery reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
+        // CLEANUP: move pusher into storeEvent
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.pushNew404
           meta.id

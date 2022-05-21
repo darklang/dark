@@ -1684,6 +1684,16 @@ type pos = { x : int; y : int }
 type CanvasID = System.Guid
 type UserID = System.Guid
 
+/// User to represent handlers in their lowest-level form: a triple of space * name * modifier
+/// "Space" is "HTTP", "WORKER", "REPL", etc.
+///
+/// "Modifier" options differ based on space.
+/// e.g. HTTP handler may have "GET" modifier.
+///
+/// Handlers which don't have modifiers (e.g. repl, worker) nearly
+/// always (but not actually always) have `_` as their modifier.
+type HandlerDesc = (string * string * string)
+
 // since these are all usernames, use types for safety
 module UserName =
   type T =

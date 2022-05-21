@@ -148,7 +148,7 @@ let testStoredEventRoundtrip =
 
     // This is a bit racy
     let! listed = TI.listEvents TI.All id1
-    let actual = (List.sort (List.map t5_get5th listed))
+    let actual = (List.sort (List.map Tuple3.third listed))
     let result =
       actual = (List.sort [ t1; t3; t4 ]) || actual = (List.sort [ t2; t3; t4 ])
     Expect.equal result true "list host events"

@@ -27,20 +27,9 @@ module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 
 
-/// (space/module, path, modifier)
-///
-/// "Space" is "HTTP", "WORKER", "REPL", etc.
-///
-/// "Modifier" options differ based on space.
-/// e.g. HTTP handler may have "GET" modifier.
-///
-/// Handlers which don't have modifiers (e.g. repl, worker) nearly
-/// always (but not actually always) have `_` as their modifier.
-type EventDesc = string * string * string
+type EventRecord = HandlerDesc * NodaTime.Instant * AT.TraceID
 
-type EventRecord = string * string * string * NodaTime.Instant * AT.TraceID
-
-type F404 = EventRecord
+type F404 = (string * string * string * NodaTime.Instant * AT.TraceID)
 
 type Limit =
   | All
@@ -52,7 +41,7 @@ type Limit =
 // Note that this returns munged version of the name, that are designed for
 // pattern matching using postgres' LIKE syntax.
 // CLEANUP: nulls are allowed for name, modules, and modifiers. Why?
-let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
+let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * HandlerDesc>> =
   Sql.query
     "SELECT tlid, module, name, modifier
       FROM toplevel_oplists
@@ -78,7 +67,7 @@ let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d6
 let storeEvent
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  ((module_, path, modifier) : EventDesc)
+  ((module_, path, modifier) : HandlerDesc)
   (event : RT.Dval)
   : Task<NodaTime.Instant> =
   if canvasID = throttled then
@@ -126,9 +115,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "timestamp", Sql.instantWithoutTimeZone timestamp ]
   |> Sql.executeAsync (fun read ->
-    (read.string "module",
-     read.string "path",
-     read.string "modifier",
+    ((read.string "module", read.string "path", read.string "modifier"),
      read.instant "timestamp",
      read.uuid "trace_id"))
 
@@ -169,7 +156,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 
 let loadEvents
   (canvasID : CanvasID)
-  ((module_, route, modifier) : EventDesc)
+  ((module_, route, modifier) : HandlerDesc)
   : Task<List<string * AT.TraceID * NodaTime.Instant * RT.Dval>> =
   let route = Routing.routeToPostgresPattern route
 
@@ -224,7 +211,7 @@ let mungePathForPostgres (module_ : string) (path : string) =
 
 let loadEventIDs
   (canvasID : CanvasID)
-  ((module_, route, modifier) : EventDesc)
+  ((module_, route, modifier) : HandlerDesc)
   : Task<List<AT.TraceID * string>> =
   let route = mungePathForPostgres module_ route
 
@@ -249,7 +236,7 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
     let! handlers = getHandlersForCanvas canvasID
 
     let matchEvent h event : bool =
-      let space, requestPath, modifier, _ts, _ = event
+      let (space, requestPath, modifier), _ts, _ = event
       let hSpace, hName, hModifier = h
 
       Routing.requestPathMatchesRoute hName requestPath
@@ -260,6 +247,7 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
       events
       |> List.filter (fun e ->
         not (List.exists (fun (_tlid, h) -> matchEvent h e) handlers))
+      |> List.map (fun ((s, n, m), ts, v) -> (s, n, m, ts, v))
   }
 
 let getRecent404s (canvasID : CanvasID) : Task<F404 list> =
