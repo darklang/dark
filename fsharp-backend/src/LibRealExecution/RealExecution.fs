@@ -17,6 +17,10 @@ module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
+module LD = LibService.LaunchDarkly
+module Rollbar = LibService.Rollbar
+module Telemetry = LibService.Telemetry
+
 open LibBackend
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
@@ -87,30 +91,63 @@ let createState
 type ExecutionReason =
   /// The first time a trace is executed. This means more data should be stored and
   /// more users notified.
-  | InitialExecution of (string * string * string) * RT.Dval
+  | InitialExecution of HandlerDesc * RT.Dval
 
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
 
-let executeExpr
+/// Tracing can go overboard, so use a per-handler feature flag to control it.
+/// sampling is disabled for a canvas, no traces will be saved. tlids will still be
+/// saved
+type TraceSamplingRule =
+  | SampleNone
+  | SampleAll
+  | SampleOneIn of int
+  | SampleAllWithTelemetry
+
+let traceSamplingRule
+  (canvasName : CanvasName.T)
+  (desc : HandlerDesc)
+  : TraceSamplingRule =
+  let ruleString = LD.traceSamplingRule canvasName desc
+  Telemetry.addTag "trace_sampling_rule" ruleString
+  match ruleString with
+  | "sample-none" -> SampleNone
+  | "sample-all" -> SampleAll
+  | "sample-all-with-telemetry" -> SampleAllWithTelemetry
+  | _ ->
+    try
+      let prefix = "sample-one-in-"
+      if String.startsWith prefix ruleString then
+        let number = ruleString |> String.dropLeft (String.length prefix) |> int
+        SampleOneIn number
+      else
+        Exception.raiseInternal "Invalid string" []
+    with
+    | _ ->
+      Rollbar.sendError
+        "Invalid traceSamplingRule"
+        [ "ruleString", ruleString; "canvasName", canvasName; "handle", desc ]
+      SampleNone
+
+
+let executeHandler
   (c : Canvas.T)
-  (tlid : tlid)
+  (h : RT.Handler.T)
   (traceID : AT.TraceID)
   (inputVars : Map<string, RT.Dval>)
   (executionType : ExecutionReason)
-  (expr : RT.Expr)
   : Task<RT.Dval * Tracing.TraceResults> =
   task {
-
     match executionType with
     | InitialExecution (eventDesc, inputVar) ->
       Tracing.storeTraceInput c.meta.id traceID eventDesc inputVar
     | ReExecution -> ()
 
-    let! (state, traceResults) = createState traceID tlid (Canvas.toProgram c)
-    HashSet.add tlid traceResults.tlids
+    let! (state, traceResults) = createState traceID h.tlid (Canvas.toProgram c)
+    HashSet.add h.tlid traceResults.tlids
 
-    let! result = Exe.executeExpr state inputVars expr
+    let! result = Exe.executeExpr state inputVars h.ast
 
     Tracing.storeTraceCompletion c.meta.id traceID traceResults
 

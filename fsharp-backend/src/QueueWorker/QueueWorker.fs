@@ -191,16 +191,15 @@ let processNotification
                   // CLEANUP Set a time limit of 3m
                   try
                     let! (result, traceResults) =
-                      RealExecution.executeExpr
+                      RealExecution.executeHandler
                         c
-                        h.tlid
+                        (PT2RT.Handler.toRT h)
                         traceID
                         (Map [ "event", event.value ])
                         (RealExecution.InitialExecution(
                           EQ.toEventDesc event,
                           event.value
                         ))
-                        (PT2RT.Expr.toRT h.ast)
 
                     Telemetry.addTags [ "result_type", resultType result
                                         "queue.success", true

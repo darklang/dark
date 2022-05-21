@@ -57,6 +57,62 @@ let createStandardTracer () : TraceResults * RT.Tracing =
         traceTLID = traceTLIDFn }
   (state, tracing)
 
+let createTelemtryTracer () : TraceResults * RT.Tracing =
+  // Any real execution needs to track the touched TLIDs in order to send traces to pusher
+  let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
+
+  let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue> =
+    Dictionary.empty ()
+
+  let savedFunctionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> =
+    ResizeArray.empty ()
+
+  let state =
+    { tlids = touchedTLIDs
+      functionResults = savedFunctionResult
+      functionArguments = savedFunctionArguments }
+
+  let tracing =
+    { Exe.noTracing RT.Real with
+        storeFnResult =
+          (fun (tlid, name, id) args result ->
+            let stringifiedName = LibExecution.RuntimeTypes.FQFnName.toString name
+            let hash =
+              args
+              |> DvalReprInternalDeprecated.hash
+                   DvalReprInternalDeprecated.currentHashVersion
+            LibService.Telemetry.addEvent
+              $"function result for {name}"
+              [ "fnName", stringifiedName
+                "tlid", tlid
+                "id", id
+                "argCount", List.length args
+                "hash", hash
+                "resultType",
+                result
+                |> RT.Dval.toType
+                |> LibExecution.DvalReprExternal.typeToDeveloperReprV0
+                :> obj ]
+            Dictionary.add
+              (tlid, name, id, hash)
+              (result, NodaTime.Instant.now ())
+              state.functionResults)
+        storeFnArguments =
+          (fun tlid args ->
+            LibService.Telemetry.addEvent
+              $"function arguments for {tlid}"
+              [ "tlid", tlid; "id", id; "argCount", Map.count args ]
+            ResizeArray.append
+              (tlid, args, NodaTime.Instant.now ())
+              state.functionArguments)
+        traceTLID =
+          fun tlid ->
+            LibService.Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
+            traceTLIDFn tlid }
+  (state, tracing)
+
+
+
 /// Store trace input in the background
 let storeTraceInput
   (canvasID : CanvasID)
@@ -64,14 +120,12 @@ let storeTraceInput
   (desc : string * string * string)
   (input : RT.Dval)
   : unit =
-  LibService.FireAndForget.fireAndForgetTask
-    "traceResultHook"
-    (fun () ->
-      task {
-        let! (_timestamp : NodaTime.Instant) =
-          TraceInputs.storeEvent canvasID traceID desc input
-        return ()
-      })
+  LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
+    task {
+      let! (_timestamp : NodaTime.Instant) =
+        TraceInputs.storeEvent canvasID traceID desc input
+      return ()
+    })
 
 
 
@@ -81,14 +135,11 @@ let storeTraceCompletion
   (traceID : AT.TraceID)
   (results : TraceResults)
   : unit =
-  LibService.FireAndForget.fireAndForgetTask
-    "traceResultHook"
-    (fun () ->
-      task {
-        do!
-          TraceFunctionArguments.storeMany canvasID traceID results.functionArguments
-        do! TraceFunctionResults.storeMany canvasID traceID results.functionResults
-      })
+  LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
+    task {
+      do! TraceFunctionArguments.storeMany canvasID traceID results.functionArguments
+      do! TraceFunctionResults.storeMany canvasID traceID results.functionResults
+    })
 
 module Test =
   let saveTraceResult

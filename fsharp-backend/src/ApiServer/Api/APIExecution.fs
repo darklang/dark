@@ -103,12 +103,11 @@ module Handler =
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
-      let handler = c.handlers[p.tlid]
-      let expr = handler.ast |> PT2RT.Expr.toRT
+      let handler = c.handlers[p.tlid] |> PT2RT.Handler.toRT
 
       t.next "execute-handler"
       let! (_, traceResults) =
-        RealExe.executeExpr c p.tlid p.trace_id inputVars RealExe.ReExecution expr
+        RealExe.executeHandler c handler p.trace_id inputVars RealExe.ReExecution
 
       t.next "write-api"
       return { touched_tlids = traceResults.tlids |> HashSet.toList }

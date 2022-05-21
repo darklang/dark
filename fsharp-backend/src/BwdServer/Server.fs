@@ -312,7 +312,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
+      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
@@ -331,20 +331,18 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // Do request
           use _ = Telemetry.child "executeHandler" []
-          let expr = PT2RT.Expr.toRT expr
 
           let request = Req.fromRequest false url reqHeaders reqQuery reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
-            RealExe.executeExpr
+            RealExe.executeHandler
               canvas
-              tlid
+              (PT2RT.Handler.toRT handler)
               traceID
               inputVars
               (RealExe.InitialExecution(desc, request))
-              expr
 
-          // Execute
+          // Execute - note that these are outside the handler
           let result = Resp.toHttpResponse result
           let result = Cors.addCorsHeaders reqHeaders corsSetting result
 
