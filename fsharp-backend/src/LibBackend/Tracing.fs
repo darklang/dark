@@ -1,5 +1,5 @@
 /// Tracing for real execution
-module LibRealExecution.Tracing
+module LibBackend.Tracing
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -18,8 +18,6 @@ module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module LD = LibService.LaunchDarkly
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
-
-open LibBackend
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it.
 /// sampling is disabled for a canvas, no traces will be saved. tlids will still be

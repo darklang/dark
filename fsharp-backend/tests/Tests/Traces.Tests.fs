@@ -21,7 +21,7 @@ module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
 module RealExecution = LibRealExecution.RealExecution
-module Tracing = LibRealExecution.Tracing
+module Tracing = LibBackend.Tracing
 
 let testTraceIDsOfTlidsMatch =
   test "traceIDs from tlids are as expected" {
