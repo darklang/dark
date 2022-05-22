@@ -29,29 +29,34 @@ module TraceSamplingRule =
     | SampleOneIn of int
     | SampleAllWithTelemetry
 
-  /// Fetch the traceSamplingRule from the feature flag, and parse it. If parsing
-  /// fails, returns SampleNone.
-  let ruleForHandler (canvasName : CanvasName.T) (tlid : tlid) : T =
-    let ruleString = LD.traceSamplingRule canvasName tlid
-    Telemetry.addTag "trace_sampling_rule" ruleString
+  let parseRule (ruleString : string) : Result<T, string> =
     match ruleString with
-    | "sample-none" -> SampleNone
-    | "sample-all" -> SampleAll
-    | "sample-all-with-telemetry" -> SampleAllWithTelemetry
+    | "sample-none" -> Ok SampleNone
+    | "sample-all" -> Ok SampleAll
+    | "sample-all-with-telemetry" -> Ok SampleAllWithTelemetry
     | _ ->
       try
         let prefix = "sample-one-in-"
         if String.startsWith prefix ruleString then
           let number = ruleString |> String.dropLeft (String.length prefix) |> int
-          SampleOneIn number
+          Ok(SampleOneIn number)
         else
-          Exception.raiseInternal "Invalid string" []
+          Error "Invalid sample"
       with
-      | _ ->
-        Rollbar.sendError
-          "Invalid traceSamplingRule"
-          [ "ruleString", ruleString; "canvasName", canvasName; "tlid", tlid ]
-        SampleNone
+      | _ -> Error "Exception thrown"
+
+  /// Fetch the traceSamplingRule from the feature flag, and parse it. If parsing
+  /// fails, returns SampleNone.
+  let ruleForHandler (canvasName : CanvasName.T) (tlid : tlid) : T =
+    let ruleString = LD.traceSamplingRule canvasName tlid
+    Telemetry.addTag "trace_sampling_rule" ruleString
+    match parseRule ruleString with
+    | Error msg ->
+      Rollbar.sendError
+        "Invalid traceSamplingRule: {msg}"
+        [ "ruleString", ruleString; "canvasName", canvasName; "tlid", tlid ]
+      SampleNone
+    | Ok rule -> rule
 
 module TraceResults =
   type T =

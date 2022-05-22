@@ -22,6 +22,7 @@ module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
 module RealExecution = LibRealExecution.RealExecution
 module Tracing = LibBackend.Tracing
+module TSR = Tracing.TraceSamplingRule
 
 let testTraceIDsOfTlidsMatch =
   test "traceIDs from tlids are as expected" {
@@ -298,6 +299,19 @@ let testErrorTracesAreStored =
       "handler should have a result for test_fn"
   }
 
+let testLaunchdarklyParsingCode =
+  testMany
+    "test launchdarkly trace sampling rule parser"
+    TSR.parseRule
+    [ "sample-none", Ok(TSR.SampleNone)
+      "sample-all", Ok(TSR.SampleAll)
+      "sample-all-with-telemetry", Ok(TSR.SampleAllWithTelemetry)
+      "sample-one-in-10", Ok(TSR.SampleOneIn 10)
+      "sample-one-in-50", Ok(TSR.SampleOneIn 50)
+      "sample-one-in-1000000000", Ok(TSR.SampleOneIn 1000000000)
+      "sample-one-in-gibberish", Error "Exception thrown"
+      "gibberish", Error "Invalid sample" ]
+
 
 let tests =
   testList
@@ -309,4 +323,5 @@ let tests =
       testStoredEventRoundtrip
       testTraceDataJsonFormatRedactsPasswords
       testFunctionTracesAreStored
-      testErrorTracesAreStored ]
+      testErrorTracesAreStored
+      testLaunchdarklyParsingCode ]
