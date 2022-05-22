@@ -120,45 +120,44 @@ module Internal =
   // per-handler values
   // -------------
 
-  let flagNameForHandler (canvasName : CanvasName.T) (handlerDesc : HandlerDesc) =
-    let (module', name, modifier) = handlerDesc
-    $"handler-{canvasName}-{module'}-{name}-{modifier}"
+  let flagNameForHandler (canvasName : CanvasName.T) (tlid : tlid) =
+    // Use tlid instead of a desc because a tlid is canonical. A desc would be better
+    // because it's user readable but it's not too hard to find a tlid id
+    $"handler-{canvasName}-{tlid}"
 
   let handlerBool
     (name : string)
     (default_ : bool)
     (testDefault : bool)
-    : CanvasName.T -> HandlerDesc -> bool =
+    : CanvasName.T -> tlid -> bool =
     boolSetTestDefault name testDefault
-    fun canvasName handlerDesc ->
-      boolVar name (flagNameForHandler canvasName handlerDesc) default_
+    fun canvasName tlid -> boolVar name (flagNameForHandler canvasName tlid) default_
 
   let handlerInt
     (name : string)
     (default_ : int)
     (testDefault : int)
-    : CanvasName.T -> HandlerDesc -> int =
+    : CanvasName.T -> tlid -> int =
     intSetTestDefault name testDefault
-    fun canvasName handlerDesc ->
-      intVar name (flagNameForHandler canvasName handlerDesc) default_
+    fun canvasName tlid -> intVar name (flagNameForHandler canvasName tlid) default_
 
   let handlerFloat
     (name : string)
     (default_ : float)
     (testDefault : float)
-    : CanvasName.T -> HandlerDesc -> float =
+    : CanvasName.T -> tlid -> float =
     floatSetTestDefault name testDefault
-    fun canvasName handlerDesc ->
-      floatVar name (flagNameForHandler canvasName handlerDesc) default_
+    fun canvasName tlid ->
+      floatVar name (flagNameForHandler canvasName tlid) default_
 
   let handlerString
     (name : string)
     (default_ : string)
     (testDefault : string)
-    : CanvasName.T -> HandlerDesc -> string =
+    : CanvasName.T -> tlid -> string =
     stringSetTestDefault name testDefault
-    fun canvasName handlerDesc ->
-      stringVar name (flagNameForHandler canvasName handlerDesc) default_
+    fun canvasName tlid ->
+      stringVar name (flagNameForHandler canvasName tlid) default_
 
 
   // -------------
