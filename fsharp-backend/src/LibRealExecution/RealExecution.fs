@@ -17,10 +17,6 @@ module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
-module LD = LibService.LaunchDarkly
-module Rollbar = LibService.Rollbar
-module Telemetry = LibService.Telemetry
-
 open LibBackend
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
@@ -93,49 +89,6 @@ type ExecutionReason =
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
 
-/// Tracing can go overboard, so use a per-handler feature flag to control it.
-/// sampling is disabled for a canvas, no traces will be saved. tlids will still be
-/// saved
-module TraceSamplingRule =
-  type T =
-    | SampleNone
-    | SampleAll
-    | SampleOneIn of int
-    | SampleAllWithTelemetry
-
-  /// Fetch the traceSamplingRule from the feature flag, and parse it. If parsing
-  /// fails, returns SampleNone.
-  let ruleForHandler (canvasName : CanvasName.T) (tlid : tlid) : T =
-    let ruleString = LD.traceSamplingRule canvasName tlid
-    Telemetry.addTag "trace_sampling_rule" ruleString
-    match ruleString with
-    | "sample-none" -> SampleNone
-    | "sample-all" -> SampleAll
-    | "sample-all-with-telemetry" -> SampleAllWithTelemetry
-    | _ ->
-      try
-        let prefix = "sample-one-in-"
-        if String.startsWith prefix ruleString then
-          let number = ruleString |> String.dropLeft (String.length prefix) |> int
-          SampleOneIn number
-        else
-          Exception.raiseInternal "Invalid string" []
-      with
-      | _ ->
-        Rollbar.sendError
-          "Invalid traceSamplingRule"
-          [ "ruleString", ruleString; "canvasName", canvasName; "tlid", tlid ]
-        SampleNone
-
-  let toBool (rule : T) (traceID : AT.TraceID) : bool =
-    match rule with
-    | SampleAll -> true
-    | SampleNone -> false
-    | SampleAllWithTelemetry -> true
-    | SampleOneIn freq ->
-      // Use the traceID as an existing source of entropy.
-      let random = traceID.ToByteArray() |> System.BitConverter.ToInt64
-      random % (int64 freq) = 0L
 
 let executeHandler
   (c : Canvas.T)
@@ -143,50 +96,46 @@ let executeHandler
   (traceID : AT.TraceID)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
-  : Task<RT.Dval * Tracing.TraceResults> =
+  : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
-    let samplingRule = TraceSamplingRule.ruleForHandler c.meta.name h.tlid
-    let shouldTrace =
-      reason = ReExecution || TraceSamplingRule.toBool samplingRule traceID
+    let tracing = Tracing.create c.meta h.tlid traceID
 
     match reason with
-    | InitialExecution (desc, inputVar) ->
-      if shouldTrace then Tracing.storeTraceInput c.meta.id traceID desc inputVar
+    | InitialExecution (desc, inputVar) -> tracing.storeInput desc inputVar
     | ReExecution -> ()
 
-    let (traceResults, tracing) = Tracing.createStandardTracer ()
-    let! state = createState traceID h.tlid (Canvas.toProgram c) tracing
-    HashSet.add h.tlid traceResults.tlids
+    let! state =
+      createState traceID h.tlid (Canvas.toProgram c) tracing.executionTracing
+    HashSet.add h.tlid tracing.results.tlids
 
     let! result = Exe.executeExpr state inputVars h.ast
 
-    Tracing.storeTraceCompletion c.meta.id traceID traceResults
+    tracing.storeTraceResults ()
 
     match reason with
     | ReExecution -> ()
     | InitialExecution _ ->
-      if shouldTrace then
-        Pusher.pushNewTraceID c.meta.id traceID (HashSet.toList traceResults.tlids)
+      if tracing.enabled then
+        let tlids = HashSet.toList tracing.results.tlids
+        Pusher.pushNewTraceID c.meta.id traceID tlids
 
-    return (result, traceResults)
+    return (result, tracing.results)
   }
 
-let executeFunction
+let reexecuteFunction
   (c : Canvas.T)
-  (callerID : tlid)
+  (fnID : tlid)
   (traceID : AT.TraceID)
   (name : RT.FQFnName.T)
   (args : List<RT.Dval>)
-  : Task<RT.Dval * Tracing.TraceResults> =
+  : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
-    let (traceResults, tracing) = Tracing.createStandardTracer ()
-    let! state = createState traceID callerID (Canvas.toProgram c) tracing
-
-    let! result = Exe.executeFunction state callerID name args
-
-    Tracing.storeTraceCompletion c.meta.id traceID traceResults
-
-    return result, traceResults
+    let tracing = Tracing.create c.meta fnID traceID
+    let! state =
+      createState traceID fnID (Canvas.toProgram c) tracing.executionTracing
+    let! result = Exe.executeFunction state fnID name args
+    tracing.storeTraceResults ()
+    return result, tracing.results
   }
 
 
