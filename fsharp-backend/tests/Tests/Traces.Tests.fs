@@ -234,7 +234,8 @@ let testFunctionTracesAreStored =
     // call the user fn, which should result in a trace being stored
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResults) = RealExecution.createState traceID (gid ()) program
+    let (traceResults, tracing) = Tracing.createStandardTracer ()
+    let! state = RealExecution.createState traceID (gid ()) program tracing
 
     let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
 
@@ -277,7 +278,8 @@ let testErrorTracesAreStored =
     // call the user fn, which should result in a trace being stored
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResults) = RealExecution.createState traceID (gid ()) program
+    let (traceResults, tracing) = Tracing.createStandardTracer ()
+    let! state = RealExecution.createState traceID (gid ()) program tracing
 
     // the DB has no columns, but the code expects one, causing it to fail
     let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"
