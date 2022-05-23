@@ -4,6 +4,7 @@ import {
   ConsoleMessage,
   Page,
   TestInfo,
+  BrowserContext,
 } from "@playwright/test";
 import fs from "fs";
 
@@ -15,7 +16,7 @@ const options = {
 };
 test.use(options);
 
-async function prepSettings(page: Page, testInfo: TestInfo) {
+async function prepSettings(page: Page, testName: string) {
   let setLocalStorage = async (key: string, value: any) => {
     await page.evaluate(
       ([k, v]) => {
@@ -39,9 +40,9 @@ async function prepSettings(page: Page, testInfo: TestInfo) {
     firstVisitToDark: false,
     // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
     recordConsent:
-      testInfo.title === "record_consent_saved_across_canvases" ? null : false,
+      testName === "record_consent_saved_across_canvases" ? null : false,
   };
-  await setLocalStorage(`editorState-test-${testInfo.title}`, editorState);
+  await setLocalStorage(`editorState-test-${testName}`, editorState);
   await setLocalStorage("userState-test", userState);
 }
 
@@ -59,28 +60,14 @@ async function awaitAnalysis(page: Page, lastTimestamp: number) {
 }
 
 // Wait until the frontend is loaded - this is when we know we are able to do analyses
-
-interface AnalyisLoadPromiseHolder {
-  analysisLoadPromise: Promise<boolean>;
-}
-
-function createLibfrontendLoadPromise(
-  testInfo: TestInfo,
-  page: Page,
-): AnalyisLoadPromiseHolder & TestInfo {
-  let ti = <TestInfo & AnalyisLoadPromiseHolder>testInfo;
-  ti.analysisLoadPromise = new Promise((resolve, reject) => {
+export function awaitAnalysisLoaded(page: Page) {
+  return new Promise((resolve, _reject) => {
     page.on("console", async (msg: ConsoleMessage) => {
-      if (msg.text() === "libfrontend reporting in") {
+      if (msg.text() === "Blazor loaded") {
         resolve(true);
       }
     });
   });
-  return ti;
-}
-async function awaitAnalysisLoad(testInfo: TestInfo): Promise<void> {
-  let ti = <AnalyisLoadPromiseHolder & TestInfo>testInfo;
-  expect(await ti.analysisLoadPromise).toBe(true);
 }
 
 interface MessagesHolder {
@@ -106,11 +93,15 @@ function clearMessages(testInfo: TestInfo) {
   ti.messages = [];
 }
 
-test.describe.parallel("Integration Tests", async () => {
+export function canvasUrl(canvasName: string) {
+  return `${BASE_URL}/a/test-${canvasName}?integration-test=true&use-blazor=true`;
+}
+
+test.describe.serial("Integration Tests", async () => {
   // To add this user, run the backend tests
   test.beforeEach(async ({ page }, testInfo) => {
+    // set up listeners for console logs and page errors
     initMessages(testInfo);
-    createLibfrontendLoadPromise(testInfo, page);
     page.on("pageerror", async err => {
       console.error(err);
     });
@@ -124,21 +115,21 @@ test.describe.parallel("Integration Tests", async () => {
       }
       saveMessage(testInfo, msg);
     });
-    const testname = testInfo.title;
-    var url = `/a/test-${testname}?integration-test=true`;
 
+    // go to test page; wait until page (incl. analysis) has loaded
+    const testname = testInfo.title;
     var username = "test";
     if (testname.match(/_as_admin/)) {
       username = "test_admin";
     }
-
-    await page.goto(url, { waitUntil: "networkidle" });
-    await prepSettings(page, testInfo);
-    await page.type("#username", username);
+    await page.goto(canvasUrl(testname), { waitUntil: "networkidle" });
+    await prepSettings(page, testname);
+    await page.type("#username", "test");
     await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
     await page.click("text=Login");
     await page.waitForSelector("#finishIntegrationTest");
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
+    await awaitAnalysisLoaded(page);
     await page.pause();
   });
 
@@ -233,9 +224,7 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   function bwdUrl(testInfo: TestInfo, path: string) {
-    return (
-      "http://test-" + testInfo.title + options.bwdBaseURL + path
-    );
+    return "http://test-" + testInfo.title + options.bwdBaseURL + path;
   }
 
   async function pressShortcut(page: Page, shortcut: string) {
@@ -320,11 +309,7 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   async function gotoHash(page: Page, testInfo: TestInfo, hash: string) {
-    const testname = testInfo.title;
-    var url = `/a/test-${testname}?integration-test=true`;
-    // networkidle needed for hash
-    // await page.goto(`${url}#${hash}`, { waitUntil: "networkidle" });
-    await page.goto(`${url}#${hash}`);
+    await page.goto(`${canvasUrl(testInfo.title)}#${hash}`);
   }
 
   async function selectText(
@@ -434,7 +419,6 @@ test.describe.parallel("Integration Tests", async () => {
   test("field_access_closes", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
-    await awaitAnalysisLoad(testInfo);
 
     await page.type("#active-editor", "re");
     let start = Date.now();
@@ -453,7 +437,6 @@ test.describe.parallel("Integration Tests", async () => {
   // CLEANUP flaky - often the `request` field is not available
   // test("field_access_pipes", async ({ page }, testInfo) => {
   //   await createEmptyHTTPHandler(page);
-  //   await awaitAnalysisLoad(testInfo);
   //   await gotoAST(page);
 
   //   await page.type("#active-editor", "req");
@@ -752,11 +735,15 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.waitForSelector(".return-value");
 
-    try { // text when against F# backend
-      const expectedText = "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
+    try {
+      // text when against F# backend
+      const expectedText =
+        "Try using Float::+, or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
-    } catch { // text when against OCaml backend
-      const expectedText = "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
+    } catch {
+      // text when against OCaml backend
+      const expectedText =
+        "Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints.";
       await expectContainsText(page, ".return-value", expectedText);
     }
   });
@@ -892,7 +879,6 @@ test("feature_flag_in_function", async ({ page }) => {
     await gotoHash(page, testInfo, "fn=123");
     await page.waitForSelector(".tl-123");
     await page.click(exprElem);
-    await selectText(page, exprElem, 0, 1);
     await page.keyboard.press("Control+\\");
     await page.type("#cmd-filter", "extract-function");
     await page.keyboard.press("Enter");
@@ -1113,7 +1099,6 @@ test("feature_flag_in_function", async ({ page }) => {
 
     // click into the body, then wait for the button to appear
     await page.click(".fluid-let-var-name >> text='scope'");
-    await awaitAnalysisLoad(testInfo);
     await awaitAnalysis(page, before); // wait for the first analysis to get the trigger visible
 
     let beforeClick = Date.now();
@@ -1194,8 +1179,6 @@ test("feature_flag_in_function", async ({ page }) => {
   // });
 
   test("fluid_test_copy_request_as_curl", async ({ page }, testInfo) => {
-    await awaitAnalysisLoad(testInfo);
-
     let before = Date.now();
     await page.click(".toplevel.tl-91390945");
     await page.waitForSelector(".tl-91390945");
@@ -1283,7 +1266,6 @@ test("feature_flag_in_function", async ({ page }) => {
     const url = `/${attempt}`;
     await createHTTPHandler(page, "GET", url);
     await gotoAST(page);
-    await awaitAnalysisLoad(testInfo);
 
     // this await confirms that test_admin/stdlib/Test::one_v1 is in fact
     // in the autocomplete
@@ -1390,7 +1372,7 @@ test("feature_flag_in_function", async ({ page }) => {
     });
 
     // navigate to another canvas
-    await page.goto(`${BASE_URL}/a/test-another-canvas`, {
+    await page.goto(canvasUrl("another-canvas"), {
       waitUntil: "networkidle",
     });
 
@@ -1398,7 +1380,7 @@ test("feature_flag_in_function", async ({ page }) => {
 
     // go back to original canvas to end the test
     const testname = testInfo.title;
-    await page.goto(`${BASE_URL}/a/test-${testname}?integration-test=true`);
+    await page.goto(canvasUrl(testname));
 
     // there are errors loading some assets cause we're changing pages pretty fast.
     // Doesn't really matter, so ignore.

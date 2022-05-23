@@ -1,3 +1,4 @@
+/// Handles requests for evaluating expressions
 namespace Wasm
 
 open System.Threading.Tasks
@@ -16,6 +17,7 @@ module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
+/// Used to map from F# types to the OCaml types that the Client expects
 module ClientInterop =
   // -----------------------
   // DB types
@@ -100,7 +102,7 @@ module ClientInterop =
     { handler : ORT.fluidExpr ORT.HandlerT.handler
       trace_id : AT.TraceID
       trace_data : TraceData
-      (* dont use a trace as this isn't optional *)
+      // don't use a trace as this isn't optional
       dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
       user_tipes : ORT.user_tipe list
@@ -110,21 +112,24 @@ module ClientInterop =
     { func : ORT.fluidExpr ORT.user_fn
       trace_id : AT.TraceID
       trace_data : TraceData
-      (* dont use a trace as this isn't optional *)
+      // don't use a trace as this isn't optional
       dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
       user_tipes : ORT.user_tipe list
       secrets : OT.secret list }
 
   type performAnalysisParams =
-    | AnalyzeHandler of handler_analysis_param // called performHandlerAnalysisParam in the client
-    | AnalyzeFunction of function_analysis_param // called performHandlerFunctionParam in the client
+    /// This is called `performHandlerAnalysisParam` in the client
+    | AnalyzeHandler of handler_analysis_param
+
+    /// This is called `performHandlerFunctionParam` in the client
+    | AnalyzeFunction of function_analysis_param
 
   type ExecutionResult =
     | ExecutedResult of ORT.dval
     | NonExecutedResult of ORT.dval
 
-  // Dictionarys are mutable
+  // Dictionaries are mutable
   type AnalysisResults = System.Collections.Generic.Dictionary<id, ExecutionResult>
 
   type AnalysisEnvelope = AT.TraceID * AnalysisResults
@@ -153,7 +158,7 @@ module Eval =
       else
         None)
     |> List.head
-    (* We don't use the time, so just hack it to get the interface right. *)
+    // We don't use the time, so just hack it to get the interface right.
     |> Option.map (fun dv -> (dv, NodaTime.Instant.now ()))
 
 
@@ -221,7 +226,6 @@ module Eval =
       let inputVars = Map traceData.input
       let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
 
-
       let ocamlResults =
         dvalResults
         |> Dictionary.toList
@@ -260,8 +264,6 @@ module Eval =
         (List.map ClientInterop.convert_db af.dbs)
         af.func.ast
 
-
-
 open System
 open System.Reflection
 
@@ -269,42 +271,43 @@ open System.Reflection
 
 type GetGlobalObjectDelegate = delegate of string -> obj
 
-// This is F# equivalant of the C# delegate:
-// public delegate object InvokeDelegate(string m, params object[] ps);
 type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
 
+/// Responsible for interacting with the JS world
+///
+/// Exposes fns to be called to evaluate expressions,
+/// and results back to JS
 type EvalWorker =
-  // Create a delegate with which to call self.postMessage
-  static member getPostMessageDelegate() : InvokeDelegate =
-    let assemblyName = "System.Private.Runtime.InteropServices.JavaScript"
-    let typeName = "System.Runtime.InteropServices.JavaScript.Runtime"
+  static member GetGlobalObject(_globalObjectName : string) : unit = ()
 
-    // Get the `self` object from the webworker.
-    let sourceAssembly : Assembly = Assembly.Load(assemblyName)
-    let typ = sourceAssembly.GetType(typeName)
+  static member selfDelegate =
+    let typ =
+      let sourceAssembly : Assembly =
+        Assembly.Load "System.Private.Runtime.InteropServices.JavaScript"
+      sourceAssembly.GetType "System.Runtime.InteropServices.JavaScript.Runtime"
+
     // I do not have any clue what this does
     let method = typ.GetMethod(nameof (EvalWorker.GetGlobalObject))
     let delegate_ = method.CreateDelegate<GetGlobalObjectDelegate>()
     let target = delegate_.Invoke("self")
 
-    // Get a `postMessage` method from the `self` object
     let typ = target.GetType()
     let invokeMethod = typ.GetMethod("Invoke")
 
     System.Delegate.CreateDelegate(typeof<InvokeDelegate>, target, invokeMethod)
     :?> InvokeDelegate
 
-  static member GetGlobalObject(globalObjectName : string) : unit = ()
-
-  static member postMessageDelegate = EvalWorker.getPostMessageDelegate ()
-
+  /// Call `self.postMessage` in JS land
+  ///
+  /// Used in order to send the results of an expression back to the JS host
   static member postMessage(message : string) : unit =
-    let (_ : obj) = EvalWorker.postMessageDelegate.Invoke("postMessage", message)
+    let (_ : obj) = EvalWorker.selfDelegate.Invoke("postMessage", message)
     ()
 
-
-  // receive messages from the BlazorWorker.js
-  member this.OnMessage(message : string) =
+  /// Receive request from JS host to be evaluated
+  ///
+  /// Once evaluated, an async call to `self.postMessage` will be made
+  static member OnMessage(message : string) =
     task {
       let args =
         try

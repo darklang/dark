@@ -1,5 +1,5 @@
 // Config file for integration tests
-import { PlaywrightTestConfig, devices } from "@playwright/test";
+import { PlaywrightTestConfig } from "@playwright/test";
 
 const config: PlaywrightTestConfig = {
   testDir: ".",
@@ -7,6 +7,7 @@ const config: PlaywrightTestConfig = {
   expect: {
     // timeout: 5000,
   },
+  // in ms. 30000 = 30s
   timeout: 30000,
   use: {
     // actionTimeout: 1000,
