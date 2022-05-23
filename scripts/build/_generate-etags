@@ -6,7 +6,7 @@ set -euo pipefail
 # static/etags.json
 
 body=$(
-  find backend/static -type f -and -not  -name "*.gz" -printf "%p\n" \
+  find backend/static -type f -and -not  -name "*.gz" -and -not  -name "*.br" -printf "%p\n" \
   | xargs sha256sum \
   | sed 's!\([a-z0-9]\+\)  backend/static/\(.*\)!, "\2": "\1"!g')
 
