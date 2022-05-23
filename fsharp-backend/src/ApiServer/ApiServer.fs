@@ -115,7 +115,7 @@ let addRoutes
   ocamlCompatibleApi "execute_function" RW Execution.Function.execute
   ocamlCompatibleApi "get_404s" R F404s.List.get
   ocamlCompatibleApi "get_db_stats" R DBs.DBStats.getStats
-  ocamlCompatibleApiOption "get_trace_data" R Traces.TraceData.getTraceData
+  vanillaApiOption "get_trace_data" R Traces.TraceData.getTraceData
   ocamlCompatibleApi "get_unlocked_dbs" R DBs.Unlocked.get
   ocamlCompatibleApi "get_worker_stats" R Workers.WorkerStats.getStats
   ocamlCompatibleApi "initial_load" R InitialLoad.initialLoad
