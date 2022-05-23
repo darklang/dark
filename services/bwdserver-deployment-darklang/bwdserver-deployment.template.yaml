@@ -73,16 +73,12 @@ spec:
           # ---------------------
           # Resource limits
           # ---------------------
-          # Resource limits + requests are intentionally the same, to ensure
-          # this pod is a 'Guaranteed' pod, ref:
-          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "2000Mi"
+              memory: "3000Mi"
               cpu: "2"
             limits:
-              memory: "3000Mi"
-              cpu: "3"
+              memory: "6000Mi"
 
           # ---------------------
           # Lifecycles probes

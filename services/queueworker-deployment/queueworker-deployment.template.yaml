@@ -68,15 +68,12 @@ spec:
           # ---------------------
           # Resource limits
           # ---------------------
-          # Resource request intentionally less than resource limit, to ensure
-          # this pod is a 'Burstable' pod, ref:
-          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "2000Mi"
-              cpu: "2"
+              memory: "8000Mi"
+              cpu: "3"
             limits:
-              memory: "3000Mi"
+              memory: "16000Mi"
               cpu: "3"
 
           # ---------------------
