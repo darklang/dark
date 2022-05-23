@@ -84,7 +84,7 @@ function skipFile {
   fi
 }
 
-files=$(find backend/static -type f -and -not -name "*.gz")
+files=$(find backend/static -type f -and -not -name "*.gz" -and -not -name "*.br")
 
 echo "Checking mime types"
 for file in $files; do
