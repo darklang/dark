@@ -39,7 +39,7 @@ function upload {
   local remotepath="$2"
   local mimetype;
   mimetype="$(mimeTypeFor ${localpath})"
-  # echo -e "copy\n  ${localpath}\nto\n  ${remotepath}\nmime\n  ${mimetype}\n\n"
+  echo -e "copy\n  ${localpath}\nto\n  ${remotepath}\nmime\n  ${mimetype}\n\n"
 
   # We do separate uploads for each file to get the mimetype right
   # -h: set header
@@ -60,7 +60,9 @@ function uploadHashed {
   local file="$1"
   local basefile="${file//$PREFIX_TO_REMOVE}"
   local filehash
+  echo -e "hashing ${basefile}"
   filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' backend/static/etags.json)"
+  echo -e "hash for ${basefile}: ${filehash}"
   local hashed_file="${basefile%.*}-${filehash}.${basefile##*.}"
 
   upload "${file}" "${hashed_file}"
