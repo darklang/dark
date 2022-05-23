@@ -247,7 +247,8 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
       events
       |> List.filter (fun e ->
         not (List.exists (fun (_tlid, h) -> matchEvent h e) handlers))
-      |> List.map (fun ((s, n, m), ts, v) -> (s, n, m, ts, v))
+      |> List.map (fun ((space, name, modifier), timestamp, value) ->
+        (space, name, modifier, timestamp, value))
   }
 
 let getRecent404s (canvasID : CanvasID) : Task<F404 list> =

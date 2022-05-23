@@ -19,9 +19,9 @@ module LD = LibService.LaunchDarkly
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
 
-/// Tracing can go overboard, so use a per-handler feature flag to control it.
-/// sampling is disabled for a canvas, no traces will be saved. tlids will still be
-/// saved
+/// Tracing can go overboard, so use a per-handler feature flag to control it. If
+/// sampling is disabled for a canvas, no traces will be recorded to be saved to the
+/// DBs, but tlids will still be recorded as they are needed by APIs.
 module TraceSamplingRule =
   type T =
     | SampleNone
