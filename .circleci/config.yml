@@ -405,8 +405,7 @@ jobs:
 
   integration-tests:
     executor: in-container
-    parallelism: 4
-    resource_class: large
+    resource_class: xlarge
     steps:
       - darkcheckout
       - setup-app
