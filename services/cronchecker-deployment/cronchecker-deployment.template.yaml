@@ -83,16 +83,26 @@ spec:
                   name: launchdarkly-account-credentials
                   key: key
             # pusher
+            - name: DARK_CONFIG_PUSHER_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: app_id
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: key
             - name: DARK_CONFIG_PUSHER_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: secret
+            - name: DARK_CONFIG_PUSHER_CLUSTER
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: cluster
             # database (sql server in the same pod)
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1

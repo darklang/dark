@@ -108,6 +108,21 @@ DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL=socks5://tunnel2-service.darklang:1080
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
 
 # Pusher
+
+# CLEANUP
+#
+# There are two pusher production accounts/credentials. The old one is
+# "pusher-account-credentials". This is used by the old servers because I didn't want
+# to disturb them, so it will be left in until we remove the old servers or decide to
+# switch to new credentials. To support these old users, I have left the APP_ID and
+# CLUSTER at their old values, which they need.
+
+# The second is "credentials-pusher" (following the new format of putting
+# "credentials" first). This should be used by all new stuff. This is in a different
+# data center (cluster) and is a different app because each app is unique to a data
+# center. The deployments pull all 4 of these env vars from secrets (which override
+# the defaults listed here).
+
 DARK_CONFIG_PUSHER_APP_ID=710063
 #DARK_CONFIG_PUSHER_KEY=k8s
 #DARK_CONFIG_PUSHER_SECRET=k8s
