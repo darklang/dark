@@ -68,7 +68,7 @@ let addRoutes
   let std = standardMiddleware
   let html = htmlMiddleware
 
-  // Cleanup: switch everything over to vanilla and get rid of ocamlCompatible
+  // CLEANUP: switch everything over to vanilla and get rid of ocamlCompatible
   let vanillaApi name perm f =
     let handler = vanillaJsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
