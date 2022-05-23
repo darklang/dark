@@ -122,7 +122,6 @@ let addOp (ctx : HttpContext) : Task<T> =
   task {
     use t = startTimer "read-api" ctx
     let canvasInfo = loadCanvasInfo ctx
-    let executionID = loadExecutionID ctx
 
     let! p = ctx.ReadJsonAsync<Params>()
     let canvasID = canvasInfo.id
@@ -209,7 +208,7 @@ let addOp (ctx : HttpContext) : Task<T> =
       // more ... else people's prodclones will stomp on each other ...
       if causesAnyChanges newOps then
         let event : Op.AddOpEvent = { result = result; ``params`` = p }
-        LibBackend.Pusher.pushAddOpEvent executionID canvasID event
+        LibBackend.Pusher.pushAddOpEvent canvasID event
         event
       else
         { result = empty; ``params`` = p }
@@ -225,7 +224,6 @@ let addOp (ctx : HttpContext) : Task<T> =
       | _ -> true)
     |> List.iter (fun op ->
       LibService.HeapAnalytics.track
-        executionID
         canvasInfo.id
         canvasInfo.name
         canvasInfo.owner

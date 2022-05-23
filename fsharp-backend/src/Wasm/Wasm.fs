@@ -211,10 +211,8 @@ module Eval =
             traceDval = traceDvalFn
             loadFnResult = loadFromTrace functionResults }
 
-      let executionID = ExecutionID "analysis"
       let state =
         Exe.createState
-          executionID
           libraries
           tracing
           RT.consoleReporter

@@ -46,49 +46,13 @@ let libraries : Lazy<Task<RT.Libraries>> =
       return { stdlib = stdlibFns; packageFns = packageFns }
     })
 
-type TraceResult =
-  { tlids : HashSet.T<tlid>
-    functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>
-    functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
-
-
 let createState
-  (executionID : ExecutionID)
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
-  : Task<RT.ExecutionState * TraceResult> =
+  (tracing : RT.Tracing)
+  : Task<RT.ExecutionState> =
   task {
-    // Any real execution needs to track the touched TLIDs in order to send traces to pusher
-    let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
-    HashSet.add tlid touchedTLIDs
-
-    let savedFunctionResult : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue> =
-      Dictionary.empty ()
-
-    let savedFunctionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> =
-      ResizeArray.empty ()
-
-
-    let tracing =
-      { Exe.noTracing RT.Real with
-          storeFnResult =
-            (fun (tlid, name, id) args result ->
-              let hash =
-                args
-                |> DvalReprInternalDeprecated.hash
-                     DvalReprInternalDeprecated.currentHashVersion
-              Dictionary.add
-                (tlid, name, id, hash)
-                (result, NodaTime.Instant.now ())
-                savedFunctionResult)
-          storeFnArguments =
-            (fun tlid args ->
-              ResizeArray.append
-                (tlid, args, NodaTime.Instant.now ())
-                savedFunctionArguments)
-          traceTLID = traceTLIDFn }
-
     let! libraries = Lazy.force libraries
 
     let username () =
@@ -97,7 +61,6 @@ let createState
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
         "trace_id", traceID
-        "touched_tlids", touchedTLIDs
         "executing_fn_name", state.executingFnName
         "callstack", state.callstack
         "canvas", program.canvasName
@@ -107,76 +70,73 @@ let createState
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
-      LibService.Rollbar.notify state.executionID msg metadata
+      LibService.Rollbar.notify msg metadata
 
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       let metadata = extraMetadata state @ metadata
       let person : LibService.Rollbar.Person =
         Some { id = program.accountID; username = Some(username ()) }
-      LibService.Rollbar.sendException state.executionID person metadata exn
+      LibService.Rollbar.sendException person metadata exn
 
-
-    return
-      (Exe.createState
-        executionID
-        libraries
-        tracing
-        sendException
-        notify
-        tlid
-        program,
-       { tlids = touchedTLIDs
-         functionResults = savedFunctionResult
-         functionArguments = savedFunctionArguments })
+    return Exe.createState libraries tracing sendException notify tlid program
   }
 
-// Store trace - Do not resolve task, send this into the ether
-let traceInputHook
-  (canvasID : CanvasID)
+type ExecutionReason =
+  /// The first time a trace is executed. This means more data should be stored and
+  /// more users notified.
+  | InitialExecution of HandlerDesc * RT.Dval
+
+  /// A reexecution is a trace that already exists, being amended with new values
+  | ReExecution
+
+
+let executeHandler
+  (c : Canvas.T)
+  (h : RT.Handler.T)
   (traceID : AT.TraceID)
-  (executionID : ExecutionID)
-  (eventDesc : string * string * string)
-  (request : RT.Dval)
-  : unit =
-  LibService.FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-    TraceInputs.storeEvent canvasID traceID eventDesc request)
+  (inputVars : Map<string, RT.Dval>)
+  (reason : ExecutionReason)
+  : Task<RT.Dval * Tracing.TraceResults.T> =
+  task {
+    let tracing = Tracing.create c.meta h.tlid traceID
 
-// Store trace results once the request is done
-let traceResultHook
-  (canvasID : CanvasID)
+    match reason with
+    | InitialExecution (desc, inputVar) -> tracing.storeInput desc inputVar
+    | ReExecution -> ()
+
+    let! state =
+      createState traceID h.tlid (Canvas.toProgram c) tracing.executionTracing
+    HashSet.add h.tlid tracing.results.tlids
+
+    let! result = Exe.executeExpr state inputVars h.ast
+
+    tracing.storeTraceResults ()
+
+    match reason with
+    | ReExecution -> ()
+    | InitialExecution _ ->
+      if tracing.enabled then
+        let tlids = HashSet.toList tracing.results.tlids
+        Pusher.pushNewTraceID c.meta.id traceID tlids
+
+    return (result, tracing.results)
+  }
+
+let reexecuteFunction
+  (c : Canvas.T)
+  (fnID : tlid)
   (traceID : AT.TraceID)
-  (executionID : ExecutionID)
-  (result : TraceResult)
-  : unit =
-  LibService.FireAndForget.fireAndForgetTask
-    executionID
-    "traceResultHook"
-    (fun () ->
-      task {
-        do!
-          TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
-        do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
-        // Send to Pusher
-        Pusher.pushNewTraceID
-          executionID
-          canvasID
-          traceID
-          (HashSet.toList result.tlids)
-      })
-
-module Test =
-  let saveTraceResult
-    (canvasID : CanvasID)
-    (traceID : AT.TraceID)
-    (result : TraceResult)
-    : Task<unit> =
-    task {
-      do! TraceFunctionArguments.storeMany canvasID traceID result.functionArguments
-      do! TraceFunctionResults.storeMany canvasID traceID result.functionResults
-      return ()
-    }
-
-
+  (name : RT.FQFnName.T)
+  (args : List<RT.Dval>)
+  : Task<RT.Dval * Tracing.TraceResults.T> =
+  task {
+    let tracing = Tracing.create c.meta fnID traceID
+    let! state =
+      createState traceID fnID (Canvas.toProgram c) tracing.executionTracing
+    let! result = Exe.executeFunction state fnID name args
+    tracing.storeTraceResults ()
+    return result, tracing.results
+  }
 
 
 /// Ensure library is ready to be called. Throws if it cannot initialize.

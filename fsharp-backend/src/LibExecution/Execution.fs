@@ -32,7 +32,6 @@ let noTestContext : RT.TestContext =
     postTestExecutionHook = fun _ _ -> () }
 
 let createState
-  (executionID : ExecutionID)
   (libraries : RT.Libraries)
   (tracing : RT.Tracing)
   (reportException : RT.ExceptionReporter)
@@ -46,7 +45,6 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    executionID = executionID
     tlid = tlid
     callstack = Set.empty
     onExecutionPath = true
@@ -65,19 +63,12 @@ let executeExpr
     return result
   }
 
-let executeHandler
-  (state : RT.ExecutionState)
-  (inputVars : RT.Symtable)
-  (expr : RT.Expr)
-  : Task<RT.Dval> =
-  executeExpr state inputVars expr
-
 
 let executeFunction
   (state : RT.ExecutionState)
   (callerID : tlid)
-  (args : List<RT.Dval>)
   (name : RT.FQFnName.T)
+  (args : List<RT.Dval>)
   : Task<RT.Dval> =
   task {
     let! result = Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
@@ -94,14 +85,6 @@ let traceTLIDs () : HashSet.T<tlid> * RT.TraceTLID =
   let touchedTLIDs = HashSet.empty ()
   let traceTLID tlid : unit = HashSet.add tlid touchedTLIDs
   (touchedTLIDs, traceTLID)
-
-let updateTracing
-  (fn : RT.Tracing -> RT.Tracing)
-  (state : RT.ExecutionState)
-  : RT.ExecutionState =
-  { state with tracing = fn state.tracing }
-
-
 
 /// Return a function to trace Dvals (add it to state via
 /// state.tracing.traceDval), and a mutable dictionary which updates when the

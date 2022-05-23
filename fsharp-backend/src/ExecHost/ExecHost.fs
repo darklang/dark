@@ -16,11 +16,11 @@ open Tablecloth
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-let runMigrations (executionID : ExecutionID) : unit =
+let runMigrations () : unit =
   print $"Running migrations"
-  LibBackend.Migrations.run executionID
+  LibBackend.Migrations.run ()
 
-let listMigrations (executionID : ExecutionID) : unit =
+let listMigrations () : unit =
   print "Migrations needed:\n"
   LibBackend.Migrations.migrationsToRun ()
   |> List.iter (fun name -> print $" - {name}")
@@ -45,19 +45,19 @@ let emergencyLogin (username : string) : Task<unit> =
   }
 
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
-let triggerRollbar (executionID : ExecutionID) : unit =
+let triggerRollbar () : unit =
   let tags = [ "int", 6 :> obj; "string", "string"; "float", -0.6; "bool", true ]
   let prefix = "execHost test: "
 
   // Send async notification ("info" level in the rollbar UI)
-  Rollbar.notify executionID $"{prefix} notify" tags
+  Rollbar.notify $"{prefix} notify" tags
 
   // Send async error
-  Rollbar.sendError executionID $"{prefix} sendError" tags
+  Rollbar.sendError $"{prefix} sendError" tags
 
   // Send async exception
   let e = new System.Exception($"{prefix} sendException exception")
-  Rollbar.sendException executionID None tags e
+  Rollbar.sendException None tags e
 
 /// Send a message to Rollbar that should result in a Page (notification)
 /// going out
@@ -136,30 +136,30 @@ let convertToRT (canvasName : string) : Task<unit> =
 
 
 
-let run (executionID : ExecutionID) (options : Options) : Task<int> =
+let run (options : Options) : Task<int> =
   task {
     // Track calls to this
     use _ = Telemetry.createRoot "ExecHost run"
     Telemetry.addTags [ "options", options ]
-    Rollbar.notify executionID "execHost called" [ "options", string options ]
+    Rollbar.notify "execHost called" [ "options", string options ]
 
     match options with
 
     | EmergencyLogin username ->
-      Rollbar.notify executionID "emergencyLogin called" [ "username", username ]
+      Rollbar.notify "emergencyLogin called" [ "username", username ]
       do! emergencyLogin username
       return 0
 
     | MigrationList ->
-      listMigrations executionID
+      listMigrations ()
       return 0
 
     | MigrationsRun ->
-      runMigrations executionID
+      runMigrations ()
       return 0
 
     | TriggerRollbar ->
-      triggerRollbar executionID
+      triggerRollbar ()
       // The async operations go in a queue, and I don't know how to block until
       // the queue is empty.
       do! Task.Delay 5000
@@ -200,8 +200,7 @@ let main (args : string []) : int =
     let options = parse args
     if usesDB options then
       (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    let executionID = Telemetry.executionID ()
-    let result = (run executionID options).Result
+    let result = (run options).Result
     LibService.Init.shutdown name
     result
   with

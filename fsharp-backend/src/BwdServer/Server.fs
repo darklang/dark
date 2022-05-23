@@ -37,8 +37,10 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module Middleware = HttpMiddleware.MiddlewareV0
 module Resp = HttpMiddleware.ResponseV0
+module Req = HttpMiddleware.RequestV0
+module Cors = HttpMiddleware.Cors
+module RealExe = LibRealExecution.RealExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -267,10 +269,7 @@ exception NotFoundException of msg : string with
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
-let runDarkHandler
-  (executionID : ExecutionID)
-  (ctx : HttpContext)
-  : Task<HttpContext> =
+let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
@@ -288,8 +287,9 @@ let runDarkHandler
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = System.Guid.NewGuid()
-      let method = ctx.Request.Method
+      let requestMethod = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
+      let desc = ("HTTP", requestPath, requestMethod)
 
       Telemetry.addTags [ "canvas.name", canvasName
                           "canvas.id", meta.id
@@ -298,7 +298,7 @@ let runDarkHandler
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
       // and leave it to middleware to say what it wants to do with that
-      let searchMethod = if method = "HEAD" then "GET" else method
+      let searchMethod = if requestMethod = "HEAD" then "GET" else requestMethod
 
       // Canvas to process request against, with enough loaded to handle this
       // request
@@ -312,7 +312,7 @@ let runDarkHandler
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
+      | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         // TODO: I think we could put this into the middleware
@@ -327,39 +327,33 @@ let runDarkHandler
           Telemetry.addTag "handler.routeVars" routeVars
           // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
           // and entirely into code in some middleware
-          let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
-
-          let program = Canvas.toProgram canvas
-          let expr = PT2RT.Expr.toRT expr
+          let! corsSetting = Canvas.fetchCORSSetting meta.id
 
           // Do request
           use _ = Telemetry.child "executeHandler" []
-          let! result =
-            Middleware.executeHandler
-              meta.id
-              tlid
-              executionID
+
+          let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+          let inputVars = routeVars |> Map |> Map.add "request" request
+          let! (result, _) =
+            RealExe.executeHandler
+              canvas
+              (PT2RT.Handler.toRT handler)
               traceID
-              url
-              requestPath
-              method
-              routeVars
-              reqHeaders
-              reqQuery
-              reqBody
-              program
-              expr
-              corsSetting
+              inputVars
+              (RealExe.InitialExecution(desc, request))
+
+          // Execute - note that these are outside the handler
+          let result = Resp.toHttpResponse result
+          let result = Cors.addCorsHeaders reqHeaders corsSetting result
 
           do! writeResponseToContext ctx result
 
           return ctx
 
         | None -> // vars didnt parse
-          FireAndForget.fireAndForgetTask executionID "store-event" (fun () ->
-            let request =
-              Middleware.createRequest false url reqHeaders reqQuery reqBody
-            TI.storeEvent meta.id traceID ("HTTP", requestPath, method) request)
+          FireAndForget.fireAndForgetTask "store-event" (fun () ->
+            let request = Req.fromRequest false url reqHeaders reqQuery reqBody
+            TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
 
@@ -367,9 +361,9 @@ let runDarkHandler
         return! faviconResponse ctx
 
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let! corsSetting = Canvas.fetchCORSSetting canvas.meta.id
+        let! corsSetting = Canvas.fetchCORSSetting meta.id
         let reqHeaders = getHeaders ctx
-        match Middleware.optionsResponse reqHeaders corsSetting with
+        match Cors.optionsResponse reqHeaders corsSetting with
         | Some response -> do! writeResponseToContext ctx response
         | None -> ()
         return ctx
@@ -379,16 +373,14 @@ let runDarkHandler
         let! reqBody = getBody ctx
         let reqHeaders = getHeaders ctx
         let reqQuery = getQuery ctx
-        let event = Middleware.createRequest true url reqHeaders reqQuery reqBody
+        let event = Req.fromRequest true url reqHeaders reqQuery reqBody
+        let! timestamp = TI.storeEvent meta.id traceID desc event
 
-        let! timestamp =
-          TI.storeEvent meta.id traceID ("HTTP", requestPath, method) event
-
+        // CLEANUP: move pusher into storeEvent
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.pushNew404
-          executionID
           meta.id
-          ("HTTP", requestPath, method, timestamp, traceID)
+          ("HTTP", requestPath, requestMethod, timestamp, traceID)
 
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx
@@ -401,8 +393,6 @@ let runDarkHandler
 let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task =
     (task {
-      let executionID = LibService.Telemetry.executionID ()
-      ctx.Items[ "executionID" ] <- executionID
       // The traditional methods of using `UseHsts` and `AddHsts` within BwdServer
       // were ineffective. Somehow, the Strict-Transport-Security header was not
       // included in HTTP Reponses as a result of these efforts. Here, we manually
@@ -410,7 +400,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // CLEANUP: replace this with the more additional approach, if possible
       setHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
-      setHeader ctx "x-darklang-execution-id" (string executionID)
+      setHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())
       setHeader ctx "Server" "darklang"
 
       try
@@ -418,7 +408,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
         if shouldRedirect ctx then
           return httpsRedirect ctx
         else
-          return! runDarkHandler executionID ctx
+          return! runDarkHandler ctx
       with
       // These errors are the only ones we want to handle here. We don't want to give
       // GrandUsers any info not intended for them. We want the rest to be caught by

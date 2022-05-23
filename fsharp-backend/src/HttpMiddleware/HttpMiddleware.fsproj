@@ -8,14 +8,15 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
+    <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="HeadersV0.fs" />
     <Compile Include="RequestV0.fs" />
     <Compile Include="ResponseV0.fs" />
-    <Compile Include="MiddlewareV0.fs" />
+    <Compile Include="CorsV0.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

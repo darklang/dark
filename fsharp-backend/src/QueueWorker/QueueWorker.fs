@@ -29,26 +29,6 @@ module Rollbar = LibService.Rollbar
 
 let mutable shouldShutdown = false
 
-let executeEvent
-  (c : Canvas.T)
-  (h : PT.Handler.T)
-  (traceID : AT.TraceID)
-  (e : EQ.T)
-  : Task<RT.Dval> =
-  task {
-    let executionID = Telemetry.executionID ()
-
-    let! (state, traceResult) =
-      RealExecution.createState executionID traceID h.tlid (Canvas.toProgram c)
-
-    let symtable = Map.ofList [ ("event", e.value) ]
-    let ast = PT2RT.Expr.toRT h.ast
-    let! result = Execution.executeHandler state symtable ast
-    HashSet.add h.tlid traceResult.tlids
-    RealExecution.traceResultHook c.meta.id traceID executionID traceResult
-    return result
-  }
-
 type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
@@ -198,7 +178,6 @@ let processNotification
                   // this event immediately.
                   let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
                   Pusher.pushNew404
-                    (Telemetry.executionID ())
                     c.meta.id
                     (event.module', event.name, event.modifier, timestamp, traceID)
                   do! EQ.deleteEvent event
@@ -211,11 +190,20 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
-                    let! (_ : Instant) =
-                      TI.storeEvent c.meta.id traceID desc event.value
-                    let! result = executeEvent c h traceID event
+                    let! (result, traceResults) =
+                      RealExecution.executeHandler
+                        c
+                        (PT2RT.Handler.toRT h)
+                        traceID
+                        (Map [ "event", event.value ])
+                        (RealExecution.InitialExecution(
+                          EQ.toEventDesc event,
+                          event.value
+                        ))
+
                     Telemetry.addTags [ "result_type", resultType result
                                         "queue.success", true
+                                        "executed_tlids", traceResults.tlids
                                         "queue.completion_reason", "completed" ]
                     // ExecutesToCompletion
 
@@ -290,11 +278,8 @@ let run () : Task<unit> =
       | e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
-        Rollbar.sendException
-          (Telemetry.executionID ())
-          None
-          []
-          (PageableException("Unhandled exception bubbled to run", [], e))
+        let e = (PageableException("Unhandled exception bubbled to run", [], e))
+        Rollbar.sendException None [] e
   }
 
 

@@ -35,10 +35,9 @@ let executionStateForPreview
     let results, traceFn = Exe.traceDvals ()
 
     let state =
-      Exe.updateTracing
-        (fun t -> { t with traceDval = traceFn; realOrPreview = Preview })
-        state
-
+      { state with
+          tracing =
+            { state.tracing with traceDval = traceFn; realOrPreview = Preview } }
     return (results, state)
   }
 
@@ -71,11 +70,11 @@ let testExecFunctionTLIDs : Test =
     let tlids, traceFn = Exe.traceTLIDs ()
 
     let state =
-      Exe.updateTracing
-        (fun t -> { t with traceTLID = traceFn; realOrPreview = Preview })
-        state
+      { state with
+          tracing =
+            { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
-    let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
+    let! value = Exe.executeFunction state (gid ()) (FQFnName.User name) []
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"

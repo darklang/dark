@@ -150,17 +150,6 @@ let canvasMiddleware (permissionNeeded : Auth.Permission) : HttpMiddleware =
     middleware ctx)
 
 
-let executionIDMiddleware : HttpMiddleware =
-  (fun (next : HttpHandler) (ctx : HttpContext) ->
-    task {
-      let executionID = Telemetry.executionID ()
-      saveExecutionID executionID ctx
-      ctx.SetHeader("x-darklang-execution-id", string executionID)
-      let! newCtx = next ctx
-      return newCtx
-    })
-
-
 let antiClickjackingMiddleware : HttpMiddleware =
   // Clickjacking: Don't allow any other websites to put this in an iframe;
   // this prevents "clickjacking" attacks.
@@ -190,6 +179,15 @@ let clientVersionMiddleware : HttpMiddleware =
                           // CLEANUP this was a bad name. Kept in until old data falls out of Honeycomb
                           "request.header.x-darklang-client-version", clientVersion ]
       return! next ctx
+    })
+
+let executionIDMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
+    task {
+      let executionID = Telemetry.rootID ()
+      ctx.SetHeader("x-darklang-execution-id", executionID)
+      let! newCtx = next ctx
+      return newCtx
     })
 
 let corsForLocalhostAssetsMiddleware : HttpMiddleware =

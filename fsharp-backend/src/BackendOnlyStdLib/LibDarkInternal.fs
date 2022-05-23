@@ -65,7 +65,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
       uply {
         do! fn canvasID handlerName
         let! s = SchedulingRules.getWorkerSchedules canvasID
-        Pusher.pushWorkerStates state.executionID canvasID s
+        Pusher.pushWorkerStates canvasID s
         return DNull
       }
     | _ -> incorrectArgs ())
@@ -242,7 +242,7 @@ that's already taken, returns an error."
                 Account.insertUser (UserName.create username) email name None
               match result with
               | Ok () ->
-                Analytics.identifyUser state.executionID (UserName.create username)
+                Analytics.identifyUser (UserName.create username)
                 return DStr ""
               | Error msg -> return Exception.raiseGrandUser msg
             }
@@ -270,7 +270,7 @@ that's already taken, returns an error."
               let username = UserName.create username
               let! _user =
                 Account.insertUser username email name (Some analyticsMetadata)
-              Analytics.identifyUser state.executionID username
+              Analytics.identifyUser username
               let toCanvasName =
                 $"{username}-{LibService.Config.gettingStartedCanvasName}"
               let fromCanvasName = LibService.Config.gettingStartedCanvasSource
@@ -315,7 +315,7 @@ that's already taken, returns an error."
                       password = Password.invalid }
                 match result with
                 | Ok () ->
-                  do Analytics.identifyUser state.executionID username
+                  do Analytics.identifyUser username
                   return DResult(Ok(DStr ""))
                 | Error msg -> return DResult(Error(DStr msg))
               | Error msg -> return DResult(Error(DStr msg))
@@ -408,10 +408,9 @@ that's already taken, returns an error."
               let username = UserName.create username
               do! Account.setAdmin admin username
               LibService.Rollbar.notify
-                state.executionID
                 "setAdmin called"
                 [ "username", username; "admin", admin ]
-              Analytics.identifyUser state.executionID username
+              Analytics.identifyUser username
               return DNull
             }
           | _ -> incorrectArgs ())
@@ -712,7 +711,6 @@ that's already taken, returns an error."
           | state, [ DStr canvasID; DStr event; payload ] ->
             (try
               Pusher.push
-                state.executionID
                 (canvasID |> System.Guid.Parse)
                 event
                 (payload |> DvalReprInternalDeprecated.toInternalRoundtrippableV0)

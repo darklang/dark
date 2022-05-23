@@ -276,8 +276,6 @@ let executionStateFor
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let executionID = ExecutionID(string meta.name)
-
     let program : RT.ProgramContext =
       { canvasID = meta.id
         canvasName = meta.name
@@ -303,9 +301,9 @@ let executionStateFor
 
             if not exceptionCountMatches then
               List.iter
-                (fun (executionID, msg, stackTrace, metadata) ->
+                (fun (msg, stackTrace, metadata) ->
                   print
-                    $"An error was reported in the runtime ({executionID}):  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
+                    $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
               Exception.raiseInternal
                 $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
@@ -323,16 +321,15 @@ let executionStateFor
         let inner = exn.InnerException
         if inner <> null then (exceptionReporter state metadata inner) else ()
         state.test.exceptionReports <-
-          (executionID, message, stackTrace, metadata) :: state.test.exceptionReports
+          (message, stackTrace, metadata) :: state.test.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
-    let notifier : RT.Notifier = fun executionID msg tags -> ()
+    let notifier : RT.Notifier = fun state msg tags -> ()
 
     let state =
       Exe.createState
-        executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
         exceptionReporter

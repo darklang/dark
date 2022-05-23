@@ -243,7 +243,6 @@ type dataID =
   | SessionData
   | CanvasInfo
   | Permission
-  | ExecutionID
 
   override this.ToString() : string =
     match this with
@@ -251,7 +250,6 @@ type dataID =
     | SessionData -> "sessionData"
     | CanvasInfo -> "canvasName"
     | Permission -> "permission"
-    | ExecutionID -> "executionID"
 
 /// Sets a standard piece of data to the HTTP Context
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : unit =
@@ -269,16 +267,12 @@ let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
 let loadCanvasInfo (ctx : HttpContext) : Canvas.Meta =
   load'<Canvas.Meta> CanvasInfo ctx
 
-let loadExecutionID (ctx : HttpContext) : ExecutionID =
-  load'<ExecutionID> ExecutionID ctx
-
 let loadPermission (ctx : HttpContext) : Option<Auth.Permission> =
   load'<Option<Auth.Permission>> Permission ctx
 
 let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
 let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
 let saveCanvasInfo (c : Canvas.Meta) (ctx : HttpContext) = save' CanvasInfo c ctx
-let saveExecutionID (id : ExecutionID) (ctx : HttpContext) = save' ExecutionID id ctx
 
 let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
   save' Permission p ctx

@@ -1,9 +1,5 @@
-/// V0 of the Dark HTTP Middleware.
-///
-/// Designed to move as much of the Http framework into "user space"
-/// (or something which could potentially be user space in the future)
-/// as possible.
-module HttpMiddleware.MiddlewareV0
+/// Middleware V0 CORS
+module HttpMiddleware.Cors
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -11,15 +7,9 @@ open System.Threading.Tasks
 open Prelude
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
-module RT = LibExecution.RuntimeTypes
-module RealExe = LibRealExecution.RealExecution
-module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Req = RequestV0
 module Resp = ResponseV0
-module TFR = LibBackend.TraceFunctionResults
-module TFA = LibBackend.TraceFunctionArguments
 
 // TODO: Remove access to LibBackend from here
 module Canvas = LibBackend.Canvas
@@ -109,82 +99,3 @@ let optionsResponse
           // CLEANUP: if the origin is null here, we probably shouldn't add the other headers
           "Access-Control-Allow-Origin", origin
           "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS" ] })
-
-
-
-
-
-let createRequest
-  (allowUnparseable : bool)
-  (url : string)
-  (headers : List<string * string>)
-  (query : string)
-  (body : byte array)
-  : RT.Dval =
-  Req.fromRequest allowUnparseable url headers query body
-
-let executeProgram
-  (executionID : ExecutionID)
-  (program : RT.ProgramContext)
-  (tlid : tlid)
-  (traceID : LibExecution.AnalysisTypes.TraceID)
-  (routeVars : List<string * RT.Dval>)
-  (request : RT.Dval)
-  (expr : RT.Expr)
-  : Task<Resp.HttpResponse * RealExe.TraceResult> =
-  task {
-    let! state, traceResult = RealExe.createState executionID traceID tlid program
-
-    // Build request
-    let symtable =
-      Map.ofList routeVars
-      |> Interpreter.withGlobals state
-      |> Map.add "request" request
-
-    // Execute
-    let! result = Interpreter.eval state symtable expr
-
-    return (Resp.toHttpResponse result, traceResult)
-  }
-
-
-
-let executeHandler
-  // framework stuff
-  (canvasID : CanvasID)
-  (tlid : tlid)
-  (executionID : ExecutionID)
-  (traceID : LibExecution.AnalysisTypes.TraceID)
-  // received from granduser
-  (url : string)
-  (requestPath : string)
-  (requestMethod : string)
-  (routeVars : List<string * RT.Dval>)
-  (headers : HttpHeaders.T)
-  (query : string)
-  (body : byte array)
-  // the program we're executing
-  (program : RT.ProgramContext)
-  (expr : RT.Expr)
-  (corsSetting : Option<Canvas.CorsSetting>)
-  : Task<Resp.HttpResponse> =
-  task {
-    let request = createRequest false url headers query body
-
-    // Both hooks fire off into the ether, to avoid waiting for the IO to complete
-    RealExe.traceInputHook
-      canvasID
-      traceID
-      executionID
-      ("HTTP", requestPath, requestMethod)
-      request
-
-    let! (result, traceResult) =
-      executeProgram executionID program tlid traceID routeVars request expr
-    let result = addCorsHeaders headers corsSetting result
-
-    // Both hooks fire off into the ether, to avoid waiting for the IO to complete
-    RealExe.traceResultHook canvasID traceID executionID traceResult
-
-    return result
-  }

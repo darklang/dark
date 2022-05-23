@@ -21,6 +21,8 @@ module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
 module RealExecution = LibRealExecution.RealExecution
+module Tracing = LibBackend.Tracing
+module TSR = Tracing.TraceSamplingRule
 
 let testTraceIDsOfTlidsMatch =
   test "traceIDs from tlids are as expected" {
@@ -147,7 +149,7 @@ let testStoredEventRoundtrip =
 
     // This is a bit racy
     let! listed = TI.listEvents TI.All id1
-    let actual = (List.sort (List.map t5_get5th listed))
+    let actual = (List.sort (List.map Tuple3.third listed))
     let result =
       actual = (List.sort [ t1; t3; t4 ]) || actual = (List.sort [ t2; t3; t4 ])
     Expect.equal result true "list host events"
@@ -231,17 +233,16 @@ let testFunctionTracesAreStored =
         secrets = [] }
 
     // call the user fn, which should result in a trace being stored
-    let executionID = LibService.Telemetry.executionID ()
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResult) =
-      RealExecution.createState executionID traceID (gid ()) program
+    let (traceResults, tracing) = Tracing.createStandardTracer ()
+    let! state = RealExecution.createState traceID (gid ()) program tracing
 
     let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-    do! RealExecution.Test.saveTraceResult meta.id traceID traceResult
+    do! Tracing.Test.saveTraceResult meta.id traceID traceResults
 
     // check for traces - they're saved in the background so wait for them
 
@@ -276,11 +277,10 @@ let testErrorTracesAreStored =
         secrets = [] }
 
     // call the user fn, which should result in a trace being stored
-    let executionID = LibService.Telemetry.executionID ()
     let traceID = System.Guid.NewGuid()
 
-    let! (state, traceResult) =
-      RealExecution.createState executionID traceID (gid ()) program
+    let (traceResults, tracing) = Tracing.createStandardTracer ()
+    let! state = RealExecution.createState traceID (gid ()) program tracing
 
     // the DB has no columns, but the code expects one, causing it to fail
     let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"
@@ -289,7 +289,7 @@ let testErrorTracesAreStored =
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-    do! RealExecution.Test.saveTraceResult meta.id traceID traceResult
+    do! Tracing.Test.saveTraceResult meta.id traceID traceResults
 
     // check for traces
     let! testFnResult = TFR.load meta.id traceID state.tlid
@@ -298,6 +298,19 @@ let testErrorTracesAreStored =
       1
       "handler should have a result for test_fn"
   }
+
+let testLaunchdarklyParsingCode =
+  testMany
+    "test launchdarkly trace sampling rule parser"
+    TSR.parseRule
+    [ "sample-none", Ok(TSR.SampleNone)
+      "sample-all", Ok(TSR.SampleAll)
+      "sample-all-with-telemetry", Ok(TSR.SampleAllWithTelemetry)
+      "sample-one-in-10", Ok(TSR.SampleOneIn 10)
+      "sample-one-in-50", Ok(TSR.SampleOneIn 50)
+      "sample-one-in-1000000000", Ok(TSR.SampleOneIn 1000000000)
+      "sample-one-in-gibberish", Error "Exception thrown"
+      "gibberish", Error "Invalid sample" ]
 
 
 let tests =
@@ -310,4 +323,5 @@ let tests =
       testStoredEventRoundtrip
       testTraceDataJsonFormatRedactsPasswords
       testFunctionTracesAreStored
-      testErrorTracesAreStored ]
+      testErrorTracesAreStored
+      testLaunchdarklyParsingCode ]

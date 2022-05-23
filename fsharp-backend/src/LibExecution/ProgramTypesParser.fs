@@ -257,7 +257,7 @@ module Handler =
       | _ -> true
 
     // Same as a TraceInput.EventDesc
-    let toEventDesc (s : PT.Handler.Spec) : Option<string * string * string> =
+    let toEventDesc (s : PT.Handler.Spec) : Option<HandlerDesc> =
       if isComplete s then Some(toModule s, toName s, toModifier s) else None
 
 module Toplevel =

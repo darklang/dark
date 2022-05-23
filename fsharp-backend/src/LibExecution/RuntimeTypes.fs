@@ -895,7 +895,7 @@ and Tracing =
 /// Used for testing
 and TestContext =
   { mutable sideEffectCount : int
-    mutable exceptionReports : List<ExecutionID * string * string * Metadata>
+    mutable exceptionReports : List<string * string * Metadata>
     expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit }
 
@@ -928,8 +928,6 @@ and ExecutionState =
     /// TLID of the currently executing handler/fn
     tlid : tlid
 
-    executionID : ExecutionID
-
     executingFnName : Option<FQFnName.T>
 
     /// <summary>
@@ -951,11 +949,11 @@ let consoleReporter : ExceptionReporter =
   fun state (metadata : Metadata) (exn : exn) ->
     let metadata = metadata @ Exception.toMetadata exn
     print
-      $"An error was reported in the runtime ({state.executionID}):  \n  {exn.Message}\n{exn.StackTrace}\n  {metadata}\n\n"
+      $"An error was reported in the runtime:  \n  {exn.Message}\n{exn.StackTrace}\n  {metadata}\n\n"
 
 let consoleNotifier : Notifier =
   fun state msg tags ->
-    print $"A notification happened in the runtime ({state}):\n  {msg}\n  {tags}\n\n"
+    print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
