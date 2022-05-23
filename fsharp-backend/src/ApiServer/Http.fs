@@ -79,13 +79,14 @@ let startTimer (initialName : string) (ctx : HttpContext) : TraceTimer =
 [<Extension>]
 type HttpContextExtensions() =
   [<Extension>]
-  static member WriteJsonAsync<'T>
+  static member WriteOCamlCompatibleJsonAsync<'T>
     (
       ctx : HttpContext,
       value : 'T
     ) : Task<option<HttpContext>> =
     task {
       use t = startTimer "serialize-json" ctx
+      addTag "json_flavor" "ocaml-compatible"
       ctx.Response.ContentType <- "application/json; charset=utf-8"
       let serialized = Json.OCamlCompatible.serialize value
       let bytes = System.ReadOnlyMemory(UTF8.toBytes serialized)
@@ -95,6 +96,27 @@ type HttpContextExtensions() =
         ctx.Response.BodyWriter.WriteAsync(bytes)
       return Some ctx
     }
+
+  [<Extension>]
+  static member WriteVanillaJsonAsync<'T>
+    (
+      ctx : HttpContext,
+      value : 'T
+    ) : Task<option<HttpContext>> =
+    task {
+      use t = startTimer "serialize-json" ctx
+      addTag "json_flavor" "vanilla"
+      ctx.Response.ContentType <- "application/json; charset=utf-8"
+      let serialized = Json.Vanilla.serialize value
+      let bytes = System.ReadOnlyMemory(UTF8.toBytes serialized)
+      ctx.Response.ContentLength <- int64 bytes.Length
+      t.next "write-json-async"
+      let! (_ : System.IO.Pipelines.FlushResult) =
+        ctx.Response.BodyWriter.WriteAsync(bytes)
+      return Some ctx
+    }
+
+
 
   [<Extension>]
   static member WriteTextAsync
@@ -213,21 +235,44 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
     })
 
 /// Helper to write a value as serialized JSON response body
-let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
+let vanillaJsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
   (fun ctx ->
     task {
       let! result = f ctx
-      return! ctx.WriteJsonAsync result
+      return! ctx.WriteVanillaJsonAsync result
+    })
+
+/// Helper to write a value as serialized JSON response body
+let ocamlCompatibleJsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
+  (fun ctx ->
+    task {
+      let! result = f ctx
+      return! ctx.WriteOCamlCompatibleJsonAsync result
     })
 
 /// Helper to write a Optional value as serialized JSON response body
 ///
 /// In the case of a None, responds with 404
-let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
+let vanillaJsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
   (fun ctx ->
     task {
       match! f ctx with
-      | Some result -> return! ctx.WriteJsonAsync result
+      | Some result -> return! ctx.WriteVanillaJsonAsync result
+      | None ->
+        ctx.Response.StatusCode <- 404
+        return! ctx.WriteTextAsync "Not found"
+    })
+
+/// Helper to write a Optional value as serialized JSON response body
+///
+/// In the case of a None, responds with 404
+let ocamlCompatibleJsonOptionHandler
+  (f : HttpContext -> Task<Option<'a>>)
+  : HttpHandler =
+  (fun ctx ->
+    task {
+      match! f ctx with
+      | Some result -> return! ctx.WriteOCamlCompatibleJsonAsync result
       | None ->
         ctx.Response.StatusCode <- 404
         return! ctx.WriteTextAsync "Not found"
