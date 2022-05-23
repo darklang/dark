@@ -68,13 +68,25 @@ let addRoutes
   let std = standardMiddleware
   let html = htmlMiddleware
 
-  let api name perm f =
-    let handler = jsonHandler f
+  // CLEANUP: switch everything over to vanilla and get rid of ocamlCompatible
+  let vanillaApi name perm f =
+    let handler = vanillaJsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
-  let apiOption name perm f =
-    let handler = jsonOptionHandler f
+  let ocamlCompatibleApi name perm f =
+    let handler = ocamlCompatibleJsonHandler f
+    let route = $"/api/{{canvasName}}/{name}"
+    addRoute "POST" route std perm handler
+
+
+  let vanillaApiOption name perm f =
+    let handler = vanillaJsonOptionHandler f
+    let route = $"/api/{{canvasName}}/{name}"
+    addRoute "POST" route std perm handler
+
+  let ocamlCompatibleApiOption name perm f =
+    let handler = ocamlCompatibleJsonOptionHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
@@ -94,25 +106,25 @@ let addRoutes
     Exception.raiseInternal "triggered test exception" [ "user", userInfo.username ]
   addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
 
-  api "add_op" RW AddOps.addOp
-  api "clean_ops" RW AddOps.clean
-  api "all_traces" R Traces.AllTraces.fetchAll
-  api "delete_404" RW F404s.Delete.delete
-  apiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
-  api "delete_secret" RW Secrets.Delete.delete
-  api "execute_function" RW Execution.Function.execute
-  api "get_404s" R F404s.List.get
-  api "get_db_stats" R DBs.DBStats.getStats
-  apiOption "get_trace_data" R Traces.TraceData.getTraceData
-  api "get_unlocked_dbs" R DBs.Unlocked.get
-  api "get_worker_stats" R Workers.WorkerStats.getStats
-  api "initial_load" R InitialLoad.initialLoad
-  api "insert_secret" RW Secrets.Insert.insert
-  api "packages" R (Packages.List.packages packages)
+  ocamlCompatibleApi "add_op" RW AddOps.addOp
+  ocamlCompatibleApi "clean_ops" RW AddOps.clean
+  ocamlCompatibleApi "all_traces" R Traces.AllTraces.fetchAll
+  ocamlCompatibleApi "delete_404" RW F404s.Delete.delete
+  ocamlCompatibleApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
+  ocamlCompatibleApi "delete_secret" RW Secrets.Delete.delete
+  ocamlCompatibleApi "execute_function" RW Execution.Function.execute
+  ocamlCompatibleApi "get_404s" R F404s.List.get
+  ocamlCompatibleApi "get_db_stats" R DBs.DBStats.getStats
+  vanillaApiOption "get_trace_data" R Traces.TraceData.getTraceData
+  ocamlCompatibleApi "get_unlocked_dbs" R DBs.Unlocked.get
+  ocamlCompatibleApi "get_worker_stats" R Workers.WorkerStats.getStats
+  ocamlCompatibleApi "initial_load" R InitialLoad.initialLoad
+  ocamlCompatibleApi "insert_secret" RW Secrets.Insert.insert
+  ocamlCompatibleApi "packages" R (Packages.List.packages packages)
   // CLEANUP: packages/upload_function
   // CLEANUP: save_test handler
-  api "trigger_handler" RW Execution.Handler.trigger
-  api "worker_schedule" RW Workers.Scheduler.updateSchedule
+  ocamlCompatibleApi "trigger_handler" RW Execution.Handler.trigger
+  ocamlCompatibleApi "worker_schedule" RW Workers.Scheduler.updateSchedule
   app.UseRouter(builder.Build())
 
 

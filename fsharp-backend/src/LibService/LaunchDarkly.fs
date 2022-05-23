@@ -205,7 +205,10 @@ let flush () : unit = Internal.client.Force().Dispose()
 // --------------
 
 let traceSamplingRule =
-  Internal.handlerString "traces-sampling-rule" "sample-none" "sample-all"
+  Internal.handlerString
+    "traces-sampling-rule"
+    Config.traceSamplingRuleDefault
+    "sample-all"
 
 // --------------
 // Canvas Flags - these are per-canvas settings

@@ -53,7 +53,7 @@ module TraceData =
 
 
       // CLEANUP: we dont need the handlers or functions at all here, just for the sample
-      // values which we can do on the client instead
+      // values which we could do on the client instead
       t.next "load-trace"
       let handler = c.handlers |> Map.get p.tlid
 
