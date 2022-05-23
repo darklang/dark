@@ -25,7 +25,7 @@ The most likely candidates are:
 - bad/broken k8s configuration was set
 - a user, canvas, or handler that's going wild or hitting a slow part of our code
 - a Denial-of-service attack
-  - an attack is much less likely than an accidental one by a user)
+  - an attack is much less likely than an accidental one by a user
 - something is going wrong with the DB
   - a bad migration or manual DB query
   - perhaps it's our quarterly DB maintenace: is it Tuesday or Wednesday around 11am EST?
