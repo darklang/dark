@@ -97,6 +97,15 @@ let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
 /// If none, use test values
 let launchDarklyApiKey = stringOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY"
 
+
+
+// --------------------
+// Feature flag defaults
+// Sometimes we want different flag defaults in different environments
+// --------------------
+
+let traceSamplingRuleDefault = string "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT"
+
 // --------------------
 // db
 // --------------------
