@@ -203,7 +203,7 @@ let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
     Rollbar.PersonPackageDecorator(
       package,
       person.id |> string,
-      person.username |> string
+      person.username |> Option.map string |> Option.defaultValue null
     )
   | None -> package
 
