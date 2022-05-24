@@ -142,7 +142,7 @@ let createTelemetryTracer () : TraceResults.T * RT.Tracing =
               args
               |> DvalReprInternalDeprecated.hash
                    DvalReprInternalDeprecated.currentHashVersion
-            LibService.Telemetry.addEvent
+            Telemetry.addEvent
               $"function result for {name}"
               [ "fnName", stringifiedName
                 "tlid", tlid
@@ -157,13 +157,13 @@ let createTelemetryTracer () : TraceResults.T * RT.Tracing =
             standardTracing.storeFnResult (tlid, name, id) args result)
         storeFnArguments =
           (fun tlid args ->
-            LibService.Telemetry.addEvent
+            Telemetry.addEvent
               $"function arguments for {tlid}"
               [ "tlid", tlid; "id", id; "argCount", Map.count args ]
             standardTracing.storeFnArguments tlid args)
         traceTLID =
           fun tlid ->
-            LibService.Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
+            Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
             standardTracing.traceTLID tlid }
   (results, tracing)
 
@@ -213,7 +213,6 @@ let storeTraceResults
     })
 
 let create (c : Canvas.Meta) (tlid : tlid) (traceID : AT.TraceID) : T =
-  let canvasID = c.id
   let config = TracingConfig.forHandler c.name tlid traceID
   let traceResults, executionTracing =
     match config with
