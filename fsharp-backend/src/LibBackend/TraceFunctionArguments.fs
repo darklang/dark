@@ -98,11 +98,16 @@ let loadForAnalysis
                       "tlid", Sql.id tlid
                       "traceID", Sql.uuid traceID ]
   |> Sql.executeRowOptionAsync (fun read ->
-    (read.string "arguments_json"
-     |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
-     |> fun dv ->
-          RT.Dval.toPairs dv |> Exception.unwrapResultInternal [ "dval", dv ],
-          read.instant "timestamp"))
+    (read.string "arguments_json", read.instant "timestamp"))
+  |> Task.map (
+    Option.map (fun (arguments_json, timestamp) ->
+      let arguments =
+        arguments_json
+        |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+        |> fun dv ->
+             RT.Dval.toPairs dv |> Exception.unwrapResultInternal [ "dval", dv ]
+      (arguments, timestamp))
+  )
 
 
 let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =

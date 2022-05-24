@@ -26,6 +26,8 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 
+module Repr = LibExecution.DvalReprInternalDeprecated
+
 
 type EventRecord = HandlerDesc * NodaTime.Instant * AT.TraceID
 
@@ -84,9 +86,7 @@ let storeEvent
                         "path", Sql.string path
                         "modifier", Sql.string modifier
                         ("value",
-                         event
-                         |> LibExecution.DvalReprInternalDeprecated.toInternalRoundtrippableV0
-                         |> Sql.string) ]
+                         event |> Repr.toInternalRoundtrippableV0 |> Sql.string) ]
     |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
@@ -158,43 +158,53 @@ let loadEvents
   (canvasID : CanvasID)
   ((module_, route, modifier) : HandlerDesc)
   : Task<List<string * AT.TraceID * NodaTime.Instant * RT.Dval>> =
-  let route = Routing.routeToPostgresPattern route
-
-  Sql.query
-    "SELECT path, value, timestamp, trace_id FROM stored_events_v2
-      WHERE canvas_id = @canvasID
-        AND module = @module
-        AND path LIKE @route
-        AND modifier = @modifier
-     ORDER BY timestamp DESC
-     LIMIT 10"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "module", Sql.string module_
-                      "route", Sql.string route
-                      "modifier", Sql.string modifier ]
-  |> Sql.executeAsync (fun read ->
-    (read.string "path",
-     read.uuid "trace_id",
-     read.instant "timestamp",
-     read.string "value"
-     |> LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0))
+  task {
+    let route = Routing.routeToPostgresPattern route
+    let! results =
+      Sql.query
+        "SELECT path, value, timestamp, trace_id FROM stored_events_v2
+          WHERE canvas_id = @canvasID
+            AND module = @module
+            AND path LIKE @route
+            AND modifier = @modifier
+        ORDER BY timestamp DESC
+        LIMIT 10"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "module", Sql.string module_
+                          "route", Sql.string route
+                          "modifier", Sql.string modifier ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "path",
+         read.uuid "trace_id",
+         read.instant "timestamp",
+         read.string "value"))
+    return
+      results
+      |> List.map (fun (path, trace_id, timestamp, value_json) ->
+        (path, trace_id, timestamp, Repr.ofInternalRoundtrippableV0 value_json))
+  }
 
 
 let loadEventForTrace
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   : Task<Option<string * NodaTime.Instant * RT.Dval>> =
-  Sql.query
-    "SELECT path, value, timestamp FROM stored_events_v2
-       WHERE canvas_id = @canvasID
-         AND trace_id = @traceID
-       LIMIT 1"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    (read.string "path",
-     read.instant "timestamp",
-     read.string "value"
-     |> LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0))
+  task {
+    let! results =
+      Sql.query
+        "SELECT path, value, timestamp FROM stored_events_v2
+          WHERE canvas_id = @canvasID
+            AND trace_id = @traceID
+          LIMIT 1"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "traceID", Sql.uuid traceID ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.string "path", read.instant "timestamp", read.string "value"))
+    return
+      results
+      |> Option.map (fun (path, timestamp, value) ->
+        (path, timestamp, Repr.ofInternalRoundtrippableV0 value))
+  }
 
 
 let mungePathForPostgres (module_ : string) (path : string) =

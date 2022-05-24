@@ -13,7 +13,7 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module Repr = LibExecution.DvalReprInternalDeprecated
 
 // -------------------------
 // External
@@ -44,17 +44,10 @@ let store
                         "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
                         "id", Sql.id id
                         ("hash",
-                         arglist
-                         |> DvalReprInternalDeprecated.hash
-                              DvalReprInternalDeprecated.currentHashVersion
-                         |> Sql.string)
-
-                        "hashVersion",
-                        Sql.int DvalReprInternalDeprecated.currentHashVersion
+                         arglist |> Repr.hash Repr.currentHashVersion |> Sql.string)
+                        "hashVersion", Sql.int Repr.currentHashVersion
                         ("value",
-                         result
-                         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-                         |> Sql.string) ]
+                         result |> Repr.toInternalRoundtrippableV0 |> Sql.string) ]
     |> Sql.executeStatementAsync
 
 // CLEANUP store these in Cloud Storage instead of the DB
@@ -77,11 +70,8 @@ let storeMany
           "id", Sql.id id
           "timestamp", Sql.instantWithTimeZone timestamp
           "hash", Sql.string hash
-          "hashVersion", Sql.int DvalReprInternalDeprecated.currentHashVersion
-          ("value",
-           result
-           |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-           |> Sql.string) ])
+          "hashVersion", Sql.int Repr.currentHashVersion
+          ("value", result |> Repr.toInternalRoundtrippableV0 |> Sql.string) ])
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
           (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
@@ -96,24 +86,31 @@ let load
   (traceID : AT.TraceID)
   (tlid : tlid)
   : Task<List<AT.FunctionResult>> =
-  // Right now, we don't allow the user to see multiple results when a function
-  // is called in a loop. But, there's a lot of data when functions are called
-  // in a loop, so avoid massive responses.
-  Sql.query
-    "SELECT
-       DISTINCT ON (fnname, id, hash, hash_version)
-       fnname, id, hash, hash_version, value, timestamp
-     FROM function_results_v3
-     WHERE canvas_id = @canvasID
-       AND trace_id = @traceID
-       AND tlid = @tlid
-     ORDER BY fnname, id, hash, hash_version, timestamp DESC"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.uuid traceID
-                      "tlid", Sql.tlid tlid ]
-  |> Sql.executeAsync (fun read ->
-    (read.string "fnname",
-     read.id "id",
-     read.string "hash",
-     read.intOrNone "hash_version" |> Option.unwrap 0,
-     read.string "value" |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0))
+  task {
+    // Right now, we don't allow the user to see multiple results when a function
+    // is called in a loop. But, there's a lot of data when functions are called
+    // in a loop, so avoid massive responses.
+    let! results =
+      Sql.query
+        "SELECT
+          DISTINCT ON (fnname, id, hash, hash_version)
+          fnname, id, hash, hash_version, value, timestamp
+        FROM function_results_v3
+        WHERE canvas_id = @canvasID
+          AND trace_id = @traceID
+          AND tlid = @tlid
+        ORDER BY fnname, id, hash, hash_version, timestamp DESC"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "traceID", Sql.uuid traceID
+                          "tlid", Sql.tlid tlid ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "fnname",
+         read.id "id",
+         read.string "hash",
+         read.intOrNone "hash_version" |> Option.unwrap 0,
+         read.string "value"))
+    return
+      results
+      |> List.map (fun (fnname, id, hash, hash_version, value) ->
+        (fnname, id, hash, hash_version, Repr.ofInternalRoundtrippableV0 value))
+  }
