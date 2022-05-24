@@ -212,10 +212,9 @@ let testFunctionTracesAreStored =
     // set up canvas, user fn
     let! (meta : Canvas.Meta) =
       initializeTestCanvas (Randomized "test-function-traces-are-stored")
-    let fnid = 12312345234UL
 
     let (userFn : RT.UserFunction.T) =
-      { tlid = fnid
+      { tlid = 12312345234UL
         name = "test_fn"
         parameters = []
         returnType = RT.TInt
@@ -232,31 +231,46 @@ let testFunctionTracesAreStored =
         userTypes = Map.empty
         secrets = [] }
 
-    // call the user fn, which should result in a trace being stored
+    let callerTLID = 98765UL
+    let callerID = 1234UL
+    let fnName = RT.FQFnName.User "test_fn"
+    let args = []
     let traceID = System.Guid.NewGuid()
 
-    let (traceResults, tracing) = Tracing.createStandardTracer ()
-    let! state = RealExecution.createState traceID (gid ()) program tracing
-
-    let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
-
-    let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
-
-    do! Tracing.Test.saveTraceResult meta.id traceID traceResults
+    // call the user fn, which should result in a trace being stored
+    let! (_, _) =
+      RealExecution.reexecuteFunction
+        meta
+        program
+        callerTLID
+        callerID
+        traceID
+        fnName
+        args
 
     // check for traces - they're saved in the background so wait for them
+    let rec getValue (count : int) =
+      task {
+        let! result = TFR.load meta.id traceID callerTLID
+        if result = [] && count < 10 then
+          do! Task.Delay 1000
+          return! getValue (count + 1)
+        else
+          return result
+      }
 
-    let! testFnResult = TFR.load meta.id traceID state.tlid
+    let! testFnResult = getValue 0
+    debuG "restFnResult" testFnResult
     Expect.equal
       (List.length testFnResult)
-      (1)
-      "handler should only have fn result for test_fn"
+      1
+      "one function was called by the 'caller'"
 
-    let! dbGenerateResult = TFR.load meta.id traceID fnid
+    let! dbGenerateResult = TFR.load meta.id traceID userFn.tlid
     Expect.equal
       (List.length dbGenerateResult)
       1
-      "functions should only have fn result for DB::generateKey"
+      "test_fn called one function (DB::generateKey)"
   }
 
 let testErrorTracesAreStored =

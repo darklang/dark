@@ -53,12 +53,21 @@ module Function =
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
+      let program = Canvas.toProgram c
 
       t.next "execute-function"
       let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
 
+
       let! (result, traceResults) =
-        RealExe.reexecuteFunction c p.tlid p.caller_id p.trace_id fnname args
+        RealExe.reexecuteFunction
+          c.meta
+          program
+          p.tlid
+          p.caller_id
+          p.trace_id
+          fnname
+          args
 
       t.next "get-unlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
@@ -103,11 +112,18 @@ module Handler =
 
       t.next "load-canvas"
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
+      let program = Canvas.toProgram c
       let handler = c.handlers[p.tlid] |> PT2RT.Handler.toRT
 
       t.next "execute-handler"
       let! (_, traceResults) =
-        RealExe.executeHandler c handler p.trace_id inputVars RealExe.ReExecution
+        RealExe.executeHandler
+          c.meta
+          handler
+          program
+          p.trace_id
+          inputVars
+          RealExe.ReExecution
 
       t.next "write-api"
       return { touched_tlids = traceResults.tlids |> HashSet.toList }

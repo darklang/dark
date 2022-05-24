@@ -89,27 +89,27 @@ type ExecutionReason =
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
 
-
+/// Execute handler. This could be the first execution, which will have an
+/// ExecutionReason of InitialExecution, and initialize traces and send pushes, or
+/// ReExecution, which will update existing traces and not send pushes.
 let executeHandler
-  (c : Canvas.T)
+  (meta : Canvas.Meta)
   (h : RT.Handler.T)
+  (program : RT.ProgramContext)
   (traceID : AT.TraceID)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
-    let tracing = Tracing.create c.meta h.tlid traceID
+    let tracing = Tracing.create meta h.tlid traceID
 
     match reason with
     | InitialExecution (desc, inputVar) -> tracing.storeInput desc inputVar
     | ReExecution -> ()
 
-    let! state =
-      createState traceID h.tlid (Canvas.toProgram c) tracing.executionTracing
+    let! state = createState traceID h.tlid program tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
-
     let! result = Exe.executeExpr state inputVars h.ast
-
     tracing.storeTraceResults ()
 
     match reason with
@@ -117,23 +117,25 @@ let executeHandler
     | InitialExecution _ ->
       if tracing.enabled then
         let tlids = HashSet.toList tracing.results.tlids
-        Pusher.pushNewTraceID c.meta.id traceID tlids
+        Pusher.pushNewTraceID meta.id traceID tlids
 
     return (result, tracing.results)
   }
 
+/// We call this reexecuteFunction because it always runs in an existing trace.
 let reexecuteFunction
-  (c : Canvas.T)
-  (fnID : tlid)
+  (meta : Canvas.Meta)
+  (program : RT.ProgramContext)
+  (tlid : tlid)
+  (callerID : id)
   (traceID : AT.TraceID)
   (name : RT.FQFnName.T)
   (args : List<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
-    let tracing = Tracing.create c.meta fnID traceID
-    let! state =
-      createState traceID fnID (Canvas.toProgram c) tracing.executionTracing
-    let! result = Exe.executeFunction state fnID name args
+    let tracing = Tracing.create meta tlid traceID
+    let! state = createState traceID tlid program tracing.executionTracing
+    let! result = Exe.executeFunction state callerID name args
     tracing.storeTraceResults ()
     return result, tracing.results
   }

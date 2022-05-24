@@ -336,8 +336,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
-              canvas
+              canvas.meta
               (PT2RT.Handler.toRT handler)
+              (Canvas.toProgram canvas)
               traceID
               inputVars
               (RealExe.InitialExecution(desc, request))
