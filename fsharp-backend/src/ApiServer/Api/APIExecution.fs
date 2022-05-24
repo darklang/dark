@@ -58,7 +58,7 @@ module Function =
       let fnname = p.fnname |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
 
       let! (result, traceResults) =
-        RealExe.reexecuteFunction c p.tlid p.trace_id fnname args
+        RealExe.reexecuteFunction c p.tlid p.caller_id p.trace_id fnname args
 
       t.next "get-unlocked"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
