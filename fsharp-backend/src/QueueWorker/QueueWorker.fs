@@ -190,10 +190,12 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
+                    let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       RealExecution.executeHandler
-                        c
+                        c.meta
                         (PT2RT.Handler.toRT h)
+                        program
                         traceID
                         (Map [ "event", event.value ])
                         (RealExecution.InitialExecution(

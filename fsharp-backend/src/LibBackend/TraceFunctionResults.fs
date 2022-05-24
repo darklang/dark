@@ -110,10 +110,10 @@ let load
      ORDER BY fnname, id, hash, hash_version, timestamp DESC"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "traceID", Sql.uuid traceID
-                      "tlid", Sql.id tlid ]
+                      "tlid", Sql.tlid tlid ]
   |> Sql.executeAsync (fun read ->
     (read.string "fnname",
-     read.tlid "id",
+     read.id "id",
      read.string "hash",
      read.intOrNone "hash_version" |> Option.unwrap 0,
      read.string "value" |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0))
