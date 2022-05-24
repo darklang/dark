@@ -53,7 +53,7 @@ module TraceSamplingRule =
     match parseRule ruleString with
     | Error msg ->
       Rollbar.sendError
-        "Invalid traceSamplingRule: {msg}"
+        $"Invalid traceSamplingRule: {msg}"
         [ "ruleString", ruleString; "canvasName", canvasName; "tlid", tlid ]
       SampleNone
     | Ok rule -> rule
