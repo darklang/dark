@@ -54,11 +54,23 @@ type LocalDateTimeConverter() =
 
 
 let options =
-  let options = Prelude.Json.Vanilla.getOptions ()
-  options.Converters.Add(NodaConverters.InstantConverter)
-  options.Converters.Add(LocalDateTimeConverter())
+  let fsharpConverter =
+    JsonFSharpConverter(
+      unionEncoding =
+        (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
+    )
+  let options = JsonSerializerOptions()
+  options.MaxDepth <- System.Int32.MaxValue // infinite
   options.Converters.Add(FloatConverter())
+  options.Converters.Add(LocalDateTimeConverter())
+  options.Converters.Add(NodaConverters.InstantConverter)
+  options.Converters.Add(Prelude.Json.Vanilla.TLIDConverter())
+  options.Converters.Add(Prelude.Json.Vanilla.PasswordConverter())
+  options.Converters.Add(Prelude.Json.Vanilla.RawBytesConverter())
+  options.Converters.Add(fsharpConverter)
   options
+
+
 
 let serialize (data : 'a) : string = JsonSerializer.Serialize(data, options)
 
