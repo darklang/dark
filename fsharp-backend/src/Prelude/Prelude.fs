@@ -901,6 +901,7 @@ module Json =
       options.MaxDepth <- System.Int32.MaxValue // infinite
       // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(NodaConverters.InstantConverter)
+      options.Converters.Add(NodaConverters.LocalDateTimeConverter)
       options.Converters.Add(TLIDConverter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
