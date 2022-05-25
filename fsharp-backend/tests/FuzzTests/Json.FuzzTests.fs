@@ -288,3 +288,27 @@ module LibJwtJson =
       [ test "comparing jwt json" equalsOCaml
         test "roundtrip jwt v0" roundtripV0
         test "roundtrip jwt v1" roundtripV1 ]
+
+module OCamlCompatibleVsApiServer =
+  type Generator =
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      G.NodaTime.LocalDateTime
+
+    static member Float() : Arbitrary<float> =
+      Arb.Default.Float() |> Arb.filter (fun f -> System.Double.IsFinite f)
+
+
+
+  let equalsOCaml (dv : LibExecution.OCamlTypes.RuntimeT.dval) : bool =
+    let toComparable str = str |> Newtonsoft.Json.Linq.JToken.Parse |> string
+    let vanilla = ApiServer.Json.serialize dv |> toComparable
+    let ocaml = Json.OCamlCompatible.serialize dv |> toComparable
+
+    ocaml .=. vanilla
+
+  let tests config =
+    testList
+      "ocamlCompatibleVsApiServerJson"
+      [ testProperty config typeof<Generator> "ocamlCompatible" equalsOCaml ]

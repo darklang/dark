@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Json.fs" />
     <Compile Include="Http.fs" />
     <Compile Include="Middleware.fs" />
     <Compile Include="Login.fs" />

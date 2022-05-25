@@ -35,6 +35,7 @@ let knownGood (config : FuzzTestConfig) =
     HttpClient.Tests.knownGood // passes with 1,000,000; 350 test/s
     OCamlInterop.Roundtrippable.tests // passes with 100,000; 520 tests/s
     Json.PrettyRequestJson.tests // passes with 10,000; 800 tests/s
+    Json.OCamlCompatibleVsApiServer.tests
     NodaTime.tests ] // passes with 1,000,000; 140k tests/s
   |> List.map (fun fn -> fn config)
 
