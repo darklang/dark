@@ -40,6 +40,24 @@
 
 - you can only use Tasks (aka `Ply`) once. Using it a second time is undefined.
 
+- When writing SQL, ensure that expensive operations to not happen while in the
+  reading loop. That is, don't do this:
+
+  ```
+  someSqlStuff
+  |> Sql.executeAsync (fun read -> read.string "value" |> expensiveOperation)
+  ```
+
+  Instead do this:
+
+  ```
+  let! results =
+    someSqlStuff
+    |> Sql.executeAsync (fun read -> read.string "value")
+  return
+    results |> (List.map (fun str -> expensiveOperation str)
+  ```
+
 - use `///` for function comments
 
 - For file header comments, use `///` and add them to the first line of the file
@@ -48,12 +66,14 @@
 ### Telemetry
 
 - use `camel_case` names for tags
-- prefer adding more attributes to a span vs events (events cost money and you can't search across them in honeycomb)
+- prefer adding more attributes to a span vs events (events cost money and you can't
+  search across them in honeycomb)
 
 ### SQL migrations
 
 - add `set statement_timeout = '1s'` or `set lock_timeout = '1s'` to the first line
   of your script, so that it fails instead of taking the service down.
+  (CLEANUP: make this happen automatically)
 
 - migrations are run manually before deployment (using `ExecHost migrations run`)
 
