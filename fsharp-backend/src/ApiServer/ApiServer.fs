@@ -68,9 +68,9 @@ let addRoutes
   let std = standardMiddleware
   let html = htmlMiddleware
 
-  // CLEANUP: switch everything over to vanilla and get rid of ocamlCompatible
-  let vanillaApi name perm f =
-    let handler = vanillaJsonHandler f
+  // CLEANUP: switch everything over to clientJson and get rid of ocamlCompatible
+  let clientJsonApi name perm f =
+    let handler = clientJsonHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
@@ -80,8 +80,8 @@ let addRoutes
     addRoute "POST" route std perm handler
 
 
-  let vanillaApiOption name perm f =
-    let handler = vanillaJsonOptionHandler f
+  let clientJsonApiOption name perm f =
+    let handler = clientJsonOptionHandler f
     let route = $"/api/{{canvasName}}/{name}"
     addRoute "POST" route std perm handler
 
@@ -115,7 +115,7 @@ let addRoutes
   ocamlCompatibleApi "execute_function" RW Execution.Function.execute
   ocamlCompatibleApi "get_404s" R F404s.List.get
   ocamlCompatibleApi "get_db_stats" R DBs.DBStats.getStats
-  ocamlCompatibleApiOption "get_trace_data" R Traces.TraceData.getTraceData
+  clientJsonApiOption "get_trace_data" R Traces.TraceData.getTraceData
   ocamlCompatibleApi "get_unlocked_dbs" R DBs.Unlocked.get
   ocamlCompatibleApi "get_worker_stats" R Workers.WorkerStats.getStats
   ocamlCompatibleApi "initial_load" R InitialLoad.initialLoad

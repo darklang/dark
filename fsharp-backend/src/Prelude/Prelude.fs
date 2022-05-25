@@ -901,6 +901,7 @@ module Json =
       options.MaxDepth <- System.Int32.MaxValue // infinite
       // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(NodaConverters.InstantConverter)
+      options.Converters.Add(NodaConverters.LocalDateTimeConverter)
       options.Converters.Add(TLIDConverter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
@@ -933,9 +934,8 @@ module Json =
 
   module OCamlCompatible =
     // CLEANUP: get rid of OCamlCompatible serializers, replacing it with Vanilla.
-    // AFAIK, the only places we really have to use it are:
-    // - ocamlinterop (needed to parse funky floats like infinity)
-    // - JSON api (we can change the client after the migration is done)
+    // AFAIK, the only places we have to use it is for actual ocamlinterop, and all
+    // other uses have been removed
     open Newtonsoft.Json
     open Microsoft.FSharp.Reflection
 

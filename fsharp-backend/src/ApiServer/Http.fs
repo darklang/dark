@@ -98,7 +98,7 @@ type HttpContextExtensions() =
     }
 
   [<Extension>]
-  static member WriteVanillaJsonAsync<'T>
+  static member WriteClientJsonAsync<'T>
     (
       ctx : HttpContext,
       value : 'T
@@ -107,7 +107,8 @@ type HttpContextExtensions() =
       use t = startTimer "serialize-json" ctx
       addTag "json_flavor" "vanilla"
       ctx.Response.ContentType <- "application/json; charset=utf-8"
-      let serialized = Json.Vanilla.serialize value
+      // Use a client-specific ApiServer
+      let serialized = ApiServer.Json.serialize value
       let bytes = System.ReadOnlyMemory(UTF8.toBytes serialized)
       ctx.Response.ContentLength <- int64 bytes.Length
       t.next "write-json-async"
@@ -235,11 +236,11 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
     })
 
 /// Helper to write a value as serialized JSON response body
-let vanillaJsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
+let clientJsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
   (fun ctx ->
     task {
       let! result = f ctx
-      return! ctx.WriteVanillaJsonAsync result
+      return! ctx.WriteClientJsonAsync result
     })
 
 /// Helper to write a value as serialized JSON response body
@@ -253,11 +254,11 @@ let ocamlCompatibleJsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
 /// Helper to write a Optional value as serialized JSON response body
 ///
 /// In the case of a None, responds with 404
-let vanillaJsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
+let clientJsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
   (fun ctx ->
     task {
       match! f ctx with
-      | Some result -> return! ctx.WriteVanillaJsonAsync result
+      | Some result -> return! ctx.WriteClientJsonAsync result
       | None ->
         ctx.Response.StatusCode <- 404
         return! ctx.WriteTextAsync "Not found"
