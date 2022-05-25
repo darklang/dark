@@ -99,8 +99,8 @@ let httpCall'
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
+    use _ = Telemetry.child "HttpClient.call" [ "url", url; "method", method ]
     try
-      use _ = Telemetry.child "HttpClient.call" [ "url", url; "method", method ]
       let uri = System.Uri(url, System.UriKind.Absolute)
 
       // currently we only support http(s) requests

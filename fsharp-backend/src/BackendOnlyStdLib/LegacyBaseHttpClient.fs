@@ -206,9 +206,8 @@ let makeHttpCall
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
+    use _ = Telemetry.child "LegacyHttpClient.call" [ "url", url; "method", method ]
     try
-      use _ =
-        Telemetry.child "LegacyHttpClient.call" [ "url", url; "method", method ]
       let uri = System.Uri(url, System.UriKind.Absolute)
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return
