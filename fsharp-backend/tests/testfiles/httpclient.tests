@@ -35,40 +35,40 @@ HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
 // -----------------------
 
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The request was aborted." // FSHARPONLY
+HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The request was aborted. The response ended prematurely." // FSHARPONLY
 
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
-HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connection could not be established, see inner exception." // FSHARPONLY
+HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
 HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
 HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
-HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
 HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
 HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
-HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
 HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
 HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
-HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
 HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
 HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
-HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
 HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted." // FSHARPONLY
+HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
 HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
-HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception." // FSHARPONLY
+HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
 // -----------------------
 // Tests for invalid URLs which shouldnt try the internet at all
