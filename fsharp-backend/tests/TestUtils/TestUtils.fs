@@ -5,6 +5,9 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open System.IO
+open System.IO.Compression
+
 open Npgsql.FSharp
 open Npgsql
 open LibBackend.Db
@@ -997,7 +1000,7 @@ let sampleDvals : List<string * Dval> =
 
 // Utilties shared among tests
 module Http =
-  type T = { status : string; headers : (string * string) list; body : byte array }
+  type T = { status : string; headers : List<string * string>; body : byte array }
 
   let setHeadersToCRLF (text : byte array) : byte array =
     // We keep our test files with an LF line ending, but the HTTP spec
@@ -1017,6 +1020,70 @@ module Http =
         justSawNewline <- false
         [ b ])
     |> List.toArray
+
+  // Decompress
+  let decompressIfNeeded
+    (headers : List<string * string>)
+    (body : byte array)
+    : byte array =
+    let contentEncodingHeader =
+      headers
+      |> List.find (fun (k, v) -> String.toLowercase k = "content-encoding")
+      |> Option.map Tuple2.second
+      |> Option.map String.toLowercase
+
+    // If the transfer-encoding=chunked header is set, we need to process it before
+    // we have a gzip/brotli/etc output
+    let body =
+      // Only decode the transfer-encoding in order to decompress the stream. We have
+      // tests for the transfer-encoding format and we don't want to break them by
+      // transfer-encoding test bodies
+      if Option.isSome contentEncodingHeader then
+        let isTransferEncodingChunked =
+          headers
+          |> List.find (fun (k, v) ->
+            String.toLowercase k = "transfer-encoding"
+            && String.toLowercase v = "chunked")
+          |> Option.isSome
+        if isTransferEncodingChunked then
+          let decoder = new ChunkDecoder.Decoder()
+          let mutable (byteArray : byte array) = null
+          // asp.net doesn't add the final sequence required by
+          // `transfer-encoding:chunked`, relying instead on closing the connection
+          // to indicate that the data is complete. However, the ChunkDecoder library
+          // does not support this, and hangs while waiting on the final chunk. We
+          // add the final chunk ourselves to allow the library to finish its work.
+          let body =
+            match body with
+            | [||] -> body
+            | body ->
+              let bytesToAppend = UTF8.toBytes "0\r\n"
+              Array.append body bytesToAppend
+          let success = decoder.Decode(body, &byteArray)
+          if not success then Exception.raiseInternal "could not dechunk chunks" []
+          byteArray
+        else
+          body
+      else
+        body
+
+    match contentEncodingHeader with
+    | Some "gzip" ->
+      let inputStream = new MemoryStream(body)
+      use decompressionStream =
+        new GZipStream(inputStream, CompressionMode.Decompress)
+      use outputStream = new MemoryStream()
+      decompressionStream.CopyTo(outputStream)
+      outputStream.ToArray()
+    | Some "br" ->
+      let inputStream = new MemoryStream(body)
+      use decompressionStream =
+        new BrotliStream(inputStream, CompressionMode.Decompress)
+      use outputStream = new MemoryStream()
+      decompressionStream.CopyTo(outputStream)
+      outputStream.ToArray()
+    | Some ce -> Exception.raiseInternal $"unsupported content encoding {ce}" []
+    | None -> body
 
   let split (response : byte array) : T =
     // read a single line of bytes (a line ends with \r\n)

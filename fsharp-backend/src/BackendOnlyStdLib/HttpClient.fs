@@ -222,6 +222,7 @@ let httpCall'
           | "gzip" -> new GZipStream(responseStream, decompress)
           | "deflate" -> new DeflateStream(responseStream, decompress)
           | "" -> responseStream
+          // FSTODO: test other format such as zstd
           | _ -> raise (InvalidEncodingException(int response.StatusCode))
 
         use memoryStream = new MemoryStream()
