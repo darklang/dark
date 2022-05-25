@@ -301,14 +301,32 @@ module OCamlCompatibleVsApiServer =
 
 
 
-  let equalsOCaml (dv : LibExecution.OCamlTypes.RuntimeT.dval) : bool =
+  let isEqual<'a> (v : 'a) : bool =
     let toComparable str = str |> Newtonsoft.Json.Linq.JToken.Parse |> string
-    let vanilla = ApiServer.Json.serialize dv |> toComparable
-    let ocaml = Json.OCamlCompatible.serialize dv |> toComparable
+    let ocamlCompatible = Json.OCamlCompatible.serialize v |> toComparable
+    let clientJson = ApiServer.Json.serialize v |> toComparable
+    clientJson .=. ocamlCompatible
 
-    ocaml .=. vanilla
+  let testForType<'a> config =
+    testProperty config typeof<Generator> $"ocamlCompatible-{typeof<'a>}" isEqual<'a>
 
   let tests config =
     testList
       "ocamlCompatibleVsApiServerJson"
-      [ testProperty config typeof<Generator> "ocamlCompatible" equalsOCaml ]
+      [ testForType<LibExecution.OCamlTypes.RuntimeT.dval> config
+        testForType<ApiServer.F404s.List.T> config
+        testForType<ApiServer.F404s.Delete.T> config
+        testForType<ApiServer.DBs.Unlocked.T> config
+        testForType<ApiServer.DBs.DBStats.T> config
+        testForType<ApiServer.Execution.Handler.T> config
+        testForType<ApiServer.Execution.Function.T> config
+        testForType<ApiServer.InitialLoad.T> config
+        testForType<ApiServer.AddOps.T> config
+        testForType<ApiServer.Packages.List.T> config
+        testForType<ApiServer.Secrets.Insert.T> config
+        testForType<ApiServer.Secrets.Delete.T> config
+        testForType<ApiServer.Toplevels.Delete.T> config
+        testForType<ApiServer.Traces.AllTraces.T> config
+        testForType<ApiServer.Traces.TraceData.T> config
+        testForType<ApiServer.Workers.WorkerStats.T> config
+        testForType<ApiServer.Workers.Scheduler.T> config ]
