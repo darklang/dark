@@ -206,9 +206,8 @@ let makeHttpCall
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
+    use _ = Telemetry.child "LegacyHttpClient.call" [ "url", url; "method", method ]
     try
-      use _ =
-        Telemetry.child "LegacyHttpClient.call" [ "url", url; "method", method ]
       let uri = System.Uri(url, System.UriKind.Absolute)
       if uri.Scheme <> "https" && uri.Scheme <> "http" then
         return
@@ -397,11 +396,11 @@ let makeHttpCall
     with
     | InvalidEncodingException code ->
       let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
-      Telemetry.addTags [ "error", true; "errorMsg", error ]
+      Telemetry.addTags [ "error", true; "error_msg", error ]
       return
         Error { url = url; code = code; error = prependInternalErrorMessage error }
     | :? TaskCanceledException -> // only timeouts
-      Telemetry.addTags [ "error", true; "errorMsg", "Timeout" ]
+      Telemetry.addTags [ "error", true; "error_msg", "Timeout" ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
@@ -410,24 +409,29 @@ let makeHttpCall
           prependInternalErrorMessage "Unsupported protocol"
         else
           prependInternalErrorMessage e.Message
-      Telemetry.addTags [ "error", true; "errorMsg", message ]
+      Telemetry.addTags [ "error", true; "error_msg", message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage message }
     | :? System.UriFormatException ->
-      Telemetry.addTags [ "error", true; "errorMsg", "Invalid URI" ]
+      Telemetry.addTags [ "error", true; "error_msg", "Invalid URI" ]
       return
         Error
           { url = url; code = 0; error = prependInternalErrorMessage "Invalid URI" }
     | :? IOException as e ->
-      Telemetry.addTags [ "error", true; "errorMsg", e.Message ]
+      Telemetry.addTags [ "error", true; "error_msg", e.Message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
     | :? HttpRequestException as e ->
-      Telemetry.addTags [ "error", true; "errorMsg", e.Message ]
+      Telemetry.addTags [ "error", true; "error_msg", e.Message ]
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
+      let message =
+        if isNull e.InnerException then
+          e.Message
+        else
+          Telemetry.addTag "inner_exception_error_msg" e.InnerException.Message
+          $"{e.Message} {e.InnerException.Message}"
       return
-        Error
-          { url = url; code = code; error = prependInternalErrorMessage e.Message }
+        Error { url = url; code = code; error = prependInternalErrorMessage message }
   }
 
 // Encodes [body] as a UTF-8 string, safe for sending across the internet! Uses

@@ -205,7 +205,8 @@ let processNotification
 
                     Telemetry.addTags [ "result_type", resultType result
                                         "queue.success", true
-                                        "executed_tlids", traceResults.tlids
+                                        "executed_tlids",
+                                        HashSet.toList traceResults.tlids
                                         "queue.completion_reason", "completed" ]
                     // ExecutesToCompletion
 

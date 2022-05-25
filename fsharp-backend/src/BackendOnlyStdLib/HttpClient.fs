@@ -99,8 +99,8 @@ let httpCall'
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
+    use _ = Telemetry.child "HttpClient.call" [ "url", url; "method", method ]
     try
-      use _ = Telemetry.child "HttpClient.call" [ "url", url; "method", method ]
       let uri = System.Uri(url, System.UriKind.Absolute)
 
       // currently we only support http(s) requests
@@ -283,10 +283,10 @@ let httpCall'
     with
     | InvalidEncodingException code ->
       let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
-      Telemetry.addTags [ "error", true; "errorMsg", error ]
+      Telemetry.addTags [ "error", true; "error_msg", error ]
       return Error { url = url; code = code; error = error }
     | :? TaskCanceledException -> // only timeouts
-      Telemetry.addTags [ "error", true; "errorMsg", "Timeout" ]
+      Telemetry.addTags [ "error", true; "error_msg", "Timeout" ]
       return Error { url = url; code = 0; error = "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
       let message =
@@ -294,16 +294,23 @@ let httpCall'
           "Unsupported protocol"
         else
           e.Message
-      Telemetry.addTags [ "error", true; "errorMsg", message ]
+      Telemetry.addTags [ "error", true; "error_msg", message ]
       return Error { url = url; code = 0; error = message }
     | :? System.UriFormatException ->
-      Telemetry.addTags [ "error", true; "errorMsg", "Invalud URI" ]
+      Telemetry.addTags [ "error", true; "error_msg", "Invalud URI" ]
       return Error { url = url; code = 0; error = "Invalid URI" }
     | :? IOException as e -> return Error { url = url; code = 0; error = e.Message }
     | :? HttpRequestException as e ->
-      Telemetry.addTags [ "error", true; "errorMsg", e.Message ]
+      Telemetry.addTags [ "error", true; "error_msg", e.Message ]
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
-      return Error { url = url; code = code; error = e.Message }
+      let message =
+        if isNull e.InnerException then
+          e.Message
+        else
+          Telemetry.addTag "inner_exception_error_msg" e.InnerException.Message
+          $"{e.Message} {e.InnerException.Message}"
+
+      return Error { url = url; code = code; error = message }
   }
 
 /// Uses an internal .NET HttpClient to make a request
