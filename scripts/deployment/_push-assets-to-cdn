@@ -12,114 +12,114 @@ ROOT_OF_FILES="backend/static/"
 BUCKET="gs://darklang-static-assets"
 
 # Gather list of files in known dir
-allStaticFiles = [f for f in glob.glob(ROOT_OF_FILES + '**', recursive=True) if os.path.isfile(f)]
+all_static_files = [f for f in glob.glob(f"{ROOT_OF_FILES}**", recursive=True) if os.path.isfile(f)]
 
 
 # Filter out files we don't care about
-def shouldCopyFile(filename):
-  filesToSkip = [ROOT_OF_FILES + ".gitkeep", ROOT_OF_FILES + "etags.json"]
-  if filename in filesToSkip:
+def should_copy_file(file_name):
+  files_to_skip = [f"{ROOT_OF_FILES}.gitkeep", f"{ROOT_OF_FILES}etags.json"]
+  if file_name in files_to_skip:
     return False
 
-  if filename.endswith(".gz") or filename.endswith(".br"):
+  if file_name.endswith(".gz") or file_name.endswith(".br"):
     return False
 
   return True
-staticFilesToCopy = [f for f in allStaticFiles if shouldCopyFile(f)]
+static_files_to_copy = [f for f in all_static_files if should_copy_file(f)]
 
 
 # We want to call `gsutil cp` in bulk by Content-Type shortly, but it doesn't
 # support a way to copy multiple files in one call while also renaming them.
 # So, we copy files to a new temp dir, adjusting file names to have hashes
 # injected where relevant.
-tempDir = tempfile.gettempdir() + "/static-assets/"
-shutil.rmtree(tempDir, ignore_errors=True)
+temp_dir = tempfile.gettempdir() + "/static-assets/"
+shutil.rmtree(temp_dir, ignore_errors=True)
 
-with open(ROOT_OF_FILES + '/etags.json', 'r') as f:
+with open(f"{ROOT_OF_FILES}/etags.json", 'r') as f:
   etags = json.load(f)
 
-def shouldHash(filename):
+def should_hash(filename):
   return not filename.startswith("vendor/")
 
-def getRemoteFileName(filePath):
-  filePath = filePath.replace(ROOT_OF_FILES, '')
+def get_remote_file_name(file_path):
+  file_path = file_path.replace(ROOT_OF_FILES, '')
 
-  if shouldHash(filePath):
-    fileHash = etags[filePath]
-    (base, _dot, extension) = filePath.rpartition('.')
-    return f'{base}-{fileHash}.{extension}'
+  if should_hash(file_path):
+    file_hash = etags[file_path]
+    (base, _dot, extension) = file_path.rpartition('.')
+    return f'{base}-{file_hash}.{extension}'
   else:
-    return filePath
+    return file_path
 
-def getRemoteFilePath(filename):
-  return tempDir + getRemoteFileName(filename)
+def get_remote_file_path(filename):
+  return temp_dir + get_remote_file_name(filename)
 
-for f in staticFilesToCopy:
-  target = getRemoteFilePath(f)
-  os.makedirs( os.path.dirname(target), exist_ok=True)
+for f in static_files_to_copy:
+  target = get_remote_file_path(f)
+  os.makedirs(os.path.dirname(target), exist_ok=True)
   shutil.copy(f, target)
 
 # from now on, we don't care about the original paths
-staticFilesToCopy = [getRemoteFilePath(f) for f in staticFilesToCopy]
-ROOT_OF_FILES = tempDir
+static_files_to_copy = [get_remote_file_path(f) for f in static_files_to_copy]
+ROOT_OF_FILES = temp_dir
 
 
 # Determine content-type / mimetype
 # See also ApiServer.configureStaticContent
-def mimeTypeFor(filename):
+def mime_type_for(file_name):
   # Common web stuff
-  if filename.endswith(".css"): return "text/css"
-  elif filename.endswith(".js"): return "application/javascript"
-  elif filename.endswith(".json"): return "application/json"
-  elif filename.endswith(".txt"): return "text/plain"
-  elif filename.endswith(".png"): return "image/png"
-  elif filename.endswith(".svg"): return "image/svg+xml"
-  elif filename.endswith(".html"): return "text/html"
+  if file_name.endswith(".css"): return "text/css"
+  elif file_name.endswith(".js"): return "application/javascript"
+  elif file_name.endswith(".json"): return "application/json"
+  elif file_name.endswith(".txt"): return "text/plain"
+  elif file_name.endswith(".png"): return "image/png"
+  elif file_name.endswith(".svg"): return "image/svg+xml"
+  elif file_name.endswith(".html"): return "text/html"
   # Fonts
-  elif filename.endswith(".ttf"): return "font/ttf"
-  elif filename.endswith(".woff"): return "font/woff"
-  elif filename.endswith(".woff2"): return "font/woff2"
-  elif filename.endswith(".eot"): return "application/vnd.ms-fontobject"
+  elif file_name.endswith(".ttf"): return "font/ttf"
+  elif file_name.endswith(".woff"): return "font/woff"
+  elif file_name.endswith(".woff2"): return "font/woff2"
+  elif file_name.endswith(".eot"): return "application/vnd.ms-fontobject"
   # Blazor
-  elif filename.endswith(".wasm"): return "application/wasm"
-  elif filename.endswith(".pdb"): return "text/plain"
-  elif filename.endswith(".dll"): return "application/octet-stream"
-  elif filename.endswith(".dat"): return "application/octet-stream"
-  elif filename.endswith(".blat"): return "application/octet-stream"
+  elif file_name.endswith(".wasm"): return "application/wasm"
+  elif file_name.endswith(".pdb"): return "text/plain"
+  elif file_name.endswith(".dll"): return "application/octet-stream"
+  elif file_name.endswith(".dat"): return "application/octet-stream"
+  elif file_name.endswith(".blat"): return "application/octet-stream"
   else:
     # Don't allow anything else
-    print(f'Unknown extension for {filename}')
+    print(f'Unknown extension for {file_name}')
     sys.exit(-1)
 
 
 # Group the files to copy by the Content-Type we want to send it as
 # key = mimetype, value = list of static file (by local name)
-filesGroupedByMimetype = {}
-for f in staticFilesToCopy:
-  mimetype = mimeTypeFor(f)
+files_grouped_by_mimetype = {}
+for f in static_files_to_copy:
+  mimetype = mime_type_for(f)
 
-  if mimetype in filesGroupedByMimetype:
-    filesGroupedByMimetype[mimetype].append(f)
+  if mimetype in files_grouped_by_mimetype:
+    files_grouped_by_mimetype[mimetype].append(f)
   else:
-    filesGroupedByMimetype[mimetype] = [f]
+    files_grouped_by_mimetype[mimetype] = [f]
 
 # Copy the files to CDN - one `gsutil cp` call per Content-Type
-for mimetype in filesGroupedByMimetype:
-  filesToCopy = " ".join(filesGroupedByMimetype[mimetype])
-
+for mimetype in files_grouped_by_mimetype:
+  files_to_copy = " ".join(files_grouped_by_mimetype[mimetype])
   # Prepare a `gsutil cp` call
   # -h: set header
   # -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
   # -n: Don't overwrite
   # -m: Upload assets in parallel, within call
-  gsutilCommand = ''' gsutil \
+
+  gsutil_command = f'''gsutil \
     -h "Content-Type:{mimetype}" \
     -h "Cache-Control:public" \
-    cp -Z -n {files} "{remoteDir}"
-    '''.format(mimetype=mimetype, files=filesToCopy, remoteDir=BUCKET)
+    cp -Z -n {files_to_copy} "{BUCKET}"
+    '''
 
-  subprocess.run(gsutilCommand, shell=True)
+  subprocess.run(gsutil_command, shell=True)
 
 # Wrap up
-shutil.rmtree(tempDir, ignore_errors=True)
+shutil.rmtree(temp_dir, ignore_errors=True)
 print("Done!")
