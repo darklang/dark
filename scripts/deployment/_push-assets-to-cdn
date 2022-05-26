@@ -143,10 +143,10 @@ for mimetype_subfolder in subfolders_to_process:
     -h "Content-Type:{mimetype}" \
     -h "Cache-Control:public" \
     -m \
-    cp -Z -n -r {mimetype_subfolder} "{BUCKET}"
+    cp -Z -n -r . "{BUCKET}"
     '''
 
-  subprocess.run(gsutil_command, shell=True)
+  subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder)
 
 # Wrap up
 shutil.rmtree(temp_dir, ignore_errors=True)
