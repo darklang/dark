@@ -7,7 +7,7 @@ This repo is intended to help Dark users solve their needs by fixing bugs, expan
 
 See also:
 
-- [Project Tracking](https://github.com/darklang/dark/projects/1) - what we're actually
+- [Project Tracking](https://github.com/orgs/darklang/projects/5) - what we're actually
   working on right
 - [Darklang Community Slack](https://darklang.com/slack-invite)
 - [Roadmap](https://github.com/darklang/dark/issues/3284)
