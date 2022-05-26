@@ -326,7 +326,7 @@ jobs:
       - run: scripts/build/_generate-etags
       - run: scripts/build/compile-project fsharp-backend
       # Expecto needs `--colours 0` or the xml will be invalid - https://github.com/haf/expecto/issues/434
-      - run: scripts/run-fsharp-tests --debug --colours 0
+      - run: scripts/run-fsharp-tests --debug --colours 0 --published
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
