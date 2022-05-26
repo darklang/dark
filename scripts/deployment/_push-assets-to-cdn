@@ -5,17 +5,19 @@ import os
 import sys
 import json
 import subprocess
+import tempfile
+import shutil
 
-PREFIX_TO_REMOVE="backend/static/"
+ROOT_OF_FILES="backend/static/"
 BUCKET="gs://darklang-static-assets"
 
-# Fetch all files
-allStaticFiles = [f for f in glob.glob('backend/static/**', recursive=True) if os.path.isfile(f)]
+# Gather list of files in known dir
+allStaticFiles = [f for f in glob.glob(ROOT_OF_FILES + '**', recursive=True) if os.path.isfile(f)]
 
 
 # Filter out files we don't care about
 def shouldCopyFile(filename):
-  filesToSkip = ["backend/static/.gitkeep", "backend/static/etags.json"]
+  filesToSkip = [ROOT_OF_FILES + ".gitkeep", ROOT_OF_FILES + "etags.json"]
   if filename in filesToSkip:
     return False
 
@@ -23,8 +25,43 @@ def shouldCopyFile(filename):
     return False
 
   return True
-
 staticFilesToCopy = [f for f in allStaticFiles if shouldCopyFile(f)]
+
+
+# We want to call `gsutil cp` in bulk by Content-Type shortly, but it doesn't
+# support a way to copy multiple files in one call while also renaming them.
+# So, we copy files to a new temp dir, adjusting file names to have hashes
+# injected where relevant.
+tempDir = tempfile.gettempdir() + "/static-assets/"
+shutil.rmtree(tempDir, ignore_errors=True)
+
+with open(ROOT_OF_FILES + '/etags.json', 'r') as f:
+  etags = json.load(f)
+
+def shouldHash(filename):
+  return not filename.startswith("vendor/")
+
+def getRemoteFileName(filePath):
+  filePath = filePath.replace(ROOT_OF_FILES, '')
+
+  if shouldHash(filePath):
+    fileHash = etags[filePath]
+    (base, _dot, extension) = filePath.rpartition('.')
+    return f'{base}-{fileHash}.{extension}'
+  else:
+    return filePath
+
+def getRemoteFilePath(filename):
+  return tempDir + getRemoteFileName(filename)
+
+for f in staticFilesToCopy:
+  target = getRemoteFilePath(f)
+  os.makedirs( os.path.dirname(target), exist_ok=True)
+  shutil.copy(f, target)
+
+# from now on, we don't care about the original paths
+staticFilesToCopy = [getRemoteFilePath(f) for f in staticFilesToCopy]
+ROOT_OF_FILES = tempDir
 
 
 # Determine content-type / mimetype
@@ -55,7 +92,8 @@ def mimeTypeFor(filename):
     sys.exit(-1)
 
 
-# key = mimetype, value = list of static file (by local name))
+# Group the files to copy by the Content-Type we want to send it as
+# key = mimetype, value = list of static file (by local name)
 filesGroupedByMimetype = {}
 for f in staticFilesToCopy:
   mimetype = mimeTypeFor(f)
@@ -65,45 +103,23 @@ for f in staticFilesToCopy:
   else:
     filesGroupedByMimetype[mimetype] = [f]
 
-
-# Copy the files to CDN - some of the files are hashed
-def shouldHash(filename):
-  return not filename.startswith("backend/static/vendor/")
-
-with open('backend/static/etags.json', 'r') as f:
-  etags = json.load(f)
-
-def remoteFileName(filename):
-  filename = filename.replace(PREFIX_TO_REMOVE, '')
-
-  if shouldHash(filename):
-    filehash = etags[filename]
-    (base, _dot, extension) = filename.rpartition('.')
-    hashedFile = f'{base}-{filehash}.{extension}'
-    return hashedFile
-  else:
-    return filename
-
-def remoteFilePath(fileName):
-  return f'{BUCKET}/{remoteFileName(fileName)}'
-
-
+# Copy the files to CDN - one `gsutil cp` call per Content-Type
 for mimetype in filesGroupedByMimetype:
-  localFilesForMimeType = filesGroupedByMimetype[mimetype]
-  for file in localFilesForMimeType:
-    remotePath = remoteFileName(file)
+  filesToCopy = " ".join(filesGroupedByMimetype[mimetype])
 
-    gsutilCommand = '''gsutil \
-      -h "Content-Type:{mimetype}" \
-      -h "Cache-Control:public" \
-      cp \
-        -Z \
-        -n \
-        "{localpath}" \
-        "{remotepath}" &
-      '''.format(mimetype=mimetype, localpath=file, remotepath=remoteFilePath(file))
+  # Prepare a `gsutil cp` call
+  # -h: set header
+  # -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
+  # -n: Don't overwrite
+  # -m: Upload assets in parallel, within call
+  gsutilCommand = ''' gsutil \
+    -h "Content-Type:{mimetype}" \
+    -h "Cache-Control:public" \
+    cp -Z -n {files} "{remoteDir}"
+    '''.format(mimetype=mimetype, files=filesToCopy, remoteDir=BUCKET)
 
-    subprocess.run(gsutilCommand, shell=True)
+  subprocess.run(gsutilCommand, shell=True)
 
 # Wrap up
+shutil.rmtree(tempDir, ignore_errors=True)
 print("Done!")
