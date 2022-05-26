@@ -301,15 +301,9 @@ let httpCall'
       return Error { url = url; code = 0; error = "Invalid URI" }
     | :? IOException as e -> return Error { url = url; code = 0; error = e.Message }
     | :? HttpRequestException as e ->
-      Telemetry.addTags [ "error", true; "error_msg", e.Message ]
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
-      let message =
-        if isNull e.InnerException then
-          e.Message
-        else
-          Telemetry.addTag "inner_exception_error_msg" e.InnerException.Message
-          $"{e.Message} {e.InnerException.Message}"
-
+      let message = e |> Exception.getMessages |> String.concat " "
+      Telemetry.addTags [ "error", true; "error_msg", e.Message; "code", code ]
       return Error { url = url; code = code; error = message }
   }
 

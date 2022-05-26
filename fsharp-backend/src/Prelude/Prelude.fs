@@ -89,6 +89,12 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 let mutable exceptionCallback = (fun (e : exn) -> ())
 
 module Exception =
+
+  /// Returns a list of exceptions of this exception, and all nested inner
+  /// exceptions.
+  let rec getMessages (e : exn) : List<string> =
+    if isNull e.InnerException then [] else e.Message :: getMessages e
+
   let rec toMetadata (e : exn) : Metadata =
     let innerMetadata =
       if not (isNull e.InnerException) then toMetadata e.InnerException else []
