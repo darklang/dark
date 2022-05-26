@@ -1,115 +1,125 @@
-#! /usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3.8
 
-PREFIX_TO_REMOVE="backend/static/"
+import glob
+import os
+import sys
+import json
+import subprocess
+import tempfile
+import shutil
+
+ROOT_OF_FILES="backend/static/"
 BUCKET="gs://darklang-static-assets"
 
-# for debugging in CI
-# find backend/static
+# Gather list of files in known dir
+all_static_files = [f for f in glob.glob(f"{ROOT_OF_FILES}**", recursive=True) if os.path.isfile(f)]
 
-function mimeTypeFor {
-  # See also ApiServer.configureStaticContent
-  case "$1" in
-    # Common web stuff
-    *.css) echo "text/css" ;;
-    *.js) echo "application/javascript" ;;
-    *.json) echo "application/json" ;;
-    *.txt) echo "text/plain" ;;
-    *.png) echo "image/png" ;;
-    *.svg) echo "image/svg+xml" ;;
-    *.html) echo "text/html" ;;
-    # Fonts
-    *.ttf) echo "font/ttf" ;;
-    *.woff) echo "font/woff" ;;
-    *.woff2) echo "font/woff2" ;;
-    *.eot) echo "application/vnd.ms-fontobject" ;;
-    # Blazor
-    *.wasm) echo "application/wasm" ;;
-    *.pdb) echo "text/plain" ;;
-    *.dll) echo "application/octet-stream" ;;
-    *.dat) echo "application/octet-stream" ;;
-    *.blat) echo "application/octet-stream" ;;
+
+# Filter out files we don't care about
+def should_copy_file(file_name):
+  files_to_skip = [f"{ROOT_OF_FILES}.gitkeep", f"{ROOT_OF_FILES}etags.json"]
+  if file_name in files_to_skip:
+    return False
+
+  if file_name.endswith(".gz") or file_name.endswith(".br"):
+    return False
+
+  return True
+static_files_to_copy = [f for f in all_static_files if should_copy_file(f)]
+
+
+# We want to call `gsutil cp` in bulk by Content-Type shortly, but it doesn't
+# support a way to copy multiple files in one call while also renaming them.
+# So, we copy files to a new temp dir, adjusting file names to have hashes
+# injected where relevant.
+temp_dir = tempfile.gettempdir() + "/static-assets/"
+shutil.rmtree(temp_dir, ignore_errors=True)
+
+with open(f"{ROOT_OF_FILES}/etags.json", 'r') as f:
+  etags = json.load(f)
+
+def should_hash(filename):
+  return not filename.startswith("vendor/")
+
+def get_remote_file_name(file_path):
+  file_path = file_path.replace(ROOT_OF_FILES, '')
+
+  if should_hash(file_path):
+    file_hash = etags[file_path]
+    (base, _dot, extension) = file_path.rpartition('.')
+    return f'{base}-{file_hash}.{extension}'
+  else:
+    return file_path
+
+def get_remote_file_path(filename):
+  return temp_dir + get_remote_file_name(filename)
+
+for f in static_files_to_copy:
+  target = get_remote_file_path(f)
+  os.makedirs(os.path.dirname(target), exist_ok=True)
+  shutil.copy(f, target)
+
+# from now on, we don't care about the original paths
+static_files_to_copy = [get_remote_file_path(f) for f in static_files_to_copy]
+ROOT_OF_FILES = temp_dir
+
+
+# Determine content-type / mimetype
+# See also ApiServer.configureStaticContent
+def mime_type_for(file_name):
+  # Common web stuff
+  if file_name.endswith(".css"): return "text/css"
+  elif file_name.endswith(".js"): return "application/javascript"
+  elif file_name.endswith(".json"): return "application/json"
+  elif file_name.endswith(".txt"): return "text/plain"
+  elif file_name.endswith(".png"): return "image/png"
+  elif file_name.endswith(".svg"): return "image/svg+xml"
+  elif file_name.endswith(".html"): return "text/html"
+  # Fonts
+  elif file_name.endswith(".ttf"): return "font/ttf"
+  elif file_name.endswith(".woff"): return "font/woff"
+  elif file_name.endswith(".woff2"): return "font/woff2"
+  elif file_name.endswith(".eot"): return "application/vnd.ms-fontobject"
+  # Blazor
+  elif file_name.endswith(".wasm"): return "application/wasm"
+  elif file_name.endswith(".pdb"): return "text/plain"
+  elif file_name.endswith(".dll"): return "application/octet-stream"
+  elif file_name.endswith(".dat"): return "application/octet-stream"
+  elif file_name.endswith(".blat"): return "application/octet-stream"
+  else:
     # Don't allow anything else
-    *) echo "Unknown extension for ${file}"; exit 1 ;;
-  esac
-}
+    print(f'Unknown extension for {file_name}')
+    sys.exit(-1)
 
-function upload {
-  local localpath="$1"
-  local remotepath="$2"
-  local mimetype;
-  mimetype="$(mimeTypeFor ${localpath})"
-  echo -e "copy\n  ${localpath}\nto\n  ${remotepath}\nmime\n  ${mimetype}\n\n"
 
-  # We do separate uploads for each file to get the mimetype right
+# Group the files to copy by the Content-Type we want to send it as
+# key = mimetype, value = list of static file (by local name)
+files_grouped_by_mimetype = {}
+for f in static_files_to_copy:
+  mimetype = mime_type_for(f)
+
+  if mimetype in files_grouped_by_mimetype:
+    files_grouped_by_mimetype[mimetype].append(f)
+  else:
+    files_grouped_by_mimetype[mimetype] = [f]
+
+# Copy the files to CDN - one `gsutil cp` call per Content-Type
+for mimetype in files_grouped_by_mimetype:
+  files_to_copy = " ".join(files_grouped_by_mimetype[mimetype])
+  # Prepare a `gsutil cp` call
   # -h: set header
   # -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
   # -n: Don't overwrite
-  gsutil \
-    -h "Content-Type:${mimetype}" \
+  # -m: Upload assets in parallel, within call
+
+  gsutil_command = f'''gsutil \
+    -h "Content-Type:{mimetype}" \
     -h "Cache-Control:public" \
-    cp \
-      -Z \
-      -n \
-      "${localpath}" \
-      "${BUCKET}/${remotepath}" \
-      &
-}
+    cp -Z -n {files_to_copy} "{BUCKET}"
+    '''
 
-function uploadHashed {
-  local file="$1"
-  local basefile="${file//$PREFIX_TO_REMOVE}"
-  local filehash
-  echo -e "hashing ${basefile}"
-  filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' backend/static/etags.json)"
-  echo -e "hash for ${basefile}: ${filehash}"
-  local hashed_file="${basefile%.*}-${filehash}.${basefile##*.}"
+  subprocess.run(gsutil_command, shell=True)
 
-  upload "${file}" "${hashed_file}"
-}
-
-function uploadUnhashed {
-  local file=$1
-  local basefile="${file//$PREFIX_TO_REMOVE}"
-
-  upload "${file}" "${basefile}"
-}
-
-function skipFile {
-  local file=$1
-  if [[ "${file}" == "backend/static/.gitkeep" ]]; then
-    return 0
-  elif [[ "${file}" == "backend/static/etags.json" ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
-
-files=$(find backend/static -type f -and -not -name "*.gz" -and -not -name "*.br")
-
-echo "Checking mime types"
-for file in $files; do
-  if skipFile "$file"; then
-    : # do nothing
-  else
-    mimeTypeFor "$file"
-  fi
-done
-
-echo "Uploading"
-
-# Upload in parallel
-for file in $files ; do
-  if skipFile "$file"; then
-    echo "skipping $file"
-  elif [[ "${file}" == "backend/static/vendor/"* ]]; then
-    uploadUnhashed "${file}"
-  else
-    uploadHashed "${file}"
-  fi
-done
-
-# Wait for uploads to be done
-wait
-echo "Done!"
+# Wrap up
+shutil.rmtree(temp_dir, ignore_errors=True)
+print("Done!")
