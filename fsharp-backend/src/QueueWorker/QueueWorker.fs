@@ -51,7 +51,12 @@ let processNotification
                         "event.pubsub.ack_id", notification.pubSubAckID
                         "event.pubsub.message_id", notification.pubSubMessageID ]
     let resultType (dv : RT.Dval) : string =
-      dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
+      match dv with
+      | RT.DOption None -> "Option(None)"
+      | RT.DOption (Some _) -> "Option(Some)"
+      | RT.DResult (Error _) -> "Result(Error)"
+      | RT.DResult (Ok _) -> "Result(Ok)"
+      | _ -> dv |> RT.Dval.toType |> DvalReprExternal.typeToDeveloperReprV0
 
     // Function used to quit this event
     let stop
