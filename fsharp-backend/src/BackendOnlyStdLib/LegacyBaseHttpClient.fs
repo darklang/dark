@@ -424,7 +424,21 @@ let makeHttpCall
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
       let message = e |> Exception.getMessages |> String.concat " "
-      Telemetry.addTags [ "error", true; "error_msg", e.Message; "code", code ]
+      Telemetry.addTags [ "error", true
+                          "error_msg", e.Message
+                          "code", code
+                          "data", e.Data
+                          "hresult", e.HResult
+                          "stack_trace", e.StackTrace
+                          "help_link", e.HelpLink ]
+      let inner = e.InnerException
+      if not (isNull inner) then
+        Telemetry.addTags [ "inner.class_name", inner.GetType().ToString()
+                            "inner.error_msg", inner.Message
+                            "inner.data", inner.Data
+                            "inner.hresult", inner.HResult
+                            "inner.stack_trace", inner.StackTrace
+                            "inner.help_link", inner.HelpLink ]
       return
         Error { url = url; code = code; error = prependInternalErrorMessage message }
   }
