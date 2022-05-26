@@ -93,7 +93,10 @@ module Exception =
   /// Returns a list of exceptions of this exception, and all nested inner
   /// exceptions.
   let rec getMessages (e : exn) : List<string> =
-    if isNull e.InnerException then [] else e.Message :: getMessages e
+    if isNull e.InnerException then
+      [ e.Message ]
+    else
+      e.Message :: getMessages e.InnerException
 
   let rec toMetadata (e : exn) : Metadata =
     let innerMetadata =
