@@ -11,11 +11,44 @@ import shutil
 ROOT_OF_FILES="backend/static/"
 BUCKET="gs://darklang-static-assets"
 
-# Gather list of files in known dir
-all_static_files = [f for f in glob.glob(f"{ROOT_OF_FILES}**", recursive=True) if os.path.isfile(f)]
+# This script's goal is to gather all of our static assets in `backend/static/`
+# and upload them to GCP via `gsutil cp`, with the correct Content-Type. Some
+# files should maintain their exact name (e.g. vendor assets), and others
+# should have their contents' hash injected into their name, as expected by
+# `etags.json`.
+#
+# As we want to upload with the correct content types, which `gsutil cp` allows
+# via a `-h "Content-Type: {mimetype}"` argument, we must make a call to the
+# tool once per Content-Type. We must also ensure we maintain relative file
+# paths when uploaded. (i.e. backend/static/blazor/blazor.js should end up at
+# {BUCKET}/blazor/blazor-HASH.js).
+#
+# Inconveniently, `gsutil cp` doesn't provide a way to pass in a list of
+# (local path/name, remote path/name) pairs, making it tricky to do rename
+# transforms. We get around this by creating a temp folder per content-type
+# and rather than providing a list of files, we provide such a directory, and
+# include the `-r` (recursive) argument, along with the Content-Type
+#
+# The algorithm of this script is:
+# - gather a list of all files in `backend/static/`
+# - exclude some of them (by name, or extension, or otherwise)
+# - create a temp directory
+# - copy all relevant files from `backend/static/` to the appropriate
+#   Content-Type -specific subfolder of our temp directory, renaming
+#   some files to have the hashes from etags.json in their file name
+# - call `gsutil cp -r` per Content-Type -specific directory
 
 
-# Filter out files we don't care about
+# We can't make folders named like "application/json", so these two utility fns
+# are used to deal with this.
+special_str_to_replace_slashes = "#slash#"
+def encode_dirname_with_slash(dirname):
+  return dirname.replace("/", special_str_to_replace_slashes)
+def decode_dirname_with_slash(dirname):
+  return dirname.replace(special_str_to_replace_slashes, "/")
+
+
+# Gather list of files in known dir; filter out files we don't care about
 def should_copy_file(file_name):
   files_to_skip = [f"{ROOT_OF_FILES}.gitkeep", f"{ROOT_OF_FILES}etags.json"]
   if file_name in files_to_skip:
@@ -25,43 +58,10 @@ def should_copy_file(file_name):
     return False
 
   return True
-static_files_to_copy = [f for f in all_static_files if should_copy_file(f)]
 
-
-# We want to call `gsutil cp` in bulk by Content-Type shortly, but it doesn't
-# support a way to copy multiple files in one call while also renaming them.
-# So, we copy files to a new temp dir, adjusting file names to have hashes
-# injected where relevant.
-temp_dir = tempfile.gettempdir() + "/static-assets/"
-shutil.rmtree(temp_dir, ignore_errors=True)
-
-with open(f"{ROOT_OF_FILES}/etags.json", 'r') as f:
-  etags = json.load(f)
-
-def should_hash(filename):
-  return not filename.startswith("vendor/")
-
-def get_remote_file_name(file_path):
-  file_path = file_path.replace(ROOT_OF_FILES, '')
-
-  if should_hash(file_path):
-    file_hash = etags[file_path]
-    (base, _dot, extension) = file_path.rpartition('.')
-    return f'{base}-{file_hash}.{extension}'
-  else:
-    return file_path
-
-def get_remote_file_path(filename):
-  return temp_dir + get_remote_file_name(filename)
-
-for f in static_files_to_copy:
-  target = get_remote_file_path(f)
-  os.makedirs(os.path.dirname(target), exist_ok=True)
-  shutil.copy(f, target)
-
-# from now on, we don't care about the original paths
-static_files_to_copy = [get_remote_file_path(f) for f in static_files_to_copy]
-ROOT_OF_FILES = temp_dir
+static_files_to_copy = [f
+                        for f in glob.glob(f"{ROOT_OF_FILES}**", recursive=True)
+                        if os.path.isfile(f) and should_copy_file(f)]
 
 
 # Determine content-type / mimetype
@@ -91,31 +91,59 @@ def mime_type_for(file_name):
     print(f'Unknown extension for {file_name}')
     sys.exit(-1)
 
+# Parse `etags.json` to extract expected file content hashes, which we will
+# inject into filenames
+with open(f"{ROOT_OF_FILES}/etags.json", 'r') as f:
+  etags = json.load(f)
 
-# Group the files to copy by the Content-Type we want to send it as
-# key = mimetype, value = list of static file (by local name)
-files_grouped_by_mimetype = {}
-for f in static_files_to_copy:
-  mimetype = mime_type_for(f)
+def should_hash(filename):
+  return not filename.startswith("vendor/")
 
-  if mimetype in files_grouped_by_mimetype:
-    files_grouped_by_mimetype[mimetype].append(f)
+# Create a local temp directory, with a subfolder per Content-Type relevant,
+# and copy our files to such, respecting relative location.
+# We'll later call `gsutil cp` per-folder with a `-r` (recursive) flag.
+temp_dir = tempfile.gettempdir() + "/static-assets"
+shutil.rmtree(temp_dir, ignore_errors=True)
+
+def get_remote_file_name(file_path):
+  file_path = file_path.replace(ROOT_OF_FILES, '')
+
+  if should_hash(file_path):
+    file_hash = etags[file_path]
+    (base, _dot, extension) = file_path.rpartition('.')
+    return f'{base}-{file_hash}.{extension}'
   else:
-    files_grouped_by_mimetype[mimetype] = [f]
+    return file_path
+
+for f in static_files_to_copy:
+  mimetype_folder = encode_dirname_with_slash(mime_type_for(f))
+  target_filename = get_remote_file_name(f)
+  target = f'{temp_dir}/{mimetype_folder}/{target_filename}'
+
+  # make sure subfolders are there so the copy doesn't fail
+  os.makedirs(os.path.dirname(target), exist_ok=True)
+
+  shutil.copy(f, target)
+
 
 # Copy the files to CDN - one `gsutil cp` call per Content-Type
-for mimetype in files_grouped_by_mimetype:
-  files_to_copy = " ".join(files_grouped_by_mimetype[mimetype])
-  # Prepare a `gsutil cp` call
-  # -h: set header
-  # -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
-  # -n: Don't overwrite
-  # -m: Upload assets in parallel, within call
+subfolders_to_process = [f.path for f in os.scandir(temp_dir) if os.path.isdir(f)]
 
+for mimetype_subfolder in subfolders_to_process:
+  mimetype = decode_dirname_with_slash(mimetype_subfolder.replace(temp_dir + '/', ''))
+  # Prepare a `gsutil cp` call
+  # - global gsutil args
+  #   -h: set header
+  #   -m: Upload assets in parallel, within call
+  # - `cp`-specific args
+  #   -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
+  #   -n: Don't overwrite
+  #   -r: Copy recursively
   gsutil_command = f'''gsutil \
     -h "Content-Type:{mimetype}" \
     -h "Cache-Control:public" \
-    cp -Z -n {files_to_copy} "{BUCKET}"
+    -m \
+    cp -Z -n -r {mimetype_subfolder} "{BUCKET}"
     '''
 
   subprocess.run(gsutil_command, shell=True)
