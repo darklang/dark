@@ -49,7 +49,7 @@ let sendRequest
         encodedReqHeaders
         reqBody
 
-    match! httpCall 0 false uri query verb encodedReqHeaders encodedReqBody with
+    match! httpCall 0 uri query verb encodedReqHeaders encodedReqBody with
     | Ok response ->
       let body =
         response.body

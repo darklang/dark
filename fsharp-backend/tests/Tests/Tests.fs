@@ -65,8 +65,6 @@ let main (args : string array) : int =
     exitCode
   with
   | e ->
-    print e.Message
-    printMetadata (Exception.toMetadata e)
-    print e.StackTrace
+    printException "Outer exception" [] e
     NonBlockingConsole.wait () // flush stdout
     1

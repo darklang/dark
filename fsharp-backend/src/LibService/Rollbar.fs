@@ -9,7 +9,7 @@ open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
 open Tablecloth
-open Exception
+open LibService.Exception
 
 /// Logs various Rollbar-related configuration options to Rollbar,
 /// at the debug level
@@ -295,17 +295,13 @@ let exceptionWhileProcessingException
 
   try
     // Do this after, as these could cause exceptions
-    print "Original exception"
-    print original.Message
-    print original.StackTrace
+    printException "Original exception" [] original
   with
   | _ ->
 
     try
       // Do this after, as these could cause exceptions
-      print "Processing exception"
-      print processingException.Message
-      print processingException.StackTrace
+      printException "Processing exception" [] processingException
     with
     | _ ->
 
@@ -324,27 +320,34 @@ let personMetadata (person : Person) : Metadata =
   | Some person -> [ "user.id", person.id; "user.username", person.username ]
 
 
-/// Sends exception to Rollbar and also to Telemetry (honeycomb). The error is titled
-/// after the exception message - to change it wrap it in another exception. However,
-/// it's better to keep the existing exception and add extra context via metadata.
+/// Sends exception to Rollbar and also to Telemetry (honeycomb) and also prints it.
+/// The error is titled after the exception message - to change it wrap it in another
+/// exception. However, it's better to keep the existing exception and add extra
+/// context via metadata. For nested exceptions: the printException function and Telemetry.addException are recursive and capture nested exceptions.
+
 let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
   try
-    print $"rollbar: {e.Message} @ {NodaTime.Instant}"
-    print e.StackTrace
-    let metadata = Exception.toMetadata e @ metadata @ personMetadata person
-    printMetadata metadata
+    // don't include exception metadata, as the other functions do
+    let metadata = personMetadata person @ metadata
+
+    // print to console
+    printException $"rollbar ({NodaTime.Instant()})" metadata e
+
+    // send to telemetry
     use span =
       if isNull (Telemetry.Span.current ()) then
         Telemetry.createRoot "sendException"
       else
         null // don't use the current span as we don't want `use` to clean it up
     Telemetry.addException metadata e
+
+    // actually send to rollbar
+    let metadata = Exception.nestedMetadata e @ metadata
     let custom = createCustom metadata
     let package = createPackage e person
     Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
     |> ignore<Rollbar.ILogger>
-    // Do the same for the innerException
-    if e.InnerException <> null then sendException person [] e.InnerException
+  // Do the same for the innerException
   with
   | processingException -> exceptionWhileProcessingException e processingException
 
@@ -355,13 +358,10 @@ let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
 /// as it blocks. Returns an int as the process will exit immediately after.
 let lastDitchBlockAndPage (msg : string) (e : exn) : int =
   try
-    print $"last ditch rollbar: {msg}"
-    print e.Message
-    print e.StackTrace
-    let metadata = Exception.toMetadata e
-    printMetadata metadata
+    printException msg [] e
     let e = PageableException(msg, [], e)
     Telemetry.addException [] e
+    let metadata = Exception.nestedMetadata e
     let custom = createCustom metadata
     Rollbar
       .RollbarLocator
@@ -414,17 +414,17 @@ module AspNet =
             ()
           else
             try
-              print $"rollbar in http middleware"
-              print e.Message
-              print e.StackTrace
-              print (ctx.Request.GetEncodedUrl())
+              printException
+                "rollbar in http middleware"
+                [ "url", (ctx.Request.GetEncodedUrl()) ]
+                e
 
               let person, metadata =
                 try
                   rollbarCtx.ctxMetadataFn ctx
                 with
                 | _ -> None, [ "exception calling ctxMetadataFn", true ]
-              let metadata = metadata @ Exception.toMetadata e
+              let metadata = metadata @ Exception.nestedMetadata e
               let custom = createCustom metadata
               let package = createPackage e person
               let package = HttpRequestPackageDecorator(package, ctx.Request, true)

@@ -319,7 +319,7 @@ let executionStateFor
         let stackTrace = exn.StackTrace
         let metadata = Exception.toMetadata exn @ metadata
         let inner = exn.InnerException
-        if inner <> null then (exceptionReporter state metadata inner) else ()
+        if not (isNull inner) then (exceptionReporter state [] inner) else ()
         state.test.exceptionReports <-
           (message, stackTrace, metadata) :: state.test.exceptionReports
 

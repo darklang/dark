@@ -98,9 +98,20 @@ module Exception =
     else
       e.Message :: getMessages e.InnerException
 
-  let rec toMetadata (e : exn) : Metadata =
+  let toMetadata (e : exn) : Metadata =
+    let thisMetadata =
+      match e with
+      | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
+      | :? InternalException as e -> e.metadata
+      | :? EditorException
+      | :? CodeException
+      | :? GrandUserException
+      | _ -> []
+    thisMetadata
+
+  let rec nestedMetadata (e : exn) : Metadata =
     let innerMetadata =
-      if not (isNull e.InnerException) then toMetadata e.InnerException else []
+      if not (isNull e.InnerException) then nestedMetadata e.InnerException else []
     let thisMetadata =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
@@ -321,14 +332,27 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     return a
   }
 
-let printMetadata (metadata : Metadata) =
+let printMetadata (prefix : string) (metadata : Metadata) =
   try
     List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
   with
   | _ -> ()
 
+let rec printException'
+  (prefix : string)
+  (count : int)
+  (metadata : Metadata)
+  (e : exn)
+  : unit =
+  print $"{prefix}: error: {e.Message}"
+  printMetadata prefix (Exception.toMetadata e)
+  print $"{prefix}: exceptionType: {e.GetType()}"
+  print $"{prefix}: {e.StackTrace}"
+  if not (isNull e.InnerException) then
+    printException' $"prefex.inner[{count}]" (count + 1) [] e.InnerException
 
-
+let printException (prefix : string) (metadata : Metadata) (e : exn) : unit =
+  printException' prefix 0 metadata e
 
 
 // ----------------------

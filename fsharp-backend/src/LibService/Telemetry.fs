@@ -149,17 +149,32 @@ let notify (name : string) (tags : Metadata) : unit =
     )
   span.AddEvent(event) |> ignore<Span.T>
 
+let rec exceptionTags (count : int) (e : exn) : Metadata =
+  let prefix = if count = 0 then "" else $"inner[{count}]."
+  let defaultTags =
+    [ $"exception.{prefix}type", e.GetType().FullName :> obj
+      $"exception.{prefix}stacktrace", string e.StackTrace
+      $"exception.{prefix}message", e.Message ]
+  let metadata = Exception.toMetadata e
+  let innerTags =
+    if (isNull e.InnerException) then
+      []
+    else
+      exceptionTags (count + 1) e.InnerException
+  metadata @ defaultTags @ innerTags
+
 
 let addException (metadata : Metadata) (e : exn) : unit =
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/1191a2a3da7be8deae7aa94083b5981cb7610080/src/OpenTelemetry.Api/Trace/ActivityExtensions.cs#L79
-  // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
-  let exceptionTags =
-    [ "exception", true :> obj
-      "exception.type", e.GetType().FullName :> obj
-      "exception.stacktrace", string e.StackTrace
-      "exception.message", e.Message ]
-    @ Exception.toMetadata e @ metadata
-  addEvent e.Message exceptionTags
+  // The .NET RecordException function doesn't take tags, despite it being a MUST in the
+  // [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception),
+  // so we implement our own.
+  let errorTags = [ "exception", true :> obj; "error", true ]
+  let exceptionTags = exceptionTags 0 e
+  let tags = metadata @ errorTags @ exceptionTags
+  addEvent e.Message tags
+
+
 
 let serverTags : List<string * obj> =
   // Ensure that these are all stringified on startup, not when they're added to the

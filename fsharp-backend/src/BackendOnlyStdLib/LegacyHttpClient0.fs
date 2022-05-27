@@ -40,7 +40,7 @@ let sendRequest
       DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultCode
     let encodedReqBody = encodeRequestBody jsonFn encodedReqHeaders reqBody
 
-    match! httpCall 0 false uri query verb encodedReqHeaders encodedReqBody with
+    match! httpCall 0 uri query verb encodedReqHeaders encodedReqBody with
     | Ok response ->
       match UTF8.ofBytesOpt response.body with
       | None ->

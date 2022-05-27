@@ -312,7 +312,7 @@ type EvalWorker =
           Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> message)
         with
         | e ->
-          let metadata = Exception.toMetadata e
+          let metadata = Exception.nestedMetadata e
           System.Console.WriteLine("Error parsing analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
           System.Console.WriteLine(
@@ -328,7 +328,7 @@ type EvalWorker =
           return Ok result
         with
         | e ->
-          let metadata = Exception.toMetadata e
+          let metadata = Exception.nestedMetadata e
           System.Console.WriteLine("Error running analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
           System.Console.WriteLine(

@@ -206,12 +206,6 @@ let main (args : string []) : int =
   with
   | e ->
     // Don't reraise or report as ExecHost is only run interactively
-    let rec printException (e : exn) : unit =
-      print e.Message
-      printMetadata (Exception.toMetadata e)
-      print e.StackTrace
-      let inner = e.InnerException
-      if inner <> null then printException inner
-    printException e
+    printException "" [] e
     LibService.Init.shutdown name
     1
