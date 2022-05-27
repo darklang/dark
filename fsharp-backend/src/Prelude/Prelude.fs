@@ -327,8 +327,19 @@ let printMetadata (metadata : Metadata) =
   with
   | _ -> ()
 
+let printException (prefix : string) (e : exn) : unit =
+  print $"{prefix}: error: {e.Message}"
+  print $"{prefix}: exceptionType: {e.GetType()}"
 
+  seq {
+    let mutable en = e.Data.Keys.GetEnumerator()
 
+    while en.MoveNext() do
+      yield (en.Current, e.Data[en.Current])
+  }
+  |> Seq.iter (fun (k, v) -> print $"{prefix} data: {k}: {v}")
+  print $"{prefix}: {e.StackTrace}"
+  print $"{prefix}: help_link: {e.HelpLink}"
 
 
 // ----------------------
