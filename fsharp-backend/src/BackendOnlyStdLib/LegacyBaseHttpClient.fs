@@ -317,6 +317,7 @@ let makeHttpCall
 
         // send request
         Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
+        Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
         use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
@@ -324,7 +325,9 @@ let makeHttpCall
         // some reason.
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
-        Telemetry.addTag "response.encoding" encoding
+        Telemetry.addTags [ "response.encoding", encoding
+                            "response.status_code", response.StatusCode
+                            "response.version", response.Version ]
         use! responseStream = response.Content.ReadAsStreamAsync()
         use contentStream : Stream =
           let decompress = CompressionMode.Decompress
@@ -364,8 +367,6 @@ let makeHttpCall
             respBody
 
         let code = int response.StatusCode
-        Telemetry.addTag "response.status_code" code
-
         let isHttp2 = (response.Version = System.Net.HttpVersion.Version20)
 
         // CLEANUP: For some reason, the OCaml version includes a header with the HTTP
@@ -421,22 +422,8 @@ let makeHttpCall
         Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
+      Telemetry.addException [ "error.status_code", code ] e
       let message = e |> Exception.getMessages |> String.concat " "
-      Telemetry.addTags [ "error", true
-                          "error_msg", e.Message
-                          "code", code
-                          "data", e.Data
-                          "hresult", e.HResult
-                          "stack_trace", e.StackTrace
-                          "help_link", e.HelpLink ]
-      let inner = e.InnerException
-      if not (isNull inner) then
-        Telemetry.addTags [ "inner.class_name", inner.GetType().ToString()
-                            "inner.error_msg", inner.Message
-                            "inner.data", inner.Data
-                            "inner.hresult", inner.HResult
-                            "inner.stack_trace", inner.StackTrace
-                            "inner.help_link", inner.HelpLink ]
       return
         Error { url = url; code = code; error = prependInternalErrorMessage message }
   }
