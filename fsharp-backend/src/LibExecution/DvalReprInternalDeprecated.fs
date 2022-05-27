@@ -471,7 +471,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
     | JNonStandard _
     | _ ->
       Exception.raiseInternal
-        "Invalud type in internalQueryableV1 json"
+        "Invalid type in internalQueryableV1 json"
         [ "json", json ]
 
   str |> parseJson |> convertTopLevel
