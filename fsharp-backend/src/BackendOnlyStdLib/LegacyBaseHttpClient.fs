@@ -197,8 +197,6 @@ let prependInternalErrorMessage errorMessage =
   $"Internal HTTP-stack exception: {errorMessage}"
 
 let makeHttpCall
-  // CLEANUP remove this unused param
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -466,7 +464,6 @@ let encodeRequestBody
 
 let rec httpCall
   (count : int)
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -487,7 +484,7 @@ let rec httpCall
     if (count > 50) then
       return Error { url = url; code = 0; error = "Too many redirects" }
     else
-      let! response = makeHttpCall rawBytes url queryParams method reqHeaders reqBody
+      let! response = makeHttpCall url queryParams method reqHeaders reqBody
 
       match response with
       | Ok result when result.code >= 300 && result.code < 400 ->
@@ -523,7 +520,7 @@ let rec httpCall
             // server redirects, it gives us a new url and we shouldn't append the
             // query param to it.
             // Consider: http://redirect.to?url=xyz.com/path
-            httpCall newCount rawBytes newUrl [] method reqHeaders reqBody
+            httpCall newCount newUrl [] method reqHeaders reqBody
 
           return
             Result.map

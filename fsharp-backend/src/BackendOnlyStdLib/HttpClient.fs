@@ -90,8 +90,6 @@ let httpClient : HttpClient =
 exception InvalidEncodingException of int
 
 let httpCall'
-  // CLEANUP remove this unused param
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -323,7 +321,6 @@ let httpCall'
 /// and process response into an HttpResult
 let rec httpCall
   (count : int)
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -344,7 +341,7 @@ let rec httpCall
     if (count > 50) then
       return Error { url = url; code = 0; error = "Too many redirects" }
     else
-      let! response = httpCall' rawBytes url queryParams method reqHeaders reqBody
+      let! response = httpCall' url queryParams method reqHeaders reqBody
 
       match response with
       | Ok result when result.code >= 300 && result.code < 400 ->
@@ -376,7 +373,7 @@ let rec httpCall
             // server redirects, it gives us a new url and we shouldn't append the
             // query param to it.
             // Consider: http://redirect.to?url=xyz.com/path
-            httpCall newCount rawBytes newUrl [] method reqHeaders reqBody
+            httpCall newCount newUrl [] method reqHeaders reqBody
 
           return
             Result.map
@@ -492,7 +489,7 @@ let sendRequest
 
     let encodedReqBody = encodeRequestBody reqBody reqHeaders
 
-    match! httpCall 0 false uri query verb reqHeaders encodedReqBody with
+    match! httpCall 0 uri query verb reqHeaders encodedReqBody with
     | Ok response ->
       let body = UTF8.ofBytesOpt response.body
       let parsedResponseBody =
