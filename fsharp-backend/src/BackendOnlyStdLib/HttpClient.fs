@@ -99,7 +99,10 @@ let httpCall'
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
-    use _ = Telemetry.child "HttpClient.call" [ "url", url; "method", method ]
+    use _ =
+      Telemetry.child
+        "HttpClient.call"
+        [ "request.url", url; "request.method", method ]
     try
       let uri = System.Uri(url, System.UriKind.Absolute)
 
@@ -204,6 +207,7 @@ let httpCall'
 
         // send request
         Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
+        Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
         use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
@@ -211,9 +215,9 @@ let httpCall'
         // some reason.
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
-        Telemetry.addTag "response.encoding" encoding
-        Telemetry.addTag "response.status_code" response.StatusCode
-        Telemetry.addTag "response.version" response.Version
+        Telemetry.addTags [ "response.encoding", encoding
+                            "response.status_code", response.StatusCode
+                            "response.version", response.Version ]
         use! responseStream = response.Content.ReadAsStreamAsync()
         use contentStream : Stream =
           let decompress = CompressionMode.Decompress
@@ -253,8 +257,6 @@ let httpCall'
             respBody
 
         let code = int response.StatusCode
-        Telemetry.addTag "response.status_code" code
-
         let isHttp2 = (response.Version = System.Net.HttpVersion.Version20)
 
         // CLEANUP: For some reason, the OCaml version includes a header with the HTTP
@@ -299,27 +301,21 @@ let httpCall'
       Telemetry.addTags [ "error", true; "error_msg", message ]
       return Error { url = url; code = 0; error = message }
     | :? System.UriFormatException ->
-      Telemetry.addTags [ "error", true; "error_msg", "Invalud URI" ]
+      Telemetry.addTags [ "error", true; "error_msg", "Invalid URI" ]
       return Error { url = url; code = 0; error = "Invalid URI" }
     | :? IOException as e -> return Error { url = url; code = 0; error = e.Message }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
       let message = e |> Exception.getMessages |> String.concat " "
       Telemetry.addTags [ "error", true
-                          "error_msg", e.Message
-                          "code", code
-                          "data", e.Data
-                          "hresult", e.HResult
-                          "stack_trace", e.StackTrace
-                          "help_link", e.HelpLink ]
+                          "error.msg", e.Message
+                          "error.status_code", code
+                          "error.stack_trace", e.StackTrace ]
       let inner = e.InnerException
       if not (isNull inner) then
-        Telemetry.addTags [ "inner.class_name", inner.GetType().ToString()
-                            "inner.error_msg", inner.Message
-                            "inner.data", inner.Data
-                            "inner.hresult", inner.HResult
-                            "inner.stack_trace", inner.StackTrace
-                            "inner.help_link", inner.HelpLink ]
+        Telemetry.addTags [ "inner_error.class_name", inner.GetType().ToString()
+                            "inner_error.error_msg", inner.Message
+                            "inner_error.stack_trace", inner.StackTrace ]
       return Error { url = url; code = code; error = message }
   }
 
