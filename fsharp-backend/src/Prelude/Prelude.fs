@@ -98,9 +98,20 @@ module Exception =
     else
       e.Message :: getMessages e.InnerException
 
-  let rec toMetadata (e : exn) : Metadata =
+  let toMetadata (e : exn) : Metadata =
+    let thisMetadata =
+      match e with
+      | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
+      | :? InternalException as e -> e.metadata
+      | :? EditorException
+      | :? CodeException
+      | :? GrandUserException
+      | _ -> []
+    thisMetadata
+
+  let rec nestedMetadata (e : exn) : Metadata =
     let innerMetadata =
-      if not (isNull e.InnerException) then toMetadata e.InnerException else []
+      if not (isNull e.InnerException) then nestedMetadata e.InnerException else []
     let thisMetadata =
       match e with
       | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
@@ -321,25 +332,27 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     return a
   }
 
-let printMetadata (metadata : Metadata) =
+let printMetadata (prefix : string) (metadata : Metadata) =
   try
     List.iter (fun (k, v) -> print $"  {k}: {v}") metadata
   with
   | _ -> ()
 
-let printException (prefix : string) (e : exn) : unit =
+let rec printException'
+  (prefix : string)
+  (count : int)
+  (metadata : Metadata)
+  (e : exn)
+  : unit =
   print $"{prefix}: error: {e.Message}"
+  printMetadata prefix (Exception.toMetadata e)
   print $"{prefix}: exceptionType: {e.GetType()}"
-
-  seq {
-    let mutable en = e.Data.Keys.GetEnumerator()
-
-    while en.MoveNext() do
-      yield (en.Current, e.Data[en.Current])
-  }
-  |> Seq.iter (fun (k, v) -> print $"{prefix} data: {k}: {v}")
   print $"{prefix}: {e.StackTrace}"
-  print $"{prefix}: help_link: {e.HelpLink}"
+  if not (isNull e.InnerException) then
+    printException' $"prefex.inner[{count}]" (count + 1) [] e.InnerException
+
+let printException (prefix : string) (metadata : Metadata) (e : exn) : unit =
+  printException' prefix 0 metadata e
 
 
 // ----------------------

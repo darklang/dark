@@ -947,9 +947,7 @@ and ExecutionState =
 
 let consoleReporter : ExceptionReporter =
   fun state (metadata : Metadata) (exn : exn) ->
-    let metadata = metadata @ Exception.toMetadata exn
-    print
-      $"An error was reported in the runtime:  \n  {exn.Message}\n{exn.StackTrace}\n  {metadata}\n\n"
+    printException "runtime-error" metadata exn
 
 let consoleNotifier : Notifier =
   fun state msg tags ->
