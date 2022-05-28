@@ -78,6 +78,12 @@ spec:
               hostPort: 80
             - containerPort: 443
               hostPort: 443
+          resources:
+            requests:
+              memory: "200Mi"
+              cpu: "100m"
+            limits:
+              memory: "500Mi"
           env:
             - name: POD_NAME
               valueFrom:
