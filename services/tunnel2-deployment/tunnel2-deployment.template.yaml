@@ -79,7 +79,6 @@ spec:
               cpu: "200m"
             limits:
               memory: "200Mi"
-              cpu: "400m"
 
           #####################
           # Lifecycles probes

@@ -75,7 +75,6 @@ spec:
             limits:
               # Allow generous limits in case it needs it when we're actually doing something
               memory: "200Mi"
-              cpu: "250m"
 
           # ---------------------
           # Environment
@@ -191,7 +190,6 @@ spec:
               cpu: "10m"
             limits:
               memory: "50Mi"
-              cpu: "50m"
 
           # ---------------------
           # Lifecycle probes
