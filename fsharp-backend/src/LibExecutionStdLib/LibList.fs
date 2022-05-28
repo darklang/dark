@@ -971,14 +971,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal b ] ->
           uply {
-            let abortReason = ref None
+            let mutable abortReason = None
 
-            let rec f : List<Dval> -> Ply<List<Dval>> =
-              function
-              | [] -> Ply []
-              | dv :: dvs ->
-                uply {
-                  let run = abortReason.Value = None
+            let rec f (list : List<Dval>) : Ply<List<Dval>> =
+              uply {
+                match list with
+                | [] -> return []
+                | dv :: dvs ->
+                  let run = abortReason = None
 
                   if run then
                     let! result =
@@ -990,18 +990,18 @@ let fns : List<BuiltInFn> =
                     | (DIncomplete _
                     | DErrorRail _
                     | DError _) as dv ->
-                      abortReason.Value <- Some dv
+                      abortReason <- Some dv
                       return []
                     | v ->
                       return
                         Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
                   else
                     return []
-                }
+              }
 
             let! result = f l
 
-            match abortReason.Value with
+            match abortReason with
             | None -> return DList result
             | Some v -> return v
           }
@@ -1038,14 +1038,14 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal b ] ->
           uply {
-            let abortReason = ref None
+            let mutable abortReason = None
 
-            let rec f : List<Dval> -> Ply<List<Dval>> =
-              function
-              | [] -> Ply []
-              | dv :: dvs ->
-                uply {
-                  let run = abortReason.Value = None
+            let rec f (list : List<Dval>) : Ply<List<Dval>> =
+              uply {
+                match list with
+                | [] -> return []
+                | dv :: dvs ->
+                  let run = abortReason = None
 
                   if run then
                     let! result =
@@ -1059,18 +1059,18 @@ let fns : List<BuiltInFn> =
                     | (DIncomplete _
                     | DErrorRail _
                     | DError _) as dv ->
-                      abortReason.Value <- Some dv
+                      abortReason <- Some dv
                       return []
                     | v ->
                       return
                         Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
                   else
                     return []
-                }
+              }
 
             let! result = f l
 
-            match abortReason.Value with
+            match abortReason with
             | None -> return DList result
             | Some v -> return v
           }
