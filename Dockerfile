@@ -119,6 +119,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       nodejs \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
+      google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
       vim \
       unzip \
@@ -257,6 +258,9 @@ RUN sudo wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
 
 # PubSub
 ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
+
+# GKE
+ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
 
 # crcmod for gsutil; this gets us the compiled (faster), not pure Python
 # (slower) crcmod, as described in `gsutil help crcmod`
