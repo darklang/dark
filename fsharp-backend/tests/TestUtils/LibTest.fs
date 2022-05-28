@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> fun l -> l[0] |> DChar |> Some |> DOption |> Ply
+            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Some |> DOption |> Ply)
           else
             Ply(DOption None)
         | _ -> incorrectArgs ())

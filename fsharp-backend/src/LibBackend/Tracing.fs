@@ -172,8 +172,7 @@ let createNonTracer () : TraceResults.T * RT.Tracing =
 
 /// Collections of functions and values used during a single execution
 type T =
-  {
-    /// Store the tracing input, if enabled
+  { /// Store the tracing input, if enabled
     storeInput : HandlerDesc -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled
