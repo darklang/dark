@@ -83,17 +83,18 @@ StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "No deploy hash fo
 
 
 // fetch_v0
-[test.fetch_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.fetch_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
-[test.fetch_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
+// [test.fetch_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v0 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetch_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
+// [test.fetch_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
-[test.fetch_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// [test.fetch_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v0 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
 [test.fetch_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -103,17 +104,18 @@ StaticAssets.fetch_v0 "xx" "index.html" = Test.typeError "Bad HTTP response (404
 
 
 // fetch_v1
-[test.fetch_v1 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.fetch_v1 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
-[test.fetch_v1 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v1 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
+// [test.fetch_v1 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v1 "abcdef1234" "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetch_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v1 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
+// [test.fetch_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v1 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
-[test.fetch_v1 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// [test.fetch_v1 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetch_v1 "abcdef1234" "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
 [test.fetch_v1 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetch_v1 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -123,17 +125,18 @@ StaticAssets.fetch_v1 "xx" "index.html" = Test.typeError "Bad HTTP response (404
 
 
 // fetchLatest_v0
-[test.fetchLatest_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v0 "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.fetchLatest_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v0 "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
-[test.fetchLatest_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v0 "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
+// [test.fetchLatest_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v0 "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetchLatest_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v0 "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
+// [test.fetchLatest_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v0 "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
-[test.fetchLatest_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v0 "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// [test.fetchLatest_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileeshere, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v0 "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
 [test.fetchLatest_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatest_v0 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -146,17 +149,18 @@ StaticAssets.fetchLatest_v0 "index.html" = Test.typeError "No deploy hash found"
 
 
 // fetchLatest_v1
-[test.fetchLatest_v1 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v1 "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.fetchLatest_v1 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v1 "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
-[test.fetchLatest_v1 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v1 "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
+// [test.fetchLatest_v1 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v1 "plain.txt" = Ok "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut"
 
-[test.fetchLatest_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v1 "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
+// [test.fetchLatest_v1 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v1 "favicon-32x32.png" = Error "Response was not\nUTF-8 safe"
 
-[test.fetchLatest_v1 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatest_v1 "index.html" = Ok "<html><body>Hello world</body></html>\n"
+// [test.fetchLatest_v1 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatest_v1 "index.html" = Ok "<html><body>Hello world</body></html>\n"
 
 [test.fetchLatest_v1 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatest_v1 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -169,17 +173,18 @@ StaticAssets.fetchLatest_v1 "index.html" = Test.typeError "No deploy hash found"
 
 
 // fetchBytes_v0
-[test.fetchBytes_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchBytes_v0 "abcdef1234" "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.fetchBytes_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchBytes_v0 "abcdef1234" "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
 
-[test.fetchBytes_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchBytes_v0 "abcdef1234" "plain.txt" = Ok (String.toBytes_v0 "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut")
+// [test.fetchBytes_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchBytes_v0 "abcdef1234" "plain.txt" = Ok (String.toBytes_v0 "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut")
 
-[test.fetchBytes_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchBytes_v0 "abcdef1234" "favicon-32x32.png" = Ok (getPng 0)
+// [test.fetchBytes_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchBytes_v0 "abcdef1234" "favicon-32x32.png" = Ok (getPng 0)
 
-[test.fetchBytes_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchBytes_v0 "abcdef1234" "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
+// [test.fetchBytes_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchBytes_v0 "abcdef1234" "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
 
 [test.fetchBytes_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchBytes_v0 "abcdef1234" "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -189,17 +194,18 @@ StaticAssets.fetchBytes_v0 "xx" "index.html" = Test.typeError "Bad HTTP response
 
 
 // fetchLatestBytes_v0
-[test.fetchLatestBytes_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatestBytes_v0 "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.fetchLatestBytes_v0 html] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatestBytes_v0 "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
 
-[test.fetchLatestBytes_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatestBytes_v0 "plain.txt" = Ok (String.toBytes_v0 "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut")
+// [test.fetchLatestBytes_v0 text] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatestBytes_v0 "plain.txt" = Ok (String.toBytes_v0 "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut")
 
-[test.fetchLatestBytes_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatestBytes_v0 "favicon-32x32.png" = Ok (getPng 0)
+// [test.fetchLatestBytes_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatestBytes_v0 "favicon-32x32.png" = Ok (getPng 0)
 
-[test.fetchLatestBytes_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-StaticAssets.fetchLatestBytes_v0 "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
+// [test.fetchLatestBytes_v0 different] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// StaticAssets.fetchLatestBytes_v0 "index.html" = Ok (String.toBytes_v0 "<html><body>Hello world</body></html>\n")
 
 [test.fetchLatestBytes_v0 missing] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 StaticAssets.fetchLatestBytes_v0 "no-file-with-this-name" = Test.typeError "Bad HTTP response (404) in call to https://test-static-assets-deploy.darksa.com/u0n38z-mv-t0tkvnwiqyvankw6w/abcdef1234/no-file-with-this-name"
@@ -417,24 +423,25 @@ result |> Result.map_v1
 
 
 // serve_v0
-[test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
-  Ok { body = "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.serve_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
+//   Ok { body = "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
 
-[test.serve_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
-  Ok { body = "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
+// [test.serve_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
+//   Ok { body = "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
 
-[test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
+// [test.serve_v0 png] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// StaticAssets.serve_v0 "abcdef1234" "favicon-32x32.png" = Error "Response was not UTF-8 safe"
 
-[test.serve_v0 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
-  Ok { body = "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+// [test.serve_v0 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
+//   Ok { body = "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
 
-[test.serve_v0 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
-  Ok { body = "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
+// [test.serve_v0 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serve_v0 "abcdef1234" "index.html") =
+//   Ok { body = "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
 
 [test.serve_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponse (StaticAssets.serve_v0 "abcdef1234" "no-file-with-this-name") =
@@ -454,33 +461,34 @@ canonicalizeFSharpBadResponse (StaticAssets.serve_v0 "xx" "index.html") =
 
 
 // serveLatest_v0
-[test.serveLatest_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.serveLatest_v0 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
 
-[test.serveLatest_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
+// [test.serveLatest_v0 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
 
-[test.serveLatest_v0 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "favicon-32x32.png") =
-  Ok { body = getPng 0
-       headers = ocaml200PngHeaders 0;
-       code = 200 }
+// [test.serveLatest_v0 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "favicon-32x32.png") =
+//   Ok { body = getPng 0
+//        headers = ocaml200PngHeaders 0;
+//        code = 200 }
 
-[test.serveLatest_v0 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "favicon-32x32.png") =
-  Ok { body = getPng 0
-       headers = fsharp200PngHeaders 0;
-       code = 200 }
+// [test.serveLatest_v0 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "favicon-32x32.png") =
+//   Ok { body = getPng 0
+//        headers = fsharp200PngHeaders 0;
+//        code = 200 }
 
-[test.serveLatest_v0 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
+// [test.serveLatest_v0 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = ocaml200HtmlHeaders 0; code = 200 }
 
-[test.serveLatest_v0 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
+// [test.serveLatest_v0 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v0 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"; headers = fsharp200HtmlHeaders 0; code = 200 }
 
 [test.serveLatest_v0 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponse (StaticAssets.serveLatest_v0 "no-file-with-this-name") =
@@ -500,41 +508,42 @@ StaticAssets.serveLatest_v0 "index.html" = Test.typeError "No deploy hash found"
 
 
 // serve_v1
-[test.serve_v1 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = ocaml200HtmlHeaders 0;
-       code = 200 }
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.serve_v1 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = ocaml200HtmlHeaders 0;
+//        code = 200 }
 
-[test.serve_v1 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = fsharp200HtmlHeaders 0;
-       code = 200 }
+// [test.serve_v1 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = fsharp200HtmlHeaders 0;
+//        code = 200 }
 
-[test.serve_v1 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png") =
-  Ok { body = getPng 0
-       headers = ocaml200PngHeaders 0;
-       code = 200 }
+// [test.serve_v1 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png") =
+//   Ok { body = getPng 0
+//        headers = ocaml200PngHeaders 0;
+//        code = 200 }
 
-[test.serve_v1 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png") =
-  Ok { body = getPng 0
-       headers = fsharp200PngHeaders 0;
-       code = 200 }
+// [test.serve_v1 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "favicon-32x32.png") =
+//   Ok { body = getPng 0
+//        headers = fsharp200PngHeaders 0;
+//        code = 200 }
 
-[test.serve_v1 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofilesshere, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = ocaml200HtmlHeaders 0;
-       code = 200 }
+// [test.serve_v1 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofilesshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = ocaml200HtmlHeaders 0;
+//        code = 200 }
 
-[test.serve_v1 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = fsharp200HtmlHeaders 0;
-       code = 200 }
+// [test.serve_v1 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serve_v1 "abcdef1234" "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = fsharp200HtmlHeaders 0;
+//        code = 200 }
 
 [test.serve_v1 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponse (StaticAssets.serve_v1 "abcdef1234" "no-file-with-this-name") =
@@ -554,41 +563,42 @@ canonicalizeFSharpBadResponse (StaticAssets.serve_v1 "xx" "index.html") =
 
 
 // serveLatest_v1
-[test.serveLatest_v1 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = ocaml200HtmlHeaders 0;
-       code = 200 }
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [test.serveLatest_v1 html OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = ocaml200HtmlHeaders 0;
+//        code = 200 }
 
-[test.serveLatest_v1 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = fsharp200HtmlHeaders 0;
-       code = 200 }
+// [test.serveLatest_v1 html FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = fsharp200HtmlHeaders 0;
+//        code = 200 }
 
-[test.serveLatest_v1 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") =
-  Ok { body = getPng 0
-       headers = ocaml200PngHeaders 0;
-       code = 200 }
+// [test.serveLatest_v1 png OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") =
+//   Ok { body = getPng 0
+//        headers = ocaml200PngHeaders 0;
+//        code = 200 }
 
-[test.serveLatest_v1 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") =
-  Ok { body = getPng 0
-       headers = fsharp200PngHeaders 0;
-       code = 200 }
+// [test.serveLatest_v1 png FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "favicon-32x32.png") =
+//   Ok { body = getPng 0
+//        headers = fsharp200PngHeaders 0;
+//        code = 200 }
 
-[test.serveLatest_v1 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = ocaml200HtmlHeaders 0;
-       code = 200 }
+// [test.serveLatest_v1 different OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeOCamlGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = ocaml200HtmlHeaders 0;
+//        code = 200 }
 
-[test.serveLatest_v1 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
-canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
-  Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
-       headers = fsharp200HtmlHeaders 0;
-       code = 200 }
+// [test.serveLatest_v1 different FSHARPONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash nofileshere, StaticAssetsDeployHash abcdef1234
+// canonicalizeFSharpGoodResponse (StaticAssets.serveLatest_v1 "index.html") =
+//   Ok { body = String.toBytes "<html><body>Hello world</body></html>\n"
+//        headers = fsharp200HtmlHeaders 0;
+//        code = 200 }
 
 [test.serveLatest_v1 missing OCAMLONLY] with ExactCanvasName test-static-assets-deploy, StaticAssetsDeployHash abcdef1234
 canonicalizeOCamlBadResponse (StaticAssets.serveLatest_v1 "no-file-with-this-name") =
