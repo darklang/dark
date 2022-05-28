@@ -395,11 +395,11 @@ let makeHttpCall
     with
     | InvalidEncodingException code ->
       let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
-      Telemetry.addTags [ "error", true; "error_msg", error ]
+      Telemetry.addTags [ "error", true; "error.msg", error ]
       return
         Error { url = url; code = code; error = prependInternalErrorMessage error }
     | :? TaskCanceledException -> // only timeouts
-      Telemetry.addTags [ "error", true; "error_msg", "Timeout" ]
+      Telemetry.addTags [ "error", true; "error.msg", "Timeout" ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
@@ -408,16 +408,16 @@ let makeHttpCall
           prependInternalErrorMessage "Unsupported protocol"
         else
           prependInternalErrorMessage e.Message
-      Telemetry.addTags [ "error", true; "error_msg", message ]
+      Telemetry.addTags [ "error", true; "error.msg", message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage message }
     | :? System.UriFormatException ->
-      Telemetry.addTags [ "error", true; "error_msg", "Invalid URI" ]
+      Telemetry.addTags [ "error", true; "error.msg", "Invalid URI" ]
       return
         Error
           { url = url; code = 0; error = prependInternalErrorMessage "Invalid URI" }
     | :? IOException as e ->
-      Telemetry.addTags [ "error", true; "error_msg", e.Message ]
+      Telemetry.addTags [ "error", true; "error.msg", e.Message ]
       return
         Error { url = url; code = 0; error = prependInternalErrorMessage e.Message }
     | :? HttpRequestException as e ->

@@ -285,10 +285,10 @@ let httpCall'
     with
     | InvalidEncodingException code ->
       let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
-      Telemetry.addTags [ "error", true; "error_msg", error ]
+      Telemetry.addTags [ "error", true; "error.msg", error ]
       return Error { url = url; code = code; error = error }
     | :? TaskCanceledException -> // only timeouts
-      Telemetry.addTags [ "error", true; "error_msg", "Timeout" ]
+      Telemetry.addTags [ "error", true; "error.msg", "Timeout" ]
       return Error { url = url; code = 0; error = "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
       let message =
@@ -296,24 +296,16 @@ let httpCall'
           "Unsupported protocol"
         else
           e.Message
-      Telemetry.addTags [ "error", true; "error_msg", message ]
+      Telemetry.addTags [ "error", true; "error.msg", message ]
       return Error { url = url; code = 0; error = message }
     | :? System.UriFormatException ->
-      Telemetry.addTags [ "error", true; "error_msg", "Invalid URI" ]
+      Telemetry.addTags [ "error", true; "error.msg", "Invalid URI" ]
       return Error { url = url; code = 0; error = "Invalid URI" }
     | :? IOException as e -> return Error { url = url; code = 0; error = e.Message }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
+      Telemetry.addException [ "error.status_code", code ] e
       let message = e |> Exception.getMessages |> String.concat " "
-      Telemetry.addTags [ "error", true
-                          "error.msg", e.Message
-                          "error.status_code", code
-                          "error.stack_trace", e.StackTrace ]
-      let inner = e.InnerException
-      if not (isNull inner) then
-        Telemetry.addTags [ "inner_error.class_name", inner.GetType().ToString()
-                            "inner_error.error_msg", inner.Message
-                            "inner_error.stack_trace", inner.StackTrace ]
       return Error { url = url; code = code; error = message }
   }
 
