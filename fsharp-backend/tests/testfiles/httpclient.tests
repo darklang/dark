@@ -196,19 +196,20 @@ Dict.get_v2 response.headers "content-type"
 // Currently, the httpclient functions return incorrect charsets because they use the
 // charset of the redirect, not of the final target document. We should change that.
 
-[tests.test with confusing results]
-getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
-getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
+// CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
+// [tests.test with confusing results]
+// getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
+// getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
+// getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
+// getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
+// getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
+// getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
+// getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
+// getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
+// getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
+// getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
+// getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
+// getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 
 
 [test.http2 v5]
