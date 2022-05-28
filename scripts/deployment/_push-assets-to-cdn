@@ -39,13 +39,9 @@ BUCKET="gs://darklang-static-assets"
 # - call `gsutil cp -r` per Content-Type -specific directory
 
 
-# We can't make folders named like "application/json", so these two utility fns
-# are used to deal with this.
-special_str_to_replace_slashes = "#slash#"
+# Exists because we can't make folders named like "application/json"
 def encode_dirname_with_slash(dirname):
-  return dirname.replace("/", special_str_to_replace_slashes)
-def decode_dirname_with_slash(dirname):
-  return dirname.replace(special_str_to_replace_slashes, "/")
+  return dirname.replace("/", "#slash#")
 
 
 # Gather list of files in known dir; filter out files we don't care about
@@ -105,6 +101,8 @@ def should_hash(filename):
 temp_dir = tempfile.gettempdir() + "/static-assets"
 shutil.rmtree(temp_dir, ignore_errors=True)
 
+# inserts the has of the file's contents (per etags.js) into the file name,
+# if relevant
 def get_remote_file_name(file_path):
   file_path = file_path.replace(ROOT_OF_FILES, '')
 
@@ -115,10 +113,17 @@ def get_remote_file_name(file_path):
   else:
     return file_path
 
+
+def get_mimetype_temp_dir(mimetype):
+  mimetype_folder = encode_dirname_with_slash(mimetype)
+  return f'{temp_dir}/{mimetype_folder}'
+
+mimetypes_to_process = []
 for f in static_files_to_copy:
-  mimetype_folder = encode_dirname_with_slash(mime_type_for(f))
+  mimetype = mime_type_for(f)
+  mimetypes_to_process.append(mimetype)
   target_filename = get_remote_file_name(f)
-  target = f'{temp_dir}/{mimetype_folder}/{target_filename}'
+  target = f'{get_mimetype_temp_dir(mimetype)}/{target_filename}'
 
   # make sure subfolders are there so the copy doesn't fail
   os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -127,10 +132,8 @@ for f in static_files_to_copy:
 
 
 # Copy the files to CDN - one `gsutil cp` call per Content-Type
-subfolders_to_process = [f.path for f in os.scandir(temp_dir) if os.path.isdir(f)]
-
-for mimetype_subfolder in subfolders_to_process:
-  mimetype = decode_dirname_with_slash(mimetype_subfolder.replace(temp_dir + '/', ''))
+for mimetype in mimetypes_to_process:
+  mimetype_subfolder = get_mimetype_temp_dir(mimetype)
   # Prepare a `gsutil cp` call
   # - global gsutil args
   #   -h: set header
