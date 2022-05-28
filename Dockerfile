@@ -366,7 +366,7 @@ RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$
 RUN sudo dotnet workload install wasm-tools
 
 # formatting
-RUN dotnet tool install fantomas-tool --version 4.6.3 -g
+RUN dotnet tool install fantomas-tool --version 4.7.9 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
