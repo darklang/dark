@@ -364,9 +364,6 @@ RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$
     && dotnet help
 
 RUN sudo dotnet workload install wasm-tools
-RUN dotnet tool install -g dotnet-sos
-# TODO: is this the right directory?
-RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
 RUN dotnet tool install fantomas-tool --version 4.6.3 -g
