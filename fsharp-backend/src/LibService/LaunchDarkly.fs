@@ -214,7 +214,6 @@ let traceSamplingRule =
 // Canvas Flags - these are per-canvas settings
 // --------------
 
-let useEventsV2 = Internal.canvasBool "use-events-v2" false false
 
 // --------------
 // System flags - this allows us to change the run-time values of system
