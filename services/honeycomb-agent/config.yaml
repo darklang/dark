@@ -56,19 +56,12 @@ watchers:
             - /api/:canvas/static_assets
             - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
 
-  ## qw
-  - labelSelector: "app=qw-worker"
-    containerName: qw-ctr
-    dataset: kubernetes-bwd-ocaml
-    parser: json
-
-
   # -------------
   # Sidecars
   # -------------
 
   ## Stroller
-  - labelSelector: "app in (editor-app, qw-worker)"
+  - labelSelector: "app in (editor-app)"
     containerName: stroller
     dataset: kubernetes-stroller
     processors:

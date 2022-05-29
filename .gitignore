@@ -48,7 +48,6 @@ services/exechost-deployment/exechost-deployment.yaml
 services/garbagecollector-deployment/garbagecollector-deployment.yaml
 services/postgres-honeytail-deployment.yaml
 services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
-services/qw-deployment/qw-deployment.yaml
 services/queueworker-deployment/queueworker-deployment.yaml
 services/scheduler-deployment/scheduler-deployment.yaml
 services/tunnel2-deployment/tunnel2-deployment.yaml
