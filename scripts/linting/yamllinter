@@ -50,8 +50,6 @@ all_yaml_files() {
     -o -path "./fsharp-backend/paket-files" -prune \
     -o -path "containers/stroller/target" -prune \
     -o -path "./containers/stroller/target" -prune \
-    -o -path "containers/queue-scheduler/target" -prune \
-    -o -path "./containers/queue-scheduler/target" -prune \
     -o -path ".circleci/config.yml" -prune
 }
 

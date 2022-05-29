@@ -210,8 +210,6 @@ all_rust_files() {
     -o -path "fsharp-backend" \
     -o -path "containers/stroller/target" \
     -o -path "./containers/stroller/target" \
-    -o -path "containers/queue-scheduler/target" \
-    -o -path "./containers/queue-scheduler/target" \
     \) -prune -false \
     \
     -o -type f \
