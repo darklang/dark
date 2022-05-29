@@ -129,6 +129,28 @@ let loadEventIDs
                       "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
+module Test =
+  let loadEvents
+    (canvasID : CanvasID)
+    ((module', name, modifier) : HandlerDesc)
+    : Task<List<RT.Dval>> =
+    Sql.query
+      "SELECT value
+        FROM events_v2
+        WHERE module = @module
+          AND name = @name
+          AND modifier = @modifier
+          AND canvas_id = @canvasID
+          LIMIT 1000" // don't go overboard
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                        "module", Sql.string module'
+                        "name", Sql.string name
+                        "modifier", Sql.string modifier ]
+    |> Sql.executeAsync (fun read ->
+      read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0)
+
+
+
 let deleteEvent (event : T) : Task<unit> =
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventID", Sql.uuid event.id
