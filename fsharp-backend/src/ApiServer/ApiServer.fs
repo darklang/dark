@@ -107,7 +107,6 @@ let addRoutes
   addRoute "GET" "/a/{canvasName}/trigger-exception" std R exceptionFn
 
   ocamlCompatibleApi "add_op" RW AddOps.addOp
-  ocamlCompatibleApi "clean_ops" RW AddOps.clean
   ocamlCompatibleApi "all_traces" R Traces.AllTraces.fetchAll
   ocamlCompatibleApi "delete_404" RW F404s.Delete.delete
   ocamlCompatibleApiOption "delete-toplevel-forever" RW Toplevels.Delete.delete
