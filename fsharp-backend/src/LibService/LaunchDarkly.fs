@@ -225,7 +225,7 @@ let queueAllowedExecutionTimeInSeconds =
 
 /// Limit to the number of events each QueueWorker will run concurrently
 let queueMaxConcurrentEventsPerWorker =
-  // 4 is conservating, we probably set this much higher
+  // 4 is conservative, we'll probably set this much higher
   Internal.intConfig "queue-max-concurrent-events-per-worker" 4 4
 
 /// Delay between fetches from the queue when something goes wrong
