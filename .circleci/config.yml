@@ -508,11 +508,6 @@ workflows:
             - build-backend
 
       # expensive tests
-      - rust-integration-tests:
-          requires:
-            - build-backend
-            - build-fsharp-backend
-            - build-client
       - integration-tests:
           requires:
             - build-backend
@@ -545,7 +540,6 @@ workflows:
           requires:
             - validate-honeycomb-config
             - integration-tests
-            - rust-integration-tests
             - push-to-gcp
             - static-checks
             - predeployment-checks
@@ -562,7 +556,6 @@ workflows:
             - build-stroller
             - gcp-containers-test
             - integration-tests
-            - rust-integration-tests
             - static-checks
             - predeployment-checks
             - validate-honeycomb-config
