@@ -364,20 +364,7 @@ let runTestRequest
       |> splitAtNewlines
       |> List.filterMap (fun line ->
         let asString = line |> List.toArray |> UTF8.ofBytesWithReplacement
-        if String.includes "// " asString then
-          if String.includes "OCAMLONLY" asString then
-            None
-          else if String.includes "KEEP" asString then
-            Some line
-          else
-            // Remove final comment only
-            let index =
-              findLastIndex [ byte ' '; byte '/'; byte '/' ] line
-              |> Option.orElse (findLastIndex [ byte '/'; byte '/' ] line)
-              |> Exception.unwrapOptionInternal "cannot find comment" []
-            line |> List.splitAt index |> Tuple2.first |> Some
-        else
-          Some line)
+        Some line)
       |> List.map (fun l -> List.append l [ newline ])
       |> List.flatten
       |> List.initial // remove final newline which we don't want

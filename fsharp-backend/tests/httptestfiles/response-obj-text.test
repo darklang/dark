@@ -1,4 +1,5 @@
 [http-handler GET /]
+// Note: there's a space after the { in the response, don't delete it or tests will fail
 Http.responseWithHeaders_v0 { x = "x" } (Dict.fromList_v0_ster [["Content-Type"; "text/plain; charset=utf-8"]]) 200
 
 [request]
@@ -19,6 +20,6 @@ Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: 13
 
-{  // comment is here to stop the space after the brace from being removed
+{ 
   x: "x"
 }

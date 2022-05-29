@@ -20,4 +20,4 @@ Content-Length: LENGTH
 Content-Encoding: deflate, gzip, br
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
-test // looks like nothing magical happens
+test
