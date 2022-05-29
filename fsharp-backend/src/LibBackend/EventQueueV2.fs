@@ -129,6 +129,28 @@ let loadEventIDs
                       "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
+module Test =
+  let loadEvents
+    (canvasID : CanvasID)
+    ((module', name, modifier) : HandlerDesc)
+    : Task<List<RT.Dval>> =
+    Sql.query
+      "SELECT value
+        FROM events_v2
+        WHERE module = @module
+          AND name = @name
+          AND modifier = @modifier
+          AND canvas_id = @canvasID
+          LIMIT 1000" // don't go overboard
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                        "module", Sql.string module'
+                        "name", Sql.string name
+                        "modifier", Sql.string modifier ]
+    |> Sql.executeAsync (fun read ->
+      read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0)
+
+
+
 let deleteEvent (event : T) : Task<unit> =
   Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventID", Sql.uuid event.id
@@ -352,23 +374,6 @@ let enqueue
     do! createNotifications canvasID [ id ]
     return ()
   }
-
-/// This enqueues the value in one of the two queues (the old `events` queue we're
-/// removing, or the new `events_v2` queue we're replacing it with). This is decided
-/// by a per-canvas feature flag.
-let enqueueInAQueue
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  (accountID : UserID)
-  (module' : string)
-  (name : string)
-  (modifier : string)
-  (value : RT.Dval)
-  : Task<unit> =
-  if LD.useEventsV2 canvasName then
-    enqueue canvasID module' name modifier value
-  else
-    EventQueue.enqueue canvasName canvasID accountID module' name modifier value
 
 /// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do
 /// so. This expiration of the ack is called NACK in the PubSub docs, and it

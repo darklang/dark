@@ -224,25 +224,6 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
     })
 
 
-/// Iterate through all canvases and load all data from the queue
-let loadAllQueueData (concurrency : int) (failOnError : bool) =
-  forEachCanvas concurrency failOnError (fun canvasName ->
-    task {
-      let! dvalStrs = LibBackend.EventQueue.fetchAllQueueItems canvasName
-      return!
-        dvalStrs
-        |> Task.iterInParallel (fun dvalStr ->
-          task {
-            let fsharpDval =
-              LibExecution.DvalReprInternalDeprecated.ofInternalRoundtrippableV0
-                dvalStr
-            let! ocamlDval =
-              LibBackend.OCamlInterop.ofInternalRoundtrippableV0 dvalStr
-            return Expect.equalDval fsharpDval ocamlDval ""
-          })
-    })
-
-
 let loadAllTraceData (concurrency : int) (failOnError : bool) =
   forEachCanvasWithClient concurrency failOnError (fun client canvasName ->
     Tests.ApiServer.testGetTraceData client canvasName)

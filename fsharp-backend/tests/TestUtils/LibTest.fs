@@ -225,7 +225,10 @@ let fns : List<BuiltInFn> =
         | state, [ DStr eventName ] ->
           uply {
             let canvasID = state.program.canvasID
-            let! results = LibBackend.EventQueue.testingGetQueue canvasID eventName
+            let! results =
+              LibBackend.EventQueueV2.Test.loadEvents
+                canvasID
+                ("WORKER", eventName, "_")
             return DList results
           }
         | _ -> incorrectArgs ())

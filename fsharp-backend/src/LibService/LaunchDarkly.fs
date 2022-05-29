@@ -214,7 +214,6 @@ let traceSamplingRule =
 // Canvas Flags - these are per-canvas settings
 // --------------
 
-let useEventsV2 = Internal.canvasBool "use-events-v2" false false
 
 // --------------
 // System flags - this allows us to change the run-time values of system
@@ -226,7 +225,7 @@ let queueAllowedExecutionTimeInSeconds =
 
 /// Limit to the number of events each QueueWorker will run concurrently
 let queueMaxConcurrentEventsPerWorker =
-  // 4 is conservating, we probably set this much higher
+  // 4 is conservative, we'll probably set this much higher
   Internal.intConfig "queue-max-concurrent-events-per-worker" 4 4
 
 /// Delay between fetches from the queue when something goes wrong

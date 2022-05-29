@@ -105,10 +105,8 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
       // trigger execution
       if Config.triggerCrons then
         do!
-          EventQueueV2.enqueueInAQueue
-            cron.canvasName
+          EventQueueV2.enqueue
             cron.canvasID
-            cron.ownerID
             "CRON"
             cron.cronName
             (PTParser.Handler.CronInterval.toString cron.interval)
