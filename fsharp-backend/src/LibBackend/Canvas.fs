@@ -369,10 +369,9 @@ let loadFrom
   task {
     try
       Telemetry.addTags [ "tlids", tlids; "loadAmount", loadAmount ]
-      // CLEANUP: rename "rendered" and "cached" to be consistent
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids
+      let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs meta.id tlids
 
       let fastLoadedTLIDs = List.map PT.Toplevel.toTLID fastLoadedTLs
 
@@ -569,9 +568,6 @@ let saveTLIDs
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None
 
-        // CLEANUP stop saving the ocaml binary
-        let! ocamlOplist = OCamlInterop.oplistToBinary oplist
-        let! ocamlOplistCache = OCamlInterop.toplevelToCachedBinary tl
         let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
         let fsharpOplistCache = BinarySerialization.serializeToplevel tl
 
@@ -583,10 +579,10 @@ let saveTLIDs
         return!
           Sql.query
             "INSERT INTO toplevel_oplists
-                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
-                    rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
+                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
+                     deleted, pos, oplist, oplist_cache)
                     VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                            @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
+                            @module, @modifier, @deleted, @pos,
                             @oplist, @oplistCache)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET account_id = @accountID,
@@ -595,8 +591,6 @@ let saveTLIDs
                         name = @name,
                         module = @module,
                         modifier = @modifier,
-                        data = @data,
-                        rendered_oplist_cache = @renderedOplistCache,
                         deleted = @deleted,
                         pos = @pos,
                         oplist = @oplist,
@@ -604,13 +598,11 @@ let saveTLIDs
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
-                              "digest", Sql.string (OCamlInterop.digest ())
+                              "digest", Sql.string "fsharp"
                               "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
                               "name", Sql.stringOrNone name
                               "module", Sql.stringOrNone module_
                               "modifier", Sql.stringOrNone modifier
-                              "data", Sql.bytea ocamlOplist
-                              "renderedOplistCache", Sql.bytea ocamlOplistCache
                               "deleted", Sql.bool deleted
                               "pos", Sql.jsonbOrNone pos
                               "oplist", Sql.bytea fsharpOplist

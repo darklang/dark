@@ -66,175 +66,6 @@ let isLatestOpRequest
 // --------------------------------------------------------
 module OT = LibExecution.OCamlTypes
 
-let deserializeOCamlSerializedToplevel
-  (tlid : tlid)
-  (typ : string)
-  (ocamlSerialized : byte [])
-  (pos : Option<string>)
-  : Task<PT.Toplevel.T> =
-  let deserializePos (pos : Option<string>) : pos =
-    try
-      pos
-      |> Option.map Json.OCamlCompatible.deserialize<pos>
-      |> Option.unwrap { x = 0; y = 0 }
-    with
-    | e -> { x = 0; y = 0 }
-  match typ with
-  | "db" ->
-    task {
-      let! json = OCamlInterop.bytesToStringReq "bs/db_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.DbT.db<OT.RuntimeT.fluidExpr>>
-        |> OT.Convert.ocamlDB2PT (deserializePos pos)
-        |> PT.Toplevel.TLDB
-    }
-  | "handler" ->
-    task {
-      let! json = OCamlInterop.bytesToStringReq "bs/handler_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.HandlerT.handler<OT.RuntimeT.fluidExpr>>
-        |> OT.Convert.ocamlHandler2PT (deserializePos pos)
-        |> PT.Toplevel.TLHandler
-    }
-  | "user_tipe" ->
-    task {
-      let! json =
-        OCamlInterop.bytesToStringReq "bs/user_tipe_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_tipe>
-        |> OT.Convert.ocamlUserType2PT
-        |> PT.Toplevel.TLType
-    }
-  | "user_function" ->
-    task {
-      let! json = OCamlInterop.bytesToStringReq "bs/user_fn_bin2json" ocamlSerialized
-      return
-        json
-        |> Json.OCamlCompatible.deserialize<OT.RuntimeT.user_fn<OT.RuntimeT.fluidExpr>>
-        |> OT.Convert.ocamlUserFunction2PT
-        |> PT.Toplevel.TLFunction
-    }
-  | _ ->
-    Exception.raiseInternal "Invalid tipe for toplevel" [ "type", typ; "tlid", tlid ]
-
-/// Save the oplist using the F# serialization formats, after reading the oplist from
-/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
-/// aren't, logs but doesn't save or error (because things can continue just fine).
-let saveOplistToFSharpCache
-  (canvasID : CanvasID)
-  (tlid : tlid)
-  (ocamlSerializedBytes : byte [])
-  (oplist : PT.Oplist)
-  : Task<unit> =
-  task {
-    let serialized = BinarySerialization.serializeOplist tlid oplist
-    let! rowUpdateCount =
-      Sql.query
-        "UPDATE toplevel_oplists
-         SET oplist = @oplist
-         WHERE canvas_id = @canvasID
-           AND tlid = @tlid
-           AND data = @ocamlOplist"
-      |> Sql.parameters [ "oplist", Sql.bytea serialized
-                          "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.id tlid
-                          // There might have been writes since then, so don't update
-                          // unless it exactly matches what we expect it to have,
-                          // otherwise we might overwrite other writes.
-                          "ocamlOplist", Sql.bytea ocamlSerializedBytes ]
-      |> Sql.executeNonQueryAsync
-    match rowUpdateCount with
-    | 1 -> ()
-    | 0 ->
-      Telemetry.addEvent
-        "Oplist was not updated"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    | _ ->
-      Telemetry.addEvent
-        "More than 1 row of oplists was updated, that's bad"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    return ()
-  }
-
-/// Save the F# toplevel suing the F# serialization format, after reading it from
-/// OCaml. Takes the existing OCaml value to ensure things are in sync - if they
-/// aren't, logs but doesn't save or error (because things can continue just fine).
-let saveToplevelToFSharpCache
-  (canvasID : CanvasID)
-  (ocamlSerializedBytes : byte [])
-  (tl : PT.Toplevel.T)
-  : Task<unit> =
-  task {
-    let tlid = PT.Toplevel.toTLID tl
-    let serialized = BinarySerialization.serializeToplevel tl
-    let! rowUpdateCount =
-      Sql.query
-        "UPDATE toplevel_oplists
-         SET oplist_cache = @oplistCache
-         WHERE canvas_id = @canvasID
-           AND tlid = @tlid
-           AND rendered_oplist_cache = @renderedOplistCache"
-      |> Sql.parameters [ "oplistCache", Sql.bytea serialized
-                          "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.id tlid
-                          // There might have been writes since then, so don't update
-                          // unless it exactly matches what we expect it to have,
-                          // otherwise we might overwrite other writes.
-                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes ]
-      |> Sql.executeNonQueryAsync
-    match rowUpdateCount with
-    | 1 -> ()
-    | 0 ->
-      Telemetry.addEvent "Row was not updated" [ "tlid", tlid; "canvasID", canvasID ]
-    | _ ->
-      Telemetry.addEvent
-        "More than 1 row was updated, that's bad"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    return ()
-  }
-
-/// Save the F# oplist and cached oplist, after reading them from OCaml. Takes the
-/// existing OCaml value to ensure things are in sync - if they aren't, logs but
-/// doesn't save or error (because things can continue just fine).
-let cacheOplists
-  (canvasID : CanvasID)
-  (ocamlSerializedBytes : byte [])
-  (tl : PT.Toplevel.T)
-  : Task<unit> =
-  task {
-    let tlid = PT.Toplevel.toTLID tl
-    let serialized = BinarySerialization.serializeToplevel tl
-    let! rowUpdateCount =
-      Sql.query
-        "UPDATE toplevel_oplists
-         SET oplist_cache = @oplist_cache
-         WHERE
-          canvas_id = @canvasID,
-          tlid = @tlid,
-          rendered_oplist_cache = @renderedOplistCache"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.id tlid
-                          // There might have been writes since then, so don't update
-                          // unless it exactly matches what we expect it to have,
-                          // otherwise we might overwrite other writes.
-                          "renderedOplistCache", Sql.bytea ocamlSerializedBytes
-                          "oplistCache", Sql.bytea serialized ]
-      |> Sql.executeNonQueryAsync
-    match rowUpdateCount with
-    | 1 -> ()
-    | 0 ->
-      Telemetry.addEvent "Row was not updated" [ "tlid", tlid; "canvasID", canvasID ]
-    | _ ->
-      Telemetry.addEvent
-        "More than 1 row was updated, that's bad"
-        [ "tlid", tlid; "canvasID", canvasID ]
-    return ()
-  }
-
-
 type LoadAmount =
   | LiveToplevels
   | IncludeDeletedToplevels
@@ -251,63 +82,54 @@ let loadOplists
   (tlids : List<tlid>)
   : Task<List<tlid * PT.Oplist>> =
   let query =
-    // CLEANUP stop loading ocaml data
     // Deleted can be null is which case it is DeletedForever
     match loadAmount with
     | LiveToplevels ->
-      "SELECT tlid, data, oplist FROM toplevel_oplists
+      "SELECT tlid, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
             AND deleted IS FALSE"
     | IncludeDeletedToplevels ->
       // IS NOT NULL just skipped DeletedForever
-      "SELECT tlid, data, oplist FROM toplevel_oplists
+      "SELECT tlid, oplist FROM toplevel_oplists
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
             AND deleted IS NOT NULL"
 
   Sql.query query
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync (fun read ->
-    (read.tlid "tlid", read.bytea "data", read.byteaOrNone "oplist"))
+  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist"))
   |> Task.bind (fun list ->
     list
-    |> Task.mapWithConcurrency 2 (fun (tlid, ocamlSerialized, fsharpSerialized) ->
-      task {
-        match fsharpSerialized with
-        | Some oplist ->
-          return (tlid, BinarySerialization.deserializeOplist tlid oplist)
-        | None ->
-          let! oplist = OCamlInterop.oplistOfBinary ocamlSerialized
-          do! saveOplistToFSharpCache canvasID tlid ocamlSerialized oplist
-          return (tlid, oplist)
-      }))
+    |> Task.mapWithConcurrency 2 (fun (tlid, oplist) ->
+      task { return (tlid, BinarySerialization.deserializeOplist tlid oplist) }))
 
 
-// This is a special `load_*` function that specifically loads toplevels
-// via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
-// stores a binary-serialized representation of the toplevel after the oplist
-// is applied. This should be much faster because we don't have to ship
-// the full oplist across the network from Postgres to the OCaml boxes,
-// and similarly they don't have to apply the full history of the canvas
-// in memory before they can execute the code.
+// This is a special `load_*` function that specifically loads toplevels via the
+// `oplist_cache` column on `toplevel_oplists`. This column stores a
+// binary-serialized representation of the toplevel after the oplist is applied. This
+// should be much faster because we don't have to ship the full oplist across the
+// network from Postgres, and similarly they don't have to apply the full history of
+// the canvas in memory before they can execute the code.
 /// Loads all cached top-levels given
-let loadOnlyRenderedTLIDs
+let loadOnlyCachedTLIDs
   (canvasID : CanvasID)
   (tlids : List<tlid>)
   : Task<List<PT.Toplevel.T>> =
   task {
-    // We specifically only load where `deleted` IS FALSE (even though the column
-    // is nullable). This means we will not load undeleted handlers from the
-    // cache if we've never written their `deleted` state. This is less
-    // efficient, but still correct, as they'll still be loaded via their oplist.
-    // It avoids loading deleted handlers that have had their cached version
-    // written but never their deleted state, which could be true for some
-    // handlers that were touched between the addition of the
-    // `rendered_oplist_cache` column and the addition of the `deleted` column.
+    // We specifically only load where `deleted` IS FALSE (even though the column is
+    // nullable). This means we will not load undeleted handlers from the cache if
+    // we've never written their `deleted` state. This is less efficient, but still
+    // correct, as they'll still be loaded via their oplist.
+    // CLEANUP: the situation described below is no longer possible and the data has
+    // been cleaned.
+    // It avoids loading deleted handlers that have had their cached version written
+    // but never their deleted state, which could be true for some handlers that were
+    // touched between the addition of the `oplist_cache` column and the addition of
+    // the `deleted` column.
     let! data =
       Sql.query
-        "SELECT tlid, tipe, rendered_oplist_cache, oplist_cache, pos FROM toplevel_oplists
+        "SELECT tlid, oplist_cache FROM toplevel_oplists
           WHERE canvas_id = @canvasID
           AND tlid = ANY (@tlids)
           AND deleted IS FALSE
@@ -317,46 +139,11 @@ let loadOnlyRenderedTLIDs
               OR tipe = 'user_function'::toplevel_type
               OR tipe = 'user_tipe'::toplevel_type)"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-      |> Sql.executeAsync (fun read ->
-        (read.int64 "tlid" |> uint64,
-         read.string "tipe",
-         // CLEANUP stop reading ocaml data
-         read.bytea "rendered_oplist_cache",
-         read.byteaOrNone "oplist_cache",
-         read.stringOrNone "pos"))
+      |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist_cache"))
 
-    // At this point, we need to deserialize the binary data. Some binary data will
-    // be serialized using the ocaml serializers and some using the F# serializers.
-    //
-    // For data that is serialized with the ocaml serializers, we need to send it to
-    // the legacy server. However, when sending all of the requests in parallel, we
-    // accidentally timeout some http requests while parsing the json that they
-    // return. This happened a lot for bigger canvases.
-    //
-    // Ideally we would make one http request to do that, but we would need to send
-    // over some text (type, pos, etc) along with binary data, and then put in some
-    // structure so we can parse it at the other end, which seems very hard.
-    //
-    // Instead we just limit it to 2 threads at a time.
-    let semaphore = new System.Threading.SemaphoreSlim(2)
-    return!
+    return
       data
-      |> Task.mapInParallel
-        (fun (tlid, typ, ocamlSerialized, fsharpSerialized, pos) ->
-          match fsharpSerialized with
-          | Some tl ->
-            Task.FromResult(BinarySerialization.deserializeToplevel tlid tl)
-          | None ->
-            Task.execWithSemaphore
-              semaphore
-              (fun () ->
-                task {
-                  let! deserialized =
-                    deserializeOCamlSerializedToplevel tlid typ ocamlSerialized pos
-                  do! saveToplevelToFSharpCache canvasID ocamlSerialized deserialized
-                  return deserialized
-                })
-              ())
+      |> List.map (fun (tlid, tl) -> BinarySerialization.deserializeToplevel tlid tl)
   }
 
 
