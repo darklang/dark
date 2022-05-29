@@ -27,12 +27,6 @@ watchers:
           type: static
           rate: 10 # 1/10 sample rate
 
-  ## Scheduler
-  - labelSelector: "app=scheduler-worker"
-    containerName: scheduler-ctr
-    dataset: kubernetes-scheduler
-    parser: json
-
   ## Editor
   - labelSelector: "app=editor-app"
     containerName: bwd-ctr
@@ -42,19 +36,7 @@ watchers:
       - request_shape:
           field: handler_name
           patterns:
-            - /a/:canvas
-            - /api/:canvas/save_test
-            - /api/:canvas/rpc
-            - /api/:canvas/add_op
-            - /api/:canvas/initial_load
-            - /api/:canvas/execute_function
-            - /api/:canvas/get_trace_data
-            - /api/:canvas/get_unlocked_dbs
-            - /api/:canvas/get_worker_stats
-            - /api/:canvas/get_db_stats
-            - /api/:canvas/delete_404
             - /api/:canvas/static_assets
-            - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
 
   # -------------
   # Sidecars
@@ -86,7 +68,7 @@ watchers:
     parser: json
 
   ## cloudsql-proxy (default namespace)
-  - labelSelector: "app in (editor-app, cronchecker, scheduler-worker, qw-worker, garbagecollector)"
+  - labelSelector: "app in (editor-app, cronchecker, garbagecollector)"
     containerName: cloudsql-proxy
     dataset: cloudsql-proxy
     parser: json
