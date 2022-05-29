@@ -214,7 +214,6 @@ spec:
               cpu: "10m"
             limits:
               memory: "1000Mi"
-              cpu: "125m"
 
           # ---------------------
           # Lifecycle probes
@@ -339,7 +338,6 @@ spec:
               cpu: "10m"
             limits:
               memory: "500Mi"
-              cpu: "125m"
 
           # ---------------------
           # Lifecycle probes
@@ -427,7 +425,6 @@ spec:
               cpu: "10m"
             limits:
               memory: "200Mi"
-              cpu: "100m"
 
           # ---------------------
           # Lifecycle probes
