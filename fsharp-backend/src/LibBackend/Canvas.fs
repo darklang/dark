@@ -568,8 +568,8 @@ let saveTLIDs
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None
 
-        let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
-        let fsharpOplistCache = BinarySerialization.serializeToplevel tl
+        let serializedOplist = BinarySerialization.serializeOplist tlid oplist
+        let serializedOplistCache = BinarySerialization.serializeToplevel tl
 
         let deleted =
           match deleted with
@@ -605,8 +605,8 @@ let saveTLIDs
                               "modifier", Sql.stringOrNone modifier
                               "deleted", Sql.bool deleted
                               "pos", Sql.jsonbOrNone pos
-                              "oplist", Sql.bytea fsharpOplist
-                              "oplistCache", Sql.bytea fsharpOplistCache ]
+                              "oplist", Sql.bytea serializedOplist
+                              "oplistCache", Sql.bytea serializedOplistCache ]
           |> Sql.executeStatementAsync
       })
   with

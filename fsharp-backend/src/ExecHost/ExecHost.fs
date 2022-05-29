@@ -75,7 +75,6 @@ let help () : unit =
     "  ExecHost migrations run"
     "  ExecHost trigger-rollbar"
     "  ExecHost trigger-pageable-rollbar"
-    "  ExecHost convert-packages"
     "  ExecHost convert-st-to-rt"
     "  ExecHost help" ]
   |> List.join "\n"
@@ -87,7 +86,6 @@ type Options =
   | MigrationsRun
   | TriggerRollbar
   | TriggerPagingRollbar
-  | ConvertPackages
   | InvalidUsage
   | ConvertST2RT of string
   | ConvertST2RTAll
@@ -100,7 +98,6 @@ let parse (args : string []) : Options =
   | [| "migrations"; "run" |] -> MigrationsRun
   | [| "trigger-rollbar" |] -> TriggerRollbar
   | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
-  | [| "convert-packages" |] -> ConvertPackages
   | [| "convert-st-to-rt"; "all" |] -> ConvertST2RTAll
   | [| "convert-st-to-rt"; canvasName |] -> ConvertST2RT canvasName
   | [| "help" |] -> Help
@@ -110,8 +107,7 @@ let usesDB (options : Options) =
   match options with
   | EmergencyLogin _
   | MigrationList
-  | MigrationsRun
-  | ConvertPackages -> true
+  | MigrationsRun -> true
   | TriggerRollbar
   | TriggerPagingRollbar
   | InvalidUsage
@@ -166,10 +162,6 @@ let run (options : Options) : Task<int> =
       return 0
 
     | TriggerPagingRollbar -> return triggerPagingRollbar ()
-
-    | ConvertPackages ->
-      do! LibBackend.PackageManager.convertPackagesToFSharpBinary ()
-      return 0
 
     | ConvertST2RT canvasName ->
       do! convertToRT canvasName

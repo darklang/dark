@@ -293,20 +293,6 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
       |> Sql.executeStatementAsync
   }
 
-let convertPackagesToFSharpBinary () : Task<unit> =
-  task {
-    let! packages =
-      Sql.query "SELECT body FROM packages_v0"
-      |> Sql.executeAsync (fun read -> read.bytea "body")
-    return!
-      packages
-      |> Task.iterSequentially (fun body ->
-        task {
-          let! (expr, tlid) = OCamlInterop.exprTLIDPairOfCachedBinary body
-          do! writeBody2 tlid expr
-          return ()
-        })
-  }
 
 // ------------------
 // Fetching functions
@@ -314,79 +300,67 @@ let convertPackagesToFSharpBinary () : Task<unit> =
 
 
 let allFunctions () : Task<List<PT.Package.Fn>> =
-  Sql.query
-    "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
-            P.body, P.body2, P.description, P.return_type, P.parameters, P.deprecated,
-            A.username, O.username as author
-       FROM packages_v0 P, accounts A, accounts O
-      WHERE P.user_id = A.id
-        AND P.author_id = O.id"
-  |> Sql.parameters []
-  |> Sql.executeAsync (fun read ->
-    (read.string "username",
-     read.string "package",
-     read.string "module",
-     read.string "fnname",
-     read.int "version",
-     read.bytea "body",
-     read.byteaOrNone "body2",
-     read.string "return_type",
-     read.string "parameters",
-     read.string "description",
-     read.string "author",
-     read.bool "deprecated",
-     read.tlid "tlid"))
-  |> Task.bind (fun fns ->
-    fns
-    |> Task.mapInParallel
-      (fun (username,
-            package,
-            module_,
-            fnname,
-            version,
-            body,
-            body2,
-            returnType,
-            parameters,
-            description,
-            author,
-            deprecated,
-            tlid) ->
-        task {
+  task {
+    let! fns =
+      Sql.query
+        "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
+                P.body, P.body2, P.description, P.return_type, P.parameters, P.deprecated,
+                A.username, O.username as author
+          FROM packages_v0 P, accounts A, accounts O
+          WHERE P.user_id = A.id
+            AND P.author_id = O.id"
+      |> Sql.parameters []
+      |> Sql.executeAsync (fun read ->
+        (read.string "username",
+         read.string "package",
+         read.string "module",
+         read.string "fnname",
+         read.int "version",
+         read.bytea "body2",  // the F#-serialized version
+         read.string "return_type",
+         read.string "parameters",
+         read.string "description",
+         read.string "author",
+         read.bool "deprecated",
+         read.tlid "tlid"))
+
+    return
+      fns
+      |> List.map
+        (fun (username,
+              package,
+              module_,
+              fnname,
+              version,
+              body2,
+              returnType,
+              parameters,
+              description,
+              author,
+              deprecated,
+              tlid) ->
           let name : PT.FQFnName.PackageFnName =
             { owner = username
               package = package
               module_ = module_
               function_ = fnname
               version = version }
-          use _span =
-            LibService.Telemetry.child
-              "decode package binary"
-              [ "fn",
-                name
-                |> PT2RT.FQFnName.PackageFnName.toRT
-                |> RT.FQFnName.PackageFnName.toString
-                :> obj ]
-          let! (expr, _) =
-            match body2 with
-            | Some body2 ->
-              Task.FromResult(BinarySerialization.deserializeExpr tlid body2, tlid)
-            | None -> OCamlInterop.exprTLIDPairOfCachedBinary body
-
-          return
-            ({ name = name
-               body = expr
-               returnType =
-                 PTParser.DType.parse returnType
-                 |> Exception.unwrapOptionInternal
-                      "Cannot parse returnType"
-                      [ "type", returnType ]
-               parameters =
-                 parameters
-                 |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
-                 |> List.map Convert.ocamlPackageManagerParameter2PT
-               description = description
-               author = author
-               deprecated = deprecated
-               tlid = tlid } : PT.Package.Fn)
-        }))
+          let expr = BinarySerialization.deserializeExpr tlid body2
+          let parameters =
+            parameters
+            |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
+            |> List.map Convert.ocamlPackageManagerParameter2PT
+          let returnType =
+            PTParser.DType.parse returnType
+            |> Exception.unwrapOptionInternal
+                 "Cannot parse returnType"
+                 [ "type", returnType ]
+          { name = name
+            body = expr
+            returnType = returnType
+            parameters = parameters
+            description = description
+            author = author
+            deprecated = deprecated
+            tlid = tlid })
+  }
