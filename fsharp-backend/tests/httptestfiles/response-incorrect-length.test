@@ -14,14 +14,10 @@ Content-Length: 0
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain; charset=utf-8
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
+Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive // OCAMLONLY
-Content-Length: 1 // OCAMLONLY
-Content-Length: 20 // FSHARPONLY - this is no longer supported
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Server: darklang
+Content-Length: 20
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 wrong content length

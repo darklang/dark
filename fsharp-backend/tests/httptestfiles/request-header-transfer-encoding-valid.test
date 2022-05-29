@@ -23,11 +23,9 @@ Network
 HTTP/1.1 400 Bad Request
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive // OCAMLONLY
-Content-Type: text/plain; charset=utf-8 // FSHARPONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Server: darklang
+Content-Type: text/plain; charset=utf-8
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: LENGTH
 
 Unknown Content-type -- we assumed application/json but invalid JSON was sent

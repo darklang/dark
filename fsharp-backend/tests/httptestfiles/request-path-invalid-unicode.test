@@ -11,14 +11,7 @@ Content-Length: 0
 
 
 [response]
-HTTP/1.1 400 Bad Request // FSHARPONLY
-HTTP/1.1 404 Not Found // OCAMLONLY
+HTTP/1.1 400 Bad Request
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-access-control-allow-origin: * // OCAMLONLY
-x-darklang-execution-id: 0123456789 // OCAMLONLY
-Server: nginx/1.16.1 // OCAMLONLY
-Connection: keep-alive // OCAMLONLY
-Connection: close // FSHARPONLY
+Connection: close
 Content-Length: LENGTH
-
-404 Not Found: No route matches // OCAMLONLY

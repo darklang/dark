@@ -12,13 +12,9 @@ Content-Length: 0
 [response]
 HTTP/1.1 302 Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
-x-darklang-execution-id: 0123456789 // FSHARPONLY
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive // OCAMLONLY
+Access-Control-Allow-Origin: *
+x-darklang-execution-id: 0123456789
+Server: darklang
 Content-Length: 0
-location: http://someothersite.com/ // OCAMLONLY
-Location: http://someothersite.com/ // FSHARPONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Location: http://someothersite.com/
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload

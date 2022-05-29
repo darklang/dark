@@ -65,10 +65,10 @@ Content-Length: 0
 ```
 
 The three blank lines are:
+
 - the blank line to indicate to HTTP the end of headers
 - the content (ending in a newline which is removed by the test suite)
 - a blank link to separate from the "\[response\]"
-
 
 # Responses
 
@@ -79,12 +79,9 @@ Responses are the expected response from the server. An example looks like this:
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: application/json; charset=utf-8
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
+Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive // OCAMLONLY
+Server: darklang
 Content-Length: LENGTH
 
 {
@@ -95,9 +92,9 @@ Content-Length: LENGTH
 }
 ```
 
-The response is expected to be perfect down to the byte. However, JSON
-responses are not necessarily identical as the F# server gives slightly
-different JSON to the OCaml server. JSON is parsed and compared.
+The response is expected to be perfect down to the byte. However, JSON responses are
+not necessarily identical due to these tests originally being used to test both the
+OCaml and the F# servers, and so JSON is parsed and compared (_CLEANUP address this_).
 
 Response headers are normalized, removing the specific values from Date, Expires,
 x-darklang-execution-id, and some other headers. See BwdServer.Tests.fs for full
@@ -109,6 +106,7 @@ removing newlines. To get around this, you can use a hex editor, or `vim -b` wit
 `noeol` set. You should also add the files to .gitattributes in this directory.
 
 In case you're not well-versed in `vim`, here are some steps to follow:
+
 - `vim ./file-path.test -b`
 - hit `i` to enter insert mode
 - type/paste your changes
@@ -116,6 +114,7 @@ In case you're not well-versed in `vim`, here are some steps to follow:
 - type `:wq` and press `enter` to escape
 
 # Adjusting for minor differences
+
 # Configuration
 
 ## ALLOW-INCORRECT-CONTENT-LENGTH
@@ -154,7 +153,6 @@ You can set the canvas name for the test:
 [canvas-name test-static-assets-deploys]
 ```
 
-
 ## LENGTH
 
 The token "LENGTH" will be replaced with the length of the request body or the
@@ -162,15 +160,9 @@ response body.
 
 ## HOST
 
-The token "HOST" will be replaced with host the request is being sent to. This
-is useful as the tests use different servers for OCaml and F#.
+The token "HOST" will be replaced with host the request is being sent to.
 
 ## CANVAS
 
 The token "CANVAS" will be replaced with the canvas name the request is being sent
 to. This is useful as the tests use different servers for OCaml and F#.
-
-
-## FSHARPONLY and OCAMLONLY
-
-Lines containing FSHARPONLY are stripped from being sent/compared to the OCaml request/response, and vice-versa for OCAMLONLY.

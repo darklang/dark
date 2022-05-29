@@ -13,21 +13,7 @@ User-agent: test
 
 
 [response]
-HTTP/1.1 200 OK // OCAMLONLY
-HTTP/1.1 400 Bad Request // FSHARPONLY
+HTTP/1.1 400 Bad Request
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Content-Type: application/json; charset=utf-8 // OCAMLONLY
-access-control-allow-origin: * // OCAMLONLY
-x-darklang-execution-id: 0123456789 // OCAMLONLY
-Server: nginx/1.16.1 // OCAMLONLY
-Connection: keep-alive // OCAMLONLY
-Connection: close // FSHARPONLY
+Connection: close
 Content-Length: LENGTH
- // OCAMLONLY
-{ // OCAMLONLY
-  "connection": "close", // OCAMLONLY
-  "content-type": "text/plain", // OCAMLONLY
-  "date": "Sun, 08 Nov 2020 15:38:01 GMT", // OCAMLONLY
-  "host": "CANVAS.builtwithdark.localhost", // OCAMLONLY
-  "user-agent": "test" // OCAMLONLY
-} // OCAMLONLY
