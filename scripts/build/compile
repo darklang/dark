@@ -399,8 +399,6 @@ class Should:
     self.backend_test = False
     self.stroller_build = False
     self.stroller_test = False
-    self.scheduler_build = False
-    self.scheduler_test = False
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
     self.fsharp_paket_install = False
@@ -422,7 +420,6 @@ class Should:
     self.reload_nginx_server = False
     self.reload_fsharp_server = False
     self.reload_stroller = False
-    self.reload_scheduler = False
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
@@ -550,15 +547,6 @@ def execute(should):
   if should.stroller_test:
     if not rust_test('containers/stroller'): success = False
 
-  if should.scheduler_build:
-    if not rust_build('containers/queue-scheduler'): success = False
-    should.scheduler_test |= success
-    should.reload_scheduler |= success
-  if should.reload_scheduler:
-    if not rust_reload('containers/queue-scheduler'): success = False
-  if should.scheduler_test:
-    if not rust_test('containers/queue-scheduler'): success = False
-
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
       success = False
@@ -660,19 +648,12 @@ def mark(should, f):
   elif "/scripts/run-rust" in f:
     should.shellcheck += [f]
     should.reload_stroller = True
-    should.reload_scheduler = True
 
   elif ("/stroller/" in f) \
           and (("Cargo.toml" in f) \
                   or ("Cargo.lock" in f) \
                   or (".rs" in f)):
     should.stroller_build = True
-
-  elif ("/queue-scheduler/" in f) \
-          and (("Cargo.toml" in f) \
-                  or ("Cargo.lock" in f) \
-                  or (".rs" in f)):
-    should.scheduler_build = True
 
   # JS
   elif "/package.json" in f:
@@ -749,7 +730,6 @@ def ignore(filename):
       "fsharp-backend/Build",
       "build.ninja",
       "containers/stroller/target",
-      "containers/queue-scheduler/target",
       "paket-files",
       ".paket/load",
       ".bs.js",

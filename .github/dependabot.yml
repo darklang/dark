@@ -36,28 +36,6 @@ updates:
   - dependency-name: rollbar
     versions:
     - 2.20.0
-- package-ecosystem: cargo
-  directory: "/containers/queue-scheduler"
-  schedule:
-    interval: daily
-    time: "12:00"
-  open-pull-requests-limit: 10
-  labels:
-  - rust
-  ignore:
-  - dependency-name: uuid
-    versions:
-    - "> 0.5.1"
-  - dependency-name: backtrace
-    versions:
-    - 0.3.56
-    - 0.3.57
-  - dependency-name: config
-    versions:
-    - 0.11.0
-  - dependency-name: backoff
-    versions:
-    - 0.3.0
 - package-ecosystem: nuget
   directory: "/fsharp-backend"
   schedule:

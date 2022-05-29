@@ -113,7 +113,6 @@ Unit tests run when you specify `--test` to `scripts/builder`. You can run them 
 - `scripts/run-backend-tests`
 - `scripts/run-fsharp-tests`
 - `scripts/run-rust-tests containers/stroller`
-- `scripts/run-rust-tests containers/queue-scheduler`
 
 Integration tests:
 
@@ -201,7 +200,6 @@ other things, so we also have a number of other services, defined via yaml
 files, in [services](services). Some of the services are deployments that use
 3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
 Google Cloud services. Some deployments just have a single container (eg
-[queue-scheduler](services/scheduler-deployment) and
 [postgres-honeytail](services/postgres-honeytail)).
 
 ## Other important docs

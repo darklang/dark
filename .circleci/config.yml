@@ -376,17 +376,6 @@ jobs:
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
       - slack-notify-job-failure
 
-  build-queue-scheduler:
-    executor: in-rust-container
-    steps:
-      - darkcheckout
-      - rust-setup: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
-      # tests are run in rust-integration-tests
-      - run: scripts/build/compile-project queue-scheduler
-      - assert-clean-worktree
-      - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
-      - slack-notify-job-failure
-
   build-postgres-honeytail:
     executor: simple-executor
     steps:
@@ -455,27 +444,6 @@ jobs:
       - slack-notify-job-failure
 
 
-  rust-integration-tests:
-    executor: in-rust-container
-    steps:
-      - darkcheckout
-      - rust-setup: { dir: "containers/queue-scheduler", project: "containers/queue-scheduler" }
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - run:
-          name: Run DB migrations
-          command: |
-            # Run the server long enough to ensure it runs the migrations
-            ./scripts/run-pubsub-emulator
-            cd fsharp-backend
-            ./Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost migrations run
-      - run:
-          name: Run queue-scheduler tests
-          command: scripts/run-rust-tests containers/queue-scheduler
-      - assert-clean-worktree
-      - store_artifacts: { path: rundir }
-      - slack-notify-job-failure
-
   gcp-containers-test:
     executor: in-container
     steps:
@@ -535,7 +503,6 @@ workflows:
       - build-backend
       - build-client
       - build-stroller
-      - build-queue-scheduler
       - build-fsharp-backend:
           requires:
             - build-backend
@@ -546,7 +513,6 @@ workflows:
             - build-backend
             - build-fsharp-backend
             - build-client
-            - build-queue-scheduler
       - integration-tests:
           requires:
             - build-backend
@@ -558,7 +524,6 @@ workflows:
             - build-backend
             - build-fsharp-backend
             - build-stroller
-            - build-queue-scheduler
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
@@ -570,7 +535,6 @@ workflows:
             - build-fsharp-backend
             - build-client
             - build-stroller
-            - build-queue-scheduler
             - build-postgres-honeytail
 
       # actual deploy
@@ -595,7 +559,6 @@ workflows:
             - build-client
             - build-fsharp-backend
             - build-postgres-honeytail
-            - build-queue-scheduler
             - build-stroller
             - gcp-containers-test
             - integration-tests

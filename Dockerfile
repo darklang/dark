@@ -396,7 +396,6 @@ RUN mkdir -p .esy
 RUN mkdir -p app/node_modules
 RUN mkdir -p app/lib
 RUN mkdir -p app/containers/stroller/target
-RUN mkdir -p app/containers/queue-scheduler/target
 RUN mkdir -p app/fsharp-backend/Build
 RUN mkdir -p .cargo
 
