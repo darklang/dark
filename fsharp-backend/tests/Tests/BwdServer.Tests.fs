@@ -25,10 +25,6 @@ module Canvas = LibBackend.Canvas
 open TestUtils.TestUtils
 open System.Text.Json
 
-type Server =
-  | OCaml
-  | FSharp
-
 type Test =
   { handlers : List<string * string * string>
     cors : Option<string>
@@ -310,13 +306,9 @@ let runTestRequest
   (canvasName : string)
   (testRequest : byte array)
   (testResponse : byte array)
-  (server : Server)
   : Task<unit> =
   task {
-    let port =
-      match server with
-      | OCaml -> TestConfig.ocamlServerNginxPort
-      | FSharp -> TestConfig.bwdServerBackendPort
+    let port = TestConfig.bwdServerBackendPort
 
     let host = $"{canvasName}.builtwithdark.localhost:{port}"
 
@@ -373,9 +365,7 @@ let runTestRequest
       |> List.filterMap (fun line ->
         let asString = line |> List.toArray |> UTF8.ofBytesWithReplacement
         if String.includes "// " asString then
-          if String.includes "OCAMLONLY" asString && server = FSharp then
-            None
-          else if String.includes "FSHARPONLY" asString && server = OCaml then
+          if String.includes "OCAMLONLY" asString then
             None
           else if String.includes "KEEP" asString then
             Some line
@@ -420,19 +410,19 @@ let runTestRequest
       Expect.equal
         (actual.status, actualHeaders, serialize aJson)
         (expected.status, expectedHeaders, serialize eJson)
-        $"({server} as json)"
+        $"(json)"
     | None ->
       match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
       | Some actualBody, Some expectedBody ->
         Expect.equal
           (actual.status, actualHeaders, actualBody)
           (expected.status, expectedHeaders, expectedBody)
-          $"({server} as string)"
+          $"(string)"
       | _ ->
         Expect.equal
           (actual.status, actualHeaders, actual.body)
           (expected.status, expectedHeaders, expected.body)
-          $"({server} as bytes)"
+          $"(bytes)"
   }
 
 /// Makes a test to be run
@@ -452,14 +442,10 @@ let t (filename : string) =
     // set up a test canvas
     let! (meta : Canvas.Meta) = setupTestCanvas testName test
 
-    // run the test (by calling the server)
-    let callServer = runTestRequest (string meta.name) test.request test.response
-
     if shouldSkip then
       skiptest $"underscore test - {testName}"
     else
-      do! callServer OCaml // check OCaml to see if we got the right answer
-      do! callServer FSharp // test F# impl
+      do! runTestRequest (string meta.name) test.request test.response
   }
 
 let testsFromFiles =
