@@ -642,12 +642,11 @@ that's already taken, returns an error."
           | _, [ DStr host ] ->
             uply {
               let! dbTLIDs =
-                // CLEANUP what is idescription? autocomplete on id?
                 // CLEANUP stop calling things host
                 Sql.query
                   "SELECT tlid
                      FROM toplevel_oplists
-                     JOIN canvases ON canvases.idescription = canvas_id
+                     JOIN canvases ON canvases.id = canvas_id
                     WHERE canvases.name = @name AND tipe = 'db'"
                 |> Sql.parameters [ "name", Sql.string host ]
                 |> Sql.executeAsync (fun read -> read.string "tlid")
