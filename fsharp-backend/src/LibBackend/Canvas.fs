@@ -580,10 +580,11 @@ let saveTLIDs
           Sql.query
             "INSERT INTO toplevel_oplists
                     (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
-                     deleted, pos, oplist, oplist_cache)
+                     deleted, pos, oplist, oplist_cache, data, rendered_oplist_cache)
                     VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
                             @module, @modifier, @deleted, @pos,
-                            @oplist, @oplistCache)
+                            @oplist, @oplistCache,
+                            @ocamlData, @ocamlOplistCache)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET account_id = @accountID,
                         digest = @digest,
@@ -594,7 +595,9 @@ let saveTLIDs
                         deleted = @deleted,
                         pos = @pos,
                         oplist = @oplist,
-                        oplist_cache = @oplistCache"
+                        oplist_cache = @oplistCache,
+                        data = @ocamlData,
+                        rendered_oplist_cache = @ocamlOplistCache"
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
@@ -606,7 +609,9 @@ let saveTLIDs
                               "deleted", Sql.bool deleted
                               "pos", Sql.jsonbOrNone pos
                               "oplist", Sql.bytea serializedOplist
-                              "oplistCache", Sql.bytea serializedOplistCache ]
+                              "oplistCache", Sql.bytea serializedOplistCache
+                              "ocamlData", Sql.bytea [||]
+                              "ocamlOplistCache", Sql.bytea [||] ]
           |> Sql.executeStatementAsync
       })
   with
