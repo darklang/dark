@@ -435,7 +435,9 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       try
         canvasName
         |> Option.map (fun canvasName ->
-          canvasName |> Account.ownerNameFromCanvasName |> fun on -> on.toUserName ())
+          canvasName
+          |> Account.ownerNameFromCanvasName
+          |> fun on -> on.toUserName ())
       with
       | _ -> None
 

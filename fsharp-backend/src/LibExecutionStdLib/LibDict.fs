@@ -73,7 +73,7 @@ let fns : List<BuiltInFn> =
       description = "Returns `dict`'s values in a list, in an arbitrary order."
       fn =
         (function
-        | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> fun l -> DList l |> Ply
+        | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> (fun l -> DList l |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
