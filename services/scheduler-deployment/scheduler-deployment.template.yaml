@@ -10,7 +10,7 @@ spec:
   selector:
     matchLabels:
       app: scheduler-worker
-  replicas: 1
+  replicas: 0
   template:
     metadata:
       labels:

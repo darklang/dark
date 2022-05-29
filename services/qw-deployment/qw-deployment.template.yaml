@@ -10,7 +10,7 @@ spec:
   selector:
     matchLabels:
       app: qw-worker
-  replicas: 40
+  replicas: 0
   template:
     metadata:
       labels:
