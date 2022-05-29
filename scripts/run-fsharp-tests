@@ -10,20 +10,17 @@ function ctrl_c() {
   exit 1
 }
 
-DEBUG=false
+LLDB=false
 PUBLISHED=false
+
+EXPECTO_ARGS=()
 
 for i in "$@"
 do
   case "${i}" in
-    --debug)
-    DEBUG=true
-    shift
-    ;;
-    --published)
-    PUBLISHED=true
-    shift
-    ;;
+    --lldb) LLDB=true ;;
+    --published) PUBLISHED=true ;;
+    *) EXPECTO_ARGS+=("${i}");;
   esac
 done
 
@@ -87,8 +84,15 @@ JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
 # $RANDOM as RANDOM is only 5 digits
 RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 
+COLOURS="256"
+if [[ -v CI ]]; then
+  # Expecto needs `--colours 0` or the xml will be invalid
+  # https://github.com/haf/expecto/issues/434
+  COLOURS="0"
+fi
+
 cd fsharp-backend
-if [[ "$DEBUG" == "true" ]]; then
+if [[ "$LLDB" == "true" ]]; then
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_DB_HOST=localhost \
@@ -97,7 +101,7 @@ if [[ "$DEBUG" == "true" ]]; then
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  lldb -- "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
+  lldb -- "${EXE}" --no-spinner --colours 0 --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
@@ -107,6 +111,5 @@ else
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
+  "${EXE}" --no-spinner --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
 fi
-
