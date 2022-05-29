@@ -434,16 +434,6 @@ let loadForEventV2
     return! loadFrom Serialize.LiveToplevels meta tlids
   }
 
-let loadForEvent (e : EventQueue.T) : Task<T> =
-  task {
-    let meta = { id = e.canvasID; name = e.canvasName; owner = e.ownerID }
-    let! tlids =
-      Serialize.fetchRelevantTLIDsForEvent meta.id e.space e.name e.modifier
-    return! loadFrom Serialize.LiveToplevels meta tlids
-  }
-
-
-
 let loadAllDBs (meta : Meta) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs meta.id

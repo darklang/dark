@@ -31,8 +31,6 @@
     <Compile Include="Routing.fs" />
     <Compile Include="SqlCompiler.fs" />
     <Compile Include="UserDB.fs" />
-    <Compile Include="QueueSchedulingRules.fs" />
-    <Compile Include="EventQueue.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="TraceInputs.fs" />
@@ -40,6 +38,7 @@
     <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="StaticAssets.fs" />
     <Compile Include="Op.fs" />
+    <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />
     <Compile Include="Secret.fs" />
     <Compile Include="Undo.fs" />
