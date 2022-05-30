@@ -55,7 +55,7 @@ let getMetaFromID (id : CanvasID) : Task<Meta> =
   |> Sql.executeRowAsync (fun read ->
     { id = id
       owner = read.uuid "account_id"
-      name = read.string "name" |> CanvasName.create })
+      name = read.string "name" |> CanvasName.createExn })
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
@@ -347,7 +347,7 @@ let empty (meta : Meta) : T =
 let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
-let knownBrokenCanvases =
+let knownBrokenCanvases : Set<CanvasName.T> =
   [ "danbowles"
     "danwetherald"
     "ellen-dbproblem18"
@@ -358,7 +358,7 @@ let knownBrokenCanvases =
     "jaeren_sl"
     "jaeren_sl-crud"
     "sydney" ]
-  |> List.map CanvasName.create
+  |> List.map CanvasName.createExn
   |> Set
 
 let loadFrom

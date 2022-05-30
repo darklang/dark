@@ -833,7 +833,7 @@ let localOnlyTests =
   let tests =
     if System.Environment.GetEnvironmentVariable "CI" = null then
       let c = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
-      let cn = CanvasName.create "test"
+      let cn = CanvasName.createExn "test"
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.

@@ -135,7 +135,7 @@ let initializeCanvasForOwner
   (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.create (nameToTestName name)
+    let canvasName = CanvasName.createExn (nameToTestName name)
     do! clearCanvasData owner.id canvasName
     let! id = Canvas.canvasIDForCanvasName owner.id canvasName
     return { id = id; name = canvasName; owner = owner.id }
@@ -154,7 +154,7 @@ let createCanvasForOwner
   (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.create (nameToTestName name)
+    let canvasName = CanvasName.createExn (nameToTestName name)
     let id = System.Guid.NewGuid()
     return { id = id; name = canvasName; owner = owner.id }
   }

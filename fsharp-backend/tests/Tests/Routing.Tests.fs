@@ -32,7 +32,7 @@ let ownerNameFromHost =
     "ownerNameFromHost"
     (fun cn ->
       cn
-      |> CanvasName.create
+      |> CanvasName.createExn
       |> LibBackend.Account.ownerNameFromCanvasName
       |> fun (on : OwnerName.T) -> on.ToString())
     [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]

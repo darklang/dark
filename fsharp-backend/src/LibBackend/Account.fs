@@ -318,7 +318,7 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
      FROM canvases
      WHERE account_id = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
   |> Task.map List.sort
 
 
@@ -332,7 +332,7 @@ let accessibleCanvases (userID : UserID) : Task<List<CanvasName.T>> =
       INNER JOIN canvases as c on org.id = account_id
       WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
   |> Task.map List.sort
 
 let orgs (userID : UserID) : Task<List<OrgName.T>> =
