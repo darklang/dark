@@ -1,4 +1,5 @@
 [http-handler GET /]
+// note there's a space after the { in the response, don't remove it
 Http.responseWithHeaders_v0 { x = "x" } (Dict.fromList_v0_ster [["Content-Type"; "text/html; charset=utf-8"]]) 200
 
 [request]
@@ -13,15 +14,12 @@ Content-Length: 0
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/html; charset=utf-8
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
+Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive // OCAMLONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Server: darklang
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: 13
 
-{  // comment is here to stop the space after the brace from being removed
+{ 
   x: "x"
 }

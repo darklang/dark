@@ -144,7 +144,7 @@ module ToHashableRepr =
   let testToHashableRepr =
     let t (dv : Dval) (expected : string) : Test =
       testTask $"toHashableRepr: {dv}" {
-        let! ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
+        let! ocamlVersion = TestUtils.OCamlInterop.toHashableRepr dv
         let fsharpVersion =
           DvalReprInternalDeprecated.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
 
@@ -188,7 +188,7 @@ module ToHashableRepr =
   let testHashV0 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV0: {l}" {
-        let! ocamlVersion = LibBackend.OCamlInterop.hashV0 l
+        let! ocamlVersion = TestUtils.OCamlInterop.hashV0 l
         let fsharpVersion = DvalReprInternalDeprecated.hash 0 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
@@ -213,7 +213,7 @@ module ToHashableRepr =
   let testHashV1 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV1: {l}" {
-        let! ocamlVersion = LibBackend.OCamlInterop.hashV1 l
+        let! ocamlVersion = TestUtils.OCamlInterop.hashV1 l
         let fsharpVersion = DvalReprInternalDeprecated.hash 1 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
@@ -536,7 +536,7 @@ module ParsingMinefield =
       |> Set
 
     let unknownV0Equal (filename : string) : Result<unit, string> =
-      functionsEqual filename LibBackend.OCamlInterop.ofUnknownJsonV0 (fun str ->
+      functionsEqual filename TestUtils.OCamlInterop.ofUnknownJsonV0 (fun str ->
         try
           Ok(DvalReprExternal.unsafeOfUnknownJsonV0 str)
         with
@@ -575,7 +575,7 @@ module ParsingMinefield =
     let unknownV1Equal (filename : string) : Result<unit, string> =
       functionsEqual
         filename
-        LibBackend.OCamlInterop.ofUnknownJsonV1
+        TestUtils.OCamlInterop.ofUnknownJsonV1
         DvalReprExternal.ofUnknownJsonV1
 
     testMany

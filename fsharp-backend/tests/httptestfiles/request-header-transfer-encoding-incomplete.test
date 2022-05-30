@@ -20,29 +20,12 @@ d json":
 
 
 [response]
-HTTP/1.1 200 OK // OCAMLONLY
-Date: xxx, xx xxx xxxx xx:xx:xx xxx // OCAMLONLY
-Content-Type: application/json; charset=utf-8 // OCAMLONLY
-access-control-allow-origin: * // OCAMLONLY
-x-darklang-execution-id: 0123456789 // OCAMLONLY
-Server: nginx/1.16.1 // OCAMLONLY
-Connection: keep-alive // OCAMLONLY
-Content-Length: LENGTH // OCAMLONLY
-// OCAMLONLY
-{ // OCAMLONLY
-  "b": { // OCAMLONLY
-    "valid json": "yay!" // OCAMLONLY
-  }, // OCAMLONLY
-  "f": null, // OCAMLONLY
-  "fb": "{ \"valid json\": \"yay!\" }", // OCAMLONLY
-  "j": null // OCAMLONLY
-} // OCAMLONLY
-HTTP/1.1 400 Bad Request // FSHARPONLY
-Date: xxx, xx xxx xxxx xx:xx:xx xxx // FSHARPONLY
-Content-Type: text/plain; charset=utf-8 // FSHARPONLY
-x-darklang-execution-id: 0123456789 // FSHARPONLY
-Server: darklang // FSHARPONLY
-Content-Length: LENGTH // FSHARPONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
-// FSHARPONLY
-Invalid request body: Reading the request body timed out due to data arriving too slowly // FSHARPONLY
+HTTP/1.1 400 Bad Request
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-Type: text/plain; charset=utf-8
+x-darklang-execution-id: 0123456789
+Server: darklang
+Content-Length: LENGTH
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+Invalid request body: Reading the request body timed out due to data arriving too slowly

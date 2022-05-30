@@ -197,7 +197,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
             // For this to work, we need to make PasswordBytes.to_yojson return
             // [`String (Bytes.to_string bytes)]
             let! expected =
-              LibBackend.OCamlInterop.execute
+              TestUtils.OCamlInterop.execute
                 state.program.accountID
                 state.program.canvasID
                 ast
@@ -222,6 +222,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
 
       return! fn canvasName
     })
+
 
 
 let loadAllTraceData (concurrency : int) (failOnError : bool) =
@@ -266,14 +267,14 @@ let validate
     print e.StackTrace
     reraise ()
 
-let checkRendered (meta : Canvas.Meta) (tlids : List<tlid>) =
+let checkCached (meta : Canvas.Meta) (tlids : List<tlid>) =
   task {
     let loadWatch = System.Diagnostics.Stopwatch()
     loadWatch.Start()
-    let! expected = Serialize.loadOnlyRenderedTLIDs meta.id tlids
+    let! expected = Serialize.loadOnlyCachedTLIDs meta.id tlids
     loadWatch.Stop()
     // debuG "legacyserver load time" loadWatch.ElapsedMilliseconds
-    // debuG "rendered items" (List.length expected)
+    // debuG "cached items" (List.length expected)
     expected
     |> List.iter (fun v ->
       let tlid = PT.Toplevel.toTLID v
@@ -320,7 +321,7 @@ let main args =
       let! meta = Canvas.getMeta canvasName
       let! tlids = Serialize.fetchAllTLIDs meta.id
 
-      do! checkRendered meta tlids
+      do! checkCached meta tlids
       do! checkOplists meta tlids
       return ()
     }

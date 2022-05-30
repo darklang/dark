@@ -13,13 +13,10 @@ Content-Length: 0
 HTTP/1.1 404 Not Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 x-darklang-execution-id: 0123456789
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
+Access-Control-Allow-Origin: *
 Content-Length: 31
-Content-Type: text/plain; charset=utf-8 // FSHARPONLY
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive // OCAMLONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Content-Type: text/plain; charset=utf-8
+Server: darklang
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 404 Not Found: No route matches

@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="OCamlInterop.fs" />
     <Compile Include="RTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="FSharpToExpr.fs" />

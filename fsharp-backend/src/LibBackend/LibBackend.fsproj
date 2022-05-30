@@ -27,7 +27,6 @@
     <Compile Include="Authorization.fs" />
     <Compile Include="Analytics.fs" />
     <Compile Include="Session.fs" />
-    <Compile Include="OCamlInterop.fs" />
     <Compile Include="Routing.fs" />
     <Compile Include="SqlCompiler.fs" />
     <Compile Include="UserDB.fs" />

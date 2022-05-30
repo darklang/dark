@@ -13,39 +13,26 @@ Content-Length: 0
 
 [response]
 HTTP/1.1 200 OK
-Connection: keep-alive // OCAMLONLY
 Content-Length: 38
 Content-Type: text/html
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-accept-ranges: bytes // OCAMLONLY
-Accept-Ranges: bytes // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-expose-headers: Content-Type // OCAMLONLY
-Access-Control-Expose-Headers: Content-Type // FSHARPONLY
-alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000,h3-Q050=":443"; ma=2592000,h3-Q046=":443"; ma=2592000,h3-Q043=":443"; ma=2592000,quic=":443"; ma=2592000; v="46,43" // OCAMLONLY
-Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000,h3-Q050=":443"; ma=2592000,h3-Q046=":443"; ma=2592000,h3-Q043=":443"; ma=2592000,quic=":443"; ma=2592000 // FSHARPONLY
-cache-control: public, max-age=3600 // OCAMLONLY
-Cache-Control: public, max-age=3600 // FSHARPONLY
-etag: "f48d15085d77f9812a13ba59235bdbf4" // OCAMLONLY
-ETag: "f48d15085d77f9812a13ba59235bdbf4" // FSHARPONLY
-expires: xxx, xx xxx xxxx xx:xx:xx xxx // OCAMLONLY
-Expires: xxx, xx xxx xxxx xx:xx:xx xxx // FSHARPONLY
-last-modified: Tue, 12 Apr 2022 17:04:31 GMT // OCAMLONLY
-Last-Modified: Tue, 12 Apr 2022 17:04:31 GMT // FSHARPONLY
+Server: darklang
+Accept-Ranges: bytes
+Access-Control-Allow-Origin: *
+Access-Control-Expose-Headers: Content-Type
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000,h3-Q050=":443"; ma=2592000,h3-Q046=":443"; ma=2592000,h3-Q043=":443"; ma=2592000,quic=":443"; ma=2592000
+Cache-Control: public, max-age=3600
+ETag: "f48d15085d77f9812a13ba59235bdbf4"
+Expires: xxx, xx xxx xxxx xx:xx:xx xxx
+Last-Modified: Tue, 12 Apr 2022 17:04:31 GMT
 x-darklang-execution-id: 0123456789
 x-goog-generation: xxxx
-x-goog-hash: crc32c=64O3OA== // OCAMLONLY
-x-goog-hash: md5=9I0VCF13+YEqE7pZI1vb9A== // OCAMLONLY
-x-goog-hash: crc32c=64O3OA==,md5=9I0VCF13+YEqE7pZI1vb9A== // FSHARPONLY
+x-goog-hash: crc32c=64O3OA==,md5=9I0VCF13+YEqE7pZI1vb9A==
 x-goog-metageneration: 1
 x-goog-storage-class: STANDARD
 x-goog-stored-content-encoding: identity
 x-goog-stored-content-length: 38
-x-guploader-uploadid: xxxx // OCAMLONLY
-X-GUploader-UploadID: xxxx // FSHARPONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+X-GUploader-UploadID: xxxx
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 <html><body>Hello world</body></html>

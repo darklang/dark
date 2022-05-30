@@ -369,10 +369,9 @@ let loadFrom
   task {
     try
       Telemetry.addTags [ "tlids", tlids; "loadAmount", loadAmount ]
-      // CLEANUP: rename "rendered" and "cached" to be consistent
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids
+      let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs meta.id tlids
 
       let fastLoadedTLIDs = List.map PT.Toplevel.toTLID fastLoadedTLs
 
@@ -569,11 +568,8 @@ let saveTLIDs
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None
 
-        // CLEANUP stop saving the ocaml binary
-        let! ocamlOplist = OCamlInterop.oplistToBinary oplist
-        let! ocamlOplistCache = OCamlInterop.toplevelToCachedBinary tl
-        let fsharpOplist = BinarySerialization.serializeOplist tlid oplist
-        let fsharpOplistCache = BinarySerialization.serializeToplevel tl
+        let serializedOplist = BinarySerialization.serializeOplist tlid oplist
+        let serializedOplistCache = BinarySerialization.serializeToplevel tl
 
         let deleted =
           match deleted with
@@ -583,11 +579,12 @@ let saveTLIDs
         return!
           Sql.query
             "INSERT INTO toplevel_oplists
-                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
-                    rendered_oplist_cache, deleted, pos, oplist, oplist_cache)
+                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
+                     deleted, pos, oplist, oplist_cache, data, rendered_oplist_cache)
                     VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                            @module, @modifier, @data, @renderedOplistCache, @deleted, @pos,
-                            @oplist, @oplistCache)
+                            @module, @modifier, @deleted, @pos,
+                            @oplist, @oplistCache,
+                            @ocamlData, @ocamlOplistCache)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET account_id = @accountID,
                         digest = @digest,
@@ -595,26 +592,26 @@ let saveTLIDs
                         name = @name,
                         module = @module,
                         modifier = @modifier,
-                        data = @data,
-                        rendered_oplist_cache = @renderedOplistCache,
                         deleted = @deleted,
                         pos = @pos,
                         oplist = @oplist,
-                        oplist_cache = @oplistCache"
+                        oplist_cache = @oplistCache,
+                        data = @ocamlData,
+                        rendered_oplist_cache = @ocamlOplistCache"
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                               "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
-                              "digest", Sql.string (OCamlInterop.digest ())
+                              "digest", Sql.string "fsharp"
                               "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
                               "name", Sql.stringOrNone name
                               "module", Sql.stringOrNone module_
                               "modifier", Sql.stringOrNone modifier
-                              "data", Sql.bytea ocamlOplist
-                              "renderedOplistCache", Sql.bytea ocamlOplistCache
                               "deleted", Sql.bool deleted
                               "pos", Sql.jsonbOrNone pos
-                              "oplist", Sql.bytea fsharpOplist
-                              "oplistCache", Sql.bytea fsharpOplistCache ]
+                              "oplist", Sql.bytea serializedOplist
+                              "oplistCache", Sql.bytea serializedOplistCache
+                              "ocamlData", Sql.bytea [||]
+                              "ocamlOplistCache", Sql.bytea [||] ]
           |> Sql.executeStatementAsync
       })
   with

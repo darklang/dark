@@ -15,20 +15,17 @@ Content-Length: 37
 
 [response]
 HTTP/1.1 200 OK
-Connection: keep-alive // OCAMLONLY
 Content-Length: LENGTH
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: application/json; charset=utf-8
 x-darklang-execution-id: 0123456789
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
-Access-Control-Allow-Origin: * // FSHARPONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Server: darklang
+Access-Control-Allow-Origin: *
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 {
   "b": { "a": "field" },
   "f": null,
-  "fb": "{\n  // some comments\n  \"a\": \"field\"\n}", // KEEP
+  "fb": "{\n  // some comments\n  \"a\": \"field\"\n}", 
   "j": { "a": "field" }
 }

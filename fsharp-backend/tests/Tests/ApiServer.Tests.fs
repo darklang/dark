@@ -65,7 +65,7 @@ let login (username : string) (password : string) : Task<Client> =
   task {
     let client = new HttpClient()
     client.Timeout <- System.TimeSpan.FromSeconds 1
-    let port = portFor OCaml
+    let port = portFor FSharp
 
     use loginReq =
       new HttpRequestMessage(
@@ -142,11 +142,11 @@ let noBody () = ""
 
 let getInitialLoad (client : C) (canvasName : CanvasName.T) : Task<InitialLoad.T> =
   task {
-    let! (o : HttpResponseMessage) =
-      postAsync OCaml client $"/api/{canvasName}/initial_load" ""
+    let! (r : HttpResponseMessage) =
+      postAsync FSharp client $"/api/{canvasName}/initial_load" ""
 
-    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
-    let! body = o.Content.ReadAsStringAsync()
+    Expect.equal r.StatusCode System.Net.HttpStatusCode.OK ""
+    let! body = r.Content.ReadAsStringAsync()
     return deserialize<InitialLoad.T> body
   }
 
@@ -988,4 +988,4 @@ let cookies =
        (302, None, Some "/login?error=Invalid+username+or+password"))
       (local, None, (302, None, Some "/login?error=Invalid+username+or+password")) ]
 
-let tests = testList "ApiServer" [ localOnlyTests; permissions; cookies ]
+let tests = testList "ApiServer" [ permissions; cookies ]

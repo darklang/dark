@@ -14,13 +14,10 @@ X-Forwarded-Proto: https
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain; charset=utf-8
-Access-Control-Allow-Origin: * // FSHARPONLY
-access-control-allow-origin: * // OCAMLONLY
+Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
-Server: nginx/1.16.1 // OCAMLONLY
-Server: darklang // FSHARPONLY
-Connection: keep-alive // OCAMLONLY
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload // FSHARPONLY
+Server: darklang
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: LENGTH
 
 "https://CANVAS.builtwithdark.localhost/a"

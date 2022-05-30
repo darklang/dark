@@ -164,7 +164,7 @@ let makeTest versionName filename =
       if testOCaml then
         let! ocamlActual =
           try
-            LibBackend.OCamlInterop.execute
+            TestUtils.OCamlInterop.execute
               state.program.accountID
               state.program.canvasID
               actualDarkProg

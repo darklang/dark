@@ -13,24 +13,6 @@ open Microsoft.Extensions.Diagnostics.HealthChecks
 
 module Telemetry = LibService.Telemetry
 
-// Add a startup probe to check if we can check the tier one canvases
-let legacyServerCheck : LibService.Kubernetes.HealthCheck =
-  { probeTypes = [ LibService.Kubernetes.Startup ]
-    name = "legacyServerCheck"
-    checkFn =
-      fun (_ : System.Threading.CancellationToken) ->
-        task {
-          try
-            // Make sure we can load a canvas
-            // Loading all the tier one canvases takes way too long, so just pick a simple one
-            let host = CanvasName.create "ian-httpbin"
-            let! meta = Canvas.getMeta host
-            let! (_ : Canvas.T) = Canvas.loadAll meta
-            return HealthCheckResult.Healthy("It's fine")
-          with
-          | e -> return HealthCheckResult.Unhealthy(e.Message)
-        } }
-
 
 
 let _waitForDB () : Task<unit> =

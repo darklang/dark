@@ -52,14 +52,6 @@ watchers:
           rate: 100 # 1/100 sample rate
     parser: json
 
-  ## Legacy-ctr: the apiserver itself uses opentelemetry to write directly, but the
-  ## legacyserver still uses json logs like the rest of ocaml containers
-  - labelSelector: "app in (apiserver-app, bwdserver-app, queueworker-app)"
-    namespace: darklang
-    containerName: legacy-ctr
-    dataset: kubernetes-bwd-ocaml
-    parser: json
-
   ## cloudsql-proxy (darklang namespace): does json logs
   - labelSelector: "app in (apiserver-app, bwdserver-app, queueworker-app, exechost-app)"
     namespace: darklang
