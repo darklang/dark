@@ -904,7 +904,6 @@ module Json =
       override _.Write(writer : Utf8JsonWriter, _ : Password, _options) =
         writer.WriteStringValue("Redacted")
 
-
     type RawBytesConverter() =
       inherit JsonConverter<byte array>()
       // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
@@ -932,6 +931,7 @@ module Json =
         )
       let options = JsonSerializerOptions()
       options.MaxDepth <- System.Int32.MaxValue // infinite
+      options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
       // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(NodaConverters.InstantConverter)
       options.Converters.Add(NodaConverters.LocalDateTimeConverter)
