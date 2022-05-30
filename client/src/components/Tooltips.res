@@ -169,7 +169,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       details: None,
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/first-api-endpoint")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/create-http-handler")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
@@ -180,7 +180,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       details: None,
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/first-worker")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/process-background-jobs-worker")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
@@ -191,7 +191,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       details: None,
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/first-cron")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/create-daily-job-cron-handler")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
@@ -202,7 +202,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       details: None,
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/first-repl")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/create-tool-repl")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
@@ -213,7 +213,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       details: None,
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/first-datastore")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/save-data-to-datastore")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
@@ -224,7 +224,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       details: None,
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/first-function")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/extract-function")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
@@ -237,7 +237,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       }),
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/trace-driven-development")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/discussion/trace-driven-development")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
@@ -266,7 +266,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       details: None,
       action: Some(
         "Learn More",
-        ToolTipMsg(OpenLink("https://darklang.github.io/docs/static-assets")),
+        ToolTipMsg(OpenLink("https://docs.darklang.com/how-to/static-assets")),
       ),
       align: Bottom,
       tipAlignment: "align-left",
