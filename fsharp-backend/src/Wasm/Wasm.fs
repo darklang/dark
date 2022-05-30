@@ -340,10 +340,8 @@ type EvalWorker =
         }
 
       let serialized =
-        let serialize = Json.Vanilla.serialize
-
         try
-          serialize result
+          Json.Vanilla.serialize result
         with
         | e ->
           let metadata = Exception.nestedMetadata e
@@ -352,7 +350,9 @@ type EvalWorker =
           System.Console.WriteLine(
             $"caught exception: \"{e.Message}\" \"{metadata}\""
           )
-          serialize (Error($"exception: {e.Message}, metadata: {metadata}"))
+          Json.Vanilla.serialize (
+            $"exception: {e.Message}, metadata: {metadata}"
+          )
 
       EvalWorker.postMessage serialized
     }
