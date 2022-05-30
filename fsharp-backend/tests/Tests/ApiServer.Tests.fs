@@ -142,11 +142,11 @@ let noBody () = ""
 
 let getInitialLoad (client : C) (canvasName : CanvasName.T) : Task<InitialLoad.T> =
   task {
-    let! (o : HttpResponseMessage) =
-      postAsync OCaml client $"/api/{canvasName}/initial_load" ""
+    let! (r : HttpResponseMessage) =
+      postAsync FSharp client $"/api/{canvasName}/initial_load" ""
 
-    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
-    let! body = o.Content.ReadAsStringAsync()
+    Expect.equal r.StatusCode System.Net.HttpStatusCode.OK ""
+    let! body = r.Content.ReadAsStringAsync()
     return deserialize<InitialLoad.T> body
   }
 
