@@ -65,7 +65,7 @@ let login (username : string) (password : string) : Task<Client> =
   task {
     let client = new HttpClient()
     client.Timeout <- System.TimeSpan.FromSeconds 1
-    let port = portFor OCaml
+    let port = portFor FSharp
 
     use loginReq =
       new HttpRequestMessage(
