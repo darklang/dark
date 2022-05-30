@@ -1866,21 +1866,22 @@ module CanvasName =
     // no capitals
     // hyphen between username and canvasname
     // more hyphens allowed
-    let canvasRegex = "[-_a-z0-9]{1,64}"
-    let userNameRegex = UserName.allowedPattern
+    let canvasPortionRegex = "[-_a-z0-9]+"
+    let userPortionRegex = UserName.allowedPattern
     // This is complicated because users have canvas names like "username-", though
     // none have any content there.
-    let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
-    if Regex.IsMatch(name, regex) then
+    let regex = $"^{userPortionRegex}(-({canvasPortionRegex})?)?$"
+
+    if String.length name > 64 then // check the length of the entire subdomain
+      Error LengthError
+    else if Regex.IsMatch(name, regex) then
       Ok name
     else
       match Tablecloth.String.split "-" name with
       | [] -> Error EmptyError
       | [ _usernameOnly ] -> Error(UsernameError name)
       | username :: _canvasSegments ->
-        if String.length name - String.length username > 64 then
-          Error LengthError
-        else if Regex.IsMatch(username, $"^{userNameRegex}$") then
+        if Regex.IsMatch(username, $"^{userPortionRegex}$") then
           Error(CanvasNameError name)
         else
           Error(UsernameError username)
