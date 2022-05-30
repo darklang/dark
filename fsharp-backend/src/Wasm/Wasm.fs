@@ -350,9 +350,7 @@ type EvalWorker =
           System.Console.WriteLine(
             $"caught exception: \"{e.Message}\" \"{metadata}\""
           )
-          Json.Vanilla.serialize (
-            $"exception: {e.Message}, metadata: {metadata}"
-          )
+          Json.Vanilla.serialize ($"exception: {e.Message}, metadata: {metadata}")
 
       EvalWorker.postMessage serialized
     }
