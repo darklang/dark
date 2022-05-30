@@ -199,8 +199,7 @@ A _service_ in our repo typically wraps a deployment, but it can sometimes mean
 other things, so we also have a number of other services, defined via yaml
 files, in [services](services). Some of the services are deployments that use
 3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
-Google Cloud services. Some deployments just have a single container (eg
-[postgres-honeytail](services/postgres-honeytail)).
+Google Cloud services.
 
 ## Other important docs
 
