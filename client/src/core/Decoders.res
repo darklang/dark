@@ -346,6 +346,10 @@ let rec dval = (j): dval => {
      * analysis code.  However, since JSON doesn't support Infinity/NaN, our
      * JSON parser crashes. So instead we encode them specially in
      * Jsanalysis.clean_yojson, which is the encoder which matches this decoder
+     *
+     * CLEANUP remove OCaml-specific parsing here.
+     * The checks within `Some` are for OCaml, while the ones under `None` are
+     * for F#.
      */
     switch Js.Json.decodeObject(j) {
     | Some(obj) =>
@@ -362,7 +366,14 @@ let rec dval = (j): dval => {
       } else {
         \"@@"(raise, DecodeError("Expected float, got " ++ stringify(j)))
       }
-    | None => Json.Decode.float(j)
+    | None =>
+      if (j == Js.Json.string("Infinity")) {
+        Float.infinity
+      } else if (j == Js.Json.string("NaN")) {
+        Float.nan
+      } else {
+        Json.Decode.float(j)
+      }
     }
 
   variants(
