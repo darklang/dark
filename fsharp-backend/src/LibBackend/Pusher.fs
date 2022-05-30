@@ -26,12 +26,18 @@ let pusherClient : Lazy<PusherServer.Pusher> =
        options
      ))
 
+type EventTooBigEvent = { eventName : string }
+
 
 /// <summary>Send an event to Pusher.com.</summary>
 ///
 /// <remarks>
 /// This is fired in the background, and does not take any time from the current thread.
 /// You cannot wait for it, by design.
+///
+/// Do not send requests over 10240 bytes. Each caller should check their payload,
+/// and send a different push if appropriate (eg, instead of sending
+/// `TraceData hugePayload`, send `TraceDataTooBig traceID`
 /// </remarks>
 let push
   (canvasID : CanvasID)
@@ -40,7 +46,6 @@ let push
   : unit =
   FireAndForget.fireAndForgetTask $"pusher: {eventName}" (fun () ->
     task {
-      // TODO: handle messages over 10k bytes
       // TODO: make channels private and end-to-end encrypted in order to add public canvases
       let client = Lazy.force pusherClient
       let channel = $"canvas_{canvasID}"
@@ -50,8 +55,6 @@ let push
 
       return ()
     })
-
-
 
 
 let pushNewTraceID
@@ -69,10 +72,19 @@ let pushNew404 (canvasID : CanvasID) (f404 : TraceInputs.F404) =
 let pushNewStaticDeploy (canvasID : CanvasID) (asset : StaticAssets.StaticDeploy) =
   push canvasID "new_static_deploy" (Json.Vanilla.serialize asset)
 
+type AddOpEventTooBigPayload = { tlids : List<tlid> }
 
 // For exposure as a DarkInternal function
 let pushAddOpEvent (canvasID : CanvasID) (event : Op.AddOpEvent) =
-  push canvasID "add_op" (Json.OCamlCompatible.serialize event)
+  let payload = Json.OCamlCompatible.serialize event
+  if String.length payload > 10240 then
+    let tlids = List.map LibExecution.OCamlTypes.tlidOf event.``params``.ops
+    let tooBigPayload = { tlids = tlids } |> Json.Vanilla.serialize
+    // push canvasID "addOpTooBig" tooBigPayload
+    // CLEANUP: when changes are too big, notify the client to reload them
+    ()
+  else
+    push canvasID "add_op" payload
 
 let pushWorkerStates
   (canvasID : CanvasID)
