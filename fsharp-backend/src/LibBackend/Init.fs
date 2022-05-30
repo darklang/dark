@@ -14,7 +14,6 @@ open Microsoft.Extensions.Diagnostics.HealthChecks
 module Telemetry = LibService.Telemetry
 
 
-
 let _waitForDB () : Task<unit> =
   task {
     use (span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"

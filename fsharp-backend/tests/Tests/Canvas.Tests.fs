@@ -469,8 +469,8 @@ let testCanvasClone =
       assert Result.isOk added
     | Some _ -> ()
 
-    let sourceCanvasName = CanvasName.create "sample-gettingstarted"
-    let targetCanvasName = CanvasName.create "clone-gettingstarted"
+    let sourceCanvasName = CanvasName.createExn "sample-gettingstarted"
+    let targetCanvasName = CanvasName.createExn "clone-gettingstarted"
 
     let! sourceMeta = Canvas.getMeta sourceCanvasName
     let! targetMeta = Canvas.getMeta targetCanvasName

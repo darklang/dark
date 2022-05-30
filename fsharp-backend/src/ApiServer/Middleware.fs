@@ -142,12 +142,15 @@ let canvasMiddleware (permissionNeeded : Auth.Permission) : HttpMiddleware =
     // Last to run wraps ones which run earlier
     let canvasName = ctx.GetRouteData().Values.["canvasName"] :?> string
     let canvasName = CanvasName.create canvasName
-    let middleware =
-      next
-      |> withPermissionMiddleware permissionNeeded canvasName
-      |> userInfoMiddleware
-      |> sessionDataMiddleware
-    middleware ctx)
+    match canvasName with
+    | Ok canvasName ->
+      let middleware =
+        next
+        |> withPermissionMiddleware permissionNeeded canvasName
+        |> userInfoMiddleware
+        |> sessionDataMiddleware
+      middleware ctx
+    | Error _ -> notFound ctx)
 
 
 let antiClickjackingMiddleware : HttpMiddleware =

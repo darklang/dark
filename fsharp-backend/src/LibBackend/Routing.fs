@@ -190,7 +190,8 @@ let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.
      FROM custom_domains
      WHERE host = @host"
   |> Sql.parameters [ "host", Sql.string customDomain ]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "canvas" |> CanvasName.create)
+  |> Sql.executeRowOptionAsync (fun read ->
+    read.string "canvas" |> CanvasName.createExn)
 
 
 let addCustomDomain
@@ -215,9 +216,12 @@ let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
     // just another load balancer
     | [| a; "darkcustomdomain"; "com" |]
     | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
+    | [| a; "builtwithdark"; "com" |] ->
+      // If the name is invalid, just 404
+      return CanvasName.create a |> Result.toOption
     | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
+    | [| "builtwithdark"; "com" |] ->
+      return Some(CanvasName.createExn "builtwithdark")
     | _ -> return! canvasNameFromCustomDomain host
   }
 

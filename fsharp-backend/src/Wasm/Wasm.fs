@@ -176,7 +176,7 @@ module Eval =
       let program : RT.ProgramContext =
         { accountID = System.Guid.NewGuid()
           canvasID = System.Guid.NewGuid()
-          canvasName = CanvasName.create "todo"
+          canvasName = CanvasName.createExn "todo"
           userFns =
             userFns
             |> List.map OT.Convert.ocamlUserFunction2PT

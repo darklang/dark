@@ -193,7 +193,7 @@ let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   // CLEANUP: use errorResponse
-  standardResponse ctx "user not found" textPlain 404
+  standardResponse ctx "canvas not found" textPlain 404
 
 let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
   let msg =
