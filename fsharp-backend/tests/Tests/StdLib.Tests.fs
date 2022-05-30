@@ -17,7 +17,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
-module OCamlInterop = LibBackend.OCamlInterop
+module OCamlInterop = TestUtils.OCamlInterop
 
 open TestUtils.TestUtils
 

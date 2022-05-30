@@ -18,7 +18,7 @@ open FuzzTests.Utils
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = LibBackend.OCamlInterop
+module OCamlInterop = TestUtils.OCamlInterop
 module G = Generators
 
 let allowedErrors = AllowedFuzzerErrors.allowedErrors

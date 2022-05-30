@@ -197,7 +197,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
             // For this to work, we need to make PasswordBytes.to_yojson return
             // [`String (Bytes.to_string bytes)]
             let! expected =
-              LibBackend.OCamlInterop.execute
+              TestUtils.OCamlInterop.execute
                 state.program.accountID
                 state.program.canvasID
                 ast
@@ -222,6 +222,7 @@ let loadAllUserData (concurrency : int) (failOnError : bool) =
 
       return! fn canvasName
     })
+
 
 
 let loadAllTraceData (concurrency : int) (failOnError : bool) =

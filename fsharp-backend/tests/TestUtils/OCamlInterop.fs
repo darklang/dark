@@ -10,7 +10,7 @@
 /// We also use these types to convert to the types the API uses, which are
 /// typically direct deserializations of these types.
 /// </remarks>
-module LibBackend.OCamlInterop
+module TestUtils.OCamlInterop
 
 
 open System.Threading.Tasks

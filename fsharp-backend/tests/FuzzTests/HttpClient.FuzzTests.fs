@@ -14,7 +14,7 @@ open TestUtils.TestUtils
 open FuzzTests.Utils
 
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = LibBackend.OCamlInterop
+module OCamlInterop = TestUtils.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module HttpQueryEncoding = BackendOnlyStdLib.HttpQueryEncoding
 module G = Generators

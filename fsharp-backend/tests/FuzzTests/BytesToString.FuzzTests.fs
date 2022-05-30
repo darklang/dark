@@ -11,7 +11,7 @@ open TestUtils.TestUtils
 open FuzzTests.Utils
 
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = LibBackend.OCamlInterop
+module OCamlInterop = TestUtils.OCamlInterop
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module G = Generators
 

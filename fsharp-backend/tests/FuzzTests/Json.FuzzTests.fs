@@ -17,7 +17,7 @@ open FuzzTests.Utils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module OCamlInterop = LibBackend.OCamlInterop
+module OCamlInterop = TestUtils.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module G = Generators

@@ -162,7 +162,7 @@ let t
 
         if testOCaml then
           let! ocamlActual =
-            LibBackend.OCamlInterop.execute
+            TestUtils.OCamlInterop.execute
               state.program.accountID
               state.program.canvasID
               actualProg
