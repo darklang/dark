@@ -176,6 +176,21 @@ commands:
             - .cargo/git/db/
           key: v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
 
+
+  ##########################
+  # etags
+  ##########################
+  regenerate-etags:
+    steps:
+      - run:
+          name: Regenerate combined ETags
+          command: |
+            scripts/build/_generate-etags
+            cat backend/static/etags.json
+            scripts/linting/_check-etags
+            cp backend/static/etags.json rundir/
+
+
   ##########################
   # Initializing the containers
   ##########################
@@ -192,13 +207,7 @@ commands:
   build-gcp-containers:
     steps:
       - prep-container-creation
-      - run:
-          name: Regenerate combined ETags
-          command: |
-            scripts/build/_generate-etags
-            cat backend/static/etags.json
-            scripts/linting/_check-etags
-            cp backend/static/etags.json rundir/
+      - regenerate-etags
       - store_artifacts: { path: backend/static/etags.json }
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
@@ -470,6 +479,7 @@ jobs:
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      - regenerate-etags
       - run: scripts/deployment/_push-assets-to-cdn
       - slack-notify-job-failure
 
