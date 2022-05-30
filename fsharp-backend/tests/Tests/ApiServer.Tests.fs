@@ -988,4 +988,4 @@ let cookies =
        (302, None, Some "/login?error=Invalid+username+or+password"))
       (local, None, (302, None, Some "/login?error=Invalid+username+or+password")) ]
 
-let tests = testList "ApiServer" [ localOnlyTests; permissions; cookies ]
+let tests = testList "ApiServer" [ permissions; cookies ]
