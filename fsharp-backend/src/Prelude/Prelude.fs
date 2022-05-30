@@ -1866,7 +1866,7 @@ module CanvasName =
     // no capitals
     // hyphen between username and canvasname
     // more hyphens allowed
-    let canvasPortionRegex = "[-_a-z0-9]"
+    let canvasPortionRegex = "[-_a-z0-9]+"
     let userPortionRegex = UserName.allowedPattern
     // This is complicated because users have canvas names like "username-", though
     // none have any content there.
