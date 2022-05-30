@@ -1878,7 +1878,7 @@ module CanvasName =
       | [] -> Error EmptyError
       | [ _usernameOnly ] -> Error(UsernameError name)
       | username :: _canvasSegments ->
-        if String.length name - String.length username > 64 then
+        if String.length name > 64 then
           Error LengthError
         else if Regex.IsMatch(username, $"^{userNameRegex}$") then
           Error(CanvasNameError name)
