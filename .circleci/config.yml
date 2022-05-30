@@ -446,7 +446,7 @@ jobs:
       - build-gcp-containers
       - slack-notify-job-failure
 
-  push-to-gcp:
+  push-containers-to-gcp:
     executor: in-container
     steps:
       - darkcheckout
@@ -459,9 +459,21 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths: ["gcr-image-ids.json"]
-      - run: scripts/deployment/_push-assets-to-cdn
       - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
+
+  push-assets-to-gcp:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - setup-app
+      - auth-with-gcp: { background: true }
+      - attach_workspace: { at: "." }
+      - show-large-files-and-directories
+      - run: scripts/deployment/_push-assets-to-cdn
+      - slack-notify-job-failure
+
+
 
   deploy:
     executor: in-container
@@ -512,7 +524,17 @@ workflows:
             - build-stroller
 
       # pre-deploy, in parallel with integration-tests
-      - push-to-gcp:
+      - push-assets-to-gcp:
+          filters:
+            branches:
+              only: main
+          requires:
+            - build-backend
+            - build-fsharp-backend
+            - build-client
+
+      # pre-deploy, in parallel with integration-tests
+      - push-containers-to-gcp:
           filters:
             branches:
               only: main
@@ -530,7 +552,8 @@ workflows:
           requires:
             - validate-honeycomb-config
             - integration-tests
-            - push-to-gcp
+            - push-containers-to-gcp
+            - push-assets-to-gcp
             - static-checks
             - predeployment-checks
 
