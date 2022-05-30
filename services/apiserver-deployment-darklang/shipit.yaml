@@ -29,7 +29,6 @@ k8s:
         env-file: ../../config/gke-builtwithdark
     containers:
       - gcp-fsharp-apiserver
-      - legacyserver
     builtins:
       - CLOUDSQL_INSTANCE_NAME
     expected-args:
