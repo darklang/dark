@@ -376,14 +376,6 @@ jobs:
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
       - slack-notify-job-failure
 
-  build-postgres-honeytail:
-    executor: simple-executor
-    steps:
-      - darkcheckout
-      - prep-container-creation
-      - run: cd containers/postgres-honeytail && docker build -t postgres-honeytail .
-      - slack-notify-job-failure
-
   validate-honeycomb-config:
     executor: simple-executor
     steps:
@@ -498,7 +490,6 @@ workflows:
           filters:
             branches:
               ignore: /^(pull\/).*$/
-      - build-postgres-honeytail
       - validate-honeycomb-config
       - build-backend
       - build-client
@@ -530,7 +521,6 @@ workflows:
             - build-fsharp-backend
             - build-client
             - build-stroller
-            - build-postgres-honeytail
 
       # actual deploy
       - deploy:
@@ -552,7 +542,6 @@ workflows:
             - build-backend
             - build-client
             - build-fsharp-backend
-            - build-postgres-honeytail
             - build-stroller
             - gcp-containers-test
             - integration-tests
