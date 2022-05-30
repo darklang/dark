@@ -271,7 +271,15 @@ exception NotFoundException of msg : string with
 /// ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    match! Routing.canvasNameFromHost ctx.Request.Host.Host with
+    let! canvasName =
+      // This can raise with "Decoded string is not a valid IDN name" during
+      // conversion to unicode
+      let host = Exception.catch (fun () -> ctx.Request.Host.Host)
+      match host with
+      | Some host -> Routing.canvasNameFromHost host
+      | None -> Task.FromResult None
+
+    match canvasName with
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
 
