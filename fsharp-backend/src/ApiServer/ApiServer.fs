@@ -191,7 +191,7 @@ let configureServices (services : IServiceCollection) : unit =
   |> LibService.Telemetry.AspNet.addTelemetryToServices
        "ApiServer"
        LibService.Telemetry.TraceDBQueries
-  |> LibService.Kubernetes.configureServices [ ]
+  |> LibService.Kubernetes.configureServices []
   |> fun s -> s.AddServerTiming()
   |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
