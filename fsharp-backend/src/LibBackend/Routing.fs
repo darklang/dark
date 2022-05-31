@@ -215,10 +215,10 @@ let canvasSourceFromHost (host : string) : CanvasSource =
   | [| a; "darkcustomdomain"; "com" |]
   | [| a; "builtwithdark"; "localhost" |]
   | [| a; "builtwithdark"; "com" |] ->
-    // If the name is invalid, just 404
+    // If the name is invalid, we'll 404 later
     Bwd a
   | [| "builtwithdark"; "localhost" |]
-  | [| "builtwithdark"; "com" |] -> Bwd "builtwithdark.com"
+  | [| "builtwithdark"; "com" |] -> Bwd "builtwithdark"
   | _ -> CustomDomain host
 
 

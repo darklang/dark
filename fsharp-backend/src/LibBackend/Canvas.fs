@@ -76,7 +76,7 @@ let getMetaAndCorsForCustomDomain
   task {
     let! result =
       Sql.query
-        "SELECT c.id, c.account_id, c.name
+        "SELECT c.id, c.account_id, c.name, c.cors_setting
            FROM canvases c, custom_domains d
           WHERE d.canvas = c.name
             AND d.host = @customDomain"
