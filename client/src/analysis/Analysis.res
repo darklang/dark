@@ -269,7 +269,7 @@ module NewPresencePush = {
 module AddOps = {
   let decode = {
     open Tea.Json.Decoder
-    field("detail", Decoders.wrapDecoder(Decoders.addOpAPIStrollerMsg))
+    field("detail", Decoders.wrapDecoder(Decoders.addOpAPIPusherMsg))
   }
 
   let listen = (~key, tagger) => BrowserListeners.registerGlobal("addOp", key, tagger, decode)

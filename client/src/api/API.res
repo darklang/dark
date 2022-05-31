@@ -275,7 +275,7 @@ let sendInvite = (m: model, invite: SettingsViewTypes.inviteFormMessage): Tea.Cm
  * a set of ops whether this is the latest seen so far from a given client, or
  * has come in out of order.) This is initially done server-side, to guard
  * against ops being processed there out of order; but we also need to do this
- * client-side, since messages coming in from Pusher (and stroller) are not
+ * client-side, since messages coming in from Pusher are not
  * guaranteed to be delivered in order.
  *
  * Ordering is determined by model.opCtrs, and we return a model so we can also

@@ -831,7 +831,7 @@ and addOpAPIResult = {
 
 and addOpAPIResponse = {result: addOpAPIResult}
 
-and addOpStrollerMsg = {
+and addOpPusherMsg = {
   result: addOpAPIResult,
   params: addOpAPIParams,
 }
@@ -1357,7 +1357,7 @@ and msg =
   | AutocompleteClick(int)
   | @printer(opaque("AddOpsAPICallback"))
   AddOpsAPICallback(focus, addOpAPIParams, Tea.Result.t<addOpAPIResponse, httpError>)
-  | AddOpsStrollerMsg(addOpStrollerMsg)
+  | AddOpsPusherMsg(addOpPusherMsg)
   | @printer(opaque("SavetestAPICallback"))
   SaveTestAPICallback(Tea.Result.t<saveTestAPIResult, httpError>)
   | @printer(opaque("GetUnlockedDBsAPICallback"))
