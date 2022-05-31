@@ -1,7 +1,7 @@
 open Prelude
 open Fluid
-open Fluid_test_data
-open Fluid_fuzzer
+open FluidTestData
+open FluidFuzzer
 module K = FluidKeyboard
 
 /* See docs/fuzzer.md for documentation on how to use this. */
@@ -19,8 +19,8 @@ let process_cmdline_args = () => {
     | (None, "--seed")
     | (None, "--verbosityThreshold") =>
       command := Some(str)
-    | (None, "--stopOnFail") => Fluid_fuzzer.stopOnFail := true
-    | (None, "--continue") => Fluid_fuzzer.continue := true
+    | (None, "--stopOnFail") => FluidFuzzer.stopOnFail := true
+    | (None, "--continue") => FluidFuzzer.continue := true
     | (None, "--help") =>
       Js.log(
         "Run Dark's client-side fuzzer. Supported arguments:\n  --seed: set the seed (otherwise uses timestamp)\n  --continue: continue running after first test case\n  --stopOnFail: stop on the first failed test case\n  --size: the size of the test cases\n  --maxTestSize: the maximum number of elements (exprs or patterns) in a test case\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex",
@@ -30,16 +30,16 @@ let process_cmdline_args = () => {
       Tester.pattern := Some(Js.Re.fromString(str))
       command := None
     | (Some("--seed"), str) =>
-      Fluid_fuzzer.initialSeed := int_of_string(str)
+      FluidFuzzer.initialSeed := int_of_string(str)
       command := None
     | (Some("--maxTestSize"), str) =>
-      Fluid_fuzzer.maxTestSize := int_of_string(str)
+      FluidFuzzer.maxTestSize := int_of_string(str)
       command := None
     | (Some("--size"), str) =>
-      Fluid_fuzzer.itemSize := int_of_string(str)
+      FluidFuzzer.itemSize := int_of_string(str)
       command := None
     | (Some("--verbosityThreshold"), str) =>
-      Fluid_fuzzer.verbosityThreshold := int_of_string(str)
+      FluidFuzzer.verbosityThreshold := int_of_string(str)
       command := None
     | (None, _) if Tc.String.endsWith(str, ~suffix="fuzz_tests.bs.js") => /* ignore the filename */
       ()
@@ -62,7 +62,7 @@ let keypress = (key: K.key): fluidInputEvent => Keypress({
 })
 
 let processMsg = (inputs: list<fluidInputEvent>, s: fluidState, ast: E.t): (E.t, fluidState) => {
-  let h = Fluid_utils.h(ast)
+  let h = FluidUtils.h(ast)
   let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
   List.fold(inputs, ~initial=(h.ast, s, list{}), ~f=((ast, s, _), input) =>
     updateMsg(m, h.hTLID, ast, s, FluidInputEvent(input))
@@ -93,7 +93,7 @@ let copyPasteTest: FuzzTest.t = {
         | _ => false
         }
       ) |> \"<>"(list{}),
-    fn: testcase => (Fluid_clipboard_test.execute_roundtrip(testcase), defaultTestState),
+    fn: testcase => (TestFluidClipboard.execute_roundtrip(testcase), defaultTestState),
   }
 }
 

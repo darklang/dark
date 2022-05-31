@@ -58,21 +58,21 @@ let run = () => {
     let extra = 12
     let pos = pos + extra
     let s = {
-      ...Fluid_test_data.defaultTestState,
+      ...FluidTestData.defaultTestState,
       ac: AC.init,
       oldPos: pos,
       newPos: pos,
     }
 
     if debug {
-      Js.log2("state before ", Fluid_utils.debugState(s))
+      Js.log2("state before ", FluidUtils.debugState(s))
       Js.log2("pattern before", eToStructure(ast))
     }
-    let astInfo = Fluid.ASTInfo.make(Fluid_test_data.defaultTestProps, FluidAST.ofExpr(ast), s)
+    let astInfo = Fluid.ASTInfo.make(FluidTestData.defaultTestProps, FluidAST.ofExpr(ast), s)
 
     let result = {
-      let h = Fluid_utils.h(FluidAST.toExpr(astInfo.ast))
-      let m = {...Fluid_test_data.defaultTestModel, handlers: Handlers.fromList(list{h})}
+      let h = FluidUtils.h(FluidAST.toExpr(astInfo.ast))
+      let m = {...FluidTestData.defaultTestModel, handlers: Handlers.fromList(list{h})}
 
       let astInfo = Fluid.updateAutocomplete(m, TLID.fromString("7"), astInfo)
       List.fold(inputs, ~initial=astInfo, ~f=(astInfo: ASTInfo.t, input) =>
@@ -86,7 +86,7 @@ let run = () => {
     }
 
     if debug {
-      Js.log2("state after", Fluid_utils.debugState(result.state))
+      Js.log2("state after", FluidUtils.debugState(result.state))
       Js.log2("pattern after", eToStructure(FluidAST.toExpr(result.ast)))
     }
     (pToString(resultPat), max(0, result.state.newPos - extra))

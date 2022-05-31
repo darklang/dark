@@ -2,7 +2,7 @@ open Prelude
 open Tester
 module DClipboard = Clipboard
 open Fluid
-open Fluid_test_data
+open FluidTestData
 module B = BlankOr
 module K = FluidKeyboard
 open FluidExpression
@@ -34,7 +34,7 @@ let execute_roundtrip = (ast: fluidExpr) => {
   let pos = String.length(expectedString)
   let e = clipboardEvent()
   let mFor = ast => {
-    let h = Fluid_utils.h(ast)
+    let h = FluidUtils.h(ast)
     {
       ...defaultTestModel,
       handlers: Handlers.fromList(list{h}),
@@ -71,7 +71,7 @@ let run = () => {
       |> (cp => (text, cp))
     }
 
-    let h = Fluid_utils.h(ast)
+    let h = FluidUtils.h(ast)
     let m = {
       ...defaultTestModel,
       handlers: Handlers.fromList(list{h}),
@@ -86,7 +86,7 @@ let run = () => {
     }
 
     if debug {
-      Js.log2("state before ", Fluid_utils.debugState(m.fluidState))
+      Js.log2("state before ", FluidUtils.debugState(m.fluidState))
       Js.log2("ast before", Printer.eToStructure(ast))
     }
     let mod_ = Main.update_(msg, m)
@@ -97,7 +97,7 @@ let run = () => {
 
     let finalPos = newState.newPos
     if debug {
-      Js.log2("state after", Fluid_utils.debugState(newState))
+      Js.log2("state after", FluidUtils.debugState(newState))
       Js.log2("expr after", Printer.eToStructure(newAST))
     }
     (Printer.eToTestString(newAST), clipboardData(e), finalPos)
@@ -198,7 +198,7 @@ let run = () => {
     expectedText: string,
   ): unit =>
     test(nameToName(name, initial), () => {
-      let h = Fluid_utils.h(initial)
+      let h = FluidUtils.h(initial)
       let (start, pos) = copyRange
       let preCopyModel = {
         ...defaultTestModel,

@@ -3,7 +3,7 @@
 open Tester
 open Prelude
 open Fluid
-open Fluid_test_data
+open FluidTestData
 open FluidShortcuts
 
 /*  */

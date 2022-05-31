@@ -1,6 +1,6 @@
 open Prelude
 open Fluid
-open Fluid_test_data
+open FluidTestData
 open Tester
 open FluidExpression
 open FluidShortcuts

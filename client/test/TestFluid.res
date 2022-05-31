@@ -1,7 +1,7 @@
 open Tester
 open Prelude
 open Fluid
-open Fluid_test_data
+open FluidTestData
 module B = BlankOr
 module K = FluidKeyboard
 module E = FluidExpression
@@ -386,7 +386,7 @@ type modifierKeys = {
 }
 
 let processMsg = (inputs: list<fluidInputEvent>, astInfo: ASTInfo.t): ASTInfo.t => {
-  let h = Fluid_utils.h(FluidAST.toExpr(astInfo.ast))
+  let h = FluidUtils.h(FluidAST.toExpr(astInfo.ast))
   let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
   let astInfo = Fluid.updateAutocomplete(m, TLID.fromString("7"), astInfo)
   List.fold(inputs, ~initial=astInfo, ~f=(astInfo: ASTInfo.t, input) =>
@@ -396,7 +396,7 @@ let processMsg = (inputs: list<fluidInputEvent>, astInfo: ASTInfo.t): ASTInfo.t 
 
 let process = (inputs: list<fluidInputEvent>, tc: TestCase.t): TestResult.t => {
   if tc.debug {
-    Js.log2("state before ", Fluid_utils.debugState(tc.state))
+    Js.log2("state before ", FluidUtils.debugState(tc.state))
     Js.log2("expr before", FluidAST.toExpr(tc.ast) |> FluidPrinter.eToStructure(~includeIDs=true))
   }
   let result = Fluid.ASTInfo.make(defaultTestProps, tc.ast, tc.state) |> processMsg(inputs)
@@ -411,7 +411,7 @@ let process = (inputs: list<fluidInputEvent>, tc: TestCase.t): TestResult.t => {
   )
 
   if tc.debug {
-    Js.log2("state after", Fluid_utils.debugState(result.state))
+    Js.log2("state after", FluidUtils.debugState(result.state))
     Js.log2("expr after", FluidPrinter.tokensToString(Fluid.ASTInfo.activeTokenInfos(result)))
   }
   {TestResult.testcase: tc, resultAST: resultAST, resultState: result.state}
@@ -683,7 +683,7 @@ let run = () => {
     t(
       "insert into middle string",
       mlStr,
-      ~pos= /* quote + 2 + newline */44,
+      ~pos=/* quote + 2 + newline */ 44,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       ("12c~3456789_abcdefghi,123456789_abcdefghi\n," ++
@@ -692,7 +692,7 @@ let run = () => {
     t(
       "insert into end string",
       mlStr,
-      ~pos= /* quote + 2 + newline*2 */85,
+      ~pos=/* quote + 2 + newline*2 */ 85,
       ins("c"),
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
@@ -2066,7 +2066,7 @@ let run = () => {
     )
     t(
       "backspace after selecting a versioned 0-arg fnCall deletes all",
-      ~wrap= /* wrap false because else we delete the wrapper */false,
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
       fn("HttpClient::post_v4", list{}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
@@ -2515,7 +2515,7 @@ let run = () => {
     )
     t(
       "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all",
-      ~wrap= /* wrap false because else we delete the wrapper */false,
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
       ~pos=0,
       binop("/", fn("HttpClient::post_v4", list{}), int(5)),
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
@@ -2523,7 +2523,7 @@ let run = () => {
     )
     t(
       "backspace after selecting all with a binop partial in a binop deletes all",
-      ~wrap= /* wrap false because else we delete the wrapper */false,
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
       binop("+", partial("D", binop("-", int(5), int(5))), int(5)),
       inputs(list{keypress(K.SelectAll), DeleteWordBackward}),
       "~___",
@@ -2606,7 +2606,7 @@ let run = () => {
     )
     t(
       "backspace after selecting all with a `Just |___` in a match deletes all",
-      ~wrap= /* wrap false because else we delete the wrapper */false,
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
       match'(b, list{(pConstructor("Just", list{pBlank()}), b)}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
@@ -3506,7 +3506,7 @@ let run = () => {
     )
     t(
       "enter at the end of pipe expression with line below creates a new entry",
-      ~wrap= /* indent counting is all weird with wrapper */false,
+      ~wrap=/* indent counting is all weird with wrapper */ false,
       let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
       ~pos=37,
       enter,
@@ -3514,7 +3514,7 @@ let run = () => {
     )
     t(
       "enter at the beginning of expression after pipe creates let, not pipe",
-      ~wrap= /* indent counting is all weird with wrapper */false,
+      ~wrap=/* indent counting is all weird with wrapper */ false,
       let'("a", pipe(list(list{}), list{listFn(list{aList5})}), five),
       ~pos=38,
       enter,
@@ -3592,7 +3592,7 @@ let run = () => {
     )
     t(
       "bsing a blank pipe after a piped 1-arg function deletes all",
-      ~wrap= /* wrap false because else we delete the wrapper */false,
+      ~wrap=/* wrap false because else we delete the wrapper */ false,
       pipe(aList5, list{fn("List::length", list{pipeTarget}), b}),
       ~pos=0,
       inputs(list{keypress(K.SelectAll), DeleteContentBackward}),
@@ -4472,7 +4472,7 @@ let run = () => {
     )
     test("click into partial opens autocomplete", () => {
       let ast = let'("request", aShortInt, aPartialVar)
-      let h = Fluid_utils.h(ast)
+      let h = FluidUtils.h(ast)
       let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
       let tlid = h.hTLID
       expect({
@@ -4493,7 +4493,7 @@ let run = () => {
     })
     test("Backspace over binop resets upDownCol but not autocomplete", () => {
       let ast = binop("+", aShortInt, b)
-      let h = Fluid_utils.h(ast)
+      let h = FluidUtils.h(ast)
       let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
       let tlid = h.hTLID
       expect({
@@ -4662,7 +4662,7 @@ let run = () => {
         ASTInfo.setAST(FluidAST.ofExpr(expr), astInfo)
         |> moveTo(14)
         |> (astInfo => {
-          let h = Fluid_utils.h(FluidAST.toExpr(astInfo.ast))
+          let h = FluidUtils.h(FluidAST.toExpr(astInfo.ast))
           let m = {...defaultTestModel, handlers: Handlers.fromList(list{h})}
 
           updateAutocomplete(m, h.hTLID, astInfo)

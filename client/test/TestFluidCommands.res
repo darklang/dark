@@ -1,6 +1,6 @@
 open Tester
 open Prelude
-open Fluid_test_data
+open FluidTestData
 
 let makeTL = ast => TLHandler({
   ast: ast,

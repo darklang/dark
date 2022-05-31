@@ -1,6 +1,6 @@
 open Tc
 open Tester
-open Fluid_test_data
+open FluidTestData
 open FluidShortcuts
 module FF = FeatureFlags
 
