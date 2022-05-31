@@ -1,6 +1,6 @@
 open Prelude
 open Tester
-open Fluid_test_data
+open FluidTestData
 module B = BlankOr
 module D = Defaults
 module R = Refactor

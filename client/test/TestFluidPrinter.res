@@ -1,6 +1,6 @@
 open Tester
 open Prelude
-open Fluid_test_data
+open FluidTestData
 module E = FluidExpression
 module T = FluidToken
 

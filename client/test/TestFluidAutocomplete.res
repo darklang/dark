@@ -8,7 +8,7 @@ module P = FluidPattern
 module Printer = FluidTokenizer
 module TL = Toplevel
 open FluidExpression
-open Fluid_test_data
+open FluidTestData
 open FluidShortcuts
 
 let sampleFunctions: list<function_> = list{
@@ -148,7 +148,7 @@ let defaultModel = (
     |> List.toArray
     |> Belt.Map.String.fromArray
 
-  let default = Fluid_test_data.defaultTestModel
+  let default = FluidTestData.defaultTestModel
   {
     ...default,
     handlers: Handlers.fromList(handlers),

@@ -22,7 +22,7 @@ let run = () => {
       let vp: ViewUtils.viewProps = {
         tl: tl,
         astInfo: FluidTokenizer.ASTInfo.make(
-          Fluid_test_data.defaultTestProps,
+          FluidTestData.defaultTestProps,
           FluidAST.ofExpr(ast),
           Defaults.defaultFluidState,
         ),
