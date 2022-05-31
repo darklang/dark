@@ -209,7 +209,7 @@ let canvasSourceFromHost (host : string) : CanvasSource =
   match host.Split [| '.' |] with
   // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's just
   // another load balancer. This is a minor concern, but a nice feeling for users
-  // when they're setting up the domina. We only do something special when the host
+  // when they're setting up the domain. We only do something special when the host
   // is an actual custom domain (that is, the domain pointing to)
 
   | [| a; "darkcustomdomain"; "com" |]
