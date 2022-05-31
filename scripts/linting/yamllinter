@@ -48,8 +48,6 @@ all_yaml_files() {
     -o -path "./rundir" -prune \
     -o -path "fsharp-backend/paket-files" -prune \
     -o -path "./fsharp-backend/paket-files" -prune \
-    -o -path "containers/stroller/target" -prune \
-    -o -path "./containers/stroller/target" -prune \
     -o -path ".circleci/config.yml" -prune
 }
 

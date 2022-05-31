@@ -314,48 +314,11 @@ def fsharp_backend_full_build():
   return result
 
 
-def rust_build(dir):
-  if optimize:
-    build_flags = " --release"
-  else:
-    build_flags = ""
-
-  start = time.time()
-  build = f"cd {dir} && unbuffer cargo build{build_flags}"
-  return run_backend(start, build)
-
-
-def rust_reload(dir):
-  start = time.time()
-  return run_backend(start, f"scripts/run-rust {dir}")
-
-
 def test_db_env():
   return "DARK_CONFIG_DB_HOST=localhost" \
     " DARK_CONFIG_DB_DBNAME=testdb" \
     " DARK_CONFIG_DB_USER=dark" \
     " DARK_CONFIG_DB_PASSWORD=darklang"
-
-
-def rust_test(dir):
-  start = time.time()
-  result = run_test(
-      start,
-      f"cd {dir} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test -- --test-threads=1"
-  )
-  if not result:
-    return result
-
-  start = time.time()
-  if in_ci:
-    clippy_flags = "-D warnings"
-  else:
-    clippy_flags = ""
-  name = os.path.basename(dir)
-  return run_test(
-      start, f"cd {dir}" +
-      f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- " +
-      clippy_flags)
 
 
 def reload_server():
@@ -397,8 +360,6 @@ class Should:
     self.esy_install = False
     self.backend_build = False
     self.backend_test = False
-    self.stroller_build = False
-    self.stroller_test = False
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
     self.fsharp_paket_install = False
@@ -419,7 +380,6 @@ class Should:
     self.reload_server = False
     self.reload_nginx_server = False
     self.reload_fsharp_server = False
-    self.reload_stroller = False
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
@@ -537,16 +497,6 @@ def execute(should):
   if should.fsharp_backend_test:
     if not fsharp_backend_test(): success = False
 
-  # Rust projects
-  if should.stroller_build:
-    if not rust_build('containers/stroller'): success = False
-    should.stroller_test |= success
-    should.reload_stroller |= success
-  if should.reload_stroller:
-    if not rust_reload('containers/stroller'): success = False
-  if should.stroller_test:
-    if not rust_test('containers/stroller'): success = False
-
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
       success = False
@@ -643,18 +593,6 @@ def mark(should, f):
     should.reload_fsharp_server = True
     should.generate_etags = True
 
-  # Rust
-  # Touch this to rerun all rust programs
-  elif "/scripts/run-rust" in f:
-    should.shellcheck += [f]
-    should.reload_stroller = True
-
-  elif ("/stroller/" in f) \
-          and (("Cargo.toml" in f) \
-                  or ("Cargo.lock" in f) \
-                  or (".rs" in f)):
-    should.stroller_build = True
-
   # JS
   elif "/package.json" in f:
     should.npm_install = True
@@ -729,7 +667,6 @@ def ignore(filename):
       "node_modules",
       "fsharp-backend/Build",
       "build.ninja",
-      "containers/stroller/target",
       "paket-files",
       ".paket/load",
       ".bs.js",
