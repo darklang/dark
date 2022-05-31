@@ -472,11 +472,12 @@ let testCanvasClone =
     let sourceCanvasName = CanvasName.createExn "sample-gettingstarted"
     let targetCanvasName = CanvasName.createExn "clone-gettingstarted"
 
-    let! sourceMeta = Canvas.getMeta sourceCanvasName
-    let! targetMeta = Canvas.getMeta targetCanvasName
-
+    let! sourceMeta = Canvas.getMetaAndCreate sourceCanvasName
     do! Canvas.loadAndResaveFromTestFile sourceMeta
+
     do! CanvasClone.cloneCanvas sourceCanvasName targetCanvasName false
+    // Do this after to test the clone has created the canvas
+    let! targetMeta = Canvas.getMeta targetCanvasName
 
     let! (sourceCanvas : Canvas.T) = Canvas.loadAll sourceMeta
     let! (targetCanvas : Canvas.T) = Canvas.loadAll targetMeta

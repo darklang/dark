@@ -24,6 +24,18 @@ type CorsSetting =
   | AllOrigins
   | Origins of List<string>
 
+let parseCorsString (str : string) : CorsSetting =
+  let json = System.Text.Json.JsonDocument.Parse str
+
+  match json.RootElement.ValueKind with
+  | System.Text.Json.JsonValueKind.String when json.RootElement.GetString() = "*" ->
+    AllOrigins
+  | System.Text.Json.JsonValueKind.Array ->
+    json.RootElement.EnumerateArray() |> Seq.map string |> Seq.toList |> Origins
+  | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ]
+
+
+
 type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
 
 let canvasIDForCanvasName
@@ -39,7 +51,7 @@ let canvasIDForCanvasName
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
 /// Fetch high-level metadata for a canvas
-let getMeta (canvasName : CanvasName.T) : Task<Meta> =
+let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
     // CLEANUP put into single query. We'll need to ignore canvas_id, but we only
@@ -48,6 +60,62 @@ let getMeta (canvasName : CanvasName.T) : Task<Meta> =
     let! canvasID = canvasIDForCanvasName ownerID canvasName
     return { id = canvasID; owner = ownerID; name = canvasName }
   }
+
+/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
+/// We want to use this in nearly all cases, with the only exception being when a
+/// user enters a URL to open an editor for a canvas. Throws if the canvas doesn't
+/// exist.
+let getMeta (canvasName : CanvasName.T) : Task<Meta> =
+  Sql.query "SELECT id, account_id from canvases where name = @canvasName"
+  |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
+  |> Sql.executeRowAsync (fun read ->
+    { id = read.uuid "id"; owner = read.uuid "account_id"; name = canvasName })
+
+let getMetaAndCorsForCustomDomain
+  (customDomain : string)
+  : Task<Option<Meta * Option<CorsSetting>>> =
+  task {
+    let! result =
+      Sql.query
+        "SELECT c.id, c.account_id, c.name, c.cors_setting
+           FROM canvases c, custom_domains d
+          WHERE d.canvas = c.name
+            AND d.host = @customDomain"
+      |> Sql.parameters [ "customDomain", Sql.string customDomain ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id",
+         read.uuid "account_id",
+         read.string "name",
+         read.stringOrNone "cors_setting"))
+    return
+      result
+      |> Option.map (fun (id, accountID, canvasName, corsString) ->
+        let corsSetting = Option.map parseCorsString corsString
+        { id = id; owner = accountID; name = CanvasName.createExn canvasName },
+        corsSetting)
+  }
+
+/// Shortcut to get Meta and CorsSetting in one DB query. Strictly an optimization.
+let getMetaAndCors
+  (canvasName : CanvasName.T)
+  : Task<Option<Meta * Option<CorsSetting>>> =
+  task {
+    let! result =
+      Sql.query
+        "SELECT id, account_id, cors_setting
+           FROM canvases
+          WHERE name = @canvasName"
+      |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id", read.uuid "account_id", read.stringOrNone "cors_setting"))
+
+    return
+      result
+      |> Option.map (fun (id, accountID, corsString) ->
+        let corsSetting = Option.map parseCorsString corsString
+        { id = id; owner = accountID; name = canvasName }, corsSetting)
+  }
+
 
 let getMetaFromID (id : CanvasID) : Task<Meta> =
   Sql.query "SELECT name, account_id FROM canvases WHERE id = @canvasID"
@@ -280,25 +348,12 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   let reducedOps = Undo.preprocess (oldops @ newops)
   List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
+
 let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
   Sql.query "SELECT cors_setting FROM canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read ->
-    match read.stringOrNone "cors_setting" with
-    | None -> None
-    | Some str ->
-      let json = System.Text.Json.JsonDocument.Parse str
-
-      match json.RootElement.ValueKind with
-      | System.Text.Json.JsonValueKind.String when json.RootElement.GetString() = "*" ->
-        Some AllOrigins
-      | System.Text.Json.JsonValueKind.Array ->
-        json.RootElement.EnumerateArray()
-        |> Seq.map string
-        |> Seq.toList
-        |> Origins
-        |> Some
-      | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ])
+    read.stringOrNone "cors_setting" |> Option.map parseCorsString)
 
 let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"

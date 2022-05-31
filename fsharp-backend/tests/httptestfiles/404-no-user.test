@@ -12,10 +12,11 @@ Content-Length: 0
 [response]
 HTTP/1.1 404 Not Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Content-Length: 14
+Content-Length: LENGTH
+Access-Control-Allow-Origin: *
 Content-Type: text/plain; charset=utf-8
 Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 x-darklang-execution-id: 0123456789
 
-user not found
+canvas not found

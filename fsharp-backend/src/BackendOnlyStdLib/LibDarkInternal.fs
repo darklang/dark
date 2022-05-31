@@ -573,7 +573,6 @@ that's already taken, returns an error."
                 | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
                 | Some (Canvas.Origins os) ->
                   os |> List.map DStr |> DList |> Some |> DOption
-
               let! c = Canvas.getMeta (CanvasName.createExn host)
               let! cors = Canvas.fetchCORSSetting c.id
               return corsSettingToDval cors
@@ -623,7 +622,7 @@ that's already taken, returns an error."
               match corsSetting s with
               | Error e -> return e |> DStr |> Error |> DResult
               | Ok settings ->
-                let! c = Canvas.getMeta (CanvasName.createExn host)
+                let! c = Canvas.getMetaAndCreate (CanvasName.createExn host)
                 do! Canvas.updateCorsSetting c.id settings
                 return s |> DOption |> Ok |> DResult
             }
