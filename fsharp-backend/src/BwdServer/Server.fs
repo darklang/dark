@@ -275,7 +275,7 @@ let canvasMetadataFromHost
     match Routing.canvasSourceFromHost host with
     | Routing.Bwd canvasName ->
       match CanvasName.create canvasName with
-      | Ok canvasName -> return! Canvas.getMetaAndCorsDontCreate canvasName
+      | Ok canvasName -> return! Canvas.getMetaAndCors canvasName
       | Error _ -> return None
     | Routing.CustomDomain customDomain ->
       return! Canvas.getMetaAndCorsForCustomDomain customDomain

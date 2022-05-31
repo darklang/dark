@@ -95,6 +95,27 @@ let getMetaAndCorsForCustomDomain
         corsSetting)
   }
 
+/// Shortcut to get Meta and CorsSetting in one DB query. Strictly an optimization.
+let getMetaAndCors
+  (canvasName : CanvasName.T)
+  : Task<Option<Meta * Option<CorsSetting>>> =
+  task {
+    let! result =
+      Sql.query
+        "SELECT id, account_id, cors_setting
+           FROM canvases
+          WHERE name = @canvasName"
+      |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id", read.uuid "account_id", read.stringOrNone "cors_setting"))
+
+    return
+      result
+      |> Option.map (fun (id, accountID, corsString) ->
+        let corsSetting = Option.map parseCorsString corsString
+        { id = id; owner = accountID; name = canvasName }, corsSetting)
+  }
+
 
 let getMetaFromID (id : CanvasID) : Task<Meta> =
   Sql.query "SELECT name, account_id FROM canvases WHERE id = @canvasID"
@@ -333,28 +354,6 @@ let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read ->
     read.stringOrNone "cors_setting" |> Option.map parseCorsString)
-
-/// Shortcut to get Meta and CorsSetting in one DB query. Strictly an optimization.
-let getMetaAndCorsDontCreate
-  (canvasName : CanvasName.T)
-  : Task<Option<Meta * Option<CorsSetting>>> =
-  task {
-    let! result =
-      Sql.query
-        "SELECT id, account_id, cors_setting
-           FROM canvases
-          WHERE name = @canvasName"
-      |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.uuid "id", read.uuid "account_id", read.stringOrNone "cors_setting"))
-
-    return
-      result
-      |> Option.map (fun (id, accountID, corsString) ->
-        let corsSetting = Option.map parseCorsString corsString
-        { id = id; owner = accountID; name = canvasName }, corsSetting)
-  }
-
 
 let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
