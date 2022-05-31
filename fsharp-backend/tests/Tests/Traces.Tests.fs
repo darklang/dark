@@ -260,7 +260,6 @@ let testFunctionTracesAreStored =
       }
 
     let! testFnResult = getValue 0
-    debuG "restFnResult" testFnResult
     Expect.equal
       (List.length testFnResult)
       1

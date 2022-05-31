@@ -36,6 +36,7 @@ let () = {
   describe("Autocomplete_test", Autocomplete_test.run)
   describe("Curl_test", Curl_test.run)
   describe("Darkstorage_test", Darkstorage_test.run)
+  describe("Decoder test", Decoder_test.run)
   describe("Encoder test", Encoder_test.run)
   describe("Feature Flag test", Feature_flag_test.run)
   describe("Fluid_ac_test", Fluid_ac_test.run)

@@ -124,7 +124,7 @@ let cloneCanvas
       Serialize.loadOplists Serialize.LiveToplevels fromMeta.id fromTLIDs
     let! fromCanvas = Canvas.loadAll fromMeta
 
-    let! toMeta = Canvas.getMeta toCanvasName
+    let! toMeta = Canvas.getMetaAndCreate toCanvasName
     let! toTLIDs = Serialize.fetchAllTLIDs toMeta.id
     if toTLIDs <> [] then Exception.raiseInternal "destination already exists" []
 

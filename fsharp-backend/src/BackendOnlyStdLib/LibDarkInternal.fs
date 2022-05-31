@@ -276,8 +276,8 @@ that's already taken, returns an error."
               let fromCanvasName = LibService.Config.gettingStartedCanvasSource
               do!
                 CanvasClone.cloneCanvas
-                  (CanvasName.create fromCanvasName)
-                  (CanvasName.create toCanvasName)
+                  (CanvasName.createExn fromCanvasName)
+                  (CanvasName.createExn toCanvasName)
                   // Don't preserve history here, it isn't useful and
                   // we don't currently have visibility into canvas
                   // history, so we'd rather not share unknown sample-
@@ -573,8 +573,7 @@ that's already taken, returns an error."
                 | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
                 | Some (Canvas.Origins os) ->
                   os |> List.map DStr |> DList |> Some |> DOption
-
-              let! c = Canvas.getMeta (CanvasName.create host)
+              let! c = Canvas.getMeta (CanvasName.createExn host)
               let! cors = Canvas.fetchCORSSetting c.id
               return corsSettingToDval cors
             }
@@ -623,7 +622,7 @@ that's already taken, returns an error."
               match corsSetting s with
               | Error e -> return e |> DStr |> Error |> DResult
               | Ok settings ->
-                let! c = Canvas.getMeta (CanvasName.create host)
+                let! c = Canvas.getMetaAndCreate (CanvasName.createExn host)
                 do! Canvas.updateCorsSetting c.id settings
                 return s |> DOption |> Ok |> DResult
             }
@@ -749,7 +748,7 @@ that's already taken, returns an error."
           | _, [ DStr host ] ->
             uply {
               try
-                let! meta = Canvas.getMeta (CanvasName.create host)
+                let! meta = Canvas.getMeta (CanvasName.createExn host)
                 return DOption(Some(DStr(string meta.id)))
               with
               | e -> return DOption None
@@ -888,7 +887,8 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr username; DStr canvas ] ->
             uply {
-              let owner = Account.ownerNameFromCanvasName (CanvasName.create canvas)
+              let owner =
+                Account.ownerNameFromCanvasName (CanvasName.createExn canvas)
               match! Authorization.permission owner (UserName.create username) with
               | Some perm -> return DStr(string perm)
               | None -> return DStr ""

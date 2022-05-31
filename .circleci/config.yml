@@ -176,6 +176,21 @@ commands:
             - .cargo/git/db/
           key: v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
 
+
+  ##########################
+  # etags
+  ##########################
+  regenerate-etags:
+    steps:
+      - run:
+          name: Regenerate combined ETags
+          command: |
+            scripts/build/_generate-etags
+            cat backend/static/etags.json
+            scripts/linting/_check-etags
+            cp backend/static/etags.json rundir/
+
+
   ##########################
   # Initializing the containers
   ##########################
@@ -192,13 +207,7 @@ commands:
   build-gcp-containers:
     steps:
       - prep-container-creation
-      - run:
-          name: Regenerate combined ETags
-          command: |
-            scripts/build/_generate-etags
-            cat backend/static/etags.json
-            scripts/linting/_check-etags
-            cp backend/static/etags.json rundir/
+      - regenerate-etags
       - store_artifacts: { path: backend/static/etags.json }
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
@@ -376,14 +385,6 @@ jobs:
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
       - slack-notify-job-failure
 
-  build-postgres-honeytail:
-    executor: simple-executor
-    steps:
-      - darkcheckout
-      - prep-container-creation
-      - run: cd containers/postgres-honeytail && docker build -t postgres-honeytail .
-      - slack-notify-job-failure
-
   validate-honeycomb-config:
     executor: simple-executor
     steps:
@@ -454,7 +455,7 @@ jobs:
       - build-gcp-containers
       - slack-notify-job-failure
 
-  push-to-gcp:
+  push-containers-to-gcp:
     executor: in-container
     steps:
       - darkcheckout
@@ -467,9 +468,22 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths: ["gcr-image-ids.json"]
-      - run: scripts/deployment/_push-assets-to-cdn
       - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
+
+  push-assets-to-gcp:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - setup-app
+      - auth-with-gcp: { background: true }
+      - attach_workspace: { at: "." }
+      - show-large-files-and-directories
+      - regenerate-etags
+      - run: scripts/deployment/_push-assets-to-cdn
+      - slack-notify-job-failure
+
+
 
   deploy:
     executor: in-container
@@ -498,7 +512,6 @@ workflows:
           filters:
             branches:
               ignore: /^(pull\/).*$/
-      - build-postgres-honeytail
       - validate-honeycomb-config
       - build-backend
       - build-client
@@ -521,7 +534,17 @@ workflows:
             - build-stroller
 
       # pre-deploy, in parallel with integration-tests
-      - push-to-gcp:
+      - push-assets-to-gcp:
+          filters:
+            branches:
+              only: main
+          requires:
+            - build-backend
+            - build-fsharp-backend
+            - build-client
+
+      # pre-deploy, in parallel with integration-tests
+      - push-containers-to-gcp:
           filters:
             branches:
               only: main
@@ -530,7 +553,6 @@ workflows:
             - build-fsharp-backend
             - build-client
             - build-stroller
-            - build-postgres-honeytail
 
       # actual deploy
       - deploy:
@@ -540,7 +562,8 @@ workflows:
           requires:
             - validate-honeycomb-config
             - integration-tests
-            - push-to-gcp
+            - push-containers-to-gcp
+            - push-assets-to-gcp
             - static-checks
             - predeployment-checks
 
@@ -552,7 +575,6 @@ workflows:
             - build-backend
             - build-client
             - build-fsharp-backend
-            - build-postgres-honeytail
             - build-stroller
             - gcp-containers-test
             - integration-tests

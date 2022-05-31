@@ -3,7 +3,7 @@
 
 [request]
 GET / HTTP/1.1
-Host: test-not-valid-canvas.builtwithdark.localhost:8001
+Host: test-abcdefgh0123456789-0123456789-0123456789-0123456789-0123456789-0123456789.localhost:8001
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
 
