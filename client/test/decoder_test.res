@@ -22,16 +22,14 @@ let run = () => {
           ]
       }]`
 
-      let decoded = Decode.result(Decoders.intermediateResultStore, Decode.string, Json.parseOrRaise(expr))
-      let result = Belt.Map.String.fromArray([("1818290858", ExecutedResult(Dval.obj(list{
+      let expectedResult = Belt.Map.String.fromArray([("1818290858", ExecutedResult(Dval.obj(list{
         ("a", DFloat(Float.nan)),
         ("b", DFloat(Float.infinity)),
         ("c", DFloat(5.6)),
       })))])
 
-      expect(Belt.Result.Ok(result)) |> toEqual(
-        decoded
-      )
+      expect(Decode.result(Decoders.intermediateResultStore, Decode.string, Json.parseOrRaise(expr)))
+      |> toEqual(Belt.Result.Ok(expectedResult))
       }
     )
     ()

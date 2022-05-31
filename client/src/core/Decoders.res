@@ -348,7 +348,7 @@ let rec dval = (j): dval => {
      * Jsanalysis.clean_yojson, which is the encoder which matches this decoder
      *
      * CLEANUP remove OCaml-specific parsing here.
-     * The checks within `Some` are for OCaml, while the ones under `None` are
+     * The checks within `Some` are for OCaml analysis, while the ones under `None` are
      * for F#.
      */
     switch Js.Json.decodeObject(j) {
