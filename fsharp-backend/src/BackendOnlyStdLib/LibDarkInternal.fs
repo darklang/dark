@@ -94,65 +94,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "upsertUser" 0
-      parameters =
-        [ Param.make "username" TStr ""
-          Param.make "email" TStr ""
-          Param.make "name" TStr "" ]
-      returnType = TStr
-      description =
-        "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
-      fn =
-        internalFn (function
-          | _, [ DStr username; DStr email; DStr name ] ->
-            uply {
-              match UserName.validate username with
-              | Ok str ->
-                let! result =
-                  Account.upsertNonAdmin
-                    { username = UserName.create username
-                      email = email
-                      name = name
-                      password = Password.invalid }
-                match result with
-                | Ok () -> return DStr ""
-                | Error msg -> return Exception.raiseGrandUser msg
-              | Error msg -> return Exception.raiseGrandUser msg
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "upsertUser" 1) }
-
-
-    { name = fn "DarkInternal" "insertUser" 1
-      parameters =
-        [ Param.make "username" TStr ""
-          Param.make "email" TStr ""
-          Param.make "name" TStr "" ]
-      returnType = TResult(varA, TStr)
-      description =
-        "Add a user. Returns a result containing the password for the user,
-which was randomly generated. Usernames are unique; if you try to add a username
-that's already taken, returns an error."
-      fn =
-        internalFn (function
-          | state, [ DStr username; DStr email; DStr name ] ->
-            uply {
-              let! result =
-                Account.insertUser (UserName.create username) email name None
-              match result with
-              | Ok () ->
-                Analytics.identifyUser (UserName.create username)
-                return DStr ""
-              | Error msg -> return Exception.raiseGrandUser msg
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "insertUser" 2) }
-
-
     { name = fn "DarkInternal" "insertUser" 2
       parameters =
         [ Param.make "username" TStr ""
@@ -191,63 +132,6 @@ that's already taken, returns an error."
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "upsertUser" 1
-      parameters =
-        [ Param.make "username" TStr ""
-          Param.make "email" TStr ""
-          Param.make "name" TStr "" ]
-      returnType = TResult(varA, TStr)
-      description =
-        "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
-      fn =
-        internalFn (function
-          | state, [ DStr username; DStr email; DStr name ] ->
-            uply {
-              match UserName.validate username with
-              | Ok str ->
-                let username = UserName.create username
-                let! result =
-                  Account.upsertNonAdmin
-                    { username = username
-                      email = email
-                      name = name
-                      password = Password.invalid }
-                match result with
-                | Ok () ->
-                  do Analytics.identifyUser username
-                  return DResult(Ok(DStr ""))
-                | Error msg -> return DResult(Error(DStr msg))
-              | Error msg -> return DResult(Error(DStr msg))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getUser" 0
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TOption varA
-      description = "Return a user for the username. Does not include passwords."
-      fn =
-        internalFn (function
-          | _, [ DStr username ] ->
-            uply {
-              let! info = Account.getUser (UserName.create username)
-              return
-                info
-                |> Option.map (fun user ->
-                  Dval.obj [ ("username", DStr(string user.username))
-                             ("name", DStr user.name)
-                             ("email", DStr user.email) ])
-                |> DOption
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "getUser" 1) }
 
 
     { name = fn "DarkInternal" "getUser" 1
@@ -607,12 +491,10 @@ that's already taken, returns an error."
       // returnType = varA
       description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
-      // description = "Write the log object to a honeycomb log." CLEANUP
       fn =
         internalFn (function
           | _, [ DStr level; DStr name; DObj log as result ] ->
             let args =
-              // CLEANUP: possible these aren't being logged
               log
               |> Map.toList
               // We could just leave the dval vals as strings and use params, but
@@ -731,6 +613,7 @@ that's already taken, returns an error."
           | state, [ DStr username ] ->
             uply {
               try
+                // This is used by the login.darklang.com/dark-cli callback
                 let username = UserName.create username
                 let! session = Session.insert username
                 return DResult(Ok(DStr session.sessionKey))
