@@ -80,8 +80,10 @@ let pushAddOpEvent (canvasID : CanvasID) (event : Op.AddOpEvent) =
   if String.length payload > 10240 then
     let tlids = List.map LibExecution.OCamlTypes.tlidOf event.``params``.ops
     let tooBigPayload = { tlids = tlids } |> Json.Vanilla.serialize
+    // CLEANUP: when changes are too big, notify the client to reload them. We'll
+    // have to add support to the client before enabling this. The client would
+    // reload after this.
     // push canvasID "addOpTooBig" tooBigPayload
-    // CLEANUP: when changes are too big, notify the client to reload them
     ()
   else
     push canvasID "add_op" payload
