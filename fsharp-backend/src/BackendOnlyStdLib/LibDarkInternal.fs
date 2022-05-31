@@ -629,7 +629,7 @@ that's already taken, returns an error."
           Param.make "event" TStr ""
           Param.make "payload" varA "" ]
       returnType = TResult(varB, TStr)
-      description = "Pushes an event to Stroller"
+      description = "Pushes an event to Honeycomb"
       fn =
         internalFn (function
           | state, [ DStr canvasID; DStr event; payload ] ->
