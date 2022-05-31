@@ -3,7 +3,3 @@ For a license for this repo, see the LICENSE.md file.
 The standard library is, in part, based on the Elm Standard Library, which
 is Copyright 2014-present Evan Czaplicki under the BSD 3-Clause "New" or
 "Revised" License. See https://github.com/elm/core/blob/1.0.5/LICENSE.
-
-Postgres-honeytail is under the Apache 2.0 license (see postgres-honeytail/LICENSE)
-
-

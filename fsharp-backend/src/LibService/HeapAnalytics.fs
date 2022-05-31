@@ -1,3 +1,5 @@
+/// Provides functions that emit events to https://heap.io
+[<RequireQualifiedAccess>]
 module LibService.HeapAnalytics
 
 open System.Threading.Tasks
@@ -40,52 +42,55 @@ let _socketsHandler =
 let httpClient () : HttpClient = new HttpClient(_socketsHandler)
 
 
-let heapioEvent
-  (executionID : ExecutionID)
-  (msgType : Type)
-  (body : JsonContent)
-  : unit =
-  FireAndForget.fireAndForgetTask executionID "heapio.track" (fun () ->
+/// Send an event to Heap.io
+let emitEvent (msgType : Type) (body : JsonContent) : unit =
+  FireAndForget.fireAndForgetTask "heapio.track" (fun () ->
     task {
       let client = httpClient ()
 
-      // path
-      let endpoint =
-        match msgType with
-        | Track -> "api/track"
-        | IdentifyUser -> "api/add_user_properties"
+      // prepare request
+      let url =
+        let endpoint =
+          match msgType with
+          | Track -> "api/track"
+          | IdentifyUser -> "api/add_user_properties"
 
-      let url = $"https://heapanalytics.com/{endpoint}"
-      let requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
+        $"https://heapanalytics.com/{endpoint}"
 
-      requestMessage.Content <- body
-
-      // auth
-      let authenticationString =
+      let authString =
         $":{Config.heapioId}" |> UTF8.toBytes |> Base64.defaultEncodeToString
 
-      requestMessage.Headers.Authorization <-
-        AuthenticationHeaderValue("Basic", authenticationString)
-      // Content-Type added automatically via JsonContent
-      requestMessage.Headers.Add("Accept", "application/json")
+      let requestMessage =
+        let msg = new HttpRequestMessage(HttpMethod.Post, url)
 
+        msg.Content <- body
 
+        msg.Headers.Authorization <- AuthenticationHeaderValue("Basic", authString)
+
+        // Content-Type added automatically via JsonContent
+        msg.Headers.Add("Accept", "application/json")
+
+        msg
+
+      // make request
       let! result = client.SendAsync(requestMessage)
+
+      // handle response
       if result.StatusCode <> System.Net.HttpStatusCode.OK then
         let! responseBody = result.Content.ReadAsStringAsync()
         Rollbar.sendError
-          executionID
           "heapio-apierror"
           [ "response", responseBody
             "request", body
             "url", url
-            "authentication", authenticationString
+            "authentication", authString
             "statusCode", result.StatusCode ]
+
       return ()
     })
 
-let trackBody
-  (executionID : ExecutionID)
+/// Collects data to be sent in a Heap event
+let makeTrackEventBody
   (event : string)
   (owner : UserID)
   (canvasName : CanvasName.T)
@@ -97,7 +102,6 @@ let trackBody
     properties
     |> Map.add "timestamp" (string timestamp)
     |> Map.add "organization" (string owner)
-    |> Map.add "execution_id" (string executionID)
     |> Map.add "canvas" (string canvasName)
     |> Map.add "organization" (string owner)
     |> Map.add "canvas_id" (string canvasID)
@@ -112,8 +116,9 @@ let trackBody
 
 
 // CLEANUP do bulk track
+
+/// Track an event to Heap
 let track
-  (executionID : ExecutionID)
   (canvasID : CanvasID)
   (canvasName : CanvasName.T)
   (owner : System.Guid)
@@ -121,14 +126,14 @@ let track
   (metadata : Map<string, string>)
   : unit =
   let body =
-    trackBody executionID event owner canvasName canvasID metadata
+    makeTrackEventBody event owner canvasName canvasID metadata
     |> JsonContent.Create
-  heapioEvent executionID Track body
+
+  emitEvent Track body
 
 
-
-let identifyUserBody
-  (executionID : ExecutionID)
+/// Collects data to be sent in an "identify user" Heap event
+let makeIdentifyUserBody
   (owner : UserID)
   (properties : Map<string, string>)
   : IdentifyUserPayload =
@@ -137,14 +142,9 @@ let identifyUserBody
     properties
     |> Map.add "timestamp" (string timestamp)
     |> Map.add "organization" (string owner)
-    |> Map.add "execution_id" (string executionID)
 
   { identity = string owner; app_id = Config.heapioId; properties = properties }
 
-let identifyUser
-  (executionID : ExecutionID)
-  (owner : UserID)
-  (metadata : Map<string, string>)
-  : unit =
-  let body = identifyUserBody executionID owner metadata |> JsonContent.Create
-  heapioEvent executionID IdentifyUser body
+let emitIdentifyUserEvent (owner : UserID) (metadata : Map<string, string>) : unit =
+  let body = makeIdentifyUserBody owner metadata |> JsonContent.Create
+  emitEvent IdentifyUser body

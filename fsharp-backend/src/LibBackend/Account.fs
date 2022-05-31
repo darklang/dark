@@ -1,6 +1,5 @@
+/// Functions related to Accounts/Users
 module LibBackend.Account
-
-// Functions related to Accounts/Users
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -12,7 +11,7 @@ open Tablecloth
 open Db
 
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // **********************
 // Types
@@ -40,7 +39,7 @@ type UserInfoAndCreatedAt =
     createdAt : NodaTime.Instant }
 
 let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
-  { id = Some ui.id; email = Some ui.email; username = Some ui.username }
+  Some { id = ui.id; username = Some ui.username }
 
 
 // **********************
@@ -48,7 +47,7 @@ let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
 // **********************
 
 let validateEmail (email : string) : Result<unit, string> =
-  (* just checking it's roughly the shape of an email *)
+  // just checking it's roughly the shape of an email
   let reString = "^.+@.+\\..+$"
 
   if FsRegEx.isMatch reString email then
@@ -61,8 +60,8 @@ let validateAccount (account : Account) : Result<unit, string> =
   UserName.newUserAllowed (string account.username)
   |> Result.and_ (validateEmail account.email)
 
-// Passwords set here are only valid locally, production uses auth0 to check
-// access
+// Passwords set here are only valid locally;
+// production uses Auth0 to check access
 let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>> =
   task {
     match validateAccount account with
@@ -117,6 +116,7 @@ let insertUser
       let analyticsMetadata = analyticsMetadata |> Option.unwrap Map.empty
 
       try
+        // insert
         do!
           Sql.query
             "INSERT INTO accounts
@@ -131,11 +131,13 @@ let insertUser
                               ("password", Sql.string (string Password.invalid))
                               ("metadata",
                                Sql.jsonb (
-                                 DvalReprInternal.toInternalQueryableV1
+                                 DvalReprInternalDeprecated.toInternalQueryableV1
                                    analyticsMetadata
                                )) ]
           |> Sql.executeStatementAsync
-        let! exists =
+
+        // verify insert worked
+        let! accountExists =
           // CLEANUP: if this was added with a different email/name/etc this won't pick it up
           Sql.query
             "SELECT TRUE from ACCOUNTS
@@ -148,7 +150,8 @@ let insertUser
                               "email", Sql.string email
                               ("password", Sql.string (string Password.invalid)) ]
           |> Sql.executeExistsAsync
-        if exists then
+
+        if accountExists then
           return Ok()
         else
           return
@@ -177,9 +180,10 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
        WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
-  |> Task.map (function
+  |> Task.map (fun user ->
+    match user with
     | Some v -> v
-    | None -> Exception.raiseDeveloper "User not found")
+    | None -> Exception.raiseGrandUser "User not found")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
@@ -314,7 +318,7 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
      FROM canvases
      WHERE account_id = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
   |> Task.map List.sort
 
 
@@ -328,7 +332,7 @@ let accessibleCanvases (userID : UserID) : Task<List<CanvasName.T>> =
       INNER JOIN canvases as c on org.id = account_id
       WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
   |> Task.map List.sort
 
 let orgs (userID : UserID) : Task<List<OrgName.T>> =
@@ -409,13 +413,11 @@ let initAdmins () : Task<unit> =
     return ()
   }
 
-let init (serviceName : string) : Task<unit> =
+/// Initialize accounts needed for development and testing
+let initializeDevelopmentAccounts (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend.Account in {serviceName}"
-    if Config.createAccounts then
-      do! initTestAccounts ()
-      do! initAdmins ()
-      return ()
-    else
-      return ()
+    do! initTestAccounts ()
+    do! initAdmins ()
+    return ()
   }

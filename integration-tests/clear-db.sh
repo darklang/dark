@@ -37,10 +37,10 @@ WHERE username = 'test_admin');";
 # that we can check (in integration tests) that it's in autocomplete, can run
 # in-browser and in-bwd, etc
 SCRIPT+="INSERT INTO packages_v0 (tlid, user_id, package, module, fnname,
-version, description, body, return_type, parameters, author_id, deprecated,
+version, description, body, body2, return_type, parameters, author_id, deprecated,
 updated_at, created_at) VALUES
 ( '4186046771064433369', (SELECT id FROM accounts WHERE username = 'test_admin'), 'stdlib',
-'Test', 'one', 1, '', decode('/NlqdxJcXNMXOgH9v2pBKQYBMAo=', 'base64')::bytea, 'Any',
+'Test', 'one', 1, '', ''::bytea, decode('kgCSzjq57RkA', 'base64')::bytea, 'Any',
 '[]'::jsonb,
 (SELECT id FROM accounts WHERE username = 'test_admin'), False, now(), now());";
 run_sql "$SCRIPT";

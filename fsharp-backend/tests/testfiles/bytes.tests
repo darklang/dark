@@ -2,6 +2,7 @@
 // TODO: try decoding values with incorrect padding
 
 Bytes.length_v0 (String.toBytes_v0 "abcdef") = 6
+
 Bytes.base64Encode_v0 (String.toBytes_v0 "abcdef") = "YWJjZGVm"
 Bytes.base64Encode_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
 Bytes.base64Encode_v0 (String.toBytes_v0 "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
@@ -9,8 +10,7 @@ Bytes.base64Encode_v0 (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽�
 Bytes.base64Encode_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
 Bytes.base64Encode_v0 (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
 
-Bytes.hexEncode_v0   (String.toBytes_v0 "123qwc") = "313233717763"
+Bytes.hexEncode_v0 (String.toBytes_v0 "123qwc") = "313233717763"
 Bytes.hexEncode_v0 (String.toBytes_v0 "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
 Bytes.hexEncode_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
 Bytes.hexEncode_v0 (String.toBytes_v0 "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
-

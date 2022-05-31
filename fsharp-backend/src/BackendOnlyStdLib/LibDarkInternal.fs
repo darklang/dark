@@ -11,12 +11,13 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprExternal = LibExecution.DvalReprExternal
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
 
 open LibBackend
+module SchedulingRules = LibBackend.QueueSchedulingRules
 
 let fn = FQFnName.stdlibFnName
 
@@ -41,10 +42,14 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
         if canAccess then
           let fnName =
             state.executingFnName
-            |> Option.map string
+            |> Option.map FQFnName.toString
             |> Option.defaultValue "unknown"
           use _span =
-            Telemetry.child "internal_fn" [ "user", username; "fnName", fnName ]
+            Telemetry.child
+              "internal_fn"
+              [ "canvas", state.program.canvasName
+                "user", username
+                "fnName", fnName ]
           return! f (state, args)
         else
           return
@@ -59,8 +64,8 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
     | state, [ DUuid canvasID; DStr handlerName ] ->
       uply {
         do! fn canvasID handlerName
-        let! s = EventQueue.getWorkerSchedules canvasID
-        Pusher.pushWorkerStates state.executionID canvasID s
+        let! s = SchedulingRules.getWorkerSchedules canvasID
+        Pusher.pushWorkerStates canvasID s
         return DNull
       }
     | _ -> incorrectArgs ())
@@ -237,7 +242,7 @@ that's already taken, returns an error."
                 Account.insertUser (UserName.create username) email name None
               match result with
               | Ok () ->
-                Analytics.identifyUser state.executionID (UserName.create username)
+                Analytics.identifyUser (UserName.create username)
                 return DStr ""
               | Error msg -> return Exception.raiseGrandUser msg
             }
@@ -265,14 +270,14 @@ that's already taken, returns an error."
               let username = UserName.create username
               let! _user =
                 Account.insertUser username email name (Some analyticsMetadata)
-              Analytics.identifyUser state.executionID username
+              Analytics.identifyUser username
               let toCanvasName =
                 $"{username}-{LibService.Config.gettingStartedCanvasName}"
               let fromCanvasName = LibService.Config.gettingStartedCanvasSource
               do!
                 CanvasClone.cloneCanvas
-                  (CanvasName.create fromCanvasName)
-                  (CanvasName.create toCanvasName)
+                  (CanvasName.createExn fromCanvasName)
+                  (CanvasName.createExn toCanvasName)
                   // Don't preserve history here, it isn't useful and
                   // we don't currently have visibility into canvas
                   // history, so we'd rather not share unknown sample-
@@ -310,7 +315,7 @@ that's already taken, returns an error."
                       password = Password.invalid }
                 match result with
                 | Ok () ->
-                  do Analytics.identifyUser state.executionID username
+                  do Analytics.identifyUser username
                   return DResult(Ok(DStr ""))
                 | Error msg -> return DResult(Error(DStr msg))
               | Error msg -> return DResult(Error(DStr msg))
@@ -403,10 +408,9 @@ that's already taken, returns an error."
               let username = UserName.create username
               do! Account.setAdmin admin username
               LibService.Rollbar.notify
-                state.executionID
                 "setAdmin called"
                 [ "username", username; "admin", admin ]
-              Analytics.identifyUser state.executionID username
+              Analytics.identifyUser username
               return DNull
             }
           | _ -> incorrectArgs ())
@@ -569,12 +573,9 @@ that's already taken, returns an error."
                 | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
                 | Some (Canvas.Origins os) ->
                   os |> List.map DStr |> DList |> Some |> DOption
-              try
-                let! c = Canvas.getMeta (CanvasName.create host)
-                let! cors = Canvas.fetchCORSSetting c.id
-                return corsSettingToDval cors
-              with
-              | e -> return DError(SourceNone, Exception.toDeveloperMessage e)
+              let! c = Canvas.getMeta (CanvasName.createExn host)
+              let! cors = Canvas.fetchCORSSetting c.id
+              return corsSettingToDval cors
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -604,9 +605,10 @@ that's already taken, returns an error."
                   | Some (DStr "*") -> Ok(Some Canvas.AllOrigins)
                   | Some (DList os) ->
                     os
-                    |> List.map (function
+                    |> List.map (fun dv ->
+                      match dv with
                       | DStr v -> v
-                      | _ -> Exception.raiseGrandUser "Invalid origin string")
+                      | _ -> Exception.raiseCode "Invalid origin string")
                     |> Canvas.Origins
                     |> Some
                     |> Ok
@@ -620,7 +622,7 @@ that's already taken, returns an error."
               match corsSetting s with
               | Error e -> return e |> DStr |> Error |> DResult
               | Ok settings ->
-                let! c = Canvas.getMeta (CanvasName.create host)
+                let! c = Canvas.getMetaAndCreate (CanvasName.createExn host)
                 do! Canvas.updateCorsSetting c.id settings
                 return s |> DOption |> Ok |> DResult
             }
@@ -639,10 +641,11 @@ that's already taken, returns an error."
           | _, [ DStr host ] ->
             uply {
               let! dbTLIDs =
+                // CLEANUP stop calling things host
                 Sql.query
                   "SELECT tlid
                      FROM toplevel_oplists
-                     JOIN canvases ON canvases.idescription = canvas_id
+                     JOIN canvases ON canvases.id = canvas_id
                     WHERE canvases.name = @name AND tipe = 'db'"
                 |> Sql.parameters [ "name", Sql.string host ]
                 |> Sql.executeAsync (fun read -> read.string "tlid")
@@ -706,10 +709,9 @@ that's already taken, returns an error."
           | state, [ DStr canvasID; DStr event; payload ] ->
             (try
               Pusher.push
-                state.executionID
                 (canvasID |> System.Guid.Parse)
                 event
-                (payload |> DvalReprInternal.toInternalRoundtrippableV0)
+                (payload |> DvalReprInternalDeprecated.toInternalRoundtrippableV0)
               Ply(DResult(Ok payload))
              with
              | e -> Ply(DResult(Error(e |> string |> DStr))))
@@ -746,7 +748,7 @@ that's already taken, returns an error."
           | _, [ DStr host ] ->
             uply {
               try
-                let! meta = Canvas.getMeta (CanvasName.create host)
+                let! meta = Canvas.getMeta (CanvasName.createExn host)
                 return DOption(Some(DStr(string meta.id)))
               with
               | e -> return DOption None
@@ -885,7 +887,8 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DStr username; DStr canvas ] ->
             uply {
-              let owner = Account.ownerNameFromCanvasName (CanvasName.create canvas)
+              let owner =
+                Account.ownerNameFromCanvasName (CanvasName.createExn canvas)
               match! Authorization.permission owner (UserName.create username) with
               | Some perm -> return DStr(string perm)
               | None -> return DStr ""
@@ -979,7 +982,7 @@ that's already taken, returns an error."
             state.libraries.stdlib
             |> Map.toList
             |> List.filter (fun (key, data) ->
-              (not (key.isInternalFn ())) && data.deprecated = NotDeprecated)
+              (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)
             |> List.map (fun (key, data) ->
               let alist =
                 let returnType = DvalReprExternal.typeToBCTypeName data.returnType
@@ -988,7 +991,7 @@ that's already taken, returns an error."
                   |> List.map (fun p ->
                     Dval.obj [ ("name", DStr p.name)
                                ("type", DStr(DvalReprExternal.typeToBCTypeName p.typ)) ])
-                [ ("name", DStr(string key))
+                [ ("name", DStr(FQFnName.toString key))
                   ("documentation", DStr data.description)
                   ("parameters", DList parameters)
                   ("returnType", DStr returnType) ]
@@ -1023,8 +1026,8 @@ that's already taken, returns an error."
         internalFn (function
           | _, [] ->
             uply {
-              let! rules = EventQueue.getAllSchedulingRules ()
-              return rules |> List.map EventQueue.SchedulingRule.toDval |> DList
+              let! rules = SchedulingRules.getAllSchedulingRules ()
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -1042,8 +1045,8 @@ that's already taken, returns an error."
         internalFn (function
           | _, [ DUuid canvasID ] ->
             uply {
-              let! rules = EventQueue.getSchedulingRules canvasID
-              return rules |> List.map EventQueue.SchedulingRule.toDval |> DList
+              let! rules = SchedulingRules.getSchedulingRules canvasID
+              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -1057,7 +1060,7 @@ that's already taken, returns an error."
       returnType = TNull
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-      fn = modifySchedule EventQueue.blockWorker
+      fn = modifySchedule EventQueueV2.blockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -1069,7 +1072,7 @@ that's already taken, returns an error."
       returnType = TNull
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-      fn = modifySchedule EventQueue.unblockWorker
+      fn = modifySchedule EventQueueV2.unblockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -1223,6 +1226,7 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn "DarkInternal" "raiseInternalException" 0
       parameters = [ Param.make "argument" varA "Added as a tag" ]
       returnType = TNull
@@ -1240,4 +1244,33 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
-    ]
+
+    { name = fn "DarkInternal" "getHandlerTraces" 0
+      parameters =
+        [ Param.make "canvas_id" TUuid ""
+          Param.make "tlid" TStr ""
+          Param.make "count" TInt "" ]
+      returnType = TList varA
+      description = "Get the most recent [count] traces for the handler"
+      fn =
+        internalFn (function
+          | _, _ -> Ply(DInt 0))
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "copyToplevelTraces" 0
+      parameters =
+        [ Param.make "canvas_id" TUuid ""
+          Param.make "tlid" TStr ""
+          Param.make "traces" (TList varA) ""
+          Param.make "count" TInt "" ]
+      returnType = TInt
+      description = "Doesn't exist anymore"
+      fn =
+        internalFn (function
+          | _, _ -> Ply(DInt 0))
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]

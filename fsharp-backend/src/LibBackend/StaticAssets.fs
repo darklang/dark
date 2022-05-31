@@ -1,3 +1,13 @@
+/// <summary>
+/// Supports users' ability to upload (with an external CLI tool)
+/// and fetch/serve static assets, such as their frontend via
+/// several html, css, etc. files.
+/// </summary>
+/// <remarks>
+/// Upload is currently only supported for to-be-deprecated OCaml backend,
+/// and is not yet supported here. There are plans to replace such with
+/// Dark functions rather than implementing it here.
+/// </remarks>
 module LibBackend.StaticAssets
 
 module Account = LibBackend.Account
@@ -54,9 +64,9 @@ type StaticDeploy =
 
 let appHash (canvasName : CanvasName.T) : string =
   // enough of a hash to make this not easily discoverable
-  $"{canvasName}SOME SALT HERE{LibService.Config.envDisplayName}"
+  $"{canvasName}SOME SALT HERE{LibBackend.Config.staticAssetsSaltSuffix}"
   |> sha1digest
-  |> System.Convert.ToBase64String
+  |> Base64.urlEncodeToString
   |> String.removeSuffix "="
   |> String.toLowercase
   |> String.take 63
@@ -86,8 +96,8 @@ let urlFor
   url canvasName deployHash variant + "/" + file
 
 
-let latestDeployHash (canvasID : CanvasID) : Task<string> =
-  let branch = "main" in
+let latestDeployHash (canvasID : CanvasID) : Task<Option<string>> =
+  let branch = "main"
 
   Sql.query
     "SELECT deploy_hash FROM static_asset_deploys
@@ -95,7 +105,7 @@ let latestDeployHash (canvasID : CanvasID) : Task<string> =
        ORDER BY created_at desc
        LIMIT 1"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "branch", Sql.string branch ]
-  |> Sql.executeRowAsync (fun read -> read.string "deploy_hash")
+  |> Sql.executeRowOptionAsync (fun read -> read.string "deploy_hash")
 
 
 
@@ -205,17 +215,6 @@ let latestDeployHash (canvasID : CanvasID) : Task<string> =
 //   ; url = url canvas_id deploy_hash `Short
 //   ; last_update
 //   ; status = Deploying }
-//
-//
-// (* This is for Ellen's demo, and is just the backend of a libdarkinternal function. *)
-// let delete_assets_for_ellens_demo (canvas_id : Uuidm.t) : unit =
-//   Db.delete
-//     ~name:"delete_ellens_assets"
-//     ~subject:(Uuidm.to_string canvas_id)
-//     "DELETE FROM static_asset_deploys where canvas_id = $1"
-//     ~params:[Uuid canvas_id]
-//   |> ignore
-//
 //
 // (* since postgres doesn't have named transactions, we just delete the db
 //  * record in question. For now, we're leaving files where they are; the right

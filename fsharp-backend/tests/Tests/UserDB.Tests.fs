@@ -1,6 +1,7 @@
 module Tests.UserDB
 
-// Most DB tests can be checked
+// Most DB tests are in db.tests
+// These ones are the ones we couldn't fit into that format well.
 
 open Expecto
 open Prelude
@@ -17,7 +18,7 @@ let p = FSharpToExpr.parseRTExpr
 
 let nullsAddedToMissingColumn =
   testTask "test for the hack that columns get null in all rows to start" {
-    let! meta = initializeTestCanvas "null-added-to-col"
+    let! meta = initializeTestCanvas (Randomized "null-added-to-col")
 
     // Add DB with 1 col, add value
     let db1 : RT.DB.T =
@@ -43,7 +44,6 @@ let nullsAddedToMissingColumn =
       (RT.DList [ RT.DStr "i"; RT.DObj(Map [ "x", RT.DStr "v"; "y", RT.DNull ]) ])
       result
       "has nulls"
-
   }
 
 

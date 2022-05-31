@@ -1,4 +1,4 @@
-Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 22
+Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
 
 [tests.grants]
@@ -55,7 +55,7 @@ DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentaluserna
 
 [tests.canvases]
 DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown Err: \"No owner found for host not-a-canvas\"" // OCAMLONLY
-DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "User not found" // FSHARPONLY
+DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
 DarkInternal.getCORSSetting_v0 "test-cors1" = Nothing
 
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing

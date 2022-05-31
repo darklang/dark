@@ -49,3 +49,35 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f in
   let result = traverse r expr
   f result
+
+let rec patternPreTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Pattern =
+  let r = patternPreTraversal f in
+  let pattern = f pattern in
+  match pattern with
+  | PVariable _
+  | PCharacter _
+  | PInteger _
+  | PBool _
+  | PString _
+  | PBlank _
+  | PNull _
+  | PFloat _ -> pattern
+  | PConstructor (patternID, name, patterns) ->
+    PConstructor(patternID, name, List.map (fun p -> r p) patterns)
+
+
+let rec patternPostTraversal (f : Pattern -> Pattern) (pattern : Pattern) : Pattern =
+  let r = patternPostTraversal f in
+  let result =
+    match pattern with
+    | PVariable _
+    | PCharacter _
+    | PInteger _
+    | PBool _
+    | PString _
+    | PBlank _
+    | PNull _
+    | PFloat _ -> pattern
+    | PConstructor (patternID, name, patterns) ->
+      PConstructor(patternID, name, List.map (fun p -> r p) patterns)
+  f result

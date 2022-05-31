@@ -35,13 +35,15 @@ let testCronFetchActiveCrons =
 
 let testCronSanity =
   testTask "cron sanity" {
-    let! meta = initializeTestCanvas "cron-sanity"
+    let! meta = initializeTestCanvas (Randomized "cron-sanity")
 
     let h = testCron "test" PT.Handler.EveryDay (p " 5 + 3")
-    let oplists = [ hop h ]
+    let oplists = [ handlerOp h ]
 
     do!
-      Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
+      Canvas.saveTLIDs
+        meta
+        [ (h.tlid, oplists, PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = meta.id
@@ -58,14 +60,14 @@ let testCronSanity =
 
 let testCronJustRan =
   testTask "test cron just ran" {
-    let! meta = initializeTestCanvas "cron-just-ran"
+    let! meta = initializeTestCanvas (Randomized "cron-just-ran")
 
     let h = testCron "test" PT.Handler.EveryDay (p "5 + 3")
 
     do!
       Canvas.saveTLIDs
         meta
-        [ (h.tlid, [ hop h ], PT.TLHandler h, Canvas.NotDeleted) ]
+        [ (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = meta.id

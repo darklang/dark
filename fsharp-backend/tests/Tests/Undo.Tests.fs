@@ -12,20 +12,26 @@ open TestUtils.TestUtils
 module Canvas = LibBackend.Canvas
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module S = PT.Shortcuts
 
-let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
 let handler code = testHttpRouteHandler "" "GET" (FSharpToExpr.parsePTExpr code)
 
-let testUndoFns : Test =
+let testUndoCount : Test =
+  // Creates several save points, (at least as many undos as we will do),
+  // sets the handler to 3 different versions, then performs an 'undo' 3 times.
+  //
+  // This test just ensures that 'undo'
+  // was done 3 times. Subsequent tests check that the right AST and such
+  // are bound to the handler, when undos take place.
   test "test undo functions" {
     let tlid = 7UL
     let n1 = PT.TLSavepoint tlid
-    let n2 = hop (handler "blank - blank")
-    let n3 = hop (handler "blank - 3")
-    let n4 = hop (handler "3 - 4")
+    let n2 = setHandler (handler "blank - blank")
+    let n3 = setHandler (handler "blank - 3")
+    let n4 = setHandler (handler "3 - 4")
     let u = PT.UndoTL tlid
     let ops = [ n1; n1; n1; n1; n2; n3; n4; u; u; u ]
     Expect.equal (LibBackend.Undo.undoCount ops tlid) 3 "undocount"
@@ -34,9 +40,9 @@ let testUndoFns : Test =
 
 let testUndo : Test =
   testTask "test undo" {
-    let! meta = initializeTestCanvas "undo"
+    let! meta = initializeTestCanvas (Randomized "undo")
     let tlid = 7UL
-    let ha code = hop ({ handler code with tlid = tlid })
+    let ha code = setHandler ({ handler code with tlid = tlid })
     let sp = PT.TLSavepoint tlid
     let u = PT.UndoTL tlid
     let r = PT.RedoTL tlid
@@ -46,8 +52,10 @@ let testUndo : Test =
       task {
         let c = Canvas.fromOplist meta [] ops
         let! state = executionStateFor meta Map.empty Map.empty
-        let h = Map.get tlid c.handlers |> Option.unwrapUnsafe
-        return! Exe.executeExpr state Map.empty (h.ast.toRuntimeType ())
+        let h =
+          Map.get tlid c.handlers
+          |> Exception.unwrapOptionInternal "missing handler" [ "tlid", tlid ]
+        return! Exe.executeExpr state Map.empty (PT2RT.Expr.toRT h.ast)
       }
 
     let! v = exe ops
@@ -78,8 +86,8 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     let nameID = gid ()
     let dbID2 = gid ()
     let nameID2 = gid ()
-    let pos = { x = 0; y = 0 }
-    let! meta = createTestCanvas "undo-verification"
+    let pos : PT.Position = { x = 0; y = 0 }
+    let! meta = createTestCanvas (Randomized "undo-verification")
 
     let ops1 =
       [ PT.CreateDBWithBlankOr(dbID, pos, nameID, "Books")
@@ -101,4 +109,4 @@ let testCanvasVerificationUndoRenameDupedName : Test =
 let tests =
   testList
     "undo"
-    [ testUndoFns; testUndo; testCanvasVerificationUndoRenameDupedName ]
+    [ testUndoCount; testUndo; testCanvasVerificationUndoRenameDupedName ]

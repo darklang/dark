@@ -1,3 +1,4 @@
+/// Supports "crons" - toplevels that are triggered on a set schedule
 module LibBackend.Cron
 
 open System.Threading.Tasks
@@ -13,12 +14,12 @@ open Tablecloth
 
 module Telemetry = LibService.Telemetry
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 
-
-// sumPairs folds over the list [l] with function [f], summing the
-// values of the returned (int * int) tuple from each call
+/// folds over the list [l] with function [f], summing the
+/// values of the returned (int * int) tuple from each call
 let sumPairs (l : (int * int) list) : int * int =
   List.fold (0, 0) (fun (a', b') (a, b) -> (a + a', b + b')) l
 
@@ -53,11 +54,12 @@ let convertInterval (interval : PT.Handler.CronInterval) : NodaTime.Period =
 
 type NextExecution =
   { scheduledRunAt : Option<NodaTime.Instant>
+    /// The interval is copied to this record for logging only
     interval : Option<NodaTime.Period> }
 
 let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
   task {
-    let now = NodaTime.Instant.now () in
+    let now = NodaTime.Instant.now ()
 
     match! lastRanAt cron with
     | None ->
@@ -91,26 +93,27 @@ let recordExecution (cron : CronScheduleData) : Task<unit> =
   |> Sql.executeStatementAsync
 
 
-// Check if a given cron spec should execute now, and if so, enqueue it.
-//
-// Returns true/false whether the cron was enqueued, so we can count it later
+/// Check if a given cron spec should execute now, and if so, enqueue it.
+///
+/// Returns true/false whether the cron was enqueued, so we can count it later
 let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
   task {
     match! executionCheck cron with
     | Some check ->
       use span = Telemetry.child "cron.enqueue" []
 
+      // trigger execution
       if Config.triggerCrons then
         do!
-          EventQueue.enqueue
-            cron.canvasName
+          EventQueueV2.enqueue
             cron.canvasID
-            cron.ownerID
             "CRON"
             cron.cronName
-            (string cron.interval)
+            (PTParser.Handler.CronInterval.toString cron.interval)
             RT.DNull
         do! recordExecution cron
+
+      // record the execution
 
       // It's a little silly to recalculate now when we just did
       // it in executionCheck, but maybe EventQueue.enqueue was
@@ -147,38 +150,20 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     | None -> return false
   }
 
-// Given a list of [cron_schedule_data] records, check which ones are due to
-// run, and enqueue them.
-//
-// Returns a tuple of the number of crons (checked * scheduled) *)
-let checkAndScheduleWorkForCrons (crons : CronScheduleData list) : Task<int * int> =
-  task {
-    use _span = Telemetry.child "check_and_schedule_work_for_crons" []
-    let! enqueuedCrons = crons |> Task.mapInParallel checkAndScheduleWorkForCron
-    let enqueuedCronCount = List.count Fun.identity enqueuedCrons
-    return (List.length crons, enqueuedCronCount)
-  }
-
-
-// checkAndScheduleWorkForAllCrons iterates through every (non-deleted)
-// cron toplevel_oplist and checks to see if it should be executed, enqueuing
-// work to execute it if necessary.
+/// Iterates through every (non-deleted) cron `toplevel_oplist`
+/// and checks to see if it should be executed, enqueuing
+/// work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
   task {
-    use _span = Telemetry.child "checkAndScheduleWorkForAllCrons" []
-    let! allCrons = Serialize.fetchActiveCrons ()
+    use (_span : Telemetry.Span.T) =
+      Telemetry.child "checkAndScheduleWorkForAllCrons" []
+    let! crons = Serialize.fetchActiveCrons ()
 
-    // Chunk the crons list so that we don't have to load thousands of
-    // canvases into memory/tasks at once
-    //
-    // 100 was chosen arbitrarily. Please update if data shows this is the wrong number.
-    let chunks = allCrons |> List.chunksOf 100
-    Telemetry.addTags [ ("crons.count", List.length allCrons)
-                        ("chunks.count", List.length chunks) ]
-
-    let! processed = Task.mapSequentially checkAndScheduleWorkForCrons chunks
-    let checkedCount, scheduled = sumPairs processed
-    Telemetry.addTags [ ("crons.checked", checkedCount)
-                        ("crons.scheduled", scheduled) ]
+    let concurrencyCount = LibService.Config.pgPoolSize
+    let! enqueuedCrons =
+      Task.mapWithConcurrency concurrencyCount checkAndScheduleWorkForCron crons
+    let enqueuedCronCount = List.count Fun.identity enqueuedCrons
+    Telemetry.addTags [ ("crons.checked", List.length crons)
+                        ("crons.scheduled", enqueuedCronCount) ]
     return ()
   }

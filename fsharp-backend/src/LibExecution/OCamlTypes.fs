@@ -19,6 +19,8 @@ open VendoredTablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 type id = uint64
 
@@ -230,7 +232,7 @@ module RuntimeT =
     | DResp of (dhttp * dval)
     | DDB of string
     | DDate of RT.DDateTime.T
-    | DPassword of byte array // We dont use this path for testing, see DvalReprExternal.Tests
+    | DPassword of Password // We dont use this path for testing, see DvalReprExternal.Tests
     | DUuid of System.Guid
     | DOption of optionT
     | DCharacter of string
@@ -288,6 +290,40 @@ type 'expr_type op =
   | DeleteType of tlid
   | DeleteTypeForever of tlid
 
+let tlidOf (op : op<'expr_type>) : tlid =
+  match op with
+  | DeleteColInDBMigration (tlid, _) -> tlid
+  | DeprecatedInitDbm (tlid, _, _, _, _) -> tlid
+  | SetHandler (tlid, _, _) -> tlid
+  | CreateDB (tlid, _, _) -> tlid
+  | AddDBCol (tlid, _, _) -> tlid
+  | SetDBColName (tlid, _, _) -> tlid
+  | ChangeDBColName (tlid, _, _) -> tlid
+  | SetDBColType (tlid, _, _) -> tlid
+  | ChangeDBColType (tlid, _, _) -> tlid
+  | SetExpr (tlid, _, _) -> tlid
+  | TLSavepoint tlid -> tlid
+  | UndoTL tlid -> tlid
+  | RedoTL tlid -> tlid
+  | DeleteTL tlid -> tlid
+  | MoveTL (tlid, _) -> tlid
+  | SetFunction f -> f.tlid
+  | DeleteFunction tlid -> tlid
+  | CreateDBMigration (tlid, _, _, _) -> tlid
+  | AddDBColToDBMigration (tlid, _, _) -> tlid
+  | AbandonDBMigration tlid -> tlid
+  | SetDBColNameInDBMigration (tlid, _, _) -> tlid
+  | SetDBColTypeInDBMigration (tlid, _, _) -> tlid
+  | DeleteDBCol (tlid, _) -> tlid
+  | RenameDBname (tlid, _) -> tlid
+  | CreateDBWithBlankOr (tlid, _, _, _) -> tlid
+  | SetType ut -> ut.tlid
+  | DeleteType tlid -> tlid
+  | DeleteFunctionForever tlid -> tlid
+  | DeleteTLForever tlid -> tlid
+  | DeleteTypeForever tlid -> tlid
+
+
 type 'expr_type oplist = 'expr_type op list
 type 'expr_type tlid_oplist = (tlid * 'expr_type oplist)
 
@@ -342,6 +378,32 @@ module Convert =
     | ORT.Rail -> PT.Rail
     | ORT.NoRail -> PT.NoRail
 
+  // Copied from LibExecutionStdlib.Stdlib, which isn't accessible from here (and
+  // this file can't be moved easily). This file will be deleted "soon" so it doesn't
+  // matter.
+  let infixNames =
+    [ "+"
+      "-"
+      "*"
+      ">"
+      ">="
+      "<="
+      "<"
+      "^"
+      "%"
+      "/"
+      "Date::<"
+      "Date::>"
+      "Date::<="
+      "Date::>="
+      "++"
+      "=="
+      "!="
+      "&&"
+      "||" ]
+    |> Set
+
+
   let rec ocamlExpr2PT (o : ORT.fluidExpr) : PT.Expr =
     let r = ocamlExpr2PT
 
@@ -351,16 +413,42 @@ module Convert =
     | ORT.EString (id, str) -> PT.EString(id, str)
     | ORT.EFloat (id, w, f) ->
       let sign, whole =
-        if w[0] = '-' then (Negative, String.dropLeft 1 w) else Positive, w
+        if w.Length > 0 && w[0] = '-' then
+          (Negative, String.dropLeft 1 w)
+        else
+          Positive, w
       PT.EFloat(id, sign, whole, f)
     | ORT.EBool (id, b) -> PT.EBool(id, b)
     | ORT.ENull id -> PT.ENull id
     | ORT.EVariable (id, var) -> PT.EVariable(id, var)
     | ORT.EFieldAccess (id, obj, fieldname) -> PT.EFieldAccess(id, r obj, fieldname)
     | ORT.EFnCall (id, name, args, ster) ->
-      PT.EFnCall(id, PT.FQFnName.parse name, List.map r args, ocamlSter2PT ster)
+      PT.EFnCall(
+        id,
+        PTParser.FQFnName.parse name,
+        List.map r args,
+        ocamlSter2PT ster
+      )
     | ORT.EBinOp (id, name, arg1, arg2, ster) ->
-      PT.EBinOp(id, PT.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
+      assert_
+        "is a valid infix function"
+        [ "name", name ]
+        (Set.contains name infixNames)
+      let (module_, fn) =
+        match String.split "::" name with
+        | [ "Date"; fn ] -> Some "Date", fn
+        | [ fn ] -> None, fn
+        | other ->
+          Exception.raiseInternal
+            "invalid split fnName"
+            [ "value", other; "name", name ]
+      PT.EBinOp(
+        id,
+        { module_ = module_; function_ = fn },
+        r arg1,
+        r arg2,
+        ocamlSter2PT ster
+      )
     | ORT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
     | ORT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
     | ORT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -397,13 +485,15 @@ module Convert =
         nameID = bo2ID o.name
         modifierID = bo2ID o.modifier }
 
-    match bo2String o.``module``, bo2String o.name, bo2String o.modifier with
-    | "HTTP", route, method -> PT.Handler.HTTP(route, method, ids)
-    | "WORKER", name, _ -> PT.Handler.Worker(name, ids)
-    | "CRON", name, interval ->
-      PT.Handler.Cron(name, PT.Handler.CronInterval.parse interval, ids)
-    | "REPL", name, _ -> PT.Handler.REPL(name, ids)
-    | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
+    match o.``module``, bo2String o.name, bo2String o.modifier with
+    | Filled (_, "HTTP"), route, method -> PT.Handler.HTTP(route, method, ids)
+    | Filled (_, "WORKER"), name, _ -> PT.Handler.Worker(name, ids)
+    | Filled (_, "CRON"), name, interval ->
+      PT.Handler.Cron(name, PTParser.Handler.CronInterval.parse interval, ids)
+    | Filled (_, "REPL"), name, _ -> PT.Handler.REPL(name, ids)
+    | Filled (_, workerName), name, _ -> PT.Handler.OldWorker(workerName, name, ids)
+    | Partial (_, _), name, modifier
+    | Blank _, name, modifier -> PT.Handler.UnknownHandler(name, modifier, ids)
 
   let ocamlHandler2PT
     (pos : pos)
@@ -412,7 +502,7 @@ module Convert =
     { tlid = o.tlid
       ast = ocamlExpr2PT o.ast
       spec = ocamlSpec2PT o.spec
-      pos = pos }
+      pos = { x = pos.x; y = pos.y } }
 
 
   let rec ocamlTipe2PT (o : tipe) : PT.DType =
@@ -451,7 +541,7 @@ module Convert =
 
   let ocamlDBCol2PT ((name, tipe) : ORT.DbT.col) : PT.DB.Col =
     { nameID = bo2ID name
-      name = bo2String name
+      name = bo2Option name
       typ = bo2Option tipe |> Option.map ocamlTipe2PT
       typeID = bo2ID tipe }
 
@@ -459,7 +549,7 @@ module Convert =
     { tlid = o.tlid
       name = bo2String o.name
       nameID = bo2ID o.name
-      pos = pos
+      pos = { x = pos.x; y = pos.y }
       cols = List.map ocamlDBCol2PT o.cols
       version = int o.version }
 
@@ -503,61 +593,52 @@ module Convert =
       infix = o.metadata.infix
       body = ocamlExpr2PT o.ast }
 
-  let ocamlOp2PT (o : op<ORT.fluidExpr>) : PT.Op =
+  let ocamlOp2PT (o : op<ORT.fluidExpr>) : Option<PT.Op> =
     match o with
     | SetHandler (tlid, pos, handler) ->
-      PT.SetHandler(tlid, pos, ocamlHandler2PT pos handler)
-    | CreateDB (tlid, pos, name) -> PT.CreateDB(tlid, pos, name)
-    | AddDBCol (tlid, id1, id2) -> PT.AddDBCol(tlid, id1, id2)
-    | SetDBColName (tlid, id, name) -> PT.SetDBColName(tlid, id, name)
-    | SetDBColType (tlid, id, string) -> PT.SetDBColType(tlid, id, string)
-    | DeleteTL tlid -> PT.DeleteTL tlid
-    | MoveTL (tlid, pos) -> PT.MoveTL(tlid, pos)
-    | SetFunction fn -> PT.SetFunction(ocamlUserFunction2PT fn)
-    | ChangeDBColName (tlid, id, string) -> PT.ChangeDBColName(tlid, id, string)
-    | ChangeDBColType (tlid, id, string) -> PT.ChangeDBColType(tlid, id, string)
-    | UndoTL tlid -> PT.UndoTL tlid
-    | RedoTL tlid -> PT.RedoTL tlid
-    | DeprecatedInitDbm (tlid, id1, id2, id3, kind) ->
-      PT.DeprecatedInitDBm(tlid, id1, id2, id3, PT.DeprecatedMigrationKind)
-    | SetExpr (tlid, id, e) -> PT.SetExpr(tlid, id, ocamlExpr2PT e)
-    | TLSavepoint tlid -> PT.TLSavepoint tlid
-    | DeleteFunction tlid -> PT.DeleteFunction tlid
-    | CreateDBMigration (tlid, id1, id2, rollingFns) ->
-      PT.CreateDBMigration(
-        tlid,
-        id1,
-        id2,
-        List.map
-          (fun (bo1, bo2) ->
-            let s1 = bo2String bo1
-            let id1 = bo2ID bo1
-            let s2 = bo2String bo2
-            let id2 = bo2ID bo2
-            (s1, id1, s2, id2))
-          rollingFns
-      )
-    | AddDBColToDBMigration (tlid, id1, id2) ->
-      PT.AddDBColToDBMigration(tlid, id1, id2)
-    | SetDBColNameInDBMigration (tlid, id, name) ->
-      PT.SetDBColNameInDBMigration(tlid, id, name)
-    | SetDBColTypeInDBMigration (tlid, id, tipe) ->
-      PT.SetDBColTypeInDBMigration(tlid, id, tipe)
-    | AbandonDBMigration tlid -> PT.AbandonDBMigration tlid
-    | DeleteColInDBMigration (tlid, id) -> PT.DeleteColInDBMigration(tlid, id)
-    | DeleteDBCol (tlid, id) -> PT.DeleteDBCol(tlid, id)
-    | RenameDBname (tlid, string) -> PT.RenameDBname(tlid, string)
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.SetHandler(tlid, position, ocamlHandler2PT pos handler))
+    | CreateDB (tlid, pos, name) ->
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.CreateDB(tlid, position, name))
+    | AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
+    | SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
+    | SetDBColType (tlid, id, string) -> Some(PT.SetDBColType(tlid, id, string))
+    | DeleteTL tlid -> Some(PT.DeleteTL tlid)
+    | MoveTL (tlid, pos) ->
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.MoveTL(tlid, position))
+    | SetFunction fn -> Some(PT.SetFunction(ocamlUserFunction2PT fn))
+    | ChangeDBColName (tlid, id, string) ->
+      Some(PT.ChangeDBColName(tlid, id, string))
+    | ChangeDBColType (tlid, id, string) ->
+      Some(PT.ChangeDBColType(tlid, id, string))
+    | UndoTL tlid -> Some(PT.UndoTL tlid)
+    | RedoTL tlid -> Some(PT.RedoTL tlid)
+    | DeprecatedInitDbm (tlid, id1, id2, id3, kind) -> None
+    | SetExpr (tlid, id, e) -> Some(PT.SetExpr(tlid, id, ocamlExpr2PT e))
+    | TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
+    | DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
+    | CreateDBMigration (tlid, id1, id2, rollingFns) -> None
+    | AddDBColToDBMigration (tlid, id1, id2) -> None
+    | SetDBColNameInDBMigration (tlid, id, name) -> None
+    | SetDBColTypeInDBMigration (tlid, id, tipe) -> None
+    | AbandonDBMigration tlid -> None
+    | DeleteColInDBMigration (tlid, id) -> None
+    | DeleteDBCol (tlid, id) -> Some(PT.DeleteDBCol(tlid, id))
+    | RenameDBname (tlid, string) -> Some(PT.RenameDBname(tlid, string))
     | CreateDBWithBlankOr (tlid, pos, id, string) ->
-      PT.CreateDBWithBlankOr(tlid, pos, id, string)
-    | DeleteTLForever tlid -> PT.DeleteTLForever tlid
-    | DeleteFunctionForever tlid -> PT.DeleteFunctionForever tlid
-    | SetType tipe -> PT.SetType(ocamlUserType2PT tipe)
-    | DeleteType tlid -> PT.DeleteType tlid
-    | DeleteTypeForever tlid -> PT.DeleteTypeForever tlid
+      let position : PT.Position = { x = pos.x; y = pos.y }
+      Some(PT.CreateDBWithBlankOr(tlid, position, id, string))
+    | SetType tipe -> Some(PT.SetType(ocamlUserType2PT tipe))
+    | DeleteType tlid -> Some(PT.DeleteType tlid)
+    | DeleteTLForever _
+    | DeleteFunctionForever _
+    | DeleteTypeForever _ -> None
 
 
   let ocamlOplist2PT (list : oplist<ORT.fluidExpr>) : PT.Oplist =
-    List.map ocamlOp2PT list
+    List.filterMap ocamlOp2PT list
 
   let ocamlTLIDOplist2PT
     ((tlid, oplist) : tlid_oplist<ORT.fluidExpr>)
@@ -585,12 +666,12 @@ module Convert =
   let ocamlBinarySerializationToplevel2PT
     (pos : pos)
     (tl : BSTypes.tl)
-    : PT.Toplevel =
+    : PT.Toplevel.T =
     match tl with
-    | BSTypes.Handler h -> PT.TLHandler(ocamlHandler2PT pos h)
-    | BSTypes.DB db -> PT.TLDB(ocamlDB2PT pos db)
-    | BSTypes.UserType ut -> PT.TLType(ocamlUserType2PT ut)
-    | BSTypes.UserFn uf -> PT.TLFunction(ocamlUserFunction2PT uf)
+    | BSTypes.Handler h -> PT.Toplevel.TLHandler(ocamlHandler2PT pos h)
+    | BSTypes.DB db -> PT.Toplevel.TLDB(ocamlDB2PT pos db)
+    | BSTypes.UserType ut -> PT.Toplevel.TLType(ocamlUserType2PT ut)
+    | BSTypes.UserFn uf -> PT.Toplevel.TLFunction(ocamlUserFunction2PT uf)
 
 
 
@@ -672,22 +753,25 @@ module Convert =
     | PT.EVariable (id, var) -> ORT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) -> ORT.EFieldAccess(id, r obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
+      let nameStr = name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString
       let name =
-        if string name = "JSON::parse" || string name = "DB::add" then
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
           // Some things were named wrong in OCaml
-          $"{name}_v0"
+          $"{nameStr}_v0"
         else
-          string name |> String.replace "_v0" ""
+          match name with
+          | PT.FQFnName.Stdlib _
+          | PT.FQFnName.User _ -> nameStr |> String.replace "_v0" ""
+          // Keep the _v0 here
+          | PT.FQFnName.Package _ -> nameStr
 
       ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
-      ORT.EBinOp(
-        id,
-        name |> string |> String.replace "_v0" "",
-        r arg1,
-        r arg2,
-        pt2ocamlSter ster
-      )
+      let name =
+        match name.module_ with
+        | Some module_ -> $"{module_}::{name.function_}"
+        | None -> name.function_
+      ORT.EBinOp(id, name, r arg1, r arg2, pt2ocamlSter ster)
     | PT.ELambda (id, vars, body) -> ORT.ELambda(id, vars, r body)
     | PT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
@@ -734,7 +818,6 @@ module Convert =
     | RT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       ORT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EPartial (id, oldExpr) -> ORT.EPartial(id, "partial", r oldExpr)
     | RT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
     | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
     | RT.EConstructor (id, name, exprs) ->
@@ -750,17 +833,45 @@ module Convert =
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
       ORT.EFeatureFlag(id, "flag", r cond, r caseA, r caseB)
     | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.NotInPipe, rail) ->
+      let nameStr = name |> RT.FQFnName.toString
       let name =
-        if string name = "JSON::parse" || string name = "DB::add" then
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
           // Some things were named wrong in OCaml
-          $"{name}_v0"
+          $"{nameStr}_v0"
         else
-          string name |> String.replace "_v0" ""
+          nameStr |> String.replace "_v0" ""
 
 
       ORT.EFnCall(id, name, List.map r args, rt2ocamlSter rail)
-    | expr ->
-      Exception.raiseInternal "TODO: add more cases to rt2ocamlExpr" [ "expr", expr ]
+    | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.InPipe pipeID, rail) ->
+      // Convert
+      //   fn3 (fn2 (fn1 a b c) d e) f g
+      // to
+      //   a |> fn1 b c |> fn2 d e |> fn3 f g
+      let nameStr = name |> RT.FQFnName.toString
+      let name =
+        if nameStr = "JSON::parse" || nameStr = "DB::add" then
+          // Some things were named wrong in OCaml
+          $"{nameStr}_v0"
+        else
+          nameStr |> String.replace "_v0" ""
+
+      let pipeStart, actualArgs =
+        match List.map r args with
+        | (ORT.EPipe (innerPipeID, pipeStart) as start) :: rest when
+          pipeID = innerPipeID
+          ->
+          pipeStart, rest
+        | head :: rest -> [ head ], rest
+        | _ -> Exception.raiseInternal "Invalid pipe format" []
+
+      let pipeTarget = ORT.EPipeTarget(gid ())
+      let fnCall = ORT.EFnCall(id, name, pipeTarget :: actualArgs, rt2ocamlSter rail)
+      ORT.EPipe(pipeID, pipeStart @ [ fnCall ])
+    | RT.EFQFnValue _
+    | RT.EApply (_, _, _, _, _) ->
+      // these shouldn't happen in practice at the moment
+      Exception.raiseInternal "Unexpected expression to rt2ocamlExpr" [ "expr", e ]
 
 
 
@@ -788,7 +899,7 @@ module Convert =
         name = string2bo ids.nameID name
         modifier =
           interval
-          |> Option.map string
+          |> Option.map PTParser.Handler.CronInterval.toString
           |> Option.defaultValue ""
           |> string2bo ids.modifierID
         types = types }
@@ -800,8 +911,16 @@ module Convert =
     | PT.Handler.OldWorker (workerName, name, ids) ->
       { ``module`` = string2bo ids.moduleID workerName
         name = string2bo ids.nameID name
-        modifier = string2bo ids.modifierID "_"
+        modifier = Blank ids.modifierID
         types = types }
+    | PT.Handler.UnknownHandler (name, modifier, ids) ->
+      { ``module`` = Blank ids.moduleID
+        name = string2bo ids.nameID name
+        modifier = string2bo ids.modifierID modifier
+        types = types }
+
+
+
 
   let pt2ocamlHandler (p : PT.Handler.T) : ORT.HandlerT.handler<ORT.fluidExpr> =
     { tlid = p.tlid; ast = pt2ocamlExpr p.ast; spec = pt2ocamlSpec p.spec }
@@ -834,7 +953,7 @@ module Convert =
     | PT.TBytes -> TBytes
 
   let pt2ocamlDBCol (p : PT.DB.Col) : ORT.DbT.col =
-    (string2bo p.nameID p.name, option2bo p.typeID (Option.map pt2ocamlTipe p.typ))
+    (option2bo p.nameID p.name, option2bo p.typeID (Option.map pt2ocamlTipe p.typ))
 
   let pt2ocamlDB (p : PT.DB.T) : ORT.DbT.db<ORT.fluidExpr> =
     { tlid = p.tlid
@@ -882,13 +1001,18 @@ module Convert =
   let pt2ocamlOp (p : PT.Op) : op<ORT.fluidExpr> =
     match p with
     | PT.SetHandler (tlid, pos, handler) ->
+      let pos : pos = { x = pos.x; y = pos.y }
       SetHandler(tlid, pos, pt2ocamlHandler handler)
-    | PT.CreateDB (tlid, pos, name) -> CreateDB(tlid, pos, name)
+    | PT.CreateDB (tlid, pos, name) ->
+      let pos : pos = { x = pos.x; y = pos.y }
+      CreateDB(tlid, pos, name)
     | PT.AddDBCol (tlid, id1, id2) -> AddDBCol(tlid, id1, id2)
     | PT.SetDBColName (tlid, id, name) -> SetDBColName(tlid, id, name)
     | PT.SetDBColType (tlid, id, string) -> SetDBColType(tlid, id, string)
     | PT.DeleteTL tlid -> DeleteTL tlid
-    | PT.MoveTL (tlid, pos) -> MoveTL(tlid, pos)
+    | PT.MoveTL (tlid, pos) ->
+      let pos : pos = { x = pos.x; y = pos.y }
+      MoveTL(tlid, pos)
     | PT.SetFunction fn -> SetFunction(pt2ocamlUserFunction fn)
     | PT.ChangeDBColName (tlid, id, string) -> ChangeDBColName(tlid, id, string)
     | PT.ChangeDBColType (tlid, id, string) -> ChangeDBColType(tlid, id, string)
@@ -897,63 +1021,46 @@ module Convert =
     | PT.SetExpr (tlid, id, e) -> SetExpr(tlid, id, pt2ocamlExpr e)
     | PT.TLSavepoint tlid -> TLSavepoint tlid
     | PT.DeleteFunction tlid -> DeleteFunction tlid
-    | PT.CreateDBMigration (tlid, id1, id2, rollingFns) ->
-      CreateDBMigration(
-        tlid,
-        id1,
-        id2,
-        List.map
-          (fun (s1, id1, s2, id2) -> (string2bo id1 s1, string2bo id2 s2))
-          rollingFns
-      )
-    | PT.AddDBColToDBMigration (tlid, id1, id2) ->
-      AddDBColToDBMigration(tlid, id1, id2)
-    | PT.SetDBColNameInDBMigration (tlid, id, name) ->
-      SetDBColNameInDBMigration(tlid, id, name)
-    | PT.SetDBColTypeInDBMigration (tlid, id, tipe) ->
-      SetDBColTypeInDBMigration(tlid, id, tipe)
-    | PT.AbandonDBMigration tlid -> AbandonDBMigration tlid
-    | PT.DeleteColInDBMigration (tlid, id) -> DeleteColInDBMigration(tlid, id)
-    | PT.DeprecatedInitDBm (tlid, id1, id2, id3, kind) ->
-      DeprecatedInitDbm(tlid, id1, id2, id3, RuntimeT.DbT.DeprecatedMigrationKind)
     | PT.DeleteDBCol (tlid, id) -> DeleteDBCol(tlid, id)
     | PT.RenameDBname (tlid, string) -> RenameDBname(tlid, string)
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
+      let pos : pos = { x = pos.x; y = pos.y }
       CreateDBWithBlankOr(tlid, pos, id, string)
-    | PT.DeleteTLForever tlid -> DeleteTLForever tlid
-    | PT.DeleteFunctionForever tlid -> DeleteFunctionForever tlid
     | PT.SetType tipe -> SetType(pt2ocamlUserType tipe)
     | PT.DeleteType tlid -> DeleteType tlid
-    | PT.DeleteTypeForever tlid -> DeleteTypeForever tlid
 
 
   let pt2ocamlOplist (list : PT.Oplist) : oplist<ORT.fluidExpr> =
     List.map pt2ocamlOp list
 
   let pt2ocamlToplevels
-    (toplevels : Map<tlid, PT.Toplevel>)
+    (toplevels : Map<tlid, PT.Toplevel.T>)
     : ORT.toplevels * ORT.user_fn<ORT.fluidExpr> list * ORT.user_tipe list =
     toplevels
     |> Map.values
     |> List.ofSeq
     |> List.fold ([], [], []) (fun (tls, ufns, uts) tl ->
       match tl with
-      | PT.TLHandler h ->
+      | PT.Toplevel.TLHandler h ->
         let ocamlHandler = pt2ocamlHandler h
 
         let ocamlTL : ORT.toplevel =
-          { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
+          { tlid = h.tlid
+            pos = { x = h.pos.x; y = h.pos.y }
+            data = ORT.Handler ocamlHandler }
 
         tls @ [ ocamlTL ], ufns, uts
-      | PT.TLDB db ->
+      | PT.Toplevel.TLDB db ->
         let ocamlDB = pt2ocamlDB db
 
         let ocamlTL : ORT.toplevel =
-          { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
+          { tlid = db.tlid
+            pos = { x = db.pos.x; y = db.pos.y }
+            data = ORT.DB ocamlDB }
 
         tls @ [ ocamlTL ], ufns, uts
-      | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
-      | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
+      | PT.Toplevel.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
+      | PT.Toplevel.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
   let ocamlPackageManagerParameter2PT
     (o : PackageManager.parameter)
@@ -1020,7 +1127,7 @@ module Convert =
     | RT.DDate d -> ORT.DDate d
     | RT.DDB name -> ORT.DDB name
     | RT.DUuid uuid -> ORT.DUuid uuid
-    | RT.DPassword (Password bytes) -> ORT.DPassword bytes
+    | RT.DPassword pw -> ORT.DPassword pw
     | RT.DHttpResponse (RT.Redirect url) -> ORT.DResp(ORT.Redirect url, c RT.DNull)
     | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
       ORT.DResp(ORT.Response(int64 code, headers), c hdv)
@@ -1049,7 +1156,7 @@ module Convert =
         RT.Lambda
           { parameters = args.``params``
             symtable = Map.map c args.symtable
-            body = args.body |> ocamlExpr2PT |> fun x -> x.toRuntimeType () }
+            body = args.body |> ocamlExpr2PT |> PT2RT.Expr.toRT }
       )
     | ORT.DIncomplete ORT.SourceNone -> RT.DIncomplete RT.SourceNone
     | ORT.DIncomplete (ORT.SourceId (tlid, id)) ->
@@ -1060,7 +1167,7 @@ module Convert =
     | ORT.DDate d -> RT.DDate d
     | ORT.DDB name -> RT.DDB name
     | ORT.DUuid uuid -> RT.DUuid uuid
-    | ORT.DPassword bytes -> RT.DPassword(Password bytes)
+    | ORT.DPassword pw -> RT.DPassword pw
     | ORT.DResp (ORT.Redirect url, _) -> RT.DHttpResponse(RT.Redirect url)
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
       RT.DHttpResponse(RT.Response(code, headers, c hdv))

@@ -87,7 +87,8 @@ let fns : List<BuiltInFn> =
                    List.map
                      (function
                      | DChar c -> c
-                     | dv -> Errors.throw (Errors.expectedLambdaType "f" TChar dv))
+                     | dv ->
+                       Exception.raiseCode (Errors.expectedLambdaType "f" TChar dv))
                      dvals
 
                  let str = String.concat "" chars
@@ -575,7 +576,7 @@ let fns : List<BuiltInFn> =
               (fun s ->
                 match s with
                 | DStr st -> st
-                | dv -> Errors.throw (Errors.argumentMemberWasnt TStr "l" dv))
+                | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TStr "l" dv))
               l
 
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
@@ -608,9 +609,10 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
           DStr(
             l
-            |> List.map (function
+            |> List.map (fun dval ->
+              match dval with
               | DChar c -> c
-              | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
+              | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TChar "l" dv))
             |> String.concat ""
           )
           |> Ply
@@ -655,7 +657,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
-          // Inlined version of Base64.urlEncodeToString
+          // Inlined version of Base64.urlEncodeToString, except
           defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
           |> DStr
           |> Ply
@@ -720,6 +722,7 @@ let fns : List<BuiltInFn> =
 
           let bytes = sha384Hash.ComputeHash(data)
 
+          // Deliberately keep padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
@@ -742,6 +745,7 @@ let fns : List<BuiltInFn> =
 
           let bytes = sha384Hash.ComputeHash(data)
 
+          // Deliberately keep padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
@@ -764,6 +768,7 @@ let fns : List<BuiltInFn> =
 
           let bytes = sha256Hash.ComputeHash(data)
 
+          // Deliberately keep padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
@@ -896,6 +901,7 @@ let fns : List<BuiltInFn> =
           Ply(DStr(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = Impure
       deprecated = NotDeprecated }
 

@@ -17,6 +17,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBytes bytes ] ->
+          // Differs from Base64.encodeToUrlSafe as this version has padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
           |> Ply
@@ -27,7 +28,6 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "hexEncode" 0
-
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =

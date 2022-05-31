@@ -30,8 +30,6 @@ else
     -o -path "./rundir" -prune \
     -o -path "containers/stroller/target" -prune \
     -o -path "./containers/stroller/target" -prune \
-    -o -path "containers/queue-scheduler/target" -prune \
-    -o -path "./containers/queue-scheduler/target" -prune \
     -o -path "fsharp-backend/paket-files" -prune \
     -o -path "./fsharp-backend/paket-files" -prune \
     -o -type f \

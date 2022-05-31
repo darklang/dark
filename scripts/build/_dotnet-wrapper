@@ -9,7 +9,7 @@ set +e
 # the exit code.
 shopt -s lastpipe
 
-cd fsharp-backend && unbuffer dotnet "$@" 2>&1 | while read -r line; do
+cd fsharp-backend && dotnet "$@" 2>&1 | while read -r line; do
   # this error consistently breaks our compile in the build script
   if [[ "$line" == *"warning MSB3026: Could not copy "* ]]; then
     echo "Saw a failed copy, killing servers"
@@ -18,6 +18,8 @@ cd fsharp-backend && unbuffer dotnet "$@" 2>&1 | while read -r line; do
     killall CronChecker || true
     killall QueueWorker || true
     killall Tests || true
+    killall DataTests || true
+    killall FuzzTests || true
   fi
   echo "$line"
 done

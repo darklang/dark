@@ -6,6 +6,10 @@ WORKDIR /home/dark
 
 COPY --chown=dark:dark scripts scripts
 
+# Add favicon
+RUN mkdir -p webroot/static
+COPY --chown=dark:dark backend/static/favicon-32x32.png webroot/static/favicon-32x32.png
+
 RUN mkdir app
 
 # Setting this now means we can set the filesystem to readonly

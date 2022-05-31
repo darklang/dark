@@ -98,7 +98,11 @@ is_fsharp() {
 }
 
 is_allowed() {
-  [[ $1 == *.fs || $1 == *.fsi || $1 == *.mli || $1 == *.ml || $1 == *.css || $1 == *.scss || $1 == *.js || $1 == *.html || $1 == *.rs ]]
+  [[ $1 == *.fs || $1 == *.fsi \
+    || $1 == *.mli || $1 == *.ml \
+    || $1 == *.css || $1 == *.scss \
+    || $1 == *.js || $1 == *.ts \
+    || $1 == *.html || $1 == *.rs ]]
 }
 
 all_prettier_files() {
@@ -125,12 +129,15 @@ all_prettier_files() {
     -o -path "./fsharp-backend/.paket" \
     -o -path "fsharp-backend/Build" \
     -o -path "./fsharp-backend/Build" \
+    -o -path "fsharp-backend/tests/staticassets-tests" \
+    -o -path "./fsharp-backend/tests/staticassets-tests" \
     \) -prune -false \
     \
     -o -type f \
     \( -name "*.css" \
     -o -name "*.scss" \
     -o -name "*.js" \
+    -o -name "*.ts" \
     -o -name "*.html" \
     -o -path "bsconfig.json" \
     -o -path "package.json" \
@@ -203,8 +210,6 @@ all_rust_files() {
     -o -path "fsharp-backend" \
     -o -path "containers/stroller/target" \
     -o -path "./containers/stroller/target" \
-    -o -path "containers/queue-scheduler/target" \
-    -o -path "./containers/queue-scheduler/target" \
     \) -prune -false \
     \
     -o -type f \

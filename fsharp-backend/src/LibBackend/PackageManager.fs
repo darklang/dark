@@ -1,7 +1,6 @@
+/// The package manager allows user-defined functions to be shared with other
+/// users. Currently only enabled for admins.
 module LibBackend.PackageManager
-
-// The package manager allows user-defined functions to be shared with other
-// users. Currently only enabled for admins.
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -12,14 +11,18 @@ open Prelude
 open Tablecloth
 open Db
 
+module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
 module OT = LibExecution.OCamlTypes
 module Convert = OT.Convert
 
-(* ------------------ *)
-(* Uploading *)
-(* ------------------ *)
+// ------------------
+// Uploading
+// ------------------
+
 // exception InvalidFunction of string
 //
 // let extract_metadata (fn : RuntimeT.user_fn) :
@@ -281,80 +284,83 @@ module Convert = OT.Convert
 //              (* Error "Problem saving function" *)
 //              Error ("Unknown error: " ^ Exception.to_string e))
 
+let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
+  task {
+    let binary = BinarySerialization.serializeExpr tlid expr
+    return!
+      Sql.query "UPDATE packages_v0 SET body2 = @body2 where tlid = @tlid"
+      |> Sql.parameters [ "body2", Sql.bytea binary; "tlid", Sql.tlid tlid ]
+      |> Sql.executeStatementAsync
+  }
+
 
 // ------------------
 // Fetching functions
 // ------------------
 
+
 let allFunctions () : Task<List<PT.Package.Fn>> =
-  Sql.query
-    "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
-            P.body, P.description, P.return_type, P.parameters, P.deprecated,
-            A.username, O.username as author
-       FROM packages_v0 P, accounts A, accounts O
-      WHERE P.user_id = A.id
-        AND P.author_id = O.id"
-  |> Sql.parameters []
-  |> Sql.executeAsync (fun read ->
-    (read.string "username",
-     read.string "package",
-     read.string "module",
-     read.string "fnname",
-     read.int "version",
-     read.bytea "body",
-     read.string "return_type",
-     read.string "parameters",
-     read.string "description",
-     read.string "author",
-     read.bool "deprecated",
-     read.int64 "tlid"))
-  |> Task.bind (fun fns ->
-    fns
-    |> List.map
-      (fun (username,
-            package,
-            module_,
-            fnname,
-            version,
-            body,
-            returnType,
-            parameters,
-            description,
-            author,
-            deprecated,
-            tlid) ->
-        task {
+  task {
+    let! fns =
+      Sql.query
+        "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
+                P.body, P.body2, P.description, P.return_type, P.parameters, P.deprecated,
+                A.username, O.username as author
+          FROM packages_v0 P, accounts A, accounts O
+          WHERE P.user_id = A.id
+            AND P.author_id = O.id"
+      |> Sql.parameters []
+      |> Sql.executeAsync (fun read ->
+        (read.string "username",
+         read.string "package",
+         read.string "module",
+         read.string "fnname",
+         read.int "version",
+         read.bytea "body2",  // the F#-serialized version
+         read.string "return_type",
+         read.string "parameters",
+         read.string "description",
+         read.string "author",
+         read.bool "deprecated",
+         read.tlid "tlid"))
+
+    return
+      fns
+      |> List.map
+        (fun (username,
+              package,
+              module_,
+              fnname,
+              version,
+              body2,
+              returnType,
+              parameters,
+              description,
+              author,
+              deprecated,
+              tlid) ->
           let name : PT.FQFnName.PackageFnName =
             { owner = username
               package = package
               module_ = module_
               function_ = fnname
               version = version }
-          use _span =
-            LibService.Telemetry.child "decode package binary" [ "fn", string name ]
-          let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
-
-          return
-            ({ name = name
-               body = expr
-               returnType =
-                 PT.DType.parse returnType
-                 |> Exception.unwrapOptionInternal
-                      "Cannot parse returnType"
-                      [ "type", returnType ]
-               parameters =
-                 parameters
-                 |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
-                 |> List.map Convert.ocamlPackageManagerParameter2PT
-               description = description
-               author = author
-               deprecated = deprecated
-               tlid = tlid |> uint64 } : PT.Package.Fn)
-        })
-    |> Task.flatten)
-
-// TODO: this keeps a cached version so we're not loading them all the time.
-// Of course, this won't be up to date if we add more functions. Given that all
-// functions need to be loaded for the API, when this becomes a problem we want
-// to look at breaking it up into different packages
-let cachedForAPI : Lazy<Task<List<PT.Package.Fn>>> = lazy (allFunctions ())
+          let expr = BinarySerialization.deserializeExpr tlid body2
+          let parameters =
+            parameters
+            |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
+            |> List.map Convert.ocamlPackageManagerParameter2PT
+          let returnType =
+            PTParser.DType.parse returnType
+            |> Exception.unwrapOptionInternal
+                 "Cannot parse returnType"
+                 [ "type", returnType ]
+          { name = name
+            body = expr
+            returnType = returnType
+            parameters = parameters
+            description = description
+            author = author
+            deprecated = deprecated
+            tlid = tlid })
+  }

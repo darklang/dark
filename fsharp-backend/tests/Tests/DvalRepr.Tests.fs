@@ -13,18 +13,19 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module Errors = LibExecution.Errors
 
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
   test "internal_roundtrippable doesn't care about key order" {
     Expect.equal
-      (DvalReprInternal.ofInternalRoundtrippableV0
+      (DvalReprInternalDeprecated.ofInternalRoundtrippableV0
         "{
            \"type\": \"option\",
            \"value\": 5
           }")
-      (DvalReprInternal.ofInternalRoundtrippableV0
+      (DvalReprInternalDeprecated.ofInternalRoundtrippableV0
         "{
            \"value\": 5,
            \"type\": \"option\"
@@ -36,7 +37,7 @@ let testInternalRoundtrippableDoesntCareAboutOrder =
 let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
-    FuzzTests.OCamlInterop.Roundtrippable.roundtrip
+    FuzzTests.OCamlInterop.Roundtrippable.roundtripsSuccessfully
     [ RT.DObj(
         Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                      ("a", RT.DErrorRail(RT.DFloat nan)) ]
@@ -51,8 +52,8 @@ let testDvalOptionQueryableSpecialCase =
     Expect.equal
       (RT.DObj dvm)
       (dvm
-       |> DvalReprInternal.toInternalQueryableV1
-       |> DvalReprInternal.ofInternalQueryableV1)
+       |> DvalReprInternalDeprecated.toInternalQueryableV1
+       |> DvalReprInternalDeprecated.ofInternalQueryableV1)
       "extra"
   }
 
@@ -91,6 +92,22 @@ let testToPrettyResponseJson =
     LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
     [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}" ]
 
+
+let testDateMigrationHasCorrectFormats =
+  test "date migration has correct formats" {
+    let str = "2019-03-08T08:26:14Z"
+    let date =
+      str |> NodaTime.Instant.ofIsoString |> RT.DDateTime.fromInstant |> RT.DDate
+    let oldActual =
+      LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0 date
+    let oldExpected =
+      "{\n  \"type\": \"date\",\n  \"value\": \"2019-03-08T08:26:14Z\"\n}"
+    Expect.equal oldActual oldExpected "old format"
+    let newActual = DvalReprExternal.toPrettyMachineJsonStringV1 date
+    Expect.equal newActual $"\"{str}\"" "old format"
+  }
+
+
 let testToPrettyRequestJson =
   testMany
     "toPrettyRequestJson"
@@ -127,9 +144,9 @@ module ToHashableRepr =
   let testToHashableRepr =
     let t (dv : Dval) (expected : string) : Test =
       testTask $"toHashableRepr: {dv}" {
-        let! ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
+        let! ocamlVersion = TestUtils.OCamlInterop.toHashableRepr dv
         let fsharpVersion =
-          DvalReprInternal.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
+          DvalReprInternalDeprecated.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -171,8 +188,8 @@ module ToHashableRepr =
   let testHashV0 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV0: {l}" {
-        let! ocamlVersion = LibBackend.OCamlInterop.hashV0 l
-        let fsharpVersion = DvalReprInternal.hash 0 l
+        let! ocamlVersion = TestUtils.OCamlInterop.hashV0 l
+        let fsharpVersion = DvalReprInternalDeprecated.hash 0 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -196,8 +213,8 @@ module ToHashableRepr =
   let testHashV1 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV1: {l}" {
-        let! ocamlVersion = LibBackend.OCamlInterop.hashV1 l
-        let fsharpVersion = DvalReprInternal.hash 1 l
+        let! ocamlVersion = TestUtils.OCamlInterop.hashV1 l
+        let fsharpVersion = DvalReprInternalDeprecated.hash 1 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
@@ -229,14 +246,15 @@ let allRoundtrips =
 
   let all =
     sampleDvals
-    |> List.filter (function
+    |> List.filter (fun (_, dval) ->
+      match dval with
       // interoperable tests do not support passwords because it's very
       // hard/risky to get legacyserver to roundtrip them correctly without
       // compromising the redaction protections. We do password tests in the
       // rest of the file so lets not confuse these tests.
-      | (_, RT.DPassword _) -> false
+      | RT.DPassword _ -> false
       // These can't be parsed by the roundtrip tests so skip
-      | (_, RT.DInt i) -> i > -4611686018427387904L && i < 4611686018427387904L
+      | RT.DInt i -> i > -4611686018427387904L && i < 4611686018427387904L
       | _ -> true)
 
   let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
@@ -245,22 +263,22 @@ let allRoundtrips =
     "roundtrips"
     [ t
         "roundtrippable"
-        FuzzTests.OCamlInterop.Roundtrippable.roundtrip
-        (dvs (DvalReprInternal.isRoundtrippableDval false))
+        FuzzTests.OCamlInterop.Roundtrippable.roundtripsSuccessfully
+        (dvs (DvalReprInternalDeprecated.isRoundtrippableDval false))
       t
         "roundtrippable interop"
         FuzzTests.OCamlInterop.Roundtrippable.isInteroperableV0
-        (dvs (DvalReprInternal.isRoundtrippableDval false))
+        (dvs (DvalReprInternalDeprecated.isRoundtrippableDval false))
       t
         "queryable v0"
-        FuzzTests.OCamlInterop.Queryable.v1Roundtrip
-        (dvs DvalReprInternal.isQueryableDval)
+        FuzzTests.OCamlInterop.Queryable.canV1Roundtrip
+        (dvs DvalReprInternalDeprecated.isQueryableDval)
       t
         "queryable interop v1"
         FuzzTests.OCamlInterop.Queryable.isInteroperableV1
-        (dvs DvalReprInternal.isQueryableDval)
-      t "enduserReadable" FuzzTests.DvalRepr.EndUserReadable.equalsOCaml all
-      t "developerRepr" FuzzTests.DvalRepr.equalsOCaml all
+        (dvs DvalReprInternalDeprecated.isQueryableDval)
+      t "enduserReadable" FuzzTests.DvalRepr.EnduserReadable.equalsOCaml all
+      t "developerRepr" FuzzTests.DvalRepr.DeveloperRepr.equalsOCaml all
       t "prettyMachineJson" FuzzTests.Json.PrettyMachineJson.equalsOCaml all ]
 
 
@@ -274,10 +292,10 @@ module Password =
       Expect.equalDval
         password
         (password
-         |> DvalReprInternal.toInternalRoundtrippableV0
-         |> DvalReprInternal.ofInternalRoundtrippableV0
-         |> DvalReprInternal.toInternalRoundtrippableV0
-         |> DvalReprInternal.ofInternalRoundtrippableV0)
+         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+         |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+         |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0)
         "Passwords serialize and deserialize if there's no redaction."
     }
 
@@ -315,13 +333,13 @@ module Password =
       // doesn't redact
       doesntRedact
         "toInternalRoundtrippableV0"
-        DvalReprInternal.toInternalRoundtrippableV0
+        DvalReprInternalDeprecated.toInternalRoundtrippableV0
 
       // roundtrips
       roundtrips
         "toInternalRoundtrippableV0 roundtrips"
-        DvalReprInternal.toInternalRoundtrippableV0
-        DvalReprInternal.ofInternalRoundtrippableV0
+        DvalReprInternalDeprecated.toInternalRoundtrippableV0
+        DvalReprInternalDeprecated.ofInternalRoundtrippableV0
 
       // redacting
       doesRedact "toEnduserReadableTextV0" DvalReprExternal.toEnduserReadableTextV0
@@ -333,20 +351,33 @@ module Password =
       doesRedact
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
+      doesRedact "Json.OCamlCompatible.serialize" Json.OCamlCompatible.serialize
+      doesRedact "Json.Vanilla.serialize" Json.Vanilla.serialize
+      // These test that serializing via ocaml types will also omit the password.
+      // This wasn't the case because these types are used for two contradictory
+      // purposes: to communicate with the legacy server (where redacting passwords
+      // is bad), and to comminucate with the client (where redacting is good)
+      doesRedact "ocaml Json.OCamlCompatible.serialize" (fun dv ->
+        dv
+        |> LibExecution.OCamlTypes.Convert.rt2ocamlDval
+        |> Json.OCamlCompatible.serialize)
+      doesRedact "ocaml Json.Vanilla.serialize" (fun dv ->
+        dv |> LibExecution.OCamlTypes.Convert.rt2ocamlDval |> Json.Vanilla.serialize)
       ()
     }
 
   let testSerialization2 =
     test "serialization in object" {
       let roundtrips name serialize deserialize =
-        let bytes = UTF8.toBytes "encryptedbytes" in
+        let bytes = UTF8.toBytes "encryptedbytes"
         let password = RT.DObj(Map.ofList [ "x", RT.DPassword(Password bytes) ])
 
         let wrappedSerialize dval =
           dval
-          |> (function
-          | RT.DObj dvalMap -> dvalMap
-          | _ -> Exception.raiseInternal "dobj only here" [])
+          |> (fun dval ->
+            match dval with
+            | RT.DObj dvalMap -> dvalMap
+            | _ -> Exception.raiseInternal "dobj only here" [])
           |> serialize
 
         Expect.equalDval
@@ -360,8 +391,8 @@ module Password =
       // roundtrips
       roundtrips
         "toInternalQueryableV1"
-        DvalReprInternal.toInternalQueryableV1
-        DvalReprInternal.ofInternalQueryableV1
+        DvalReprInternalDeprecated.toInternalQueryableV1
+        DvalReprInternalDeprecated.ofInternalQueryableV1
     }
 
   let testNoAutoSerialization =
@@ -374,10 +405,9 @@ module Password =
             |> Json.Vanilla.deserialize
 
           Expect.equal
-            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             password
+            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
-
         }
         test "ocamlcompatible" {
           let password =
@@ -386,9 +416,18 @@ module Password =
             |> Json.OCamlCompatible.deserialize
 
           Expect.equal
-            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             password
+            (RT.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
+        }
+        test "ocamlcompatible without redaction" {
+          let expectedPassword = RT.DPassword(Password(UTF8.toBytes "some password"))
+          let password =
+            expectedPassword
+            |> Json.OCamlCompatible.legacySerialize
+            |> Json.OCamlCompatible.legacyDeserialize
+
+          Expect.equal password expectedPassword "should not be redacted"
         } ]
 
 
@@ -402,32 +441,38 @@ module Password =
         testNoAutoSerialization ]
 
 module LibJwt =
+
+
   let testJsonSameOnBoth =
+    let tests =
+      [ RT.DObj(
+          Map.ofList [ ("", RT.DFloat 1.797693135e+308)
+                       ("a", RT.DErrorRail(RT.DFloat nan)) ]
+        )
+        RT.DDate(
+          NodaTime.Instant.parse "7/29/2028 12:00:00 AM" |> RT.DDateTime.fromInstant
+        )
+        RT.DStr "痃"
+        RT.DError(RT.SourceNone, "ܱ")
+        RT.DDB "ϴ"
+        RT.DStr "\u000f"
+        RT.DFloat 1.7976931348623157e+308
+        RT.DObj(Map [ ("鳉", RT.DChar "\u001e") ])
+        RT.DObj(
+          Map [ ("", RT.DPassword(Password [||]))
+                ("伯",
+                 RT.DUuid(System.Guid.Parse "1cfb3de5-4350-2a1c-3e03-7945672ca26e")) ]
+        ) ]
+      @ (sampleDvals
+         |> List.map Tuple2.second
+         |> List.filter ((<>) (RT.DInt 4611686018427387904L)))
+      |> List.map (fun x -> x, true)
+
     testMany
-      "LibJwt json toString works same on both"
+      "LibJwt json toString works same on both" // on both what?
       FuzzTests.Json.LibJwtJson.equalsOCaml
-      ([ RT.DObj(
-           Map.ofList [ ("", RT.DFloat 1.797693135e+308)
-                        ("a", RT.DErrorRail(RT.DFloat nan)) ]
-         )
-         RT.DDate(
-           NodaTime.Instant.parse "7/29/2028 12:00:00 AM" |> RT.DDateTime.fromInstant
-         )
-         RT.DStr "痃"
-         RT.DError(RT.SourceNone, "ܱ")
-         RT.DDB "ϴ"
-         RT.DStr "\u000f"
-         RT.DFloat 1.7976931348623157e+308
-         RT.DObj(Map [ ("鳉", RT.DChar "\u001e") ])
-         RT.DObj(
-           Map [ ("", RT.DPassword(Password [||]))
-                 ("伯",
-                  RT.DUuid(System.Guid.Parse "1cfb3de5-4350-2a1c-3e03-7945672ca26e")) ]
-         ) ]
-       @ (sampleDvals
-          |> List.map Tuple2.second
-          |> List.filter ((<>) (RT.DInt 4611686018427387904L)))
-       |> List.map (fun x -> x, true))
+      tests
+
 
 module ParsingMinefield =
 
@@ -491,7 +536,7 @@ module ParsingMinefield =
       |> Set
 
     let unknownV0Equal (filename : string) : Result<unit, string> =
-      functionsEqual filename LibBackend.OCamlInterop.ofUnknownJsonV0 (fun str ->
+      functionsEqual filename TestUtils.OCamlInterop.ofUnknownJsonV0 (fun str ->
         try
           Ok(DvalReprExternal.unsafeOfUnknownJsonV0 str)
         with
@@ -530,7 +575,7 @@ module ParsingMinefield =
     let unknownV1Equal (filename : string) : Result<unit, string> =
       functionsEqual
         filename
-        LibBackend.OCamlInterop.ofUnknownJsonV1
+        TestUtils.OCamlInterop.ofUnknownJsonV1
         DvalReprExternal.ofUnknownJsonV1
 
     testMany
@@ -562,6 +607,7 @@ let tests =
       testToEnduserReadable
       testToPrettyRequestJson
       testToPrettyResponseJson
+      testDateMigrationHasCorrectFormats
       ToHashableRepr.tests
       Password.tests
       LibJwt.testJsonSameOnBoth

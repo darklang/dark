@@ -10,20 +10,17 @@ function ctrl_c() {
   exit 1
 }
 
-DEBUG=false
+LLDB=false
 PUBLISHED=false
+
+EXPECTO_ARGS=()
 
 for i in "$@"
 do
   case "${i}" in
-    --debug)
-    DEBUG=true
-    shift
-    ;;
-    --published)
-    PUBLISHED=true
-    shift
-    ;;
+    --lldb) LLDB=true ;;
+    --published) PUBLISHED=true ;;
+    *) EXPECTO_ARGS+=("${i}");;
   esac
 done
 
@@ -49,6 +46,9 @@ createdb testdb
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
+echo "Waiting for pubsub"
+./scripts/run-pubsub-emulator
+
 # Run the migrations before the other servers start
 echo "Running migrations"
 cd fsharp-backend && \
@@ -58,7 +58,9 @@ cd fsharp-backend && \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
-  "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log" && cd ..
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-123456 \
+  "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log"
+cd ..
 
 # These scripts run in the docker container. When this script is run from in the
 # container, these scripts and the spawned processes stay running. this is helpful if
@@ -78,15 +80,28 @@ DARK_CONFIG_STATIC_HOST="static.darklang.localhost:${DARK_CONFIG_TEST_OCAMLSERVE
 # spinner and not running the tests in parallel.
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
 
+# Use random to avoid old items being in the pubsub queue. Use this instead of
+# $RANDOM as RANDOM is only 5 digits
+RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
+
+COLOURS="256"
+if [[ -v CI ]]; then
+  # Expecto needs `--colours 0` or the xml will be invalid
+  # https://github.com/haf/expecto/issues/434
+  COLOURS="0"
+fi
+
 cd fsharp-backend
-if [[ "$DEBUG" == "true" ]]; then
+if [[ "$LLDB" == "true" ]]; then
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_DB_HOST=localhost \
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
-  lldb -- "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+  lldb -- "${EXE}" --no-spinner --colours 0 --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
@@ -94,6 +109,7 @@ else
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
   DARK_CONFIG_DB_PASSWORD=darklang \
-  "${EXE}" --no-spinner --junit-summary "${JUNIT_FILE}" "${@}"
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+  "${EXE}" --no-spinner --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
 fi
-

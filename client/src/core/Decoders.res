@@ -346,6 +346,10 @@ let rec dval = (j): dval => {
      * analysis code.  However, since JSON doesn't support Infinity/NaN, our
      * JSON parser crashes. So instead we encode them specially in
      * Jsanalysis.clean_yojson, which is the encoder which matches this decoder
+     *
+     * CLEANUP remove OCaml-specific parsing here.
+     * The checks within `Some` are for OCaml analysis, while the ones under `None` are
+     * for F#.
      */
     switch Js.Json.decodeObject(j) {
     | Some(obj) =>
@@ -362,7 +366,16 @@ let rec dval = (j): dval => {
       } else {
         \"@@"(raise, DecodeError("Expected float, got " ++ stringify(j)))
       }
-    | None => Json.Decode.float(j)
+    | None =>
+      if (j == Js.Json.string("Infinity")) {
+        Float.infinity
+      } else if (j == Js.Json.string("-Infinity")) {
+        Float.negativeInfinity
+      } else if (j == Js.Json.string("NaN")) {
+        Float.nan
+      } else {
+        Json.Decode.float(j)
+      }
     }
 
   variants(
@@ -787,8 +800,6 @@ let op = (j): op =>
       ("SetDBColType", variant3((t, i, tipe) => SetDBColType(t, i, tipe), tlid, id, string)),
       ("ChangeDBColType", variant3((t, i, tipe) => ChangeDBColName(t, i, tipe), tlid, id, string)),
       ("DeleteDBCol", variant2((t, i) => DeleteDBCol(t, i), tlid, id)),
-      /* deprecated, can't happen */
-      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
       (
         "CreateDBMigration",
         variant4(
@@ -831,11 +842,13 @@ let op = (j): op =>
         "CreateDBWithBlankOr",
         variant4((t, p, i, name) => CreateDBWithBlankOr(t, p, i, name), tlid, pos, id, string),
       ),
-      ("DeleteFunctionForever", variant1(t => DeleteFunctionForever(t), tlid)),
-      ("DeleteTLForever", variant1(t => DeleteTLForever(t), tlid)),
       ("SetType", variant1(t => SetType(t), userTipe)),
       ("DeleteType", variant1(t => DeleteType(t), tlid)),
-      ("DeleteTypeForever", variant1(t => DeleteTypeForever(t), tlid)),
+      // deprecated, can't happen
+      ("DeprecatedInitDbm", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteFunctionForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteTLForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
+      ("DeleteTypeForever", variant1(_ => UndoTL(TLID.fromString("")), tlid)),
     },
     j,
   )

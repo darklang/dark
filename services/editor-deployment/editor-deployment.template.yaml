@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: editor-deployment
+  namespace: default
   annotations:
     kubernetes.io/change-cause: "{ARG:CHANGE_CAUSE}"
 spec:
@@ -9,7 +10,7 @@ spec:
   selector:
     matchLabels:
       app: editor-app
-  replicas: 36
+  replicas: 10
   template:
     metadata:
       labels:
@@ -23,7 +24,7 @@ spec:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "200Mi"
+              memory: "400Mi"
               cpu: "50m"
             limits:
               memory: "1000Mi"

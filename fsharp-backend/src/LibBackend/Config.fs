@@ -1,3 +1,4 @@
+/// Provides central place to fetch known configuration values
 module LibBackend.Config
 
 open LibService.ConfigDsl
@@ -21,12 +22,12 @@ let testResultDir = $"{runDir}test_results/"
 
 let logDir = $"{runDir}logs/"
 
-let serializationDir = "${backendDir}serialization/"
+let serializationDir = $"{backendDir}serialization/"
 
 let completedTestDir = $"{runDir}completed_tests/"
 
 // -------------------------
-// Configurable dirs *)
+// Configurable dirs
 // -------------------------
 let templatesDir = absoluteDir "DARK_CONFIG_TEMPLATES_DIR"
 
@@ -37,7 +38,7 @@ let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 let binRootDir = absoluteDir "DARK_CONFIG_BIN_ROOT_DIR"
 
 // -------------------------
-// Web configuration *)
+// Web configuration
 // -------------------------
 let apiServerServeStaticContent = bool "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT"
 
@@ -142,6 +143,20 @@ let pusherCluster = string "DARK_CONFIG_PUSHER_CLUSTER"
 
 
 // -------------------------
+// Queues
+// -------------------------
+let queuePubSubProjectID = string "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"
+
+let queuePubSubTopicName = string "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"
+
+let queuePubSubSubscriptionName = string "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME"
+
+let queuePubSubCreateTopic = bool "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"
+
+let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
+
+
+// -------------------------
 // Infra
 // -------------------------
 let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"
@@ -153,6 +168,7 @@ let hashStaticFilenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
 let checkTierOneHosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
 
 let staticAssetsBucket = stringOption "DARK_CONFIG_STATIC_ASSETS_BUCKET"
+let staticAssetsSaltSuffix = string "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX"
 
 
 let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"

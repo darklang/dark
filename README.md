@@ -1,13 +1,14 @@
 # Dark
 
-This is the main repo for [Dark](https://darklang.com), a combined language, editor, and infrastructure to make it easy to build backends.
+This is the main repo for [Dark](https://darklang.com), a combined language, editor,
+and infrastructure to make it easy to build backends.
 
 This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
 [source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
 See also:
 
-- [Project Tracking](https://github.com/darklang/dark/projects/1) - what we're actually
+- [Project Tracking](https://github.com/orgs/darklang/projects/5) - what we're actually
   working on right
 - [Darklang Community Slack](https://darklang.com/slack-invite)
 - [Roadmap](https://github.com/darklang/dark/issues/3284)
@@ -112,7 +113,6 @@ Unit tests run when you specify `--test` to `scripts/builder`. You can run them 
 - `scripts/run-backend-tests`
 - `scripts/run-fsharp-tests`
 - `scripts/run-rust-tests containers/stroller`
-- `scripts/run-rust-tests containers/queue-scheduler`
 
 Integration tests:
 
@@ -199,9 +199,7 @@ A _service_ in our repo typically wraps a deployment, but it can sometimes mean
 other things, so we also have a number of other services, defined via yaml
 files, in [services](services). Some of the services are deployments that use
 3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
-Google Cloud services. Some deployments just have a single container (eg
-[queue-scheduler](services/scheduler-deployment) and
-[postgres-honeytail](services/postgres-honeytail)).
+Google Cloud services.
 
 ## Other important docs
 

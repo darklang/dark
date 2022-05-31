@@ -1,3 +1,5 @@
+/// Generators and FuzzTests ensuring consistent
+/// behaviour across F# and OCaml backends
 module FuzzTests.OCamlInterop
 
 open Expecto
@@ -16,18 +18,16 @@ open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = LibBackend.OCamlInterop
+module OCamlInterop = TestUtils.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module G = Generators
-
-let tpwg = testPropertyWithGenerator
 
 open LibExecution.OCamlTypes.Convert
 open OCamlInterop
 open Json.OCamlCompatible
 
-let isInteroperable
+let isInteroperableWithOCamlBackend
   (ocamlToString : 'a -> Task<string>)
   (ocamlOfString : string -> Task<'a>)
   (fsToString : 'a -> string)
@@ -60,26 +60,32 @@ let isInteroperable
       false
   with
   | e ->
-    print $"Cause exception while fuzzing {e}"
+    print $"Exception while fuzzing {e}"
     reraise ()
 
 type Generator =
+  static member LocalDateTime() = G.NodaTime.LocalDateTime
+  static member Instant() = G.NodaTime.Instant
+
+  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
+
   static member Expr() =
     Arb.Default.Derive()
-    |> Arb.filter (function
-      // characters are not yet supported in OCaml
+    |> Arb.filter (fun expr ->
+      match expr with
+      // characters are not supported in OCaml
+      // CLEANUP can be removed once OCaml gone
       | PT.ECharacter _ -> false
       | _ -> true)
 
   static member Pattern() =
     Arb.Default.Derive()
-    |> Arb.filter (function
-      // characters are not yet supported in OCaml
+    |> Arb.filter (fun pattern ->
+      match pattern with
+      // characters are not supported in OCaml
+      // CLEANUP can be removed once OCaml gone
       | PT.PCharacter _ -> false
       | _ -> true)
-
-  static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
-
 
 let yojsonExprRoundtrip (a : PT.Expr) : bool =
   a
@@ -102,13 +108,13 @@ let yojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> pt2ocamlHandler
   |> serialize
   |> deserialize
-  |> ocamlHandler2PT a.pos
+  |> ocamlHandler2PT { x = a.pos.x; y = a.pos.y }
   |> serialize
   |> deserialize
   |> pt2ocamlHandler
   |> serialize
   |> deserialize
-  |> ocamlHandler2PT a.pos
+  |> ocamlHandler2PT { x = a.pos.x; y = a.pos.y }
   |> serialize
   |> deserialize
   .=. a
@@ -121,80 +127,73 @@ let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   |> result
   .=. pair
 
-let binaryHandlerRoundtrip (a : PT.Handler.T) : bool =
-  let h = PT.TLHandler a
-
-  h
-  |> toplevelToCachedBinary
-  |> result
-  |> (fun bin -> bin, None)
-  |> toplevelBin2Json
-  |> result
-  .=. h
-
-let binaryToplevelRoundtrip (tl : PT.Toplevel) : bool =
-  tl
-  |> toplevelToCachedBinary
-  |> result
-  |> (fun bin -> bin, None)
-  |> toplevelBin2Json
-  |> result
-  .=. tl
-
-let tests =
-  let tp f = tpwg typeof<Generator> f
+let tests config =
+  let tp f = testProperty config typeof<Generator> f
 
   testList
     "OcamlInterop"
-    [ tp "roundtripping OCamlInteropBinaryHandler" binaryHandlerRoundtrip
-      tp "roundtripping OCamlInteropBinaryExpr" binaryExprRoundtrip
+    [ tp "roundtripping OCamlInteropBinaryExpr" binaryExprRoundtrip
       tp "roundtripping OCamlInteropYojsonHandler" yojsonHandlerRoundtrip
       tp "roundtripping OCamlInteropYojsonExpr" yojsonExprRoundtrip ]
 
 
 module Roundtrippable =
   type Generator =
-    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter (DvalReprInternal.isRoundtrippableDval false)
+      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval false)
 
   type GeneratorWithBugs =
-    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter (DvalReprInternal.isRoundtrippableDval true)
+      Arb.Default.Derive()
+      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval true)
 
-  let roundtrip (dv : RT.Dval) : bool =
+  let roundtripsSuccessfully (dv : RT.Dval) : bool =
     dv
-    |> DvalReprInternal.toInternalRoundtrippableV0
-    |> DvalReprInternal.ofInternalRoundtrippableV0
-    |> dvalEquality dv
+    |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
+    |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+    |> Expect.dvalEquality dv
 
   let isInteroperableV0 dv =
     if containsPassword dv then
       true
     else
-      isInteroperable
+      isInteroperableWithOCamlBackend
         OCamlInterop.toInternalRoundtrippableV0
         OCamlInterop.ofInternalRoundtrippableV0
-        DvalReprInternal.toInternalRoundtrippableV0
-        DvalReprInternal.ofInternalRoundtrippableV0
-        dvalEquality
+        DvalReprInternalDeprecated.toInternalRoundtrippableV0
+        DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+        Expect.dvalEquality
         dv
 
-  let tests =
+  let tests config =
     testList
       "roundtrippable"
-      [ tpwg typeof<Generator> "roundtripping works properly" roundtrip
-        tpwg
+      [ testProperty
+          config
+          typeof<Generator>
+          "roundtripping works properly"
+          roundtripsSuccessfully
+        testProperty
+          config
           typeof<GeneratorWithBugs>
           "roundtrippable is interoperable"
           isInteroperableV0 ]
@@ -202,21 +201,25 @@ module Roundtrippable =
 
 module Queryable =
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
+      G.NodaTime.LocalDateTime
+    static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
+
+    static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter DvalReprInternal.isQueryableDval
+      Arb.Default.Derive() |> Arb.filter DvalReprInternalDeprecated.isQueryableDval
 
-  let v1Roundtrip (dv : RT.Dval) : bool =
+  let canV1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])
 
     dvm
-    |> DvalReprInternal.toInternalQueryableV1
-    |> DvalReprInternal.ofInternalQueryableV1
-    |> dvalEquality (RT.DObj dvm)
+    |> DvalReprInternalDeprecated.toInternalQueryableV1
+    |> DvalReprInternalDeprecated.ofInternalQueryableV1
+    |> Expect.dvalEquality (RT.DObj dvm)
 
   let isInteroperableV1 (dv : RT.Dval) =
     // redacted passwords are created on the OCaml side and hard to remove
@@ -225,19 +228,21 @@ module Queryable =
     else
       let dvm = (Map.ofList [ "field", dv ])
 
-      isInteroperable
+      isInteroperableWithOCamlBackend
         OCamlInterop.toInternalQueryableV1
         OCamlInterop.ofInternalQueryableV1
-        (function
-        | RT.DObj dvm -> DvalReprInternal.toInternalQueryableV1 dvm
-        | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
-        DvalReprInternal.ofInternalQueryableV1
-        dvalEquality
+        (fun dval ->
+          match dval with
+          | RT.DObj dvm -> DvalReprInternalDeprecated.toInternalQueryableV1 dvm
+          | dv -> Exception.raiseInternal "not an obj" [ "dval", dv ])
+        DvalReprInternalDeprecated.ofInternalQueryableV1
+        Expect.dvalEquality
         (RT.DObj dvm)
 
-  let tests =
-    let tp f = tpwg typeof<Generator> f
+  let tests config =
+    let tp f = testProperty config typeof<Generator> f
 
     testList
       "InternalQueryable"
-      [ tp "roundtripping v1" v1Roundtrip; tp "interoperable v1" isInteroperableV1 ]
+      [ tp "roundtripping v1" canV1Roundtrip
+        tp "interoperable v1" isInteroperableV1 ]

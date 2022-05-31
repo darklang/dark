@@ -1,9 +1,10 @@
 k8s:
+  namespace: darklang
   manually-deployed:
     configs:
       - tunnel2-service.yaml
       - tunnel2-networkpolicy.yaml
-      - darklang-executors-networkpolicy.yaml
+      - dark-executors-networkpolicy.yaml
   release:
     config-template: tunnel2-deployment.template.yaml
     containers:

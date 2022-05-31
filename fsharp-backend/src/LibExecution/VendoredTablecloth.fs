@@ -1,10 +1,14 @@
+/// A forked subset of Tablecloth
+///
+/// Kept separate from Tablecloth as, in LibExecution, we want to be very careful
+/// about backward compatibility. Tablecloth is still very much in flux, so
+/// we want to avoid using it in case something happens that breaks lots of things.
+///
+/// Our rule is to not use Tablecloth in LibExecution.
+///
+/// However, we do want things to be consistent, so we directly import
+/// functions that we want to use here.
 module LibExecution.VendoredTablecloth
-
-// In LibExecution, we want to be really careful about backwards compatibility. As
-// Tablecloth is still very much in flux, we want to avoid using it in case something
-// happens that breaks lots of things. So we have a rule to not use Tablecloth in
-// LibExecution. However, we do want things to be consistent, so we directly import
-// functions that we want to use here.
 
 module Map =
   let keys (map : Map<'k, 'v>) : List<'k> =
@@ -49,7 +53,10 @@ module String =
   let startsWith (prefix : string) (s : string) : bool = s.StartsWith(prefix)
   let endsWith (suffix : string) (s : string) : bool = s.EndsWith(suffix)
   let includes (substring : string) (s : string) : bool = s.Contains(substring)
-  let split (on : string) (s : string) : List<string> = s.Split(on) |> List.ofArray
+
+  let split (on : string) (s : string) : List<string> =
+    // Splitting an empty string with `Split` produces `[""]`, which is unexpected
+    if s = "" then [] else s.Split(on) |> List.ofArray
 
   let trim (s : string) : string = s.Trim()
   let dropLeft (count : int) (s : string) : string = s[count..]
@@ -80,11 +87,31 @@ module List =
      | [ x ] -> [ x ]
      | x :: rest -> x :: foldRight [] (fun acc x -> sep :: x :: acc) rest : 'a list)
 
+module Result =
+  let unwrapWith (f : 'err -> 'ok) (t : Result<'ok, 'err>) : 'ok =
+    match t with
+    | Ok v -> v
+    | Error v -> f v
+
+  [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
+                             0,
+                             IsError = true,
+                             IsHidden = true)>]
+  let unwrapUnsafe = Tablecloth.Result.unwrapUnsafe
+
 module Option =
-  let unwrapUnsafe (opt : Option<'a>) : 'a =
-    match opt with
-    | None -> invalidArg "option" "Option.unwrapUnsafe called with None"
-    | Some x -> x
+
+  [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+                             0,
+                             IsError = true,
+                             IsHidden = true)>]
+  let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
+
+  [<CompilerMessageAttribute("Option.get is banned, use Prelude.Exception.unwrapOption* instead",
+                             0,
+                             IsError = true,
+                             IsHidden = true)>]
+  let get = Option.get
 
   let unwrap (def : 'a) (o : Option<'a>) : 'a =
     match o with

@@ -22,7 +22,11 @@ type AuthData = { csrfToken : string; sessionKey : string }
 let cookieKey = "__session"
 let csrfHeader = "X-CSRF-Token"
 
-// Get the sessionData with no CSRF. By default you should be using CSRF, the only exception is for GETs
+/// <summary> Get the sessionData with no CSRF. </summary>
+///
+/// <remarks>
+/// By default, you should be using CSRF - the only exception is for GETs
+/// </remarks>
 let getNoCSRF (key : string) : Task<Option<T>> =
   Sql.query
     "SELECT expire_date, session_data
@@ -39,7 +43,7 @@ let getNoCSRF (key : string) : Task<Option<T>> =
       csrfToken = data.csrf_token
       key = key })
 
-// Get the sessionData
+/// Get the sessionData
 let get (key : string) (csrfToken : string) : Task<Option<T>> =
   getNoCSRF key
   |> Task.map (
@@ -47,8 +51,8 @@ let get (key : string) (csrfToken : string) : Task<Option<T>> =
   )
 
 
-// Creates a session in the DB, returning a new session key and new CSRF token
-// to be returned to the user
+/// Creates a session in the DB, returning a new session key
+/// and new CSRF token to be returned to the user
 let insert (username : UserName.T) : Task<AuthData> =
   task {
     let key = randomString 40

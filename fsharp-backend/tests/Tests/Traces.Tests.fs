@@ -11,7 +11,7 @@ open TestUtils.TestUtils
 
 open LibExecution.RuntimeTypes
 
-module Shortcuts = LibExecution.Shortcuts
+module Shortcuts = TestUtils.RTShortcuts
 
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
@@ -21,8 +21,10 @@ module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
 module RealExecution = LibRealExecution.RealExecution
+module Tracing = LibBackend.Tracing
+module TSR = Tracing.TraceSamplingRule
 
-let testTraceIDsOfTlidsMatch : Test =
+let testTraceIDsOfTlidsMatch =
   test "traceIDs from tlids are as expected" {
     Expect.equal
       "e170d0d5-14de-530e-8dd0-a445aee7ca81"
@@ -36,18 +38,20 @@ let testTraceIDsOfTlidsMatch : Test =
   }
 
 
-
-
-let testFilterSlash : Test =
+let testFilterSlash =
   testTask "test that a request which doesnt match doesnt end up in the traces" {
-    let! meta = initializeTestCanvas "test-filter_slash"
+    // set up handler with route param
+    let! meta = initializeTestCanvas (Randomized "test-filter_slash")
     let route = "/:rest"
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
+    // make irrelevant request
     let t1 = System.Guid.NewGuid()
     let desc = ("HTTP", "/", "GET")
     let! (_d : NodaTime.Instant) = TI.storeEvent meta.id t1 desc (DStr "1")
+
+    // load+check irrelevant trace
     let! loaded = Traces.traceIDsForHandler c handler
     Expect.equal loaded [ Traces.traceIDofTLID handler.tlid ] "ids is the default"
 
@@ -55,16 +59,16 @@ let testFilterSlash : Test =
   }
 
 
-let testRouteVariablesWorkWithStoredEvents : Test =
+let testRouteVariablesWorkWithStoredEvents =
   testTask "route variables work with stored events" {
-    let! meta = initializeTestCanvas "route_variables_works"
+    let! meta = initializeTestCanvas (Randomized "route_variables_works")
 
-    // set up test
+    // set up handler
     let httpRoute = "/some/:vars/:and/such"
     let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
-    // store an event and check it comes out
+    // store an event that matches the handler
     let t1 = System.Guid.NewGuid()
     let httpRequestPath = "/some/vars/and/such"
     let desc = ("HTTP", httpRequestPath, "GET")
@@ -87,19 +91,21 @@ let testRouteVariablesWorkWithStoredEvents : Test =
   }
 
 
-let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
+let testRouteVariablesWorkWithTraceInputsAndWildcards =
   testTask "route variables work with trace inputs and wildcards" {
-    let! meta = initializeTestCanvas "route_variables_works_with_withcards"
+    let! meta =
+      initializeTestCanvas (Randomized "route_variables_works_with_withcards")
 
-    // note hyphen vs undeerscore
+    // '_' is the "wildcard" here, and the '-' matches the wildcard.
+    // '-' could equally well be '!' or 'Z' or '🇨🇭' or "-matcheswildcard-"
     let route = "/api/create_token"
     let requestPath = "/api/create-token"
 
-    // set up test
+    // set up handler
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
-    // store an event and check it comes out
+    // store an event
     let t1 = System.Guid.NewGuid()
     let desc = ("HTTP", requestPath, "GET")
     let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
@@ -110,12 +116,12 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards : Test =
     Expect.equal [] events ""
   }
 
-let testStoredEventRoundtrip : Test =
+let testStoredEventRoundtrip =
   testTask "test stored events can be roundtripped" {
     let! (meta1 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped1"
+      initializeTestCanvas (Randomized "stored_events_can_be_roundtripped1")
     let! (meta2 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped2"
+      initializeTestCanvas (Randomized "stored_events_can_be_roundtripped2")
     let id1 = meta1.id
     let id2 = meta2.id
 
@@ -143,7 +149,7 @@ let testStoredEventRoundtrip : Test =
 
     // This is a bit racy
     let! listed = TI.listEvents TI.All id1
-    let actual = (List.sort (List.map t5_get5th listed))
+    let actual = (List.sort (List.map Tuple3.third listed))
     let result =
       actual = (List.sort [ t1; t3; t4 ]) || actual = (List.sort [ t2; t3; t4 ])
     Expect.equal result true "list host events"
@@ -167,7 +173,9 @@ let testStoredEventRoundtrip : Test =
 
 let testTraceDataJsonFormatRedactsPasswords =
   testTask "trace data json format redacts passwords" {
-    let id = gid () in
+    // set up
+    let id = gid ()
+
     let traceData : AT.TraceData =
       { input = [ ("event", DPassword(Password(UTF8.toBytes "redactme1"))) ]
         timestamp = NodaTime.Instant.UnixEpoch
@@ -177,6 +185,7 @@ let testTraceDataJsonFormatRedactsPasswords =
              "foobar",
              0,
              DPassword(Password(UTF8.toBytes "redactme2"))) ] }
+
     let expected : AT.TraceData =
       { input = [ ("event", DPassword(Password(UTF8.toBytes "Redacted"))) ]
         timestamp = NodaTime.Instant.UnixEpoch
@@ -186,22 +195,26 @@ let testTraceDataJsonFormatRedactsPasswords =
              "foobar",
              0,
              DPassword(Password(UTF8.toBytes "Redacted"))) ] }
+
+    // roundtrip serialization
     let actual =
       traceData
       |> Json.OCamlCompatible.serialize
       |> Json.OCamlCompatible.deserialize<AT.TraceData>
+
+    // check
     Expect.equal actual expected "traceData round trip"
   }
 
 
 let testFunctionTracesAreStored =
   testTask "function traces are stored" {
+    // set up canvas, user fn
     let! (meta : Canvas.Meta) =
-      initializeTestCanvas "test-function-traces-are-stored"
-    let fnid = 12312345234UL
+      initializeTestCanvas (Randomized "test-function-traces-are-stored")
 
     let (userFn : RT.UserFunction.T) =
-      { tlid = fnid
+      { tlid = 12312345234UL
         name = "test_fn"
         parameters = []
         returnType = RT.TInt
@@ -218,27 +231,99 @@ let testFunctionTracesAreStored =
         userTypes = Map.empty
         secrets = [] }
 
-    let executionID = LibService.Telemetry.executionID ()
+    let callerTLID = 98765UL
+    let callerID = 1234UL
+    let fnName = RT.FQFnName.User "test_fn"
+    let args = []
     let traceID = System.Guid.NewGuid()
 
-    let! (state, _) = RealExecution.createState executionID traceID (gid ()) program
+    // call the user fn, which should result in a trace being stored
+    let! (_, _) =
+      RealExecution.reexecuteFunction
+        meta
+        program
+        callerTLID
+        callerID
+        traceID
+        fnName
+        args
 
-    let (ast : Expr) = (Shortcuts.eApply (Shortcuts.eUserFnVal "test_fn") [])
+    // check for traces - they're saved in the background so wait for them
+    let rec getValue (count : int) =
+      task {
+        let! result = TFR.load meta.id traceID callerTLID
+        if result = [] && count < 10 then
+          do! Task.Delay 1000
+          return! getValue (count + 1)
+        else
+          return result
+      }
+
+    let! testFnResult = getValue 0
+    Expect.equal
+      (List.length testFnResult)
+      1
+      "one function was called by the 'caller'"
+
+    let! dbGenerateResult = TFR.load meta.id traceID userFn.tlid
+    Expect.equal
+      (List.length dbGenerateResult)
+      1
+      "test_fn called one function (DB::generateKey)"
+  }
+
+let testErrorTracesAreStored =
+  testTask "error traces are stored" {
+    // set up canvas, user fn
+    let! (meta : Canvas.Meta) =
+      initializeTestCanvas (Randomized "test-error-traces-are-stored")
+
+    let (db : DB.T) = { tlid = gid (); name = "MyDB"; cols = []; version = 0 }
+
+    let program =
+      { canvasID = meta.id
+        canvasName = meta.name
+        accountID = meta.owner
+        dbs = Map [ "MyDB", db ]
+        userFns = Map.empty
+        userTypes = Map.empty
+        secrets = [] }
+
+    // call the user fn, which should result in a trace being stored
+    let traceID = System.Guid.NewGuid()
+
+    let (traceResults, tracing) = Tracing.createStandardTracer ()
+    let! state = RealExecution.createState traceID (gid ()) program tracing
+
+    // the DB has no columns, but the code expects one, causing it to fail
+    let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"
+
+    let (ast : Expr) = FSharpToExpr.parseRTExpr code
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
+    do! Tracing.Test.saveTraceResult meta.id traceID traceResults
+
+    // check for traces
     let! testFnResult = TFR.load meta.id traceID state.tlid
     Expect.equal
       (List.length testFnResult)
       1
-      "handler should only have fn result for test_fn"
-
-    let! dbGenerateResult = TFR.load meta.id traceID fnid
-    Expect.equal
-      (List.length dbGenerateResult)
-      1
-      "functions should only have fn result for DB::generateKey"
+      "handler should have a result for test_fn"
   }
+
+let testLaunchdarklyParsingCode =
+  testMany
+    "test launchdarkly trace sampling rule parser"
+    TSR.parseRule
+    [ "sample-none", Ok(TSR.SampleNone)
+      "sample-all", Ok(TSR.SampleAll)
+      "sample-all-with-telemetry", Ok(TSR.SampleAllWithTelemetry)
+      "sample-one-in-10", Ok(TSR.SampleOneIn 10)
+      "sample-one-in-50", Ok(TSR.SampleOneIn 50)
+      "sample-one-in-1000000000", Ok(TSR.SampleOneIn 1000000000)
+      "sample-one-in-gibberish", Error "Exception thrown"
+      "gibberish", Error "Invalid sample" ]
 
 
 let tests =
@@ -250,4 +335,6 @@ let tests =
       testRouteVariablesWorkWithTraceInputsAndWildcards
       testStoredEventRoundtrip
       testTraceDataJsonFormatRedactsPasswords
-      testFunctionTracesAreStored ]
+      testFunctionTracesAreStored
+      testErrorTracesAreStored
+      testLaunchdarklyParsingCode ]

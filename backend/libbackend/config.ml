@@ -173,6 +173,8 @@ let check_tier_one_hosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
 
 let static_assets_bucket = string_option "DARK_CONFIG_STATIC_ASSETS_BUCKET"
 
+let static_assets_salt_suffix = string "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX"
+
 (* If the GIT_COMMIT is in the environment, use that as the build hash.
  * Otherwise, set it to the env name so that it's constant.
  *

@@ -11,7 +11,8 @@ module PT = LibExecution.ProgramTypes
 open LibExecution.RuntimeTypes
 
 module C = LibBackend.SqlCompiler
-module S = LibExecution.Shortcuts
+module S = TestUtils.RTShortcuts
+module Errors = LibExecution.Errors
 
 let compile
   (symtable : DvalMap)
@@ -20,7 +21,7 @@ let compile
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
-    let! meta = createTestCanvas (randomString 8)
+    let! meta = createTestCanvas (Randomized "sqlcompiler")
     let! state = executionStateFor meta Map.empty Map.empty
 
     try
@@ -30,9 +31,9 @@ let compile
       let args = Map.ofList args
       return sql, args
     with
-    | LibExecution.Errors.DBQueryException msg as e ->
-      Exception.raiseInternal msg [ "paramName", paramName; "expr", expr ]
-      return ("", Map.empty)
+    | e ->
+      return
+        Exception.raiseInternal e.Message [ "paramName", paramName; "expr", expr ]
   }
 
 let matchSql

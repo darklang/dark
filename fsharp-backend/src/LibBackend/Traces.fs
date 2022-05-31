@@ -9,6 +9,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 // -------------------------
 // Input variables (including samples)
@@ -35,6 +36,7 @@ let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   | PT.Handler.HTTP _ -> sampleRequestInputVars
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
+  | PT.Handler.UnknownHandler _ -> sampleRequestInputVars @ sampleEventInputVars
   | PT.Handler.Worker _
   | PT.Handler.OldWorker _ -> sampleEventInputVars
 
@@ -52,6 +54,7 @@ let sampleInputVars (h : PT.Handler.T) : AT.InputVars =
 let sampleFunctionInputVars (f : PT.UserFunction.T) : AT.InputVars =
   f.parameters |> List.map (fun p -> (p.name, incomplete))
 
+
 let savedInputVars
   (h : PT.Handler.T)
   (requestPath : string)
@@ -59,7 +62,7 @@ let savedInputVars
   : AT.InputVars =
   match h.spec with
   | PT.Handler.HTTP (route, method, _) ->
-    let withR = [ ("request", event) ] in
+    let withR = [ ("request", event) ]
 
     let bound =
       if route <> "" then
@@ -71,17 +74,21 @@ let savedInputVars
         // trace doesn't match the handler should be done in the future
         // somehow.
         if Routing.requestPathMatchesRoute route requestPath then
-          Routing.routeInputVars route requestPath |> Option.unwrapUnsafe
+          Routing.routeInputVars route requestPath
+          |> Exception.unwrapOptionInternal
+               "invalid routeInputVars"
+               [ "route", route; "requestPath", requestPath ]
         else
           sampleRouteInputVars h
       else
         []
 
     withR @ bound
+  | PT.Handler.OldWorker _
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
+  | PT.Handler.UnknownHandler _ -> []
   | PT.Handler.REPL _ -> []
-  | PT.Handler.OldWorker _ -> []
 
 
 // -------------------------
@@ -139,7 +146,7 @@ let traceIDofTLID (tlid : tlid) : AT.TraceID =
 
 let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>> =
   task {
-    match h.spec.toEventDesc () with
+    match PTParser.Handler.Spec.toEventDesc h.spec with
     | Some desc ->
       let! events = TraceInputs.loadEventIDs c.meta.id desc
 
@@ -163,9 +170,10 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>
             // Don't use HTTP filtering stack for non-HTTP traces
             Some traceID)
         // If there's no matching traces, add the default trace
-        |> (function
-        | [] -> [ traceIDofTLID h.tlid ]
-        | x -> x)
+        |> (fun traces ->
+          match traces with
+          | [] -> [ traceIDofTLID h.tlid ]
+          | x -> x)
     | None ->
       // If the event description isn't complete, add the default trace
       return [ traceIDofTLID h.tlid ]

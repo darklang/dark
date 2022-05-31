@@ -1,6 +1,8 @@
 open Core_kernel
 open Libexecution
+open Types.RuntimeT
 module Db = Libbackend_basics.Db
+module Event_queue = Libbackend_basics.Event_queue
 
 let of_internal_queryable_v0 (str : string) : string =
   let dval = Dval.of_internal_queryable_v0 str in
@@ -264,6 +266,24 @@ let fns : Types.RuntimeT.fn list =
         InProcess (function _, [] -> DFloat Float.nan | args -> Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Test::toChar"]
+    ; infix_names = []
+    ; parameters = [Lib.par "c" TStr]
+    ; return_type = TOption
+    ; description = "Turns a string of length 1 into a character"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+            ( match Unicode_string.characters s with
+            | [c] ->
+                c |> DCharacter |> OptJust |> DOption
+            | _ ->
+                DOption OptNothing )
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Test::infinity"]
     ; infix_names = []
     ; parameters = []
@@ -421,6 +441,114 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::getQueue"]
+    ; infix_names = []
+    ; parameters = [Lib.par "eventname" TStr]
+    ; return_type = TList
+    ; description = "Fetch a queue (test only)"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr eventname] ->
+              Event_queue.testing_get_queue
+                state.canvas_id
+                (Unicode_string.to_string eventname)
+              |> DList
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::raiseException"]
+    ; infix_names = []
+    ; parameters = [Lib.par "message" TStr]
+    ; return_type = TAny
+    ; description = "A function that raises an F# exception"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr message] ->
+              failwith (Unicode_string.to_string message)
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::regexReplace"]
+    ; infix_names = []
+    ; parameters =
+        [ Lib.par "subject" TStr
+        ; Lib.par "pattern" TStr
+        ; Lib.par "replacement" TStr ]
+    ; return_type = TStr
+    ; description = "Replaces regex patterns in a string"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr str; DStr pattern; DStr replacement] ->
+              let regex = Re2.create_exn (Unicode_string.to_string pattern) in
+              let str = Unicode_string.to_string str in
+              Re2.replace_exn regex str ~f:(fun _ ->
+                  Unicode_string.to_string replacement)
+              |> Unicode_string.of_string_exn
+              |> DStr
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::httpResponseHeaders"]
+    ; infix_names = []
+    ; parameters = [Lib.par "response" TResp]
+    ; return_type = TList
+    ; description = "Get headers from a HttpResponse"
+    ; func =
+        InProcess
+          (function
+          | state, [DResp response] ->
+            ( match response with
+            | Redirect _, _ ->
+                DList []
+            | Response (_, headers), _ ->
+                headers
+                |> List.map ~f:(fun (k, v) ->
+                       DList
+                         [ DStr (Unicode_string.of_string_exn k)
+                         ; DStr (Unicode_string.of_string_exn v) ])
+                |> fun l -> DList l )
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::httpResponseStatusCode"]
+    ; infix_names = []
+    ; parameters = [Lib.par "response" TResp]
+    ; return_type = TList
+    ; description = "Get status code from a HttpResponse"
+    ; func =
+        InProcess
+          (function
+          | state, [DResp response] ->
+            ( match response with
+            | Redirect _, _ ->
+                Dval.dint 302
+            | Response (code, _), _ ->
+                Dval.dint code )
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::httpResponseBody"]
+    ; infix_names = []
+    ; parameters = [Lib.par "response" TResp]
+    ; return_type = TList
+    ; description = "Get status code from a HttpResponse"
+    ; func =
+        InProcess
+          (function
+          | state, [DResp response] ->
+            (match response with _, body -> body)
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]
 
 
@@ -469,17 +597,26 @@ type execute_type =
   * (string * Types.RuntimeT.dval) list
   * Types.RuntimeT.DbT.db list
   * Types.RuntimeT.user_fn list
+  * Libbackend.Package_manager.fn list
 [@@deriving of_yojson]
 
 let execute (json : string) : string =
   try
-    let account_id, canvas_id, program, args, dbs, user_fns =
+    let account_id, canvas_id, program, args, dbs, user_fns, package_fns =
       json
       |> Yojson.Safe.from_string
       |> execute_type_of_yojson
       |> Result.ok_or_failwith
     in
-    let exec_state = {exec_state with account_id; canvas_id; dbs; user_fns} in
+    (* convert package_fns from their current format, which is user_fns *)
+    let package_fns =
+      List.map
+        ~f:Libbackend.Package_manager.runtime_fn_of_package_fn
+        package_fns
+    in
+    let exec_state =
+      {exec_state with account_id; canvas_id; dbs; user_fns; package_fns}
+    in
     Ast.execute_ast ~input_vars:args ~state:exec_state program
     |> Types.RuntimeT.dval_to_yojson
     |> Yojson.Safe.to_string
@@ -490,13 +627,21 @@ let execute (json : string) : string =
 
 let benchmark (json : string) : string =
   try
-    let account_id, canvas_id, program, args, dbs, user_fns =
+    let account_id, canvas_id, program, args, dbs, user_fns, package_fns =
       json
       |> Yojson.Safe.from_string
       |> execute_type_of_yojson
       |> Result.ok_or_failwith
     in
-    let exec_state = {exec_state with account_id; canvas_id; dbs; user_fns} in
+    (* convert package_fns from their current format, which is user_fns *)
+    let package_fns =
+      List.map
+        ~f:Libbackend.Package_manager.runtime_fn_of_package_fn
+        package_fns
+    in
+    let exec_state =
+      {exec_state with account_id; canvas_id; dbs; user_fns; package_fns}
+    in
     let startTime = Time.now () |> Time.to_span_since_epoch in
     let dval = Ast.execute_ast ~input_vars:args ~state:exec_state program in
     let endTime = Time.now () |> Time.to_span_since_epoch in

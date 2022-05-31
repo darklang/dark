@@ -63,13 +63,13 @@ let run = () => {
     test("converts string with multiple tags, a link, and a code block", () =>
       expect(
         convert(
-          "Returns an <type Result>.\n It will got to [error rail](https://darklang.github.io/docs/error-handling#error-rail), if it is {{Error <var message>}}",
+          "Returns an <type Result>.\n It will got to [error rail](https://docs.darklang.com/tutorials/handle-error-errorrail), if it is {{Error <var message>}}",
         ),
       ) |> toEqual(list{
         txt("Returns an "),
         tag("type", list{txt("Result")}),
         txt(".\n It will got to "),
-        link("error rail", "https://darklang.github.io/docs/error-handling#error-rail"),
+        link("error rail", "https://docs.darklang.com/tutorials/handle-error-errorrail"),
         txt(", if it is "),
         tag("code", list{txt("Error "), tag("var", list{txt("message")})}),
       })

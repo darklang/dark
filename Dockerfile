@@ -118,6 +118,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-chrome-stable \
       nodejs \
       google-cloud-sdk \
+      google-cloud-sdk-pubsub-emulator \
+      google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
       vim \
       unzip \
@@ -254,6 +256,12 @@ RUN sudo wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
         -O /usr/bin/cloud_sql_proxy \
   && sudo chmod +x /usr/bin/cloud_sql_proxy
 
+# PubSub
+ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
+
+# GKE
+ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
+
 # crcmod for gsutil; this gets us the compiled (faster), not pure Python
 # (slower) crcmod, as described in `gsutil help crcmod`
 #
@@ -274,7 +282,8 @@ RUN sudo pip3 install -U --no-cache-dir -U crcmod \
 ############################
 # Pip packages
 ############################
-RUN sudo pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
+RUN sudo pip3 install --no-cache-dir yq yamllint
+ENV PATH "$PATH:/home/dark/.local/bin"
 
 RUN pip3 install git+https://github.com/pbiggar/watchgod.git@b74cd7ec064ebc7b4263dc532c7c97e046002bef
 # Formatting
@@ -302,7 +311,7 @@ RUN \
 # Kubeconform - for linting k8s files
 ############################
 RUN \
-  VERSION=v0.4.12 \
+  VERSION=v0.4.13 \
   && wget -P tmp_install_folder/ https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-amd64.tar.gz \
   && tar xvf tmp_install_folder/kubeconform-linux-amd64.tar.gz -C  tmp_install_folder \
   && sudo cp tmp_install_folder/kubeconform /usr/bin/ \
@@ -331,7 +340,7 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 # (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src
 
-ENV DOTNET_SDK_VERSION=6.0.100 \
+ENV DOTNET_SDK_VERSION=6.0.300 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
@@ -345,7 +354,7 @@ ENV DOTNET_SDK_VERSION=6.0.100 \
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
 RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
-    && dotnet_sha512='cb0d174a79d6294c302261b645dba6a479da8f7cf6c1fe15ae6998bc09c5e0baec810822f9e0104e84b0efd51fdc0333306cb2a0a6fcdbaf515a8ad8cf1af25b' \
+    && dotnet_sha512='52d720e90cfb889a92d605d64e6d0e90b96209e1bd7eab00dab1d567017d7a5a4ff4adbc55aff4cffcea4b1bf92bb8d351859d00d8eb65059eec5e449886c938' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && sudo mkdir -p /usr/share/dotnet \
     && sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz . \
@@ -355,12 +364,9 @@ RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$
     && dotnet help
 
 RUN sudo dotnet workload install wasm-tools
-RUN dotnet tool install -g dotnet-sos
-# TODO: is this the right directory?
-RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
-RUN dotnet tool install fantomas-tool --version 4.6.3 -g
+RUN dotnet tool install fantomas-tool --version 4.7.9 -g
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
@@ -390,7 +396,6 @@ RUN mkdir -p .esy
 RUN mkdir -p app/node_modules
 RUN mkdir -p app/lib
 RUN mkdir -p app/containers/stroller/target
-RUN mkdir -p app/containers/queue-scheduler/target
 RUN mkdir -p app/fsharp-backend/Build
 RUN mkdir -p .cargo
 

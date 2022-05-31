@@ -18,7 +18,7 @@
   "dependencies": {
     "@fullstory/browser": "^1.4.10",
     "@glennsl/bs-json": "5.0.3",
-    "acorn": ">=8.6.0",
+    "acorn": ">=8.7.1",
     "bs-deriving": "44.2.0",
     "bs-fetch": "0.6.2",
     "bs-uuid": "0.3.1",
@@ -27,11 +27,11 @@
     "clipboard-copy": "4.0.1",
     "domready": "1.0.8",
     "html2canvas": "1.0.0-rc.7",
-    "minimist": ">=1.2.3",
-    "moment": "^2.29.1",
+    "minimist": ">=1.2.6",
+    "moment": "^2.29.3",
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
-    "rollbar": "2.24.0",
+    "rollbar": "2.25.0",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "darklang/tablecloth#49cb938d1bb177a504de40de7d470615452e8d8d",
     "validator": "^13.7.0"

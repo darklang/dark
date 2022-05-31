@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- This library only exists so that we can separate LibBackendStdLib from LibBackend -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
@@ -9,15 +8,15 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
+    <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="HeadersV0.fs" />
     <Compile Include="RequestV0.fs" />
     <Compile Include="ResponseV0.fs" />
-    <Compile Include="MiddlewareV0.fs" />
-    <Compile Include="Init.fs" />
+    <Compile Include="CorsV0.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

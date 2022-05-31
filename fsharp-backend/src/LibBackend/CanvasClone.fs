@@ -5,14 +5,11 @@ module LibBackend.CanvasClone
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open LibBackend.Db
-
 open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module ProgramTypesAst = LibExecution.ProgramTypesAst
 
 let isOpThatCreatesToplevel (op : PT.Op) : bool =
   match op with
@@ -22,10 +19,7 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.CreateDBWithBlankOr _
   | PT.SetType _ -> true
   | PT.DeleteFunction _
-  | PT.DeleteTLForever _
-  | PT.DeleteFunctionForever _
   | PT.DeleteType _
-  | PT.DeleteTypeForever _
   | PT.DeleteTL _
   | PT.DeleteDBCol _
   | PT.RenameDBname _
@@ -35,26 +29,19 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.AddDBCol _
   | PT.SetDBColName _
   | PT.SetDBColType _
-  | PT.CreateDBMigration _
-  | PT.AddDBColToDBMigration _
-  | PT.SetDBColNameInDBMigration _
-  | PT.SetDBColTypeInDBMigration _
-  | PT.AbandonDBMigration _
-  | PT.DeleteColInDBMigration _
   | PT.TLSavepoint _
-  | PT.DeprecatedInitDBm _
   | PT.UndoTL _
   | PT.RedoTL _
   | PT.MoveTL _ -> false
 
 
-// [onlyOpsSinceLastSavepoint ops] When we clone a canvas, we sometimes
-// want to only copy over ops since the last toplevel definition (create) op - this erases
-// history, which is invisible and we don't really know at clone-time what's
-// in there, because we don't have any UI for inspecting history, nor do we
-// store timestamps or edited-by-user for ops ("git blame").
+/// When we clone a canvas, we sometimes
+/// want to only copy over ops since the last toplevel definition (create) op - this erases
+/// history, which is invisible and we don't really know at clone-time what's
+/// in there, because we don't have any UI for inspecting history, nor do we
+/// store timestamps or edited-by-user for ops ("git blame").
 let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
-  let mutable encounteredCreateOp = false in
+  let mutable encounteredCreateOp = false
 
   List.reverse ops
   |> List.takeWhile (fun op ->
@@ -66,12 +53,15 @@ let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
   |> List.reverse
 
 
-// [updateHostsInOp op oldHost newHost] Given an [op], and an
-// [oldHost] and a [newHost], update string literals from
-// the old to the new host. Say your canvas contains a string literal that is
-// (or contains) a url pointing to the [oldHost]
-// ("://oldhost.builtwithdark.com/stuff", or its localhost equivalent), the
-// [op] will be transformed to refer to the [newHost]
+/// <summary>
+/// Update string literals from the old to the new host.
+/// </summary>
+/// <remarks>
+/// Say your canvas contains a string literal that is (or contains)
+/// a url pointing to the `oldHost` ("://oldhost.builtwithdark.com/stuff",
+/// or its localhost equivalent), the `op` will be transformed
+/// to refer to the `newHost`
+/// </remarks>
 let updateHostsInOp
   (oldHost : CanvasName.T)
   (newHost : CanvasName.T)
@@ -86,14 +76,16 @@ let updateHostsInOp
       $"://{string canvas}.{Config.bwdServerContentHost}"
     String.replace (host oldHost) (host newHost) str
   let rec updateHostsInPattern (pattern : PT.Pattern) : PT.Pattern =
-    PT.PatternTraversal.post
-      (function
-      | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
-      | pat -> pat)
+    ProgramTypesAst.patternPostTraversal
+      (fun pat ->
+        match pat with
+        | PT.PString (patternID, str) -> PT.PString(patternID, replaceHost str)
+        | pat -> pat)
       pattern
   Op.astOf op
   |> Option.map (
-    PT.ExprTraversal.pre (function
+    ProgramTypesAst.preTraversal (fun pat ->
+      match pat with
       | PT.EString (id, str) -> PT.EString(id, replaceHost str)
       | PT.EMatch (id, cond, branches) ->
         let newBranches =
@@ -106,13 +98,13 @@ let updateHostsInOp
   |> Option.unwrap op
 
 
-// Given two canvas names, clone TLs from one to the other.
-//   - returns an error if fromCanvas doesn't exist, or if toCanvas does
-//     ("don't clobber an existing canvas")
-//   - optionally removes history - only copies ops since the last TLSavepoint (per TL)
-//   - if there are string literals referring to the old canvas' url, rewrite them to
-//     refer to the new one (see updateHostsInOp)
-//   - runs in a DB transaction, so this should be all-or-nothing
+/// Given two canvas names, clone TLs from one to the other.
+/// - returns an error if fromCanvas doesn't exist, or if toCanvas does
+///   ("don't clobber an existing canvas")
+/// - optionally removes history - only copies ops since the last TLSavepoint (per TL)
+/// - if there are string literals referring to the old canvas' url, rewrite them to
+///   refer to the new one (see updateHostsInOp)
+/// - runs in a DB transaction, so this should be all-or-nothing
 let cloneCanvas
   (fromCanvasName : CanvasName.T)
   (toCanvasName : CanvasName.T)
@@ -126,10 +118,13 @@ let cloneCanvas
   task {
     let! fromMeta = Canvas.getMeta fromCanvasName
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
-    let! fromOps = Canvas.loadOplists Canvas.LiveToplevels fromMeta.id fromTLIDs
+    // CLEANUP this could be substantially simplified once we know that oplist_cache is
+    // non-null.
+    let! fromOps =
+      Serialize.loadOplists Serialize.LiveToplevels fromMeta.id fromTLIDs
     let! fromCanvas = Canvas.loadAll fromMeta
 
-    let! toMeta = Canvas.getMeta toCanvasName
+    let! toMeta = Canvas.getMetaAndCreate toCanvasName
     let! toTLIDs = Serialize.fetchAllTLIDs toMeta.id
     if toTLIDs <> [] then Exception.raiseInternal "destination already exists" []
 
@@ -144,12 +139,12 @@ let cloneCanvas
           (tlid, ops)
         else
           (tlid, onlyOpsSinceLastSavepoint ops))
-      |> List.map (fun (tlid, ops) ->
+      |> List.filterMap (fun (tlid, ops) ->
         let newOps = List.map (updateHostsInOp fromCanvasName toCanvasName) ops
-        let (isDeleted, toplevel) =
-          Canvas.getToplevel tlid fromCanvas
-          |> Exception.unwrapOptionInternal "gettoplevel" [ "tlid", tlid ]
-        (tlid, newOps, toplevel, isDeleted))
+        // Deleted forever handlers won't be present but better safe than sorry
+        match Canvas.getToplevel tlid fromCanvas with
+        | None -> None
+        | Some (isDeleted, toplevel) -> Some(tlid, newOps, toplevel, isDeleted))
 
     do! Canvas.saveTLIDs toMeta toOps
     return ()

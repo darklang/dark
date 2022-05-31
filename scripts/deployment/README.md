@@ -7,6 +7,9 @@ that handles deploying k8s services.
 
 Each service is configured using a `shipit.yaml` file in the subdirectory. The keys of this file are:
 
+- `k8s.namespace`:
+  The kubernetes namespace that this service is in. Other files referred to by shipit should also be in this namespace, and have their namespace set in their files to match.
+
 - `k8s.manually-deployed.configs`:
   pure config files that are manually deployed. The vast majority of config files
   should use this, so that we can watch them go out and check that they actually
@@ -22,20 +25,10 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
   A list of commands to run after other steps are run. Useful for restarting services.
 
 - `k8s.manually-deployed.configmaps`:
-  A list of config maps to deploy
-
-- `k8s.manually-deployed.configmaps.[].name`:
-  The k8s name of the config map
-
-- `k8s.manually-deployed.configmaps.[].from-file`:
-  Deploy the config map from a file
-
-- `k8s.manually-deployed.configmaps.[].from-file.key`:
-  The key for the file, optional, will be derived by k8s otherwise (uses `basename` at
-  time of writing.)
+  A dict of config maps to deploy
 
 - `k8s.manually-deployed.configmaps.CONFIGMAPNAME.text-file`:
-  Text file to use to create/replace a configmap
+  Deploy the config map from a text file
 
 - `k8s.manually-deployed.configmaps.CONFIGMAPNAME.env-file`:
   Env file to use to create/replace a configmap
@@ -53,10 +46,10 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
   the hash of the file) will be created from this. Configmap names are put in the
   template using `{VERSIONED-CONFIGMAP:name}`
 
-- `k8s.release.template`:
-  Template file of a release. During a deploy, the template is filled with vars from
-  `containers` (automatically derived), `builtins`, and `expected-args` (which are
-  filled in from the command line using `--arg`).
+- `k8s.release.config-template`:
+  Template file for a release of this deployment. During a deploy, the template is
+  filled with vars from `containers` (automatically derived), `builtins`, and
+  `expected-args` (which are filled in from the command line using `--arg`).
 
 - `k8s.release.containers`:
   List of containers used in this deployment. The container name must match a
@@ -66,13 +59,13 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
   List of builtins to replace in the template. Currently the only builtin is
   `CLOUDSQL_INSTANCE_NAME`.
 
-- `k8s.deployment.expected-args`:
-  These arguments are expected to be passed on the command line to `deploy deployment apply` using `--arg=`.
+- `k8s.release.expected-args`:
+  These arguments are expected to be passed on the command line to `release push` using `--arg=`.
 
-# Commands (`*` is not implemented yet):
+# Commands:
 
-- `config apply-manually [--dry-run] [single-service]`
-- `config diff [services]`
+- `manual apply [--dry-run=server] [single-service]`
+- `manual diff [services]`
 - `containers build [services] --save-manifest=MANIFEST-FILE.json`
 - `containers pull [services] --save-manifest=MANIFEST-FILE.json`
 - `containers push [services]`
@@ -80,6 +73,8 @@ Each service is configured using a `shipit.yaml` file in the subdirectory. The k
 - `release current-manifest --save-manifest=MANIFEST-FILE.json`
 - `release diff [services]`
 - `release push [--dry-run] [--arg ARG] --manifest MANIFEST-FILE.json [services]`
+- `release prepare [--arg ARG] --manifest MANIFEST-FILE.json [services]`
+- `validate [services]`
 
 # Deploy lock
 

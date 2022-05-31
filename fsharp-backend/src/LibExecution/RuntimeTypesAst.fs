@@ -1,3 +1,4 @@
+/// Module to work with Runtime ASTs
 module LibExecution.RuntimeTypesAst
 
 open System.Threading.Tasks
@@ -8,8 +9,8 @@ open VendoredTablecloth
 open RuntimeTypes
 
 let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
-  let r = preTraversal f in
-  let expr = f expr in
+  let r = preTraversal f
+  let expr = f expr
 
   match expr with
   | EInteger _
@@ -33,13 +34,11 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | ERecord (id, fields) ->
     ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
   | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
-  | EPartial (id, oldExpr) -> EPartial(id, r oldExpr)
   | EFeatureFlag (id, cond, casea, caseb) ->
     EFeatureFlag(id, r cond, r casea, r caseb)
 
-
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
-  let r = postTraversal f in
+  let r = postTraversal f
 
   let result =
     match expr with
@@ -64,7 +63,6 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | ERecord (id, fields) ->
       ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
     | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
-    | EPartial (id, oldExpr) -> EPartial(id, r oldExpr)
     | EFeatureFlag (id, cond, casea, caseb) ->
       EFeatureFlag(id, r cond, r casea, r caseb)
 

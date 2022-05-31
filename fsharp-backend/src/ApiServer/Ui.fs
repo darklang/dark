@@ -23,51 +23,51 @@ module Account = LibBackend.Account
 ///
 /// Handles the replacement of known used variables
 /// such as `{{ENVIRONMENT_NAME}}`
-let adminUiTemplate : Lazy<string> =
-  lazy
-    (let liveReloadStr =
-      "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
+let adminUiTemplate : string =
+  let liveReloadStr =
+    "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
 
-     let liveReloadJs = if Config.browserReloadEnabled then liveReloadStr else ""
-     let uiHtml = File.readfile Config.Templates "ui.html"
-     let appSupport = File.readfile Config.Webroot "appsupport.js"
+  let liveReloadJs = if Config.browserReloadEnabled then liveReloadStr else ""
+  let uiHtml = File.readfile Config.Templates "ui.html"
+  let appSupport = File.readfile Config.Webroot "appsupport.js"
 
-     // Load as much of this as we can in advance
-     // CLEANUP make APIs to load the dynamic data
-     uiHtml
-       .Replace("{{ENVIRONMENT_NAME}}", LibService.Config.envDisplayName)
-       .Replace("{{LIVERELOADJS}}", liveReloadJs)
-       .Replace("{{HEAPIO_ID}}", LibService.Config.heapioId)
-       .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
-       .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
-       .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
-       .Replace("{{APPSUPPORT}}", appSupport)
-       .Replace("{{BUILD_HASH}}", LibService.Config.buildHash))
+  // Load as much of this as we can in advance
+  // CLEANUP make APIs to load the dynamic data
+  uiHtml
+    .Replace("{{ENVIRONMENT_NAME}}", LibService.Config.envDisplayName)
+    .Replace("{{LIVERELOADJS}}", liveReloadJs)
+    .Replace("{{HEAPIO_ID}}", LibService.Config.heapioId)
+    .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
+    .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
+    .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
+    .Replace("{{APPSUPPORT}}", appSupport)
+    .Replace("{{BUILD_HASH}}", LibService.Config.buildHash)
 
 let hashedFilename (filename : string) (hash : string) : string =
-  match filename.Split '.' with
-  | [| name; extension |] -> $"/{name}-{hash}.{extension}"
-  | _ -> Exception.raiseInternal "incorrect hash name" [ "filename", filename ]
+  let parts = filename.Split '.'
+
+  if parts.Length < 2 then
+    Exception.raiseInternal "incorrect hash name" [ "filename", filename ]
+  else
+    let extension = parts[parts.Length - 1]
+    let name = parts[.. (parts.Length - 2)] |> String.concat "."
+    $"/{name}-{hash}.{extension}"
 
 
+let prodHashReplacements : Map<string, string> =
+  "etags.json"
+  |> File.readfile Config.Webroot
+  |> Json.Vanilla.deserialize<Map<string, string>>
+  |> Map.remove "__date"
+  |> Map.remove ".gitkeep"
+  // Only hash our assets, not vendored assets
+  |> Map.filterWithIndex (fun k _ -> not (String.includes "vendor/" k))
+  |> Map.toList
+  |> List.map (fun (filename, hash) -> ($"/{filename}", hashedFilename filename hash))
+  |> Map.ofList
 
-let prodHashReplacements : Lazy<Map<string, string>> =
-  lazy
-    ("etags.json"
-     |> File.readfile Config.Webroot
-     |> Json.Vanilla.deserialize<Map<string, string>>
-     |> Map.remove "__date"
-     |> Map.remove ".gitkeep"
-     // Only hash our assets, not vendored assets
-     |> Map.filterWithIndex (fun k _ ->
-       not (String.includes "vendor/" k || String.includes "blazor/" k))
-     |> Map.toList
-     |> List.map (fun (filename, hash) ->
-       ($"/{filename}", hashedFilename filename hash))
-     |> Map.ofList)
-
-let prodHashReplacementsString : Lazy<string> =
-  lazy (prodHashReplacements.Force() |> Json.Vanilla.serialize)
+let prodHashReplacementsString : string =
+  prodHashReplacements |> Json.Vanilla.serialize
 
 
 // TODO: clickjacking/ CSP/ frame-ancestors
@@ -83,8 +83,7 @@ let uiHtml
   let shouldHash =
     if localhostAssets = None then Config.hashStaticFilenames else false
 
-  let hashReplacements =
-    if shouldHash then prodHashReplacementsString.Force() else "{}"
+  let hashReplacements = if shouldHash then prodHashReplacementsString else "{}"
 
   let accountCreatedMsTs =
     accountCreated.ToUnixTimeMilliseconds()
@@ -99,19 +98,18 @@ let uiHtml
     | _ -> Config.apiServerStaticHost
 
 
-  let t = StringBuilder(adminUiTemplate.Force())
+  let t = StringBuilder(adminUiTemplate)
 
   // Replace any filenames in the response html with the hashed version
   if shouldHash then
     prodHashReplacements
-    |> Lazy.force
     |> Map.iter (fun filename hashed ->
       t.Replace(filename, hashed) |> ignore<StringBuilder>)
 
   // CLEANUP move functions into an API call, or even to the CDN
   // CLEANUP move the user info into an API call
   t
-    .Replace("{{ALLFUNCTIONS}}", (Functions.functions user.admin).Force())
+    .Replace("{{ALLFUNCTIONS}}", Functions.functions user.admin)
     .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
     .Replace("{{USER_USERNAME}}", string user.username)
     .Replace("{{USER_EMAIL}}", user.email)

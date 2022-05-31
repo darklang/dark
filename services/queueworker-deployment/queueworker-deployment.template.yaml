@@ -8,11 +8,11 @@ metadata:
 
 spec:
   revisionHistoryLimit: 10
-  replicas: 2 # FSTODO
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
+      maxUnavailable: 0
 
   selector:
     matchLabels:
@@ -22,6 +22,9 @@ spec:
       labels:
         app: queueworker-app
         dark-executor: "true"
+      annotations:
+        # We use EmptyDir to allow read-only pods, but they need this annotation to scale down
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
       # ---------------------
       # Pod-level security
@@ -65,16 +68,12 @@ spec:
           # ---------------------
           # Resource limits
           # ---------------------
-          # Resource request intentionally less than resource limit, to ensure
-          # this pod is a 'Burstable' pod, ref:
-          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "400Mi"
-              cpu: "100m"
+              memory: "8000Mi"
+              cpu: "3"
             limits:
-              memory: "800Mi"
-              cpu: "200m"
+              memory: "16000Mi"
 
           # ---------------------
           # Lifecycles probes
@@ -114,25 +113,39 @@ spec:
             - configMapRef:
                 name: "{VERSIONED-CONFIGMAP:app-config}"
           env:
-            - name: DARK_CONFIG_RUNNING_IN_GKE
-              value: "true"
             # rollbar
             - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
               valueFrom:
                 secretKeyRef:
                   name: rollbar-account-credentials
                   key: post_token
+            # honeycomb
+            - name: DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: launchdarkly-account-credentials
+                  key: key
             # pusher
+            - name: DARK_CONFIG_PUSHER_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: app_id
             - name: DARK_CONFIG_PUSHER_KEY
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: key
             - name: DARK_CONFIG_PUSHER_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: pusher-account-credentials
+                  name: credentials-pusher
                   key: secret
+            - name: DARK_CONFIG_PUSHER_CLUSTER
+              valueFrom:
+                secretKeyRef:
+                  name: credentials-pusher
+                  key: cluster
             # database (sql server in the same pod)
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1
@@ -152,113 +165,12 @@ spec:
                 secretKeyRef:
                   name: honeycomb-account-credentials
                   key: api-key
-
-
-        #########################
-        # Legacyserver container
-        #########################
-        - name: legacy-ctr
-          image: "gcr.io/balmy-ground-195100/legacyserver:{IMAGEID:legacyserver}"
-          ports:
-            - name: legacy-port
-              containerPort: 5000
-
-          # ---------------------
-          # Security - https://docs.bridgecrew.io/docs
-          # ---------------------
-          imagePullPolicy: Always
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - NET_RAW # https://docs.bridgecrew.io/docs/bc_k8s_27
-            privileged: false
-            # this is expected to run as root. We're getting rid of the container
-            # soon so not worth fixing.
-            runAsNonRoot: false
-            runAsUser: 0
-
-          # ---------------------
-          # Resource limits
-          # ---------------------
-          # Resource limits + requests are intentionally the same, to ensure
-          # this pod is a 'Guaranteed' pod, ref:
-          # https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
-          resources:
-            requests:
-              memory: "100Mi"
-              cpu: "10m"
-            limits:
-              memory: "1000Mi"
-              cpu: "125m"
-
-          # ---------------------
-          # Lifecycle probes
-          # ---------------------
-          lifecycle:
-            preStop:
-              httpGet:
-                # ???? https://github.com/kubernetes/kubernetes/issues/56770
-                path: /k8s/pkill
-                port: legacy-port
-          readinessProbe:
-            httpGet:
-              path: /k8s/readinessProbe
-              port: legacy-port
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /k8s/livenessProbe
-              port: legacy-port
-            # Giving 2 minutes grace here, there's an outstanding k8s issue
-            # preventing you from specifying "start checking liveness after an
-            # ok from readiness", which is what you'd expect.
-            # https://github.com/kubernetes/kubernetes/issues/27114
-            initialDelaySeconds: 120
-            periodSeconds: 10 # every 10 seconds
-            timeoutSeconds: 10 # time out after 10 seconds
-            failureThreshold: 3 # kill container after 3 successive time outs
-
-          # ---------------------
-          # Environment
-          # ---------------------
-          envFrom:
-            - configMapRef:
-                name: "{VERSIONED-CONFIGMAP:app-config}"
-          env:
-            - name: DARK_CONFIG_RUNNING_IN_GKE
-              value: "true"
-            # database - we don't use it, but we need to connect to it
-            - name: DARK_CONFIG_DB_HOST
-              value: 127.0.0.1
-            - name: DARK_CONFIG_DB_USER
+            # PubSub - service account JSON file
+            - name: DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
               valueFrom:
                 secretKeyRef:
-                  name: cloudsql-db-credentials
-                  key: username
-            - name: DARK_CONFIG_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: cloudsql-db-credentials
-                  key: password
-            # rollbar
-            - name: DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM
-              valueFrom:
-                secretKeyRef:
-                  name: rollbar-account-credentials
-                  key: post_token
-            # pusher
-            - name: DARK_CONFIG_PUSHER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: pusher-account-credentials
-                  key: key
-            - name: DARK_CONFIG_PUSHER_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: pusher-account-credentials
-                  key: secret
+                  name: credentials-queue-pubsub
+                  key: key.json
 
 
         #########################
@@ -274,7 +186,7 @@ spec:
             - "/cloud_sql_proxy"
             - "-instances={BUILTIN:CLOUDSQL_INSTANCE_NAME}=tcp:5432"
             - "-credential_file=/secrets/cloudsql/credentials.json"
-            - "-term_timeout=28s" # match termination code
+            - "-term_timeout=30s"
             - "-structured_logs"
             - "-verbose"
             - "-use_http_health_check"
@@ -307,7 +219,6 @@ spec:
               cpu: "125m"
             limits:
               memory: "500Mi"
-              cpu: "125m"
 
           # ---------------------
           # Lifecycle probes
@@ -342,6 +253,7 @@ spec:
             periodSeconds: 1
             timeoutSeconds: 5
             failureThreshold: 20
+
 
       # ---------------------
       # Pod volume definitions

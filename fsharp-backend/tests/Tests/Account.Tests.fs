@@ -57,38 +57,38 @@ let testUsernameValidationWorks =
       "myusername09", Ok "myusername09"
       "paul", Ok "paul" ]
 
-let testCannotCreateBannedUser =
-  let bannedAccount () : Account.Account =
+let testCannotCreateReservedUser =
+  let reservedAccount () : Account.Account =
     { username = UserName.create "admin"
       password = LibBackend.Password.invalid
-      email = $"test+cannot-create-banned@darklang.com"
+      email = $"test+cannot-create-reserved@darklang.com"
       name = "test account" }
   let okAccount (suffix : string) : Account.Account =
-    { username = UserName.create $"notbanned_{suffix}"
+    { username = UserName.create $"notreserved_{suffix}"
       password = LibBackend.Password.invalid
-      email = $"test+notbanned_{suffix}@darklang.com"
+      email = $"test+notreserved_{suffix}@darklang.com"
       name = "test account" }
   testList
-    "bannedUser"
-    [ testTask "upsert banned" {
-        let a = bannedAccount ()
+    "reservedUser"
+    [ testTask "upsert reserved" {
+        let a = reservedAccount ()
         let! upserted = Account.upsertAccount false a
-        Expect.equal upserted (Error "Username is not allowed") "banned"
+        Expect.equal upserted (Error "Username is not allowed") "reserved"
       }
-      testTask "upsert not banned" {
+      testTask "upsert not reserved" {
         let a = okAccount "a"
         let! upserted = Account.upsertAccount false a
-        Expect.equal upserted (Ok()) "not banned"
+        Expect.equal upserted (Ok()) "not reserved"
       }
-      testTask "insert banned" {
-        let a = bannedAccount ()
+      testTask "insert reserved" {
+        let a = reservedAccount ()
         let! inserted = Account.insertUser a.username a.email a.name None
-        Expect.equal inserted (Error "Username is not allowed") "banned"
+        Expect.equal inserted (Error "Username is not allowed") "reserved"
       }
-      testTask "insert not banned" {
+      testTask "insert not reserved" {
         let a = okAccount "b"
         let! inserted = Account.insertUser a.username a.email a.name None
-        Expect.equal inserted (Ok()) "not banned"
+        Expect.equal inserted (Ok()) "not reserved"
       } ]
 
 
@@ -98,4 +98,4 @@ let tests =
     [ testEmailValidationWorks
       testUsernameValidationWorks
       testAuthentication
-      testCannotCreateBannedUser ]
+      testCannotCreateReservedUser ]

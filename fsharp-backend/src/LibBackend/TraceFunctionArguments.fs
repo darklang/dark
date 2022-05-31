@@ -13,11 +13,13 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // -------------------------
-// External *)
+// External
 // -------------------------
+
+type FunctionArgumentStore = tlid * RT.DvalMap * NodaTime.Instant
 
 let store
   (canvasID : CanvasID)
@@ -37,9 +39,41 @@ let store
                         "tlid", Sql.tlid tlid
                         ("args",
                          Sql.string (
-                           DvalReprInternal.toInternalRoundtrippableV0 (RT.DObj args)
+                           DvalReprInternalDeprecated.toInternalRoundtrippableV0 (
+                             RT.DObj args
+                           )
                          )) ]
     |> Sql.executeStatementAsync
+
+let storeMany
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (functionArguments : ResizeArray<FunctionArgumentStore>)
+  : Task<unit> =
+  if canvasID = TraceInputs.throttled then
+    Task.FromResult()
+  else
+    let transactionData =
+      functionArguments
+      |> ResizeArray.map (fun (tlid, args, timestamp) ->
+        [ "canvasID", Sql.uuid canvasID
+          "traceID", Sql.uuid traceID
+          "tlid", Sql.tlid tlid
+          "timestamp", Sql.instantWithTimeZone timestamp
+          ("args",
+           Sql.string (
+             DvalReprInternalDeprecated.toInternalRoundtrippableV0 (RT.DObj args)
+           )) ])
+      |> ResizeArray.toList
+
+    LibService.DBConnection.connect ()
+    |> Sql.executeTransactionAsync [ ("INSERT INTO function_arguments
+             (canvas_id, trace_id, tlid, timestamp, arguments_json)
+           VALUES
+             (@canvasID, @traceID, @tlid, @timestamp, @args)",
+                                      transactionData) ]
+    |> Task.map ignore<List<int>>
+
 
 
 let loadForAnalysis
@@ -47,29 +81,37 @@ let loadForAnalysis
   (traceID : AT.TraceID)
   (tlid : tlid)
   : Task<Option<AT.InputVars * NodaTime.Instant>> =
-  // We need to alias the subquery (here aliased as `q`) because Postgres
-  // requires inner SELECTs to be aliased.
-  Sql.query
-    "SELECT arguments_json, timestamp FROM (
-       SELECT DISTINCT ON (trace_id) trace_id, timestamp, arguments_json
-       FROM function_arguments
-       WHERE canvas_id = @canvasID
-         AND tlid = @tlid
-         AND trace_id = @traceID
-       ORDER BY trace_id, timestamp DESC
-     ) AS q
-     ORDER BY timestamp DESC
-     LIMIT 1"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "tlid", Sql.id tlid
-                      "traceID", Sql.uuid traceID ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    (read.string "arguments_json"
-     |> DvalReprInternal.ofInternalRoundtrippableV0
-     |> fun dv ->
-          RT.Dval.toPairs dv |> Exception.unwrapResultInternal [ "dval", dv ],
-          read.instant "timestamp"))
-
+  task {
+    // We need to alias the subquery (here aliased as `q`) because Postgres
+    // requires inner SELECTs to be aliased.
+    let! result =
+      Sql.query
+        "SELECT arguments_json, timestamp FROM (
+                        SELECT DISTINCT ON (trace_id) trace_id, timestamp, arguments_json
+                        FROM function_arguments
+                        WHERE canvas_id = @canvasID
+                          AND tlid = @tlid
+                          AND trace_id = @traceID
+                        ORDER BY trace_id, timestamp DESC
+                      ) AS q
+                      ORDER BY timestamp DESC
+                      LIMIT 1"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "tlid", Sql.id tlid
+                          "traceID", Sql.uuid traceID ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.string "arguments_json", read.instant "timestamp"))
+    match result with
+    | None -> return None
+    | Some (arguments_json, timestamp) ->
+      let arguments =
+        DvalReprInternalDeprecated.ofInternalRoundtrippableV0 arguments_json
+      let arguments =
+        arguments
+        |> RT.Dval.toPairs
+        |> Exception.unwrapResultInternal [ "dval", arguments ]
+      return Some(arguments, timestamp)
+  }
 
 let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =
   // We need to alias the subquery (here aliased as `q`) because Postgres

@@ -15,7 +15,7 @@ let generateCRUDContent: Tooltips.tooltipContent = {
   }),
   action: Some(
     "Getting Started tutorial",
-    ToolTipMsg(OpenLink("https://darklang.github.io/docs/your-first")),
+    ToolTipMsg(OpenLink("https://docs.darklang.com/tutorials/first-dark-application")),
   ),
   align: Left,
   tipAlignment: "align-left",

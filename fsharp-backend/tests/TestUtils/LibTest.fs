@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr errorString ] ->
-          let msg = LibExecution.Errors.queryCompilerErrorTemplate + errorString
+          let msg = LibBackend.SqlCompiler.errorTemplate + errorString
           Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> fun l -> l[0] |> DChar |> Some |> DOption |> Ply
+            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Some |> DOption |> Ply)
           else
             Ply(DOption None)
         | _ -> incorrectArgs ())
@@ -214,5 +214,117 @@ let fns : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "getQueue" 0
+      parameters = [ Param.make "eventName" TStr "" ]
+      returnType = TList TStr
+      description = "Fetch a queue (test only)"
+      fn =
+        (function
+        | state, [ DStr eventName ] ->
+          uply {
+            let canvasID = state.program.canvasID
+            let! results =
+              LibBackend.EventQueueV2.Test.loadEvents
+                canvasID
+                ("WORKER", eventName, "_")
+            return DList results
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "raiseException" 0
+      parameters = [ Param.make "message" TStr "" ]
+      returnType = TVariable "a"
+      description = "A function that raises an F# exception"
+      fn =
+        (function
+        | _, [ DStr message ] -> raise (System.Exception(message))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "intArrayToBytes" 0
+      parameters = [ Param.make "bytes" (TList TInt) "" ]
+      returnType = TBytes
+      description = "Create a bytes structure from an array of ints"
+      fn =
+        (function
+        | _, [ DList bytes ] ->
+          bytes
+          |> List.toArray
+          |> Array.map (fun dval ->
+            match dval with
+            | DInt i -> byte i
+            | other -> Exception.raiseCode "Expected int" [ "actual", other ])
+          |> DBytes
+          |> Ply
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "regexReplace" 0
+      parameters =
+        [ Param.make "subject" TStr ""
+          Param.make "pattern" TStr ""
+          Param.make "replacement" TStr "" ]
+      returnType = TStr
+      description = "Replaces regex patterns in a string"
+      fn =
+        (function
+        | _, [ DStr str; DStr pattern; DStr replacement ] ->
+          FsRegEx.replace pattern replacement str |> DStr |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "httpResponseStatusCode" 0
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
+      returnType = TInt
+      description = "Get the status code from a HttpResponse"
+      fn =
+        (function
+        | _, [ DHttpResponse response ] ->
+          match response with
+          | Redirect _ -> DInt 302 |> Ply
+          | Response (code, _, _) -> DInt code |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "httpResponseHeaders" 0
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
+      // CLEANUP make this is a list of string*string tuples
+      returnType = TList(TList TStr)
+      description = "Get headers from a HttpResponse"
+      fn =
+        (function
+        | _, [ DHttpResponse response ] ->
+          match response with
+          | Redirect _ -> Ply(DList [])
+          | Response (_, headers, _) ->
+            headers
+            |> List.map (fun (k, v) -> DList [ DStr k; DStr v ])
+            |> DList
+            |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "httpResponseBody" 0
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
+      returnType = varA
+      description = "Get the body from a HttpResponse"
+      fn =
+        (function
+        | _, [ DHttpResponse response ] ->
+          match response with
+          | Redirect _ -> DStr "" |> Ply
+          | Response (_, _, body) -> body |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]

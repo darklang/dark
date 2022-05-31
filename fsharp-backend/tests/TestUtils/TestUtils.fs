@@ -18,12 +18,15 @@ module PT = LibExecution.ProgramTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
-module S = LibExecution.Shortcuts
+module S = RTShortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
+  lazy
+    (UserName.create "test"
+     |> Account.getUser
+     |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
 
-// delete test data for one canvas
+/// Delete test data (in DB) for one canvas
 let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
   task {
     let! canvasID = Canvas.canvasIDForCanvasName owner name
@@ -32,112 +35,113 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let customDomains =
       Sql.query "DELETE FROM custom_domains where canvas = @name"
       |> Sql.parameters [ "name", Sql.string (string name) ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let events =
       Sql.query "DELETE FROM events where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
+
+    let eventsV2 =
+      Sql.query "DELETE FROM events_v2 where canvas_id = @id::uuid"
+      |> Sql.parameters [ "id", Sql.uuid canvasID ]
+      |> Sql.executeStatementAsync
 
     let functionArguments =
       Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let functionResultsV3 =
       Sql.query "DELETE FROM function_results_v3 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let schedulingRules =
       Sql.query "DELETE FROM scheduling_rules where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let secrets =
       Sql.query "DELETE FROM secrets where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let staticAssetDeploys =
       Sql.query "DELETE FROM static_asset_deploys where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
-
 
     let storedEventsV2 =
       Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let toplevelOplists =
       Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
     let userData =
       Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
-      :> Task
 
-    do!
-      Task.WhenAll [| cronRecords
-                      customDomains
-                      events
-                      functionArguments
-                      functionResultsV3
-                      schedulingRules
-                      secrets
-                      staticAssetDeploys
-                      storedEventsV2
-                      toplevelOplists
-                      userData |]
+    let! (_ : List<unit>) =
+      Task.flatten [ cronRecords
+                     customDomains
+                     events
+                     eventsV2
+                     functionArguments
+                     functionResultsV3
+                     schedulingRules
+                     secrets
+                     staticAssetDeploys
+                     storedEventsV2
+                     toplevelOplists
+                     userData ]
 
     return ()
   }
 
-let nameToTestName (name : string) : string =
-  // We want to avoid tests sharing the same canvas, so they can be parallelized, so
-  // generate something that's roughly what's provided, that fits in a canvas name,
-  // and that's random. Tests are expected to use the canvasName returned, not the
-  // one they provide.
-  let name =
-    name
-    |> String.toLowercase
-    // replace invalid chars with a single hyphen
-    |> FsRegEx.replace "[^-a-z0-9]+" "-"
-    |> FsRegEx.replace "[-_]+" "-"
-    |> String.take 50
-  let suffix = randomString 5 |> String.toLowercase
-  $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
+type TestCanvasName =
+  /// Use exactly this canvas name for the test. This is needed to test some features
+  /// which use the canvas name within them, such as static assets.
+  | Exact of string
+  /// Randomized test name using the provided base. This allows tests to avoid
+  /// sharing the same canvas so they can be parallelized, etc
+  | Randomized of string
+
+let nameToTestName (name : TestCanvasName) : string =
+  match name with
+  | Exact name -> name
+  | Randomized name ->
+    let name =
+      name
+      |> String.toLowercase
+      // replace invalid chars with a single hyphen
+      |> FsRegEx.replace "[^-a-z0-9]+" "-"
+      |> FsRegEx.replace "[-_]+" "-"
+      |> String.take 50
+    let suffix = randomString 5 |> String.toLowercase
+    $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
 
 let initializeCanvasForOwner
   (owner : Account.UserInfo)
-  (name : string)
+  (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.create (nameToTestName name)
+    let canvasName = CanvasName.createExn (nameToTestName name)
     do! clearCanvasData owner.id canvasName
     let! id = Canvas.canvasIDForCanvasName owner.id canvasName
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
+let initializeTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! initializeCanvasForOwner owner name
@@ -147,21 +151,21 @@ let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
 // Same as initializeTestCanvas, for tests that don't need to hit the DB
 let createCanvasForOwner
   (owner : Account.UserInfo)
-  (name : string)
+  (name : TestCanvasName)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.create (nameToTestName name)
+    let canvasName = CanvasName.createExn (nameToTestName name)
     let id = System.Guid.NewGuid()
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let createTestCanvas (name : string) : Task<Canvas.Meta> =
+let createTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! createCanvasForOwner owner name
   }
 
-let testPos = { x = 0; y = 0 }
+let testPos : PT.Position = { x = 0; y = 0 }
 
 let testHttpRouteHandler
   (route : string)
@@ -237,9 +241,9 @@ let testUserType
 
 
 
-let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
-let testDBCol (name : string) (typ : Option<PT.DType>) : PT.DB.Col =
+let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
 
 let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
@@ -250,12 +254,15 @@ let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
     cols = cols
     version = 0 }
 
+/// Library function to be usable within tests.
+/// Includes normal StdLib fns, as well as test-specific fns.
+/// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<RT.Libraries> =
   lazy
     (let testFns =
       LibTest.fns
       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-      |> Map.mergeFavoringLeft (Lazy.force LibRealExecution.RealExecution.stdlibFns)
+      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
      { stdlib = testFns; packageFns = Map.empty })
 
 let executionStateFor
@@ -264,8 +271,6 @@ let executionStateFor
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let executionID = ExecutionID(string meta.name)
-
     let program : RT.ProgramContext =
       { canvasID = meta.id
         canvasName = meta.name
@@ -278,24 +283,27 @@ let executionStateFor
     let testContext : RT.TestContext =
       { sideEffectCount = 0
         exceptionReports = []
+        expectedExceptionCount = 0
         postTestExecutionHook =
           fun tc result ->
-            // In an effort to find error in the test suite, we track exceptions that
-            // we report in the runtime and check for them after the test completes.
-            // Because there are some places where exceptions are allowed, a rule of
-            // thumb is that if the result is a DError, the exception was reported to
-            // the user as an error, and that's probably what the test was for.
-            // This isn't a perfect rule and we may need to do better, but it seems
-            // to work for now
-            let errorsExpected = RT.Dval.isDError result
-            if tc.exceptionReports.Length > 0 && not errorsExpected then
-              print $"UNEXPECTED EXCEPTION in {meta.name}"
+            // In an effort to find errors in the test suite, we track exceptions
+            // that we report in the runtime and check for them after the test
+            // completes.  There are a lot of places where exceptions are allowed,
+            // possibly too many to annotate, so we assume that errors are intended
+            // to be reported anytime the result is a DError.
+            let exceptionCountMatches =
+              tc.exceptionReports.Length = tc.expectedExceptionCount
+
+            if not exceptionCountMatches then
               List.iter
-                (fun (executionID, msg, stackTrace, metadata) ->
+                (fun (msg, stackTrace, metadata) ->
                   print
-                    $"An error was reported in the runtime ({executionID}):  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
+                    $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
-              Exception.raiseInternal $"UNEXPECTED EXCEPTION in test {meta.name}" [] }
+              Exception.raiseInternal
+                $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
+                [ "expectedExceptionCount", tc.expectedExceptionCount
+                  "actualExceptionCount", tc.exceptionReports.Length ] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
@@ -306,19 +314,17 @@ let executionStateFor
         let stackTrace = exn.StackTrace
         let metadata = Exception.toMetadata exn @ metadata
         let inner = exn.InnerException
-        if inner <> null then (exceptionReporter state metadata inner) else ()
-        testContext.exceptionReports <-
-          (executionID, message, stackTrace, metadata)
-          :: testContext.exceptionReports
+        if not (isNull inner) then (exceptionReporter state [] inner) else ()
+        state.test.exceptionReports <-
+          (message, stackTrace, metadata) :: state.test.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
-    let notifier : RT.Notifier = fun executionID msg tags -> ()
+    let notifier : RT.Notifier = fun state msg tags -> ()
 
     let state =
       Exe.createState
-        executionID
         (Lazy.force libraries)
         (Exe.noTracing RT.Real)
         exceptionReporter
@@ -329,17 +335,17 @@ let executionStateFor
     return state
   }
 
-// saves and reloads the canvas for the Toplevvel
-let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel>) : Task<Canvas.T> =
+/// Saves and reloads the canvas for the Toplevels
+let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
   task {
     let descs =
       tls
       |> List.map (fun tl ->
-        let tlid = tl.toTLID ()
+        let tlid = PT.Toplevel.toTLID tl
 
         let op =
           match tl with
-          | PT.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
+          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
           | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
 
         (tlid, [ op ], tl, Canvas.NotDeleted))
@@ -447,6 +453,12 @@ let rec debugDval (v : Dval) : string =
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DObj {{\n  {contents}}}"
+  | DBytes b ->
+    b
+    |> Array.toList
+    |> List.map string
+    |> String.concat ", "
+    |> fun s -> $"[|{s}|]"
 
   | _ -> v.ToString()
 
@@ -612,7 +624,6 @@ module Expect =
     | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       check path s s'
       eqList (s :: path) ts ts'
-    | EPartial (_, e), EPartial (_, e') -> eq ("partial" :: path) e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
@@ -644,7 +655,6 @@ module Expect =
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
-    | EPartial _, _
     | ELambda _, _
     | EMatch _, _ -> check path actual expected
 
@@ -729,7 +739,6 @@ module Expect =
     | DErrorRail _, _
     | DOption _, _
     | DStr _, _
-    // All others can be directly compared
     | DInt _, _
     | DDate _, _
     | DBool _, _
@@ -768,12 +777,19 @@ module Expect =
     exprEqualityBaseFn false [] actual expected (fun path a e ->
       Expect.equal a e (pathToString path))
 
-let dvalEquality (left : Dval) (right : Dval) : bool =
-  let success = ref true
-  Expect.dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
-  success.Value
+  let dvalEquality (left : Dval) (right : Dval) : bool =
+    let success = ref true
+    dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
+    success.Value
 
-let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
+  let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
+    dvalEquality (DObj m1) (DObj m2)
+
+  // Raises a test exception if the two strings do not parse to identical JSON
+  let equalsJson (str1 : string) (str2 : string) : unit =
+    let parsed1 = Newtonsoft.Json.Linq.JToken.Parse str1
+    let parsed2 = Newtonsoft.Json.Linq.JToken.Parse str2
+    Expect.equal parsed1 parsed2 "jsons are equal"
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
@@ -810,8 +826,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   state
 
 let containsPassword (dv : Dval) : bool =
-  let isPassword =
-    function
+  let isPassword dval =
+    match dval with
     | RT.DPassword _ -> true
     | _ -> false
   dv |> visitDval isPassword |> List.any Fun.identity
@@ -926,6 +942,14 @@ let interestingDvals =
      DFnVal(
        Lambda
          { body = RT.EBlank(id 1234)
+           symtable = Map.empty
+           parameters = [ (id 5678, "a") ] }
+     ))
+    ("block with pipe",
+     DFnVal(
+       Lambda
+         { body =
+             FSharpToExpr.parseRTExpr "5 |> (+) 6 |> (+) 7 |> (+) 8 |> List.push 6"
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))

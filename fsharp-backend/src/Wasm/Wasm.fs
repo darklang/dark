@@ -1,3 +1,4 @@
+/// Handles requests for evaluating expressions
 namespace Wasm
 
 open System.Threading.Tasks
@@ -9,11 +10,14 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
-module DvalReprInternal = LibExecution.DvalReprInternal
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
+/// Used to map from F# types to the OCaml types that the Client expects
 module ClientInterop =
   // -----------------------
   // DB types
@@ -45,7 +49,7 @@ module ClientInterop =
     | OT.Partial (id, str) -> (name, OT.Partial(id, str))
     | OT.Filled (id, tipe) ->
       let typ =
-        PT.DType.parse tipe
+        PTParser.DType.parse tipe
         |> Exception.unwrapOptionInternal "cannot parse col" [ "type", tipe ]
         |> OT.Convert.pt2ocamlTipe
       (name, (OT.Filled(id, typ)))
@@ -98,7 +102,7 @@ module ClientInterop =
     { handler : ORT.fluidExpr ORT.HandlerT.handler
       trace_id : AT.TraceID
       trace_data : TraceData
-      (* dont use a trace as this isn't optional *)
+      // don't use a trace as this isn't optional
       dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
       user_tipes : ORT.user_tipe list
@@ -108,21 +112,24 @@ module ClientInterop =
     { func : ORT.fluidExpr ORT.user_fn
       trace_id : AT.TraceID
       trace_data : TraceData
-      (* dont use a trace as this isn't optional *)
+      // don't use a trace as this isn't optional
       dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
       user_tipes : ORT.user_tipe list
       secrets : OT.secret list }
 
   type performAnalysisParams =
-    | AnalyzeHandler of handler_analysis_param // called performHandlerAnalysisParam in the client
-    | AnalyzeFunction of function_analysis_param // called performHandlerFunctionParam in the client
+    /// This is called `performHandlerAnalysisParam` in the client
+    | AnalyzeHandler of handler_analysis_param
+
+    /// This is called `performHandlerFunctionParam` in the client
+    | AnalyzeFunction of function_analysis_param
 
   type ExecutionResult =
     | ExecutedResult of ORT.dval
     | NonExecutedResult of ORT.dval
 
-  // Dictionarys are mutable
+  // Dictionaries are mutable
   type AnalysisResults = System.Collections.Generic.Dictionary<id, ExecutionResult>
 
   type AnalysisEnvelope = AT.TraceID * AnalysisResults
@@ -135,20 +142,23 @@ module Eval =
     (args : List<RT.Dval>)
     : Option<RT.Dval * NodaTime.Instant> =
     let hashes =
-      DvalReprInternal.supportedHashVersions
-      |> List.map (fun key -> (key, DvalReprInternal.hash key args))
+      DvalReprInternalDeprecated.supportedHashVersions
+      |> List.map (fun key -> (key, DvalReprInternalDeprecated.hash key args))
       |> Map
 
     results
     |> List.filterMap (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
-      if string fnName = rFnName
+      if RT.FQFnName.toString fnName = rFnName
          && callerID = rCallerID
-         && hash = ((Map.tryFind hashVersion hashes) |> Option.unwrapUnsafe) then
+         && hash = (Map.get hashVersion hashes
+                    |> Exception.unwrapOptionInternal
+                         "Could not find hash"
+                         [ "hashVersion", hashVersion; "hashes", hashes ]) then
         Some dval
       else
         None)
     |> List.head
-    (* We don't use the time, so just hack it to get the interface right. *)
+    // We don't use the time, so just hack it to get the interface right.
     |> Option.map (fun dv -> (dv, NodaTime.Instant.now ()))
 
 
@@ -166,30 +176,29 @@ module Eval =
       let program : RT.ProgramContext =
         { accountID = System.Guid.NewGuid()
           canvasID = System.Guid.NewGuid()
-          canvasName = CanvasName.create "todo"
+          canvasName = CanvasName.createExn "todo"
           userFns =
             userFns
             |> List.map OT.Convert.ocamlUserFunction2PT
-            |> List.map PT.UserFunction.toRuntimeType
+            |> List.map PT2RT.UserFunction.toRT
             |> List.map (fun fn -> fn.name, fn)
             |> Map
           userTypes =
             userTypes
             |> List.map OT.Convert.ocamlUserType2PT
-            |> List.map PT.UserType.toRuntimeType
+            |> List.map PT2RT.UserType.toRT
             |> List.map (fun t -> (t.name, t.version), t)
             |> Map
           dbs =
             dbs
             |> List.map (OT.Convert.ocamlDB2PT { x = 0; y = 0 })
-            |> List.map PT.DB.toRuntimeType
+            |> List.map PT2RT.DB.toRT
             |> List.map (fun t -> t.name, t)
             |> Map
           secrets = [] }
 
       let stdlib =
         LibExecutionStdLib.StdLib.fns
-        |> Lazy.force
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       // TODO: get packages from caller
@@ -202,10 +211,8 @@ module Eval =
             traceDval = traceDvalFn
             loadFnResult = loadFromTrace functionResults }
 
-      let executionID = ExecutionID "analysis"
       let state =
         Exe.createState
-          executionID
           libraries
           tracing
           RT.consoleReporter
@@ -213,10 +220,9 @@ module Eval =
           tlid
           program
 
-      let ast = (expr |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
+      let ast = expr |> OT.Convert.ocamlExpr2PT |> PT2RT.Expr.toRT
       let inputVars = Map traceData.input
       let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
-
 
       let ocamlResults =
         dvalResults
@@ -256,8 +262,6 @@ module Eval =
         (List.map ClientInterop.convert_db af.dbs)
         af.func.ast
 
-
-
 open System
 open System.Reflection
 
@@ -265,69 +269,88 @@ open System.Reflection
 
 type GetGlobalObjectDelegate = delegate of string -> obj
 
-// This is F# equivalant of the C# delegate:
-// public delegate object InvokeDelegate(string m, params object[] ps);
 type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
 
+/// Responsible for interacting with the JS world
+///
+/// Exposes fns to be called to evaluate expressions,
+/// and results back to JS
 type EvalWorker =
-  // Create a delegate with which to call self.postMessage
-  static member getPostMessageDelegate() : InvokeDelegate =
-    let assemblyName = "System.Private.Runtime.InteropServices.JavaScript"
-    let typeName = "System.Runtime.InteropServices.JavaScript.Runtime"
+  static member GetGlobalObject(_globalObjectName : string) : unit = ()
 
-    // Get the `self` object from the webworker.
-    let sourceAssembly : Assembly = Assembly.Load(assemblyName)
-    let typ = sourceAssembly.GetType(typeName)
+  static member selfDelegate =
+    let typ =
+      let sourceAssembly : Assembly =
+        Assembly.Load "System.Private.Runtime.InteropServices.JavaScript"
+      sourceAssembly.GetType "System.Runtime.InteropServices.JavaScript.Runtime"
+
     // I do not have any clue what this does
     let method = typ.GetMethod(nameof (EvalWorker.GetGlobalObject))
     let delegate_ = method.CreateDelegate<GetGlobalObjectDelegate>()
     let target = delegate_.Invoke("self")
 
-    // Get a `postMessage` method from the `self` object
     let typ = target.GetType()
     let invokeMethod = typ.GetMethod("Invoke")
 
     System.Delegate.CreateDelegate(typeof<InvokeDelegate>, target, invokeMethod)
     :?> InvokeDelegate
 
-  static member GetGlobalObject(globalObjectName : string) : unit = ()
-
-  static member postMessageDelegate = EvalWorker.getPostMessageDelegate ()
-
+  /// Call `self.postMessage` in JS land
+  ///
+  /// Used in order to send the results of an expression back to the JS host
   static member postMessage(message : string) : unit =
-    let (_ : obj) = EvalWorker.postMessageDelegate.Invoke("postMessage", message)
+    let (_ : obj) = EvalWorker.selfDelegate.Invoke("postMessage", message)
     ()
 
-
-  // receive messages from the BlazorWorker.js
-  member this.OnMessage(message : string) =
+  /// Receive request from JS host to be evaluated
+  ///
+  /// Once evaluated, an async call to `self.postMessage` will be made
+  static member OnMessage(message : string) =
     task {
       let args =
         try
-          Ok(
-            Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams>
-              message
-          )
+          Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> message)
         with
         | e ->
+          let metadata = Exception.nestedMetadata e
           System.Console.WriteLine("Error parsing analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
-          System.Console.WriteLine($"caught exception: \"{e.Message}\"")
-          Error(e.Message)
+          System.Console.WriteLine(
+            $"caught exception: \"{e.Message}\" \"{metadata}\""
+          )
+          Error($"exception: {e.Message}, metdata: {metadata}")
 
-      match args with
-      | Error e -> return Error e
-      | Ok args ->
+      let! result =
+        task {
+          match args with
+          | Error e -> return Error e
+          | Ok args ->
+            try
+              let! result = Eval.performAnalysis args
+              return Ok result
+            with
+            | e ->
+              let metadata = Exception.nestedMetadata e
+              System.Console.WriteLine("Error running analysis in Blazor")
+              System.Console.WriteLine($"called with message: {message}")
+              System.Console.WriteLine(
+                $"caught exception: \"{e.Message}\" \"{metadata}\""
+              )
+              return Error($"exception: {e.Message}, metadata: {metadata}")
+        }
+
+      let serialized =
         try
-          let! result = Eval.performAnalysis args
-          return Ok result
+          Json.Vanilla.serialize result
         with
         | e ->
-          System.Console.WriteLine("Error running analysis in Blazor")
+          let metadata = Exception.nestedMetadata e
+          System.Console.WriteLine("Error serializing results of Blazor analysis")
           System.Console.WriteLine($"called with message: {message}")
-          System.Console.WriteLine($"caught exception: \"{e.Message}\"")
-          return Error(e.Message)
+          System.Console.WriteLine(
+            $"caught exception: \"{e.Message}\" \"{metadata}\""
+          )
+          Json.Vanilla.serialize ($"exception: {e.Message}, metadata: {metadata}")
+
+      EvalWorker.postMessage serialized
     }
-    |> Task.map Json.OCamlCompatible.serialize
-    |> Task.map EvalWorker.postMessage
-    |> ignore<Task<unit>>

@@ -6,3 +6,4 @@ Newtonsoft.Json
 Faithlife.Utility
 FSharp.SystemTextJson
 NodaTime
+NodaTime.Serialization.SystemTextJson

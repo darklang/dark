@@ -15,6 +15,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type DBStat = { count : int; example : Option<RT.Dval * string> }
 
@@ -29,7 +30,7 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
     Map.get tlid c.dbs |> Option.map (fun db -> (tlid, db)))
   |> List.map (fun (tlid, db) ->
     task {
-      let db = PT.DB.toRuntimeType db
+      let db = PT2RT.DB.toRT db
       // CLEANUP this is a lot of reqs
       let! count = UserDB.statsCount canvasID ownerID db
       let! example = UserDB.statsPluck canvasID ownerID db
@@ -39,7 +40,7 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
   |> Task.map Map.ofList
 
 
-let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
+let workerV1Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
   Sql.query
     "SELECT COUNT(1) AS num
      FROM events E
@@ -52,3 +53,23 @@ let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
        AND E.status IN ('new', 'scheduled')"
   |> Sql.parameters [ "tlid", Sql.tlid tlid; "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.int "num")
+
+let workerV2Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
+  Sql.query
+    "SELECT COUNT(1) AS num
+     FROM events_v2 E
+     INNER JOIN toplevel_oplists TL
+        ON TL.canvas_id = E.canvas_id
+       AND TL.module = E.module
+       AND TL.name = E.name
+     WHERE TL.tlid = @tlid
+       AND TL.canvas_id = @canvasID"
+  |> Sql.parameters [ "tlid", Sql.tlid tlid; "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeRowAsync (fun read -> read.int "num")
+
+let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
+  task {
+    let! v1Stats = workerV1Stats canvasID tlid
+    let! v2Stats = workerV2Stats canvasID tlid
+    return v1Stats + v2Stats
+  }

@@ -7,16 +7,18 @@ open Expecto
 
 open Prelude
 open Tablecloth
-open TestUtils.TestUtils
 
+open TestUtils.TestUtils
 open LibExecution.RuntimeTypes
-open LibExecution.Shortcuts
+open TestUtils.RTShortcuts
 
 module Exe = LibExecution.Execution
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
@@ -28,15 +30,14 @@ let executionStateForPreview
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
-    let! meta = createTestCanvas name
+    let! meta = createTestCanvas (Randomized name)
     let! state = executionStateFor meta dbs fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
-      Exe.updateTracing
-        (fun t -> { t with traceDval = traceFn; realOrPreview = Preview })
-        state
-
+      { state with
+          tracing =
+            { state.tracing with traceDval = traceFn; realOrPreview = Preview } }
     return (results, state)
   }
 
@@ -60,21 +61,20 @@ let execSaveDvals
 
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
-    let! meta = initializeTestCanvas "exec-function-tlids"
+    let! meta = initializeTestCanvas (Randomized "exec-function-tlids")
     let name = "testFunction"
-    let fn =
-      testUserFn name [] (PT.EInteger(gid (), 5)) |> PT.UserFunction.toRuntimeType
+    let fn = testUserFn name [] (PT.EInteger(gid (), 5)) |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor meta Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
     let state =
-      Exe.updateTracing
-        (fun t -> { t with traceTLID = traceFn; realOrPreview = Preview })
-        state
+      { state with
+          tracing =
+            { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
-    let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
+    let! value = Exe.executeFunction state (gid ()) (FQFnName.User name) []
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"
@@ -83,8 +83,8 @@ let testExecFunctionTLIDs : Test =
 
 let testErrorRailUsedInAnalysis : Test =
   testTask
-    "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
-    let! meta = createTestCanvas "testErrorRailsUsedInAnalysis"
+    "When a function isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
+    let! meta = createTestCanvas (Randomized "testErrorRailsUsedInAnalysis")
     let! state = executionStateFor meta Map.empty Map.empty
 
     let loadTraceResults _ _ =
@@ -151,30 +151,36 @@ let testListLiterals : Test =
 
 
 let testRecursionInEditor : Test =
-  testTask "results in recursion" {
+  testTask "execution avoids recursion in editor" {
     let callerID = gid ()
     let skippedCallerID = gid ()
 
     let fnExpr =
-      (PT.EIf(
+      PT.EIf(
         gid (),
-        (PT.EFnCall(
+
+        // condition
+        PT.EFnCall(
           gid (),
-          FQFnName.stdlibFqName "" "<" 0,
+          PTParser.FQFnName.stdlibFqName "" "<" 0,
           [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
           PT.NoRail
-        )),
-        (PT.EInteger(gid (), 0)),
-        // infinite recursion
-        (PT.EFnCall(
+        ),
+
+        // 'then' expression
+        PT.EInteger(gid (), 0),
+
+        // 'else' expression
+        // calls self ("recurse") resulting in recursion
+        PT.EFnCall(
           skippedCallerID,
-          FQFnName.userFqName "recurse",
+          PTParser.FQFnName.userFqName "recurse",
           [ PT.EInteger(gid (), 2) ],
           PT.NoRail
-        ))
-      ))
-    let recurse =
-      testUserFn "recurse" [ "i" ] fnExpr |> PT.UserFunction.toRuntimeType
+        )
+      )
+
+    let recurse = testUserFn "recurse" [ "i" ] fnExpr |> PT2RT.UserFunction.toRT
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
     let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 
@@ -201,12 +207,31 @@ let testIfPreview : Test =
       let! results = execSaveDvals "if-preview" [] [] ast
 
       return
-        (Dictionary.get ifID results |> Option.unwrapUnsafe,
-         Dictionary.get thenID results |> Option.unwrapUnsafe,
-         Dictionary.get elseID results |> Option.unwrapUnsafe)
+        (Dictionary.get ifID results
+         |> Exception.unwrapOptionInternal "cannot find ifID" [],
+         Dictionary.get thenID results
+         |> Exception.unwrapOptionInternal "cannot find thenID" [],
+         Dictionary.get elseID results
+         |> Exception.unwrapOptionInternal "cannot find elseID" [])
     }
+
+  // Using the first test below for illustration,
+  //
+  // First we pass in a condition to be evaluated:
+  // - `eBool false`
+  //
+  // The 3-tuple that follows is used to check three things:
+  //
+  // - the first part is "what does the if/then expression evaluate to?"
+  //   If the condition is 'truthy', then the expression will return "then"
+  //   Otherwise it willll turn "else"
+  //
+  // - the other two parts correspond to the `then` and `else` branches of the if condition.
+  //   if the first is an `ExecutedResult` and the second is a `NonExecutedResult`,
+  //   then the 'then' condition was evaluated but not the 'else' condition.
+
   testManyTask
-    "if preview"
+    "if-then expression previews correctly"
     f
     [ (eBool false,
        (AT.ExecutedResult(DStr "else"),
@@ -252,12 +277,18 @@ let testFeatureFlagPreview : Test =
       let! results = execSaveDvals "ff-preview" [] [] ast
 
       return
-        (Dictionary.get ffID results |> Option.unwrapUnsafe,
-         Dictionary.get oldID results |> Option.unwrapUnsafe,
-         Dictionary.get newID results |> Option.unwrapUnsafe)
+        (Dictionary.get ffID results
+         |> Exception.unwrapOptionInternal "missing ffID" [ "ffid", ffID ],
+         Dictionary.get oldID results
+         |> Exception.unwrapOptionInternal "missing oldID" [ "oldID", oldID ],
+         Dictionary.get newID results
+         |> Exception.unwrapOptionInternal "missing newID" [ "newID", newID ])
     }
+
+  // see notes in above `testIfPreview` regarding how these tests work
+
   testManyTask
-    "feature flag preview"
+    "feature flag expression previews correctly"
     f
     [ (eBool true,
        (AT.ExecutedResult(DStr "new"),
@@ -362,7 +393,10 @@ let testMatchPreview : Test =
           (PConstructor(pOkVarOkId, "Ok", [ PVariable(pOkVarVarId, "x") ]),
            EApply(
              okVarRhsId,
-             EFQFnValue(binopFnValId, FQFnName.stdlibFqName "" "++" 0),
+             EFQFnValue(
+               binopFnValId,
+               PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+             ),
              [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
              NotInPipe,
              NoRail
@@ -417,10 +451,10 @@ let testMatchPreview : Test =
             | Some (AT.NonExecutedResult _) -> ())
       }
 
-    let er x = AT.ExecutedResult x in
+    let er x = AT.ExecutedResult x
 
-    let ner x = AT.NonExecutedResult x in
-    let inc iid = DIncomplete(SourceID(id 7, iid)) in
+    let ner x = AT.NonExecutedResult x
+    let inc iid = DIncomplete(SourceID(id 7, iid))
 
     do!
       check
@@ -485,7 +519,13 @@ let testMatchPreview : Test =
           (pOkVarOkId, "ok pat", er (DResult(Ok(DStr "y"))))
           (binopFnValId,
            "fnval",
-           er (DFnVal(FnName(FQFnName.stdlibFqName "" "++" 0))))
+           er (
+             DFnVal(
+               FnName(
+                 PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+               )
+             )
+           ))
           (pOkVarVarId, "var pat", er (DStr "y"))
           (okVarRhsId, "rhs", er (DStr "ok: y"))
           (okVarRhsVarId, "rhs", er (DStr "y"))

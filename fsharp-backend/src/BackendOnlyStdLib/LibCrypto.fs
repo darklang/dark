@@ -26,6 +26,7 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes data ] -> SHA256.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -39,6 +40,7 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes data ] -> SHA384.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -53,6 +55,7 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -69,6 +72,7 @@ let fns : List<BuiltInFn> =
           data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -85,5 +89,6 @@ let fns : List<BuiltInFn> =
           data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
+      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated } ]

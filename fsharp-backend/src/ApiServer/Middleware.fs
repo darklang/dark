@@ -118,19 +118,14 @@ let withPermissionMiddleware
       // CLEANUP: reduce to one query
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
       let ownerName = Account.ownerNameFromCanvasName canvasName
-      let! ownerID = Account.userIDForUserName (ownerName.toUserName ())
-      let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
-
-      let canvasInfo : Canvas.Meta =
-        { name = canvasName; id = canvasID; owner = ownerID }
-
+      let! canvasInfo = Canvas.getMetaAndCreate canvasName
       let! permission = Auth.permission ownerName user.username
 
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
         saveCanvasInfo canvasInfo ctx
         savePermission permission ctx
-        Telemetry.addTags [ "canvas", canvasName; "canvasID", canvasID ]
+        Telemetry.addTags [ "canvas", canvasName; "canvasID", canvasInfo.id ]
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
@@ -142,23 +137,15 @@ let canvasMiddleware (permissionNeeded : Auth.Permission) : HttpMiddleware =
     // Last to run wraps ones which run earlier
     let canvasName = ctx.GetRouteData().Values.["canvasName"] :?> string
     let canvasName = CanvasName.create canvasName
-    let middleware =
-      next
-      |> withPermissionMiddleware permissionNeeded canvasName
-      |> userInfoMiddleware
-      |> sessionDataMiddleware
-    middleware ctx)
-
-
-let executionIDMiddleware : HttpMiddleware =
-  (fun (next : HttpHandler) (ctx : HttpContext) ->
-    task {
-      let executionID = Telemetry.executionID ()
-      saveExecutionID executionID ctx
-      ctx.SetHeader("x-darklang-execution-id", string executionID)
-      let! newCtx = next ctx
-      return newCtx
-    })
+    match canvasName with
+    | Ok canvasName ->
+      let middleware =
+        next
+        |> withPermissionMiddleware permissionNeeded canvasName
+        |> userInfoMiddleware
+        |> sessionDataMiddleware
+      middleware ctx
+    | Error _ -> notFound ctx)
 
 
 let antiClickjackingMiddleware : HttpMiddleware =
@@ -190,6 +177,15 @@ let clientVersionMiddleware : HttpMiddleware =
                           // CLEANUP this was a bad name. Kept in until old data falls out of Honeycomb
                           "request.header.x-darklang-client-version", clientVersion ]
       return! next ctx
+    })
+
+let executionIDMiddleware : HttpMiddleware =
+  (fun (next : HttpHandler) (ctx : HttpContext) ->
+    task {
+      let executionID = Telemetry.rootID ()
+      ctx.SetHeader("x-darklang-execution-id", executionID)
+      let! newCtx = next ctx
+      return newCtx
     })
 
 let corsForLocalhostAssetsMiddleware : HttpMiddleware =

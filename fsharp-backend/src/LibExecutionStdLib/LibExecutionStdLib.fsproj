@@ -32,7 +32,6 @@
     <Compile Include="LibString.fs" />
     <Compile Include="LibUuid.fs" />
     <Compile Include="StdLib.fs" />
-    <Compile Include="Init.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

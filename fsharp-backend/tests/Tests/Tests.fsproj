@@ -16,6 +16,7 @@
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
@@ -30,11 +31,13 @@
     <Compile Include="Traces.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />
     <Compile Include="Authorization.Tests.fs" />
+    <Compile Include="BinarySerialization.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="EventQueue.Tests.fs" />
+    <Compile Include="EventQueueV2.Tests.fs" />
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="FSharpToExpr.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />

@@ -13,6 +13,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PTParser = LibExecution.ProgramTypesParser
 
 // Functions related to the HTTP server
 
@@ -29,7 +30,8 @@ let routeToPostgresPattern (route : string) : string =
 
   // https://www.postgresql.org/docs/9.6/functions-matching.html
   route
-  |> String.collect (function
+  |> String.collect (fun str ->
+    match str with
     | '%' -> "\\%"
     | '_' -> "\\_"
     | other -> string other)
@@ -44,18 +46,20 @@ let routeVariable (routeSegment : string) : string option =
   else
     None
 
+/// Extracts variables from a route
+///
+/// e.g. from "/user/:userid/card/:cardid", it returns ["userid"; "cardid"]
 let routeVariables (route : string) : string list =
   route |> splitUriPath |> Array.toList |> List.choose routeVariable
-
 
 
 let routeInputVars
   (route : string)
   (requestPath : string)
   : Option<List<string * RT.Dval>> =
-  let doBinding route path =
-    // We know route length = requestPath length
-    List.zip route path
+  let doBinding routeParts pathParts =
+    // We assume (handled elsewhere) that route length = requestPath length
+    List.zip routeParts pathParts
     |> List.fold (Some []) (fun acc (r, p) ->
       Option.bind
         (fun acc ->
@@ -112,15 +116,18 @@ let filterInvalidHandlerMatches
   (handlers : List<PT.Handler.T>)
   : List<PT.Handler.T> =
   List.filter
-    (fun h -> let route = h.spec.name () in requestPathMatchesRoute route path)
+    (fun h ->
+      let route = PTParser.Handler.Spec.toName h.spec
+      requestPathMatchesRoute route path)
     handlers
 
 
-// From left-to-right segment-wise, we say that concrete is more specific
-// than wild is more specific than empty *)
+/// From left-to-right segment-wise, we say:
+/// - concrete is more specific than wild
+/// - wild is more specific than empty
 let rec compareRouteSpecificity (left : string list) (right : string list) : int =
-  let isWild s = String.startsWith ":" s in
-  let isConcrete s = not (isWild s) in
+  let isWild s = String.startsWith ":" s
+  let isConcrete s = not (isWild s)
 
   match (left, right) with
   | [], [] -> 0
@@ -130,16 +137,15 @@ let rec compareRouteSpecificity (left : string list) (right : string list) : int
   | l :: _, r :: _ when isWild l && isConcrete r -> -1
   | _ :: ls, _ :: rs -> compareRouteSpecificity ls rs
 
-
 let comparePageRouteSpecificity (left : PT.Handler.T) (right : PT.Handler.T) : int =
   compareRouteSpecificity
-    (left.spec.name () |> splitUriPath |> Array.toList)
-    (right.spec.name () |> splitUriPath |> Array.toList)
+    (PTParser.Handler.Spec.toName left.spec |> splitUriPath |> Array.toList)
+    (PTParser.Handler.Spec.toName right.spec |> splitUriPath |> Array.toList)
 
 
-// Takes a list of handlers that match a request's path, and filters the list
-// down to the list of handlers that match the request most specifically.
-// It looks purely at the handler's definition for its specificity relation.
+/// Takes a list of handlers that match a request's path, and filters the list
+/// down to the list of handlers that match the request most specifically.
+/// It looks purely at the handler's definition for its specificity relation.
 let filterMatchingHandlersBySpecificity
   (pages : List<PT.Handler.T>)
   : List<PT.Handler.T> =
@@ -155,8 +161,9 @@ let filterMatchingHandlersBySpecificity
     // in our comparison function) but my brain really didn't like that and found
     // it confusing.
     |> List.rev
+
   // orderedPages is ordered most-specific to least-specific, so pluck the
-  // most specific and return it along with all others of its specificity *)
+  // most specific and return it along with all others of its specificity
   match orderedPages with
   | [] -> []
   | [ a ] -> [ a ]
@@ -172,18 +179,10 @@ let filterMatchingHandlers
   (pages : List<PT.Handler.T>)
   : List<PT.Handler.T> =
   pages
-  |> List.filter (fun h -> h.spec.complete ())
+  |> List.filter (fun h -> PTParser.Handler.Spec.isComplete h.spec)
   |> filterInvalidHandlerMatches path
   |> filterMatchingHandlersBySpecificity
 
-
-let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.T>> =
-  Sql.query
-    "SELECT canvas
-     FROM custom_domains
-     WHERE host = @host"
-  |> Sql.parameters [ "host", Sql.string customDomain ]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "canvas" |> CanvasName.create)
 
 
 let addCustomDomain
@@ -201,18 +200,27 @@ let addCustomDomain
                       "canvas", Sql.string (string canvasName) ]
   |> Sql.executeStatementAsync
 
-let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
-  task {
-    match host.Split [| '.' |] with
-    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
-    // just another load balancer
-    | [| a; "darkcustomdomain"; "com" |]
-    | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
-    | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
-    | _ -> return! canvasNameFromCustomDomain host
-  }
+type CanvasSource =
+  | Bwd of string
+  | CustomDomain of string
+
+
+let canvasSourceFromHost (host : string) : CanvasSource =
+  match host.Split [| '.' |] with
+  // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's just
+  // another load balancer. This is a minor concern, but a nice feeling for users
+  // when they're setting up the domain. We only do something special when the host
+  // is an actual custom domain (that is, the domain pointing to)
+
+  | [| a; "darkcustomdomain"; "com" |]
+  | [| a; "builtwithdark"; "localhost" |]
+  | [| a; "builtwithdark"; "com" |] ->
+    // If the name is invalid, we'll 404 later
+    Bwd a
+  | [| "builtwithdark"; "localhost" |]
+  | [| "builtwithdark"; "com" |] -> Bwd "builtwithdark"
+  | _ -> CustomDomain host
+
 
 let sanitizeUrlPath (path : string) : string =
   path

@@ -4,7 +4,6 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>6.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
-    <!-- <PublishReadyToRun>true</PublishReadyToRun> -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
     <SelfContained>true</SelfContained>
@@ -19,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.FuzzTests.fs" />
+    <Compile Include="Generators.fs" />
     <Compile Include="FQFnName.FuzzTests.fs" />
     <Compile Include="OCamlInterop.FuzzTests.fs" />
     <Compile Include="DvalRepr.FuzzTests.fs" />
@@ -26,7 +26,8 @@
     <Compile Include="Json.FuzzTests.fs" />
     <Compile Include="Passwords.FuzzTests.fs" />
     <Compile Include="BytesToString.FuzzTests.fs" />
-    <Compile Include="Date.FuzzTests.fs" />
+    <Compile Include="NodaTime.FuzzTests.fs" />
+    <Compile Include="AllowedFuzzerErrors.fs" />
     <Compile Include="ExecutePureFunctions.FuzzTests.fs" />
     <Compile Include="FuzzTests.fs" />
   </ItemGroup>

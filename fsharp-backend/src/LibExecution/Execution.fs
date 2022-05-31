@@ -12,9 +12,9 @@ module AT = AnalysisTypes
 let traceNoDvals : RT.TraceDval = fun _ _ _ -> ()
 let traceNoTLIDs : RT.TraceTLID = fun _ -> ()
 let loadNoFnResults : RT.LoadFnResult = fun _ _ -> None
-let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> task { return () }
+let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> ()
 let loadNoFnArguments : RT.LoadFnArguments = fun _ -> []
-let storeNoFnArguments : RT.StoreFnArguments = fun _ _ -> task { return () }
+let storeNoFnArguments : RT.StoreFnArguments = fun _ _ -> ()
 
 let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
   { traceDval = traceNoDvals
@@ -25,8 +25,13 @@ let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
     storeFnArguments = storeNoFnArguments
     realOrPreview = realOrPreview }
 
+let noTestContext : RT.TestContext =
+  { sideEffectCount = 0
+    exceptionReports = []
+    expectedExceptionCount = 0
+    postTestExecutionHook = fun _ _ -> () }
+
 let createState
-  (executionID : ExecutionID)
   (libraries : RT.Libraries)
   (tracing : RT.Tracing)
   (reportException : RT.ExceptionReporter)
@@ -37,13 +42,9 @@ let createState
   { libraries = libraries
     tracing = tracing
     program = program
-    test =
-      { sideEffectCount = 0
-        exceptionReports = []
-        postTestExecutionHook = fun _ _ -> () }
+    test = noTestContext
     reportException = reportException
     notify = notify
-    executionID = executionID
     tlid = tlid
     callstack = Set.empty
     onExecutionPath = true
@@ -62,19 +63,12 @@ let executeExpr
     return result
   }
 
-let executeHandler
-  (state : RT.ExecutionState)
-  (inputVars : RT.Symtable)
-  (expr : RT.Expr)
-  : Task<RT.Dval> =
-  executeExpr state inputVars expr
-
 
 let executeFunction
   (state : RT.ExecutionState)
-  (callerID : tlid)
-  (args : List<RT.Dval>)
+  (callerID : id)
   (name : RT.FQFnName.T)
+  (args : List<RT.Dval>)
   : Task<RT.Dval> =
   task {
     let! result = Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
@@ -84,25 +78,17 @@ let executeFunction
   }
 
 
-// Return a function to trace TLIDs (add it to state via
-// state.tracing.traceTLID), and a mutable set which updates when the traceFn
-// is used
+/// Return a function to trace TLIDs (add it to state via
+/// state.tracing.traceTLID), and a mutable set which updates when the
+/// traceFn is used
 let traceTLIDs () : HashSet.T<tlid> * RT.TraceTLID =
   let touchedTLIDs = HashSet.empty ()
   let traceTLID tlid : unit = HashSet.add tlid touchedTLIDs
   (touchedTLIDs, traceTLID)
 
-let updateTracing
-  (fn : RT.Tracing -> RT.Tracing)
-  (state : RT.ExecutionState)
-  : RT.ExecutionState =
-  { state with tracing = fn state.tracing }
-
-
-
-// Return a function to trace Dvals (add it to state via
-// state.tracing.traceDval), and a mutable dictionary which updates when the
-// traceFn is used
+/// Return a function to trace Dvals (add it to state via
+/// state.tracing.traceDval), and a mutable dictionary which updates when the
+/// traceFn is used
 let traceDvals () : Dictionary.T<id, AT.ExecutionResult> * RT.TraceDval =
   let results = Dictionary.empty ()
 

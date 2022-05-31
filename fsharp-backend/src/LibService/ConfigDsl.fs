@@ -1,10 +1,9 @@
+/// Parsers for environment variables
 module LibService.ConfigDsl
 
 open Tablecloth
 
-// Parsers for env vars
-
-let getEnv (name : string) : Option<string> =
+let getEnv (name : string) : string option =
   let var = System.Environment.GetEnvironmentVariable name
   if var = null then None else Some var
 
@@ -39,6 +38,12 @@ let lowercase (name : string) (v : string) =
   else
     failwith ($"Env vars must be lowercased but {name}={v} is not")
 
+/// Basically the same as string, except it doesn't enforce being lowercase
+let credentials (name : string) : string = getEnvExn name
+
+let credentialsOption (name : string) : string option =
+  let v = credentials name
+  if String.toLowercase v = "none" then None else Some v
 
 let string (name : string) : string = getEnvExn name |> lowercase name
 
@@ -54,7 +59,7 @@ let intOption (name : string) : int option =
   | None -> None
   | Some s -> Some(int s)
 
-// Give a list of choices and values to return if the choice is found
+/// Give a list of choices and values to return if the choice is found
 let stringChoice name (options : (string * 'a) list) : 'a =
   let v = getEnvExn name |> lowercase name
 

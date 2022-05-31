@@ -41,7 +41,7 @@ module Unlocked =
 module DBStats =
   type Params = { tlids : tlid list }
   type Stat = { count : int; example : Option<ORT.dval * string> }
-  type T = Map<tlid, Stat>
+  type T = Map<string, Stat>
 
   /// API endpoint to get statistical data regarding User DBs
   let getStats (ctx : HttpContext) : Task<T> =
@@ -60,12 +60,14 @@ module DBStats =
       t.next "write-api"
       // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
       let (result : T) =
-        Map.map
-          (fun (s : Stats.DBStat) ->
-            { count = s.count
-              example =
-                Option.map (fun (dv, s) -> (Convert.rt2ocamlDval dv, s)) s.example })
-          result
+        result
+        |> Map.toList
+        |> List.map (fun (k, (s : Stats.DBStat)) ->
+          (string k),
+          { count = s.count
+            example =
+              Option.map (fun (dv, s) -> (Convert.rt2ocamlDval dv, s)) s.example })
+        |> Map
 
       return result
     }

@@ -1,9 +1,8 @@
+/// Setup and utilities for using Telemetry.
+/// This is where we do tracing/OpenTelemetry/Honeycomb
 module LibService.Telemetry
 
-// Setup and utilities for using Telemetry. This is where we do
-// tracing/OpenTelemetry/Honeycomb
-//
-// Note names are confusing in .Net. Here is a good rundown.
+// Note that names are confusing in .NET. Here is a good rundown.
 // https://github.com/open-telemetry/opentelemetry-dotnet/issues/947
 //
 // This is a functional-ish API over the built-in .NET tracing/OpenTelemetry
@@ -56,6 +55,7 @@ module Span =
   let root (name : string) : T =
     assert_
       "Telemetry must be initialized before creating root"
+      []
       (Internal._source <> null)
     // Deliberately created with no parent to make this a root
     // From https://github.com/open-telemetry/opentelemetry-dotnet/issues/984
@@ -81,6 +81,7 @@ module Span =
   let child (name : string) (parent : T) (tags : Metadata) : T =
     assert_
       "Telemetry must be initialized before creating root"
+      []
       (Internal._source <> null)
     let tags = tags |> List.map Tuple2.toKeyValuePair
     let parentId = if parent = null then null else parent.Id
@@ -109,6 +110,10 @@ let child (name : string) (tags : Metadata) : Span.T =
 
 let createRoot (name : string) : Span.T = Span.root name
 
+let rootID () : string =
+  let root = System.Diagnostics.Activity.Current.RootId
+  if isNull root then "null" else string root
+
 let addTag (name : string) (value : obj) : unit =
   Span.addTag name value (Span.current ())
 
@@ -126,9 +131,11 @@ let addEvent (name : string) (tags : Metadata) : unit =
     )
   span.AddEvent(event) |> ignore<Span.T>
 
-// Add a notification. You can find these in Honeycomb by searching for name =
-// 'notification'. This is used for anything out of the ordinary which should be
-// inspected.
+/// <summary>Add a notification.</summary>
+/// <remarks>
+/// You can find these in Honeycomb by searching for name = 'notification'.
+/// This is used for anything out of the ordinary which should be inspected.
+/// </remarks>
 let notify (name : string) (tags : Metadata) : unit =
   let span = Span.current ()
   let tagCollection = System.Diagnostics.ActivityTagsCollection()
@@ -142,21 +149,52 @@ let notify (name : string) (tags : Metadata) : unit =
     )
   span.AddEvent(event) |> ignore<Span.T>
 
+let rec exceptionTags (count : int) (e : exn) : Metadata =
+  let prefix = if count = 0 then "" else $"inner[{count}]."
+  let defaultTags =
+    [ $"exception.{prefix}type", e.GetType().FullName :> obj
+      $"exception.{prefix}stacktrace", string e.StackTrace
+      $"exception.{prefix}message", e.Message ]
+  let metadata = Exception.toMetadata e
+  let innerTags =
+    if (isNull e.InnerException) then
+      []
+    else
+      exceptionTags (count + 1) e.InnerException
+  metadata @ defaultTags @ innerTags
 
 
-let addException (e : exn) : unit =
+let addException (metadata : Metadata) (e : exn) : unit =
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/1191a2a3da7be8deae7aa94083b5981cb7610080/src/OpenTelemetry.Api/Trace/ActivityExtensions.cs#L79
-  // The .NET RecordException function doesn't take tags, despite it being a MUST in the [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception), so we implement our own.
-  let exceptionTags =
-    [ "exception", true :> obj
-      "exception.type", e.GetType().FullName :> obj
-      "exception.stacktrace", string e.StackTrace
-      "exception.message", e.Message ]
-    @ Exception.toMetadata e
-  addEvent e.Message exceptionTags
+  // The .NET RecordException function doesn't take tags, despite it being a MUST in the
+  // [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#record-exception),
+  // so we implement our own.
+  let errorTags = [ "exception", true :> obj; "error", true ]
+  let exceptionTags = exceptionTags 0 e
+  let tags = metadata @ errorTags @ exceptionTags
+  addEvent e.Message tags
 
 
 
+let serverTags : List<string * obj> =
+  // Ensure that these are all stringified on startup, not when they're added to the
+  // span
+  let (tags : List<string * string>) =
+    [ "meta.environment", Config.envDisplayName
+      "meta.server.hash", Config.buildHash
+      "meta.server.hostname", Config.hostName
+      "meta.server.machinename", string System.Environment.MachineName
+      "meta.server.os", string System.Environment.OSVersion
+      "meta.dbhost", Config.pgHost
+      "meta.process.path", string System.Environment.ProcessPath
+      "meta.process.pwd", string System.Environment.CurrentDirectory
+      "meta.process.command_line", string System.Environment.CommandLine
+      "meta.dotnet.framework.version",
+      string System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription ]
+  List.map (fun (k, v) -> (k, v :> obj)) tags
+
+
+let addServerTags (span : Span.T) : unit = Span.addTags serverTags span
 
 // Call, passing with serviceName for this service, such as "ApiServer"
 let init (serviceName : string) : unit =
@@ -166,15 +204,28 @@ let init (serviceName : string) : unit =
     System.Diagnostics.ActivityIdFormat.W3C
 
   Internal._source <- new System.Diagnostics.ActivitySource($"Dark")
+
   // We need all this or .NET will create null Activities
   // https://github.com/dotnet/runtime/issues/45070
-  let activityListener = new System.Diagnostics.ActivityListener()
-  activityListener.ShouldListenTo <- fun s -> true
-  activityListener.SampleUsingParentId <-
-    // If we use AllData instead of AllDataAndActivities, the http span won't be recorded
-    fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
-  activityListener.Sample <-
-    fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
+  let activityListener =
+    let al = new System.Diagnostics.ActivityListener()
+
+    al.ShouldListenTo <- fun s -> true
+
+    al.SampleUsingParentId <-
+      // If we use AllData instead of AllDataAndActivities, the http span won't be recorded
+      fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
+
+    al.Sample <-
+      fun _ -> System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded
+
+    // Do it now so that the parent has
+    al.ActivityStarted <-
+      // Use ParentId instead of Parent as Parent is null in more cases
+      (fun span -> if span.ParentId = null then addServerTags span)
+
+    al
+
   System.Diagnostics.ActivitySource.AddActivityListener(activityListener)
 
   // Allow exceptions to be associated with the right span (the one in which they're created)
@@ -183,9 +234,11 @@ let init (serviceName : string) : unit =
       // These won't have stacktraces. We could add them but they're expensive, and
       // if they make it to the top they'll get a stacktrace. So let's not do
       // stacktraces until we learn we need them
-      addException e)
+      addException [] e)
+
   // Ensure there is always a root span
   Span.root $"Starting {serviceName}" |> ignore<Span.T>
+
   print " Configured Telemetry"
 
 
@@ -214,18 +267,26 @@ let configureAspNetCore
         // which is done by the library and does not use the same prefixes
         let ipAddress =
           try
-            httpRequest.Headers.["x-forward-for"].[0]
-            |> String.split ";"
+            httpRequest.Headers.["x-forwarded-for"].[0]
+            |> String.split ","
             |> List.head
             |> Option.unwrap (
               string httpRequest.HttpContext.Connection.RemoteIpAddress
             )
           with
           | _ -> ""
+        let proto =
+          try
+            httpRequest.Headers.["x-forwarded-proto"].[0]
+          with
+          | _ -> ""
+
+
+
         activity
         |> Span.addTags [ "meta.type", "http_request"
-                          "meta.server_version", Config.buildHash
                           "http.remote_addr", ipAddress
+                          "http.proto", proto
                           "request.method", httpRequest.Method
                           "request.path", httpRequest.Path
                           "request.remote_addr", ipAddress
@@ -242,13 +303,15 @@ let configureAspNetCore
   options.Enrich <- enrich
   options.RecordException <- true
 
+/// A sampler is used to reduce the number of events, to not overwhelm the results.
+/// In our case, we want to control costs too - we only have 1.5B honeycomb events
+/// per month, and it's easy to use them very quickly in a loop
 type DarkSampler() =
-  // A sampler is used to reduce the number of events, to not overwhelm the results.
-  // In our case, we want to control costs too - we only have 1.5B honeycomb events
-  // per month, and it's easy to use them very quickly in a loop
   inherit OpenTelemetry.Trace.Sampler()
+
   let keep = SamplingResult(SamplingDecision.RecordAndSample)
-  let drop = SamplingResult(SamplingDecision.Drop)
+  let _drop = SamplingResult(SamplingDecision.Drop)
+
   let getInt (name : string) (map : Map<string, obj>) : Option<int> =
     try
       match Map.get name map with
@@ -257,6 +320,7 @@ type DarkSampler() =
       | None -> None
     with
     | _ -> None
+
   let getFloat (name : string) (map : Map<string, obj>) : Option<float> =
     try
       match Map.get name map with
@@ -275,7 +339,7 @@ type DarkSampler() =
     with
     | _ -> None
 
-  override this.ShouldSample(p : SamplingParameters inref) : SamplingResult =
+  override this.ShouldSample(_p : SamplingParameters inref) : SamplingResult =
     // This turned out to be useless for the initial need (trimming short DB queries)
     keep
 
@@ -284,6 +348,14 @@ let sampler = DarkSampler()
 type TraceDBQueries =
   | TraceDBQueries
   | DontTraceDBQueries
+
+let mutable tracerProvider : TracerProvider = null
+
+/// Flush all Telemetry. Used on shutdown
+let flush () : unit =
+  if tracerProvider <> null then tracerProvider.ForceFlush() |> ignore<bool>
+
+
 
 let addTelemetry
   (serviceName : string)
@@ -301,12 +373,14 @@ let addTelemetry
          Config.telemetryExporters
   |> fun b ->
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
-  |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
        b.AddHttpClientInstrumentation (fun options ->
          options.SetHttpFlavor <- true // Record HTTP version
          options.RecordException <- true
          ())
+  // TODO HttpClient instrumentation isn't working, so let's try to add it
+  // before AspNetCoreInstrumentation
+  |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
        match traceDBQueries with
        | TraceDBQueries -> b.AddNpgsql()
@@ -315,27 +389,16 @@ let addTelemetry
   |> fun b -> b.SetSampler(sampler)
 
 
-/// <summary>
-/// Returns an executionID used to tie together everything
-/// that happens within a BWD request
-/// </summary>
-/// <remarks>
-/// An execution ID was an int64 ID in the OCaml version, but since we're using
-/// OpenTelemetry from the start, we use the Trace ID instead. This should be used to
-/// create a TraceID for anywhere there's a thread and a trace available. The
-/// execution ID should be constant no matter when this is called in a thread, but for
-/// safety, call it at the top and pass it down.
-/// </remarks>
-let executionID () = ExecutionID(string System.Diagnostics.Activity.Current.TraceId)
-
 module Console =
-  // For webservers, tracing is added by ASP.NET middlewares. For non-webservers, we
-  // also need to add tracing. This does that.
+  /// For webservers, tracing is added by ASP.NET middlewares.
+  /// For non-webservers, we also need to add tracing. This does that.
   let loadTelemetry (serviceName : string) (traceDBQueries : TraceDBQueries) : unit =
-    Sdk.CreateTracerProviderBuilder()
-    |> addTelemetry serviceName traceDBQueries
-    |> fun tp -> tp.Build()
-    |> ignore<TracerProvider>
+    let tp =
+      Sdk.CreateTracerProviderBuilder()
+      |> addTelemetry serviceName traceDBQueries
+      |> fun tp -> tp.Build()
+    tracerProvider <- tp
+
     // Create a default root span, to ensure that one exists. This span will not be
     // cleaned up, and therefor it will not be printed in real-time (and you won't be
     // able to find it in honeycomb). Instead, start a new root for each "action"
@@ -351,5 +414,7 @@ module AspNet =
     (services : IServiceCollection)
     : IServiceCollection =
     services.AddOpenTelemetryTracing (fun builder ->
+      // TODO: save tracerProvider to flush when it's finished
       addTelemetry serviceName traceDBQueries builder
-      |> ignore<TracerProviderBuilder>)
+      |> ignore<TracerProviderBuilder>
+      ())

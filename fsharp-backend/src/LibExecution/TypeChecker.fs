@@ -5,7 +5,7 @@ open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
-// Returns `Ok ()` if no errors, or `Error list` otherwise
+/// Returns `Ok ()` if no errors, or `Error list` otherwise
 let combineErrorsUnit (l : List<Result<'ok, 'err>>) : Result<unit, List<'err>> =
   List.fold
     (Ok())
@@ -127,7 +127,13 @@ and unifyUserRecordWithDvalMap
     value
     |> Map.toList
     |> List.map (fun (key, data) ->
-      unify userTypes (Map.get key completeDefinition |> Option.unwrapUnsafe) data)
+      unify
+        userTypes
+        (Map.get key completeDefinition
+         |> Exception.unwrapOptionInternal
+              "field name missing from type"
+              [ "fieldName", key ])
+        data)
     |> combineErrorsUnit
     |> Result.mapError List.concat
   else
@@ -148,7 +154,9 @@ let checkFunctionCall
         let parameter =
           fn.parameters
           |> List.find (fun (p : Param) -> p.name = argname)
-          |> Option.unwrapUnsafe
+          |> Exception.unwrapOptionInternal
+               "Invalid parameter name"
+               [ "fn", fn.name; "argname", argname ]
 
         (parameter, argval))
       args

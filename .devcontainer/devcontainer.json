@@ -37,7 +37,9 @@
   /////////////////////////////////////////////////
 
   // Ports are loaded in the build process
-  "forwardPorts": [8000, 9000, 11000, 2345, 5433],
+  "forwardPorts": [
+    8000, 9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002, 13002
+  ],
 
   "containerEnv": {
     "IN_DEV_CONTAINER": "true"
@@ -92,7 +94,6 @@
     "type=volume,src=dark_lib,dst=/home/dark/app/lib",
     "type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules",
     "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
-    "type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/containers/queue-scheduler/target",
     "type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo",
     "type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target",
 

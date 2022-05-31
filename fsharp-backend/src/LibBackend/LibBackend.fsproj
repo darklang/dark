@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
   </ItemGroup>
   <ItemGroup>
@@ -26,23 +27,24 @@
     <Compile Include="Authorization.fs" />
     <Compile Include="Analytics.fs" />
     <Compile Include="Session.fs" />
-    <Compile Include="OCamlInterop.fs" />
     <Compile Include="Routing.fs" />
     <Compile Include="SqlCompiler.fs" />
     <Compile Include="UserDB.fs" />
-    <Compile Include="EventQueue.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="TraceInputs.fs" />
     <Compile Include="TraceFunctionResults.fs" />
     <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="StaticAssets.fs" />
-    <Compile Include="Cron.fs" />
     <Compile Include="Op.fs" />
+    <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />
     <Compile Include="Secret.fs" />
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
+    <Compile Include="EventQueueV2.fs" />
+    <Compile Include="Cron.fs" />
+    <Compile Include="Tracing.fs" />
     <Compile Include="Traces.fs" />
     <Compile Include="CanvasClone.fs" />
     <Compile Include="Stats.fs" />

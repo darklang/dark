@@ -22,8 +22,8 @@ Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0  "Expe
 Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`" // FSHARPONLY
 Http.setCookie_v2 "myCookie" "myVal" { SameSite = "allthesecures" } = Test.typeError_v0 "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `\"allthesecures\"` instead." // OCAMLONLY
 Http.setCookie_v2 "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake" // FSHARPONLY
 Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Expected the params dict passed to `Http::setCookie_v2` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was `Fake`." // OCAMLONLY
+Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake" // FSHARPONLY
 
 Http.setCookie_v0 "myCookie" "myVal" { Domain = "darklang" } = { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang"}
 Http.setCookie_v0 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal; " }
@@ -37,7 +37,7 @@ Http.setCookie_v1 "myCookie" "myVal" { Domain = "darklang"; SameSite = "fake" } 
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
 Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with the wrong type to parameter: error" // OCAMLONLY
-Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a String." // FSHARPONLY
+Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a Str." // FSHARPONLY
 
 Http.notFound_v0 = Http.response_v0 null 404
 
@@ -77,3 +77,14 @@ Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 45035996
 
 ((Http.response_v0 "" 4503599627370496I) |> toString) = "4503599627370496 {  }\n\"\""
 ((Http.respond_v0 "" 4503599627370496I) |> toString) = "4503599627370496 {  }\n\"\""
+
+(Http.redirectTo_v0 "") |> toString = "302 \nnull"
+(Http.redirectTo_v0 "bad url") |> toString = "302 bad url\nnull"
+(Http.redirectTo_v0 "http://someothersite.com/") |> toString = "302 http://someothersite.com/\nnull"
+(Http.redirectTo_v0 "/relativeUrl") |> toString = "302 /relativeUrl\nnull"
+
+Http.responseWithHeaders_v0 null {} 200 = Http.response_v0 null 200
+Http.responseWithHeaders_v0 "" {} 200 = Http.response_v0 "" 200
+Http.responseWithHeaders_v0 "value" {} 201 = Http.response_v0 "value" 201
+(Http.responseWithHeaders_v0 "value" { ``Server`` = "darklang" } 201) |> toString = "201 { Server: darklang }\n\"value\""
+(Http.responseWithHeaders_v0 4503599627370496I { ``Server`` = "darklang"; ``X-Secret-Key`` = "p@ssw0rd" } 200) |> toString = "200 { Server: darklang,X-Secret-Key: p@ssw0rd }\n4503599627370496"

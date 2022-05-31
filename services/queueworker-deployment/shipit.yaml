@@ -1,4 +1,5 @@
 k8s:
+  namespace: darklang
   manually-deployed:
     configs: []
   release:
@@ -6,10 +7,8 @@ k8s:
     versioned-configmaps:
       app-config:
         env-file: ../../config/gke-builtwithdark
-        namespace: darklang
     containers:
       - gcp-fsharp-queueworker
-      - legacyserver
     builtins:
       - CLOUDSQL_INSTANCE_NAME
     expected-args:

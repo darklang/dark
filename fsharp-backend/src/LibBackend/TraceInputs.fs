@@ -26,13 +26,12 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 
+module Repr = LibExecution.DvalReprInternalDeprecated
 
-// space, path, modifier
-type EventDesc = string * string * string
 
-type EventRecord = string * string * string * NodaTime.Instant * AT.TraceID
+type EventRecord = HandlerDesc * NodaTime.Instant * AT.TraceID
 
-type F404 = EventRecord
+type F404 = (string * string * string * NodaTime.Instant * AT.TraceID)
 
 type Limit =
   | All
@@ -42,11 +41,12 @@ type Limit =
 // let event_subject module_ path modifier = module_ ^ "_" ^ path ^ "_" ^ modifier
 
 // Note that this returns munged version of the name, that are designed for
-// pattern matching using postgres' LIKE syntax. *)
+// pattern matching using postgres' LIKE syntax.
 // CLEANUP: nulls are allowed for name, modules, and modifiers. Why?
-let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
+let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * HandlerDesc>> =
   Sql.query
-    "SELECT tlid, module, name, modifier FROM toplevel_oplists
+    "SELECT tlid, module, name, modifier
+      FROM toplevel_oplists
       WHERE canvas_id = @canvasID
         AND module IS NOT NULL
         AND name IS NOT NULL
@@ -58,7 +58,7 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
      (read.string "module", read.string "name", read.string "modifier")))
 
 // -------------------------
-// Event data *)
+// Event data
 // -------------------------
 
 let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d60d"
@@ -69,7 +69,7 @@ let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d6
 let storeEvent
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
-  ((module_, path, modifier) : EventDesc)
+  ((module_, path, modifier) : HandlerDesc)
   (event : RT.Dval)
   : Task<NodaTime.Instant> =
   if canvasID = throttled then
@@ -86,9 +86,7 @@ let storeEvent
                         "path", Sql.string path
                         "modifier", Sql.string modifier
                         ("value",
-                         event
-                         |> LibExecution.DvalReprInternal.toInternalRoundtrippableV0
-                         |> Sql.string) ]
+                         event |> Repr.toInternalRoundtrippableV0 |> Sql.string) ]
     |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
@@ -117,12 +115,9 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "timestamp", Sql.instantWithoutTimeZone timestamp ]
   |> Sql.executeAsync (fun read ->
-    (read.string "module",
-     read.string "path",
-     read.string "modifier",
+    ((read.string "module", read.string "path", read.string "modifier"),
      read.instant "timestamp",
      read.uuid "trace_id"))
-
 
 // let list_event_descs
 //     ~(limit : [`All | `After of RTT.time | `Before of RTT.time])
@@ -159,46 +154,57 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 //          | out ->
 //              Exception.internal "Bad DB format for stored_events")
 
-
 let loadEvents
   (canvasID : CanvasID)
-  ((module_, route, modifier) : EventDesc)
+  ((module_, route, modifier) : HandlerDesc)
   : Task<List<string * AT.TraceID * NodaTime.Instant * RT.Dval>> =
-  let route = Routing.routeToPostgresPattern route
-
-  Sql.query
-    "SELECT path, value, timestamp, trace_id FROM stored_events_v2
-      WHERE canvas_id = @canvasID
-        AND module = @module
-        AND path LIKE @route
-        AND modifier = @modifier
-     ORDER BY timestamp DESC
-     LIMIT 10"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "module", Sql.string module_
-                      "route", Sql.string route
-                      "modifier", Sql.string modifier ]
-  |> Sql.executeAsync (fun read ->
-    (read.string "path",
-     read.uuid "trace_id",
-     read.instant "timestamp",
-     read.string "value" |> LibExecution.DvalReprInternal.ofInternalRoundtrippableV0))
+  task {
+    let route = Routing.routeToPostgresPattern route
+    let! results =
+      Sql.query
+        "SELECT path, value, timestamp, trace_id FROM stored_events_v2
+          WHERE canvas_id = @canvasID
+            AND module = @module
+            AND path LIKE @route
+            AND modifier = @modifier
+        ORDER BY timestamp DESC
+        LIMIT 10"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "module", Sql.string module_
+                          "route", Sql.string route
+                          "modifier", Sql.string modifier ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "path",
+         read.uuid "trace_id",
+         read.instant "timestamp",
+         read.string "value"))
+    return
+      results
+      |> List.map (fun (path, trace_id, timestamp, value_json) ->
+        (path, trace_id, timestamp, Repr.ofInternalRoundtrippableV0 value_json))
+  }
 
 
 let loadEventForTrace
   (canvasID : CanvasID)
   (traceID : AT.TraceID)
   : Task<Option<string * NodaTime.Instant * RT.Dval>> =
-  Sql.query
-    "SELECT path, value, timestamp FROM stored_events_v2
-       WHERE canvas_id = @canvasID
-         AND trace_id = @traceID
-       LIMIT 1"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    (read.string "path",
-     read.instant "timestamp",
-     read.string "value" |> LibExecution.DvalReprInternal.ofInternalRoundtrippableV0))
+  task {
+    let! results =
+      Sql.query
+        "SELECT path, value, timestamp FROM stored_events_v2
+          WHERE canvas_id = @canvasID
+            AND trace_id = @traceID
+          LIMIT 1"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "traceID", Sql.uuid traceID ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.string "path", read.instant "timestamp", read.string "value"))
+    return
+      results
+      |> Option.map (fun (path, timestamp, value) ->
+        (path, timestamp, Repr.ofInternalRoundtrippableV0 value))
+  }
 
 
 let mungePathForPostgres (module_ : string) (path : string) =
@@ -210,12 +216,12 @@ let mungePathForPostgres (module_ : string) (path : string) =
   if String.toLowercase module_ = "http" then
     Routing.routeToPostgresPattern path
   else
-    (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
+    // https://www.postgresql.org/docs/9.6/functions-matching.html
     path.Replace("%", "\\%").Replace("_", "\\_")
 
 let loadEventIDs
   (canvasID : CanvasID)
-  ((module_, route, modifier) : EventDesc)
+  ((module_, route, modifier) : HandlerDesc)
   : Task<List<AT.TraceID * string>> =
   let route = mungePathForPostgres module_ route
 
@@ -240,8 +246,8 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
     let! handlers = getHandlersForCanvas canvasID
 
     let matchEvent h event : bool =
-      let space, requestPath, modifier, _ts, _ = event in
-      let hSpace, hName, hModifier = h in
+      let (space, requestPath, modifier), _ts, _ = event
+      let hSpace, hName, hModifier = h
 
       Routing.requestPathMatchesRoute hName requestPath
       && hModifier = modifier
@@ -251,6 +257,8 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
       events
       |> List.filter (fun e ->
         not (List.exists (fun (_tlid, h) -> matchEvent h e) handlers))
+      |> List.map (fun ((space, name, modifier), timestamp, value) ->
+        (space, name, modifier, timestamp, value))
   }
 
 let getRecent404s (canvasID : CanvasID) : Task<F404 list> =

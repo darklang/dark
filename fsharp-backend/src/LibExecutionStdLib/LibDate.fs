@@ -41,7 +41,8 @@ let ocamlDateTimeFormats : array<string> =
     millisecondFormat
     tzSuffixes ]
   |> product
-  |> Seq.map (function
+  |> Seq.map (fun parts ->
+    match parts with
     | [ dfs; dts; ts; ss; tt; msf; tzs ] ->
       // Dont use a time separator for seconds if there are no seconds
       let ss = if ss = "" then "" else ts + ss
@@ -222,6 +223,7 @@ let fns : List<BuiltInFn> =
           Ply(DDate(DDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
+      // CLEANUP mark as Impure
       previewable = Pure
       deprecated = NotDeprecated }
 

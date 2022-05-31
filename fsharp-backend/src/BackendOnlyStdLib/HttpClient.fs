@@ -16,6 +16,8 @@ open LibExecution.RuntimeTypes
 open LibBackend
 open VendoredTablecloth
 
+module Telemetry = LibService.Telemetry
+
 module Errors = LibExecution.Errors
 
 module RT = RuntimeTypes
@@ -88,7 +90,6 @@ let httpClient : HttpClient =
 exception InvalidEncodingException of int
 
 let httpCall'
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -96,6 +97,10 @@ let httpCall'
   (reqBody : Content)
   : Task<Result<HttpResult, ClientError>> =
   task {
+    use _ =
+      Telemetry.child
+        "HttpClient.call"
+        [ "request.url", url; "request.method", method ]
     try
       let uri = System.Uri(url, System.UriKind.Absolute)
 
@@ -110,16 +115,10 @@ let httpCall'
         reqUri.Host <- uri.Host
         reqUri.Port <- uri.Port
         reqUri.Path <- uri.AbsolutePath
-
-        let queryString =
-          // Remove leading '?'
-          if uri.Query = "" then "" else uri.Query.Substring 1
-
-        reqUri.Query <-
-          DvalReprExternal.queryToEncodedString (
-            queryParams @ DvalReprExternal.parseQueryString queryString
-          )
-
+        // Remove the question mark
+        let query =
+          if uri.Query.Length > 0 then String.dropLeft 1 uri.Query else uri.Query
+        reqUri.Query <- HttpQueryEncoding.createQueryString query queryParams
         use req = new HttpRequestMessage(method, string reqUri)
 
         // CLEANUP We could use Http3. This uses Http2 as that's what was supported in
@@ -141,21 +140,39 @@ let httpCall'
           req.Headers.Authorization <-
             Headers.AuthenticationHeaderValue(
               "Basic",
-              System.Convert.ToBase64String(UTF8.toBytes authString)
+              Base64.defaultEncodeToString (UTF8.toBytes authString)
             )
+
+        // If the user set the content-length, then we want to try to set the content
+        // length of the data. Don't let it be set too large though, as that allows
+        // the server to hang in OCaml, and isn't allowed in .NET.
+        let contentLengthHeader : Option<int> =
+          reqHeaders
+          |> List.find (fun (k, v) -> String.equalsCaseInsensitive k "content-length")
+          // Note: in ocaml it would send nonsense headers, .NET doesn't allow it
+          |> Option.bind (fun (k, v) -> parseInt v)
 
         // content
         let utf8 = System.Text.Encoding.UTF8
         match reqBody with
         | FormContent s ->
+          let s =
+            match contentLengthHeader with
+            | None -> s
+            | Some count when count >= s.Length -> s
+            | Some count -> s.Substring(0, count)
           req.Content <-
             new StringContent(s, utf8, "application/x-www-form-urlencoded")
         | StringContent str ->
+          let str =
+            match contentLengthHeader with
+            | None -> str
+            | Some count when count >= str.Length -> str
+            | Some count -> str.Substring(0, count)
           req.Content <- new StringContent(str, utf8, "text/plain")
         | NoContent -> req.Content <- new ByteArrayContent [||]
 
-
-        // headers
+        // headers - get them before content so we know what to do with content-length
         let defaultHeaders =
           Map [ "Accept", "*/*"; "Accept-Encoding", "deflate, gzip, br" ]
 
@@ -171,7 +188,10 @@ let httpCall'
                 Headers.MediaTypeHeaderValue.Parse(v)
             with
             | :? System.FormatException ->
-              Exception.raiseDeveloper "Invalid content-type header" []
+              Exception.raiseCode "Invalid content-type header"
+          elif String.equalsCaseInsensitive k "content-length" then
+            // Handled above
+            ()
           else
             // Dark headers can only be added once, as they use a Dict. Remove them
             // so they don't get added twice (eg via Authorization headers above)
@@ -180,9 +200,12 @@ let httpCall'
             // Headers are split between req.Headers and req.Content.Headers so just try both
             if not added then
               req.Content.Headers.Remove(k) |> ignore<bool>
+              // CLEANUP: always use lowercase headers
               req.Content.Headers.Add(k, v))
 
         // send request
+        Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
+        Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
         use! response = httpClient.SendAsync req
 
         // We do not do automatic decompression, because if we did, we would lose the
@@ -190,6 +213,9 @@ let httpCall'
         // some reason.
         // From http://www.west-wind.com/WebLog/posts/102969.aspx
         let encoding = response.Content.Headers.ContentEncoding.ToString()
+        Telemetry.addTags [ "response.encoding", encoding
+                            "response.status_code", response.StatusCode
+                            "response.version", response.Version ]
         use! responseStream = response.Content.ReadAsStreamAsync()
         use contentStream : Stream =
           let decompress = CompressionMode.Decompress
@@ -211,7 +237,10 @@ let httpCall'
           // lot
           let latin1 =
             try
-              let charset = response.Content.Headers.ContentType.CharSet
+              let charset = response.Content.Headers.ContentType.CharSet.ToLower()
+              Telemetry.addTag
+                "response.content_type"
+                response.Content.Headers.ContentType
               match charset with
               | "latin1"
               | "us-ascii"
@@ -226,7 +255,6 @@ let httpCall'
             respBody
 
         let code = int response.StatusCode
-
         let isHttp2 = (response.Version = System.Net.HttpVersion.Version20)
 
         // CLEANUP: For some reason, the OCaml version includes a header with the HTTP
@@ -237,9 +265,7 @@ let httpCall'
           else
             $"HTTP/{response.Version} {code} {response.ReasonPhrase}"
 
-        let headers =
-          HttpHeaders.fromAspNetHeaders response.Headers
-          @ HttpHeaders.fromAspNetHeaders response.Content.Headers
+        let headers = HttpHeaders.headersForAspNetResponse response
 
         // CLEANUP The OCaml version automatically made this lowercase for
         // http2. That's a weird experience for users, as they don't have
@@ -259,8 +285,10 @@ let httpCall'
     with
     | InvalidEncodingException code ->
       let error = "Unrecognized or bad HTTP Content or Transfer-Encoding"
+      Telemetry.addTags [ "error", true; "error.msg", error ]
       return Error { url = url; code = code; error = error }
     | :? TaskCanceledException -> // only timeouts
+      Telemetry.addTags [ "error", true; "error.msg", "Timeout" ]
       return Error { url = url; code = 0; error = "Timeout" }
     | :? System.ArgumentException as e -> // incorrect protocol, possibly more
       let message =
@@ -268,20 +296,23 @@ let httpCall'
           "Unsupported protocol"
         else
           e.Message
+      Telemetry.addTags [ "error", true; "error.msg", message ]
       return Error { url = url; code = 0; error = message }
     | :? System.UriFormatException ->
+      Telemetry.addTags [ "error", true; "error.msg", "Invalid URI" ]
       return Error { url = url; code = 0; error = "Invalid URI" }
     | :? IOException as e -> return Error { url = url; code = 0; error = e.Message }
     | :? HttpRequestException as e ->
       let code = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
-      return Error { url = url; code = code; error = e.Message }
+      Telemetry.addException [ "error.status_code", code ] e
+      let message = e |> Exception.getMessages |> String.concat " "
+      return Error { url = url; code = code; error = message }
   }
 
 /// Uses an internal .NET HttpClient to make a request
 /// and process response into an HttpResult
 let rec httpCall
   (count : int)
-  (rawBytes : bool)
   (url : string)
   (queryParams : (string * string list) list)
   (method : HttpMethod)
@@ -302,7 +333,7 @@ let rec httpCall
     if (count > 50) then
       return Error { url = url; code = 0; error = "Too many redirects" }
     else
-      let! response = httpCall' rawBytes url queryParams method reqHeaders reqBody
+      let! response = httpCall' url queryParams method reqHeaders reqBody
 
       match response with
       | Ok result when result.code >= 300 && result.code < 400 ->
@@ -319,7 +350,6 @@ let rec httpCall
 
           // CLEANUP no reason to do this
           // Match curls default redirect behaviour: if it's a POST with content, redirect to GET
-          // FSTODO: are some headers involved
           let method, reqBody =
             match reqBody with
             | StringContent body when body <> "" ->
@@ -331,12 +361,18 @@ let rec httpCall
 
           // Unlike HttpClient, do not drop the authorization header
           let! newResponse =
-            httpCall newCount rawBytes newUrl queryParams method reqHeaders reqBody
+            // Query params are part of the client's creation of the url. Once the
+            // server redirects, it gives us a new url and we shouldn't append the
+            // query param to it.
+            // Consider: http://redirect.to?url=xyz.com/path
+            httpCall newCount newUrl [] method reqHeaders reqBody
 
           return
             Result.map
               (fun redirectResult ->
-                // Keep all headers along the way, mirroring the OCaml version
+                // Keep all headers along the way, mirroring the OCaml version. The
+                // first request's headers win when there are duplicates.
+                // CLEANUP: really the redirect target should win
                 { redirectResult with
                     headers = redirectResult.headers @ result.headers })
               newResponse
@@ -407,9 +443,9 @@ let encodeRequestBody (body : Dval option) (headers : HttpHeaders.T) : Content =
       StringContent s
     // CLEANUP if there is a charset here, it uses json encoding
     | DObj _ when hasFormHeader headers ->
-      match DvalReprExternal.toFormEncoding dv with
+      match HttpQueryEncoding.toFormEncoding dv with
       | Ok content -> FormContent(content)
-      | Error msg -> Exception.raiseDeveloper msg
+      | Error msg -> Exception.raiseCode msg
     | dv when hasTextHeader headers ->
       StringContent(DvalReprExternal.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
@@ -432,31 +468,28 @@ let sendRequest
   (reqHeaders : Dval)
   : Ply<Dval> =
   uply {
-    let query = DvalReprExternal.toQuery query |> Exception.unwrapResultDeveloper
+    let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
     // Headers
     let encodedReqHeaders =
-      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultDeveloper
+      DvalReprExternal.toStringPairs reqHeaders |> Exception.unwrapResultCode
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)
     let reqHeaders =
       Map encodedReqHeaders |> Map.add "Content-Type" contentType |> Map.toList
+
     let encodedReqBody = encodeRequestBody reqBody reqHeaders
 
-    match! httpCall 0 false uri query verb reqHeaders encodedReqBody with
+    match! httpCall 0 uri query verb reqHeaders encodedReqBody with
     | Ok response ->
       let body = UTF8.ofBytesOpt response.body
       let parsedResponseBody =
-        // CLEANUP: form header never triggers in OCaml due to bug. But is it even needed?
-        if false then // HttpHeaders.hasFormHeader response.headers
+        if hasJsonHeader response.headers then
           try
-            DvalReprExternal.ofQueryString (Option.unwrapUnsafe body)
-          with
-          | _ -> DStr "form decoding error"
-        elif hasJsonHeader response.headers then
-          try
-            DvalReprExternal.unsafeOfUnknownJsonV0 (Option.unwrapUnsafe body)
+            body
+            |> Exception.unwrapOptionInternal "invalid json string" []
+            |> DvalReprExternal.unsafeOfUnknownJsonV0
           with
           | _ -> DStr "json decoding error"
         else

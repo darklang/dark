@@ -26,6 +26,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
@@ -41,13 +42,14 @@ let normalizeHeaders
   (headers : (string * string) list)
   : (string * string) list =
   headers
-  |> List.map (function
+  |> List.map (fun (key, value) ->
+    match value with
     // make writing tests easier
-    | (key, "HOST") when String.equalsCaseInsensitive "Host" key -> (key, host)
+    | "HOST" when String.equalsCaseInsensitive "Host" key -> (key, host)
     // optionally change content length for writing responses more easily
-    | (key, "LENGTH") when String.equalsCaseInsensitive "Content-length" key ->
-      (key, string body.Length)
-    | other -> other)
+    | "LENGTH" when String.equalsCaseInsensitive "Content-length" key ->
+      key, string body.Length
+    | other -> key, other)
 
 let randomBytes =
   [ 0x2euy; 0x0Auy; 0xE8uy; 0xE6uy; 0xF1uy; 0xE0uy; 0x9Buy; 0xA6uy; 0xEuy ]
@@ -129,7 +131,8 @@ let makeTest versionName filename =
     if shouldSkipTest then
       skiptest $"underscore test - {testName}"
     else
-      let! meta = createTestCanvas $"http-client-{testName}"
+      let! meta =
+        createTestCanvas (Randomized $"httpclient-{versionName}-{testName}")
 
       // Parse the code
       let shouldEqual, actualDarkProg, expectedResult =
@@ -147,7 +150,7 @@ let makeTest versionName filename =
       // note: in many cases, the expression is some sort of equality-checker,
       //   in which case this 'expected' is an eBool (a known runtime type)
       let! expected =
-        Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
+        Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
       let debugMsg = $"\n\n{actualDarkProg}\n=\n{expectedResult}\n\n"
 
@@ -161,11 +164,12 @@ let makeTest versionName filename =
       if testOCaml then
         let! ocamlActual =
           try
-            LibBackend.OCamlInterop.execute
+            TestUtils.OCamlInterop.execute
               state.program.accountID
               state.program.canvasID
               actualDarkProg
               Map.empty
+              []
               []
               []
 
@@ -190,7 +194,7 @@ let makeTest versionName filename =
       // Test F#
       if testFSharp then
         let! fsharpActual =
-          Exe.executeExpr state Map.empty (actualDarkProg.toRuntimeType ())
+          Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualDarkProg)
 
         let fsharpActual = normalizeDvalResult fsharpActual
 
@@ -279,7 +283,9 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
         testCase.result.status
         |> String.split " "
         |> List.getAt 1
-        |> Option.unwrapUnsafe
+        |> Exception.unwrapOptionInternal
+             "invalid status code"
+             [ "status", testCase.result.status ]
         |> int
       List.iter
         (fun (k, v) ->

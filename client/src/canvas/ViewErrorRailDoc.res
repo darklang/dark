@@ -17,9 +17,7 @@ let hintForFunction = (fn: Prelude.function_, sendToRail: option<E.sendToRail>):
   let errorRail = Html.a(
     list{
       Html.class'("link"),
-      Html.href(
-        "https://ops-documentation.builtwithdark.com/user-manual/error-handling#error-rail",
-      ),
+      Html.href("https://docs.darklang.com/discussion/error-handling#error-rail"),
       Html.target("_blank"),
     },
     list{Html.text("error rail")},

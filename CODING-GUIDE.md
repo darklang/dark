@@ -2,11 +2,10 @@
 
 ## File layout
 
-- Every file should start with a comment describing it (this is currently not done
-  very much at all).
+- Every file should start with a comment describing it.
 
 - all files have a formatter, which should be setup automatically in VSCode. Use
-  `scripts/format format` to format otherwise. Unformatted files fail in CI.
+  `./scripts/formatting/format format` to format otherwise. Unformatted files fail in CI.
 
 - imports should be ordered:
   - First stdlib and language builtins
@@ -27,21 +26,89 @@
   comment unless extremely obvious. If unsure, add a comment. The comment does not need
   to be long, describing the purpose of the thing is usually enough.
 
+## HTTP API
+
+- Use REST where possible, don't hang on ceremony if it doesn't fit nicely
+  - We haven't been good about doing REST, so migrate to it where possible
+- JSON objects should use camelCase
+  - in the past, they used snake_case, so we should switch
+
 ## F#
 
 - `ignore` should always use a type signature (this should be enforced by the
   compiler)
 
-- use `print` instead of `Console.WriteLine` or similar, the latter deadlocks
+- use `print` instead of `Console.WriteLine` or similar; the latter deadlocks
 
-- ensure that `try` do not have a `uply` in the body unless you know what you are
-  doing and provide a comment. Typically, the `uply` should be on the outside, which
-  causes the compiler to compile the `try` into a version which supports Tasks.
-  Otherwise, it won't catch an exception thrown within the `uply`.
+- ensure that `try` do not have a `uply`/`task` in the body unless you know what you
+  are doing and provide a comment. Typically, the `uply`/`task` should be on the
+  outside, which causes the compiler to compile the `try` into a version which supports
+  Tasks. Otherwise, it won't catch an exception thrown within the `uply`/`task`.
 
 - you can only use Tasks (aka `Ply`) once. Using it a second time is undefined.
 
-### Creating types
+- When writing SQL, ensure that expensive operations to not happen while in the
+  reading loop. That is, don't do this:
+
+  ```
+  someSqlStuff
+  |> Sql.executeAsync (fun read -> read.string "value" |> expensiveOperation)
+  ```
+
+  Instead do this:
+
+  ```
+  let! results =
+    someSqlStuff
+    |> Sql.executeAsync (fun read -> read.string "value")
+  return
+    results |> (List.map (fun str -> expensiveOperation str)
+  ```
+
+- use `///` for function comments
+
+- For file header comments, use `///` and add them to the first line of the file
+  before the module declaration
+
+### Telemetry
+
+- use `camel_case` names for tags
+- prefer adding more attributes to a span vs events (events cost money and you can't
+  search across them in honeycomb)
+
+### SQL migrations
+
+- add `set statement_timeout = '1s'` or `set lock_timeout = '1s'` to the first line
+  of your script, so that it fails instead of taking the service down.
+  (CLEANUP: make this happen automatically)
+
+- migrations are run manually before deployment (using `ExecHost migrations run`)
+
+### Initialization
+
+- initialization code should be in a function called `init` in a file called `Init.fs`
+
+- Library initialization code can rely on the DB but the services (eg ApiServer) must
+  ensure to call them in the right order to ensure the DB is available and in the right
+  shape (as migrations will not necessarily have run in tests at that point).
+
+- Do not block in library initialization code, instead return `Lazy` or `Task`, and
+  let the service resolve it.
+
+- remove unused `Init.fs` files - they create cognitive load
+
+### Types
+
+- Avoid using bools for function parameters to configure. Instead use a type with two
+  cases. `match` on the type to ensure exhaustive checks
+
+- Unless impossible or impractical to do so, avoid using wildcards in pattern
+  matches. When changing a type we would like the compiler to tell us everywhere that
+  has to be changed.
+
+- Include types for parameters, as well as the return type, of all functions.
+
+#### Creating types
 
 When creating a type:
 
@@ -66,3 +133,15 @@ module RuleEngine =
     let parse (str : string) : T =
       ...
 ```
+
+### FsCheck Generators
+
+- The `static member`s of FsCheck generators should have names that match the
+  corresponding type, and explicitly annotate Arbitrary type
+
+  ```
+  type Generator =
+    static member String(): Arbitrary<string> = ...
+  ```
+
+  Failing to do so may result in conflicting generators or unexpected behaviour.

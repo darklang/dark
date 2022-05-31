@@ -37,13 +37,9 @@ let alreadyRunMigrations () : List<string> =
   Sql.query "SELECT name from system_migrations"
   |> Sql.execute (fun read -> read.string "name")
 
-let runSystemMigration
-  (executionID : ExecutionID)
-  (name : string)
-  (sql : string)
-  : unit =
+let runSystemMigration (name : string) (sql : string) : unit =
   use span = Telemetry.child "new migration" [ "name", name; "sql", sql ]
-  LibService.Rollbar.notify executionID "running migration" [ "name", name ]
+  LibService.Rollbar.notify "running migration" [ "name", name ]
 
   // Insert into the string because params don't work here for some reason.
   // On conflict, do nothing because another starting process might be running this migration as well.
@@ -89,10 +85,10 @@ let migrationsToRun () =
   let alreadyRun = alreadyRunMigrations () |> Set
   allMigrations () |> List.filter (fun name -> not (Set.contains name alreadyRun))
 
-let run (executionID : ExecutionID) : unit =
+let run () : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
   migrationsToRun ()
   |> List.iter (fun name ->
     let sql = File.readfile Config.Migrations name
-    runSystemMigration executionID name sql)
+    runSystemMigration name sql)

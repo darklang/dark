@@ -13,26 +13,29 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module S = LibExecution.Shortcuts
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
 module TypeChecker = LibExecution.TypeChecker
 
 
 open TestUtils.TestUtils
+module S = TestUtils.RTShortcuts
 
 
 let testBasicTypecheckWorks : Test =
   let t
     ((fn, args) : string * List<string * RT.Dval>)
     : Result<unit, TypeChecker.Error.T list> =
-    let args = Map.ofList args in
+    let args = Map.ofList args
 
     let fn =
+      let fn = fn |> PTParser.FQFnName.parse |> PT2RT.FQFnName.toRT
       libraries
       |> Lazy.force
       |> fun l -> l.stdlib
-      |> Map.get (PT.FQFnName.parse fn)
-      |> Option.unwrapUnsafe
+      |> Map.get fn
+      |> Exception.unwrapOptionInternal "missing library function" [ "fn", fn ]
       |> RT.builtInFnToFn
 
     TypeChecker.checkFunctionCall Map.empty fn args
@@ -52,7 +55,7 @@ let testBasicTypecheckWorks : Test =
 let testErrorNotWrappedByErrorRail =
   testTask "error not wrapped by errorRail" {
     let expr = FSharpToExpr.parseRTExpr "Dict.get_v1 (List.empty_v0 []) \"hello\""
-    let! meta = createTestCanvas "error-not-wrapper-rail"
+    let! meta = createTestCanvas (Randomized "error-not-wrapper-rail")
 
     let! state = executionStateFor meta Map.empty Map.empty
 
@@ -68,7 +71,7 @@ let testErrorNotWrappedByErrorRail =
 let testArguments : Test =
   let t (name, returnType, body) =
     task {
-      let! meta = createTestCanvas name
+      let! meta = createTestCanvas (Randomized name)
       let userFn : RT.UserFunction.T =
         { tlid = id 7
           name = name
@@ -91,7 +94,7 @@ let testArguments : Test =
     [ (("myBadFn", RT.TStr, S.eInt 7),
        RT.DError(
          RT.SourceNone,
-         "Type error(s) in return type: Expected to see a value of type String but found a Int"
+         "Type error(s) in return type: Expected to see a value of type Str but found a Int"
        ))
       (("myGoodFn", RT.TStr, S.eStr "test"), RT.DStr "test")
       (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]

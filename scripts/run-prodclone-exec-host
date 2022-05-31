@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+PUBLISHED=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --published)
+    PUBLISHED=true
+    shift
+    ;;
+  esac
+done
+
+if [[ "$PUBLISHED" == "true" ]]; then
+
+  EXE="fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost"
+else
+  EXE="fsharp-backend/Build/out/ExecHost/Debug/net6.0/linux-x64/ExecHost"
+fi
+
+DARK_CONFIG_TELEMETRY_EXPORTER=none \
+DARK_CONFIG_ROLLBAR_ENABLED=n \
+DARK_CONFIG_DB_HOST=localhost \
+DARK_CONFIG_DB_DBNAME=prodclone \
+DARK_CONFIG_DB_USER=dark \
+DARK_CONFIG_DB_PASSWORD=darklang \
+"${EXE}" "$@"

@@ -15,9 +15,10 @@ DEBUG_MODE_FLAG=""
 CONCURRENCY=1
 RETRIES=0
 REPEAT=1 # repeat allows us to repeat individual tests many times to check for edge cases
-BASE_URL="http://darklang.localhost:9000"
-BWD_BASE_URL=".builtwithdark.localhost:11000"
+BASE_URL="http://${DARK_CONFIG_APISERVER_HOST}"
+BWD_BASE_URL=".${DARK_CONFIG_BWDSERVER_HOST}"
 BROWSER="chromium"
+PUBLISHED=""
 
 for i in "$@"
 do
@@ -36,6 +37,10 @@ do
     ;;
     --repeat=*)
     REPEAT=${1/--repeat=/''}
+    shift
+    ;;
+    --published)
+    PUBLISHED="--published"
     shift
     ;;
     --debug)
@@ -79,6 +84,11 @@ fi
 # Prep for tests (in the container)
 ######################
 ./integration-tests/prep.sh
+
+# We need to restart the server after adding new packages. Integration tests test
+# against the dev environment, not the test one.
+./scripts/run-fsharp-server "${PUBLISHED}"
+./scripts/devcontainer/_wait-until-apiserver-ready
 
 ######################
 # Run playwright

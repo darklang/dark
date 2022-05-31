@@ -386,7 +386,7 @@ let fns : List<BuiltInFn> =
           signAndEncode key Map.empty payload |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = ReplacedBy(fn "JWT" "signAndEncode" 1) }
 
     { name = fn "JWT" "signAndEncodeWithHeaders" 0
@@ -420,7 +420,7 @@ let fns : List<BuiltInFn> =
           | e -> Ply(DResult(Error(DStr e.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
     { name = fn "JWT" "signAndEncodeWithHeaders" 1
@@ -459,11 +459,11 @@ let fns : List<BuiltInFn> =
               verifyAndExtractV0 rsa token
             with
             | _ ->
-              Errors.throw
+              Exception.raiseCode
                 "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
           match result with
           | Some (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Exception.unwrapResultCode
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList
@@ -495,7 +495,7 @@ let fns : List<BuiltInFn> =
             | _ -> Error "Invalid public key"
           match result with
           | Ok (headers, payload) ->
-            let unwrap = Exception.unwrapResultDeveloper
+            let unwrap = Exception.unwrapResultCode
             [ ("header", ofJson headers |> unwrap)
               ("payload", ofJson payload |> unwrap) ]
             |> Map.ofList

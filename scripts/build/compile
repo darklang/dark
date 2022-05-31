@@ -14,6 +14,7 @@ optimize = in_ci
 
 # Make io unbuffered
 def flush(fn):
+
   def newfn(x):
     fn(x)
     sys.stdout.flush()
@@ -93,9 +94,7 @@ def copy_fsharp_static():
   if optimize:
     wwwroot = run_backend(
         start,
-        "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/wwwroot/_framework/ backend/static/blazor/"
-        # For now, use the non-published version, which actually works
-        # "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
     )
   else:
     wwwroot = run_backend(
@@ -155,6 +154,17 @@ def pip_install():
   return run_backend(start, f"pip3 install -r scripts/deployment/requirements.txt")
 
 
+def mypy_shipit():
+  start = time.time()
+  args = [
+      "--disallow-any-unimported", "--disallow-untyped-calls",
+      "--disallow-untyped-defs", "--no-implicit-optional", "--warn-redundant-casts",
+      "--warn-unused-ignores", "--warn-return-any"
+  ]
+  argstr = " ".join(args)
+  return run_backend(start, f"mypy {argstr} scripts/deployment/shipit")
+
+
 def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
@@ -164,7 +174,6 @@ def test_nginx():
   start = time.time()
   result = run_backend(start, "sudo nginx -t -c /etc/nginx-ocaml/nginx.conf")
   result &= run_backend(start, "sudo nginx -t -c /etc/nginx-apiserver/nginx.conf")
-  result &= run_backend(start, "sudo nginx -t -c /etc/nginx-bwdserver/nginx.conf")
   return result
 
 
@@ -223,6 +232,7 @@ def fsharp_backend_test():
 def fsharp_tool_restore():
   start = time.time()
   build = "./scripts/build/_dotnet-wrapper tool restore"
+
   return run_backend(start, build)
 
 
@@ -273,22 +283,12 @@ def fsharp_backend_quick_build():
     command = "build"
 
   build = f"./scripts/build/_dotnet-wrapper {command} \
-      -graphBuild:true \
+      /clp:ForceConsoleColor \
       --no-restore \
       --verbosity {verbosity} \
       --configuration {configuration}"
 
   result = run_backend(start, build)
-
-  start = time.time()
-  # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
-  if result and optimize:
-    build = f"./scripts/build/_dotnet-wrapper build \
-        --verbosity {verbosity} \
-        --configuration {configuration} \
-        src/Wasm/Wasm.fsproj"
-
-    result = run_backend(start, build)
 
   return result
 
@@ -304,22 +304,13 @@ def fsharp_backend_full_build():
     verbosity = "minimal"
     command = "build"
 
-  # TODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
-  build = f"unbuffer ./scripts/build/_dotnet-wrapper {command} \
+  build = f"./scripts/build/_dotnet-wrapper {command} \
+      /clp:ForceConsoleColor \
       --verbosity {verbosity} \
       --configuration {configuration}"
 
   result = run_backend(start, build)
 
-  start = time.time()
-  # Publishing the Wasm leads to an assertion failure while initializing .net via BlazorWorker
-  if result and optimize:
-    build = f"unbuffer ./scripts/build/_dotnet-wrapper build \
-        --verbosity {verbosity} \
-        --configuration {configuration} \
-        src/Wasm/Wasm.fsproj"
-
-    result = run_backend(start, build)
   return result
 
 
@@ -401,14 +392,13 @@ def reload_browser():
 
 
 class Should:
+
   def __init__(self):
     self.esy_install = False
     self.backend_build = False
     self.backend_test = False
     self.stroller_build = False
     self.stroller_test = False
-    self.scheduler_build = False
-    self.scheduler_test = False
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
     self.fsharp_paket_install = False
@@ -423,13 +413,13 @@ class Should:
     self.copy_fsharp_static = False
     self.circleci_validate = False
     self.pip_install = False
+    self.mypy_shipit = False
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
     self.reload_nginx_server = False
     self.reload_fsharp_server = False
     self.reload_stroller = False
-    self.reload_scheduler = False
     self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
@@ -475,6 +465,9 @@ def execute(should):
 
   if should.pip_install:
     if not pip_install(): success = False
+
+  if should.mypy_shipit:
+    if not mypy_shipit(): success = False
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False
@@ -553,15 +546,6 @@ def execute(should):
     if not rust_reload('containers/stroller'): success = False
   if should.stroller_test:
     if not rust_test('containers/stroller'): success = False
-
-  if should.scheduler_build:
-    if not rust_build('containers/queue-scheduler'): success = False
-    should.scheduler_test |= success
-    should.reload_scheduler |= success
-  if should.reload_scheduler:
-    if not rust_reload('containers/queue-scheduler'): success = False
-  if should.scheduler_test:
-    if not rust_test('containers/queue-scheduler'): success = False
 
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
@@ -664,19 +648,12 @@ def mark(should, f):
   elif "/scripts/run-rust" in f:
     should.shellcheck += [f]
     should.reload_stroller = True
-    should.reload_scheduler = True
 
   elif ("/stroller/" in f) \
           and (("Cargo.toml" in f) \
                   or ("Cargo.lock" in f) \
                   or (".rs" in f)):
     should.stroller_build = True
-
-  elif ("/queue-scheduler/" in f) \
-          and (("Cargo.toml" in f) \
-                  or ("Cargo.lock" in f) \
-                  or (".rs" in f)):
-    should.scheduler_build = True
 
   # JS
   elif "/package.json" in f:
@@ -711,6 +688,9 @@ def mark(should, f):
   elif ("/scripts/deployment/requirements.txt" in f):
     should.pip_install = True
 
+  elif ("/scripts/deployment/shipit" in f):
+    should.mypy_shipit = True
+
   elif ("/scripts/" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
@@ -729,17 +709,18 @@ def mark(should, f):
 def ignore(filename):
   # substring
   ignores = [
+      ".gstmp",
       ".git",
       ".merlin",
       ".ionide",
       ".browser-trigger",
       "scripts/build/compile",
-      "scripts/deployment/shipit",
       "integration-tests/tests.js",
       "rundir/",
       "_build/",
       "dark.install",
       "gmon.out",
+      ".mypy_cache/",
       "backend/serialization/",
       "backend/static/",
       "_esy/",
@@ -749,7 +730,6 @@ def ignore(filename):
       "fsharp-backend/Build",
       "build.ninja",
       "containers/stroller/target",
-      "containers/queue-scheduler/target",
       "paket-files",
       ".paket/load",
       ".bs.js",
@@ -769,7 +749,7 @@ def ignore(filename):
     if i in filename:
       return True
   # ocaml build temporary
-  if filename[-10:-8] == "/C":
+  if filename[-10:-8] == "/C" and filename[-3:] != ".fs":
     return True
   # emacs thing
   if "/.#" in filename:
