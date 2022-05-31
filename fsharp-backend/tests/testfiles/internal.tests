@@ -54,10 +54,6 @@ DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentaluserna
 DarkInternal.upsertUser_v1 "name with space" "valid@email.com" "accidentalusername" = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'" // FSHARPONLY
 
 [tests.canvases]
-DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown Err: \"No owner found for host not-a-canvas\"" // OCAMLONLY
-DarkInternal.getCORSSetting_v0 "not-a-canvas" = Test.typeError_v0 "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
-DarkInternal.getCORSSetting_v0 "test-cors1" = Nothing
-
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 
 [test.checkPermission with none]
@@ -100,23 +96,3 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 [test.canvasId length]
 (let _ = DarkInternal.clearStaticAssets "test-canvas-id-of-canvas-name"  // get the canvas created
  DarkInternal.canvasIdOfCanvasName_v0 "test-canvas-id-of-canvas-name") |> Option.map_v1 (fun x -> String.length_v1 x) = Just 36
-
-[test.roundtrip cors just empty]
-(let _ = DarkInternal.setCORSSetting_v0 "test-cors2" (Just []) in
- DarkInternal.getCORSSetting_v0 "test-cors2") = Just []
-
-[test.roundtrip cors just list]
-(let _ = DarkInternal.setCORSSetting_v0 "test-cors3" (Just ["localhost:8000"]) in
- DarkInternal.getCORSSetting_v0 "test-cors3") = Just ["localhost:8000"]
-
-[test.roundtrip cors just number]
-(let _ = DarkInternal.setCORSSetting_v0 "test-cors4" (Just 5) in
- DarkInternal.getCORSSetting_v0 "test-cors4") = Nothing
-
-[test.roundtrip cors just number list]
-(let _ = DarkInternal.setCORSSetting_v0 "test-cors5" (Just [5]) in
- DarkInternal.getCORSSetting_v0 "test-cors5") = Nothing
-
-[test.roundtrip cors just star]
-(let _ = DarkInternal.setCORSSetting_v0 "test-cors6" (Just "*") in
- DarkInternal.getCORSSetting_v0 "test-cors6") = Just "*"
