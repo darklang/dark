@@ -909,9 +909,14 @@ module Json =
     type LocalDateTimeConverter() =
       inherit JsonConverter<NodaTime.LocalDateTime>()
 
-      override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+      override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
         let rawToken = reader.GetString()
-        (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
+        try
+          (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
+        with
+        // We briefly used this converter for `Vanilla` - this is us "falling
+        // back" so we're able to read values serialized during that time.
+        | _ -> NodaConverters.LocalDateTimeConverter.Read(&reader, tipe, options)
 
       override _.Write
         (
