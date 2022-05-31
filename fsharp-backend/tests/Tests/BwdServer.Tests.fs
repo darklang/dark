@@ -232,11 +232,11 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     // CORS
     match test.cors with
     | None -> ()
-    | Some "" -> do! Canvas.updateCorsSetting meta.id None
-    | Some "*" -> do! Canvas.updateCorsSetting meta.id (Some Canvas.AllOrigins)
+    | Some "" -> ()
+    | Some "*" -> HttpMiddleware.Cors.Test.addAllOrigins meta.name
     | Some domains ->
-      let domains = (Canvas.Origins(String.split "," domains))
-      do! Canvas.updateCorsSetting meta.id (Some domains)
+      let domains = String.split "," domains
+      HttpMiddleware.Cors.Test.addOrigins meta.name domains
 
     // Custom domains
     match test.customDomain with
@@ -362,9 +362,6 @@ let runTestRequest
     let expectedResponse =
       testResponse
       |> splitAtNewlines
-      |> List.filterMap (fun line ->
-        let asString = line |> List.toArray |> UTF8.ofBytesWithReplacement
-        Some line)
       |> List.map (fun l -> List.append l [ newline ])
       |> List.flatten
       |> List.initial // remove final newline which we don't want
@@ -448,8 +445,10 @@ let tests = testList "BwdServer" [ testList "httptestfiles" testsFromFiles ]
 
 open Microsoft.Extensions.Hosting
 
-// run our own webserver instead of relying on the dev webserver
 let init (token : System.Threading.CancellationToken) : Task =
+  // Make sure cors tests work
+  HttpMiddleware.Cors.Test.initialize ()
+  // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
   let logger = configureLogging "test-bwdserver"
