@@ -72,16 +72,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "checkAccess" 0
-      parameters = []
-      returnType = TNull
-      description = "TODO"
-      fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-    { name = fn "DarkInternal" "endUsers" 0
+  [ { name = fn "DarkInternal" "endUsers" 0
       parameters = []
       returnType = TList varA
       description =
@@ -101,96 +92,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-    { name = fn "DarkInternal" "checkAllCanvases" 0
-      parameters = []
-      returnType = TNull
-      description = "TODO"
-      fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = DeprecatedBecause "oldinternal" }
-
-    { name = fn "DarkInternal" "migrateAllCanvases" 0
-      parameters = []
-      returnType = TNull
-      description = "REMOVED"
-      fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = DeprecatedBecause "oldinternal" }
-
-    { name = fn "DarkInternal" "cleanupOldTraces" 0
-      parameters = []
-      returnType = TNull
-      description = "Deprecated, use v1"
-      fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTraces" 0) }
-
-
-    { name = fn "DarkInternal" "cleanupOldTraces" 1
-      parameters = []
-      returnType = TFloat
-      description = "Cleanup the old traces from a canvas"
-      fn =
-        internalFn (function
-          | state, [] -> Ply(DFloat 0.0)
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "cleanupOldTracesForCanvas" 1) }
-
-
-    { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
-      parameters = [ Param.make "canvas_id" TUuid "" ]
-      returnType = TFloat
-      description =
-        "Cleanup the old traces for a specific canvas. Returns elapsed time in ms."
-      fn =
-        internalFn (function
-          | state, [ DUuid canvas_id ] -> Ply(DFloat 0.0)
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = DeprecatedBecause "old internal" }
-
-
-    { name = fn "DarkInternal" "checkCanvas" 0
-      parameters = [ Param.make "host" TStr "" ]
-      returnType = TBool
-      description = "Validate the canvas' opcodes"
-      fn =
-        internalFn (function
-          | state, [ DStr host ] -> Ply DNull
-          // CLEANUP
-          // (match Canvas.validate_host host with
-          //  | Ok _ -> Ply(DBool true)
-          //  | Error _ -> Ply(DBool false))
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      // CLEANUP should be marked deprecated
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "migrateCanvas" 0
-      parameters = [ Param.make "host" TStr "" ]
-      returnType = TResult(varA, TStr)
-      description = "Migrate a canvas' opcodes"
-      fn =
-        internalFn (function
-          | state, [ DStr host ] -> Ply DNull
-          // CLEANUP
-          // (match Canvas.migrate_host (Unicode_string.to_string host) with
-          //  | Ok () -> DResult(Ok DNull)
-          //  | Error msg -> DResult(Error(DStr msg)))
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-    // deprecated = DeprecatedBecause "old internal" } CLEANUP
 
 
     { name = fn "DarkInternal" "upsertUser" 0
@@ -472,92 +373,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "schema" 0
-      parameters = [ Param.make "host" TStr ""; Param.make "dbid" TStr "" ]
-      returnType = TDict TStr
-      // returnType = varA CLEANUP
-      description = "Return a schema for the db"
-      fn =
-        internalFn (function
-          | _, [ DStr canvas_name; DStr tlid ] -> Ply DNull
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "canvasAsText" 0
-      parameters = [ Param.make "host" TStr "" ]
-      returnType = TStr
-      description = "TODO"
-      fn =
-        internalFn (function
-          | _, [ DStr host ] ->
-            (* Removed, no longer useful now that you can copy from Fluid *)
-            Ply(DStr "")
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "handlers" 0
-      parameters = [ Param.make "host" TStr "" ]
-      returnType = TList varA
-      description = "Returns a list of toplevel ids of handlers in `host`"
-      fn =
-        internalFn (function
-          | _, [ DStr host ] -> Ply DNull
-          // let c =
-          //   Canvas.load_all (Unicode_string.to_string host) []
-          //   |> Result.map_error (String.concat ", ")
-          //   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-          // !c.handlers
-          // |> IDMap.data
-          // |> Ply.List.filterMapSequentially Libexecution.Toplevel.as_handler
-          // |> List.map (fun h -> DStr(Libexecution.Types.string_of_id h.tlid))
-          // |> fun l -> DList l
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "functions" 0
-      parameters = [ Param.make "host" TStr "" ]
-      returnType = TList varA
-      description = "Returns a list of toplevel ids of the functions in `host`"
-      fn =
-        internalFn (function
-          | _, [ DStr host ] -> Ply DNull
-          // let c =
-          //   Canvas.load_all (Unicode_string.to_string host) []
-          //   |> Result.map_error (String.concat ", ")
-          //   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-          // !c.user_functions
-          // |> IDMap.data
-          // |> List.map (fun fn -> DStr(Libexecution.Types.string_of_id fn.tlid))
-          // |> fun l -> DList l
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "canLoadTraces" 0
-      parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
-      returnType = TBool
-      description =
-        "Takes a <var host> and a <var tlid> and returns {{true}} iff we can load and parse traces for the handler identified by <var tlid>, and {{false}} otherwise."
-      fn =
-        internalFn (function
-          | _, [ DStr host; DStr tlid ] -> Ply DNull
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "dbs" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TList TStr
@@ -581,46 +396,6 @@ that's already taken, returns an error."
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "oplistInfo" 0
-      parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
-      returnType = TDict TStr
-      // returnType = varA // CLEANUP
-      description =
-        "Returns the information from the toplevel_oplists table for the (host, tlid)"
-      fn =
-        internalFn (function
-          | _, [ DStr host; DStr tlid_str ] -> Ply DNull
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "storedEvents" 0
-      parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
-      returnType = TOption varA
-      description =
-        "Returns {{Just <var events>}}, where <var events> is the most recent stored events for the <param tlid> if it is a handler or {{Nothing}} if it is not."
-      fn = internalFn (fun (_, _) -> Ply DNull)
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "pushStrollerEvent" 0
-      parameters =
-        [ Param.make "canvas_id" TStr ""
-          Param.make "event" TStr ""
-          Param.make "payload" (TDict TStr) "" ]
-      // Param.make "payload" varA "" ] // CLEANUP
-      returnType = TResult(varA, TStr)
-      description = "Pushes an event to Stroller"
-      fn = internalFn (fun _ -> Ply DNull)
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "pushStrollerEvent" 1) }
 
 
     { name = fn "DarkInternal" "pushStrollerEvent" 1
@@ -709,9 +484,7 @@ that's already taken, returns an error."
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-
-    }
+      deprecated = NotDeprecated }
 
 
     { name = fn "DarkInternal" "grant" 0
@@ -855,48 +628,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "fnsUsed" 0
-      parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
-      returnType = TList varA
-      description =
-        "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
-      fn =
-        internalFn (function
-          | _, [ DStr host; DStr tlid ] -> Ply DNull
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "fieldNamesUsed" 0
-      parameters = [ Param.make "host" TStr ""; Param.make "tlid" TStr "" ]
-      returnType = TList varA
-      description =
-        "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
-      fn =
-        internalFn (function
-          | _, [ DStr host; DStr tlid ] -> Ply DNull
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "fnMetadata" 0
-      parameters = [ Param.make "name" TStr "" ]
-      returnType = TResult(varA, TStr)
-      description =
-        "Returns an object with the metadata of the built-in function name"
-      fn =
-        internalFn (function
-          | _, [ DStr fnname ] -> Ply DNull
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "allFunctions" 0
       parameters = []
       returnType = TList varA
@@ -924,20 +655,6 @@ that's already taken, returns an error."
               Dval.obj alist)
             |> DList
             |> Ply
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "clearStaticAssets" 0
-      parameters = [ Param.make "host" TStr "" ]
-      returnType = TNull
-      description =
-        "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
-      fn =
-        internalFn (function
-          | _, [ DStr host ] -> Ply DNull
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1166,37 +883,6 @@ human-readable data."
               "DarkInternal::raiseInternalException"
               [ "arg", arg ]
           | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getHandlerTraces" 0
-      parameters =
-        [ Param.make "canvas_id" TUuid ""
-          Param.make "tlid" TStr ""
-          Param.make "count" TInt "" ]
-      returnType = TList varA
-      description = "Get the most recent [count] traces for the handler"
-      fn =
-        internalFn (function
-          | _, _ -> Ply(DInt 0))
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "copyToplevelTraces" 0
-      parameters =
-        [ Param.make "canvas_id" TUuid ""
-          Param.make "tlid" TStr ""
-          Param.make "traces" (TList varA) ""
-          Param.make "count" TInt "" ]
-      returnType = TInt
-      description = "Doesn't exist anymore"
-      fn =
-        internalFn (function
-          | _, _ -> Ply(DInt 0))
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
