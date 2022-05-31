@@ -290,6 +290,40 @@ type 'expr_type op =
   | DeleteType of tlid
   | DeleteTypeForever of tlid
 
+let tlidOf (op : op<'expr_type>) : tlid =
+  match op with
+  | DeleteColInDBMigration (tlid, _) -> tlid
+  | DeprecatedInitDbm (tlid, _, _, _, _) -> tlid
+  | SetHandler (tlid, _, _) -> tlid
+  | CreateDB (tlid, _, _) -> tlid
+  | AddDBCol (tlid, _, _) -> tlid
+  | SetDBColName (tlid, _, _) -> tlid
+  | ChangeDBColName (tlid, _, _) -> tlid
+  | SetDBColType (tlid, _, _) -> tlid
+  | ChangeDBColType (tlid, _, _) -> tlid
+  | SetExpr (tlid, _, _) -> tlid
+  | TLSavepoint tlid -> tlid
+  | UndoTL tlid -> tlid
+  | RedoTL tlid -> tlid
+  | DeleteTL tlid -> tlid
+  | MoveTL (tlid, _) -> tlid
+  | SetFunction f -> f.tlid
+  | DeleteFunction tlid -> tlid
+  | CreateDBMigration (tlid, _, _, _) -> tlid
+  | AddDBColToDBMigration (tlid, _, _) -> tlid
+  | AbandonDBMigration tlid -> tlid
+  | SetDBColNameInDBMigration (tlid, _, _) -> tlid
+  | SetDBColTypeInDBMigration (tlid, _, _) -> tlid
+  | DeleteDBCol (tlid, _) -> tlid
+  | RenameDBname (tlid, _) -> tlid
+  | CreateDBWithBlankOr (tlid, _, _, _) -> tlid
+  | SetType ut -> ut.tlid
+  | DeleteType tlid -> tlid
+  | DeleteFunctionForever tlid -> tlid
+  | DeleteTLForever tlid -> tlid
+  | DeleteTypeForever tlid -> tlid
+
+
 type 'expr_type oplist = 'expr_type op list
 type 'expr_type tlid_oplist = (tlid * 'expr_type oplist)
 

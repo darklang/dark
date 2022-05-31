@@ -270,7 +270,7 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
     let ownerID = read.uuid "account_id"
     { canvasID = canvasID
       ownerID = ownerID
-      canvasName = read.string "canvas_name" |> CanvasName.create
+      canvasName = read.string "canvas_name" |> CanvasName.createExn
       tlid = read.id "tlid"
       cronName = read.string "handler_name"
       interval =
@@ -294,12 +294,4 @@ let currentHosts () : Task<string list> =
   }
 
 let getAllCanvases () : Task<List<CanvasName.T>> =
-  currentHosts () |> Task.map (List.map CanvasName.create)
-
-let tierOneHosts () : List<CanvasName.T> =
-  [ "ian-httpbin"
-    "paul-slackermuse"
-    "listo"
-    "ellen-battery2"
-    "julius-tokimeki-unfollow" ]
-  |> List.map CanvasName.create
+  currentHosts () |> Task.map (List.map CanvasName.createExn)

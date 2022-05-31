@@ -193,7 +193,7 @@ let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   // CLEANUP: use errorResponse
-  standardResponse ctx "user not found" textPlain 404
+  standardResponse ctx "canvas not found" textPlain 404
 
 let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
   let msg =
@@ -266,24 +266,35 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
+// CLEANUP we'd like to get rid of corsSetting and move it out of the DB and
+// entirely into code in some middleware
+let canvasMetadataFromHost
+  (host : string)
+  : Task<Option<Canvas.Meta * Option<Canvas.CorsSetting>>> =
+  task {
+    match Routing.canvasSourceFromHost host with
+    | Routing.Bwd canvasName ->
+      match CanvasName.create canvasName with
+      | Ok canvasName -> return! Canvas.getMetaAndCors canvasName
+      | Error _ -> return None
+    | Routing.CustomDomain customDomain ->
+      return! Canvas.getMetaAndCorsForCustomDomain customDomain
+  }
+
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    match! Routing.canvasNameFromHost ctx.Request.Host.Host with
-    | Some canvasName ->
-      ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
+    let host = Exception.catch (fun () -> ctx.Request.Host.Host)
+    let! canvasMetadata =
+      match host with
+      | None -> Task.FromResult None
+      | Some host -> canvasMetadataFromHost host
 
-      let! meta =
-        // Extra task CE is to make sure the exception is caught
-        task {
-          try
-            return! Canvas.getMeta canvasName
-          with
-          | _ -> return raise (NotFoundException "user not found")
-        }
-
+    match canvasMetadata with
+    | Some (meta, corsSetting) ->
+      ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = System.Guid.NewGuid()
@@ -291,9 +302,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
       let desc = ("HTTP", requestPath, requestMethod)
 
-      Telemetry.addTags [ "canvas.name", canvasName
+      Telemetry.addTags [ "canvas.name", meta.name
                           "canvas.id", meta.id
-                          "canvas.ownerID", meta.owner
+                          "canvas.owner_id", meta.owner
                           "trace_id", traceID ]
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
@@ -325,9 +336,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         match routeVars with
         | Some routeVars ->
           Telemetry.addTag "handler.routeVars" routeVars
-          // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
-          // and entirely into code in some middleware
-          let! corsSetting = Canvas.fetchCORSSetting meta.id
 
           // Do request
           use _ = Telemetry.child "executeHandler" []
@@ -362,7 +370,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         return! faviconResponse ctx
 
       | [] when ctx.Request.Method = "OPTIONS" ->
-        let! corsSetting = Canvas.fetchCORSSetting meta.id
         let reqHeaders = getHeaders ctx
         match Cors.optionsResponse reqHeaders corsSetting with
         | Some response -> do! writeResponseToContext ctx response

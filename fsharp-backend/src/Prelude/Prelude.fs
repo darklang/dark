@@ -953,6 +953,7 @@ module Json =
         )
       let options = JsonSerializerOptions()
       options.MaxDepth <- System.Int32.MaxValue // infinite
+      options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
       // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(NodaConverters.InstantConverter)
       options.Converters.Add(LocalDateTimeConverter())
@@ -1866,29 +1867,54 @@ module CanvasName =
 
     override this.ToString() = let (CanvasName name) = this in name
 
-  let validate (name : string) : Result<string, string> =
+  type CanvasNameError =
+    | LengthError
+    | EmptyError
+    | UsernameError of string
+    | CanvasNameError of string
+
+    override this.ToString() =
+      match this with
+      | LengthError -> "Invalid canvas name - must be <= 64 characters"
+      | EmptyError -> "Invalid canvas name - no canvas name"
+      | UsernameError name ->
+        $"Invalid username '{name}' - must be 2-20 lowercase characters, and must start with a letter."
+      | CanvasNameError name ->
+        $"Invalid canvas name '{name}' - must contain only letters, digits, and '-' or '_'"
+
+
+  let validate (name : string) : Result<string, CanvasNameError> =
     // starts with username
     // no capitals
     // hyphen between username and canvasname
     // more hyphens allowed
-    let canvasRegex = "[-_a-z0-9]+"
-    let userNameRegex = UserName.allowedPattern
+    let canvasPortionRegex = "[-_a-z0-9]+"
+    let userPortionRegex = UserName.allowedPattern
     // This is complicated because users have canvas names like "username-", though
     // none have any content there.
-    let regex = $"^{userNameRegex}(-({canvasRegex})?)?$"
+    let regex = $"^{userPortionRegex}(-({canvasPortionRegex})?)?$"
 
-    if String.length name > 64 then
-      Error "Canvas name was too long, must be <= 64."
-    else if System.Text.RegularExpressions.Regex.IsMatch(name, regex) then
+    if String.length name > 64 then // check the length of the entire subdomain
+      Error LengthError
+    else if Regex.IsMatch(name, regex) then
       Ok name
     else
-      Error
-        $"Invalid canvas name '{name}', can only contain roman letters, digits, and '-' or '_'"
+      match Tablecloth.String.split "-" name with
+      | [] -> Error EmptyError
+      | [ _usernameOnly ] -> Error(UsernameError name)
+      | username :: _canvasSegments ->
+        if Regex.IsMatch(username, $"^{userPortionRegex}$") then
+          Error(CanvasNameError name)
+        else
+          Error(UsernameError username)
 
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
-  let create (name : string) : T =
+  let createExn (name : string) : T =
     name |> validate |> Exception.unwrapResultInternal [] |> CanvasName
+
+  let create (name : string) : Result<T, string> =
+    name |> validate |> Result.map CanvasName |> Result.mapError string
 
 
 module HttpHeaders =

@@ -26,6 +26,13 @@
   comment unless extremely obvious. If unsure, add a comment. The comment does not need
   to be long, describing the purpose of the thing is usually enough.
 
+## HTTP API
+
+- Use REST where possible, don't hang on ceremony if it doesn't fit nicely
+  - We haven't been good about doing REST, so migrate to it where possible
+- JSON objects should use camelCase
+  - in the past, they used snake_case, so we should switch
+
 ## F#
 
 - `ignore` should always use a type signature (this should be enforced by the

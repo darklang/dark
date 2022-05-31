@@ -176,7 +176,7 @@ module Eval =
       let program : RT.ProgramContext =
         { accountID = System.Guid.NewGuid()
           canvasID = System.Guid.NewGuid()
-          canvasName = CanvasName.create "todo"
+          canvasName = CanvasName.createExn "todo"
           userFns =
             userFns
             |> List.map OT.Convert.ocamlUserFunction2PT
@@ -320,22 +320,37 @@ type EvalWorker =
           )
           Error($"exception: {e.Message}, metdata: {metadata}")
 
-      match args with
-      | Error e -> return Error e
-      | Ok args ->
+      let! result =
+        task {
+          match args with
+          | Error e -> return Error e
+          | Ok args ->
+            try
+              let! result = Eval.performAnalysis args
+              return Ok result
+            with
+            | e ->
+              let metadata = Exception.nestedMetadata e
+              System.Console.WriteLine("Error running analysis in Blazor")
+              System.Console.WriteLine($"called with message: {message}")
+              System.Console.WriteLine(
+                $"caught exception: \"{e.Message}\" \"{metadata}\""
+              )
+              return Error($"exception: {e.Message}, metadata: {metadata}")
+        }
+
+      let serialized =
         try
-          let! result = Eval.performAnalysis args
-          return Ok result
+          Json.Vanilla.serialize result
         with
         | e ->
           let metadata = Exception.nestedMetadata e
-          System.Console.WriteLine("Error running analysis in Blazor")
+          System.Console.WriteLine("Error serializing results of Blazor analysis")
           System.Console.WriteLine($"called with message: {message}")
           System.Console.WriteLine(
             $"caught exception: \"{e.Message}\" \"{metadata}\""
           )
-          return Error($"exception: {e.Message}, metadata: {metadata}")
+          Json.Vanilla.serialize ($"exception: {e.Message}, metadata: {metadata}")
+
+      EvalWorker.postMessage serialized
     }
-    |> Task.map Json.Vanilla.serialize
-    |> Task.map EvalWorker.postMessage
-    |> ignore<Task<unit>>

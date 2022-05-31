@@ -5,50 +5,56 @@ open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
+open Tablecloth
 open TestUtils.TestUtils
 
 let canvasName =
   testMany
-    "canvasName.create"
+    "canvasName.validate"
     (fun c ->
-      try
-        CanvasName.create c |> ignore<CanvasName.T>
-        true
-      with
-      | e -> false)
-    ([ ("a", false)
-       ("-user", false)
-       ("USER", false)
-       ("USER-canvas", false)
-       ("User-canvas", false)
-       ("u__r-canvas", true)
-       ("user", true)
-       ("user-", true)
-       ("user-%2525F0%25259F%2525AA%252590", false)
-       ("user-(^@^)", false)
-       ("user--canvas", true)
-       ("user-9", true)
-       ("user-9abc", true)
-       ("user-CAnva9na", false)
-       ("user-CanvasName", false)
-       ("user-a_a", true)
-       ("user-canvas name", false)
-       ("user-canvas", true)
-       ("user-canvas%20new%20messages", false)
-       ("user-canvas%23db=1019933638", false)
-       ("user-canvas%255D", false)
-       ("user-canvas&name=0", false)
-       ("user-canvas--name", true)
-       ("user-canvas-nAME", false)
-       ("user-canvas-name", true)
-       ("user-canvas-name-matc%20h", false)
-       ("user-canvas.name", false)
-       ("user-canvas.name-name2", false)
-       ("user-canvas;name", false)
-       ("user-canvas=123456789", false)
-       ("user-canvasName", false)
-       ("user-canvas_name", true)
-       ("user_", true) ])
+      match CanvasName.validate c with
+      | Ok _ -> "ok"
+      | Error CanvasName.LengthError -> "lengthError"
+      | Error CanvasName.EmptyError -> "emptyError"
+      | Error (CanvasName.UsernameError _) -> "usernameError"
+      | Error (CanvasName.CanvasNameError _) -> "canvasNameError")
+    ([ ("a", "usernameError")
+       ("-user", "usernameError")
+       ("", "emptyError")
+       ("user-withfarfarfarfarfartoolongacanvasnameoversixtyfourcharacters0123456789",
+        "lengthError")
+       ("USER", "usernameError")
+       ("USER-canvas", "usernameError")
+       ("User-canvas", "usernameError")
+       ("u__r-canvas", "ok")
+       ("user", "ok")
+       ("user-", "ok")
+       ("user-%2525F0%25259F%2525AA%252590", "canvasNameError")
+       ("user-(^@^)", "canvasNameError")
+       ("user--canvas", "ok")
+       ("user-9", "ok")
+       ("user-9abc", "ok")
+       ("user-CAnva9na", "canvasNameError")
+       ("user-CanvasName", "canvasNameError")
+       ("user-a_a", "ok")
+       ("user-canvas name", "canvasNameError")
+       ("user-canvas", "ok")
+       ("user-canvas%20new%20messages", "canvasNameError")
+       ("user-canvas%23db=1019933638", "canvasNameError")
+       ("user-canvas%255D", "canvasNameError")
+       ("user-canvas&name=0", "canvasNameError")
+       ("user-canvas--name", "ok")
+       ("user-canvas-nAME", "canvasNameError")
+       ("user-canvas-name", "ok")
+       ("user-canvas-name-matc%20h", "canvasNameError")
+       ("user-canvas.name", "canvasNameError")
+       ("user-canvas.name-name2", "canvasNameError")
+       ("user-canvas;name", "canvasNameError")
+       ("user-canvas=123456789", "canvasNameError")
+       ("user-canvasName", "canvasNameError")
+       ("user-canvas_name", "ok")
+       ("vertvery-canvas_name", "ok")
+       ("user_", "ok") ])
 
 let userName =
   testMany
