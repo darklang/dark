@@ -107,6 +107,18 @@ let testDateMigrationHasCorrectFormats =
     Expect.equal newActual $"\"{str}\"" "old format"
   }
 
+// We used a System.Text.Json converter supplied by a NuGet package for a bit,
+// but found that it was incompatible with the OCamlCompatible serializer. We
+// have since adjusted `Vanilla` to use a custom converter, and this test is to
+// ensure values serialized during the time where the NuGet package's converter
+// are able to be deserialized. The value here
+let testPreviousDateSerializionCompatibility =
+  test "previous date serialization compatible" {
+    let expected = RT.DDate(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
+    let actual =
+      Json.Vanilla.deserialize<RT.Dval> """["DDate","1970-01-01T00:00:00"]"""
+    Expect.equal expected actual "not deserializing correctly"
+  }
 
 let testToPrettyRequestJson =
   testMany
@@ -612,4 +624,5 @@ let tests =
       Password.tests
       LibJwt.testJsonSameOnBoth
       ParsingMinefield.tests
+      testPreviousDateSerializionCompatibility
       allRoundtrips ]
