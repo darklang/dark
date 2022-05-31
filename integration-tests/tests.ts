@@ -94,7 +94,7 @@ function clearMessages(testInfo: TestInfo) {
 }
 
 export function canvasUrl(canvasName: string) {
-  return `${BASE_URL}/a/test-${canvasName}?integration-test=true&use-blazor=true`;
+  return `${BASE_URL}/a/test-${canvasName}?integration-test=true`;
 }
 
 test.describe.serial("Integration Tests", async () => {
