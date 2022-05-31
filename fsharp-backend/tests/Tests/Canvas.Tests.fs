@@ -477,7 +477,7 @@ let testCanvasClone =
 
     do! CanvasClone.cloneCanvas sourceCanvasName targetCanvasName false
     // Do this after to test the clone has created the canvas
-    let! targetMeta = Canvas.getMetaDontCreate targetCanvasName
+    let! targetMeta = Canvas.getMeta targetCanvasName
 
     let! (sourceCanvas : Canvas.T) = Canvas.loadAll sourceMeta
     let! (targetCanvas : Canvas.T) = Canvas.loadAll targetMeta

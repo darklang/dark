@@ -63,8 +63,9 @@ let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
 
 /// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
 /// We want to use this in nearly all cases, with the only exception being when a
-/// user enters a URL to open an editor for a canvas.
-let getMetaDontCreate (canvasName : CanvasName.T) : Task<Meta> =
+/// user enters a URL to open an editor for a canvas. Throws if the canvas doesn't
+/// exist.
+let getMeta (canvasName : CanvasName.T) : Task<Meta> =
   Sql.query "SELECT id, account_id from canvases where name = @canvasName"
   |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowAsync (fun read ->

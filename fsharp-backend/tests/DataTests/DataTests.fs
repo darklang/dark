@@ -176,7 +176,7 @@ let forEachCanvasWithClient
 let loadAllUserData (concurrency : int) (failOnError : bool) =
   forEachCanvas concurrency failOnError (fun canvasName ->
     task {
-      let! meta = Canvas.getMetaDontCreate canvasName
+      let! meta = Canvas.getMeta canvasName
       let! c = Canvas.loadAllDBs meta
       let dbs =
         c.dbs |> Map.values |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map
@@ -318,7 +318,7 @@ let main args =
 
   let fn (canvasName : CanvasName.T) : Task<unit> =
     task {
-      let! meta = Canvas.getMetaDontCreate canvasName
+      let! meta = Canvas.getMeta canvasName
       let! tlids = Serialize.fetchAllTLIDs meta.id
 
       do! checkCached meta tlids

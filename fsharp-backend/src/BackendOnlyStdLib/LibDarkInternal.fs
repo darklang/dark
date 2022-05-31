@@ -573,7 +573,7 @@ that's already taken, returns an error."
                 | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
                 | Some (Canvas.Origins os) ->
                   os |> List.map DStr |> DList |> Some |> DOption
-              let! c = Canvas.getMetaDontCreate (CanvasName.createExn host)
+              let! c = Canvas.getMeta (CanvasName.createExn host)
               let! cors = Canvas.fetchCORSSetting c.id
               return corsSettingToDval cors
             }
@@ -748,7 +748,7 @@ that's already taken, returns an error."
           | _, [ DStr host ] ->
             uply {
               try
-                let! meta = Canvas.getMetaDontCreate (CanvasName.createExn host)
+                let! meta = Canvas.getMeta (CanvasName.createExn host)
                 return DOption(Some(DStr(string meta.id)))
               with
               | e -> return DOption None

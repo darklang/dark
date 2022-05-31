@@ -408,7 +408,7 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
 
 let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! canvas = Canvas.getMetaDontCreate canvasName
+    let! canvas = Canvas.getMeta canvasName
 
     let! canvasWithJustDBs = Canvas.loadAllDBs canvas
     let parameters =
@@ -486,7 +486,7 @@ let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
 
 let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! canvas = Canvas.getMetaDontCreate canvasName
+    let! canvas = Canvas.getMeta canvasName
     let! canvasWithJustWorkers = Canvas.loadAllWorkers canvas
 
     do!
