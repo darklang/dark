@@ -369,6 +369,8 @@ let rec dval = (j): dval => {
     | None =>
       if (j == Js.Json.string("Infinity")) {
         Float.infinity
+      } else if (j == Js.Json.string("-Infinity")) {
+        Float.negativeInfinity
       } else if (j == Js.Json.string("NaN")) {
         Float.nan
       } else {
