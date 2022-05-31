@@ -283,11 +283,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     | Some canvasName ->
       ctx.Items[ "canvasName" ] <- canvasName // store for exception tracking
 
-      let! meta =
+      // CLEANUP we'd like to get rid of corsSetting and move it out of the DB and
+      // entirely into code in some middleware
+      let! (meta, corsSetting) =
         // Extra task CE is to make sure the exception is caught
         task {
           try
-            return! Canvas.getMeta canvasName
+            return! Canvas.getMetaAndCorsDontCreate canvasName
           with
           | _ -> return raise (NotFoundException "user not found")
         }
@@ -333,9 +335,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         match routeVars with
         | Some routeVars ->
           Telemetry.addTag "handler.routeVars" routeVars
-          // CLEANUP we'd like to get rid of corsSetting and move it out of the DB
-          // and entirely into code in some middleware
-          let! corsSetting = Canvas.fetchCORSSetting meta.id
 
           // Do request
           use _ = Telemetry.child "executeHandler" []

@@ -49,6 +49,17 @@ let getMeta (canvasName : CanvasName.T) : Task<Meta> =
     return { id = canvasID; owner = ownerID; name = canvasName }
   }
 
+/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
+/// We want to use this in nearly all cases, with the only exception being when a
+/// user enters a URL to open an editor for a canvas.
+let getMetaDontCreate (canvasName : CanvasName.T) : Task<Meta> =
+  Sql.query "SELECT id, account_id from canvases where name = @canvasName"
+  |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
+  |> Sql.executeRowAsync (fun read ->
+    { id = read.uuid "id"; owner = read.uuid "account_id"; name = canvasName })
+
+
+
 let getMetaFromID (id : CanvasID) : Task<Meta> =
   Sql.query "SELECT name, account_id FROM canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid id ]
@@ -280,25 +291,41 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   let reducedOps = Undo.preprocess (oldops @ newops)
   List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
+let parseCorsString (str : string) : CorsSetting =
+  let json = System.Text.Json.JsonDocument.Parse str
+
+  match json.RootElement.ValueKind with
+  | System.Text.Json.JsonValueKind.String when json.RootElement.GetString() = "*" ->
+    AllOrigins
+  | System.Text.Json.JsonValueKind.Array ->
+    json.RootElement.EnumerateArray() |> Seq.map string |> Seq.toList |> Origins
+  | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ]
+
+
 let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
   Sql.query "SELECT cors_setting FROM canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read ->
-    match read.stringOrNone "cors_setting" with
-    | None -> None
-    | Some str ->
-      let json = System.Text.Json.JsonDocument.Parse str
+    read.stringOrNone "cors_setting" |> Option.map parseCorsString)
 
-      match json.RootElement.ValueKind with
-      | System.Text.Json.JsonValueKind.String when json.RootElement.GetString() = "*" ->
-        Some AllOrigins
-      | System.Text.Json.JsonValueKind.Array ->
-        json.RootElement.EnumerateArray()
-        |> Seq.map string
-        |> Seq.toList
-        |> Origins
-        |> Some
-      | _ -> Exception.raiseInternal "invalid json in CorsSettings" [ "json", json ])
+/// Shortcut to get Meta and CorsSetting in one DB query. Strictly an optimization.
+let getMetaAndCorsDontCreate
+  (canvasName : CanvasName.T)
+  : Task<Meta * Option<CorsSetting>> =
+  task {
+    let! (id, accountID, corsString) =
+      Sql.query
+        "SELECT id, account_id, cors_setting
+           FROM canvases
+          WHERE name = @canvasName"
+      |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
+      |> Sql.executeRowAsync (fun read ->
+        (read.uuid "id", read.uuid "account_id", read.stringOrNone "cors_setting"))
+    let corsSetting = Option.map parseCorsString corsString
+    return { id = id; owner = accountID; name = canvasName }, corsSetting
+  }
+
+
 
 let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
