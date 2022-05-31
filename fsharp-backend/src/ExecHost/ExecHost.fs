@@ -118,7 +118,7 @@ let usesDB (options : Options) =
 let convertToRT (canvasName : string) : Task<unit> =
   task {
     let canvasName = CanvasName.createExn canvasName
-    let! canvasInfo = LibBackend.Canvas.getMeta canvasName
+    let! canvasInfo = LibBackend.Canvas.getMetaDontCreate canvasName
     let! canvas = LibBackend.Canvas.loadAll canvasInfo
     let _program = LibBackend.Canvas.toProgram canvas
     let _handlers =

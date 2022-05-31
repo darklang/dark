@@ -51,7 +51,7 @@ let canvasIDForCanvasName
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
 /// Fetch high-level metadata for a canvas
-let getMeta (canvasName : CanvasName.T) : Task<Meta> =
+let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
     // CLEANUP put into single query. We'll need to ignore canvas_id, but we only

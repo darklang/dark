@@ -118,19 +118,14 @@ let withPermissionMiddleware
       // CLEANUP: reduce to one query
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
       let ownerName = Account.ownerNameFromCanvasName canvasName
-      let! ownerID = Account.userIDForUserName (ownerName.toUserName ())
-      let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
-
-      let canvasInfo : Canvas.Meta =
-        { name = canvasName; id = canvasID; owner = ownerID }
-
+      let! canvasInfo = Canvas.getMetaAndCreate canvasName
       let! permission = Auth.permission ownerName user.username
 
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
         saveCanvasInfo canvasInfo ctx
         savePermission permission ctx
-        Telemetry.addTags [ "canvas", canvasName; "canvasID", canvasID ]
+        Telemetry.addTags [ "canvas", canvasName; "canvasID", canvasInfo.id ]
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
