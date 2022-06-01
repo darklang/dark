@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Add the lock identifier for the commit and the timestamp.
+
+set -euo pipefail
+
+DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
+
+LOCKFILE_NAME=$(./scripts/deployment/deploy-lock-one-get-name)
+
+echo "Adding lock file with id ${LOCKFILE_ID}"
+
+gsutil cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"

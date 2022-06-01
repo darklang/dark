@@ -6,8 +6,6 @@ set -euo pipefail
 # Deploy Dark to production
 
 MANIFEST=""
-MANUAL_DEPLOY=""
-MANUAL_FLAG=""
 
 HELP="$(cat <<EOF
 Usage: $0 [OPTIONS]
@@ -27,10 +25,6 @@ do
     --manifest=*)
       MANIFEST="${i/--manifest=/''}"
       ;;
-    --manual)
-      MANUAL_DEPLOY="true"
-      MANUAL_FLAG="--manual"
-      ;;
     --help)
       echo "$HELP"
       exit 0
@@ -43,29 +37,7 @@ do
   esac
 done
 
-if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  if [[ -v CI ]]; then
-    echo "Manual deploy detected in CI"
-    exit 1
-  fi
-else
-  if [[ ! -v CI ]]; then
-    echo "Automatic deploy detected outside CI"
-    exit 1
-  fi
-fi
-
 set -x
-
-#############################
-# set variables now so this fails early if they're not available
-#############################
-
-if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-else
-  CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-fi
 
 #############################
 # Ensure we got a good one
@@ -79,7 +51,7 @@ fi
 cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
   echo "Removing deploy lock"
-  ./scripts/deployment/deploy-lock-clear "$MANUAL_FLAG"
+  ./scripts/deployment/deploy-lock-one-remove
   exit 1
 }
 
@@ -87,7 +59,7 @@ cleanup_deploy_lock() {
 trap cleanup_deploy_lock INT QUIT TERM ERR
 
 # We source this instead of running it in a subshell so that the trap works as expected
-./scripts/deployment/deploy-lock-wait-and-acquire "$MANUAL_FLAG"
+./scripts/deployment/deploy-lock-wait
 
 #############################
 # Check it's safe to deploy
@@ -122,4 +94,4 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 ####################
 # Unlock post-deploy
 ####################
-./scripts/deployment/deploy-lock-clear "$MANUAL_FLAG"
+./scripts/deployment/deploy-lock-one-remove

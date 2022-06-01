@@ -69,6 +69,25 @@ commands:
             env
 
   ##########################
+  # Deploy locks
+  ##########################
+  deploy-lock-remove-on-fail:
+    steps:
+      - run:
+          name: Remove deploy lock
+          when: on_fail
+          command: ./scripts/deployment/deploy-lock-one-remove
+
+  deploy-lock-remove:
+    steps:
+      - run:
+          name: Remove deploy lock
+          command: ./scripts/deployment/deploy-lock-one-remove
+
+
+
+
+  ##########################
   # Slack
   ##########################
   slack-notify-failure:
@@ -191,6 +210,7 @@ jobs:
       - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   build-backend:
     executor: in-container
@@ -246,6 +266,7 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   build-fsharp-backend:
     executor: in-container
@@ -286,6 +307,7 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   static-checks:
     executor: in-container
@@ -297,6 +319,7 @@ jobs:
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit validate
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   predeployment-checks:
     executor: in-container
@@ -306,6 +329,7 @@ jobs:
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   validate-honeycomb-config:
     executor: simple-executor
@@ -314,6 +338,7 @@ jobs:
       - prep-container-creation
       - run: bash -c scripts/linting/test-honeycomb-config.sh
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   integration-tests:
     executor: in-container
@@ -365,6 +390,7 @@ jobs:
           paths: ["integration-tests/node_modules", "/home/dark/.cache/ms-playwright"]
           key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
 
   gcp-containers-test:
@@ -376,6 +402,7 @@ jobs:
       - attach_workspace: { at: "." }
       - build-gcp-containers
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   push-containers-to-gcp:
     executor: in-container
@@ -392,6 +419,7 @@ jobs:
           paths: ["gcr-image-ids.json"]
       - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   push-assets-to-gcp:
     executor: in-container
@@ -404,13 +432,15 @@ jobs:
       - regenerate-etags
       - run: scripts/deployment/_push-assets-to-cdn
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   deploy-lock:
     executor: simple-executor
     steps:
       - darkcheckout
-      - run: scripts/deployment/deploy-lock-add
+      - run: scripts/deployment/deploy-lock-one-add
       - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
 
   deploy:
     executor: in-container
@@ -423,6 +453,8 @@ jobs:
       - show-large-files-and-directories
       - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
       - slack-notify-deploy
+      - deploy-lock-remove
+      - deploy-lock-remove-on-fail
 
   notify-non-deploy:
     executor: simple-executor
