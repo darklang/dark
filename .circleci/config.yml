@@ -452,7 +452,12 @@ workflows:
             - build-backend
             - build-client
             - build-fsharp-backend
+
       - gcp-containers-test:
+          # This is fully covered by push-assets-to-gcp, so no need to do it twice
+          filters:
+            branches:
+              ignore: main
           requires:
             - build-client # to rebuild etags
             - build-backend
