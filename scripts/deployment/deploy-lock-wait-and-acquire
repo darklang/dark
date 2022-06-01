@@ -6,7 +6,6 @@
 
 set -euo pipefail
 
-DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
 LOCKFILE_NAME=$(./scripts/deployment/deploy-lock-one-get-name)
 
 echo "Lock file: ${LOCKFILE_ID}"
