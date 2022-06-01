@@ -247,6 +247,10 @@ window.Dark = {
     busy: false,
     /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
     utils: require("../../lib/js/client/workers/FSharpAnalysisWrapper.bs.js"),
+    debug: (function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("debug-analysis") == "true";
+    })(),
     callback: function (event) {
       const analysis = window.Dark.fsharpAnalysis;
       const worker = window.BlazorWorker;
@@ -300,6 +304,9 @@ window.Dark = {
       } else {
         // not busy: run it immediately
 
+        if (analysis.debug) {
+          console.log("Requesting analysis", params);
+        }
         worker.postMessage(params);
         analysis.busy = true;
       }
@@ -323,7 +330,7 @@ window.Dark = {
   analysis: {
     useBlazor: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("use-blazor");
+      return urlParams.get("use-blazor") == "true";
     })(),
     requestAnalysis: function (params) {
       if (window.Dark.analysis.useBlazor) {
