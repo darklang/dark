@@ -201,7 +201,11 @@ module Exception =
     with
     | _ -> None
 
-
+  let catchError (f : unit -> 'r) : Result<'r, string> =
+    try
+      Ok(f ())
+    with
+    | e -> Error e.Message
 
 
 // ----------------------
