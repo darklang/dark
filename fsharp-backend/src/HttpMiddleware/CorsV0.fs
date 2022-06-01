@@ -20,15 +20,18 @@ type CorsSetting =
   | Origins of List<string>
 
 module Test =
-  let mutable corsSettings : Dictionary.T<string, CorsSetting> = null
+  type ConcurrentDictionary<'k, 'v> =
+    System.Collections.Concurrent.ConcurrentDictionary<'k, 'v>
 
-  let initialize () : unit = corsSettings <- Dictionary.empty ()
+  let mutable corsSettings : ConcurrentDictionary<string, CorsSetting> = null
+
+  let initialize () : unit = corsSettings <- ConcurrentDictionary()
 
   let addAllOrigins (canvasName : CanvasName.T) : unit =
-    Dictionary.add (string canvasName) AllOrigins corsSettings
+    corsSettings[string canvasName] <- AllOrigins
 
   let addOrigins (canvasName : CanvasName.T) (origins : List<string>) : unit =
-    Dictionary.add (string canvasName) (Origins origins) corsSettings
+    corsSettings[string canvasName] <- Origins origins
 
 /// We used to have a feature where we'd set the cors setting on the canvas. It's
 /// much better to do this in middleware. These canvases are the remaining user
@@ -54,7 +57,9 @@ let corsSettingForCanvas (canvasName : CanvasName.T) : Option<CorsSetting> =
     if isNull Test.corsSettings then
       None
     else
-      Dictionary.get canvasName Test.corsSettings
+      let mutable result : CorsSetting = AllOrigins
+      let success = Test.corsSettings.TryGetValue(string canvasName, &result)
+      if success then Some result else None
 
 // ---------------
 // CORS
