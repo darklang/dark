@@ -393,8 +393,8 @@ Error (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 // DarkInternal tests are internal
 // ---------------------------
 [tests.darkinternal]
-DarkInternal.checkAccess_v0 = Test.typeError_v0 "User executed an internal function but isn't an admin: test" // OCAMLONLY
-DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
+DarkInternal.setAdmin "test" true = Test.typeError_v0 "User executed an internal function but isn't an admin: test" // OCAMLONLY
+DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
 
 // ---------------------------
 // Equality
