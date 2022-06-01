@@ -138,13 +138,18 @@ let fromRequest
       parseFormBody headers body
     with
     | _ -> if allowUnparseable then RT.DNull else reraise ()
+  let fullBody =
+    try
+      UTF8.ofBytesUnsafe body |> RT.DStr
+    with
+    | _ -> RT.DError(RT.SourceNone, "Invalid UTF8 input")
   let parts =
     [ "body", parseBody
       "jsonBody", jsonBody
       "formBody", formBody
       "queryParams", parseQueryString query
       "headers", parseHeaders headers
-      "fullBody", RT.DStr(UTF8.ofBytesUnsafe body)
+      "fullBody", fullBody
       "cookies", cookies headers
       "url", url headers uri ]
   RT.Dval.obj parts
