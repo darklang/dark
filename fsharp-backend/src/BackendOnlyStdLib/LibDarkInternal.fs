@@ -558,80 +558,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getCORSSetting" 0
-      parameters = [ Param.make "canvas" TStr "" ]
-      returnType = TOption(varA)
-      description =
-        "Given the full canvas name (including the username), get that canvas' global CORS setting."
-      fn =
-        internalFn (function
-          | _, [ DStr host ] ->
-            uply {
-              let corsSettingToDval (setting : Canvas.CorsSetting option) : Dval =
-                match setting with
-                | None -> DOption None
-                | Some Canvas.AllOrigins -> "*" |> DStr |> Some |> DOption
-                | Some (Canvas.Origins os) ->
-                  os |> List.map DStr |> DList |> Some |> DOption
-              let! c = Canvas.getMeta (CanvasName.createExn host)
-              let! cors = Canvas.fetchCORSSetting c.id
-              return corsSettingToDval cors
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "setCORSSetting" 0
-      parameters =
-        [ Param.make "canvas" TStr ""; Param.make "origins" (TOption varA) "" ]
-      returnType = TResult(varA, TStr)
-      description =
-        "Given the full canvas name (including the username) and an Option of either \"*\" or a list of string origins, set that value to that canvas' global CORS setting, so that it will be used in Access-Control-Allow-Origin response headers. Returns true if it worked and false if it didn't (likely meaning: the Dark value you passed in was invalid)."
-      fn =
-        internalFn (function
-          | _, [ DStr host; DOption s ] ->
-            uply {
-              let corsSetting
-                (opt : Option<Dval>)
-                : Result<Option<Canvas.CorsSetting>, string> =
-                // Error: error converting the dval to a cors setting.
-                // Ok None: the dval is "unset the cors value"
-                // Ok (Some cs): the dval is "set the cors setting to cs" *)
-                try
-                  match opt with
-                  | None -> Ok None
-                  | Some (DStr "*") -> Ok(Some Canvas.AllOrigins)
-                  | Some (DList os) ->
-                    os
-                    |> List.map (fun dv ->
-                      match dv with
-                      | DStr v -> v
-                      | _ -> Exception.raiseCode "Invalid origin string")
-                    |> Canvas.Origins
-                    |> Some
-                    |> Ok
-                  | Some dv ->
-                    Error(
-                      "Received something other than an Nothing, Just [...], or Just \"*\": "
-                      + DvalReprExternal.toDeveloperReprV0 dv
-                    )
-                with
-                | e -> Error(string e)
-              match corsSetting s with
-              | Error e -> return e |> DStr |> Error |> DResult
-              | Ok settings ->
-                let! c = Canvas.getMetaAndCreate (CanvasName.createExn host)
-                do! Canvas.updateCorsSetting c.id settings
-                return s |> DOption |> Ok |> DResult
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "dbs" 0
       parameters = [ Param.make "host" TStr "" ]
       returnType = TList TStr
@@ -748,7 +674,7 @@ that's already taken, returns an error."
           | _, [ DStr host ] ->
             uply {
               try
-                let! meta = Canvas.getMeta (CanvasName.createExn host)
+                let! meta = Canvas.getMetaExn (CanvasName.createExn host)
                 return DOption(Some(DStr(string meta.id)))
               with
               | e -> return DOption None

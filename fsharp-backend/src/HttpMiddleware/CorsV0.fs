@@ -14,13 +14,61 @@ module Resp = ResponseV0
 // TODO: Remove access to LibBackend from here
 module Canvas = LibBackend.Canvas
 
+
+type CorsSetting =
+  | AllOrigins
+  | Origins of List<string>
+
+module Test =
+  type ConcurrentDictionary<'k, 'v> =
+    System.Collections.Concurrent.ConcurrentDictionary<'k, 'v>
+
+  let mutable corsSettings : ConcurrentDictionary<string, CorsSetting> = null
+
+  let initialize () : unit = corsSettings <- ConcurrentDictionary()
+
+  let addAllOrigins (canvasName : CanvasName.T) : unit =
+    corsSettings[string canvasName] <- AllOrigins
+
+  let addOrigins (canvasName : CanvasName.T) (origins : List<string>) : unit =
+    corsSettings[string canvasName] <- Origins origins
+
+/// We used to have a feature where we'd set the cors setting on the canvas. It's
+/// much better to do this in middleware. These canvases are the remaining user
+/// canvases while we had a setting. We can remove all this once this is gone.
+let corsSettingForCanvas (canvasName : CanvasName.T) : Option<CorsSetting> =
+  match string canvasName with
+  | "ops-presence" ->
+    Some(Origins [ "localhost"; "darklang.localhost"; "https://darklang.com" ])
+  | "ops-adduser" -> Some(Origins [ "https://darklang.com" ])
+  | "listo" ->
+    Some(
+      Origins(
+        [ "http://localhost:8000"
+          "https://usealtitude.com"
+          "https://app.usealtitude.com"
+          "http://localhost:3000"
+          "https://elegant-galileo.netlify.com" ]
+      )
+    )
+  | canvasName ->
+    // There's actually a lot of tests for this. I don't want to slow things down by
+    // adding every test canvas here, so instead there's a nullable dictionary.
+    if isNull Test.corsSettings then
+      None
+    else
+      let mutable result : CorsSetting = AllOrigins
+      let success = Test.corsSettings.TryGetValue(string canvasName, &result)
+      if success then Some result else None
+
 // ---------------
 // CORS
 // ---------------
 let inferCorsOriginHeader
-  (corsSetting : Option<Canvas.CorsSetting>)
+  (canvasName : CanvasName.T)
   (headers : HttpHeaders.T)
   : string option =
+  let corsSetting = corsSettingForCanvas canvasName
   let originHeader = HttpHeaders.get "Origin" headers
 
   let defaultOrigins =
@@ -39,13 +87,13 @@ let inferCorsOriginHeader
     // This is helpful as a debugging aid since users will always see
     // Access-Control-Allow-Origin: * in their browsers, even if the
     // request has no Origin.
-    | _, Some Canvas.AllOrigins -> Some "*"
+    | _, Some AllOrigins -> Some "*"
 
     // if there's no supplied origin, don't set the header at all.
     | None, _ -> None
 
     // Return the origin if and only if it's in the setting
-    | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
+    | Some origin, Some (Origins origins) when List.contains origin origins ->
       Some origin
 
     // Otherwise: there was a supplied origin and it's not in the setting.
@@ -56,10 +104,10 @@ let inferCorsOriginHeader
 
 let addCorsHeaders
   (reqHeaders : HttpHeaders.T)
-  (corsSetting : Option<Canvas.CorsSetting>)
+  (canvasName : CanvasName.T)
   (response : Resp.HttpResponse)
   : Resp.HttpResponse =
-  inferCorsOriginHeader corsSetting reqHeaders
+  inferCorsOriginHeader canvasName reqHeaders
   |> Option.map (fun origin ->
     { response with
         // these are added in order, so make sure the user's setting wins
@@ -69,7 +117,7 @@ let addCorsHeaders
 
 let optionsResponse
   (reqHeaders : HttpHeaders.T)
-  (corsSetting : Option<Canvas.CorsSetting>)
+  (canvasName : CanvasName.T)
   : Option<Resp.HttpResponse> =
   // When javascript in a browser tries to make an unusual cross-origin
   // request (for example, a POST with a weird content-type or something with
@@ -90,7 +138,7 @@ let optionsResponse
   let acReqHeaders = HttpHeaders.get "access-control-request-headers" reqHeaders
   let allowHeaders = Option.defaultValue "*" acReqHeaders
 
-  (inferCorsOriginHeader corsSetting reqHeaders)
+  (inferCorsOriginHeader canvasName reqHeaders)
   |> Option.map (fun origin ->
     { statusCode = 200
       body = [||]

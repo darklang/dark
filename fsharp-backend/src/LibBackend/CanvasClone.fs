@@ -116,7 +116,7 @@ let cloneCanvas
   // an acceptable risk - users would have to get their welcome to dark email,
   // reset their password, and log in, before we finish running cloneCanvas.
   task {
-    let! fromMeta = Canvas.getMeta fromCanvasName
+    let! fromMeta = Canvas.getMetaExn fromCanvasName
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
     // CLEANUP this could be substantially simplified once we know that oplist_cache is
     // non-null.
