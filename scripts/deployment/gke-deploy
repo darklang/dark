@@ -6,7 +6,8 @@ set -euo pipefail
 # Deploy Dark to production
 
 MANIFEST=""
-MANUAL_DEPLOY="false"
+MANUAL_DEPLOY=""
+MANUAL_FLAG=""
 
 HELP="$(cat <<EOF
 Usage: $0 [OPTIONS]
@@ -28,6 +29,7 @@ do
       ;;
     --manual)
       MANUAL_DEPLOY="true"
+      MANUAL_FLAG="--manual"
       ;;
     --help)
       echo "$HELP"
@@ -74,16 +76,10 @@ fi
 # Lock before doing a deploy (unlocks on fail or at end of file)
 #############################
 
-if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  LOCKFILE_ID="manual-deploy"
-else
-  LOCKFILE_ID="${CIRCLE_BUILD_NUM}"
-fi
-
 cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
   echo "Removing deploy lock"
-  ./scripts/deployment/deploy-lock-remove "${LOCKFILE_ID}"
+  ./scripts/deployment/deploy-lock-clear "$MANUAL_FLAG"
   exit 1
 }
 
@@ -91,7 +87,7 @@ cleanup_deploy_lock() {
 trap cleanup_deploy_lock INT QUIT TERM ERR
 
 # We source this instead of running it in a subshell so that the trap works as expected
-./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
+./scripts/deployment/deploy-lock-wait-and-acquire "$MANUAL_FLAG"
 
 #############################
 # Check it's safe to deploy
@@ -126,4 +122,4 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 ####################
 # Unlock post-deploy
 ####################
-./scripts/deployment/deploy-lock-clear
+./scripts/deployment/deploy-lock-clear "$MANUAL_FLAG"
