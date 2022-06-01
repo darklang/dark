@@ -405,7 +405,12 @@ jobs:
       - run: scripts/deployment/_push-assets-to-cdn
       - slack-notify-job-failure
 
-
+  deploy-lock:
+    executor: simple-executor
+    steps:
+      - darkcheckout
+      - run: scripts/deployment/deploy-lock-add
+      - slack-notify-job-failure
 
   deploy:
     executor: in-container
@@ -479,12 +484,18 @@ workflows:
             branches:
               only: main
           requires:
+            - deploy-lock
             - validate-honeycomb-config
             - integration-tests
             - push-containers-to-gcp
             - push-assets-to-gcp
             - static-checks
             - predeployment-checks
+
+      - deploy-lock:
+          filters:
+            branches:
+              only: main
 
       - notify-non-deploy:
           filters:

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Adds an lock identifier for the commit and the timestamp. If the argument
+# --manual-deploy is provided, it will use the manual lock instead.
+
+set -euo pipefail
+
+DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
+MANUAL=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --manual-deploy) MANUAL=true ;;
+    *) echo "Invalid argument: {${i}}"; exit -1
+  esac
+done
+
+COMMIT=$(git rev-parse --short HEAD)
+TIMESTAMP=$(git show -s --format=%at HEAD)
+
+LOCKFILE_ID="${TIMESTAMP}-${COMMIT}"
+echo "Adding lock file with id ${LOCKFILE_ID}"
+
+gsutil cp "deploy-lock-${LOCKFILE_ID}" "${DEPLOY_LOCK_BUCKET}"
