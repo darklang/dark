@@ -414,10 +414,10 @@ module AspNet =
             ()
           else
             try
-              printException
-                "rollbar in http middleware"
-                [ "url", (ctx.Request.GetEncodedUrl()) ]
-                e
+              let url =
+                Exception.catch ctx.Request.GetEncodedUrl
+                |> Option.defaultValue "invalid url"
+              printException "rollbar in http middleware" [ "url", url ] e
 
               let person, metadata =
                 try
