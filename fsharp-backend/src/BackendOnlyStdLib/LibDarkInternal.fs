@@ -109,24 +109,28 @@ that's already taken, returns an error."
         internalFn (function
           | state, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
             uply {
-              let username = UserName.create username
-              let! _user =
-                Account.insertUser username email name (Some analyticsMetadata)
-              Analytics.identifyUser username
-              let toCanvasName =
-                $"{username}-{LibService.Config.gettingStartedCanvasName}"
-              let fromCanvasName = LibService.Config.gettingStartedCanvasSource
-              do!
-                CanvasClone.cloneCanvas
-                  (CanvasName.createExn fromCanvasName)
-                  (CanvasName.createExn toCanvasName)
-                  // Don't preserve history here, it isn't useful and
-                  // we don't currently have visibility into canvas
-                  // history, so we'd rather not share unknown sample-
-                  // history with users in case it contains
-                  // sensitive information like access keys.
-                  false
-              return DResult(Ok(DStr ""))
+              let username =
+                Exception.catchError (fun () -> UserName.create username)
+              match username with
+              | Ok username ->
+                let! _user =
+                  Account.insertUser username email name (Some analyticsMetadata)
+                Analytics.identifyUser username
+                let toCanvasName =
+                  $"{username}-{LibService.Config.gettingStartedCanvasName}"
+                let fromCanvasName = LibService.Config.gettingStartedCanvasSource
+                do!
+                  CanvasClone.cloneCanvas
+                    (CanvasName.createExn fromCanvasName)
+                    (CanvasName.createExn toCanvasName)
+                    // Don't preserve history here, it isn't useful and
+                    // we don't currently have visibility into canvas
+                    // history, so we'd rather not share unknown sample-
+                    // history with users in case it contains
+                    // sensitive information like access keys.
+                    false
+                return DResult(Ok(DStr ""))
+              | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
