@@ -1,25 +1,5 @@
 version: 2
 updates:
-- package-ecosystem: cargo
-  directory: "/containers/stroller"
-  schedule:
-    interval: daily
-    time: "13:00"
-  open-pull-requests-limit: 10
-  labels:
-  - rust
-  ignore:
-  - dependency-name: hyper
-    versions:
-    - 0.14.2
-    - 0.14.4
-    - 0.14.5
-  - dependency-name: serde_json
-    versions:
-    - 1.0.63
-  - dependency-name: sha2
-    versions:
-    - 0.9.3
 - package-ecosystem: docker
   directory: "/"
   schedule:

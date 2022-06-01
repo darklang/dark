@@ -1356,7 +1356,7 @@ let update_ = (msg: msg, m: model): modification => {
     }
 
     Many(\"@"(initialMods, focusMods))
-  | AddOpsStrollerMsg(msg) =>
+  | AddOpsPusherMsg(msg) =>
     if msg.params.clientOpCtrId == m.clientOpCtrId {
       NoChange
     } else {
@@ -2122,7 +2122,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     DarkStorage.NewStaticDeployPush.listen(~key="new_static_deploy", s => NewStaticDeployPush(s)),
     Analysis.ReceiveFetch.listen(~key="receive_fetch", s => ReceiveFetch(s)),
     Analysis.NewPresencePush.listen(~key="new_presence_push", s => NewPresencePush(s)),
-    Analysis.AddOps.listen(~key="add_op", s => AddOpsStrollerMsg(s)),
+    Analysis.AddOps.listen(~key="add_op", s => AddOpsPusherMsg(s)),
     Analysis.WorkerStatePush.listen(~key="worker_state_push", s => WorkerStatePush(s)),
   }
 

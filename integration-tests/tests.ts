@@ -788,7 +788,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await expect(page.locator(toplevelElement)).toHaveClass(/selected/);
   });
 
-  // TODO: This needs Stroller/Pusher in CI
+  // TODO: This needs Pusher in CI
   // test('passwords_are_redacted', async ({ page }) => {
   //   const callBackend = ClientFunction(
   //     function (url) {

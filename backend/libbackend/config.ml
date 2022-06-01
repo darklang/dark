@@ -144,7 +144,7 @@ let rollbar_js =
       "{enabled:false}"
 
 
-let stroller_port = int_option "DARK_CONFIG_STROLLER_PORT"
+let stroller_port = None
 
 let pusher_key = string_option "DARK_CONFIG_PUSHER_KEY"
 

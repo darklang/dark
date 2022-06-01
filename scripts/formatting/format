@@ -6,7 +6,6 @@ set -euo pipefail
 CHECK=255 # (0 mean check, 1 means format, 255 means error)
 OCAML=0 # (0 means check ocaml files, 1 means don't)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
-RUST=0 # (0 means check rust files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
 FILES=()
 
@@ -22,7 +21,6 @@ function print_help ()
   printf '\t%s\n' "--ocaml-only: Only check ocaml files (mli, ml)"
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
   printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
-  printf '\t%s\n' "--rust-only: Only check rust files (rs)"
 }
 
 FILES=()
@@ -36,23 +34,15 @@ for val in "${@}"; do
         ;;
     --prettier-only)
         OCAML=1
-        RUST=1
         FSHARP=1
         ;;
     --ocaml-only)
         PRETTIER=1
-        RUST=1
         FSHARP=1
         ;;
     --fsharp-only)
         OCAML=1
         PRETTIER=1
-        RUST=1
-        ;;
-    --rust-only)
-        OCAML=1
-        PRETTIER=1
-        FSHARP=1
         ;;
     check)
       CHECK=0
@@ -87,10 +77,6 @@ is_dir() {
 
 is_ocaml() {
   [[ $1 == *.mli || $1 == *.ml ]]
-}
-
-is_rust() {
-  [[ $1 == *.rs ]]
 }
 
 is_fsharp() {
@@ -194,29 +180,6 @@ all_fsharp_files() {
     \) -print
 }
 
-all_rust_files() {
-  find "$1" \
-    \( -path ".git" \
-    -o -path "_build" \
-    -o -path "./_build" \
-    -o -path "node_modules" \
-    -o -path "./node_modules" \
-    -o -path "integration-tests/node_modules" \
-    -o -path "./integration-tests/node_modules" \
-    -o -path "_esy" \
-    -o -path "./_esy" \
-    -o -path "/home/dark/.esy" \
-    -o -path "esy.lock" \
-    -o -path "fsharp-backend" \
-    -o -path "containers/stroller/target" \
-    -o -path "./containers/stroller/target" \
-    \) -prune -false \
-    \
-    -o -type f \
-    -name "*.rs" \
-    -print0
-}
-
 check_ocamlformat() {
   xargs -0 ocamlformat --check
 }
@@ -229,10 +192,6 @@ check_prettier () {
   xargs -0 npx prettier --list-different
 }
 
-check_rustfmt () {
-  xargs -0 rustfmt --files-with-diff --check
-}
-
 format_ocamlformat() {
   xargs -0 ocamlformat --inplace
 }
@@ -243,10 +202,6 @@ format_fantomas() {
 
 format_prettier() {
   xargs -0 npx prettier --write
-}
-
-format_rustfmt() {
-  xargs -0 rustfmt
 }
 
 do_ocamlformat() {
@@ -273,14 +228,6 @@ do_prettier() {
   fi
 }
 
-do_rustfmt() {
-  if [[ 0 -eq "$CHECK" ]]; then
-    check_rustfmt
-  else
-    format_rustfmt
-  fi
-}
-
 # TODO sqlfmt for sql
 # TODO add python
 # TODO bash formatter
@@ -299,9 +246,6 @@ for i in "${FILES[@]}"; do
     if [[ 0 -eq "$PRETTIER" ]]; then
       all_prettier_files "$i" | do_prettier
     fi
-    if [[ 0 -eq "$RUST" ]]; then
-      all_rust_files "$i" | do_rustfmt
-    fi
   elif is_allowed "$i"; then
     if is_ocaml "$i"; then
       if [[ 0 -eq "$OCAML" ]]; then
@@ -310,10 +254,6 @@ for i in "${FILES[@]}"; do
     elif is_fsharp "$i"; then
       if [[ 0 -eq "$FSHARP" ]]; then
         echo "$i" | do_fantomas
-      fi
-    elif is_rust "$1"; then
-      if [[ 0 -eq "$RUST" ]]; then
-        echo "$i" | do_rustfmt
       fi
     else
       if [[ 0 -eq "$PRETTIER" ]]; then

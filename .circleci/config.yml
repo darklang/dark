@@ -18,15 +18,6 @@ executors:
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
       - image: darklang/dark-base:63e8ebf
-  # Rust is so big we create a separate container for it and only use that
-  # for rust builds
-  in-rust-container:
-    working_directory: ~/app
-    environment:
-      IN_DEV_CONTAINER: true
-    docker:
-      # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:63e8ebf
 
 commands:
   show-large-files-and-directories:
@@ -116,65 +107,6 @@ commands:
           buildType: "build"
       - slack-notify-success:
           buildType: "build"
-
-
-
-
-  ##########################
-  # Rust
-  ##########################
-  rust-setup:
-    parameters:
-      project: { type: string }
-      dir: { type: string }
-    steps:
-      - setup-app
-      - restore_cache:
-          keys:
-            # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
-            - v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
-            - v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}
-            - v1d-<< parameters.project >>
-
-  rust-finish:
-    parameters:
-      project: { type: string }
-      dir: { type: string }
-    steps:
-      - run:
-          name: Reduce caches
-          command: cargo cache -a
-      - show-large-files-and-directories
-
-      # must persist to workspace first, as next step will remove built release artifact
-      - persist_to_workspace:
-          root: "."
-          paths:
-            [
-              << parameters.dir >>/target/release/dark-<< parameters.project >>,
-            ]
-
-      # This removes files in the top-level of target/{debug,release}, which include the actual built artifact
-      # and other intermediates that will always be rebuilt on the next build (so there's no sense in caching them).
-      # It also includes our own (dark*) build files from deps, which are likewise always rebuilt.
-      #
-      # See https://github.com/rust-lang/cargo/issues/5885 for discussion and details
-      - run:
-          name: Cleanup frequently changing rust artifacts
-          command: |
-            find << parameters.dir >>/target -maxdepth 2 -type f -delete
-            rm -rf << parameters.dir >>/target/{debug,release}/{deps,.fingerprint}/dark*
-
-      # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
-      - save_cache:
-          name: "Save << parameters.project >> cache"
-          paths:
-            - << parameters.dir >>/target
-            - .cargo/bin/
-            - .cargo/registry/index/
-            - .cargo/registry/cache/
-            - .cargo/git/db/
-          key: v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
 
 
   ##########################
@@ -356,7 +288,7 @@ jobs:
       - slack-notify-job-failure
 
   static-checks:
-    executor: in-rust-container
+    executor: in-container
     steps:
       - darkcheckout
       - run: scripts/linting/shellchecker
@@ -373,16 +305,6 @@ jobs:
       - auth-with-gcp: { background: false }
       - run: scripts/build/compile-project shipit
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
-      - slack-notify-job-failure
-
-  build-stroller:
-    executor: in-rust-container
-    steps:
-      - darkcheckout
-      - rust-setup: { project: "stroller", dir: "containers/stroller" }
-      - run: scripts/build/compile-project stroller --test
-      - assert-clean-worktree
-      - rust-finish: { project: "stroller", dir: "containers/stroller" }
       - slack-notify-job-failure
 
   validate-honeycomb-config:
@@ -515,7 +437,6 @@ workflows:
       - validate-honeycomb-config
       - build-backend
       - build-client
-      - build-stroller
       - build-fsharp-backend:
           requires:
             - build-backend
@@ -531,7 +452,6 @@ workflows:
             - build-client # to rebuild etags
             - build-backend
             - build-fsharp-backend
-            - build-stroller
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
@@ -552,7 +472,6 @@ workflows:
             - build-backend
             - build-fsharp-backend
             - build-client
-            - build-stroller
 
       # actual deploy
       - deploy:
@@ -575,7 +494,6 @@ workflows:
             - build-backend
             - build-client
             - build-fsharp-backend
-            - build-stroller
             - gcp-containers-test
             - integration-tests
             - static-checks

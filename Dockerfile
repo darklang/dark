@@ -395,9 +395,7 @@ RUN mkdir -p app/_esy
 RUN mkdir -p .esy
 RUN mkdir -p app/node_modules
 RUN mkdir -p app/lib
-RUN mkdir -p app/containers/stroller/target
 RUN mkdir -p app/fsharp-backend/Build
-RUN mkdir -p .cargo
 
 RUN mkdir -p \
       /home/dark/.vscode-server/extensions \
@@ -407,31 +405,3 @@ RUN mkdir -p \
       /home/dark/.vscode-server-insiders
 
 USER dark
-
-
-########################
-# Install Rust toolchain
-# This is in a separate container to save time in CI
-########################
-FROM dark-base as dark-rust
-# We use root here because we're eventually going to remove rust and so it's not worth solving
-USER root
-ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/usr/local/cargo \
-    PATH=/usr/local/cargo/bin:$PATH \
-    RUST_VERSION=1.40.0
-
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain $RUST_VERSION \
-  && rustup --version \
-  && cargo --version \
-  && rustc --version
-
-# install Rust dev tools
-RUN rustup component add clippy-preview rustfmt-preview rls
-RUN cargo install cargo-cache --version 0.6.3 --no-default-features --features ci-autoclean
-USER dark
-
-# Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
-# reset CARGO_HOME so that we can use it as a project cache directory like normal.
-ENV CARGO_HOME=/home/dark/.cargo
-
