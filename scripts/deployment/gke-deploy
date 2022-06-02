@@ -14,7 +14,6 @@ Deployment script for CI
 
 Options:
   --manifest=...    Manifest containing container shas
-  --manual          Do a manual deploy
   --help            Display this menu.
 EOF
 )"
