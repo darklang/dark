@@ -18,5 +18,4 @@ Content-Length: LENGTH
 }
 
 [test]
-// FSHARPONLY - this is supported in OCaml
 (HttpClient.get_v2 "http://URL" {} {}) = Error "Invalid json"
