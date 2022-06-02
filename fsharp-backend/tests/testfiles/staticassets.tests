@@ -64,8 +64,7 @@ StaticAssets.baseUrlFor_v0 "abcdefghi" = "https://test-baseurlfor-0.darksa.com/g
 StaticAssets.baseUrlForLatest_v0 = "https://test-baseurlforlatest-0.darksa.com/hzfhha2hzep63uscg-venrwndxs/abcdef1234"
 
 [tests.baseUrlForLatestWithNoHash]
-StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "No deploy hash found" // FSHARPONLY
-
+StaticAssets.baseUrlForLatest_v0 = Test.typeError_v0 "No deploy hash found"
 
 // urlFor
 [test.urlFor] with ExactCanvasName test-urlfor-0
@@ -77,8 +76,7 @@ StaticAssets.urlFor_v0 "abcdefghi" "index.html" = "https://test-urlfor-0.darksa.
 StaticAssets.urlForLatest_v0 "index.html" = "https://test-urlforlatest-0.darksa.com/bxbyu2t5yencny5j8wus3wszcnc/abcdef1234/index.html"
 
 [tests.urlForLatestWithNoHash]
-StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "No deploy hash found" // FSHARPONLY
-
+StaticAssets.urlForLatest_v0 "index.html" = Test.typeError_v0 "No deploy hash found"
 
 // fetch_v0
 // CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564

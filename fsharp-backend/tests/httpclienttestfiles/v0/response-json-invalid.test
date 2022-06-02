@@ -18,5 +18,4 @@ Content-Length: LENGTH
 }
 
 [test]
-// FSHARPONLY
 HttpClient.get_v0 "http://URL" "" {} {} = Test.typeError "Invalid json"

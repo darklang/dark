@@ -17,7 +17,6 @@ Content-Length: LENGTH
 var1=2&var2=[]
 
 [test]
-// FSHARPONLY
 // No content-type means json-encoded with form header
 HttpClient.post_v0 "http://URL" (Error 5) {} {}  = Test.typeError "Unknown Err: (Failure \"printing an unprintable value:<result>\")"
 

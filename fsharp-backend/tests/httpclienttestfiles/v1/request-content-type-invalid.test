@@ -14,7 +14,6 @@ Content-Length: LENGTH
 "Hello back"
 
 [test]
-// FSHARPONLY
 (let reqHeaders = { ``Content-Type`` = "just an invalid string" } in
  let response = HttpClient.get_v1 "http://URL" {} reqHeaders in
  response) =

@@ -12,7 +12,6 @@ Content-Length: LENGTH
 RANDOM_BYTES
 
 [test]
-// FSHARPONLY
 // RANDOM_BYTES filled in by the test suite
 (let response = HttpClient.get_v0 "http://URL" {} {} {} in
  let respHeaders = response.headers |> Dict.remove_v0 "Date" in
