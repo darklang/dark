@@ -216,10 +216,7 @@ jobs:
           paths:
             # Just enough for integration tests and deploy
             - _build/default/backend/bin/server.exe
-            - _build/default/backend/bin/emergency_login_script.exe
             - _build/default/backend/bin/garbage_collector_worker.exe
-            - _build/default/backend/bin/queue_worker.exe
-            - _build/default/backend/bin/cron_checker.exe
             - _build/default/backend/bin/legacy_serialization_server.exe
             - _build/default/backend/bin/legacy_fuzzing_server.exe
             - backend/static/analysis.js
