@@ -448,9 +448,9 @@ jobs:
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      # deploy lock is removed as part of the gke-deploy script
       - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
       - slack-notify-deploy
-      - deploy-lock-remove
       - deploy-lock-remove-on-fail
 
   notify-non-deploy:
