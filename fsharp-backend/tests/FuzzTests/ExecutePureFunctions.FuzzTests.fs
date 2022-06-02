@@ -18,7 +18,6 @@ open FuzzTests.Utils
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = TestUtils.OCamlInterop
 module G = Generators
 
 let allowedErrors = AllowedFuzzerErrors.allowedErrors
@@ -55,7 +54,7 @@ module Generators =
           let! v = Arb.generate<int64>
           return RT.EInteger(gid (), v)
         | RT.TStr ->
-          let! v = G.ocamlSafeUnicodeString
+          let! v = G.safeUnicodeString
           return RT.EString(gid (), v)
         | RT.TChar ->
           // We don't have a construct for characters, so create code to generate the character
@@ -84,7 +83,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip G.ocamlSafeUnicodeString (genExpr' typ (size / 2))))
+                (Gen.zip G.safeUnicodeString (genExpr' typ (size / 2))))
         | RT.TUserType (_name, _version) ->
           let! typ = Arb.generate<RT.DType>
 
@@ -93,7 +92,7 @@ module Generators =
               (fun l -> RT.ERecord(gid (), l))
               (Gen.listOfLength
                 size
-                (Gen.zip G.ocamlSafeUnicodeString (genExpr' typ (size / 2))))
+                (Gen.zip G.safeUnicodeString (genExpr' typ (size / 2))))
 
         | RT.TRecord pairs ->
           let! entries =
@@ -143,7 +142,7 @@ module Generators =
           let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
           return callFn "String" "toBytes" 0 [ v ]
         | RT.TDB _ ->
-          let! name = G.ocamlSafeUnicodeString
+          let! name = G.safeUnicodeString
           let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
           let name = ti.ToTitleCase name
           return RT.EVariable(gid (), name)
@@ -210,7 +209,7 @@ module Generators =
           let! v = Arb.generate<int64>
           return RT.DInt v
         | RT.TStr ->
-          let! v = G.ocamlSafeUnicodeString
+          let! v = G.safeUnicodeString
           return RT.DStr v
         | RT.TVariable _ ->
           let! newtyp = Arb.generate<RT.DType>
@@ -231,8 +230,8 @@ module Generators =
               (fun l -> RT.DObj(Map.ofList l))
               (Gen.listOfLength
                 s
-                (Gen.zip (G.ocamlSafeUnicodeString) (genDval' typ (s / 2))))
-        | RT.TDB _ -> return! Gen.map RT.DDB (G.ocamlSafeUnicodeString)
+                (Gen.zip (G.safeUnicodeString) (genDval' typ (s / 2))))
+        | RT.TDB _ -> return! Gen.map RT.DDB (G.safeUnicodeString)
         | RT.TDate ->
           return!
             Gen.map
@@ -275,9 +274,7 @@ module Generators =
           return RT.DError(source, str)
         | RT.TUserType (_name, _version) ->
           let! list =
-            Gen.listOfLength
-              s
-              (Gen.zip (G.ocamlSafeUnicodeString) (genDval' typ (s / 2)))
+            Gen.listOfLength s (Gen.zip (G.safeUnicodeString) (genDval' typ (s / 2)))
 
           return RT.DObj(Map list)
         | RT.TRecord (pairs) ->
@@ -320,9 +317,9 @@ type Generator =
   static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
     G.NodaTime.LocalDateTime
   static member Instant() : Arbitrary<NodaTime.Instant> = G.NodaTime.Instant
-  static member String() : Arbitrary<string> = G.OCamlSafeUnicodeString
-  static member Float() : Arbitrary<float> = G.OCamlSafeFloat
-  static member Int64() : Arbitrary<int64> = G.OCamlSafeInt64
+  static member String() : Arbitrary<string> = G.SafeUnicodeString
+  static member Float() : Arbitrary<float> = G.SafeFloat
+  static member Int64() : Arbitrary<int64> = G.SafeInt64
   static member Dval() : Arbitrary<RT.Dval> = G.RuntimeTypes.Dval
   static member DType() : Arbitrary<RT.DType> = G.RuntimeTypes.DType
 
@@ -376,55 +373,10 @@ type Generator =
           // Avoid triggering known errors in OCaml
           match (argIndex, dv, prevArgs, name.module_, name.function_, name.version)
             with
-          // Specific OCaml exception (use `when`s here)
-          | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
-          | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" -> false
-          | 1, RT.DInt i, _, "Int", "power", 0
-          | 1, RT.DInt i, _, "", "^", 0 when i < 0L -> false
           // Int Overflow
           | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
           | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
-            i <> 1L
-            && i <> (-1L)
-            && G.isValidOCamlInt i
-            && i <= 2000L
-            && G.isValidOCamlInt (int64 (bigint e ** (int i)))
-          | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
-          | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
-            G.isValidOCamlInt (e * i)
-          | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
-          | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 -> G.isValidOCamlInt (e + i)
-          | 1, RT.DInt i, [ RT.DInt e ], "", "-", 0
-          | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
-            G.isValidOCamlInt (e - i)
-          | 0, RT.DList l, _, "Int", "sum", 0 ->
-            l
-            |> List.map (fun dval ->
-              match dval with
-              | RT.DInt i -> i
-              | _ -> 0L)
-            |> List.fold 0L (+)
-            |> G.isValidOCamlInt
-          // Int overflow converting from Floats
-          | 0, RT.DFloat f, _, "Float", "floor", 0
-          | 0, RT.DFloat f, _, "Float", "roundDown", 0
-          | 0, RT.DFloat f, _, "Float", "roundTowardsZero", 0
-          | 0, RT.DFloat f, _, "Float", "round", 0
-          | 0, RT.DFloat f, _, "Float", "ceiling", 0
-          | 0, RT.DFloat f, _, "Float", "roundUp", 0
-          | 0, RT.DFloat f, _, "Float", "truncate", 0 ->
-            f |> int64 |> G.isValidOCamlInt
-          // gmtime out of range
-          | 1, RT.DInt i, _, "Date", "sub", 0
-          | 1, RT.DInt i, _, "Date", "subtract", 0
-          | 1, RT.DInt i, _, "Date", "add", 0
-          | 0, RT.DInt i, _, "Date", "fromSeconds", 0 -> i < 10000000L
-          // Out of memory
-          | _, RT.DInt i, _, "List", "range", 0
-          | 0, RT.DInt i, _, "List", "repeat", 0
-          | 2, RT.DInt i, _, "String", "padEnd", 0
-          | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000L
-
+            i <> 1L && i <> (-1L) && i <= 2000L
           // Exception - don't try to stringify
           | 0, _, _, "", "toString", 0 -> not (G.RuntimeTypes.containsBytes dv)
           | _ -> true)
@@ -465,7 +417,7 @@ type Generator =
 /// against both OCaml and F# backends.
 ///
 /// Some differences are OK, managed by `AllowedFuzzerErrors` module
-let equalsOCaml ((fn, args) : FnAndArgs) : bool =
+let isOk ((fn, args) : FnAndArgs) : bool =
   let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
 
   task {
@@ -488,8 +440,6 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
 
     let symtable = Map.ofList args
 
-    let! expected = OCamlInterop.executeExpr meta.owner meta.id ast symtable
-
     let! state = executionStateFor meta Map.empty Map.empty
     let! actual = LibExecution.Execution.executeExpr state symtable ast
 
@@ -498,44 +448,31 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
       debuG "\n\n\nfn" fn
       debuG "args" (List.map (fun (_, v) -> debugDval v) args)
 
-    if not (Expect.isCanonical expected) then
-      debugFn ()
-      debuG "ocaml (expected) is not normalized" (debugDval expected)
-      return false
-    elif not (Expect.isCanonical actual) then
+    if not (Expect.isCanonical actual) then
       debugFn ()
       debuG "fsharp (actual) is not normalized" (debugDval actual)
       return false
-    elif Expect.dvalEquality actual expected then
-      return true
     else
-      match actual, expected with
-      | RT.DError (_, aMsg), RT.DError (_, eMsg) ->
-        let allowed = isErrorAllowed false aMsg eMsg
-        // For easier debugging. Check once then step through
-        let allowed2 = if not allowed then isErrorAllowed true aMsg eMsg else allowed
-
-        if not allowed2 then
+      match actual with
+      | RT.DError (_, aMsg) ->
+        let allowed = isErrorAllowed false aMsg
+        if not allowed then
           debugFn ()
 
-          print $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+          print $"Got different error msgs:\n\"{aMsg}\"\n"
 
         return allowed
-      | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
-        let allowed = isErrorAllowed false aMsg eMsg
-        // For easier debugging. Check once then step through
-        let allowed2 = if not allowed then isErrorAllowed true aMsg eMsg else allowed
-
-        if not allowed2 then
+      | RT.DResult (Error (RT.DStr aMsg)) ->
+        let allowed = isErrorAllowed false aMsg
+        if not allowed then
           debugFn ()
 
-          print $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+          print $"Got different DError msgs:\n\"{aMsg}\"\n"
 
         return allowed
       | _ ->
         debugFn ()
-        debuG "ocaml (expected)" (debugDval expected)
-        debuG "fsharp (actual) " (debugDval actual)
+        debuG "(actual) " (debugDval actual)
         return false
   }
   |> result
@@ -543,4 +480,4 @@ let equalsOCaml ((fn, args) : FnAndArgs) : bool =
 let tests config =
   testList
     "executePureFunctions"
-    [ testProperty config typeof<Generator> "equalsOCaml" equalsOCaml ]
+    [ testProperty config typeof<Generator> "isOk" isOk ]

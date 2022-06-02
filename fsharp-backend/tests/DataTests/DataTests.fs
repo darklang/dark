@@ -172,58 +172,6 @@ let forEachCanvasWithClient
     let client = lazy (Tests.ApiServer.forceLogin username)
     fn client canvasName)
 
-/// Iterate through all canvases and all DBs in those canvases
-let loadAllUserData (concurrency : int) (failOnError : bool) =
-  forEachCanvas concurrency failOnError (fun canvasName ->
-    task {
-      let! meta = Canvas.getMetaExn canvasName
-      let! c = Canvas.loadAllDBs meta
-      let dbs =
-        c.dbs |> Map.values |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map
-      let! state = executionStateFor meta dbs Map.empty
-      let! (result : List<unit>) =
-        dbs
-        |> Map.values
-        |> List.map (fun (db : RT.DB.T) ->
-          uply {
-            let code = $"DB.getAllWithKeys_v2 {db.name}"
-            let ast = FSharpToExpr.parsePTExpr code
-            let! actual =
-              LibExecution.Execution.executeExpr
-                state
-                (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) dbs)
-                (PT2RT.Expr.toRT ast)
-
-            // For this to work, we need to make PasswordBytes.to_yojson return
-            // [`String (Bytes.to_string bytes)]
-            let! expected =
-              TestUtils.OCamlInterop.execute
-                state.program.accountID
-                state.program.canvasID
-                ast
-                Map.empty
-                (Map.values c.dbs)
-                []
-                []
-            let expected =
-              match expected with
-              | RT.DError (source, str) ->
-                RT.DError(source, TestUtils.TestUtils.parseOCamlError str)
-              | other -> other
-
-            // The values should be the same
-            Expect.equal actual expected "getAll should be the same equal"
-            return ()
-          }
-          |> Ply.toTask)
-        |> Task.flatten
-
-      let fn cn = task { return () }
-
-      return! fn canvasName
-    })
-
-
 
 let loadAllTraceData (concurrency : int) (failOnError : bool) =
   forEachCanvasWithClient concurrency failOnError (fun client canvasName ->
