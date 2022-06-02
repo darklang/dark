@@ -42,7 +42,7 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 (let session1 = DarkInternal.newSessionForUsername_v1_ster "test" in
  DarkInternal.deleteSession_v0 session1.sessionKey) = 1
 
-[tests.users FSHARPONLY]
+[tests.users]
 DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
@@ -51,7 +51,7 @@ DarkInternal.insertUser_v2 "name with space" "valid@email.com" "accidentaluserna
 [tests.canvases]
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 
-[test.checkPermission with none FSHARPONLY]
+[test.checkPermission with none]
 (let user1 = ("cpn_user1_" ++ (String.random 5)) |> String.toLowercase_v1
  let user2 = ("cpn_user2_" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
@@ -62,7 +62,7 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  let _ = DarkInternal.grant_v0_ster user1 user2 "" in
  [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["" ; ""]
 
-[test.checkPermission with r FSHARPONLY]
+[test.checkPermission with r]
 (let user1 = ("cpr_user1_" ++ (String.random 5)) |> String.toLowercase_v1
  let user2 = ("cpr_user2_" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
@@ -73,7 +73,7 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  let _ = DarkInternal.grant_v0_ster user1 user2 "r" in
  [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["r" ; ""]
 
-[test.checkPermission with r FSHARPONLY]
+[test.checkPermission with r]
 (let user1 = ("cprw_user1_" ++ (String.random 5)) |> String.toLowercase_v1
  let user2 = ("cprw_user2_" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"

@@ -78,7 +78,8 @@ String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
 String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
 String.endsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷"= true
 
-String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark" String.foreach_v1 "a string" (fun x -> x) = "a string"
+String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark"
+String.foreach_v1 "a string" (fun x -> x) = "a string"
 String.foreach_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 String.foreach_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 String.foreach_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
@@ -87,7 +88,9 @@ String.foreach_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 String.foreach_v1 "abcdef" (fun x -> blank) = blank
 
 // fromChar
-String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark" String.fromChar_v1 'a' = "a" String.fromChar_v1 (c "1") = "1"
+String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark"
+String.fromChar_v1 'a' = "a"
+String.fromChar_v1 (c "1") = "1"
 String.fromChar_v1 (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
 String.fromChar_v1 (c "🏳️‍⚧️‍️") = "🏳️‍⚧️‍️"
 String.fromChar_v1 (c "👱🏾") = "👱🏾"
@@ -121,7 +124,9 @@ String.base64Decode_v0 "Zm9vYmC=" = "foob`"
 String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = "from=06/07/2013 query=\"Καλώς ορίσατε\""
 String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 // These produce strings of bytes which are technically legal it seems
-String.base64Decode_v0 "-p" = "�" String.base64Decode_v0 "lI" = "�" String.base64Decode_v0 "5Sk" = "�)"
+String.base64Decode_v0 "-p" = "�"
+String.base64Decode_v0 "lI" = "�"
+String.base64Decode_v0 "5Sk" = "�)"
 
 String.base64Encode_v0 "+" = "Kw"
 String.base64Encode_v0 "Ⱥ" = "yLo"
@@ -192,7 +197,8 @@ String.random_v1 -1 = Error "l should be a positive integer"
 String.length_v1 (String.random_v2_ster 10) = 10
 String.length_v1 (String.random_v2_ster 5) = 5
 String.length_v1 (String.random_v2_ster 0) = 0
-String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`" (String.random_v2 5) == (String.random_v2 5) = false
+String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`"
+(String.random_v2 5) == (String.random_v2 5) = false
 
 
 String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
@@ -321,11 +327,15 @@ String.slugify_v2 "[\\]^_`" = "-"
 String.slugify_v2 "{|}~\x7F" = ""
 
 // toList and fromList
-String.fromList_v0 [] = Test.typeError_v0 "String::fromList was removed from Dark" String.toList_v0 "" = Test.typeError_v0 "String::toList was removed from Dark"
+String.fromList_v0 [] = Test.typeError_v0 "String::fromList was removed from Dark"
+String.toList_v0 "" = Test.typeError_v0 "String::toList was removed from Dark"
 String.fromList_v1 [] = ""
 String.fromList_v1 [c "a"] = "a"
 String.fromList_v1 [c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
-String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`" String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`" String.toList_v1 "" = []
+String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`"
+String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`"
+String.toList_v1 "" = []
+
 String.toList_v1 "ab" = ['a', 'b']
 String.toList_v1 "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
 String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c "Z̤͔ͧ̑̓", c "ä͖̭̈̇", c "lͮ̒ͫ", c "ǧ̗͚̚", c "o̙̔ͮ̇͐̇" ]
@@ -375,22 +385,31 @@ String.split_v0 "x22y" "2" = ["x"; ""; "y"]
 String.split_v0 "x1y" "1" = ["x"; "y"]
 String.split_v0 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""]
 String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
-String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`" String.toInt_v0 "-4611686018427387903" = -4611686018427387903I
+String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`"
+String.toInt_v0 "-4611686018427387903" = -4611686018427387903I
 String.toInt_v0 "-4611686018427387904" = -4611686018427387904I
-String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"-4611686018427387905\"`" String.toInt_v0 "4611686018427387903" = 4611686018427387903I
-String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387904\"`" String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387905\"`" String.toInt_v0 "+333" = 333
+String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"-4611686018427387905\"`"
+String.toInt_v0 "4611686018427387903" = 4611686018427387903I
+String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387904\"`"
+String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387905\"`"
+String.toInt_v0 "+333" = 333
 String.toInt_v0 "-11111" = -11111
 String.toInt_v0 "-11111" = -11111
 String.toInt_v0 "0" = 0
 String.toInt_v0 "1" = 1
 String.toInt_v0 "55555555" = 55555555
 
-String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\"" String.toInt_v1 "-00001" = Ok -1
+String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\""
+String.toInt_v1 "-00001" = Ok -1
 String.toInt_v1 "-10001" = Ok -10001
 String.toInt_v1 "-4611686018427387903" = Ok -4611686018427387903I
 String.toInt_v1 "-4611686018427387904" = Ok -4611686018427387904I
-String.toInt_v1 "-4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"-4611686018427387905\"" String.toInt_v1 "4611686018427387903" = Ok 4611686018427387903I
-String.toInt_v1 "4611686018427387904" = Error "Expected to parse string with only numbers, instead got \"4611686018427387904\"" String.toInt_v1 "4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"4611686018427387905\"" String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\"" String.toInt_v1 "0" = Ok 0
+String.toInt_v1 "-4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"-4611686018427387905\""
+String.toInt_v1 "4611686018427387903" = Ok 4611686018427387903I
+String.toInt_v1 "4611686018427387904" = Error "Expected to parse string with only numbers, instead got \"4611686018427387904\""
+String.toInt_v1 "4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"4611686018427387905\""
+String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\""
+String.toInt_v1 "0" = Ok 0
 String.toInt_v1 "1" = Ok 1
 
 String.toFloat_v0 "1.5" = 1.5
@@ -669,7 +688,8 @@ String.first_v0 "abcd" 0 = ""
 String.first_v0 "abcd" 1 = "a"
 String.first_v0 "abcd" 2 = "ab"
 String.first_v0 "abcd" 3 = "abc"
-String.first_v0 "abcd" 3000000000000000L = "abcd" String.first_v0 "" 7 = ""
+String.first_v0 "abcd" 3000000000000000L = "abcd"
+String.first_v0 "" 7 = ""
 String.first_v0 "🍊🍍🍏" 1 = "🍊"
 String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
 String.first_v0 "🍊🍍🍏" 3 = "🍊🍍🍏"
@@ -685,7 +705,9 @@ String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍�
 
 String.padStart_v0 "123" "0" 3 = "123"
 String.padStart_v0 "123" "0" -3 = "123"
-String.padStart_v0 "123" "_-" 4 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`" String.padStart_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`" String.padStart_v0 "123" "0" 6 = "000123"
+String.padStart_v0 "123" "_-" 4 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padStart_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`"
+String.padStart_v0 "123" "0" 6 = "000123"
 String.padStart_v0 "" "0" 0 = ""
 String.padStart_v0 "123🍊🍊" "0" 3 = "123🍊🍊"
 String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = "000🍍🍍🍊🍊"
@@ -699,7 +721,9 @@ String.padStart_v0 "鷝" "觌഻" 0 = "鷝"
 
 String.padEnd_v0 "123" "0" 3 = "123"
 String.padEnd_v0 "123" "0" -3 = "123"
-String.padEnd_v0 "123" "_-" 3 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`" String.padEnd_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`" String.padEnd_v0 "123" "0" 6 = "123000"
+String.padEnd_v0 "123" "_-" 3 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padEnd_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`"
+String.padEnd_v0 "123" "0" 6 = "123000"
 String.padEnd_v0 "" "0" 0 = ""
 String.padEnd_v0 "123🍊🍊" "0" 8 = "123🍊🍊000"
 String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0"

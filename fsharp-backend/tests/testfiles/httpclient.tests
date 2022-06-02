@@ -136,7 +136,12 @@ Dict.get_v2 response.headers "content-type"
 
 // CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
 // [tests.test with confusing results]
-// getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=utf-8" // getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=utf-8"
+// getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8"
+// getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8"
+// getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8"
+// getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8"
+// getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=utf-8"
+// getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=utf-8"
 
 [test.http2 v5]
 (let response = HttpClient.get_v5_ster "https://httpbin.org/status/200" {} {} in

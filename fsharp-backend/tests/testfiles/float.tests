@@ -57,9 +57,11 @@ Float.clamp_v0 Test.negativeInfinity_v0 -1.0 0.5 = -1.0
 Float.clamp_v0 Test.nan_v0 -1.0 1.0 = Test.nan_v0
 Float.clamp_v0 0.5 Test.infinity_v0 1.0 = 1.0
 Float.clamp_v0 0.5 Test.negativeInfinity_v0 1.0 = 0.5
-Float.clamp_v0 0.5 Test.nan_v0 1.0 = Test.typeError_v0 "clamp requires arguments to be valid numbers" Float.clamp_v0 -1.0 0.5 Test.infinity_v0 = 0.5
+Float.clamp_v0 0.5 Test.nan_v0 1.0 = Test.typeError_v0 "clamp requires arguments to be valid numbers"
+Float.clamp_v0 -1.0 0.5 Test.infinity_v0 = 0.5
 Float.clamp_v0 -1.0 0.5 Test.negativeInfinity_v0 = -1.0
-Float.clamp_v0 0.5 1.0 Test.nan_v0 = Test.typeError_v0 "clamp requires arguments to be valid numbers" Float.clamp_v0 -2.0 -5.0 5.0 = -2.0
+Float.clamp_v0 0.5 1.0 Test.nan_v0 = Test.typeError_v0 "clamp requires arguments to be valid numbers"
+Float.clamp_v0 -2.0 -5.0 5.0 = -2.0
 Float.clamp_v0 -3.0 -2.0 1.0 = -2.0
 Float.clamp_v0 -5.0 1.0 1.0 = 1.0
 Float.clamp_v0 1.0 2.0 1.0 = 1.0
