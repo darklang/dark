@@ -420,7 +420,7 @@ type Generator =
 let isOk ((fn, args) : FnAndArgs) : bool =
   let isErrorAllowed = AllowedFuzzerErrors.errorIsAllowed fn
 
-  task {
+  (task {
     // evaluate the fn call against both backends
     let! meta = initializeTestCanvas (Randomized "ExecutePureFunction")
     let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
@@ -474,8 +474,8 @@ let isOk ((fn, args) : FnAndArgs) : bool =
         debugFn ()
         debuG "(actual) " (debugDval actual)
         return false
-  }
-  |> result
+  })
+    .Result
 
 let tests config =
   testList
