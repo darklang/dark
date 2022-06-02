@@ -73,6 +73,10 @@ commands:
   ##########################
   deploy-lock-remove-on-fail:
     steps:
+      # Can only be used from in-container executors as it needs gsutil. Though that
+      # could be installed if we needed to:
+      # https://cloud.google.com/storage/docs/gsutil_install
+      - auth-with-gcp-on-fail
       - run:
           name: Remove deploy lock
           when: on_fail
@@ -180,6 +184,19 @@ commands:
             gcloud auth activate-service-account --key-file gcloud-service-key.json
             gcloud auth configure-docker
             ./scripts/production/gcp-authorize-kubectl
+
+  auth-with-gcp-on-fail:
+    steps:
+      - run:
+          name: Auth with GCP
+          when: on_fail
+          command: |
+            echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
+            gcloud auth activate-service-account --key-file gcloud-service-key.json
+            gcloud auth configure-docker
+            ./scripts/production/gcp-authorize-kubectl
+
+
 
 ##########################
 # Actual workflow
@@ -438,6 +455,7 @@ jobs:
     executor: in-container
     steps:
       - darkcheckout
+      - auth-with-gcp: { background: false }
       - run: scripts/deployment/deploy-lock-one-add
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
