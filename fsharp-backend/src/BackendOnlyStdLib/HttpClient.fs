@@ -83,7 +83,7 @@ let socketHandler : HttpMessageHandler =
 let httpClient : HttpClient =
   let client = new HttpClient(socketHandler, disposeHandler = false)
   client.Timeout <- System.TimeSpan.FromSeconds 30.0
-  // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
+  // 100MB seems a reasonable default
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
@@ -145,7 +145,7 @@ let httpCall'
 
         // If the user set the content-length, then we want to try to set the content
         // length of the data. Don't let it be set too large though, as that allows
-        // the server to hang in OCaml, and isn't allowed in .NET.
+        // isn't allowed in .NET.
         let contentLengthHeader : Option<int> =
           reqHeaders
           |> List.find (fun (k, v) -> String.equalsCaseInsensitive k "content-length")
@@ -219,8 +219,6 @@ let httpCall'
         use! responseStream = response.Content.ReadAsStreamAsync()
         use contentStream : Stream =
           let decompress = CompressionMode.Decompress
-          // The version of Curl we used in OCaml does not support zstd, so omitting
-          // that won't break anything.
           match String.toLowercase encoding with
           | "br" -> new BrotliStream(responseStream, decompress)
           | "gzip" -> new GZipStream(responseStream, decompress)

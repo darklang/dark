@@ -31,7 +31,7 @@ let httpClient =
 
   let client = new HttpClient(socketHandler, disposeHandler = false)
   client.Timeout <- System.TimeSpan.FromSeconds 30.0
-  // Can't find what this was in OCaml/Curl, but 100MB seems a reasonable default
+  // 100MB seems a reasonable default
   client.MaxResponseContentBufferSize <- 1024L * 1024L * 100L
   client
 
@@ -325,8 +325,6 @@ let fns : List<BuiltInFn> =
               // with it.
               |> List.filter (fun (k, v) -> not (k.Contains("Transfer-Encoding")))
               |> List.filter (fun (k, v) -> not (k.Contains("Content-Length")))
-              // The OCaml version didn't expose the Server header so no need for
-              // this version to either
               |> List.filter (fun (k, v) -> not (k.Contains "Server"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
@@ -361,8 +359,6 @@ let fns : List<BuiltInFn> =
               // with it.
               |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
               |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-              // The OCaml version didn't expose the Server header so no need for
-              // this version to either
               |> List.filter (fun (k, v) -> not (k.Contains "Server"))
               |> List.filter (fun (k, v) -> not (k.Trim() = ""))
               |> List.filter (fun (k, v) -> not (v.Trim() = ""))
@@ -398,8 +394,6 @@ let fns : List<BuiltInFn> =
                 // with it.
                 |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
                 |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-                // The OCaml version didn't expose the Server header so no need for
-                // this version to either
                 |> List.filter (fun (k, v) -> not (k.Contains "Server"))
                 |> List.filter (fun (k, v) -> not (k.Trim() = ""))
                 |> List.filter (fun (k, v) -> not (v.Trim() = ""))
@@ -434,8 +428,6 @@ let fns : List<BuiltInFn> =
                 // with it.
                 |> List.filter (fun (k, v) -> not (k.Contains "Content-Length"))
                 |> List.filter (fun (k, v) -> not (k.Contains "Transfer-Encoding"))
-                // The OCaml version didn't expose the Server header so no need for
-                // this version to either
                 |> List.filter (fun (k, v) -> not (k.Contains "Server"))
                 |> List.filter (fun (k, v) -> not (k.Trim() = ""))
                 |> List.filter (fun (k, v) -> not (v.Trim() = ""))
