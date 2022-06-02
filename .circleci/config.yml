@@ -435,7 +435,7 @@ jobs:
       - deploy-lock-remove-on-fail
 
   deploy-lock:
-    executor: simple-executor
+    executor: in-container
     steps:
       - darkcheckout
       - run: scripts/deployment/deploy-lock-one-add
