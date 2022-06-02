@@ -8,7 +8,7 @@ set -euo pipefail
 
 LOCKFILE_NAME=$(./scripts/deployment/deploy-lock-one-get-name)
 
-echo "Lock file: ${LOCKFILE_ID}"
+echo "Lock file: ${LOCKFILE_NAME}"
 
 while true; do
   # Deploy locks start with a timestamp, so they can be sorted directly
