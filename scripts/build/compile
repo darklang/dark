@@ -180,15 +180,13 @@ def test_nginx():
 def backend_build():
   start = time.time()
 
-  # Get all the ml files in backend/bin, and build executables This is less
-  # technically correct than "parse the sexp in backend/bin/dune", but it
-  # is also much simpler.
-  def rename(mlfile):
-    return "backend/bin/" + mlfile.replace(".ml", ".exe")
-
-  exes = [rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml")]
+  exes = []
   exes.append("@analysis.js")
   exes.append("backend/test/test.exe")
+  exes.append("backend/bin/server.exe")
+  exes.append("backend/bin/garbage_collector_worker.exe")
+  exes.append("backend/bin/legacy_serialization_server.exe")
+  exes.append("backend/bin/legacy_fuzzing_server.exe")
   exes = " ".join(exes)
   if optimize:
     compilation_profile = "release"

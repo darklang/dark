@@ -97,7 +97,7 @@ export function canvasUrl(canvasName: string) {
   return `${BASE_URL}/a/test-${canvasName}?integration-test=true&use-blazor=true`;
 }
 
-test.describe.serial("Integration Tests", async () => {
+test.describe.parallel("Integration Tests", async () => {
   // To add this user, run the backend tests
   test.beforeEach(async ({ page }, testInfo) => {
     // set up listeners for console logs and page errors

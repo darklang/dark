@@ -253,10 +253,7 @@ jobs:
           paths:
             # Just enough for integration tests and deploy
             - _build/default/backend/bin/server.exe
-            - _build/default/backend/bin/emergency_login_script.exe
             - _build/default/backend/bin/garbage_collector_worker.exe
-            - _build/default/backend/bin/queue_worker.exe
-            - _build/default/backend/bin/cron_checker.exe
             - _build/default/backend/bin/legacy_serialization_server.exe
             - _build/default/backend/bin/legacy_fuzzing_server.exe
             - backend/static/analysis.js
@@ -371,23 +368,7 @@ jobs:
             - v2-playwright
       - show-large-files-and-directories
       - run: "cd integration-tests && npm install"
-      - run: scripts/build/_generate-etags
-      - run:
-          name: Prep test split
-          command: |
-            # get full list of tests
-            integration-tests/test-list.sh > rundir/all-tests
-
-            # split them using timing info
-            TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
-
-            # concat them into a pattern (note: $TESTS is deliberately unquoted)
-            PATTERN=$(printf -- "%s|" $TESTS)
-
-            # remove last char
-            PATTERN=${PATTERN%?}
-
-            echo $PATTERN > test-pattern
+      - regenerate-etags
       - run:
           name: Run integration tests
           command: |
@@ -395,9 +376,7 @@ jobs:
             scripts/run-fsharp-server --published
             # Wait for users to be added so prep.sh works
             ./scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=3 --retry --pattern="`cat test-pattern`" --published
-            rm test-pattern
-
+            integration-tests/run.sh --concurrency=6 --retry --published
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
