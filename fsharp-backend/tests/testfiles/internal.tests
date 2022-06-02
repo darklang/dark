@@ -86,5 +86,4 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 
 
 [test.canvasId length]
-(let _ = DarkInternal.clearStaticAssets "test-canvas-id-of-canvas-name"  // get the canvas created
- DarkInternal.canvasIdOfCanvasName_v0 "test-canvas-id-of-canvas-name") |> Option.map_v1 (fun x -> String.length_v1 x) = Just 36
+(DarkInternal.canvasIdOfCanvasName_v0_ster (Test.getCanvasName)) = toString Test.getCanvasID
