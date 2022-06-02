@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-# Remove the deploy lock with the passed name
+# Remove the deploy lock for this commit
 
 set -euo pipefail
 
