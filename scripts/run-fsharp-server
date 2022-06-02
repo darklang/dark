@@ -76,7 +76,6 @@ echo "Waiting for pubsub"
 ./scripts/run-pubsub-emulator
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
-./scripts/run-ocaml-legacy-server
 echo "Running migrations"
 "${EXECHOST_EXE}" migrations run > "$LOGS/fsharp-migrations.log"
 echo "Running apiserver"
