@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-# List the manual deploy lock
+# List the deploy locks currently held
 
 set -euo pipefail
 
 DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
 
-gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-manual-deploy
-
+gsutil ls ${DEPLOY_LOCK_BUCKET}/ | sed 's!.*/!!'

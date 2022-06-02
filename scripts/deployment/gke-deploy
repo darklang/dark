@@ -6,7 +6,6 @@ set -euo pipefail
 # Deploy Dark to production
 
 MANIFEST=""
-MANUAL_DEPLOY="false"
 
 HELP="$(cat <<EOF
 Usage: $0 [OPTIONS]
@@ -26,9 +25,6 @@ do
     --manifest=*)
       MANIFEST="${i/--manifest=/''}"
       ;;
-    --manual)
-      MANUAL_DEPLOY="true"
-      ;;
     --help)
       echo "$HELP"
       exit 0
@@ -41,29 +37,7 @@ do
   esac
 done
 
-if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  if [[ -v CI ]]; then
-    echo "Manual deploy detected in CI"
-    exit 1
-  fi
-else
-  if [[ ! -v CI ]]; then
-    echo "Automatic deploy detected outside CI"
-    exit 1
-  fi
-fi
-
 set -x
-
-#############################
-# set variables now so this fails early if they're not available
-#############################
-
-if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-else
-  CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-fi
 
 #############################
 # Ensure we got a good one
@@ -74,16 +48,10 @@ fi
 # Lock before doing a deploy (unlocks on fail or at end of file)
 #############################
 
-if [[ "${MANUAL_DEPLOY}" == "true" ]]; then
-  LOCKFILE_ID="manual-deploy"
-else
-  LOCKFILE_ID="${CIRCLE_BUILD_NUM}"
-fi
-
 cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
   echo "Removing deploy lock"
-  ./scripts/deployment/deploy-lock-remove "${LOCKFILE_ID}"
+  ./scripts/deployment/deploy-lock-one-remove
   exit 1
 }
 
@@ -91,7 +59,7 @@ cleanup_deploy_lock() {
 trap cleanup_deploy_lock INT QUIT TERM ERR
 
 # We source this instead of running it in a subshell so that the trap works as expected
-./scripts/deployment/deploy-lock-acquire "${LOCKFILE_ID}"
+./scripts/deployment/deploy-lock-wait
 
 #############################
 # Check it's safe to deploy
@@ -126,4 +94,4 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 ####################
 # Unlock post-deploy
 ####################
-./scripts/deployment/deploy-lock-clear
+./scripts/deployment/deploy-lock-one-remove

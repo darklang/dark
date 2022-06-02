@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-# Remove the deploy lock with the passed name
+# Remove the deploy lock for this commit
 
 set -euo pipefail
 
 DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
-
-LOCKFILE_ID=$1
-LOCKFILE_NAME="deploy-lock-${LOCKFILE_ID}"
+LOCKFILE_NAME=$(./scripts/deployment/deploy-lock-one-get-name)
 
 gsutil rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
