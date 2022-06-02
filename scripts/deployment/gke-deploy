@@ -14,7 +14,6 @@ Deployment script for CI
 
 Options:
   --manifest=...    Manifest containing container shas
-  --manual          Do a manual deploy
   --help            Display this menu.
 EOF
 )"
@@ -69,6 +68,8 @@ trap cleanup_deploy_lock INT QUIT TERM ERR
 ./scripts/deployment/shipit manual diff > /dev/null 2>&1
 
 # Check that the everything can be deployed
+CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
+
 ./scripts/deployment/shipit release push --dry-run=client --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 ./scripts/deployment/shipit release push --dry-run=server --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
