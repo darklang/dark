@@ -431,6 +431,10 @@ jobs:
       - deploy-lock-remove-on-fail
 
   deploy-lock:
+    # Note that it doesn't matter if the in-container executor is a bit slow: they
+    # deploy according the timestamp on the commit. Even if builds add their locks in
+    # the wrong order, so long as the locks are there by the time the next deploy
+    # comes, they'll be in the right order.
     executor: in-container
     steps:
       - darkcheckout
