@@ -291,12 +291,10 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v7-fsharp-backend-{{ checksum "../checksum" }}
+            - v8-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      # so the ocamltestserver will load
-      - run: touch backend/static/appsupport.js backend/static/app.js backend/static/analysis.js backend/static/app.css
       # For tests
       - run: cp client/static/favicon-32x32.png backend/static/
       - run: scripts/build/_generate-etags
@@ -317,7 +315,7 @@ jobs:
       - show-large-files-and-directories
       - save_cache:
           paths: [fsharp-backend/Build]
-          key: v7-fsharp-backend-{{ checksum "../checksum" }}
+          key: v8-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
@@ -471,9 +469,7 @@ workflows:
       - validate-honeycomb-config
       - build-backend
       - build-client
-      - build-fsharp-backend:
-          requires:
-            - build-backend
+      - build-fsharp-backend
 
       # expensive tests
       - integration-tests:
