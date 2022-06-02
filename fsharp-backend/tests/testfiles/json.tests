@@ -2,15 +2,12 @@
 JSON.read_v0 "[97, 2, 30, 4]" = [97, 2, 30, 4]
 JSON.read_v0 "[97, 2, 30, 4,]" = null
 
-JSON.read_v0 "{Id : 1.0}" = {Id = 1.0} // OCAMLONLY
 JSON.read_v0 "{Id : 1.0}" = null // FSHARPONLY
 
 JSON.read_v0 "{Id : 1.}" = null
 
-JSON.read_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ] // OCAMLONLY
 JSON.read_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = null // FSHARPONLY
 
-JSON.read_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"} // OCAMLONLY
 JSON.read_v0 "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = null // FSHARPONLY
 
 JSON.read_v0 "" = null
@@ -21,21 +18,16 @@ JSON.read_v0 "1" = 1
 [tests.parse_v0]
 JSON.read_v1 "[97, 2, 30, 4]" = [97, 2, 30, 4]
 
-JSON.read_v1 "[97, 2, 30, 4,]" = Test.typeError "Json Err: Line 1, bytes 14-15:\nInvalid token ']'" // OCAMLONLY
 JSON.read_v1 "[97, 2, 30, 4,]" = Test.typeError "The JSON array contains a trailing comma at the end, at on line 0, position 14" // FSHARPONLY
 
-JSON.read_v1 "{Id : 1.0}" = {Id = 1.0} // OCAMLONLY
 JSON.read_v1 "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
-JSON.read_v1 "{\"Id\" : 1.}" = Test.typeError "Json Err: Line 1, bytes 9-11:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
 JSON.read_v1 "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10." // FSHARPONLY
 
-JSON.read_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"} // OCAMLONLY
 JSON.read_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
 JSON.read_v1 "\"\"" = ""
 
-JSON.read_v1 "" = Test.typeError "Json Err: Blank input data" // OCAMLONLY
 JSON.read_v1 "" = Test.typeError "JSON string was empty" // FSHARPONLY
 
 
@@ -44,28 +36,21 @@ JSON.parse_v0 "[97, 2, 30, 4]" = [97, 2, 30, 4]
 
 JSON.parse_v0 "[97.8, -2, false, true, -0.0]" = [97.8, -2, false, true, -0.0]
 JSON.parse_v0 "{ \"v\": 4611686018427387903 }" = { v = 4611686018427387903L }
-JSON.parse_v0 "{ \"v\": 4611686018427387904 }" = Test.typeError_v0 "Unknown Err: (Failure \"Int.of_string: \\\"4611686018427387904\\\"\")" // OCAMLONLY
 JSON.parse_v0 "{ \"v\": 4611686018427387904 }" = { v = 4611686018427387904L } // FSHARPONLY
 
 
 JSON.parse_v0 "\"\"" = ""
 
-JSON.parse_v0 "''" = Test.typeError_v0 "Json Err: Line 1, bytes 0-2:\nInvalid token ''''" // OCAMLONLY
 JSON.parse_v0 "''" = Test.typeError_v0 "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0." // FSHARPONLY
 
-JSON.parse_v0 "" = Test.typeError_v0 "Json Err: Blank input data" // OCAMLONLY
 JSON.parse_v0 "" = Test.typeError_v0 "JSON string was empty" // FSHARPONLY
 
-JSON.parse_v0 "[97, 2, 30, 4,]" = Test.typeError "Json Err: Line 1, bytes 14-15:\nInvalid token ']'" // OCAMLONLY
 JSON.parse_v0 "[97, 2, 30, 4,]" = Test.typeError "The JSON array contains a trailing comma at the end, at on line 0, position 14" // FSHARPONLY
 
-JSON.parse_v0 "{Id : 1.0}" = {Id = 1.0} // OCAMLONLY
 JSON.parse_v0 "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
-JSON.parse_v0 "{\"Id\" : 1.}" = Test.typeError_v0 "Json Err: Line 1, bytes 9-11:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
 JSON.parse_v0 "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")" // FSHARPONLY
 
-JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"} // OCAMLONLY
 JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
 [tests.parse_v1]
@@ -73,15 +58,12 @@ JSON.parse_v1 "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
 JSON.parse_v1 "[97.8, -2, false, true, -0.0]" = Ok [97.8, -2, false, true, -0.0]
 
 JSON.parse_v1 "{ \"v\": 4611686018427387903 }" = Ok { v = 4611686018427387903L }
-JSON.parse_v1 "{ \"v\": 4611686018427387904 }" = Error "Unknown Err: (Failure \"Int.of_string: \\\"4611686018427387904\\\"\")" // OCAMLONLY
 JSON.parse_v1 "{ \"v\": 4611686018427387904 }" = Ok { v = 4611686018427387904L } // FSHARPONLY
 
 JSON.parse_v1 "\"\"" = Ok ""
 
-JSON.parse_v1 "" = Error "Json Err: Blank input data" // OCAMLONLY
 JSON.parse_v1 "" = Error "JSON string was empty" // FSHARPONLY
 
-JSON.parse_v1 "{3: false}" = Error "Json Err: Line 1, bytes 1-10:\nExpected string or identifier but found '3: false}'"  // OCAMLONLY
 JSON.parse_v1 "{3: false}" = Error "'3' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
 
@@ -91,32 +73,22 @@ JSON.parse_v1 "{3: false}" = Error "'3' is an invalid start of a property name. 
 
 // FSTODO make these changes for other versions of parse
 
-JSON.parse_v1 "[97, 2, 30, 4,]" = Error "Json Err: Line 1, bytes 14-15:\nInvalid token ']'" // OCAMLONLY
 JSON.parse_v1 "[97, 2, 30, 4,]" = Error "The JSON array contains a trailing comma at the end, at on line 0, position 14" // FSHARPONLY
 
-JSON.parse_v1 "{Id : 1.0}" = Ok { Id = 1.0 } // OCAMLONLY
 JSON.parse_v1 "{Id : 1.0}" = Error "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1." // FSHARPONLY
 
-JSON.parse_v1 "{\"Id\" : Infinity }" = Ok { Id = Test.infinity_v0 } // OCAMLONLY
 JSON.parse_v1 "{\"Id\" : Infinity }" = Error "'I' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8." // FSHARPONLY
 
-JSON.parse_v1 "{\"Id\" : -Infinity }" = Ok { Id = Test.negativeInfinity_v0 } // OCAMLONLY
 JSON.parse_v1 "{\"Id\" : -Infinity }" = Error "'I' is invalid within a number, immediately after a sign character ('+' or '-'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 9." // FSHARPONLY
 
-JSON.parse_v1 "{\"Id\" : NaN }" = Ok { Id = Test.nan_v0 } // OCAMLONLY
 JSON.parse_v1 "{\"Id\" : NaN }" = Error "'N' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8." // FSHARPONLY
 
-JSON.parse_v1 "{\"Id\" : 1.}" = Error "Json Err: Line 1, bytes 9-11:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
 JSON.parse_v1 "{\"Id\" : 1.}" = Error "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10." // FSHARPONLY
 
-JSON.parse_v1 "[ {\"date\" : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = Ok [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ] // OCAMLONLY
 JSON.parse_v1 "[ {\"date\" : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = Error "'l' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 26." // FSHARPONLY
 
-JSON.parse_v1 "{\"id\" : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = Ok {id = 555; edition = "First"; author = "Dennis Ritchie"} // OCAMLONLY
 JSON.parse_v1 "{\"id\" : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = Error "'e' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 13." // FSHARPONLY
 
-JSON.parse_v1 "{\"id\" : 555, \"edition\" : 'First' }" = Error "Json Err: Line 1, bytes 25-34:\nInvalid token ''First' }'" // OCAMLONLY
 JSON.parse_v1 "{\"id\" : 555, \"edition\" : 'First' }" = Error "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 25." // FSHARPONLY
 
-JSON.parse_v1 "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})" = Error "Dark Exception.DarkInternal Err: We dont use tuples" // OCAMLONLY
 JSON.parse_v1 "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})" = Error "'(' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0." // FSHARPONLY

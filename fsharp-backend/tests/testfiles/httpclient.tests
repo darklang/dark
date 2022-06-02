@@ -34,96 +34,58 @@ HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
 // Tests which should try to hit the actual internet
 // -----------------------
 
-HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "http://thenonexistingurlforsure.com" {} {} = Error "The request was aborted. The response ended prematurely." // FSHARPONLY
 
-HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v5 "https://self-signed.badssl.com" {} {} = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
-HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v4 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
-HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v4 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
-HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v3 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
-HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v3 "https://self-signed.badssl.com" {} {} = Test.typeError_v0  "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
-HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v2 "http://thenonexistingurlforsure.com" {} {} = Error "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
-HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v2 "https://self-signed.badssl.com" {} {} = Error "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
-HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v1 "http://thenonexistingurlforsure.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
-HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v1 "https://self-signed.badssl.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
-HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v0 "http://thenonexistingurlforsure.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The request was aborted. The response ended prematurely." // FSHARPONLY
 
-HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK" // OCAMLONLY
 HttpClient.get_v0 "https://self-signed.badssl.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot" // FSHARPONLY
 
 // -----------------------
 // Tests for invalid URLs which shouldnt try the internet at all
 // -----------------------
 
-HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v5 "{ ] nonsense ^#( :" {} {} = Error "Invalid URI" // FSHARPONLY
 
-HttpClient.get_v4 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v4 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
 
-HttpClient.get_v3 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v3 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
 
-HttpClient.get_v2 "{ ] nonsense ^#( :" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v2 "{ ] nonsense ^#( :" {} {} = Error "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
 
-HttpClient.get_v1 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v1 "{ ] nonsense ^#( :" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
 
-HttpClient.get_v0 "{ ] nonsense ^#( :" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
 HttpClient.get_v0 "{ ] nonsense ^#( :" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Invalid URI" // FSHARPONLY
 
 
-HttpClient.get_v5 "/just-a-path" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v5 "/just-a-path" {} {} = Error "Unsupported protocol" // FSHARPONLY
 
-HttpClient.get_v4 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v4 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
 
-HttpClient.get_v3 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v3 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
 
-HttpClient.get_v2 "/just-a-path" {} {} = Error "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v2 "/just-a-path" {} {} = Error "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
 
-HttpClient.get_v1 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v1 "/just-a-path" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
 
-HttpClient.get_v0 "/just-a-path" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 HttpClient.get_v0 "/just-a-path" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Unsupported protocol" // FSHARPONLY
-
-// No F# version as these work in F#
-HttpClient.get_v5 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v5 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "URL using bad/illegal format or missing URL" // OCAMLONLY
-HttpClient.get_v4 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v4 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
-HttpClient.get_v3 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v3 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
-HttpClient.get_v2 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Error "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v2 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Error "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
-HttpClient.get_v1 "http://us👨‍👩‍👧‍👦er@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v1 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
-HttpClient.get_v0 "http://us👨‍👩‍👧‍👦er@google.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: Couldn't resolve host name" // OCAMLONLY
-HttpClient.get_v0 "http://:pa👨‍👩‍👧‍👦ss@google.com" {} {} {} = Test.typeError_v0 "Internal HTTP-stack exception: URL using bad/illegal format or missing URL" // OCAMLONLY
 
 // TODO simplify below tests - no match on left needed
 (match HttpClient.get_v5 "http://localhost" {} {} with | Error e -> e.body) = "Service not ready"
@@ -198,17 +160,11 @@ Dict.get_v2 response.headers "content-type"
 
 // CLEANUP disable these because tests randomly fail in CI - https://github.com/darklang/dark/issues/3564
 // [tests.test with confusing results]
-// getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
 // getContentType(HttpClient.get_v5_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-// getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
 // getContentType(HttpClient.get_v4_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-// getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
 // getContentType(HttpClient.get_v3_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-// getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
 // getContentType(HttpClient.get_v2_ster "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-// getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
 // getContentType(HttpClient.get_v1 "https://google.com" {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
-// getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=UTF-8" // OCAMLONLY
 // getContentType(HttpClient.get_v0 "https://google.com" {} {} {}) = Just "text/html; charset=utf-8" // FSHARPONLY
 
 

@@ -46,7 +46,7 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-DarkInternal.insertUser_v2 "name with space" "valid@email.com" "accidentalusername" {} = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'" // FSHARPONLY
+DarkInternal.insertUser_v2 "name with space" "valid@email.com" "accidentalusername" {} = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'"
 
 [tests.canvases]
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
