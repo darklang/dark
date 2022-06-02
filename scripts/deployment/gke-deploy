@@ -59,7 +59,7 @@ cleanup_deploy_lock() {
 trap cleanup_deploy_lock INT QUIT TERM ERR
 
 # We source this instead of running it in a subshell so that the trap works as expected
-./scripts/deployment/deploy-lock-wait
+./scripts/deployment/deploy-lock-wait-and-acquire
 
 #############################
 # Check it's safe to deploy
