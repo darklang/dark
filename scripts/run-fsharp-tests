@@ -42,8 +42,9 @@ createdb testdb
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
-echo "Waiting for pubsub"
 ./scripts/run-pubsub-emulator
+./scripts/run-httptunnel
+./scripts/run-nginx-server
 
 # Run the migrations before the other servers start
 echo "Running migrations"
@@ -58,11 +59,6 @@ cd fsharp-backend && \
   "${EXECHOST}" migrations run > "$LOGS/test-fsharp-migrations.log"
 cd ..
 
-./scripts/run-nginx-server
-
-# Expecto has a number of async bugs causing it to hang. It appears to be due
-# to the test framework though it's hard to tell. It's solved by disabling the
-# spinner and not running the tests in parallel.
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
 
 # Use random to avoid old items being in the pubsub queue. Use this instead of

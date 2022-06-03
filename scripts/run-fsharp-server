@@ -34,7 +34,6 @@ BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
 CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
 QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 EXECHOST_EXE="${EXECHOST_BINPATH}/ExecHost"
-TUNNEL_DAEMON_EXE="containers/tunnel2/tunnel2-daemon"
 
 # Stop the server processes
 echo "Stopping servers"
@@ -43,21 +42,9 @@ sudo pkill -f "BwdServer" || true
 sudo pkill -f "CronChecker" || true
 sudo pkill -f "QueueWorker" || true
 
-# tunnel cleanup
-echo "pkill tunnel"
-sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
-echo "rm tunnel"
-sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
-echo "pkill sleep"
-sudo pkill -f sleep.infinity || true
-# end tunnel cleanup
-
-# Run tunnel
-sudo mkdir -p /run/sshd
-echo "Starting tunnel"
-# shellcheck disable=SC2024
-sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
-echo "Started tunnel"
+./scripts/run-pubsub-emulator
+./scripts/run-httptunnel
+./scripts/run-nginx-server
 
 echo "Waiting for postgres"
 ./scripts/devcontainer/_wait-for-background-services postgresql
@@ -72,9 +59,6 @@ do
 done
 echo "Done waiting for compiled servers"
 
-echo "Waiting for pubsub"
-./scripts/run-pubsub-emulator
-
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 echo "Running migrations"
 "${EXECHOST_EXE}" migrations run > "$LOGS/fsharp-migrations.log"
@@ -87,5 +71,4 @@ echo "Running cronchecker"
 echo "Running queueworker"
 "${QUEUEWORKER_EXE}" > "$LOGS/fsharp-queueworker.log" 2>&1 &
 
-./scripts/run-nginx-server
 echo "Finished loading server"
