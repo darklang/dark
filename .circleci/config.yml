@@ -533,6 +533,7 @@ workflows:
             - build-client # to rebuild etags
             - build-backend
             - build-fsharp-backend
+            - build-fsharp-blazor # etags
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
@@ -542,7 +543,6 @@ workflows:
           requires:
             - build-backend
             - build-fsharp-blazor
-            # CLEANUP: should be able to remove this
             - build-fsharp-backend
             - build-client
 
