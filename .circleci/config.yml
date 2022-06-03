@@ -80,7 +80,10 @@ commands:
       - run:
           name: Remove deploy lock
           when: on_fail
-          command: ./scripts/deployment/deploy-lock-one-remove
+          command: |
+            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
+              ./scripts/deployment/deploy-lock-one-remove
+            fi
 
   deploy-lock-remove:
     steps:
@@ -191,10 +194,12 @@ commands:
           name: Auth with GCP
           when: on_fail
           command: |
-            echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-            gcloud auth activate-service-account --key-file gcloud-service-key.json
-            gcloud auth configure-docker
-            ./scripts/production/gcp-authorize-kubectl
+            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
+              echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
+              gcloud auth activate-service-account --key-file gcloud-service-key.json
+              gcloud auth configure-docker
+              ./scripts/production/gcp-authorize-kubectl
+            fi
 
 
 
