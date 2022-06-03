@@ -342,9 +342,10 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
+      - run: cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/
+      - run: rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
-          # Do this before reducing size of cache
           root: "."
           paths:
             - backend/static/BlazorWorker.js
