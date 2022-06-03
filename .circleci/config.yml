@@ -302,7 +302,8 @@ jobs:
       - run: touch backend/static/appsupport.js
       - run: cp client/static/favicon-32x32.png backend/static/
       - run: scripts/build/_generate-etags
-      - run: scripts/build/compile-project fsharp-backend --test
+      - run: scripts/build/compile-project fsharp-backend
+      - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
