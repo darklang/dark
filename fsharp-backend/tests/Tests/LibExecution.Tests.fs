@@ -155,53 +155,19 @@ let t
               test =
                 { state.test with expectedExceptionCount = expectedExceptionCount } }
 
-        let testOCaml, testFSharp =
-          if String.includes "FSHARPONLY" comment then (false, true)
-          else if String.includes "OCAMLONLY" comment then (true, false)
-          else (true, true)
+        let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualProg)
 
-        if testOCaml then
-          let! ocamlActual =
-            TestUtils.OCamlInterop.execute
-              state.program.accountID
-              state.program.canvasID
-              actualProg
-              Map.empty
-              dbs
-              (Map.values functions)
-              (Map.values packageFns)
+        let actual = normalizeDvalResult actual
 
-          Expect.isTrue (Expect.isCanonical ocamlActual) "actual is normalized"
+        let canonical = Expect.isCanonical actual
+        if not canonical then
+          debugDval actual |> debuG "not canonicalized"
+          Expect.isTrue canonical "expected is canonicalized"
 
-          if shouldEqual then
-            Expect.equalDval
-              (normalizeDvalResult ocamlActual)
-              expected
-              $"OCaml: {msg}"
-          else
-            Expect.notEqual
-              (normalizeDvalResult ocamlActual)
-              expected
-              $"OCaml: {msg}"
-
-          // Clear the canvas before we run the OCaml tests
-          do! resetCanvas ()
-
-        if testFSharp then
-          let! fsharpActual =
-            Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualProg)
-
-          let fsharpActual = normalizeDvalResult fsharpActual
-
-          let canonical = Expect.isCanonical fsharpActual
-          if not canonical then
-            debugDval fsharpActual |> debuG "not canonicalized"
-            Expect.isTrue canonical "expected is canonicalized"
-
-          if shouldEqual then
-            Expect.equalDval fsharpActual expected $"FSharp: {msg}"
-          else
-            Expect.notEqual fsharpActual expected $"FSharp: {msg}"
+        if shouldEqual then
+          Expect.equalDval actual expected $"FSharp: {msg}"
+        else
+          Expect.notEqual actual expected $"FSharp: {msg}"
 
         return ()
       with

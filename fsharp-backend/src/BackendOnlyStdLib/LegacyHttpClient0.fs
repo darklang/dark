@@ -44,7 +44,7 @@ let sendRequest
     | Ok response ->
       match UTF8.ofBytesOpt response.body with
       | None ->
-        // Match how OCaml prints this error
+        // CLEANUP This was to match how ocaml printed this error
         let encodeByte (b : byte) : byte array =
           if b = (byte '\"') then
             [| byte '\\'; byte '"' |]

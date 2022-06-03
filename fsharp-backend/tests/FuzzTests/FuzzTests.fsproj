@@ -20,13 +20,9 @@
     <Compile Include="Utils.FuzzTests.fs" />
     <Compile Include="Generators.fs" />
     <Compile Include="FQFnName.FuzzTests.fs" />
-    <Compile Include="OCamlInterop.FuzzTests.fs" />
-    <Compile Include="DvalRepr.FuzzTests.fs" />
-    <Compile Include="HttpClient.FuzzTests.fs" />
-    <Compile Include="Json.FuzzTests.fs" />
     <Compile Include="Passwords.FuzzTests.fs" />
-    <Compile Include="BytesToString.FuzzTests.fs" />
     <Compile Include="NodaTime.FuzzTests.fs" />
+    <Compile Include="InternalJson.FuzzTests.fs" />
     <Compile Include="AllowedFuzzerErrors.fs" />
     <Compile Include="ExecutePureFunctions.FuzzTests.fs" />
     <Compile Include="FuzzTests.fs" />

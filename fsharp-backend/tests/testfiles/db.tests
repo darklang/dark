@@ -51,9 +51,6 @@
 // ------------
 // Schema
 // ------------
-[test.db.schema_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.schema_v0 X = Test.typeError_v0 "DB::schema is DEPRECATED"
-
 [test.db.schema_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.schema_v0 X = Test.typeError_v0 "DB::schema_v0 was removed from Dark"
 
@@ -394,62 +391,32 @@ DB.count X = 0
  DB.count X) = 4
 
 // CLEANUP put into one test
-[test.db.delete_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete is DEPRECATED"
-
 [test.db.delete_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete_v0 was removed from Dark"
-
-[test.db.deleteAll_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.deleteAll_v0 X = Test.typeError_v0 "DB::deleteAll is DEPRECATED"
 
 [test.db.deleteAll_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.deleteAll_v0 X = Test.typeError_v0 "DB::deleteAll_v0 was removed from Dark"
 
-[test.db.fetchAll_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchAll_v0 X = Test.typeError_v0 "DB::fetchAll is DEPRECATED"
-
 [test.db.fetchAll_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.fetchAll_v0 X = Test.typeError_v0 "DB::fetchAll_v0 was removed from Dark"
-
-[test.db.fetchBy_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchBy is DEPRECATED"
 
 [test.db.fetchBy_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.fetchBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchBy_v0 was removed from Dark"
 
-[test.db.fetchOneBy_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchOneBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchOneBy is DEPRECATED"
-
 [test.db.fetchOneBy_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.fetchOneBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchOneBy_v0 was removed from Dark"
-
-[test.db.fetchByMany_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchByMany_v0 "a" X = Test.typeError_v0 "DB::fetchByMany is DEPRECATED"
 
 [test.db.fetchByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.fetchByMany_v0 "a" X = Test.typeError_v0 "DB::fetchByMany_v0 was removed from Dark"
 
-[test.db.fetchOneByMany_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.fetchOneByMany_v0 "a" X = Test.typeError_v0 "DB::fetchOneByMany is DEPRECATED"
-
 [test.db.fetchOneByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.fetchOneByMany_v0 "a" X = Test.typeError_v0 "DB::fetchOneByMany_v0 was removed from Dark"
-
-[test.db.keys_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.keys_v0 X = Test.typeError_v0 "DB::keys is DEPRECATED"
 
 [test.db.keys_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.keys_v0 X = Test.typeError_v0 "DB::keys_v0 was removed from Dark"
 
-[test.db.insert_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert is DEPRECATED"
-
 [test.db.insert_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert_v0 was removed from Dark"
-
-[test.db.update_v0 does not exist for ocaml OCAMLONLY] with DB X
-DB.update_v0 "a" X = Test.typeError_v0 "DB::update is DEPRECATED"
 
 [test.db.update_v0 does not exist for fsharp FSHARPONLY] with DB X
 DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
@@ -535,10 +502,6 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
   [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db lambda doesnt return a bool OCAMLONLY] with DB Person
-friendsError (fun p -> "x") =
-  Test.sqlError "Incorrect type in `\"x\"`, expected Bool but got a Str in \"x\""
-
 [test.db lambda doesnt return a bool FSHARPONLY] with DB Person
 friendsError (fun p -> "x") =
   Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a Str"
@@ -550,19 +513,10 @@ friendsError (fun p -> let x = 32 in true && p.height > y) =
 [test.db sql injection] with DB Person
 friendsError (fun p -> "; select * from users;" = p.name ) = []
 
-[test.db invalid type comparison OCAMLONLY] with DB Person
-friendsError (fun p -> p.height == "string") =
-  Test.sqlError "A type error occurred at run-time"
-
 // CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
 [test.db invalid type comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
 friendsError (fun p -> p.height == "string") =
   Test.sqlError "An error occurred while querying the Datastore"
-
-// This test checks do we look up dates correctly when the function type is not a date
-[test.db invalid date comparison OCAMLONLY] with DB Person
-friendsError (fun p -> p.dob != Date.now_v0) =
-  Test.sqlError "A type error occurred at run-time"
 
 // This test checks do we look up dates correctly when the function type is not a date
 [test.db invalid date comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person

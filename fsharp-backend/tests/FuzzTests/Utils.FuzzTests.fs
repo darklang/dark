@@ -16,12 +16,9 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = TestUtils.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
-/// Extracts the result from a task
-let result (t : Task<'a>) : 'a = t.Result
 
 let (.=.) actual expected : bool =
   if actual = expected then

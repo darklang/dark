@@ -563,7 +563,7 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
       match pair with
       | (k, DStr v) -> Ok(k, v)
       | (k, v) ->
-        // CLEANUP: this is just to keep the error messages the same with OCaml. It's safe to change the error message
+        // CLEANUP: this was just to keep the error messages the same with OCaml. It's safe to change the error message
         // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
         Error "expecting str")
     |> Tablecloth.Result.values

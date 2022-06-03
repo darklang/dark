@@ -43,11 +43,6 @@ Lines with just comments or whitespace are ignored. Single-line tests are made
 up of code optionally followed by a comment (if present, the comment is used as
 the test name).
 
-Comments with FSHARPONLY only test against the FSharp implementation. Comments
-with OCAMLONLY only test again the OCaml implementation. This allows us to
-document differences between the implementations, including different error
-messages.
-
 We also support more complex tests, involving multiple lines, test groups,
 datastores and functions. To do so, add a test indicator (see below) - all code
 after a test indicator is put into that construct.

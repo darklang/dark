@@ -17,14 +17,14 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
-module OCamlInterop = TestUtils.OCamlInterop
 
 open TestUtils.TestUtils
 
-let equalsOCaml =
-  /// Checks if a fn and some arguments result in the same Dval
-  /// against both OCaml and F# backends.
-  let checkEquality ((fn, args) : PT.FQFnName.StdlibFnName * List<RT.Dval>) : bool =
+let hardToRepresentTests =
+  let execute
+    ((fn, args) : PT.FQFnName.StdlibFnName * List<RT.Dval>)
+    (expected : RT.Dval)
+    : Task<bool> =
     task {
       // evaluate the fn call against both backends
       let! meta = initializeTestCanvas (Randomized "ExecutePureFunction")
@@ -35,23 +35,19 @@ let equalsOCaml =
 
       let symtable = Map.ofList args
 
-      let! expected = OCamlInterop.execute meta.owner meta.id ast symtable [] [] []
-
       let! state = executionStateFor meta Map.empty Map.empty
       let! actual =
         LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
-
       return Expect.dvalEquality actual expected
     }
-    |> FuzzTests.Utils.result
 
   let fnName mod_ function_ version =
     PTParser.FQFnName.stdlibFnName mod_ function_ version
 
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
-  testMany
-    "equalsOCaml"
-    checkEquality
+  testMany2Task
+    "hardToRepresent"
+    execute
     [ (fnName "List" "fold" 0,
        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
 
@@ -60,6 +56,7 @@ let equalsOCaml =
          RT.DFnVal(
            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
          ) ]),
+      (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
       true
 
       (fnName "Result" "fromOption" 0,
@@ -74,6 +71,16 @@ let equalsOCaml =
            )
          )
          RT.DStr "s" ]),
+      (RT.DResult(
+        Ok(
+          RT.DFnVal(
+            RT.Lambda
+              { parameters = []
+                symtable = Map.empty
+                body = RT.EFloat(84932785UL, -9.223372037e+18) }
+          )
+        )
+      )),
       true
 
       (fnName "Result" "fromOption" 0,
@@ -93,6 +100,22 @@ let equalsOCaml =
            )
          )
          RT.DStr "s" ]),
+
+      RT.DResult(
+        Ok(
+          RT.DFnVal(
+            RT.Lambda
+              { parameters = []
+                symtable = Map.empty
+                body =
+                  RT.EMatch(
+                    gid (),
+                    RT.ENull(gid ()),
+                    [ (RT.PFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
+                  ) }
+          )
+        )
+      ),
       true ]
 
 let oldFunctionsAreDeprecated =
@@ -134,4 +157,6 @@ let intInfixMatch =
   }
 
 let tests =
-  testList "stdlib" [ equalsOCaml; oldFunctionsAreDeprecated; intInfixMatch ]
+  testList
+    "stdlib"
+    [ hardToRepresentTests; oldFunctionsAreDeprecated; intInfixMatch ]

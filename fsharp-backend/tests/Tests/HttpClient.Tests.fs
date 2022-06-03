@@ -154,54 +154,14 @@ let makeTest versionName filename =
 
       let debugMsg = $"\n\n{actualDarkProg}\n=\n{expectedResult}\n\n"
 
-      // Which tests to run
-      let testOCaml, testFSharp =
-        if String.includes "FSHARPONLY" darkCode then (false, true)
-        else if String.includes "OCAMLONLY" darkCode then (true, false)
-        else (true, true)
+      let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualDarkProg)
 
-      // Test OCaml
-      if testOCaml then
-        let! ocamlActual =
-          try
-            TestUtils.OCamlInterop.execute
-              state.program.accountID
-              state.program.canvasID
-              actualDarkProg
-              Map.empty
-              []
-              []
-              []
+      let actual = normalizeDvalResult actual
 
-          with
-          | e ->
-            Exception.raiseInternal
-              $"When calling OCaml code, OCaml server failed"
-              [ "msg", debugMsg ]
-              [ "exception", e ]
-
-        if shouldEqual then
-          Expect.equalDval
-            (normalizeDvalResult ocamlActual)
-            expected
-            $"{debugMsg} -> OCaml"
-        else
-          Expect.notEqual
-            (normalizeDvalResult ocamlActual)
-            expected
-            $"{debugMsg} -> OCaml"
-
-      // Test F#
-      if testFSharp then
-        let! fsharpActual =
-          Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualDarkProg)
-
-        let fsharpActual = normalizeDvalResult fsharpActual
-
-        if shouldEqual then
-          Expect.equalDval fsharpActual expected $"{debugMsg} -> FSharp"
-        else
-          Expect.notEqual fsharpActual expected $"{debugMsg} -> FSharp"
+      if shouldEqual then
+        Expect.equalDval actual expected $"{debugMsg} -> FSharp"
+      else
+        Expect.notEqual actual expected $"{debugMsg} -> FSharp"
   }
 
 
