@@ -70,10 +70,12 @@ JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/fsharp-backend.xml"
 RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 
 COLOURS="256"
+SPINNER=
 if [[ -v CI ]]; then
   # Expecto needs `--colours 0` or the xml will be invalid
   # https://github.com/haf/expecto/issues/434
   COLOURS="0"
+  SPINNER="--no-spinner"
 fi
 
 cd fsharp-backend
@@ -96,5 +98,5 @@ else
   DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  "${EXE}" --no-spinner --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
+  "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
 fi
