@@ -9,6 +9,7 @@ open Microsoft.AspNetCore.Routing
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
+open Microsoft.Extensions.Logging
 
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
@@ -24,6 +25,11 @@ open Microsoft.AspNetCore.StaticFiles
 
 module Auth = LibBackend.Authorization
 module Config = LibBackend.Config
+
+module FireAndForget = LibService.FireAndForget
+module Kubernetes = LibService.Kubernetes
+module Rollbar = LibService.Rollbar
+module Telemetry = LibService.Telemetry
 
 type Packages = List<LibExecution.ProgramTypes.Package.Fn>
 
@@ -196,22 +202,34 @@ let configureServices (services : IServiceCollection) : unit =
   |> fun s -> s.AddHsts(LibService.HSTS.setConfig)
   |> ignore<IServiceCollection>
 
-let run (packages : Packages) : unit =
-  let k8sUrl = LibService.Kubernetes.url LibService.Config.apiServerKubernetesPort
-  let url = $"http://darklang.localhost:{LibService.Config.apiServerPort}"
+let webserver
+  (packages : Packages)
+  (loggerSetup : ILoggingBuilder -> unit)
+  (httpPort : int)
+  (healthCheckPort : int)
+  : WebApplication =
+  let hcUrl = Kubernetes.url healthCheckPort
 
   let builder = WebApplication.CreateBuilder()
   configureServices builder.Services
   LibService.Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
+  |> fun wh -> wh.ConfigureLogging(loggerSetup)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-  |> fun wh -> wh.UseUrls(k8sUrl, url)
+  |> fun wh -> wh.UseUrls(hcUrl, $"http://darklang.localhost:{httpPort}")
   |> ignore<IWebHostBuilder>
 
   let app = builder.Build()
   configureApp packages app
-  app.Run()
+  app
+
+let run (packages : Packages) : unit =
+  let port = LibService.Config.apiServerPort
+  let k8sPort = LibService.Config.apiServerKubernetesPort
+  (webserver packages LibService.Logging.noLogger port k8sPort).Run()
+
+
 
 
 [<EntryPoint>]

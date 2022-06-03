@@ -927,7 +927,7 @@ let cookies =
         use req =
           new HttpRequestMessage(
             HttpMethod.Post,
-            $"http://darklang.localhost:9000/login"
+            $"http://darklang.localhost:{TestConfig.apiServerNginxPort}/login"
           )
 
         req.Headers.Host <- host
@@ -989,3 +989,13 @@ let cookies =
       (local, None, (302, None, Some "/login?error=Invalid+username+or+password")) ]
 
 let tests = testList "ApiServer" [ permissions; cookies ]
+
+open Microsoft.Extensions.Hosting
+
+let init (token : System.Threading.CancellationToken) : Task =
+  // run our own webserver instead of relying on the dev webserver
+  let port = TestConfig.apiServerBackendPort
+  let k8sPort = TestConfig.apiServerKubernetesPort
+  let packages = LibBackend.PackageManager.allFunctions().Result
+  let logger = configureLogging "test-apiserver"
+  (ApiServer.webserver packages logger port k8sPort).RunAsync(token)

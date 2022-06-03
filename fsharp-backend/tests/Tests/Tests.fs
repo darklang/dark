@@ -45,6 +45,7 @@ let main (args : string array) : int =
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
+    let apiServerTestsTask = Tests.ApiServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
     (LibBackend.Account.initTestAccounts ()).Wait()
@@ -59,6 +60,7 @@ let main (args : string array) : int =
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
+    apiServerTestsTask.Wait()
     httpClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
     exitCode

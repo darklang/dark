@@ -476,11 +476,6 @@ let configureServices (services : IServiceCollection) : unit =
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
-let noLogger (builder : ILoggingBuilder) : unit =
-  // We use telemetry instead
-  builder.ClearProviders() |> ignore<ILoggingBuilder>
-
-
 
 let webserver
   (loggerSetup : ILoggingBuilder -> unit)
@@ -506,7 +501,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdServerPort
   let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver noLogger port k8sPort).Run()
+  (webserver LibService.Logging.noLogger port k8sPort).Run()
 
 
 
