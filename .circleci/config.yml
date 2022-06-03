@@ -542,7 +542,8 @@ workflows:
           requires:
             - build-backend
             - build-fsharp-blazor
-            - build-fsharp-backend # Can we remove this?
+            # CLEANUP: should be able to remove this
+            - build-fsharp-backend
             - build-client
 
       # pre-deploy, in parallel with integration-tests
@@ -553,6 +554,8 @@ workflows:
           requires:
             - build-backend
             - build-fsharp-backend
+            # CLEANUP: need this because of etags, should be able to remove it
+            - build-fsharp-blazor
             - build-client
 
       # actual deploy
