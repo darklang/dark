@@ -312,13 +312,6 @@ def fsharp_backend_full_build():
   return result
 
 
-def test_db_env():
-  return "DARK_CONFIG_DB_HOST=localhost" \
-    " DARK_CONFIG_DB_DBNAME=testdb" \
-    " DARK_CONFIG_DB_USER=dark" \
-    " DARK_CONFIG_DB_PASSWORD=darklang"
-
-
 def reload_server():
   start = time.time()
   runserver = "scripts/run-backend-server"
