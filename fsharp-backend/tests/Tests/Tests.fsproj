@@ -19,16 +19,11 @@
     <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
-
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
     <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
-    <!-- These are included just so that we can have a single target that builds
-    everything except wasm -->
-    <ProjectReference Include="../../src/CronChecker/CronChecker.fsproj" />
-    <ProjectReference Include="../../src/ExecHost/ExecHost.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestConfig.fs" />
