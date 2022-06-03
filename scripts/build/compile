@@ -284,7 +284,8 @@ def fsharp_backend_quick_build():
       /clp:ForceConsoleColor \
       --no-restore \
       --verbosity {verbosity} \
-      --configuration {configuration}"
+      --configuration {configuration} \
+      fsdark.sln"
 
   result = run_backend(start, build)
 
@@ -305,7 +306,8 @@ def fsharp_backend_full_build():
   build = f"./scripts/build/_dotnet-wrapper {command} \
       /clp:ForceConsoleColor \
       --verbosity {verbosity} \
-      --configuration {configuration}"
+      --configuration {configuration} \
+      fsdark.sln"
 
   result = run_backend(start, build)
 
