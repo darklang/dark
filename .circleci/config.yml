@@ -309,12 +309,7 @@ jobs:
       - run: scripts/build/_generate-etags
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release tests/Tests
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/ApiServer
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/BwdServer
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/ExecHost
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/QueueWorker
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/CronChecker
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln
       - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
