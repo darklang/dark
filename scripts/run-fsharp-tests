@@ -29,7 +29,7 @@ killall -9 Tests || true
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests
   EXECHOST=Build/out/ExecHost/Release/net6.0/linux-x64/ExecHost
-  APISERVER=Build/out/ApiServer/Release/net6.0/linux-x64/ApiServer/ApiServer
+  APISERVER=Build/out/ApiServer/Release/net6.0/linux-x64/ApiServer
 else
   EXE=Build/out/Tests/Debug/net6.0/linux-x64/Tests
   EXECHOST=Build/out/ExecHost/Debug/net6.0/linux-x64/ExecHost
