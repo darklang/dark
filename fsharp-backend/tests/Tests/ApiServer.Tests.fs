@@ -39,7 +39,7 @@ type C = Lazy<Task<Client>>
 let portFor (server : Server) : int =
   match server with
   | OCaml -> 8000 // nginx for the ocaml server is on port 8000
-  | FSharp -> LibService.Config.apiServerNginxPort
+  | FSharp -> TestConfig.apiServerNginxPort
 
 let forceLogin (username : UserName.T) : Task<Client> =
   task {
