@@ -305,7 +305,7 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v10-fsharp-backend-{{ checksum "../checksum" }}
+            - v11-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -318,7 +318,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln --no-restore /p:DebugType=None /p:DebugSymbols=false
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
       - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
@@ -333,7 +333,9 @@ jobs:
             - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
-          paths: [fsharp-backend/Build/obj]
+          paths:
+            - fsharp-backend/Build/obj
+            - /home/dark/.nuget
           key: v10-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
@@ -350,12 +352,12 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v1-fsharp-blazor-{{ checksum "../checksum" }}
+            - v2-fsharp-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release --no-restore src/Wasm/Wasm.fsproj
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
       - run: cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/
       - run: rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
@@ -366,8 +368,10 @@ jobs:
             - backend/static/blazor
       - show-large-files-and-directories
       - save_cache:
-          paths: [fsharp-backend/Build/obj]
-          key: v1-fsharp-blazor-{{ checksum "../checksum" }}
+          paths:
+            - fsharp-backend/Build/obj
+            - /home/dark/.nuget
+          key: v2-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
