@@ -309,7 +309,8 @@ jobs:
       - run: scripts/build/_generate-etags
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln
+      # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
       - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
