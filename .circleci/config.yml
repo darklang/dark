@@ -80,7 +80,10 @@ commands:
       - run:
           name: Remove deploy lock
           when: on_fail
-          command: ./scripts/deployment/deploy-lock-one-remove
+          command: |
+            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
+              ./scripts/deployment/deploy-lock-one-remove
+            fi
 
   deploy-lock-remove:
     steps:
@@ -191,10 +194,12 @@ commands:
           name: Auth with GCP
           when: on_fail
           command: |
-            echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-            gcloud auth activate-service-account --key-file gcloud-service-key.json
-            gcloud auth configure-docker
-            ./scripts/production/gcp-authorize-kubectl
+            if [[ "${CIRCLE_BRANCH}" = "main" ]]; then
+              echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
+              gcloud auth activate-service-account --key-file gcloud-service-key.json
+              gcloud auth configure-docker
+              ./scripts/production/gcp-authorize-kubectl
+            fi
 
 
 
@@ -282,6 +287,7 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
+  # Build server binaries and run tests (but not blazor, which is separated out for build speed)
   build-fsharp-backend:
     executor: in-container
     resource_class: xlarge
@@ -291,9 +297,8 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v8-fsharp-backend-{{ checksum "../checksum" }}
+            - v10-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
-      - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # For tests
       # appsupport is needed for a unit test, but it is not needed as part
@@ -302,7 +307,10 @@ jobs:
       - run: touch backend/static/appsupport.js
       - run: cp client/static/favicon-32x32.png backend/static/
       - run: scripts/build/_generate-etags
-      - run: scripts/build/compile-project fsharp-backend
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
       - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
@@ -315,16 +323,48 @@ jobs:
             - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
             - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
             - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
-            - backend/static/BlazorWorker.js
-            - backend/static/blazor
       - show-large-files-and-directories
       - save_cache:
-          paths: [fsharp-backend/Build]
-          key: v8-fsharp-backend-{{ checksum "../checksum" }}
+          paths: [fsharp-backend/Build/obj]
+          key: v10-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
+
+  # We build blazor in parallel with server binaries
+  build-fsharp-blazor:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      - setup-app
+      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
+      - restore_cache:
+          keys:
+            - v1-fsharp-blazor-{{ checksum "../checksum" }}
+            # Fails often enough that it's better not to have a fallback
+      - show-large-files-and-directories
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
+      - run: cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/
+      - run: rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - assert-clean-worktree
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - backend/static/BlazorWorker.js
+            - backend/static/blazor
+      - show-large-files-and-directories
+      - save_cache:
+          paths: [fsharp-backend/Build/obj]
+          key: v1-fsharp-blazor-{{ checksum "../checksum" }}
+      - store_artifacts: { path: rundir }
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
+
 
   static-checks:
     executor: in-container
@@ -379,7 +419,7 @@ jobs:
             scripts/run-fsharp-server --published
             # Wait for users to be added so prep.sh works
             ./scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=6 --retry --published
+            integration-tests/run.sh --concurrency=8 --retry --published
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
@@ -479,12 +519,14 @@ workflows:
       - build-backend
       - build-client
       - build-fsharp-backend
+      - build-fsharp-blazor
 
       # expensive tests
       - integration-tests:
           requires:
             - build-backend
             - build-client
+            - build-fsharp-blazor
             - build-fsharp-backend
 
       - gcp-containers-test:
@@ -496,6 +538,7 @@ workflows:
             - build-client # to rebuild etags
             - build-backend
             - build-fsharp-backend
+            - build-fsharp-blazor # etags
 
       # pre-deploy, in parallel with integration-tests
       - push-assets-to-gcp:
@@ -504,6 +547,7 @@ workflows:
               only: main
           requires:
             - build-backend
+            - build-fsharp-blazor
             - build-fsharp-backend
             - build-client
 
@@ -515,6 +559,8 @@ workflows:
           requires:
             - build-backend
             - build-fsharp-backend
+            # CLEANUP: need this because of etags, should be able to remove it
+            - build-fsharp-blazor
             - build-client
 
       # actual deploy
@@ -544,6 +590,7 @@ workflows:
             - build-backend
             - build-client
             - build-fsharp-backend
+            - build-fsharp-blazor
             - gcp-containers-test
             - integration-tests
             - static-checks

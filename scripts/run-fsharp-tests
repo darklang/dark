@@ -29,15 +29,10 @@ killall -9 Tests || true
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests
   EXECHOST=Build/out/ExecHost/Release/net6.0/linux-x64/ExecHost
-  APISERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/"
-  APISERVER_EXE="${APISERVER_BINPATH}/ApiServer"
 else
   EXE=Build/out/Tests/Debug/net6.0/linux-x64/Tests
   EXECHOST=Build/out/ExecHost/Debug/net6.0/linux-x64/ExecHost
-  APISERVER_BINPATH="fsharp-backend/Build/out/ApiServer/Debug/net6.0/linux-x64/"
-  APISERVER_EXE="${APISERVER_BINPATH}/ApiServer"
 fi
-
 
 echo "Dropping testdb database"
 ./scripts/devcontainer/_wait-for-background-services postgresql
@@ -49,12 +44,6 @@ LOGS="${DARK_CONFIG_RUNDIR}/logs"
 ./scripts/run-pubsub-emulator
 ./scripts/run-httptunnel
 ./scripts/run-nginx-server
-
-# We need the regular (not test) ApiServer running at the moment
-echo "(re)Starting ApiServer"
-APISERVER_EXE="${APISERVER_BINPATH}/ApiServer"
-sudo pkill -f "ApiServer" || true
-"${APISERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
 
 # Run the migrations before the other servers start
 echo "Running migrations"

@@ -4,10 +4,9 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>6.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
+    <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />

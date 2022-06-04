@@ -2,13 +2,11 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>6.0</LangVersion>
+    <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
-    <LangVersion>6.0</LangVersion>
-    <OtherFlags>--warnaserror</OtherFlags>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
@@ -16,6 +14,7 @@
     <Compile Include="ConfigDsl.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Telemetry.fs" />
+    <Compile Include="Logging.fs" />
     <Compile Include="LaunchDarkly.fs" />
     <Compile Include="Rollbar.fs" />
     <Compile Include="FireAndForget.fs" />
