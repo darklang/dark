@@ -89,6 +89,7 @@ RUN echo "deb https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sour
 # - most libs re for ocaml
 # - net-tools for netstat
 # - esy packages need texinfo
+# - libgbm1 for playwright/chrome
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
@@ -111,6 +112,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
       nodejs \
+      libgbm1 \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
