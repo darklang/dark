@@ -222,16 +222,16 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v3-client-{{ checksum "package-lock.json" }}
-            - v3-client
+            - v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v4-client-{{ checksum "package-lock.json" }}
+            - v4-client
       - run: scripts/build/compile-project client --test
       - assert-clean-worktree
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: ["node_modules"]
-          key: v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+          key: v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
