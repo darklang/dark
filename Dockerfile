@@ -111,6 +111,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-9.6 \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
+      git-restore-mtime \
       nodejs \
       libgbm1 \
       google-cloud-sdk \

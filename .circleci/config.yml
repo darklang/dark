@@ -298,7 +298,6 @@ jobs:
       # like .NET to use their incremental build feature. Without this, the checkout
       # time is always newer than the cached object file, and files are always
       # rebuilt.
-      - run: sudo apt update && sudo apt install git-restore-mtime
       - run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
@@ -351,7 +350,6 @@ jobs:
       # like .NET to use their incremental build feature. Without this, the checkout
       # time is always newer than the cached object file, and files are always
       # rebuilt.
-      - run: sudo apt update && sudo apt install git-restore-mtime
       - run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
