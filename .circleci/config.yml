@@ -419,7 +419,7 @@ jobs:
             scripts/run-fsharp-server --published
             # Wait for users to be added so prep.sh works
             ./scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=16 --retry --published
+            integration-tests/run.sh --concurrency=8 --retry --published
       - run: integration-tests/_integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
