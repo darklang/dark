@@ -48,7 +48,6 @@ let main (args : string array) : int =
     let apiServerTestsTask = Tests.ApiServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
-    (LibBackend.Account.initTestAccounts ()).Wait()
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateBinarySerializationTestFiles ()
