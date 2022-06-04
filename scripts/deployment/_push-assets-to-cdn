@@ -7,9 +7,10 @@ import json
 import subprocess
 import tempfile
 import shutil
+import time
 
-ROOT_OF_FILES="backend/static/"
-BUCKET="gs://darklang-static-assets"
+ROOT_OF_FILES = "backend/static/"
+BUCKET = "gs://darklang-static-assets"
 
 # This script's goal is to gather all of our static assets in `backend/static/`
 # and upload them to GCP via `gsutil cp`, with the correct Content-Type. Some
@@ -55,9 +56,11 @@ def should_copy_file(file_name):
 
   return True
 
-static_files_to_copy = [f
-                        for f in glob.glob(f"{ROOT_OF_FILES}**", recursive=True)
-                        if os.path.isfile(f) and should_copy_file(f)]
+
+static_files_to_copy = [
+    f for f in glob.glob(f"{ROOT_OF_FILES}**", recursive=True)
+    if os.path.isfile(f) and should_copy_file(f)
+]
 
 
 # Determine content-type / mimetype
@@ -70,36 +73,50 @@ def mime_type_for(file_name):
   elif file_name.endswith(".txt"): return "text/plain"
   elif file_name.endswith(".png"): return "image/png"
   elif file_name.endswith(".svg"): return "image/svg+xml"
-  elif file_name.endswith(".html"): return "text/html"
-  # Fonts
-  elif file_name.endswith(".ttf"): return "font/ttf"
-  elif file_name.endswith(".woff"): return "font/woff"
-  elif file_name.endswith(".woff2"): return "font/woff2"
-  elif file_name.endswith(".eot"): return "application/vnd.ms-fontobject"
-  # Blazor
-  elif file_name.endswith(".wasm"): return "application/wasm"
-  elif file_name.endswith(".pdb"): return "text/plain"
-  elif file_name.endswith(".dll"): return "application/octet-stream"
-  elif file_name.endswith(".dat"): return "application/octet-stream"
-  elif file_name.endswith(".blat"): return "application/octet-stream"
+  elif file_name.endswith(".html"):
+    return "text/html"
+    # Fonts
+  elif file_name.endswith(".ttf"):
+    return "font/ttf"
+  elif file_name.endswith(".woff"):
+    return "font/woff"
+  elif file_name.endswith(".woff2"):
+    return "font/woff2"
+  elif file_name.endswith(".eot"):
+    return "application/vnd.ms-fontobject"
+    # Blazor
+  elif file_name.endswith(".wasm"):
+    return "application/wasm"
+  elif file_name.endswith(".pdb"):
+    return "text/plain"
+  elif file_name.endswith(".dll"):
+    return "application/octet-stream"
+  elif file_name.endswith(".dat"):
+    return "application/octet-stream"
+  elif file_name.endswith(".blat"):
+    return "application/octet-stream"
   else:
     # Don't allow anything else
     print(f'Unknown extension for {file_name}')
     sys.exit(-1)
+
 
 # Parse `etags.json` to extract expected file content hashes, which we will
 # inject into filenames
 with open(f"{ROOT_OF_FILES}/etags.json", 'r') as f:
   etags = json.load(f)
 
+
 def should_hash(filename):
   return not filename.startswith("vendor/")
+
 
 # Create a local temp directory, with a subfolder per Content-Type relevant,
 # and copy our files to such, respecting relative location.
 # We'll later call `gsutil cp` per-folder with a `-r` (recursive) flag.
 temp_dir = tempfile.gettempdir() + "/static-assets"
 shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 # inserts the has of the file's contents (per etags.js) into the file name,
 # if relevant
@@ -118,10 +135,11 @@ def get_mimetype_temp_dir(mimetype):
   mimetype_folder = encode_dirname_with_slash(mimetype)
   return f'{temp_dir}/{mimetype_folder}'
 
-mimetypes_to_process = []
+
+mimetypes_to_process = set()
 for f in static_files_to_copy:
   mimetype = mime_type_for(f)
-  mimetypes_to_process.append(mimetype)
+  mimetypes_to_process.add(mimetype)
   target_filename = get_remote_file_name(f)
   target = f'{get_mimetype_temp_dir(mimetype)}/{target_filename}'
 
@@ -129,7 +147,6 @@ for f in static_files_to_copy:
   os.makedirs(os.path.dirname(target), exist_ok=True)
 
   shutil.copy(f, target)
-
 
 # Copy the files to CDN - one `gsutil cp` call per Content-Type
 for mimetype in mimetypes_to_process:
@@ -142,6 +159,7 @@ for mimetype in mimetypes_to_process:
   #   -Z: Uploaded file is served as zipped. Also adds 'no-transform' to Cache-Control header
   #   -n: Don't overwrite
   #   -r: Copy recursively
+  start = time.time()
   gsutil_command = f'''gsutil \
     -h "Content-Type:{mimetype}" \
     -h "Cache-Control:public" \
@@ -150,6 +168,8 @@ for mimetype in mimetypes_to_process:
     '''
 
   subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder)
+  elapsed = (time.time() - start)
+  print(f"Uploaded dir {mimetype_subfolder} for mimetype {mimetype} in {elapsed}ms")
 
 # Wrap up
 shutil.rmtree(temp_dir, ignore_errors=True)
