@@ -358,7 +358,7 @@ jobs:
             - backend/static/blazor
       - show-large-files-and-directories
       - save_cache:
-          paths: [fsharp-backend/Build]
+          paths: [fsharp-backend/Build/obj]
           key: v0-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
