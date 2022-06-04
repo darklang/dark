@@ -318,7 +318,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln --no-restore /p:DebugType=None /p:DebugSymbols=false
       - run: scripts/run-fsharp-tests --published
       - assert-clean-worktree
       - persist_to_workspace:
@@ -355,7 +355,7 @@ jobs:
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release --no-restore src/Wasm/Wasm.fsproj
       - run: cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/
       - run: rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
