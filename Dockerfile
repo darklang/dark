@@ -64,8 +64,6 @@ RUN curl -sSL https://baltocdn.com/helm/signing.asc | apt-key add -
 # We want postgres 9.6, but it is not in ubuntu 20.04
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
-RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
-
 RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
 
 RUN echo "deb https://deb.nodesource.com/node_14.x focal main" > /etc/apt/sources.list.d/nodesource.list
@@ -88,10 +86,10 @@ RUN echo "deb https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sour
 
 # Deps:
 # - apt-transport-https for npm
-# - expect for unbuffer
 # - most libs re for ocaml
 # - net-tools for netstat
 # - esy packages need texinfo
+# - libgbm1 for playwright/chrome
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
@@ -105,8 +103,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       wget \
       sudo \
       locales \
-      expect \
-      tcl8.6 \
       libev-dev \
       libgmp-dev \
       pkg-config \
@@ -115,8 +111,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-9.6 \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
-      google-chrome-stable \
+      git-restore-mtime \
       nodejs \
+      libgbm1 \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \

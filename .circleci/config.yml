@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:63e8ebf
+      - image: darklang/dark-base:dcf86ff
 
 commands:
   show-large-files-and-directories:
@@ -51,6 +51,7 @@ commands:
       # let's delete those first.
       - run: rm -Rf /home/dark/app/*
       - checkout
+
 
   ##########################
   # Setup app
@@ -214,16 +215,16 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v3-client-{{ checksum "package-lock.json" }}
-            - v3-client
+            - v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v4-client-{{ checksum "package-lock.json" }}
+            - v4-client
       - run: scripts/build/compile-project client --test
       - assert-clean-worktree
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: ["node_modules"]
-          key: v3-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+          key: v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -293,11 +294,16 @@ jobs:
     resource_class: xlarge
     steps:
       - darkcheckout
+      # Set the timestamp to the commit time. This allows timestamp-based build tools
+      # like .NET to use their incremental build feature. Without this, the checkout
+      # time is always newer than the cached object file, and files are always
+      # rebuilt.
+      - run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v10-fsharp-backend-{{ checksum "../checksum" }}
+            - v11-fsharp-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -325,8 +331,10 @@ jobs:
             - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
-          paths: [fsharp-backend/Build/obj]
-          key: v10-fsharp-backend-{{ checksum "../checksum" }}
+          paths:
+            - fsharp-backend/Build/obj
+            - /home/dark/.nuget
+          key: v11-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
@@ -338,11 +346,16 @@ jobs:
     resource_class: xlarge
     steps:
       - darkcheckout
+      # Set the timestamp to the commit time. This allows timestamp-based build tools
+      # like .NET to use their incremental build feature. Without this, the checkout
+      # time is always newer than the cached object file, and files are always
+      # rebuilt.
+      - run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v1-fsharp-blazor-{{ checksum "../checksum" }}
+            - v2-fsharp-blazor-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -358,8 +371,10 @@ jobs:
             - backend/static/blazor
       - show-large-files-and-directories
       - save_cache:
-          paths: [fsharp-backend/Build/obj]
-          key: v1-fsharp-blazor-{{ checksum "../checksum" }}
+          paths:
+            - fsharp-backend/Build/obj
+            - /home/dark/.nuget
+          key: v2-fsharp-blazor-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail

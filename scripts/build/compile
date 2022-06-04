@@ -106,20 +106,20 @@ def copy_fsharp_static():
 
 def client_build():
   start = time.time()
-  build = "unbuffer ./scripts/build/_npm-run-build-with-retry"
+  build = "./scripts/build/_npm-run-build-with-retry"
   result = run_frontend(start, build)
   return result
 
 
 def npm_install():
   start = time.time()
-  build = "unbuffer ./scripts/build/_npm-install-with-retry"
+  build = "./scripts/build/_npm-install-with-retry"
   return run_frontend(start, build)
 
 
 def esy_install():
   start = time.time()
-  build = "unbuffer esy install && esy build --release"
+  build = "esy install && esy build --release"
   return run_backend(start, build)
 
 
@@ -193,8 +193,7 @@ def backend_build():
   else:
     compilation_profile = "dev"
 
-  build = "unbuffer" \
-        + " scripts/build/_dune-wrapper.sh build" \
+  build = "scripts/build/_dune-wrapper.sh build" \
         + f" --profile {compilation_profile}" \
         + " --display short" \
         + " -j 8 " \
@@ -206,8 +205,8 @@ def backend_test():
   start = time.time()
   ci = "--verbose" if in_ci else "--quick"
   return run_test(start,
-          f"unbuffer scripts/build/_dune-wrapper.sh build backend/test/test.exe" \
-          f" && unbuffer scripts/run-backend-tests --show-errors {ci}" \
+          f"scripts/build/_dune-wrapper.sh build backend/test/test.exe" \
+          f" && scripts/run-backend-tests --show-errors {ci}" \
           f" 2>&1")
 
 
