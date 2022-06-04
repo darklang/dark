@@ -6,9 +6,8 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- We make this publishable so that we can run tests on the published version -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <SelfContained>true</SelfContained>
-    <!-- this makes the VSCode debugger hang -->
-    <!-- <PublishSingleFile>true</PublishSingleFile> -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
