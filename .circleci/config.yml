@@ -51,13 +51,6 @@ commands:
       # let's delete those first.
       - run: rm -Rf /home/dark/app/*
       - checkout
-      # Set the timestamp to the commit time. This allows timestamp-based build tools
-      # like .NET to use their incremental build feature. Without this, the checkout
-      # time is always newer than the cached object file, and files are always
-      # rebuilt.
-      # https://stackoverflow.com/a/22638823/104021
-      - run: git log --pretty=%at --name-status --reverse | perl -ane '($x,$f)=@F;next if !$x;$t=$x,next if !defined($f)||$s{$f};$s{$f}=utime($t,$t,$f),next if $x=~/[AM]/;'
-
 
 
   ##########################
@@ -301,6 +294,12 @@ jobs:
     resource_class: xlarge
     steps:
       - darkcheckout
+      # Set the timestamp to the commit time. This allows timestamp-based build tools
+      # like .NET to use their incremental build feature. Without this, the checkout
+      # time is always newer than the cached object file, and files are always
+      # rebuilt.
+      - run: sudo apt update && sudo apt install git-restore-mtime
+      - run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
@@ -348,6 +347,12 @@ jobs:
     resource_class: xlarge
     steps:
       - darkcheckout
+      # Set the timestamp to the commit time. This allows timestamp-based build tools
+      # like .NET to use their incremental build feature. Without this, the checkout
+      # time is always newer than the cached object file, and files are always
+      # rebuilt.
+      - run: sudo apt update && sudo apt install git-restore-mtime
+      - run: git restore-mtime
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
