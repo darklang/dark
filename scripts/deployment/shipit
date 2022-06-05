@@ -102,6 +102,21 @@ def run(name: str,
     handle_error(msg)
 
 
+def run_async(name: str,
+              args: Union[str, List[str]],
+              on_error: Callable[[str], None] = bad,
+              shell: bool = False,
+              env: Any = None) -> subprocess.Popen:
+  if should_dry_run:
+    color = "bold green"
+  else:
+    color = "bold magenta"
+  rich.print(f"[{color}]Running `{name}` command[/{color}]")
+  proc = subprocess.Popen(args, shell=shell, env=env)
+  print()
+  return proc
+
+
 # Runs a command that's part of running the script, captures stdout
 def run_output(args: Union[str, List[str]],
                shell: bool = False,
@@ -528,10 +543,19 @@ def containers_push(cliargs: ContainerPushArguments) -> None:
     run("docker tag id", ["docker", "tag", f"{c}:latest", info["image"]])
     run("docker tag latest", ["docker", "tag", f"{c}:latest", info["image_latest"]])
 
+  # Run all of these in parallel
+  processes = []
   for c in get_service_containers(cliargs):
     info = image_info(c)
-    run("docker push tagged", ["docker", "push", info["image"]])
-    run("docker push latest", ["docker", "push", info["image_latest"]])
+    processes.append(
+        run_async("docker push tagged", ["docker", "push", info["image"]]))
+    processes.append(
+        run_async("docker push latest", ["docker", "push", info["image_latest"]]))
+  for p in processes:
+    p.wait()
+    if p.returncode != 0:
+      error = str(p.args)
+      handle_error(f"Error in process: {error}")
 
 
 def containers_build(cliargs: ContainerBuildArguments) -> None:
