@@ -876,7 +876,7 @@ let addOpAPIParams = (j): addOpAPIParams => {
   clientOpCtrId: field("clientOpCtrId", string)(j),
 }
 
-let addOpAPIStrollerMsg = (j: Js.Json.t): addOpStrollerMsg => {
+let addOpAPIPusherMsg = (j: Js.Json.t): addOpPusherMsg => {
   result: field("result", addOpAPIResult, j),
   params: field("params", addOpAPIParams, j),
 }

@@ -279,7 +279,7 @@ let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
 // (https://github.com/ahrefs/ocaml-sodium/blob/master/lib/sodium.ml), the F#
 // version is libsodium-net
 // (https://github.com/tabrath/libsodium-core/blob/master/src/Sodium.Core/PasswordHash.cs).
-// The OCaml version uses the argon2i versions under the hood, which we use explicitly in F#.
+// The OCaml version used the argon2i versions under the hood, which we use explicitly in F#.
 let authenticate
   (usernameOrEmail : string)
   (givenPassword : string)

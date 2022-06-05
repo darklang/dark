@@ -201,7 +201,11 @@ module Exception =
     with
     | _ -> None
 
-
+  let catchError (f : unit -> 'r) : Result<'r, string> =
+    try
+      Ok(f ())
+    with
+    | e -> Error e.Message
 
 
 // ----------------------
@@ -904,6 +908,33 @@ module Json =
       override _.Write(writer : Utf8JsonWriter, _ : Password, _options) =
         writer.WriteStringValue("Redacted")
 
+    // Since we're getting this back from OCaml in DDates, we need to use the
+    // timezone even though there isn't one in the type
+    type LocalDateTimeConverter() =
+      inherit JsonConverter<NodaTime.LocalDateTime>()
+
+      override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
+        let rawToken = reader.GetString()
+        try
+          (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
+        with
+        // We briefly used this converter for `Vanilla` - this is us "falling
+        // back" so we're able to read values serialized during that time.
+        | _ -> NodaConverters.LocalDateTimeConverter.Read(&reader, tipe, options)
+
+      override _.Write
+        (
+          writer : Utf8JsonWriter,
+          value : NodaTime.LocalDateTime,
+          _options
+        ) =
+        let value =
+          NodaTime
+            .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
+            .ToInstant()
+            .toIsoString ()
+        writer.WriteStringValue(value)
+
     type RawBytesConverter() =
       inherit JsonConverter<byte array>()
       // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
@@ -934,7 +965,7 @@ module Json =
       options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
       // CLEANUP we can put these converters on the type or property if appropriate.
       options.Converters.Add(NodaConverters.InstantConverter)
-      options.Converters.Add(NodaConverters.LocalDateTimeConverter)
+      options.Converters.Add(LocalDateTimeConverter())
       options.Converters.Add(TLIDConverter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
@@ -1197,7 +1228,7 @@ module Json =
             FSharpValue.MakeUnion(cases[1], [| value |])
 
     // Since we're getting this back from OCaml in DDates, we need to use the
-    // timezone even though there isn't on in the type
+    // timezone even though there isn't one in the type
     type LocalDateTimeConverter() =
       inherit JsonConverter<NodaTime.LocalDateTime>()
 

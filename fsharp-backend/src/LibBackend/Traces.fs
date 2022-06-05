@@ -140,7 +140,6 @@ let userfnTrace
 
 
 let traceIDofTLID (tlid : tlid) : AT.TraceID =
-  // This was what we originally used in OCaml, so I guess we're stuck with it.
   Uuid.uuidV5 (string tlid) (Uuid.nilNamespace)
 
 

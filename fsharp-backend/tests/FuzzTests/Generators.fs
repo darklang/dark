@@ -18,7 +18,6 @@ open System
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module OCamlInterop = TestUtils.OCamlInterop
 module DvalReprExternal = LibExecution.DvalReprExternal
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
@@ -26,11 +25,10 @@ module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 let alphaNumericCharacters =
   List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
 
-/// Generates a string that 'normalizes' successfully,
-/// and is safe for use in OCaml
-let ocamlSafeUnicodeString =
-  /// We disallow `\u0000` in OCaml because Postgres doesn't like it; see `of_utf8_encoded_string.ml`
-  let isSafeOCamlString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
+/// Generates a string that 'normalizes' successfully
+let safeUnicodeString =
+  /// We disallow `\u0000` because Postgres doesn't like it
+  let isSafeString (s : string) : bool = s <> null && not (s.Contains('\u0000'))
 
   let normalizesSuccessfully (s : string) : bool =
     try
@@ -49,26 +47,12 @@ let ocamlSafeUnicodeString =
   |> Gen.filter normalizesSuccessfully
   // Now that we know it can be normalized, actually normalize it
   |> Gen.map String.normalize
-  |> Gen.filter isSafeOCamlString
+  |> Gen.filter isSafeString
 
-let OCamlSafeUnicodeString = ocamlSafeUnicodeString |> Arb.fromGen
-
-// FSTODO The above string generators yield strings that result in inconsistent
-// behaviour between OCaml and F# backends. This should be resolved. That said,
-// to test functionality outside of that issue, locally toggling the above
-// generator/arb for the below pair is recommended.
-
-// let alphaNumericString =
-//   let charGen = alphaNumericCharacters |> Gen.elements
-//   Gen.arrayOf charGen |> Gen.map (fun cs -> new String(cs))
-
-// let AlphaNumericString = Arb.fromGen alphaNumericString
-
-// let ocamlSafeUnicodeString = alphaNumericString
-// let OCamlSafeUnicodeString = AlphaNumericString
+let SafeUnicodeString = safeUnicodeString |> Arb.fromGen
 
 let char () : Gen<string> =
-  ocamlSafeUnicodeString
+  safeUnicodeString
   |> Gen.map String.toEgcSeq
   |> Gen.map Seq.toList
   |> Gen.map List.head
@@ -83,35 +67,23 @@ let nonNegativeInt =
     return i
   }
 
-let ocamlSafeFloat =
+let safeFloat =
   gen {
     let specials = interestingFloats |> List.map Tuple2.second |> Gen.elements
 
     return! Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
   }
 
-let OCamlSafeFloat = Arb.fromGen ocamlSafeFloat
+let SafeFloat = Arb.fromGen safeFloat
 
-/// Ensure we only work with OCaml-friendly integers
-let isValidOCamlInt (i : int64) : bool =
-  let ocamlIntUpperLimit = 4611686018427387903L
-  let ocamlIntLowerLimit = -4611686018427387904L
-
-  i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
-
-let ocamlSafeInt64 =
+let safeInt64 =
   gen {
-    let specials =
-      interestingInts
-      |> List.map Tuple2.second
-      |> List.filter isValidOCamlInt
-      |> Gen.elements
+    let specials = interestingInts |> List.map Tuple2.second |> Gen.elements
 
-    let v = Gen.frequency [ (5, specials); (5, Arb.generate<int64>) ]
-    return! Gen.filter isValidOCamlInt v
+    return! Gen.frequency [ (5, specials); (5, Arb.generate<int64>) ]
   }
 
-let OCamlSafeInt64 = Arb.fromGen ocamlSafeInt64
+let SafeInt64 = Arb.fromGen safeInt64
 
 module NodaTime =
   let instant =

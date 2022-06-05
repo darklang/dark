@@ -1,0 +1,19 @@
+[expected-request]
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip, br
+Host: HOST
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-Length: LENGTH
+
+RANDOM_BYTES
+
+[test]
+// RANDOM_BYTES filled in by the test suite
+(let response = HttpClient.get_v1 "http://URL" {} {} in
+ let respHeaders = response.headers |> Dict.remove_v0 "Date" in
+ Dict.set_v0 response "headers" respHeaders) =
+   Test.typeError_v0 "Fn called with an error as an argument"

@@ -64,8 +64,6 @@ RUN curl -sSL https://baltocdn.com/helm/signing.asc | apt-key add -
 # We want postgres 9.6, but it is not in ubuntu 20.04
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
-RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
-
 RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
 
 RUN echo "deb https://deb.nodesource.com/node_14.x focal main" > /etc/apt/sources.list.d/nodesource.list
@@ -88,10 +86,10 @@ RUN echo "deb https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sour
 
 # Deps:
 # - apt-transport-https for npm
-# - expect for unbuffer
 # - most libs re for ocaml
 # - net-tools for netstat
 # - esy packages need texinfo
+# - libgbm1 for playwright/chrome
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
@@ -105,8 +103,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       wget \
       sudo \
       locales \
-      expect \
-      tcl8.6 \
       libev-dev \
       libgmp-dev \
       pkg-config \
@@ -115,8 +111,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-9.6 \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
-      google-chrome-stable \
+      git-restore-mtime \
       nodejs \
+      libgbm1 \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
@@ -395,9 +392,7 @@ RUN mkdir -p app/_esy
 RUN mkdir -p .esy
 RUN mkdir -p app/node_modules
 RUN mkdir -p app/lib
-RUN mkdir -p app/containers/stroller/target
 RUN mkdir -p app/fsharp-backend/Build
-RUN mkdir -p .cargo
 
 RUN mkdir -p \
       /home/dark/.vscode-server/extensions \
@@ -407,31 +402,3 @@ RUN mkdir -p \
       /home/dark/.vscode-server-insiders
 
 USER dark
-
-
-########################
-# Install Rust toolchain
-# This is in a separate container to save time in CI
-########################
-FROM dark-base as dark-rust
-# We use root here because we're eventually going to remove rust and so it's not worth solving
-USER root
-ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/usr/local/cargo \
-    PATH=/usr/local/cargo/bin:$PATH \
-    RUST_VERSION=1.40.0
-
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain $RUST_VERSION \
-  && rustup --version \
-  && cargo --version \
-  && rustc --version
-
-# install Rust dev tools
-RUN rustup component add clippy-preview rustfmt-preview rls
-RUN cargo install cargo-cache --version 0.6.3 --no-default-features --features ci-autoclean
-USER dark
-
-# Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
-# reset CARGO_HOME so that we can use it as a project cache directory like normal.
-ENV CARGO_HOME=/home/dark/.cargo
-

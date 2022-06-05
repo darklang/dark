@@ -6,9 +6,8 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- We make this publishable so that we can run tests on the published version -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <SelfContained>true</SelfContained>
-    <!-- this makes the VSCode debugger hang -->
-    <!-- <PublishSingleFile>true</PublishSingleFile> -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
@@ -42,7 +41,6 @@
     <Compile Include="FSharpToExpr.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
-    <Compile Include="OCamlInterop.Tests.fs" />
     <Compile Include="Prelude.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
     <Compile Include="Routing.Tests.fs" />

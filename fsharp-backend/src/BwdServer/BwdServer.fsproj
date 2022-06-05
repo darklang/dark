@@ -7,8 +7,8 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
     <!-- We don't trim any of these, as if we do the JSON serializrts break. This is
          because they use reflection which is a documented thing that's likely to
          break. When we get source generators going, this might improve. -->

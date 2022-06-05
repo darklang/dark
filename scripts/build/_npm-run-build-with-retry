@@ -12,7 +12,7 @@ errorline=
 # the exit code of dune.
 shopt -s lastpipe
 
-unbuffer npm run build --silent 2>&1 | while read -r line; do
+FORCE_COLOR=true npm run build --silent 2>&1 | while read -r line; do
   # sometimes this happens for unclear reasons
   if [[ "$line" == *"npm-run-all: not found"* ]]; then
     error=1;
@@ -27,7 +27,7 @@ if [[ "$error" == 1 ]]; then
   echo "Ran into an error running npm build: $errorline"
   echo "Running again"
   ./scripts/build/_npm-install-with-retry
-  unbuffer npm run build --silent
+  FORCE_COLOR=true npm run build --silent
 else
   exit $result
 fi

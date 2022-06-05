@@ -4,9 +4,9 @@
 /// several html, css, etc. files.
 /// </summary>
 /// <remarks>
-/// Upload is currently only supported for to-be-deprecated OCaml backend,
-/// and is not yet supported here. There are plans to replace such with
-/// Dark functions rather than implementing it here.
+/// Upload is currently only supported for to-be-deprecated OCaml backend, which is
+/// running specifically for this purpose.  and is not yet supported here. There are
+/// plans to replace such with Dark functions rather than implementing it here.
 /// </remarks>
 module LibBackend.StaticAssets
 

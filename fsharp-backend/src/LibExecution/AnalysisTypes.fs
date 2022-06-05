@@ -38,11 +38,3 @@ type TraceData =
     function_results : List<FunctionResult> }
 
 type Trace = TraceID * TraceData
-
-// CLEANUP
-// The option was removed to make it compatible with the OCaml version of the
-// API. Although OCaml also wraps this with an option, the
-// yojson_deriving_ppx-generated serialized automatically unwraps options. We
-// could do that too, but we just Option in DOption (which the OCaml version
-// does not). This could lead to problems but let's see how it goes for now.
-// type Trace = TraceID * Option<TraceData>

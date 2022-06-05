@@ -116,7 +116,9 @@ let cloneCanvas
   // an acceptable risk - users would have to get their welcome to dark email,
   // reset their password, and log in, before we finish running cloneCanvas.
   task {
-    let! fromMeta = Canvas.getMeta fromCanvasName
+    // In production, this canvas will always already exist. We use the AndCreate
+    // version here to make tests not fail.
+    let! fromMeta = Canvas.getMetaAndCreate fromCanvasName
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
     // CLEANUP this could be substantially simplified once we know that oplist_cache is
     // non-null.

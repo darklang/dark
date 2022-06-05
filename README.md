@@ -112,7 +112,6 @@ Unit tests run when you specify `--test` to `scripts/builder`. You can run them 
 - `scripts/run-client-tests`
 - `scripts/run-backend-tests`
 - `scripts/run-fsharp-tests`
-- `scripts/run-rust-tests containers/stroller`
 
 Integration tests:
 

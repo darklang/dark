@@ -50,7 +50,7 @@ let pToStructure = (p: fluidPattern): string =>
 /* ----------------- */
 /* eToTestcase constructs testcases that we can enter in our
  * test suite. They are similar to `show` except that instead of the full code,
- * they use the shortcuts from Fluid_test_data. */
+ * they use the shortcuts from FluidTestData. */
 /* ----------------- */
 
 let rec eToTestcase = (e: E.t): string => {

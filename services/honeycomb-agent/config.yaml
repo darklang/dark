@@ -42,16 +42,6 @@ watchers:
   # Sidecars
   # -------------
 
-  ## Stroller
-  - labelSelector: "app in (editor-app)"
-    containerName: stroller
-    dataset: kubernetes-stroller
-    processors:
-      - sample:
-          type: static
-          rate: 100 # 1/100 sample rate
-    parser: json
-
   ## cloudsql-proxy (darklang namespace): does json logs
   - labelSelector: "app in (apiserver-app, bwdserver-app, queueworker-app, exechost-app)"
     namespace: darklang

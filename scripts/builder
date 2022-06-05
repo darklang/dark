@@ -21,7 +21,6 @@ rm -Rf _esy
 rm -Rf .esy
 rm -Rf node_modules
 rm -Rf lib
-rm -Rf containers/stroller/target
 rm -Rf fsharp-backend/src/*/obj
 rm -Rf fsharp-backend/tests/*/obj
 rm -Rf fsharp-backend/Build
@@ -79,8 +78,6 @@ MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-ba
 MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
 MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
 MOUNTS+=" --mount type=volume,src=dark_nuget,dst=/home/dark/.nuget"
-MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
-MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target"
 
 if [[ -e "$HOME/.config/gcloud" ]]; then
   MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"

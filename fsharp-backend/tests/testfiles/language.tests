@@ -121,15 +121,7 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  |> blank
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
 
-[test.pipevariable OCAMLONLY - we didn't implement this in OCaml]
-(let x = fun a -> a + 1 in
- (5
- |> x
- |> x
- |> (+) 3
- |> blank)) = 8
-
-[test.pipevariable FSHARPONLY - we didn't implement this in OCaml]
+[test.pipevariable]
 (let x = fun a -> a + 1 in
  (5
  |> x
@@ -311,9 +303,7 @@ Ok blank = blank
 
 [tests.error]
 List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with the wrong type to parameter: option2" // OCAMLONLY
-Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a Str (\"not an option\"), but `option2` expected a Option." // FSHARPONLY
-
+Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a Str (\"not an option\"), but `option2` expected a Option."
 
 [tests.errorPropagation]
 List.head_v0 (Test.typeError_v0 "test") = Test.typeError_v0 "Fn called with an error as an argument"
@@ -393,8 +383,7 @@ Error (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 // DarkInternal tests are internal
 // ---------------------------
 [tests.darkinternal]
-DarkInternal.checkAccess_v0 = Test.typeError_v0 "User executed an internal function but isn't an admin: test" // OCAMLONLY
-DarkInternal.checkAccess_v0 = Test.typeError_v0 "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
+DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1
 
 // ---------------------------
 // Equality
@@ -508,8 +497,7 @@ returnsOptionNothingOnErrorRail 6 = Nothing
 functionWhichDoesntExist 6 = blank
 stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
 stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
-throwsException 6 = Test.typeError "Unknown Err: (Failure \"throwsException message\")" // OCAMLONLY
-throwsException 6 = Test.typeError "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
+throwsException 6 = Test.typeError "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1
 
 
 [fn.myUserFunction_v2 str:str]
@@ -577,5 +565,4 @@ Test.Test.Test.returnsOptionNothingOnErrorRail 6 = Nothing
 [tests.invalid function calls]
 Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
 Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
-Test.Test.Test.throwsException 6 = Test.typeError "Unknown Err: (Failure \"package throwsException message\")" // OCAMLONLY
-Test.Test.Test.throwsException 6 = Test.typeError "Unknown error" // FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1
+Test.Test.Test.throwsException 6 = Test.typeError "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1

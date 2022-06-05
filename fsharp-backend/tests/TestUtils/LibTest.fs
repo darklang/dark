@@ -327,4 +327,26 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "getCanvasName" 0
+      parameters = []
+      returnType = TStr
+      description = "Get the name of the canvas that's running"
+      fn =
+        (function
+        | state, [] -> state.program.canvasName |> string |> DStr |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "getCanvasID" 0
+      parameters = []
+      returnType = TUuid
+      description = "Get the name of the canvas that's running"
+      fn =
+        (function
+        | state, [] -> state.program.canvasID |> DUuid |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]

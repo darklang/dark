@@ -268,17 +268,15 @@ exception NotFoundException of msg : string with
 
 // CLEANUP we'd like to get rid of corsSetting and move it out of the DB and
 // entirely into code in some middleware
-let canvasMetadataFromHost
-  (host : string)
-  : Task<Option<Canvas.Meta * Option<Canvas.CorsSetting>>> =
+let canvasMetadataFromHost (host : string) : Task<Option<Canvas.Meta>> =
   task {
     match Routing.canvasSourceFromHost host with
     | Routing.Bwd canvasName ->
       match CanvasName.create canvasName with
-      | Ok canvasName -> return! Canvas.getMetaAndCors canvasName
+      | Ok canvasName -> return! Canvas.getMeta canvasName
       | Error _ -> return None
     | Routing.CustomDomain customDomain ->
-      return! Canvas.getMetaAndCorsForCustomDomain customDomain
+      return! Canvas.getMetaForCustomDomain customDomain
   }
 
 /// ---------------
@@ -287,13 +285,14 @@ let canvasMetadataFromHost
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     let host = Exception.catch (fun () -> ctx.Request.Host.Host)
-    let! canvasMetadata =
+    let! canvasMeta =
       match host with
       | None -> Task.FromResult None
       | Some host -> canvasMetadataFromHost host
 
-    match canvasMetadata with
-    | Some (meta, corsSetting) ->
+    match canvasMeta with
+    | Some meta ->
+
       ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
@@ -353,7 +352,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // Execute - note that these are outside the handler
           let result = Resp.toHttpResponse result
-          let result = Cors.addCorsHeaders reqHeaders corsSetting result
+          let result = Cors.addCorsHeaders reqHeaders meta.name result
 
           do! writeResponseToContext ctx result
 
@@ -371,7 +370,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       | [] when ctx.Request.Method = "OPTIONS" ->
         let reqHeaders = getHeaders ctx
-        match Cors.optionsResponse reqHeaders corsSetting with
+        match Cors.optionsResponse reqHeaders meta.name with
         | Some response -> do! writeResponseToContext ctx response
         | None -> ()
         return ctx
@@ -477,11 +476,6 @@ let configureServices (services : IServiceCollection) : unit =
   |> Telemetry.AspNet.addTelemetryToServices "BwdServer" Telemetry.TraceDBQueries
   |> ignore<IServiceCollection>
 
-let noLogger (builder : ILoggingBuilder) : unit =
-  // We use telemetry instead
-  builder.ClearProviders() |> ignore<ILoggingBuilder>
-
-
 
 let webserver
   (loggerSetup : ILoggingBuilder -> unit)
@@ -507,7 +501,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdServerPort
   let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver noLogger port k8sPort).Run()
+  (webserver LibService.Logging.noLogger port k8sPort).Run()
 
 
 

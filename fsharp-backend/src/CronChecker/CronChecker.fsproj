@@ -7,8 +7,8 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <PublishReadyToRun>true</PublishReadyToRun>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>

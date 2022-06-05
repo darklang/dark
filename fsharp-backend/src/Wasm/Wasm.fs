@@ -2,7 +2,6 @@
 namespace Wasm
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
@@ -223,7 +222,6 @@ module Eval =
       let ast = expr |> OT.Convert.ocamlExpr2PT |> PT2RT.Expr.toRT
       let inputVars = Map traceData.input
       let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
-
       let ocamlResults =
         dvalResults
         |> Dictionary.toList
@@ -306,39 +304,39 @@ type EvalWorker =
   ///
   /// Once evaluated, an async call to `self.postMessage` will be made
   static member OnMessage(message : string) =
+    // parse an analysis request, in JSON, from the JS world (BlazorWorker)
+    let args : Result<ClientInterop.performAnalysisParams, string> =
+      try
+        Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> message)
+      with
+      | e ->
+        let metadata = Exception.nestedMetadata e
+        System.Console.WriteLine("Error parsing analysis request in Blazor")
+        System.Console.WriteLine($"called with message: {message}")
+        System.Console.WriteLine($"caught exception: \"{e.Message}\" \"{metadata}\"")
+        Error($"exception: {e.Message}, metdata: {metadata}")
+
+    // run the actual analysis (eval. the fn/handler)
     task {
-      let args =
+      match args with
+      | Error e -> return Error e
+      | Ok args ->
         try
-          Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> message)
+          let! result = Eval.performAnalysis args
+          return Ok result
         with
         | e ->
           let metadata = Exception.nestedMetadata e
-          System.Console.WriteLine("Error parsing analysis in Blazor")
+          System.Console.WriteLine("Error running analysis in Blazor")
           System.Console.WriteLine($"called with message: {message}")
           System.Console.WriteLine(
             $"caught exception: \"{e.Message}\" \"{metadata}\""
           )
-          Error($"exception: {e.Message}, metdata: {metadata}")
+          return Error($"exception: {e.Message}, metadata: {metadata}")
+    }
 
-      let! result =
-        task {
-          match args with
-          | Error e -> return Error e
-          | Ok args ->
-            try
-              let! result = Eval.performAnalysis args
-              return Ok result
-            with
-            | e ->
-              let metadata = Exception.nestedMetadata e
-              System.Console.WriteLine("Error running analysis in Blazor")
-              System.Console.WriteLine($"called with message: {message}")
-              System.Console.WriteLine(
-                $"caught exception: \"{e.Message}\" \"{metadata}\""
-              )
-              return Error($"exception: {e.Message}, metadata: {metadata}")
-        }
-
+    // Serialize the result, and post it to the JS world (BlazorWorker)
+    |> Task.map (fun (result : Result<ClientInterop.AnalysisEnvelope, string>) ->
       let serialized =
         try
           Json.Vanilla.serialize result
@@ -352,5 +350,4 @@ type EvalWorker =
           )
           Json.Vanilla.serialize ($"exception: {e.Message}, metadata: {metadata}")
 
-      EvalWorker.postMessage serialized
-    }
+      EvalWorker.postMessage serialized)

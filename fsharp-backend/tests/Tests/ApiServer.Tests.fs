@@ -39,7 +39,7 @@ type C = Lazy<Task<Client>>
 let portFor (server : Server) : int =
   match server with
   | OCaml -> 8000 // nginx for the ocaml server is on port 8000
-  | FSharp -> LibService.Config.apiServerNginxPort
+  | FSharp -> TestConfig.apiServerNginxPort
 
 let forceLogin (username : UserName.T) : Task<Client> =
   task {
@@ -408,7 +408,7 @@ let testGetTraceData (client : C) (canvasName : CanvasName.T) : Task<unit> =
 
 let testDBStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! canvas = Canvas.getMeta canvasName
+    let! canvas = Canvas.getMetaExn canvasName
 
     let! canvasWithJustDBs = Canvas.loadAllDBs canvas
     let parameters =
@@ -486,7 +486,7 @@ let testTriggerHandler (client : C) (canvasName : CanvasName.T) =
 
 let testWorkerStats (client : C) (canvasName : CanvasName.T) : Task<unit> =
   task {
-    let! canvas = Canvas.getMeta canvasName
+    let! canvas = Canvas.getMetaExn canvasName
     let! canvasWithJustWorkers = Canvas.loadAllWorkers canvas
 
     do!
@@ -927,7 +927,7 @@ let cookies =
         use req =
           new HttpRequestMessage(
             HttpMethod.Post,
-            $"http://darklang.localhost:9000/login"
+            $"http://darklang.localhost:{TestConfig.apiServerNginxPort}/login"
           )
 
         req.Headers.Host <- host
@@ -989,3 +989,13 @@ let cookies =
       (local, None, (302, None, Some "/login?error=Invalid+username+or+password")) ]
 
 let tests = testList "ApiServer" [ permissions; cookies ]
+
+open Microsoft.Extensions.Hosting
+
+let init (token : System.Threading.CancellationToken) : Task =
+  // run our own webserver instead of relying on the dev webserver
+  let port = TestConfig.apiServerBackendPort
+  let k8sPort = TestConfig.apiServerKubernetesPort
+  let packages = LibBackend.PackageManager.allFunctions().Result
+  let logger = configureLogging "test-apiserver"
+  (ApiServer.webserver packages logger port k8sPort).RunAsync(token)

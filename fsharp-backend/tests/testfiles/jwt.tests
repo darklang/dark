@@ -78,11 +78,6 @@ sign1 ({ x = { a = "b" ; c = [] } ; y = 6 }) = Ok "eyJhbGciOiJSUzI1NiIsInR5cGUiO
  let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImFiYyI6ImEvYi9jIn0.eyJ4IjoieSIsImFiYyI6ImRlZiJ9.STV6eZASPhLMErblMcIHaJswZrYAvYeITv2ct9iTWvm-1ZJkuqfEetJysKUwNgNsm_ixzHAZyd95wqXm0-vvRWDpN6xvEaGxaPJsVQeRhJ-UkQIiPOqdoohXc5Qxw4mUyRhHCMebqJBBiOMDPbFEPNQ-U-usEbyET4eoyypp2oKROT944xnifpU5IGmSE9Njn8u_NhIg3purd4Hsri3ZpBX9CrtGLC4DWbxzInY1rR3GQkr3NmABQB19i7T-A3KNyku7mGfbdE6cPxvbw04JBfcnVWMNsmYtXke1ZwMhDtnArix-YeCh35ClOvNNDLWvgljGpKZenJt-W19QQUVYkQ" in
  JWT.verifyAndExtract_v0 publicKey token) = Just {header = {alg = "RS256"; typ = "JWT"; abc = "a/b/c"}; payload = { x = "y"; abc = "def" }}
 
-[test.single verifyAndExtract0 wrong signature OCAMLONLY]
-(let publicKey = "invalid public key" in
- let token = "token" in
- JWT.verifyAndExtract_v0 publicKey token) = Test.typeError_v0 "Unknown Err: (Invalid_argument \"No public keys\")"
-
 [test.single verifyAndExtract0 wrong signature FSHARPONLY]
 (let publicKey = "invalid public key" in
  let token = "token" in

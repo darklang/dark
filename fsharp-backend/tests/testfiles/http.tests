@@ -6,25 +6,15 @@ Http.setCookie_v2 "myCookie" "myVal" { Expires = Date.parse_v2_ster "2000-07-28T
 | Ok date -> Http.setCookie_v2 "myCookie" "myVal" { Expires = date; ``Max-Age`` = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" }) = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
 
 [tests.errors]
-Http.setCookie_v2 "myCookie" "myVal" { Expires = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Expires` passed to `Http::setCookie_v2` to be a `Date`, but it had type `Int` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { Expires = 5 } = Test.typeError_v0 "Expected the argument `Expires` to be a date, but it was `5`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.typeError_v0 "Expected the Set-Cookie parameter `Max-Age` passed to `Http::setCookie_v2` to be an `Int` representing seconds, but it had type `String` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.typeError_v0 "Expected the argument `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { Domain = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Domain` passed to `Http::setCookie_v2` to be a `String`, but it had type `Int` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { Domain = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { Path = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Path` passed to `Http::setCookie_v2` to be a `String`, but it had type `Int` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { Path = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { Secure = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Secure` passed to `Http::setCookie_v2` to have the value `true` or `false`, but it had the value `5` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { Secure = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `HttpOnly` passed to `Http::setCookie_v2` to have the value `true` or `false`, but it had the value `5` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0  "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `5` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { SameSite = "allthesecures" } = Test.typeError_v0 "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `\"allthesecures\"` instead." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`" // FSHARPONLY
-Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Expected the params dict passed to `Http::setCookie_v2` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was `Fake`." // OCAMLONLY
-Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake" // FSHARPONLY
-
+Http.setCookie_v2 "myCookie" "myVal" { Expires = 5 } = Test.typeError_v0 "Expected the argument `Expires` to be a date, but it was `5`"
+Http.setCookie_v2 "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.typeError_v0 "Expected the argument `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
+Http.setCookie_v2 "myCookie" "myVal" { Domain = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`"
+Http.setCookie_v2 "myCookie" "myVal" { Path = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`"
+Http.setCookie_v2 "myCookie" "myVal" { Secure = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+Http.setCookie_v2 "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
+Http.setCookie_v2 "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
+Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 Http.setCookie_v0 "myCookie" "myVal" { Domain = "darklang" } = { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang"}
 Http.setCookie_v0 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal; " }
 Http.setCookie_v0 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param: Fake: \"0\""
@@ -36,9 +26,7 @@ Http.setCookie_v1 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown s
 Http.setCookie_v1 "myCookie" "myVal" { Domain = "darklang"; SameSite = "fake" } =  { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang; SameSite=fake" }
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
-Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with the wrong type to parameter: error" // OCAMLONLY
-Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a Str." // FSHARPONLY
-
+Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a Str."
 Http.notFound_v0 = Http.response_v0 null 404
 
 Http.unauthorized_v0 = Http.response_v0 null 401

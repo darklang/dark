@@ -33,7 +33,6 @@ let main (args : string array) : int =
         Tests.FSharpToExpr.tests
         Tests.HttpClient.tests
         Tests.LibExecution.tests.Force()
-        Tests.OCamlInterop.tests
         Tests.Prelude.tests
         Tests.ProgramTypes.tests
         Tests.Routing.tests
@@ -46,9 +45,9 @@ let main (args : string array) : int =
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
+    let apiServerTestsTask = Tests.ApiServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
-    (LibBackend.Account.initTestAccounts ()).Wait()
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateBinarySerializationTestFiles ()
@@ -60,6 +59,7 @@ let main (args : string array) : int =
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
+    apiServerTestsTask.Wait()
     httpClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
     exitCode

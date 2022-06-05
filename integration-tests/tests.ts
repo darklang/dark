@@ -97,7 +97,7 @@ export function canvasUrl(canvasName: string) {
   return `${BASE_URL}/a/test-${canvasName}?integration-test=true`;
 }
 
-test.describe.serial("Integration Tests", async () => {
+test.describe.parallel("Integration Tests", async () => {
   // To add this user, run the backend tests
   test.beforeEach(async ({ page }, testInfo) => {
     // set up listeners for console logs and page errors
@@ -788,7 +788,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await expect(page.locator(toplevelElement)).toHaveClass(/selected/);
   });
 
-  // TODO: This needs Stroller/Pusher in CI
+  // TODO: This needs Pusher in CI
   // test('passwords_are_redacted', async ({ page }) => {
   //   const callBackend = ClientFunction(
   //     function (url) {

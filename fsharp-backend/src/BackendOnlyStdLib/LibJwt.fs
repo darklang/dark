@@ -92,8 +92,8 @@ module Legacy =
     | DResult (Error dv) -> Assoc [ ("Error", toYojson dv) ]
     | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> String
 
-  // We are adding bytes to match the OCaml implementation. Don't use strings
-  // or characters as those are different sizes: OCaml strings are literally
+  // We are adding bytes to match the old OCaml implementation. Don't use strings
+  // or characters as those are different sizes: OCaml strings were literally
   // just byte arrays.
   // A SCG.List is a growing vector (unlike an F# List, which is a linked
   // list). This should have not-awful performance

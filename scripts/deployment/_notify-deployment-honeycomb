@@ -14,7 +14,6 @@ kubernetes-bwd-ocaml
 kubernetes-cluster-events
 kubernetes-garbagecollector
 kubernetes-metrics
-kubernetes-stroller
 postgres"
 
 if [[ -v CI ]]; then

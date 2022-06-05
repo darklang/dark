@@ -1,7 +1,5 @@
 module LibBackend.TraceInputs
 
-// "Stored Events" in OCaml
-
 // These are the "input values" for handler traces, containing the `request` or
 // `event` for a trace.
 

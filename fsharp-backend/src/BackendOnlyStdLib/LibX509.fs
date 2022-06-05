@@ -29,10 +29,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr certString ] ->
           try
             let cert = new X509Certificates.X509Certificate2(UTF8.toBytes certString)
-            // The OCaml version looks like it supports ECC certs, which require
-            // this workaround on .NET. However, the OCaml version gets the wrong
-            // answer for it.
-
+            // Workaround to support ECC certs
             // https://www.pkisolutions.com/accessing-and-using-certificate-private-keys-in-net-framework-net-core/
             let publicKey : AsymmetricAlgorithm =
               match cert.PublicKey.Oid.Value with

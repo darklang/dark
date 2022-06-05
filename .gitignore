@@ -45,9 +45,6 @@ services/garbagecollector-deployment/garbagecollector-deployment.yaml
 services/queueworker-deployment/queueworker-deployment.yaml
 services/tunnel2-deployment/tunnel2-deployment.yaml
 
-# Rust projects build into target/
-containers/*/target
-
 # Files that get created on CI. We check that status is clean so need to list these.
 gzipped_assets
 
