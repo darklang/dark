@@ -86,14 +86,15 @@ def run(name: str,
         args: Union[str, List[str]],
         on_error: Callable[[str], None] = bad,
         shell: bool = False,
-        input: Optional[bytes] = None) -> None:
+        input: Optional[bytes] = None,
+        env: Any = None) -> None:
   try:
     if should_dry_run:
       color = "bold green"
     else:
       color = "bold magenta"
     rich.print(f"[{color}]Running `{name}` command[/{color}]")
-    subprocess.run(args, shell=shell, input=input, check=True)
+    subprocess.run(args, shell=shell, input=input, check=True, env=env)
     print()
   except subprocess.CalledProcessError as e:
     msg = f"Error running {name} command:\n  {e}\n"
@@ -544,10 +545,12 @@ def containers_build(cliargs: ContainerBuildArguments) -> None:
           "docker", "build", "--tag", f"{name}:latest", "--build-arg",
           f"GIT_COMMIT={commitSha}", "-"
       ],
-          input=dockerfile.encode('utf-8'))
+          input=dockerfile.encode('utf-8'),
+          env={"DOCKER_BUILDKIT": "1"})
     else:
       run("docker build", ["docker", "build", "--tag", f"{name}:latest", "-"],
-          input=dockerfile.encode('utf-8'))
+          input=dockerfile.encode('utf-8'),
+          env={"DOCKER_BUILDKIT": "1"})
 
   commitSha = run_output(["git", "rev-parse", "--short", "HEAD"])
   build("dark-base-service", "containers/base-service-Dockerfile", commitSha)
