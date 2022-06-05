@@ -572,10 +572,9 @@ def containers_build(cliargs: ContainerBuildArguments) -> None:
     command = ["docker", "build", "--tag", f"{name}:latest", "-"]
     if commitSha:
       command += ["--build-arg", f"GIT_COMMIT={commitSha}"]
-    p = run_async("docker build",
-                  command,
-                  env={"DOCKER_BUILDKIT": "1"},
-                  stdin=subprocess.PIPE)
+    # using DOCKER_BUILDKIT leads to "failed to dial gRPC: cannot connect to the
+    # Docker daemon" errors on CircleCI, but it's unclear why it works fine below
+    p = run_async("docker build", command, stdin=subprocess.PIPE)
     p.stdin.write(readfile(dockerfilename).encode('utf-8'))  # type: ignore
     p.stdin.close()  # type: ignore
     return p
