@@ -169,7 +169,7 @@ for mimetype in mimetypes_to_process:
 
   subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder)
   elapsed = (time.time() - start)
-  print(f"Uploaded dir {mimetype_subfolder} for mimetype {mimetype} in {elapsed}ms")
+  print(f"Uploaded dir {mimetype_subfolder} for mimetype {mimetype} in {elapsed}s")
 
 # Wrap up
 shutil.rmtree(temp_dir, ignore_errors=True)
