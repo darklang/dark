@@ -9,7 +9,7 @@ import sys
 
 from collections import namedtuple
 
-from typing import List, Callable, Optional, TypedDict, Union, Dict, Any, Set, NoReturn
+from typing import List, Callable, Optional, TypedDict, Union, Dict, Any, Set, NoReturn, Iterable
 from typing_extensions import NotRequired
 
 if os.getenv("IN_DEV_CONTAINER") != "true":
@@ -86,19 +86,44 @@ def run(name: str,
         args: Union[str, List[str]],
         on_error: Callable[[str], None] = bad,
         shell: bool = False,
-        input: Optional[bytes] = None) -> None:
+        input: Optional[bytes] = None,
+        env: Any = None) -> None:
   try:
     if should_dry_run:
       color = "bold green"
     else:
       color = "bold magenta"
     rich.print(f"[{color}]Running `{name}` command[/{color}]")
-    subprocess.run(args, shell=shell, input=input, check=True)
+    subprocess.run(args, shell=shell, input=input, check=True, env=env)
     print()
   except subprocess.CalledProcessError as e:
     msg = f"Error running {name} command:\n  {e}\n"
     on_error(msg)
     handle_error(msg)
+
+
+def run_async(name: str,
+              args: Union[str, List[str]],
+              shell: bool = False,
+              stdin: Any = None,
+              stdout: Any = None,
+              env: Any = None) -> subprocess.Popen:
+  if should_dry_run:
+    color = "bold green"
+  else:
+    color = "bold magenta"
+  rich.print(f"[{color}]Running `{name}` command[/{color}]")
+  proc = subprocess.Popen(args, shell=shell, stdin=stdin, stdout=stdout, env=env)
+  print()
+  return proc
+
+
+def wait_for_asyncs(processes: Iterable[subprocess.Popen]) -> None:
+  for p in processes:
+    p.wait()
+    if p.returncode != 0:
+      error = str(p.args)
+      handle_error(f"Error in process: {error}")
 
 
 # Runs a command that's part of running the script, captures stdout
@@ -527,38 +552,44 @@ def containers_push(cliargs: ContainerPushArguments) -> None:
     run("docker tag id", ["docker", "tag", f"{c}:latest", info["image"]])
     run("docker tag latest", ["docker", "tag", f"{c}:latest", info["image_latest"]])
 
+  # Run all of these in parallel
+  processes = []
   for c in get_service_containers(cliargs):
     info = image_info(c)
-    run("docker push tagged", ["docker", "push", info["image"]])
-    run("docker push latest", ["docker", "push", info["image_latest"]])
+    processes.append(
+        run_async("docker push tagged", ["docker", "push", info["image"]]))
+    processes.append(
+        run_async("docker push latest", ["docker", "push", info["image_latest"]]))
+  wait_for_asyncs(processes)
 
 
 def containers_build(cliargs: ContainerBuildArguments) -> None:
   do_validation(cliargs.services)
 
-  def build(name: str, dockerfilename: str, commitSha: Optional[str]) -> None:
+  def build(name: str, dockerfilename: str,
+            commitSha: Optional[str]) -> subprocess.Popen:
     print(f"building {name} docker image")
-    dockerfile = readfile(dockerfilename)
+    command = ["docker", "build", "--tag", f"{name}:latest", "-"]
     if commitSha:
-      run("docker build", [
-          "docker", "build", "--tag", f"{name}:latest", "--build-arg",
-          f"GIT_COMMIT={commitSha}", "-"
-      ],
-          input=dockerfile.encode('utf-8'))
-    else:
-      run("docker build", ["docker", "build", "--tag", f"{name}:latest", "-"],
-          input=dockerfile.encode('utf-8'))
+      command += ["--build-arg", f"GIT_COMMIT={commitSha}"]
+    # using DOCKER_BUILDKIT leads to "failed to dial gRPC: cannot connect to the
+    # Docker daemon" errors on CircleCI
+    p = run_async("docker build", command, stdin=subprocess.PIPE)
+    p.stdin.write(readfile(dockerfilename).encode('utf-8'))  # type: ignore
+    p.stdin.close()  # type: ignore
+    return p
 
   commitSha = run_output(["git", "rev-parse", "--short", "HEAD"])
-  build("dark-base-service", "containers/base-service-Dockerfile", commitSha)
-  build("dark-ocaml-service", "containers/ocaml-service-Dockerfile", None)
-  build("dark-fsharp-service", "containers/fsharp-service-Dockerfile", None)
+  build("dark-base-service", "containers/base-service-Dockerfile", commitSha).wait()
+  p1 = build("dark-ocaml-service", "containers/ocaml-service-Dockerfile", None)
+  p2 = build("dark-fsharp-service", "containers/fsharp-service-Dockerfile", None)
+  wait_for_asyncs([p1, p2])
 
   # Each container name represents a container in containers/. If there's a prep.sh
   # file in the dir, run it first and then build the container in the directory it
   # echos. If there is no dockerfile, then do nothing (sometimes we use vendor
   # containers and so we just need to store config files).
-  shas = {}
+  processes = {}
   for c in get_service_containers(cliargs):
     dir = os.path.join("containers", c)
     if os.path.isdir(dir) and os.path.exists(os.path.join(dir, "Dockerfile")):
@@ -573,13 +604,16 @@ def containers_build(cliargs: ContainerBuildArguments) -> None:
           "docker", "build", "--quiet", "--tag", f"{c}:latest", "--file",
           f"{dir}/Dockerfile", buildDir
       ]
-      sha = run_output(args, env={"DOCKER_BUILDKIT": "1"})
-
-      sha = sha[7:19]
-      print(sha)
-      shas[c] = sha
+      processes[c] = run_async(f"build {c}", args, stdout=subprocess.PIPE)
     else:
       print(f"\nNo dockerfile, skipping {c}")
+  wait_for_asyncs(processes.values())
+  shas = {}
+  for c, p in processes.items():
+    sha = p.stdout.read().decode('utf-8')  # type: ignore
+    sha = sha[7:19]
+    print(f"{c}: {sha}")
+    shas[c] = sha
   manifest_save(cliargs, shas)
 
 
