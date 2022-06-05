@@ -9,7 +9,7 @@ import sys
 
 from collections import namedtuple
 
-from typing import List, Callable, Optional, TypedDict, Union, Dict, Any, Set, NoReturn
+from typing import List, Callable, Optional, TypedDict, Union, Dict, Any, Set, NoReturn, Iterable
 from typing_extensions import NotRequired
 
 if os.getenv("IN_DEV_CONTAINER") != "true":
@@ -116,6 +116,14 @@ def run_async(name: str,
   proc = subprocess.Popen(args, shell=shell, stdin=stdin, stdout=stdout, env=env)
   print()
   return proc
+
+
+def wait_for_asyncs(processes: Iterable[subprocess.Popen]) -> None:
+  for p in processes:
+    p.wait()
+    if p.returncode != 0:
+      error = str(p.args)
+      handle_error(f"Error in process: {error}")
 
 
 # Runs a command that's part of running the script, captures stdout
@@ -552,11 +560,7 @@ def containers_push(cliargs: ContainerPushArguments) -> None:
         run_async("docker push tagged", ["docker", "push", info["image"]]))
     processes.append(
         run_async("docker push latest", ["docker", "push", info["image_latest"]]))
-  for p in processes:
-    p.wait()
-    if p.returncode != 0:
-      error = str(p.args)
-      handle_error(f"Error in process: {error}")
+  wait_for_asyncs(processes)
 
 
 def containers_build(cliargs: ContainerBuildArguments) -> None:
@@ -608,10 +612,9 @@ def containers_build(cliargs: ContainerBuildArguments) -> None:
                                env={"DOCKER_BUILDKIT": "1"})
     else:
       print(f"\nNo dockerfile, skipping {c}")
-
+  wait_for_asyncs(processes.values())
   shas = {}
   for c, p in processes.items():
-    p.wait()
     sha = p.stdout.read().decode('utf-8')  # type: ignore
     sha = sha[7:19]
     print(f"{c}: {sha}")
