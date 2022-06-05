@@ -351,9 +351,3 @@ type EvalWorker =
           Json.Vanilla.serialize ($"exception: {e.Message}, metadata: {metadata}")
 
       EvalWorker.postMessage serialized)
-
-    // Magic.
-    // Without this, a "memory access out of bounds" error is somehow raised,
-    // only for AOT builds
-    // See https://github.com/darklang/dark/issues/4059
-    |> Task.map (fun _ -> ())
