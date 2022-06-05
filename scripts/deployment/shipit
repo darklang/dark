@@ -583,8 +583,7 @@ def containers_build(cliargs: ContainerBuildArguments) -> None:
   build("dark-base-service", "containers/base-service-Dockerfile", commitSha).wait()
   p1 = build("dark-ocaml-service", "containers/ocaml-service-Dockerfile", None)
   p2 = build("dark-fsharp-service", "containers/fsharp-service-Dockerfile", None)
-  p1.wait()
-  p2.wait()
+  wait_for_asyncs([p1, p2])
 
   # Each container name represents a container in containers/. If there's a prep.sh
   # file in the dir, run it first and then build the container in the directory it
