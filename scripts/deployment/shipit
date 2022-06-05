@@ -104,15 +104,16 @@ def run(name: str,
 
 def run_async(name: str,
               args: Union[str, List[str]],
-              on_error: Callable[[str], None] = bad,
               shell: bool = False,
+              stdin: Any = None,
+              stdout: Any = None,
               env: Any = None) -> subprocess.Popen:
   if should_dry_run:
     color = "bold green"
   else:
     color = "bold magenta"
   rich.print(f"[{color}]Running `{name}` command[/{color}]")
-  proc = subprocess.Popen(args, shell=shell, env=env)
+  proc = subprocess.Popen(args, shell=shell, stdin=stdin, stdout=stdout, env=env)
   print()
   return proc
 
@@ -561,31 +562,32 @@ def containers_push(cliargs: ContainerPushArguments) -> None:
 def containers_build(cliargs: ContainerBuildArguments) -> None:
   do_validation(cliargs.services)
 
-  def build(name: str, dockerfilename: str, commitSha: Optional[str]) -> None:
+  def build(name: str, dockerfilename: str,
+            commitSha: Optional[str]) -> subprocess.Popen:
     print(f"building {name} docker image")
-    dockerfile = readfile(dockerfilename)
+    command = ["docker", "build", "--tag", f"{name}:latest", "-"]
     if commitSha:
-      run("docker build", [
-          "docker", "build", "--tag", f"{name}:latest", "--build-arg",
-          f"GIT_COMMIT={commitSha}", "-"
-      ],
-          input=dockerfile.encode('utf-8'),
-          env={"DOCKER_BUILDKIT": "1"})
-    else:
-      run("docker build", ["docker", "build", "--tag", f"{name}:latest", "-"],
-          input=dockerfile.encode('utf-8'),
-          env={"DOCKER_BUILDKIT": "1"})
+      command += ["--build-arg", f"GIT_COMMIT={commitSha}"]
+    p = run_async("docker build",
+                  command,
+                  env={"DOCKER_BUILDKIT": "1"},
+                  stdin=subprocess.PIPE)
+    p.stdin.write(readfile(dockerfilename).encode('utf-8'))  # type: ignore
+    p.stdin.close()  # type: ignore
+    return p
 
   commitSha = run_output(["git", "rev-parse", "--short", "HEAD"])
-  build("dark-base-service", "containers/base-service-Dockerfile", commitSha)
-  build("dark-ocaml-service", "containers/ocaml-service-Dockerfile", None)
-  build("dark-fsharp-service", "containers/fsharp-service-Dockerfile", None)
+  build("dark-base-service", "containers/base-service-Dockerfile", commitSha).wait()
+  p1 = build("dark-ocaml-service", "containers/ocaml-service-Dockerfile", None)
+  p2 = build("dark-fsharp-service", "containers/fsharp-service-Dockerfile", None)
+  p1.wait()
+  p2.wait()
 
   # Each container name represents a container in containers/. If there's a prep.sh
   # file in the dir, run it first and then build the container in the directory it
   # echos. If there is no dockerfile, then do nothing (sometimes we use vendor
   # containers and so we just need to store config files).
-  shas = {}
+  processes = {}
   for c in get_service_containers(cliargs):
     dir = os.path.join("containers", c)
     if os.path.isdir(dir) and os.path.exists(os.path.join(dir, "Dockerfile")):
@@ -600,13 +602,20 @@ def containers_build(cliargs: ContainerBuildArguments) -> None:
           "docker", "build", "--quiet", "--tag", f"{c}:latest", "--file",
           f"{dir}/Dockerfile", buildDir
       ]
-      sha = run_output(args, env={"DOCKER_BUILDKIT": "1"})
-
-      sha = sha[7:19]
-      print(sha)
-      shas[c] = sha
+      processes[c] = run_async(f"build {c}",
+                               args,
+                               stdout=subprocess.PIPE,
+                               env={"DOCKER_BUILDKIT": "1"})
     else:
       print(f"\nNo dockerfile, skipping {c}")
+
+  shas = {}
+  for c, p in processes.items():
+    p.wait()
+    sha = p.stdout.read().decode('utf-8')  # type: ignore
+    sha = sha[7:19]
+    print(f"{c}: {sha}")
+    shas[c] = sha
   manifest_save(cliargs, shas)
 
 
