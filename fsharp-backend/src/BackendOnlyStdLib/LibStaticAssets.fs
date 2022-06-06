@@ -10,6 +10,8 @@ open Prelude
 module SA = LibBackend.StaticAssets
 module Errors = LibExecution.Errors
 
+module Telemetry = LibService.Telemetry
+
 let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Ply(Dval.errStr str)
@@ -42,6 +44,7 @@ let httpClient =
 /// anything goes wrong.
 let getV0 (url : string) : Task<byte []> =
   task {
+    use _ = Telemetry.child "StaticAssets.getV0" [ "request.url", url ]
     let! (body, code) =
       task {
         try
@@ -49,9 +52,16 @@ let getV0 (url : string) : Task<byte []> =
           let! response = httpClient.SendAsync req
           let code = int response.StatusCode
           let! body = response.Content.ReadAsByteArrayAsync()
+          Telemetry.addTags [ "response.code", code
+                              "response.content_length", body.Length
+                              "response.version", response.Version
+                              "response.encoding",
+                              response.Content.Headers.ContentEncoding
+                              "response.type", response.Content.Headers.ContentType ]
           return body, code
         with
         | e ->
+          Telemetry.addException [] e
           return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
       }
 
@@ -65,6 +75,7 @@ let getV0 (url : string) : Task<byte []> =
 /// on non-200s or if anything goes wrong.
 let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
   task {
+    use _ = Telemetry.child "StaticAssets.getV1" [ "request.url", url ]
     let! body, headers, code =
       task {
         try
@@ -73,9 +84,16 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
           let code = int response.StatusCode
           let headers = HttpHeaders.headersForAspNetResponse response
           let! body = response.Content.ReadAsByteArrayAsync()
+          Telemetry.addTags [ "response.code", code
+                              "response.content_length", body.Length
+                              "response.version", response.Version
+                              "response.encoding",
+                              response.Content.Headers.ContentEncoding
+                              "response.type", response.Content.Headers.ContentType ]
           return body, headers, code
         with
         | e ->
+          Telemetry.addException [] e
           return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
       }
     if code < 200 || code >= 300 then
@@ -89,15 +107,23 @@ let getV1 (url : string) : Task<byte [] * List<string * string> * int> =
 let getV2 (url : string) : Task<byte [] * List<string * string> * int> =
   task {
     try
+      use _ = Telemetry.child "StaticAssets.getV2" [ "request.url", url ]
       use req = new HttpRequestMessage(HttpMethod.Get, url)
       let! response = httpClient.SendAsync req
       let code = int response.StatusCode
       let headers = HttpHeaders.headersForAspNetResponse response
       let! body = response.Content.ReadAsByteArrayAsync()
+      Telemetry.addTags [ "response.code", code
+                          "response.content_length", body.Length
+                          "response.version", response.Version
+                          "response.encoding",
+                          response.Content.Headers.ContentEncoding
+                          "response.type", response.Content.Headers.ContentType ]
       return body, headers, code
     with
-    | e -> return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
-
+    | e ->
+      Telemetry.addException [] e
+      return Exception.raiseCode $"Internal HTTP-stack exception: {e.Message}"
   }
 
 
