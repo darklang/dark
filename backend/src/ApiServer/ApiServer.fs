@@ -215,7 +215,7 @@ let webserver
 
   let builder = WebApplication.CreateBuilder()
   configureServices builder.Services
-  LibService.Kubernetes.registerServerTimeout builder.WebHost
+  Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
   |> fun wh -> wh.ConfigureLogging(loggerSetup)

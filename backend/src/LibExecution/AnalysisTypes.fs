@@ -1,13 +1,9 @@
 /// Types used during program analysis/traces
 module LibExecution.AnalysisTypes
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
-open VendoredTablecloth
 
-module RT = LibExecution.RuntimeTypes
+module RT = RuntimeTypes
 
 // --------------------
 // Dval store - save per-tl analysis results
