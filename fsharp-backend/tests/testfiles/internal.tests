@@ -3,12 +3,12 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 
 [tests.grants]
 
-[test.empty grants FSHARPONLY]
+[test.empty grants]
 (let _ = Test.deleteUser_v0 "empty_grants"
  let _ = DarkInternal.insertUser_v2_ster "emptygrants" "a@eg.com" "test user" {}
  DarkInternal.orgsFor "empty_grants") = {}
 
-[test.grants and orgs FSHARPONLY]
+[test.grants and orgs]
 (let _ = DarkInternal.insertUser_v2_ster "gaoorg" "gao-test-org@darklang.com" "gao test org" {}
  let _ = DarkInternal.insertUser_v2_ster "gaouser" "gao-test-user@darklang.com" "gao test user" {}
  let _ = DarkInternal.grant_v0_ster "gaouser" "gaoorg" "rw" in

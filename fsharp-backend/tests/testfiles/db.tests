@@ -51,7 +51,7 @@
 // ------------
 // Schema
 // ------------
-[test.db.schema_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.schema_v0 does not exist for fsharp] with DB X
 DB.schema_v0 X = Test.typeError_v0 "DB::schema_v0 was removed from Dark"
 
 [test.db.schemaFields_v1 works for db with one field] with DB X
@@ -391,34 +391,34 @@ DB.count X = 0
  DB.count X) = 4
 
 // CLEANUP put into one test
-[test.db.delete_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.delete_v0 does not exist for fsharp] with DB X
 DB.delete_v0 "a" X = Test.typeError_v0 "DB::delete_v0 was removed from Dark"
 
-[test.db.deleteAll_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.deleteAll_v0 does not exist for fsharp] with DB X
 DB.deleteAll_v0 X = Test.typeError_v0 "DB::deleteAll_v0 was removed from Dark"
 
-[test.db.fetchAll_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchAll_v0 does not exist for fsharp] with DB X
 DB.fetchAll_v0 X = Test.typeError_v0 "DB::fetchAll_v0 was removed from Dark"
 
-[test.db.fetchBy_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchBy_v0 does not exist for fsharp] with DB X
 DB.fetchBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchBy_v0 was removed from Dark"
 
-[test.db.fetchOneBy_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchOneBy_v0 does not exist for fsharp] with DB X
 DB.fetchOneBy_v0 "x" "a" X = Test.typeError_v0 "DB::fetchOneBy_v0 was removed from Dark"
 
-[test.db.fetchByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchByMany_v0 does not exist for fsharp] with DB X
 DB.fetchByMany_v0 "a" X = Test.typeError_v0 "DB::fetchByMany_v0 was removed from Dark"
 
-[test.db.fetchOneByMany_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.fetchOneByMany_v0 does not exist for fsharp] with DB X
 DB.fetchOneByMany_v0 "a" X = Test.typeError_v0 "DB::fetchOneByMany_v0 was removed from Dark"
 
-[test.db.keys_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.keys_v0 does not exist for fsharp] with DB X
 DB.keys_v0 X = Test.typeError_v0 "DB::keys_v0 was removed from Dark"
 
-[test.db.insert_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.insert_v0 does not exist for fsharp] with DB X
 DB.insert_v0 "a" X = Test.typeError_v0 "DB::insert_v0 was removed from Dark"
 
-[test.db.update_v0 does not exist for fsharp FSHARPONLY] with DB X
+[test.db.update_v0 does not exist for fsharp] with DB X
 DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 
 
@@ -502,7 +502,7 @@ DB.update_v0 "a" X = Test.typeError_v0 "DB::update_v0 was removed from Dark"
 friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
   [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db lambda doesnt return a bool FSHARPONLY] with DB Person
+[test.db lambda doesnt return a bool] with DB Person
 friendsError (fun p -> "x") =
   Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a Str"
 
@@ -514,12 +514,12 @@ friendsError (fun p -> let x = 32 in true && p.height > y) =
 friendsError (fun p -> "; select * from users;" = p.name ) = []
 
 // CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
-[test.db invalid type comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+[test.db invalid type comparisonEXPECTED_EXCEPTION_COUNT: 1] with DB Person
 friendsError (fun p -> p.height == "string") =
   Test.sqlError "An error occurred while querying the Datastore"
 
 // This test checks do we look up dates correctly when the function type is not a date
-[test.db invalid date comparison FSHARPONLY EXPECTED_EXCEPTION_COUNT: 1] with DB Person
+[test.db invalid date comparisonEXPECTED_EXCEPTION_COUNT: 1] with DB Person
 friendsError (fun p -> p.dob != Date.now_v0) =
   Test.sqlError "An error occurred while querying the Datastore"
 
