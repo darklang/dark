@@ -15,10 +15,12 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
  DarkInternal.orgsFor "gaouser") = { ``gaoorg`` = "rw" }
 
 [test.grants and grants]
-(let _ = DarkInternal.grant "test" "dark" "rw" in
- let result = DarkInternal.grantsFor "dark"
- let _ = DarkInternal.grant "test" "dark" "" in
- result) = { test = "rw" }
+(let _ = DarkInternal.insertUser_v2_ster "gag_org" "gag-test-org@darklang.com" "gag test org" {}
+ let _ = DarkInternal.insertUser_v2_ster "gag_user" "gag-test-user@darklang.com" "gag test user" {}
+ let _ = DarkInternal.grant "gag_user" "gag_org" "rw" in
+ let result = DarkInternal.grantsFor "gag_org"
+ let _ = DarkInternal.grant "gag_user" "gag_org" "" in
+ result) = { gag_user = "rw" }
 
 [tests.sessions]
 
