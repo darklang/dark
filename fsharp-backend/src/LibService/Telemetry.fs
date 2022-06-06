@@ -258,13 +258,6 @@ let configureAspNetCore
     (fun (activity : Span.T) (eventName : string) (rawObject : obj) ->
       match (eventName, rawObject) with
       | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
-        // CLEANUP
-        // The .NET instrumentation uses http.{path,url}, etc, but we used
-        // request.whatever in the OCaml version. To make sure that I can compare the
-        // old and new requests, I'm also adding request.whatever for now, but they
-        // can be removed once it's been switched over. Events are infinitely wide so
-        // this shouldn't cause any issues.  This is separate from rollbar data,
-        // which is done by the library and does not use the same prefixes
         let ipAddress =
           try
             httpRequest.Headers.["x-forwarded-for"].[0]
@@ -281,24 +274,17 @@ let configureAspNetCore
           with
           | _ -> ""
 
-
-
         activity
         |> Span.addTags [ "meta.type", "http_request"
+                          "http.request.cookies.count", httpRequest.Cookies.Count
+                          "http.request.content_type", httpRequest.ContentType
+                          "http.request.content_length", httpRequest.ContentLength
                           "http.remote_addr", ipAddress
-                          "http.proto", proto
-                          "request.method", httpRequest.Method
-                          "request.path", httpRequest.Path
-                          "request.remote_addr", ipAddress
-                          "request.host", httpRequest.Host
-                          "request.url", httpRequest.GetDisplayUrl()
-                          "request.header.user_agent",
-                          httpRequest.Headers["User-Agent"] ]
+                          "http.proto", proto ]
       | "OnStopActivity", (:? Microsoft.AspNetCore.Http.HttpResponse as httpResponse) ->
         activity
-        |> Span.addTags [ "response.contentLength", httpResponse.ContentLength
-                          "http.contentLength", httpResponse.ContentLength
-                          "http.contentType", httpResponse.ContentType ]
+        |> Span.addTags [ "http.response.content_length", httpResponse.ContentLength
+                          "http.response.content_type", httpResponse.ContentType ]
       | _ -> ())
   options.Enrich <- enrich
   options.RecordException <- true
