@@ -290,8 +290,9 @@ let testErrorTracesAreStored =
     // call the user fn, which should result in a trace being stored
     let traceID = System.Guid.NewGuid()
 
-    let (traceResults, tracing) = Tracing.createStandardTracer ()
-    let! state = RealExecution.createState traceID (gid ()) program tracing
+    let tracer = Tracing.createStandardTracer meta.id traceID
+    let! state =
+      RealExecution.createState traceID (gid ()) program tracer.executionTracing
 
     // the DB has no columns, but the code expects one, causing it to fail
     let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"
@@ -300,7 +301,7 @@ let testErrorTracesAreStored =
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-    do! Tracing.Test.saveTraceResult meta.id traceID traceResults
+    do! Tracing.Test.saveTraceResult meta.id traceID tracer.results
 
     // check for traces
     let! testFnResult = TFR.load meta.id traceID state.tlid
