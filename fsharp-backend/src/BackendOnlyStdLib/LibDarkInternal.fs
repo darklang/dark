@@ -262,7 +262,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "dbs" 0
-      parameters = [ Param.make "host" TStr "" ]
+      parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TList TStr
       description = "Returns a list of toplevel ids of dbs in `host`"
       fn =
@@ -329,9 +329,9 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
-      parameters = [ Param.make "host" TStr "" ]
+      parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TOption varA
-      description = "Gives canvasId for a canvasName/host"
+      description = "Gives canvasId for a canvasName"
       fn =
         internalFn (function
           | _, [ DStr host ] ->
