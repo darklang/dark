@@ -274,8 +274,7 @@ let fns : List<BuiltInFn> =
               let! response = getV0 url
               match UTF8.ofBytesOpt response with
               | Some str -> return Dval.resultOk (DStr str)
-              // CLEANUP remove \n from error message
-              | None -> return Dval.resultError (DStr "Response was not\nUTF-8 safe")
+              | None -> return Dval.resultError (DStr "Response was not UTF-8 safe")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

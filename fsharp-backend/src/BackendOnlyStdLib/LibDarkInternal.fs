@@ -228,8 +228,7 @@ that's already taken, returns an error."
     { name = fn "DarkInternal" "getAllCanvases" 0
       parameters = []
       returnType = TList TStr
-      description = "TODO"
-      // CLEANUP description = "Get a list of all canvas names"
+      description = "Get a list of all canvas names"
       fn =
         internalFn (fun _ ->
           uply {
@@ -467,8 +466,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "checkPermission" 0
       parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
-      // CLEANUP: should be TStr
-      returnType = TBool
+      returnType = TStr
       description = "Check a user's permissions for a particular canvas."
       fn =
         internalFn (function

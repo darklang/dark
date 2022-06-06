@@ -26,7 +26,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [] ->
           Ply(
-            // CLEANUP why no charset?
             DObj(
               Map.ofList [ "Content-Type", DStr "application/x-www-form-urlencoded" ]
             )
