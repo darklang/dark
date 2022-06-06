@@ -152,7 +152,7 @@ let testStoredEventRoundtrip =
     let actual = (List.sort (List.map Tuple3.third listed))
     let result =
       actual = (List.sort [ t1; t3; t4 ]) || actual = (List.sort [ t2; t3; t4 ])
-    Expect.equal result true "list host events"
+    Expect.equal result true "list canvas events"
 
     let! loaded = TI.loadEventIDs id2 desc4 |> Task.map (List.map Tuple2.first)
     Expect.equal (List.sort loaded) (List.sort [ t6 ]) "list desc events"

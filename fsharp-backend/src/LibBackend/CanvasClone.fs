@@ -54,17 +54,17 @@ let onlyOpsSinceLastSavepoint (ops : PT.Oplist) : PT.Oplist =
 
 
 /// <summary>
-/// Update string literals from the old to the new host.
+/// Update string literals from the old to the new canvas.
 /// </summary>
 /// <remarks>
 /// Say your canvas contains a string literal that is (or contains)
-/// a url pointing to the `oldHost` ("://oldhost.builtwithdark.com/stuff",
+/// a url pointing to the `oldCanvas` ("://oldhost.builtwithdark.com/stuff",
 /// or its localhost equivalent), the `op` will be transformed
-/// to refer to the `newHost`
+/// to refer to the `newCanvas`
 /// </remarks>
 let updateHostsInOp
-  (oldHost : CanvasName.T)
-  (newHost : CanvasName.T)
+  (oldCanvas : CanvasName.T)
+  (newCanvas : CanvasName.T)
   (op : PT.Op)
   : PT.Op =
   let replaceHost (str : string) : string =
@@ -74,7 +74,7 @@ let updateHostsInOp
     // ://newHost.builtwithdark.com. *)
     let host (canvas : CanvasName.T) =
       $"://{string canvas}.{Config.bwdServerContentHost}"
-    String.replace (host oldHost) (host newHost) str
+    String.replace (host oldCanvas) (host newCanvas) str
   let rec updateHostsInPattern (pattern : PT.Pattern) : PT.Pattern =
     ProgramTypesAst.patternPostTraversal
       (fun pat ->
