@@ -1830,7 +1830,7 @@ module UserName =
       Ok name
     else
       Error
-        $"Invalid username '{name}', can only contain lowercase roman letters and digits, or '_'"
+        $"Invalid username '{name}', can only contain lowercase roman letters and digits"
 
   let newUserAllowed (name : string) : Result<unit, string> =
     match validate name with
@@ -1889,7 +1889,7 @@ module CanvasName =
       | UsernameError name ->
         $"Invalid username '{name}' - must be 2-20 lowercase characters, and must start with a letter."
       | CanvasNameError name ->
-        $"Invalid canvas name '{name}' - must contain only letters, digits, and '-' or '_'"
+        $"Invalid canvas name '{name}' - must contain only letters, digits, and '-'"
 
 
   let validate (name : string) : Result<string, CanvasNameError> =
