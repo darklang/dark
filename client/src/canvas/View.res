@@ -452,8 +452,8 @@ let viewCanvas = (m: model): Html.html<msg> => {
   )
 }
 
-let viewMinimap = (data: option<string>, currentPage: page, showTooltip: bool): Html.html<msg> =>
-  switch data {
+let viewMinimap = (currentPage: page, showTooltip: bool): Html.html<msg> =>
+  switch None { // todo
   | Some(src) =>
     let helpIcon = switch currentPage {
     | FocusedFn(_) =>
@@ -695,7 +695,7 @@ let view = (m: model): Html.html<msg> => {
   let footer = list{
     ViewScaffold.viewIntegrationTestButton(m.integrationTestState),
     ViewScaffold.readOnlyMessage(m),
-    viewMinimap(m.canvasProps.minimap, m.currentPage, m.tooltipState.fnSpace),
+    viewMinimap(m.currentPage, m.tooltipState.fnSpace),
     ViewScaffold.viewError(m.error),
   }
 

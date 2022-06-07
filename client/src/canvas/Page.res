@@ -165,7 +165,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
       ...m,
       currentPage: newPage,
       cursorState: Selecting(tlid, None),
-      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None, minimap: None},
+      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None},
     }
   | (SettingsModal(_), FocusedHandler(tlid, _, _))
   | (SettingsModal(_), FocusedDB(tlid, _))
@@ -208,7 +208,7 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
     {
       ...m,
       currentPage: newPage,
-      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None, minimap: None},
+      canvasProps: {...m.canvasProps, offset: offset, lastOffset: None},
     }
   | (_, SettingsModal(tab)) =>
     let settingsView = SettingsView.update(m.settingsView, OpenSettingsView(tab))

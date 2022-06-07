@@ -1129,7 +1129,6 @@ and canvasProps = {
   enablePan: bool,
   lastOffset: option<pos>,
   panAnimation: isTransitionAnimated,
-  minimap: option<string>,
 }
 
 and httpError = @opaque Tea.Http.error<string>

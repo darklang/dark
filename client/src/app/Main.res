@@ -1970,7 +1970,7 @@ let update_ = (msg: msg, m: model): modification => {
   | GoToArchitecturalView =>
     Many(list{
       ReplaceAllModificationsWithThisOne(
-        m => ({...m, canvasProps: {...m.canvasProps, minimap: None}}, Cmd.none),
+        m => ({...m, canvasProps: m.canvasProps,}, Cmd.none),
       ),
       Deselect,
       MakeCmd(Url.navigateTo(Architecture)),
