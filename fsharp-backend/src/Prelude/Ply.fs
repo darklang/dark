@@ -6,7 +6,7 @@
 // This code has been temporarily copied into Dark as an experiment:
 // https://github.com/darklang/dark/issues/4099#issuecomment-1149026039
 //
-// Source: https://github.com/crowded/ply
+// Source: https://github.com/crowded/ply at a46c18df19c0d03eeea2763dca24afdd9ce26550
 //
 // CLEANUP remove this in favor of an updated NuGet package if/when possible,
 // or revert back to using the existing NuGet package, if no progress is made.
