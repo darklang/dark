@@ -207,34 +207,31 @@ body #app * {
 
 .minimap {
   position: fixed;
-  bottom: 10px;
-  right: 20px;
+  bottom: 4px;
+  right: 65px;
 
-  width: 260px;
+  width: 170px;
   height: auto;
   max-height: 300px;
 
   cursor: pointer;
   text-align: center;
   color: $cyan;
-  font-size: 10px;
+  font-size: 16px;
 
   transition: width 1s;
 
   .minimap-content {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
 
     .help-icon {
       font-size: 45px;
       color: $cyan;
     }
-    img {
-      background-color: $grey1;
-      border: $cyan 2px solid;
-      width: 200px;
-      height: auto;
+    a {
+      width: 110px;
     }
   }
 
@@ -247,7 +244,7 @@ body #app * {
   }
 
   .tooltips {
-    right: 0px;
+    right: 23px;
   }
 }
 

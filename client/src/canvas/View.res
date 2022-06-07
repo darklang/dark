@@ -452,11 +452,10 @@ let viewCanvas = (m: model): Html.html<msg> => {
   )
 }
 
-let viewMinimap = (currentPage: page, showTooltip: bool): Html.html<msg> =>
-  switch None { // todo
-  | Some(src) =>
-    let helpIcon = switch currentPage {
-    | FocusedFn(_) =>
+let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
+  switch currentPage {
+  | FocusedFn(_) =>
+    let helpIcon =
       Html.div(
         list{
           Html.class'("help-icon"),
@@ -469,38 +468,37 @@ let viewMinimap = (currentPage: page, showTooltip: bool): Html.html<msg> =>
         },
         list{fontAwesome("question-circle")},
       )
-    | _ => Vdom.noNode
-    }
-
     let tooltip =
-      Tooltips.generateContent(FnMiniMap) |> Tooltips.viewToolTip(
-        ~shouldShow=showTooltip,
-        ~tlid=None,
-      )
+    Tooltips.generateContent(FnMiniMap) |> Tooltips.viewToolTip(
+      ~shouldShow=showTooltip,
+      ~tlid=None,
+    )
 
     Html.div(
       list{Html.id("minimap"), Html.class'("minimap")},
       list{
         tooltip,
         Html.div(
-          list{Html.class'("minimap-content")},
+          list{
+            Html.class'("minimap-content"),
+            Vdom.prop("alt", "architecture preview"),
+            ViewUtils.eventNoPropagation(~key="return-to-arch", "click", _ =>
+              GoToArchitecturalView
+            ),
+          },
           list{
             helpIcon,
-            Html.img(
+            Html.a(
+              list{Html.class'("content")},
               list{
-                Html.src(src),
-                Vdom.prop("alt", "architecture preview"),
-                ViewUtils.eventNoPropagation(~key="return-to-arch", "click", _ =>
-                  GoToArchitecturalView
-                ),
-              },
-              list{},
-            ),
+                Vdom.text("Return to main canvas"),
+              }
+            )
           },
         ),
       },
     )
-  | None => Vdom.noNode
+  | _ => Vdom.noNode
   }
 
 let viewToast = (t: toast): Html.html<msg> => {
@@ -695,7 +693,7 @@ let view = (m: model): Html.html<msg> => {
   let footer = list{
     ViewScaffold.viewIntegrationTestButton(m.integrationTestState),
     ViewScaffold.readOnlyMessage(m),
-    viewMinimap(m.currentPage, m.tooltipState.fnSpace),
+    viewBackToCanvas(m.currentPage, m.tooltipState.fnSpace),
     ViewScaffold.viewError(m.error),
   }
 
