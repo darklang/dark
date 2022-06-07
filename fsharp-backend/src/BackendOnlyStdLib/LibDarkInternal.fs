@@ -110,7 +110,10 @@ that's already taken, returns an error."
           | state, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
             uply {
               let username =
-                Exception.catchError (fun () -> UserName.create username)
+                Exception.catchError (fun () ->
+                  if username.Contains "_" then
+                    Exception.raiseCode "Underscores not allowed in usernames"
+                  UserName.create username)
               match username with
               | Ok username ->
                 let! _user =

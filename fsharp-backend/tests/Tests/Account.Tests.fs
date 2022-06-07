@@ -37,22 +37,22 @@ let testUsernameValidationWorks =
     UserName.validate
     [ "Upper",
       (Error
-        "Invalid username 'Upper', can only contain lowercase roman letters and digits, or '_'")
+        "Invalid username 'Upper', can only contain lowercase roman letters and digits")
       "uPPer",
       (Error
-        "Invalid username 'uPPer', can only contain lowercase roman letters and digits, or '_'")
+        "Invalid username 'uPPer', can only contain lowercase roman letters and digits")
       "a",
       (Error
-        "Invalid username 'a', can only contain lowercase roman letters and digits, or '_'")
+        "Invalid username 'a', can only contain lowercase roman letters and digits")
       "aaa❤️",
       (Error
-        "Invalid username 'aaa❤️', can only contain lowercase roman letters and digits, or '_'")
+        "Invalid username 'aaa❤️', can only contain lowercase roman letters and digits")
       "aaa-aaa",
       (Error
-        "Invalid username 'aaa-aaa', can only contain lowercase roman letters and digits, or '_'")
+        "Invalid username 'aaa-aaa', can only contain lowercase roman letters and digits")
       "aaa aaa",
       (Error
-        "Invalid username 'aaa aaa', can only contain lowercase roman letters and digits, or '_'")
+        "Invalid username 'aaa aaa', can only contain lowercase roman letters and digits")
       "aaa_aaa", Ok "aaa_aaa"
       "myusername09", Ok "myusername09"
       "paul", Ok "paul" ]
