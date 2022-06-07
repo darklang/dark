@@ -54,6 +54,7 @@ def handle_error(msg: str) -> None:
   print(msg)
   if error is None:
     error = msg
+  sys.exit(-1)
 
 
 def debug(str: str, str2: Any = None, str3: Any = None) -> None:

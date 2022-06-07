@@ -15,7 +15,7 @@
 # as part of that build. Search for DOCKERFILE_REPO for where to make that
 # change.
 
-FROM ubuntu:20.04@sha256:e722c7335fdd0ce77044ab5942cb1fbd2b5f60d1f5416acfcdb0814b2baf7898 as dark-base
+FROM ubuntu:22.04@sha256:bace9fb0d5923a675c894d5c815da75ffe35e24970166a48a4460a48ae6e0d19 as dark-base
 
 ENV FORCE_BUILD 3
 
@@ -58,21 +58,21 @@ RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN curl -sSL https://nginx.org/keys/nginx_signing.key | apt-key add -
-RUN curl -sSL https://baltocdn.com/helm/signing.asc | apt-key add -
+RUN curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
 
 
 # We want postgres 9.6, but it is not in ubuntu 20.04
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
-RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
+RUN echo "deb https://nginx.org/packages/ubuntu/ jammy nginx" > /etc/apt/sources.list.d/nginx.list
 
-RUN echo "deb https://deb.nodesource.com/node_14.x focal main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_14.x focal main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_14.x jammy main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_14.x jammy main" >> /etc/apt/sources.list.d/nodesource.list
 
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
 
-RUN echo "deb https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sources.list.d/helm-stable-debian.list
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list
 
 # Mostly, we use the generic version. However, for things in production we want
 # to pin the exact package version so that we don't have any surprises.  As a
@@ -129,7 +129,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pv \
       htop \
       net-tools \
-      nginx=1.16.1-1~bionic \
+      nginx \
       bash-completion \
       openssh-server \
       dnsutils \
@@ -137,8 +137,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libc6 \
       libgcc1 \
       libgssapi-krb5-2 \
-      libicu66 \
-      libssl1.1 \
+      libicu70 \
+      libssl3 \
       libstdc++6 \
       zlib1g \
       lldb \
