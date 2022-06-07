@@ -137,9 +137,9 @@ function displayError(msg) {
 }
 
 window.onerror = function (msg, url, lineno, colno, error) {
+  console.error("Uncaught exception", msg, url, lineno, colno, error);
   window.Rollbar.error(msg, error);
   window.lastError = error;
-  console.error("Uncaught exception", msg, url, lineno, colno, error);
   displayError(msg);
 };
 
