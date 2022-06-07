@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Ply.fs" />
     <Compile Include="Prelude.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
