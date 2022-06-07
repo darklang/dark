@@ -1450,7 +1450,6 @@ and msg =
   | CopyCurl(TLID.t, vPos)
   | TLMenuMsg(TLID.t, menuMsg)
   | ResetToast
-  | UpdateMinimap(option<string>)
   | GoToArchitecturalView
   | HideTopbar
   | LogoutOfDark
