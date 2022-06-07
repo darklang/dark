@@ -2096,8 +2096,7 @@ let k8s_handler
           "Sorry internal overlord" )
   | "/ready" ->
       let checks =
-        [db_conn_readiness_check (); stroller_readiness_check]
-        |> List.filter_map ~f:(fun x -> x)
+        [db_conn_readiness_check ()] |> List.filter_map ~f:(fun x -> x)
       in
       ( match checks with
       | [] ->
