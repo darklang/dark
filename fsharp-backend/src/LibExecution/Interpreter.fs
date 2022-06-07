@@ -656,11 +656,7 @@ and execFn
         // (first) value to be piped into the next statement instead.
         return List.head arglist
       | Some (DIncomplete src), _ -> return DIncomplete src
-      | Some (DError (src, _) as err), _ ->
-        // CLEANUP: kept old error to make testing easier, but this is an
-        // easy and safe change to make
-        return DError(src, "Fn called with an error as an argument")
-      // return err
+      | Some (DError _ as err), _ -> return err
       | _ ->
         match fn.fn with
         | StdLib f ->

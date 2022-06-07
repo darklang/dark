@@ -17,4 +17,4 @@ Content-Length: LENGTH
 [test]
 (let value = Test.typeError_v0 "x" in
  HttpClient.post_v5_ster "http://URL" value {} HttpClient.jsonContentType_v0) =
-  Test.typeError_v0 "Fn called with an error as an argument"
+  Test.typeError_v0 "x"
