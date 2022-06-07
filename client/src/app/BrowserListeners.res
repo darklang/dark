@@ -108,19 +108,6 @@ module OnWheel = {
   let listen = (~key, tagger) => registerGlobal("wheel", key, tagger, decode)
 }
 
-module OnCaptureView = {
-  @val @scope(("window", "Dark", "view")) external _capture: unit => unit = "capture"
-
-  let capture = ((): unit): Tea.Cmd.t<Types.msg> => Tea_cmd.call(_ => _capture())
-
-  let decode = {
-    open Tea.Json.Decoder
-    map(msg => msg, field("detail", string))
-  }
-
-  let listen = (~key, tagger) => registerGlobal("captureView", key, tagger, decode)
-}
-
 module DarkMouse = {
   let moves = (~key, tagger) => registerGlobal("mousemove", key, tagger, Tea.Mouse.position)
 }
