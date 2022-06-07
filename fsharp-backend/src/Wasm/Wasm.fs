@@ -303,18 +303,25 @@ type EvalWorker =
   /// Receive request from JS host to be evaluated
   ///
   /// Once evaluated, an async call to `self.postMessage` will be made
-  static member OnMessage(message : string) =
+  static member OnMessage(input : string) =
+    let reportAndRollUpExceptionIntoError (preamble : string) (e) =
+      let metadata = Exception.nestedMetadata e
+      let errorMessage = Exception.getMessages e |> String.concat " "
+
+      System.Console.WriteLine($"Blazor failure: {preamble}")
+      System.Console.WriteLine($"called with message: {input}")
+      System.Console.WriteLine(
+        $"caught exception: \"{errorMessage}\" \"{metadata}\""
+      )
+
+      Error($"exception: {errorMessage}, metdata: {metadata}")
+
     // parse an analysis request, in JSON, from the JS world (BlazorWorker)
     let args : Result<ClientInterop.performAnalysisParams, string> =
       try
-        Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> message)
+        Ok(Json.Vanilla.deserialize<ClientInterop.performAnalysisParams> input)
       with
-      | e ->
-        let metadata = Exception.nestedMetadata e
-        System.Console.WriteLine("Error parsing analysis request in Blazor")
-        System.Console.WriteLine($"called with message: {message}")
-        System.Console.WriteLine($"caught exception: \"{e.Message}\" \"{metadata}\"")
-        Error($"exception: {e.Message}, metdata: {metadata}")
+      | e -> reportAndRollUpExceptionIntoError "Error parsing analysis request" e
 
     // run the actual analysis (eval. the fn/handler)
     task {
@@ -325,14 +332,7 @@ type EvalWorker =
           let! result = Eval.performAnalysis args
           return Ok result
         with
-        | e ->
-          let metadata = Exception.nestedMetadata e
-          System.Console.WriteLine("Error running analysis in Blazor")
-          System.Console.WriteLine($"called with message: {message}")
-          System.Console.WriteLine(
-            $"caught exception: \"{e.Message}\" \"{metadata}\""
-          )
-          return Error($"exception: {e.Message}, metadata: {metadata}")
+        | e -> return reportAndRollUpExceptionIntoError "Error running analysis" e
     }
 
     // Serialize the result, and post it to the JS world (BlazorWorker)
@@ -342,12 +342,6 @@ type EvalWorker =
           Json.Vanilla.serialize result
         with
         | e ->
-          let metadata = Exception.nestedMetadata e
-          System.Console.WriteLine("Error serializing results of Blazor analysis")
-          System.Console.WriteLine($"called with message: {message}")
-          System.Console.WriteLine(
-            $"caught exception: \"{e.Message}\" \"{metadata}\""
-          )
-          Json.Vanilla.serialize ($"exception: {e.Message}, metadata: {metadata}")
-
+          reportAndRollUpExceptionIntoError "Error serializing results" e
+          |> Json.Vanilla.serialize
       EvalWorker.postMessage serialized)
