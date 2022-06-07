@@ -18,14 +18,14 @@ HttpClient.bearerToken_v1 "YWxhZGRpbjpvcGVuc2VzYW1l" = { Authorization = "Bearer
 
 HttpClient.basicAuth_v0 "username" "password" = { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
 HttpClient.basicAuth_v0 "" "" = { Authorization = "Basic Og==" }
-HttpClient.basicAuth_v0 "-" "" = Test.typeError_v0 "Username cannot contain a colon"
+HttpClient.basicAuth_v0 "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
 HttpClient.basicAuth_v0 "" "-" = { Authorization = "Basic Oi0=" }
 HttpClient.basicAuth_v0 ":" "" = { Authorization = "Basic Ojo=" }
 HttpClient.basicAuth_v0 "" ":" = { Authorization = "Basic Ojo=" }
 
 HttpClient.basicAuth_v1 "username" "password" = { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
 HttpClient.basicAuth_v1 "" "" = { Authorization = "Basic Og==" }
-HttpClient.basicAuth_v1 "-" "" = Test.typeError_v0 "Username cannot contain a colon"
+HttpClient.basicAuth_v1 "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
 HttpClient.basicAuth_v1 "" "-" = { Authorization = "Basic Oi0=" }
 HttpClient.basicAuth_v1 ":" "" = { Authorization = "Basic Ojo=" }
 HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }

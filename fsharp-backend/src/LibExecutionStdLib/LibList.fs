@@ -457,11 +457,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "List" "fold" 0
       parameters =
-        [ Param.make "list" (TList varA) "" // CLEANUP add description "The list of items to process one at a time"
-          Param.make "init" varB "" // CLEANUP add description "The initial starting value"
-          Param.makeWithArgs "f" (TFn([ varB; varA ], varB)) "" [ "accum"; "curr" ] ]
-      // CLEANUP add description
-      //"the function taking the accumulated value and the next list item, returning the next accumulated item."
+        [ Param.make "list" (TList varA) "The list of items to process one at a time"
+          Param.make "init" varB "The initial starting value"
+          Param.makeWithArgs
+            "f"
+            (TFn([ varB; varA ], varB))
+            "the function taking the accumulated value and the next list item, returning the next accumulated item."
+            [ "accum"; "curr" ] ]
       returnType = varB
       description =
         "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
@@ -1109,7 +1111,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "List" "map" 0
       parameters =
-        [ Param.make "list" (TList varA) "" // CLEANUP "The list to be operated on"
+        [ Param.make "list" (TList varA) "The list to be operated on"
           Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
       description =
         "Calls `f` on every `val` in `list`, returning a list of the results of those calls.

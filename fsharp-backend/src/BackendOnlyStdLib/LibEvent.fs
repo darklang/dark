@@ -18,10 +18,9 @@ let varA = TVariable "a"
 let fns : List<BuiltInFn> =
   [ { name = fn "" "emit" 0
       parameters =
-        // CLEANUP lowercase names
-        [ Param.make "Data" varA ""
-          Param.make "Space" TStr ""
-          Param.make "Name" TStr "" ]
+        [ Param.make "data" varA ""
+          Param.make "space" TStr ""
+          Param.make "name" TStr "" ]
       returnType = varA
       description =
         "Emit event `name` in `space`, passing along `data` as a parameter"
@@ -42,7 +41,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "" "emit" 1) }
 
     { name = fn "" "emit" 1
-      parameters = [ Param.make "event" varA ""; Param.make "Name" TStr "" ]
+      parameters = [ Param.make "event" varA ""; Param.make "name" TStr "" ]
       returnType = varA
       description = "Emit a `event` to the `name` worker"
       fn =

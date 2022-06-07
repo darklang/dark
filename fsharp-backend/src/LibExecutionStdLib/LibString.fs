@@ -40,10 +40,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "foreach" 0
       parameters =
-        [ Param.make "s" TStr "" // CLEANUP "string to iterate over"
-          Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "char" ]
-          // CLEANUP "function used to convert one character to another"
-          ]
+        [ Param.make "s" TStr "string to iterate over"
+          Param.makeWithArgs
+            "f"
+            (TFn([ TChar ], TChar))
+            "function used to convert one character to another"
+            [ "char" ] ]
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
@@ -148,8 +150,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "replaceAll" 0
       parameters =
-        [ Param.make "s" TStr "" // CLEANUP "The string to operate on"
-          Param.make "searchFor" TStr "" // CLEANUP "The string to search for within <param s>"
+        [ Param.make "s" TStr "The string to operate on"
+          Param.make "searchFor" TStr "The string to search for within <param s>"
           Param.make "replaceWith" TStr "" ]
       returnType = TStr
       description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
@@ -1337,8 +1339,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "endsWith" 0
       parameters =
-        [ Param.make "subject" TStr "" // CLEANUP "String to test"
-          Param.make "suffix" TStr "" ]
+        [ Param.make "subject" TStr "String to test"; Param.make "suffix" TStr "" ]
       returnType = TBool
       description = "Checks if `subject` ends with `suffix`"
       fn =
