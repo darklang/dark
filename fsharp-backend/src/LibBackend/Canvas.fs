@@ -282,7 +282,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   with
   | e ->
     // Log here so we have context, but then re-raise
-    let tags = [ ("host", c.meta.name :> obj); ("op", string op) ]
+    let tags = [ ("canvas_name", c.meta.name :> obj); ("op", string op) ]
     Telemetry.addException tags (InternalException("apply_op", e))
     e.Reraise()
 

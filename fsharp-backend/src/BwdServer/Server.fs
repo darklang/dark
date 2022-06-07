@@ -114,6 +114,7 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     // NB: we're sending back a png, not an ico - this is deliberate,
     // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
     let memory = Lazy.force favicon
+    Telemetry.addTag "http.completion_reason" "darklangFavicon"
     setHeader ctx "Access-Control-Allow-Origin" "*"
     ctx.Response.StatusCode <- 200
     ctx.Response.ContentType <- "image/png"
@@ -189,16 +190,19 @@ let errorResponse
 
 let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   // CLEANUP: use errorResponse
+  Telemetry.addTag "http.completion_reason" "noHandler"
   standardResponse ctx "404 Not Found: No route matches" textPlain 404
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   // CLEANUP: use errorResponse
+  Telemetry.addTag "http.completion_reason" "canvasNotFound"
   standardResponse ctx "canvas not found" textPlain 404
 
 let internalErrorResponse (ctx : HttpContext) : Task<HttpContext> =
   let msg =
     "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can post in our slack (darkcommunity.slack.com) for more information."
   // CLEANUP: use errorResponse
+  Telemetry.addTag "http.completion_reason" "internalError"
   standardResponse ctx msg textPlain 500
 
 
@@ -206,6 +210,7 @@ let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let path = ctx.Request.Path.Value
   let message = $"500 Internal Server Error: More than one handler for route: {path}"
   // CLEANUP: use errorResponse
+  Telemetry.addTag "http.completion_reason" "moreThanOnHandler"
   standardResponse ctx message textPlain 500
 
 let unmatchedRouteResponse
@@ -215,6 +220,7 @@ let unmatchedRouteResponse
   : Task<HttpContext> =
   let message = $"The request ({requestPath}) does not match the route ({route})"
   // CLEANUP use errorResponse
+  Telemetry.addTag "http.completion_reason" "unmatchedRoute"
   standardResponse ctx message textPlain 500
 
 
@@ -241,6 +247,7 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
   // CLEANUP use better status code, maybe 307
   ctx.Response.StatusCode <- 302
   setHeader ctx "Location" redirectUrl
+  Telemetry.addTag "http.completion_reason" "httpsRedirect"
   ctx
 
 
@@ -355,6 +362,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let result = Cors.addCorsHeaders reqHeaders meta.name result
 
           do! writeResponseToContext ctx result
+          Telemetry.addTag "http.completion_reason" "success"
 
           return ctx
 
@@ -371,8 +379,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [] when ctx.Request.Method = "OPTIONS" ->
         let reqHeaders = getHeaders ctx
         match Cors.optionsResponse reqHeaders meta.name with
-        | Some response -> do! writeResponseToContext ctx response
-        | None -> ()
+        | Some response ->
+          Telemetry.addTag "http.completion_reason" "options response"
+          do! writeResponseToContext ctx response
+        | None -> Telemetry.addTag "http.completion_reason" "options none"
         return ctx
 
       // no matching route found - store as 404

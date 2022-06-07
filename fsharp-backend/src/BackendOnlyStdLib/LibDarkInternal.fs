@@ -261,21 +261,20 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "dbs" 0
-      parameters = [ Param.make "host" TStr "" ]
+      parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TList TStr
-      description = "Returns a list of toplevel ids of dbs in `host`"
+      description = "Returns a list of toplevel ids of dbs in `canvasName`"
       fn =
         internalFn (function
-          | _, [ DStr host ] ->
+          | _, [ DStr canvasName ] ->
             uply {
               let! dbTLIDs =
-                // CLEANUP stop calling things host
                 Sql.query
                   "SELECT tlid
                      FROM toplevel_oplists
                      JOIN canvases ON canvases.id = canvas_id
                     WHERE canvases.name = @name AND tipe = 'db'"
-                |> Sql.parameters [ "name", Sql.string host ]
+                |> Sql.parameters [ "name", Sql.string canvasName ]
                 |> Sql.executeAsync (fun read -> read.string "tlid")
               return dbTLIDs |> List.map DStr |> DList
             }
@@ -328,15 +327,15 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
-      parameters = [ Param.make "host" TStr "" ]
+      parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TOption varA
-      description = "Gives canvasId for a canvasName/host"
+      description = "Gives canvasId for a canvasName"
       fn =
         internalFn (function
-          | _, [ DStr host ] ->
+          | _, [ DStr canvasName ] ->
             uply {
               try
-                let! meta = Canvas.getMetaExn (CanvasName.createExn host)
+                let! meta = Canvas.getMetaExn (CanvasName.createExn canvasName)
                 return DOption(Some(DStr(string meta.id)))
               with
               | e -> return DOption None

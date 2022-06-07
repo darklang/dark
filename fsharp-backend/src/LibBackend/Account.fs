@@ -303,10 +303,10 @@ let authenticate
 let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
 // formerly called auth_domain_for
-let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
-  match String.split "-" (string host) with
+let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
+  match String.split "-" (string canvasName) with
   | owner :: _ -> OwnerName.create owner
-  | _ -> OwnerName.create (string host)
+  | _ -> OwnerName.create (string canvasName)
 
 // **********************
 // What user has access to

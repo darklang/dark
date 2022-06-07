@@ -61,7 +61,7 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * HandlerDesc>> 
 
 let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d60d"
 
-// We store a set of events for each host. The events may or may not
+// We store a set of events for each canvas. The events may or may not
 // belong to a toplevel. We provide a list in advance so that they can
 // be partitioned effectively. Returns the DB-assigned event timestamp.
 let storeEvent
