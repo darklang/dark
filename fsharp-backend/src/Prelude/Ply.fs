@@ -10,8 +10,6 @@
 //
 // CLEANUP remove this in favor of an updated NuGet package if/when possible,
 // or revert back to using the existing NuGet package, if no progress is made.
-//
-// TODO is the the best project for this file?
 
 #if NETSTANDARD2_0
 namespace System.Runtime.CompilerServices
