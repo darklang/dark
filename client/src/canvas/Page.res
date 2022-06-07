@@ -220,20 +220,6 @@ let setPage = (m: model, oldPage: page, newPage: page): model =>
     {...m, currentPage: newPage, cursorState: Deselected}
   }
 
-let capMinimap = (oldPage: page, newPage: page): list<Cmd.t<msg>> =>
-  switch (oldPage, newPage) {
-  | (Architecture, FocusedFn(_))
-  | (FocusedHandler(_), FocusedFn(_))
-  | (FocusedDB(_), FocusedFn(_))
-  | (Architecture, FocusedType(_))
-  | (FocusedHandler(_), FocusedType(_))
-  | (FocusedDB(_), FocusedType(_))
-  | (Architecture, FocusedPackageManagerFn(_))
-  | (FocusedHandler(_), FocusedPackageManagerFn(_))
-  | (FocusedDB(_), FocusedPackageManagerFn(_)) => list{Native.OnCaptureView.capture()}
-  | _ => list{}
-  }
-
 /* Go back to Architecture view if user is on the type/fn page
  and then deletes same UserType/UserFunction */
 let maybeChangeFromPage = (tlid: TLID.t, page: page): list<modification> =>

@@ -420,8 +420,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         }
 
         let (m, afCmd) = Page.updatePossibleTrace(m, page)
-        let cap = Page.capMinimap(m.currentPage, page)
-        let cmds = Cmd.batch(\"@"(list{API.sendPresence(m, avMessage), ...cap}, list{afCmd}))
+        let cmds = Cmd.batch(\"@"(list{API.sendPresence(m, avMessage)}, list{afCmd}))
 
         (Page.setPage(m, m.currentPage, page), cmds)
       } else {

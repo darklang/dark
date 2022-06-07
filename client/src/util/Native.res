@@ -111,12 +111,6 @@ module Window = {
   @val @scope("window") external openUrl: (string, string) => unit = "open"
 }
 
-module OnCaptureView = {
-  @val @scope(("window", "Dark", "view")) external _capture: unit => unit = "capture"
-
-  let capture = ((): unit): Tea.Cmd.t<Types.msg> => Tea_cmd.call(_ => _capture())
-}
-
 module Clipboard = {
   @module external copyToClipboard: string => unit = "clipboard-copy"
 }
