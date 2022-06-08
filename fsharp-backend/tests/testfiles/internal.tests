@@ -5,14 +5,14 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 
 [test.empty grants FSHARPONLY]
 (let _ = Test.deleteUser_v0 "empty_grants"
- let _ = DarkInternal.insertUser_v2_ster "empty_grants" "a@eg.com" "test user" {}
+ let _ = DarkInternal.insertUser_v2_ster "emptygrants" "a@eg.com" "test user" {}
  DarkInternal.orgsFor "empty_grants") = {}
 
 [test.grants and orgs FSHARPONLY]
-(let _ = DarkInternal.insertUser_v2_ster "gao_org" "gao-test-org@darklang.com" "gao test org" {}
- let _ = DarkInternal.insertUser_v2_ster "gao_user" "gao-test-user@darklang.com" "gao test user" {}
- let _ = DarkInternal.grant_v0_ster "gao_user" "gao_org" "rw" in
- DarkInternal.orgsFor "gao_user") = { ``gao_org`` = "rw" }
+(let _ = DarkInternal.insertUser_v2_ster "gaoorg" "gao-test-org@darklang.com" "gao test org" {}
+ let _ = DarkInternal.insertUser_v2_ster "gaouser" "gao-test-user@darklang.com" "gao test user" {}
+ let _ = DarkInternal.grant_v0_ster "gaouser" "gaoorg" "rw" in
+ DarkInternal.orgsFor "gaouser") = { ``gaoorg`` = "rw" }
 
 [test.grants and grants]
 (let _ = DarkInternal.grant "test" "dark" "rw" in
@@ -46,14 +46,15 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-DarkInternal.insertUser_v2 "name with space" "valid@email.com" "accidentalusername" {} = Error "Invalid username 'name with space', can only contain lowercase roman letters and digits, or '_'"
+DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" {} = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
+DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" {} = Error "Underscores not allowed in usernames"
 
 [tests.canvases]
 DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
 
 [test.checkPermission with none]
-(let user1 = ("cpn_user1_" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("cpn_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+(let user1 = ("cpnuser1" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cpnuser2" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
  let _ = DarkInternal.insertUser_v2_ster user1 user1Email "cpn test user1" {}
@@ -63,8 +64,8 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["" ; ""]
 
 [test.checkPermission with r]
-(let user1 = ("cpr_user1_" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("cpr_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+(let user1 = ("cpruser1" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cpruser2" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
  let _ = DarkInternal.insertUser_v2_ster user1 user1Email "cpr test user1" {}
@@ -74,8 +75,8 @@ DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
  [DarkInternal.checkPermission_v0 user1 user2; startingPermission] ) = ["r" ; ""]
 
 [test.checkPermission with r]
-(let user1 = ("cprw_user1_" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("cprw_user2_" ++ (String.random 5)) |> String.toLowercase_v1
+(let user1 = ("cprwuser1" ++ (String.random 5)) |> String.toLowercase_v1
+ let user2 = ("cprwuser2" ++ (String.random 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
  let _ = DarkInternal.insertUser_v2_ster user1 user1Email "cprw test user1" {}
