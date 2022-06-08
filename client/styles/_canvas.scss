@@ -205,23 +205,18 @@ body #app * {
   }
 }
 
-.minimap {
+.back-to-canvas {
   position: fixed;
   bottom: 4px;
   right: 65px;
-
   width: 170px;
-  height: auto;
-  max-height: 300px;
 
   cursor: pointer;
   text-align: center;
   color: $cyan;
   font-size: 16px;
 
-  transition: width 1s;
-
-  .minimap-content {
+  .back-to-canvas-content {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -233,14 +228,6 @@ body #app * {
     a {
       width: 110px;
     }
-  }
-
-  &[src=""] {
-    display: none;
-  }
-
-  .tooltips {
-    right: 0px;
   }
 
   .tooltips {

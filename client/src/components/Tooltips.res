@@ -280,7 +280,7 @@ let generateContent = (t: tooltipSource): tooltipContent =>
       tipAlignment: "",
       tooltipStyle: Default,
     }
-  | FnMiniMap => {
+  | FnBackToCanvas => {
       title: "Functions live in the function space, which is separate from your main canvas. You can return to your main canvas by clicking on the name of another handler in the sidebar or the link provided here.",
       details: None,
       action: None,

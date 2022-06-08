@@ -1750,7 +1750,7 @@ and tooltipSource =
   | PackageManager
   | StaticAssets
   | FnParam
-  | FnMiniMap
+  | FnBackToCanvas
   | Secrets
 
 and model = {
