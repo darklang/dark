@@ -469,18 +469,18 @@ let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
         list{fontAwesome("question-circle")},
       )
     let tooltip =
-    Tooltips.generateContent(FnMiniMap) |> Tooltips.viewToolTip(
+    Tooltips.generateContent(FnBackToCanvas) |> Tooltips.viewToolTip(
       ~shouldShow=showTooltip,
       ~tlid=None,
     )
 
     Html.div(
-      list{Html.id("minimap"), Html.class'("minimap")},
+      list{Html.id("back-to-canvas"), Html.class'("back-to-canvas")},
       list{
         tooltip,
         Html.div(
           list{
-            Html.class'("minimap-content"),
+            Html.class'("back-to-canvas-content"),
             Vdom.prop("alt", "architecture preview"),
             ViewUtils.eventNoPropagation(~key="return-to-arch", "click", _ =>
               GoToArchitecturalView
