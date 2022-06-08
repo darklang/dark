@@ -334,7 +334,7 @@ type EvalWorker =
         with
         | e -> reportAndRollUpExceptionIntoError "Error running analysis" e
 
-    // Serialize the result, and post it to the JS world (BlazorWorker)
+    // Serialize the result
     let serialized =
       try
         Json.Vanilla.serialize result
