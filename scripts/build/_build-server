@@ -30,6 +30,7 @@ def getFlags():
 
 # Make io unbuffered
 def flush(fn):
+
   def newfn(x):
     fn(x)
     sys.stdout.flush()
@@ -152,26 +153,14 @@ def main():
       run_fsharp_server()
 
   if should_watch:
-    import watchgod
-    # watchgod scans the file system on a loop. This is extremely
-    # fast so long as we list directory trees we don't want to go
-    # into. We prefer this to notification based systems as we've
-    # struggled to get them to work with our fun docker-based
-    # setup.
+    import watchfiles
     ignored = [
-        ".git",
-        "_build",
-        "_esy",
-        "node_modules",
-        "integration-tests/node_modules",
-        "backend/static",
-        "lib",
-        "fsharp-backend/Build",
+        ".git", "_build", "_esy", "node_modules", "integration-tests/node_modules",
+        "backend/static", "lib", "fsharp-backend/Build"
     ]
     ignored = set(["/home/dark/app/" + f for f in ignored])
-    for changes in watchgod.watch("/home/dark/app/",
-                                  watcher_cls=watchgod.AllWatcher,
-                                  watcher_kwargs=dict(ignored_paths=ignored)):
+    filter = watchfiles.DefaultFilter(ignore_paths=ignored)
+    for changes in watchfiles.watch("/home/dark/app/", watch_filter=filter):
       changes = [f for (_, f) in changes]
       compile(changes)
 

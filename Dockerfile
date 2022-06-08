@@ -249,13 +249,8 @@ RUN sudo pip3 install -U --no-cache-dir -U crcmod \
 ############################
 # Pip packages
 ############################
-RUN sudo pip3 install --no-cache-dir yq yamllint
+RUN sudo pip3 install --no-cache-dir yq yamllint watchfiles yapf==0.32.0
 ENV PATH "$PATH:/home/dark/.local/bin"
-
-RUN pip3 install git+https://github.com/pbiggar/watchgod.git@b74cd7ec064ebc7b4263dc532c7c97e046002bef
-
-# Formatting
-RUN pip3 install yapf==0.32.0
 
 ####################################
 # CircleCI
