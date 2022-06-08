@@ -324,24 +324,24 @@ type EvalWorker =
       | e -> reportAndRollUpExceptionIntoError "Error parsing analysis request" e
 
     // run the actual analysis (eval. the fn/handler)
-    task {
+    let result =
       match args with
-      | Error e -> return Error e
+      | Error e -> Error e
       | Ok args ->
         try
-          let! result = Eval.performAnalysis args
-          return Ok result
+          let result = (Eval.performAnalysis args).Result
+          Ok result
         with
-        | e -> return reportAndRollUpExceptionIntoError "Error running analysis" e
-    }
+        | e -> reportAndRollUpExceptionIntoError "Error running analysis" e
 
     // Serialize the result, and post it to the JS world (BlazorWorker)
-    |> Task.map (fun (result : Result<ClientInterop.AnalysisEnvelope, string>) ->
-      let serialized =
-        try
-          Json.Vanilla.serialize result
-        with
-        | e ->
-          reportAndRollUpExceptionIntoError "Error serializing results" e
-          |> Json.Vanilla.serialize
-      EvalWorker.postMessage serialized)
+    let serialized =
+      try
+        Json.Vanilla.serialize result
+      with
+      | e ->
+        reportAndRollUpExceptionIntoError "Error serializing results" e
+        |> Json.Vanilla.serialize
+
+    // post the result back to the JS world
+    EvalWorker.postMessage serialized
