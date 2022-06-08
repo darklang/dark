@@ -2,23 +2,16 @@
 
 # DOC: what is this for?
 #
-# We run this as its own k8s deployment (at time of writing, scale=1) and route
-# all outgoing traffic through it by setting it as a SOCKS5 proxy in
-# libhttpclient.ml's use of libcurl. (And and legacy.ml's.)
+# We run this as its own k8s deployment (at time of writing, scale=1) and route all
+# outgoing traffic through it by setting it as a SOCKS5 proxy in HttpClient (and
+# LegacyHttpClient)
 #
-# It currently restricts direct access to the ocaml server (you can't hit
-# http://localhost:80/pkill to take out a pod; you have to send requests off-pod
-# first, which forces incoming traffic to go through nginx, which 403s /pkill;
-# thus, only k8s itself can hit /pkill), as well as to the GCE instance metadata
-# (http://metadata, as observed in the security incident of 2020-04-27; we block
-# this by disallowing egress to 169.* in a NetworkPolicy on the tunnel. This was
-# the security incident of 2020-04-27.)
-#
-# The tunnel does not currently restrict traffic otherwise; it might be nice
-# to block 10.* and thus disallow access to any cluster-internal routes, but at
-# least for the moment we can't, as blocking 10.* would mean breaking DNS
-# requests from the tunnel service.
-
+# It currently restricts direct access to the server (you can't hit the server
+# directly; you have to send requests off-pod first, which forces incoming traffic to
+# go through nginx), as well as to the GCE instance metadata (http://metadata, as
+# observed in the security incident of 2020-04-27; we block this by disallowing
+# egress to 169.* in a NetworkPolicy on the tunnel. This was the security incident of
+# 2020-04-27.)
 
 set -euox pipefail
 
