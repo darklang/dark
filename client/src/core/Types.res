@@ -1129,7 +1129,6 @@ and canvasProps = {
   enablePan: bool,
   lastOffset: option<pos>,
   panAnimation: isTransitionAnimated,
-  minimap: option<string>,
 }
 
 and httpError = @opaque Tea.Http.error<string>
@@ -1450,7 +1449,6 @@ and msg =
   | CopyCurl(TLID.t, vPos)
   | TLMenuMsg(TLID.t, menuMsg)
   | ResetToast
-  | UpdateMinimap(option<string>)
   | GoToArchitecturalView
   | HideTopbar
   | LogoutOfDark
@@ -1752,7 +1750,7 @@ and tooltipSource =
   | PackageManager
   | StaticAssets
   | FnParam
-  | FnMiniMap
+  | FnBackToCanvas
   | Secrets
 
 and model = {

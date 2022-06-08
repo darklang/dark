@@ -70,7 +70,6 @@ let defaultCanvasProps: canvasProps = {
   enablePan: true,
   lastOffset: None,
   panAnimation: DontAnimateTransition,
-  minimap: None,
 }
 
 let defaultHandlerProp: handlerProp = {hoveringReferences: list{}, execution: Idle}

@@ -420,8 +420,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         }
 
         let (m, afCmd) = Page.updatePossibleTrace(m, page)
-        let cap = Page.capMinimap(m.currentPage, page)
-        let cmds = Cmd.batch(\"@"(list{API.sendPresence(m, avMessage), ...cap}, list{afCmd}))
+        let cmds = Cmd.batch(\"@"(list{API.sendPresence(m, avMessage)}, list{afCmd}))
 
         (Page.setPage(m, m.currentPage, page), cmds)
       } else {
@@ -1959,10 +1958,6 @@ let update_ = (msg: msg, m: model): modification => {
     Fluid.update(m, msg)
   | ResetToast =>
     ReplaceAllModificationsWithThisOne(m => ({...m, toast: Defaults.defaultToast}, Cmd.none))
-  | UpdateMinimap(data) =>
-    ReplaceAllModificationsWithThisOne(
-      m => ({...m, canvasProps: {...m.canvasProps, minimap: data}}, Cmd.none),
-    )
   | HideTopbar => ReplaceAllModificationsWithThisOne(m => ({...m, showTopbar: false}, Cmd.none))
   | LogoutOfDark =>
     ReplaceAllModificationsWithThisOne(
@@ -1974,9 +1969,6 @@ let update_ = (msg: msg, m: model): modification => {
     NoChange
   | GoToArchitecturalView =>
     Many(list{
-      ReplaceAllModificationsWithThisOne(
-        m => ({...m, canvasProps: {...m.canvasProps, minimap: None}}, Cmd.none),
-      ),
       Deselect,
       MakeCmd(Url.navigateTo(Architecture)),
     })
@@ -2140,10 +2132,6 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     }
   }
 
-  let onCaptureView = list{
-    BrowserListeners.OnCaptureView.listen(~key="capture_view", s => UpdateMinimap(Some(s))),
-  }
-
   Tea.Sub.batch(
     List.flatten(list{
       windowMouseSubs,
@@ -2155,7 +2143,6 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
       onError,
       mousewheelSubs,
       analysisSubs,
-      onCaptureView,
     }),
   )
 }
