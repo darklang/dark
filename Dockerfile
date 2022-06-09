@@ -335,6 +335,8 @@ ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 # tunnel user
 #############
 RUN sudo adduser --disabled-password --gecos '' --gid ${gid} tunnel
+# Remove use_pty as it messes up `su tunnel` commands
+RUN sudo sed -i 's!Defaults\s\+use_pty!!' /etc/sudoers
 
 ############################
 # Environment
