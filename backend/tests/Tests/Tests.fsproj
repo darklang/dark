@@ -31,6 +31,7 @@
     <Compile Include="TestConfig.fs" />
     <Compile Include="Account.Tests.fs" />
     <Compile Include="Traces.Tests.fs" />
+    <Compile Include="StorageTraces.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />
     <Compile Include="Authorization.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
