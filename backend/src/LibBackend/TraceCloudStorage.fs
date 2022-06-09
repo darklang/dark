@@ -57,5 +57,86 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 
+// Only do storage here. Anything else needs utility functions that go in
+// LibDarkInternal.
 
-let x = 5
+type RoundTrippableDval = RT.Dval
+type FunctionArgHash = string
+type FnName = string
+type InputVars = List<string * RoundTrippableDval>
+
+type Result = NodaTime.Instant * RoundTrippableDval
+
+type CloudStorageFormat =
+  { storageVersion : int // maybe in metadata instead
+    hashVersion : int
+    input : InputVars
+    timestamp : NodaTime.Instant
+    functionResults : Map<tlid, Map<id, FnName * FunctionArgHash * RoundTrippableDval>> }
+
+// let client = Google.Cloud.Storage.StorageClientImpl.Create()
+
+let roundtrippableToDval (rt : RoundTrippableDval) : RT.Dval = rt
+
+let bucketName = Config.allowTestRoutes
+
+// Require TLIDs rather than having unbounded search
+let listMostRecentTraceIDs
+  (canvasID : CanvasID)
+  (tlid : tlid)
+  : Task<List<AT.TraceID>> =
+  Sql.query
+    "SELECT trace_id
+       FROM tracesV0
+      WHERE canvas_id = @canvas_id
+        AND tlid = @tlid
+   ORDER BY timestamp DESC
+      LIMIT 10"
+  |> Sql.parameters [ "canvas_id", Sql.uuid canvasID; "tlid", Sql.tlid tlid ]
+  |> Sql.executeAsync (fun read -> read.uuid "trace_id")
+
+
+module Test =
+  let listAllTraceIDs (canvasID : CanvasID) : Task<List<AT.TraceID>> =
+    Sql.query
+      "SELECT trace_id
+       FROM tracesV0
+      WHERE canvas_id = @canvas_id
+   ORDER BY timestamp DESC"
+    |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
+    |> Sql.executeAsync (fun read -> read.uuid "trace_id")
+
+  let fetchTraceData
+    (canvasID : CanvasID)
+    (traceID : AT.TraceID)
+    : Task<CloudStorageFormat> =
+    // TODO
+    Task.FromResult(Unchecked.defaultof<CloudStorageFormat>)
+
+
+
+let storeToCloudStorage
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (touchedTLIDs : List<tlid>)
+  (storedInput : RT.Dval)
+  (functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>)
+  : Task<unit> =
+  task {
+    // construct the data
+    let data =
+      { hashVersion = 0 // TODO
+        input = [] // TODO
+        functionResults = Map [] // TODO
+        storageVersion = 0 // TODO
+        timestamp = NodaTime.Instant.now () // TODO
+      }
+    let data = Json.Vanilla.serialize data
+
+    // Save it to cloud storage
+
+
+
+    // save the tlid data to the DB
+    return ()
+  }

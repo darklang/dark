@@ -157,6 +157,15 @@ let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENT
 
 
 // -------------------------
+// Traces
+// -------------------------
+let traceStorageBucketName = string "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"
+
+let traceStorageCredentials =
+  credentialsOption "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"
+
+
+// -------------------------
 // Infra
 // -------------------------
 let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"

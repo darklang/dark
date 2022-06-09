@@ -238,34 +238,11 @@ let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
     storeTraceResults = fun () -> storeTraceResults canvasID traceID results
     storeInput = storeTraceInput canvasID traceID }
 
-type RoundTrippableDval = int
-type FunctionArgHash = string
-type HashVersion = int
-type FnName = string
-type InputVars = List<string * RoundTrippableDval>
-
-type FunctionResult =
-  FnName * tlid * id * FunctionArgHash * HashVersion * RoundTrippableDval
-
-type Result = NodaTime.Instant * RoundTrippableDval
-
-type CloudStorageFormat =
-  { storageVersion : int // maybe in metadata instead
-    input : InputVars
-    timestamp : NodaTime.Instant
-    functionResults : List<FunctionResult> }
-
-
-
-
 let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
   let results = { TraceResults.empty () with tlids = touchedTLIDs }
-  let mutable storedInput = None
-  let storeToCloudStorage () : unit =
-    LibService.FireAndForget.fireAndForgetTask "storeTraceToCloudStorage" (fun () ->
-      task { return () })
+  let mutable storedInput : RT.Dval = RT.DNull
   { enabled = true
     results = results
     executionTracing =
@@ -280,14 +257,20 @@ let createCloudStorageTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
                 (tlid, name, id, hash)
                 (result, NodaTime.Instant.now ())
                 results.functionResults)
-          storeFnArguments =
-            (fun tlid args ->
-              ResizeArray.append
-                (tlid, args, NodaTime.Instant.now ())
-                results.functionArguments)
+          storeFnArguments = (fun tlid args -> ()) // we don't use this
           traceTLID = traceTLIDFn }
-    storeTraceResults = storeToCloudStorage
-    storeInput = fun _ input -> storedInput <- Some input }
+    storeTraceResults =
+      fun () ->
+        LibService.FireAndForget.fireAndForgetTask
+          "store-to-cloud-storage"
+          (fun () ->
+            TraceCloudStorage.storeToCloudStorage
+              canvasID
+              traceID
+              (HashSet.toList touchedTLIDs)
+              storedInput
+              results.functionResults)
+    storeInput = fun _ input -> storedInput <- input }
 
 
 let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID) : T =
