@@ -780,7 +780,5 @@ String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 [test.stringForeach]
 // Check that foreach executes the right number of times
-// CLEANUP only needed for OCaml
-(let _ = Test.resetSideEffectCounter_v0 "foreach" in
- let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 "foreach" false) in
+(let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 "foreach" false) in
  Test.sideEffectCount_v0 "foreach") = 8
