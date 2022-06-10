@@ -1434,7 +1434,7 @@ module Ply =
             let! accum = accum
             return! f accum arg
           })
-        (Ply<'state> initial)
+        (Ply initial)
         list
 
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
@@ -1527,7 +1527,7 @@ module Ply =
             let! (accum : 'state) = accum
             return! f accum key arg
           })
-        (Ply<'state> initial)
+        (Ply(initial))
         dict
 
     let mapSequentially
