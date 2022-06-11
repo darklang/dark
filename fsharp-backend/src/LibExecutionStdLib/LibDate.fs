@@ -482,9 +482,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
+          // this was made bug-for-bug compatible with old OCaml backend
           let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
           Ply(Dval.int s)
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Date" "hour" 2
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the hour portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Ply(Dval.int d.Hour)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -498,7 +511,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
+          // this was made bug-for-bug compatible with the old OCaml backend
           let s =
             if d.Year < 1970 then
               if d.Second = 0 then (d.Minute - 60) % 60 else d.Minute - 59
@@ -512,6 +525,19 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "Date" "minute" 1
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the minute portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Ply(Dval.int d.Minute)
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "Date" "second" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -519,9 +545,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
+          // this was made bug-for-bug compatible with the old OCaml backend
           let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
           Ply(Dval.int s)
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Date" "second" 1
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the second portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Ply(Dval.int d.Second)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
