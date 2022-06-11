@@ -170,6 +170,7 @@ module Eval =
     (userTypes : List<ORT.user_tipe>)
     (dbs : List<ORT.fluidExpr ORT.DbT.db>)
     (expr : ORT.fluidExpr)
+    (secrets : List<OT.secret>)
     : Task<ClientInterop.AnalysisEnvelope> =
     task {
       let program : RT.ProgramContext =
@@ -194,7 +195,7 @@ module Eval =
             |> List.map PT2RT.DB.toRT
             |> List.map (fun t -> t.name, t)
             |> Map
-          secrets = [] }
+          secrets = secrets |> List.map (OT.Convert.ocamlSecret2RT) }
 
       let stdlib =
         LibExecutionStdLib.StdLib.fns
@@ -250,6 +251,7 @@ module Eval =
         ah.user_tipes
         (List.map ClientInterop.convert_db ah.dbs)
         ah.handler.ast
+        ah.secrets
     | ClientInterop.AnalyzeFunction af ->
       runAnalysis
         af.func.tlid
@@ -259,6 +261,7 @@ module Eval =
         af.user_tipes
         (List.map ClientInterop.convert_db af.dbs)
         af.func.ast
+        af.secrets
 
 open System
 open System.Reflection
