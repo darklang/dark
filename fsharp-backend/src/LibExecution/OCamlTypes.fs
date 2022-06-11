@@ -842,8 +842,8 @@ module Convert =
         else
           nameStr |> String.replace "_v0" ""
 
-
       ORT.EFnCall(id, name, List.map r args, rt2ocamlSter rail)
+
     | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.InPipe pipeID, rail) ->
       // Convert
       //   fn3 (fn2 (fn1 a b c) d e) f g
@@ -869,6 +869,8 @@ module Convert =
       let pipeTarget = ORT.EPipeTarget(gid ())
       let fnCall = ORT.EFnCall(id, name, pipeTarget :: actualArgs, rt2ocamlSter rail)
       ORT.EPipe(pipeID, pipeStart @ [ fnCall ])
+    | RT.EApply (id, RT.ELambda (_id, vars, expr), _exprs, _isInPipe, _rail) ->
+      ORT.ELambda(id, vars, r expr)
     | RT.EFQFnValue _
     | RT.EApply (_, _, _, _, _) ->
       // these shouldn't happen in practice at the moment
