@@ -23,7 +23,7 @@ module LibExecution.RuntimeTypes
 // These formats should never be serialized/deserialized, that defeats the
 // purpose. If you need to save data of this format, create a set of new
 // types and convert this type into them. (even if they are identical).
-// CLEANUP: we probably do serialize Dvals though :(
+// CLEANUP: we serialize Dvals though :(
 //
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
@@ -603,7 +603,8 @@ module Dval =
         | m, _, _ -> m)
       fields
 
-  // CLEANUP a version of obj that's backward compatible with the OCaml interpreter. Hopefully we'll get rid of this in the future.
+  // CLEANUP a version of obj that's backward compatible with the OCaml interpreter.
+  // Hopefully we'll get rid of this in the future.
   let interpreterObj (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold

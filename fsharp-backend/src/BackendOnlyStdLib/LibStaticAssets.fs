@@ -152,6 +152,7 @@ let fns : List<BuiltInFn> =
         | state, [] ->
           uply {
             // CLEANUP calling this with no deploy hash generates an error
+            // (should be Option<TStr>)
             match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->

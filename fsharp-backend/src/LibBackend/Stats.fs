@@ -31,7 +31,7 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
   |> List.map (fun (tlid, db) ->
     task {
       let db = PT2RT.DB.toRT db
-      // CLEANUP this is a lot of reqs
+      // CLEANUP this is a lot of DB requests (2 per user DB)
       let! count = UserDB.statsCount canvasID ownerID db
       let! example = UserDB.statsPluck canvasID ownerID db
       return (tlid, { count = count; example = example })
