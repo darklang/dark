@@ -539,7 +539,7 @@ let fns : List<BuiltInFn> =
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
           else
-            // CLEANUP
+            // CLEANUP: we need a new version of this fn.
             // This behaviour is the worst. This mimics what OCaml did: There
             // should be (n-1) empty strings returned for each sequence of n
             // strings matching the separator (eg: split "aaaa" "a" = ["",

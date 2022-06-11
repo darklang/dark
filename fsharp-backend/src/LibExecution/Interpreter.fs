@@ -618,7 +618,7 @@ and execFn
       // in the editor. If we do, we'll recurse forever and blow the stack.
       return DIncomplete(SourceID(state.tlid, id))
     else
-      // CLEANUP: optimization opp
+      // CLEANUP: optimization opportunity
       let state =
         { state with
             executingFnName = Some fnDesc
@@ -643,6 +643,7 @@ and execFn
               fnDesc = FQFnName.Stdlib
                          { module_ = "Bool"; function_ = "isError"; version = 0 }
               ->
+              // TODO: state.notify here, then check a month later, to evaluate and then delete
               false
             | DError _
             | DIncomplete _ -> true
