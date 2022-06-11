@@ -487,7 +487,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Date" "hour" 2) }
 
 
     { name = fn "Date" "hour" 2
@@ -521,7 +521,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Date" "minute" 1) }
 
 
     { name = fn "Date" "minute" 1
@@ -550,7 +550,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Date" "second" 1) }
 
 
     { name = fn "Date" "second" 1
