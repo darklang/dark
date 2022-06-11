@@ -93,8 +93,7 @@ let userInfoMiddleware : HttpMiddleware =
       match! Account.getUser sessionData.username with
       | None -> return! redirectOr notFound ctx
       | Some user ->
-        // CLEANUP - change to x-darklang-username
-        ctx.SetHeader("x-dark-username", string user.username)
+        ctx.SetHeader("x-darklang-username", string user.username)
         t.span ()
         |> Telemetry.Span.addTags [ "username", sessionData.username
                                     "userID", user.id
