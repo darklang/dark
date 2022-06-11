@@ -673,7 +673,8 @@ module Convert =
     | BSTypes.UserType ut -> PT.Toplevel.TLType(ocamlUserType2PT ut)
     | BSTypes.UserFn uf -> PT.Toplevel.TLFunction(ocamlUserFunction2PT uf)
 
-
+  let ocamlSecret2RT (secret : secret) : RT.Secret.T =
+    { name = secret.secret_name; value = secret.secret_value }
 
   // ----------------
 // ProgramTypes to OCaml
