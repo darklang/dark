@@ -360,9 +360,9 @@ jobs:
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Wasm/Wasm.fsproj
-      - run: cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/
-      - run: rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
+      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Analysis/Analysis.fsproj
+      - run: cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/
+      - run: rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."

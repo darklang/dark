@@ -26,7 +26,7 @@
     <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Wasm.fs" />
+    <Compile Include="Analysis.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
