@@ -481,10 +481,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hour portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
-          let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
-          Ply(Dval.int s)
+        | _, [ DDate d ] -> Ply(Dval.int d.Hour)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -497,15 +494,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the minute portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
-          let s =
-            if d.Year < 1970 then
-              if d.Second = 0 then (d.Minute - 60) % 60 else d.Minute - 59
-            else
-              d.Minute
-
-          Ply(Dval.int s)
+        | _, [ DDate d ] -> Ply(Dval.int d.Minute)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -518,10 +507,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] ->
-          // CLEANUP - this was made bug-for-bug compatible
-          let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
-          Ply(Dval.int s)
+        | _, [ DDate d ] -> Ply(Dval.int d.Second)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
