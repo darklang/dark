@@ -6,7 +6,7 @@ module BackendOnlyStdLib.HttpQueryEncoding
 /// prefer not to share code like this as we may need to mutate one and don't want to
 /// change how other parts of the framework and standard library work. If we do
 /// further work on any of this, we may want to split functionality out in some way,
-/// including dupliucating code.
+/// including duplicating code.
 ///
 /// CLEANUP: this isn't a great place for this file, at time of writing we don't have
 /// a better idea.
@@ -95,7 +95,6 @@ let ofQuery (query : List<string * List<string>>) : RT.Dval =
   |> List.map (fun (k, v) ->
     match v with
     | [] -> k, RT.DNull
-    | [ "" ] -> k, RT.DNull // CLEANUP this should be a string
     | [ v ] -> k, RT.DStr v
     | list -> k, RT.DList(List.map RT.DStr list))
   |> Map

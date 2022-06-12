@@ -22,10 +22,10 @@ Content-Length: LENGTH
 
 {
   "b": {
-    "param": null
+    "param": ""
   },
   "f": {
-    "param": null
+    "param": ""
   },
   "fb": "param=",
   "j": null
