@@ -72,7 +72,7 @@ module Delete =
       let! p = ctx.ReadJsonAsync<Params>()
       Telemetry.addTags [ "secret_name", p.secret_name ]
 
-      // CLEANUP: only do this if the secret is not used on the canvas
+      // TODO: only do this if the secret is not used on the canvas
       t.next "delete-secret"
       do! LibBackend.Secret.delete canvasInfo.id p.secret_name
 
