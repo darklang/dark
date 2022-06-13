@@ -761,7 +761,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal b ] ->
           uply {
-            let incomplete = ref false
+            let mutable incomplete = false
 
             let f (dv : Dval) : Ply<bool> =
               uply {
@@ -777,14 +777,14 @@ let fns : List<BuiltInFn> =
                 match r with
                 | DBool b -> return b
                 | DIncomplete _ ->
-                  incomplete := true
+                  incomplete <- true
                   return false
                 | v ->
                   Exception.raiseCode (Errors.expectedLambdaType "fn" TBool dv)
                   return false
               }
 
-            if !incomplete then
+            if incomplete then
               return DIncomplete SourceNone
             else
               let! result = Ply.List.filterSequentially f l
