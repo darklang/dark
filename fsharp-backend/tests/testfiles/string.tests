@@ -412,6 +412,22 @@ String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead 
 String.toInt_v1 "0" = Ok 0
 String.toInt_v1 "1" = Ok 1
 
+String.toInt_v2 "" = Error "Expected to parse string with only numbers, instead got \"\""
+String.toInt_v2 "-00001" = Ok -1
+String.toInt_v2 "-10001" = Ok -10001
+String.toInt_v2 "-4611686018427387903" = Ok -4611686018427387903I
+String.toInt_v2 "-4611686018427387904" = Ok -4611686018427387904I
+String.toInt_v2 "-4611686018427387905" = Ok -4611686018427387905I
+String.toInt_v2 "-9223372036854775808" = Ok -9223372036854775808I
+String.toInt_v2 "-9223372036854775809" = Error "Expected to parse string with only numbers, instead got \"-9223372036854775809\""
+String.toInt_v2 "4611686018427387903" = Ok 4611686018427387903I
+String.toInt_v2 "4611686018427387904" = Ok 4611686018427387904I
+String.toInt_v2 "9223372036854775807" = Ok 9223372036854775807I
+String.toInt_v2 "9223372036854775808" = Error "Expected to parse string with only numbers, instead got \"9223372036854775808\""
+String.toInt_v2 "" = Error "Expected to parse string with only numbers, instead got \"\""
+String.toInt_v2 "0" = Ok 0
+String.toInt_v2 "1" = Ok 1
+
 String.toFloat_v0 "1.5" = 1.5
 String.toFloat_v0 "0.0" = 0.0
 String.toFloat_v0 "-0.5" = -0.5
