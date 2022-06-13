@@ -42,6 +42,7 @@ List of accounts used by Dark as part of running Dark
 - [CloudFlare](https://cloudflare.com) slight usage for some DNS
 - [PositiveSSL](https://www.positivessl.com) manages certificates for darksa.com
 - [let's encrypt](https://letsencrypt.org) certificate management and custom domains
+  see [custom-domains](./custom-domains.md)
 - [brex](https://www.brex.com) how we pay for everything
 - [name.com](http://name.com) TODO what do we use this for?
 - [Ghost.org](https://ghost.org) powers [the blog](https://blog.darklang.com)
@@ -51,6 +52,7 @@ List of accounts used by Dark as part of running Dark
 # Monitoring
 
 - [Honeycomb](https://honeycomb.io) for monitoring, production analysis, etc.
+  see [honeycomb.md](./honeycomb.md)
 - [Rollbar](https://rollbar.com) for recording, exploring, and resolving bugs
 - [PagerDuty](https://pagerduty.com) for alerting when things are broken
   - triggers from rollbar, pingdom and honeycomb
