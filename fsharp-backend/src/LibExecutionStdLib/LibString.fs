@@ -211,7 +211,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           try
-            // CLEANUP: These constants represent how high the OCaml parsers would go
+            // These constants represent how high the old OCaml parsers would go
             let int = s |> parseInt64
 
             if int < -4611686018427387904L then
@@ -220,6 +220,29 @@ let fns : List<BuiltInFn> =
               Exception.raiseInternal "goto exception case" []
             else
               int |> DInt |> Ok |> DResult |> Ply
+          with
+          | e ->
+            $"Expected to parse string with only numbers, instead got \"{s}\""
+            |> DStr
+            |> Error
+            |> DResult
+            |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toInt" 2) }
+
+
+    { name = fn "String" "toInt" 2
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TInt, TStr)
+      description =
+        "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+          try
+            s |> parseInt64 |> DInt |> Ok |> DResult |> Ply
           with
           | e ->
             $"Expected to parse string with only numbers, instead got \"{s}\""
