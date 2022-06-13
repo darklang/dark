@@ -41,6 +41,7 @@ let prefixFns : List<BuiltInFn> =
     LibNoModule.fns
     LibOption.fns
     LibResult.fns
+    LibCrypto.fns
     LibString.fns ]
   |> List.concat
   |> renameFunctions renames
