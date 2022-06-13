@@ -42,9 +42,8 @@
     "build:appsupport": "browserifyinc --cachefile lib/browserify-cache.json client/src/appsupport.js --standalone appsupport -o backend/static/appsupport.js",
     "build:unsupportedBrowser": "browserifyinc --cachefile lib/browserify-cache.json client/src/unsupportedBrowser.js --standalone unsupportedBrowser -o backend/static/unsupportedBrowser.js",
     "build:fetcher": "browserifyinc --cachefile lib/browserify-fetcher-cache.json lib/js/client/workers/Fetcher.bs.js --standalone fetcher -o backend/static/fetcher.js",
-    "build:analysiswrapper": "browserifyinc --cachefile lib/browserify-analysis-wrapper-cache.json lib/js/client/workers/AnalysisWrapper.bs.js --standalone analysiswrapper -o backend/static/analysiswrapper.js",
     "copy:static": "rsync -a client/static/* backend/static/",
-    "build": "npm-run-all --sequential build:rescript --parallel build:app build:appsupport build:unsupportedBrowser build:fetcher build:analysiswrapper copy:static",
+    "build": "npm-run-all --sequential build:rescript --parallel build:app build:appsupport build:unsupportedBrowser build:fetcher copy:static",
     "test": "scripts/run-client-tests --dom"
   }
 }
