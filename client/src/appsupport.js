@@ -190,20 +190,20 @@ window.Dark = {
   // ---------------------------
   // Run analysis
   // ---------------------------
-  fsharpAnalysis: {
+  analysis: {
     /* Next and busy are used to queue analyses. If busy is false, run
       immediately; else wait until the analysis is done and then run next. If
       next is not set, reset busy. */
     next: null,
     busy: false,
     /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
-    utils: require("../../lib/js/client/workers/FSharpAnalysisWrapper.bs.js"),
+    utils: require("../../lib/js/client/workers/AnalysisWrapper.bs.js"),
     debug: (function () {
       const urlParams = new URLSearchParams(window.location.search);
       return urlParams.get("debug-analysis") == "true";
     })(),
     callback: function (event) {
-      const analysis = window.Dark.fsharpAnalysis;
+      const analysis = window.Dark.analysis;
       const worker = window.BlazorWorker;
       var result = analysis.utils.decodeOutput(event.data);
 
@@ -228,7 +228,7 @@ window.Dark = {
     },
     initialized: false,
     requestAnalysis: function (params) {
-      const analysis = window.Dark.fsharpAnalysis;
+      const analysis = window.Dark.analysis;
       const worker = window.BlazorWorker;
       if (!analysis.initialized) {
         console.log("BlazorWorker not loaded yet");
@@ -263,7 +263,7 @@ window.Dark = {
       }
     },
     initializeBlazorWorker: function () {
-      const analysis = window.Dark.fsharpAnalysis;
+      const analysis = window.Dark.analysis;
       let initializedCallback = () => {
         console.log("Blazor loaded");
         analysis.initialized = true;
@@ -274,11 +274,6 @@ window.Dark = {
         analysis.callback,
         analysis.errorCallback,
       );
-    },
-  },
-  analysis: {
-    requestAnalysis: function (params) {
-      window.Dark.fsharpAnalysis.requestAnalysis(params);
     },
     // Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp
     lastRun: 0,
@@ -566,7 +561,7 @@ setTimeout(function () {
   // ---------------------------
   // Initialize blazorworker
   // ---------------------------
-  window.Dark.fsharpAnalysis.initializeBlazorWorker();
+  window.Dark.analysis.initializeBlazorWorker();
 
   // ---------------------------
   // Detect window focus change
