@@ -302,8 +302,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        // CLEANUP "Returns the string, uppercased (only ASCII characters are uppercased)"
-        "Returns the string, uppercased"
+        "Returns the string, uppercased (only ASCII characters are uppercased)"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -336,8 +335,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        // CLEANUP "Returns the string, lowercased (only ASCII characters are lowercased)"
-        "Returns the string, lowercased"
+        "Returns the string, lowercased (only ASCII characters are lowercased)"
       fn =
         (function
         | _, [ DStr s ] ->
