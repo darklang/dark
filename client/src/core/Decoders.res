@@ -344,8 +344,8 @@ let rec dval = (j): dval => {
      * language isn't intended to have them, we haven't actually managed to
      * eradicate them from the runtime, and so we'll sometimes get the from the
      * analysis code.  However, since JSON doesn't support Infinity/NaN, our
-     * JSON parser crashes. So instead we encode them specially in
-     * Jsanalysis.clean_yojson, which is the encoder which matches this decoder
+     * JSON parser crashes. So instead we encode them specially in the backend,
+     * with quotes, e.g. "NaN".
      *
      * CLEANUP remove OCaml-specific parsing here.
      * The checks within `Some` are for OCaml analysis, while the ones under `None` are

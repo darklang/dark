@@ -181,7 +181,6 @@ def backend_build():
   start = time.time()
 
   exes = []
-  exes.append("@analysis.js")
   exes.append("backend/test/test.exe")
   exes.append("backend/bin/server.exe")
   exes.append("backend/bin/garbage_collector_worker.exe")
@@ -518,8 +517,7 @@ def mark(should, f):
   elif ("/backend/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f) \
-                  or ("_tags" in f) \
-                  or ("libtarget.js" in f)) \
+                  or ("_tags" in f)) \
           or ("dune" in f):
     should.backend_build = True
 
