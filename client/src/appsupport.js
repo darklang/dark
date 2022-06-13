@@ -190,55 +190,6 @@ window.Dark = {
   // ---------------------------
   // Run analysis
   // ---------------------------
-  ocamlAnalysis: {
-    /* Next and busy are used to queue analyses. If busy is false, run
-      immediately; else wait until the analysis is done and then run next. If
-      next is not set, reset busy. */
-    next: null,
-    busy: false,
-    requestAnalysis: function (params) {
-      const analysis = window.Dark.ocamlAnalysis;
-      const worker = window.analysisWorker;
-      if (!worker) {
-        console.log("AnalysisWorker not loaded yet");
-        setTimeout(function () {
-          console.log("Trying AnalysisWorker again");
-          analysis.requestAnalysis(params);
-        }, 100);
-        return;
-      }
-
-      // analysis queue: run immediately or store if busy
-      if (window.Dark.analysis.busy) {
-        // busy: record for next time
-        analysis.next = params;
-      } else {
-        // not busy: run it immediately
-        worker.postMessage(params);
-        analysis.busy = true;
-      }
-
-      worker.onmessage = function (e) {
-        var result = e.data;
-
-        var event = new CustomEvent("receiveAnalysis", { detail: result });
-        document.dispatchEvent(event);
-
-        // analysis queue: run the next analysis or mark not busy
-        let params = analysis.next;
-        if (params === null) {
-          // no analyses waiting, we're done
-          analysis.busy = false;
-        } else {
-          // an analysis is waiting, run it
-          analysis.next = null;
-          worker.postMessage(params);
-        }
-
-        window.Dark.analysis.lastRun = new Date();
-      };
-    },
-  },
   fsharpAnalysis: {
     /* Next and busy are used to queue analyses. If busy is false, run
       immediately; else wait until the analysis is done and then run next. If
@@ -318,27 +269,16 @@ window.Dark = {
         analysis.initialized = true;
       };
       // Only load when asked for
-      if (window.Dark.analysis.useBlazor) {
-        window.BlazorWorker.initWorker(
-          initializedCallback,
-          analysis.callback,
-          analysis.errorCallback,
-        );
-      }
+      window.BlazorWorker.initWorker(
+        initializedCallback,
+        analysis.callback,
+        analysis.errorCallback,
+      );
     },
   },
   analysis: {
-    useBlazor: (function () {
-      const urlParams = new URLSearchParams(window.location.search);
-      const useOcaml = !!urlParams.get("use-ocaml-analysis");
-      return !useOcaml;
-    })(),
     requestAnalysis: function (params) {
-      if (window.Dark.analysis.useBlazor) {
-        window.Dark.fsharpAnalysis.requestAnalysis(params);
-      } else {
-        window.Dark.ocamlAnalysis.requestAnalysis(params);
-      }
+      window.Dark.fsharpAnalysis.requestAnalysis(params);
     },
     // Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp
     lastRun: 0,
@@ -616,20 +556,7 @@ setTimeout(function () {
     "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
   let buildHashSetup = "const buildHash = '" + buildHash + "';\n\n";
 
-  let analysisjs = fetcher("/analysis.js");
-  let analysiswrapperjs = fetcher("/analysiswrapper.js");
   let fetcherjs = fetcher("/fetcher.js");
-  (async function () {
-    var strings = [
-      rollbarConfigSetup,
-      buildHashSetup,
-      await analysisjs,
-      "\n\n",
-      await analysiswrapperjs,
-    ];
-    var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
-    window.analysisWorker = new Worker(analysisWorkerUrl);
-  })();
   (async function () {
     var strings = [rollbarConfigSetup, buildHashSetup, await fetcherjs];
     var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
