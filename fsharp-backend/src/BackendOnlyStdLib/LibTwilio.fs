@@ -8,6 +8,8 @@ module Errors = LibExecution.Errors
 
 module Canvas = LibBackend.Canvas
 
+module LibHttpClientAuth = LibExecutionStdLib.LibHttpClientAuth
+
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = Errors.incorrectArgs

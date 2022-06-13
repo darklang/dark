@@ -1,5 +1,5 @@
 /// StdLib HttpClient Auth functions
-module BackendOnlyStdLib.LibHttpClientAuth
+module LibExecutionStdLib.LibHttpClientAuth
 
 open FSharpPlus
 
@@ -37,7 +37,6 @@ let encodeBasicAuth (u : string) (p : string) : string =
 
   $"Basic {Base64.defaultEncodeToString input}"
 
-// CLEANUP move to libexecution functions
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "basicAuth" 0
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
@@ -49,9 +48,10 @@ let fns : List<BuiltInFn> =
         | _, [ DStr u; DStr p ] ->
           Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuthBroken u p)) ]))
         | args -> incorrectArgs ())
-      previewable = Impure
+      previewable = Pure
       sqlSpec = NotYetImplementedTODO
       deprecated = ReplacedBy(fn "HttpClient" "basicAuth" 1) }
+
 
     { name = fn "HttpClient" "basicAuth" 1
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
@@ -63,6 +63,6 @@ let fns : List<BuiltInFn> =
         | _, [ DStr u; DStr p ] ->
           Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuth u p)) ]))
         | args -> incorrectArgs ())
-      previewable = Impure
+      previewable = Pure
       sqlSpec = NotYetImplementedTODO
       deprecated = NotDeprecated } ]
