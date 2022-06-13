@@ -31,6 +31,8 @@ let parseString str :
     try
       (* Use strings here as js_of_ocaml is not able to deal with int literals
        * outside the 31-bit range *)
+      (* Edit: We no longer use OCaml-built code for Analysis, but the code should
+       * stay as-is as it's consistent with F#'s impl. *)
       let i = Int63.of_string s in
       Int63.of_string "-4611686018427387903" <= i
       && i <= Int63.of_string "4611686018427387903"
