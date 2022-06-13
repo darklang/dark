@@ -13,7 +13,6 @@ function wait_for {
   done
 }
 
-wait_for analysis.js
 wait_for app.js
 wait_for appsupport.js
 wait_for app.css

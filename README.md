@@ -178,10 +178,8 @@ the dev container.
 
 ## Production Services
 
-The app is split into [backend/](backend) (being converted into
-[fsharp-backend](fsharp-backend)) and [client/](client). Part of the backend is
-used in the client ([jsanalysis](backend/jsanalysis), and in F#:
-[Wasm](fsharp-backend/src/Wasm)).
+The app is split into [fsharp-backend](fsharp-backend) and [client/](client).
+Part of the backend is used in the client ([Wasm](fsharp-backend/src/Wasm).
 These are compiled to create libraries and binaries.
 
 These are put into containers, whose definitions are in [containers/](containers). We also
