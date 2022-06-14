@@ -23,12 +23,6 @@ let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let parseInt64 (str : string) : int64 =
-  try
-    assertRe "int64" @"-?\d+" str
-    System.Convert.ToInt64 str
-  with
-  | e -> Exception.raiseInternal $"parseInt64 failed" [ "str", str; "inner", e ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
@@ -192,7 +186,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
@@ -218,7 +212,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s ] ->
           try
             // These constants represent how high the old OCaml parsers would go
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
@@ -248,7 +242,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           try
-            s |> parseInt64 |> DInt |> Ok |> DResult |> Ply
+            s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
           with
           | e ->
             $"Expected to parse string with only numbers, instead got \"{s}\""
