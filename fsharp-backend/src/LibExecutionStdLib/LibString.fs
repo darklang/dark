@@ -23,6 +23,12 @@ let err (str : string) = Ply(Dval.errStr str)
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
+let parseInt64 (str : string) : int64 =
+  try
+    assertRe "int64" @"-?\d+" str
+    System.Convert.ToInt64 str
+  with
+  | e -> Exception.raiseInternal $"parseInt64 failed" [ "str", str; "inner", e ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
