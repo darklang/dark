@@ -223,8 +223,7 @@ let fns : List<BuiltInFn> =
           Ply(DDate(DDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      // CLEANUP mark as Impure
-      previewable = Pure
+      previewable = Impure
       deprecated = NotDeprecated }
 
 
