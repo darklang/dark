@@ -22,7 +22,6 @@
     <Compile Include="LibJson.fs" />
     <Compile Include="LibList.fs" />
     <Compile Include="LibMath.fs" />
-    <Compile Include="LibMiddleware.fs" />
     <Compile Include="LibNoModule.fs" />
     <Compile Include="LibObject.fs" />
     <Compile Include="LibOption.fs" />
