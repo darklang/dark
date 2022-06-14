@@ -368,6 +368,43 @@ test.describe.parallel("Integration Tests", async () => {
   // Tests below here. Don't forget to update client/src/IntegrationTest.ml
   // ------------------------
 
+  test("analysis_performed_in_appropriate_timezone", async ({
+    page,
+  }, testInfo) => {
+    // Create an HTTP handler that's just `Date::now`
+    const url = "/date-now";
+    await createHTTPHandler(page, "GET", url);
+
+    await page.type("#active-editor", "Date::no");
+    await page.keyboard.press("Enter");
+
+    // execute the fn in the editor ("analysis"), get the result
+    const t1 = Date.now();
+    await page.click(".execution-button");
+    await awaitAnalysis(page, t1);
+
+    await expect(page.locator(".selected .live-value.loaded")).toContainText(
+      "Date",
+    );
+    let analysisResponse = await page.textContent(
+      ".selected .live-value.loaded",
+    );
+    let analysisResponseDateStr =
+      // analysisResponse looks like: "<Date: 2022-06-14T14:16:14Z>"
+      // This is a cheap way of extracting the date from that
+      analysisResponse.replace(">", "").replace("<Date: ", "");
+    let analysisResponseDate = new Date(analysisResponseDateStr);
+
+    // Call the endpoint in BWD
+    let bwdResponse = await get(page, bwdUrl(testInfo, url));
+    let bwdDate = new Date(bwdResponse.replace('"', "").replace('"', ""));
+
+    // expect that they're within a few seconds (rather than hours apart)
+    const diffInSeconds =
+      (bwdDate.getTime() - analysisResponseDate.getTime()) / 1000;
+    expect(diffInSeconds).toBeLessThan(5);
+  });
+
   test("switching_from_http_to_cron_space_removes_leading_slash", async ({
     page,
   }) => {

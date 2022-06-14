@@ -765,6 +765,8 @@ let package_function_references_work = (_m: model): testResult => pass
 
 let focus_on_secret_field_on_insert_modal_open = (_m: model): testResult => pass
 
+let analysis_performed_in_appropriate_timezone = (_m: model): testResult => pass
+
 let trigger = (test_name: string): integrationTestState => {
   let name = String.dropLeft(~count=5, test_name)
   IntegrationTestExpectation(
@@ -851,6 +853,7 @@ let trigger = (test_name: string): integrationTestState => {
     | "redo_analysis_on_commit_ff" => redo_analysis_on_commit_ff
     | "package_function_references_work" => package_function_references_work
     | "focus_on_secret_field_on_insert_modal_open" => focus_on_secret_field_on_insert_modal_open
+    | "analysis_performed_in_appropriate_timezone" => analysis_performed_in_appropriate_timezone
     | n => _ => fail("Test " ++ (n ++ " not added to IntegrationTest.trigger"))
     },
   )
