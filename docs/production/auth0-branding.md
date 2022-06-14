@@ -1,5 +1,5 @@
 # Images
-For branding,  we need a logo hosted as an image somewhere on the web.
+For branding, we need a logo hosted as an image somewhere on the web.
 
-Ours is in auth-branding, which has been uploaded to ops-login as a static
-asset.
+Ours is in the root `auth0-branding` directory, which has been uploaded to
+our `ops-login` canvas as a static asset.
