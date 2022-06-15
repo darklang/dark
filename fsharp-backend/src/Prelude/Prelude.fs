@@ -661,7 +661,7 @@ type NodaTime.Instant with
   static member now() : NodaTime.Instant =
     NodaTime.SystemClock.Instance.GetCurrentInstant()
 
-  // Convert to an LocalDateTime with an implicit Utc timezone
+  /// Convert to a LocalDateTime with an implicit Utc timezone
   member this.toUtcLocalTimeZone() : NodaTime.LocalDateTime =
     let utc = NodaTime.DateTimeZone.Utc
     let zonedDateTime = NodaTime.ZonedDateTime(this, utc)
@@ -670,6 +670,14 @@ type NodaTime.Instant with
     let mutable (offset : NodaTime.Offset) = NodaTime.Offset()
     zonedDateTime.Deconstruct(&localDateTime, &tz, &offset)
     localDateTime
+
+  /// Inverse of toUtcLocalTimeZone
+  static member ofUtcLocalTimeZone
+    (value : NodaTime.LocalDateTime)
+    : NodaTime.Instant =
+    NodaTime
+      .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
+      .ToInstant()
 
   member this.toIsoString() : string =
     let dt = this.ToDateTimeUtc()
@@ -682,7 +690,6 @@ type NodaTime.Instant with
     let dt = dt.AddTicks(-dt.Ticks % System.TimeSpan.TicksPerSecond)
     NodaTime.Instant.FromDateTimeUtc dt
 
-
   static member ofIsoString(str : string) : NodaTime.Instant =
     let dt =
       System.DateTime.ParseExact(
@@ -692,6 +699,7 @@ type NodaTime.Instant with
       )
     let utcDateTime = System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
     NodaTime.Instant.FromDateTimeUtc utcDateTime
+
   static member ofUtcInstant
     (
       year,
@@ -917,6 +925,7 @@ module Json =
 
       override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
         let rawToken = reader.GetString()
+
         try
           (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
         with
@@ -930,11 +939,7 @@ module Json =
           value : NodaTime.LocalDateTime,
           _options
         ) =
-        let value =
-          NodaTime
-            .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
-            .ToInstant()
-            .toIsoString ()
+        let value = NodaTime.Instant.ofUtcLocalTimeZone(value).toIsoString ()
         writer.WriteStringValue(value)
 
     type RawBytesConverter() =
@@ -1244,11 +1249,7 @@ module Json =
           value : NodaTime.LocalDateTime,
           serializer : JsonSerializer
         ) : unit =
-        let value =
-          NodaTime
-            .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
-            .ToInstant()
-            .toIsoString ()
+        let value = NodaTime.Instant.ofUtcLocalTimeZone(value).toIsoString ()
         serializer.Serialize(writer, value)
 
 
