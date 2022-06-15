@@ -22,7 +22,6 @@
     <Compile Include="LibJson.fs" />
     <Compile Include="LibList.fs" />
     <Compile Include="LibMath.fs" />
-    <Compile Include="LibMiddleware.fs" />
     <Compile Include="LibNoModule.fs" />
     <Compile Include="LibObject.fs" />
     <Compile Include="LibOption.fs" />
@@ -30,6 +29,7 @@
     <Compile Include="LibString.fs" />
     <Compile Include="LibUuid.fs" />
     <Compile Include="LibCrypto.fs" />
+    <Compile Include="LibHttpClientAuth.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <ItemGroup>

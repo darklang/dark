@@ -30,6 +30,7 @@ let prefixFns : List<BuiltInFn> =
     LibFloat.fns
     LibHttp.fns
     LibHttpClient.fns
+    LibHttpClientAuth.fns
     LibJson.fns
     LibMath.fns
     LibObject.fns

@@ -135,7 +135,7 @@ module RuntimeTypes =
     |> Arb.filter (fun dval ->
       match dval with
       // These all break the serialization to OCaml
-      // CLEANUP allow all Dvals to be generated
+      // TODO allow all Dvals to be generated
       | RT.DPassword _ -> false
       | RT.DFnVal _ -> false
       | _ -> true)

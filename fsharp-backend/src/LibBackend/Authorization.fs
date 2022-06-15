@@ -166,6 +166,7 @@ let permission
   let permFs : List<unit -> Task<Option<Permission>>> =
     [ (fun () -> task { return matchPermission username owner })
       // TODO CLEANUP: remove specialCasePermission
+      // (move into grants; delete specialCasePermission code + lists)
       (fun () -> task { return specialCasePermission username owner })
       (fun () -> task { return samplePermission owner })
       (fun () -> task { return! grantedPermission username owner })

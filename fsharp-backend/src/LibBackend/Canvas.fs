@@ -39,8 +39,6 @@ let canvasIDForCanvasName
 let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-    // CLEANUP put into single query. We'll need to ignore canvas_id, but we only
-    // want when we create a new canvas by going to /a/canvas-name
     let! ownerID = Account.userIDForUserName ownerName
     let! canvasID = canvasIDForCanvasName ownerID canvasName
     return { id = canvasID; owner = ownerID; name = canvasName }
@@ -215,6 +213,7 @@ let deleteType (tlid : tlid) (c : T) : T =
         deletedUserTypes = Map.add tlid t c.deletedUserTypes }
 
 // CLEANUP Historically, on the backend, toplevel meant handler or DB
+// we want to de-conflate the concepts
 let deleteToplevel (tlid : tlid) (c : T) : T =
   c |> deleteHandler tlid |> deleteDB tlid
 
@@ -494,7 +493,6 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith deletedUserType
 
 let deleteToplevelForever (meta : Meta) (tlid : tlid) : Task<unit> =
-  // CLEANUP: delete from table where `deleted IS NULL`
   // CLEANUP: set deleted column in toplevel_oplists to be not nullable
   Sql.query
     "DELETE from toplevel_oplists

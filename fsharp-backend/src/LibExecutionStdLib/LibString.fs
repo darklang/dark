@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "s" TStr "string to iterate over"
           Param.makeWithArgs
-            "f"
+            "fn"
             (TFn([ TChar ], TChar))
             "function used to convert one character to another"
             [ "char" ] ]
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "foreach" 1
       parameters =
         [ Param.make "s" TStr ""
-          Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "character" ] ]
+          Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
       returnType = TStr
       description =
         "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
                      (function
                      | DChar c -> c
                      | dv ->
-                       Exception.raiseCode (Errors.expectedLambdaType "f" TChar dv))
+                       Exception.raiseCode (Errors.expectedLambdaType "fn" TChar dv))
                      dvals
 
                  let str = String.concat "" chars
@@ -539,7 +539,7 @@ let fns : List<BuiltInFn> =
           if sep = "" then
             s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
           else
-            // CLEANUP
+            // CLEANUP: we need a new version of this fn.
             // This behaviour is the worst. This mimics what OCaml did: There
             // should be (n-1) empty strings returned for each sequence of n
             // strings matching the separator (eg: split "aaaa" "a" = ["",
