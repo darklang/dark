@@ -675,9 +675,8 @@ type NodaTime.Instant with
   static member ofUtcLocalTimeZone
     (value : NodaTime.LocalDateTime)
     : NodaTime.Instant =
-    NodaTime
-      .ZonedDateTime(value, NodaTime.DateTimeZone.Utc, NodaTime.Offset.Zero)
-      .ToInstant()
+    let localTimeZone = NodaTime.DateTimeZoneProviders.Bcl.GetSystemDefault()
+    NodaTime.ZonedDateTime(value, localTimeZone, NodaTime.Offset.Zero).ToInstant()
 
   member this.toIsoString() : string =
     let dt = this.ToDateTimeUtc()
