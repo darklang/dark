@@ -400,8 +400,9 @@ test.describe.parallel("Integration Tests", async () => {
     let bwdDate = new Date(bwdResponse.replace('"', "").replace('"', ""));
 
     // expect that they're within a few seconds (rather than hours apart)
-    const diffInSeconds =
-      (bwdDate.getTime() - analysisResponseDate.getTime()) / 1000;
+    const diffInSeconds = Math.abs(
+      (bwdDate.getTime() - analysisResponseDate.getTime()) / 1000,
+    );
     expect(diffInSeconds).toBeLessThan(5);
   });
 
