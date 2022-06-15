@@ -160,7 +160,15 @@ let dateTests =
         "ofIsoString"
         NodaTime.Instant.ofIsoString
         [ "2000-10-01T16:01:01Z",
-          NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1) ] ]
+          NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1) ]
+      test "serialization roundtrip" {
+        let expected = "\"2022-06-14T22:08:06Z\""
+        let actual =
+          expected
+          |> Json.Vanilla.deserialize<NodaTime.LocalDateTime>
+          |> Json.Vanilla.serialize
+        assertEq "date serialization roundtrip failed" expected actual
+      } ]
 
 let assertions =
   testList
