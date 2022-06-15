@@ -28,7 +28,8 @@ let availableAdminVariants: list<variantTest> = list{NgrokVariant}
 let activeCSSClasses = (m: model): string =>
   m.tests |> List.map(~f=toCSSClass) |> String.join(~sep=" ")
 
-// todo: remove the input here
+/* It can be useful to vary the API root based on the test variant.
+ * Leaving this in for the next time that comes up. */
 let apiRoot = (_m: model): string => "/api/"
 
 
