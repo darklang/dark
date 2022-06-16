@@ -925,7 +925,7 @@ D-REMOVED */
       console.log("Calling onReady");
       // Setup the onmessage handler to call F#
       const messageHandler = Module.mono_bind_static_method(
-        "[Wasm]Wasm.EvalWorker:OnMessage",
+        "[Analysis]Analysis.EvalWorker:OnMessage",
       );
       self.onmessage = msg => {
         messageHandler(msg.data);

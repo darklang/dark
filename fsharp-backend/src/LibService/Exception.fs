@@ -11,7 +11,8 @@ type Exception with
   /// </summary>
   ///
   /// <remarks>
-  /// This is in LibService because it uses reflection and would possibly break in Wasm.
+  /// This is in LibService because it uses reflection and would possibly break
+  /// in Analysis (compiled to wasm).
   ///
   /// Sources:
   /// - https://github.com/fsharp/fslang-suggestions/issues/660#issuecomment-382070639

@@ -180,8 +180,7 @@ the dev container.
 
 The app is split into [backend/](backend) (being converted into
 [fsharp-backend](fsharp-backend)) and [client/](client). Part of the backend is
-used in the client ([jsanalysis](backend/jsanalysis), and in F#:
-[Wasm](fsharp-backend/src/Wasm)).
+used in the client ([Analysis](fsharp-backend/src/Analysis)).
 These are compiled to create libraries and binaries.
 
 These are put into containers, whose definitions are in [containers/](containers). We also
