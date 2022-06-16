@@ -197,12 +197,12 @@ test.describe.parallel("Integration Tests", async () => {
 
   async function createHTTPHandler(page: Page, method: string, path: string) {
     await createEmptyHTTPHandler(page);
-    await page.type(entryBox, method);
-    await expectExactText(page, acHighlightedValue, method);
+    await page.type(Locators.entryBox, method);
+    await expectExactText(page, Locators.acHighlightedValue, method);
     await page.keyboard.press("Enter");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, path);
-    await expectExactText(page, acHighlightedValue, path);
+    await page.type(Locators.entryBox, path);
+    await expectExactText(page, Locators.acHighlightedValue, path);
     await page.keyboard.press("Enter");
     await waitForEmptyFluidEntryBox(page);
   }
@@ -260,13 +260,12 @@ test.describe.parallel("Integration Tests", async () => {
     );
   }
 
-  //********************************
-  // Locators
-  //********************************
-  const entryBox = "#entry-box";
-  const acHighlightedValue = ".autocomplete-item.highlighted > .name";
-  const fluidACHighlightedValue = ".autocomplete-item.fluid-selected";
-  const dbLockLocator = ".db .spec-header.lock";
+  const Locators = {
+    entryBox: "#entry-box",
+    acHighlightedValue: ".autocomplete-item.highlighted > .name",
+    fluidACHighlightedValue: ".autocomplete-item.fluid-selected",
+    dbLockLocator: ".db .spec-header.lock",
+  }
 
   //********************************
   // Utilities
@@ -296,7 +295,7 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   async function expectPlaceholderText(page: Page, text: string) {
-    await expect(page.locator(entryBox)).toHaveAttribute("placeholder", text);
+    await expect(page.locator(Locators.entryBox)).toHaveAttribute("placeholder", text);
   }
 
   // Entry-box sometimes carries state over briefly, so wait til it's clear
@@ -378,7 +377,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "CRON");
+    await page.type(Locators.entryBox, "CRON");
     await page.pause();
     await page.keyboard.press("Enter");
   });
@@ -393,7 +392,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "REPL");
+    await page.type(Locators.entryBox, "REPL");
     await page.keyboard.press("Enter");
   });
 
@@ -407,13 +406,13 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "REPL");
+    await page.type(Locators.entryBox, "REPL");
     await page.keyboard.press("Enter");
   });
 
   test("enter_changes_state", async ({ page }) => {
     await page.keyboard.press("Enter");
-    await page.waitForSelector(entryBox);
+    await page.waitForSelector(Locators.entryBox);
   });
 
   test("field_access_closes", async ({ page }, testInfo) => {
@@ -423,14 +422,14 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "re");
     let start = Date.now();
     await page.type("#active-editor", "q");
-    await expectContainsText(page, fluidACHighlightedValue, "request");
+    await expectContainsText(page, Locators.fluidACHighlightedValue, "request");
     // There's a race condition here, sometimes the client doesn't manage to load the
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
     await awaitAnalysis(page, start);
-    await expectExactText(page, fluidACHighlightedValue, "requestDict");
+    await expectExactText(page, Locators.fluidACHighlightedValue, "requestDict");
     await page.type("#active-editor", ".bo");
-    await expectExactText(page, fluidACHighlightedValue, "bodyfield");
+    await expectExactText(page, Locators.fluidACHighlightedValue, "bodyfield");
     await page.keyboard.press("Enter");
   });
 
@@ -449,7 +448,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     await page.type("#active-editor", "Int::add");
 
-    await expectContainsText(page, fluidACHighlightedValue, "Int::add");
+    await expectContainsText(page, Locators.fluidACHighlightedValue, "Int::add");
     await page.keyboard.press("Enter");
   });
 
@@ -458,7 +457,7 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoAST(page);
     await page.type("#active-editor", "request");
     await page.keyboard.press("ArrowDown");
-    await expectContainsText(page, fluidACHighlightedValue, "Http::badRequest");
+    await expectContainsText(page, Locators.fluidACHighlightedValue, "Http::badRequest");
     await page.keyboard.press("Enter");
   });
 
@@ -466,11 +465,11 @@ test.describe.parallel("Integration Tests", async () => {
     await createEmptyHTTPHandler(page);
 
     // verb
-    await page.type(entryBox, "g");
+    await page.type(Locators.entryBox, "g");
     await page.keyboard.press("Enter");
 
     // route
-    await page.type(entryBox, "/hello");
+    await page.type(Locators.entryBox, "/hello");
     await page.keyboard.press("Enter");
 
     // string
@@ -484,13 +483,13 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "/myroute");
+    await page.type(Locators.entryBox, "/myroute");
     await page.keyboard.press("Enter");
 
     await page.click(".spec-header > .toplevel-type > .modifier");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "GET");
+    await page.type(Locators.entryBox, "GET");
     await page.keyboard.press("Enter");
   });
 
@@ -500,14 +499,14 @@ test.describe.parallel("Integration Tests", async () => {
     // add headers
     await page.click(".spec-header > .toplevel-name");
     await page.keyboard.press("Enter");
-    await page.type(entryBox, "spec_name");
+    await page.type(Locators.entryBox, "spec_name");
     await page.keyboard.press("Enter");
 
     // edit space
     await page.click(".spec-header > .toplevel-type > .space");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "HTTP");
+    await page.type(Locators.entryBox, "HTTP");
     await page.keyboard.press("Enter");
   });
 
@@ -519,7 +518,7 @@ test.describe.parallel("Integration Tests", async () => {
     await selectAll(page);
     await page.keyboard.press("Backspace");
     await waitForEmptyEntryBox(page);
-    await page.type(entryBox, "CRON");
+    await page.type(Locators.entryBox, "CRON");
     await page.keyboard.press("Enter");
   });
 
@@ -552,14 +551,14 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".name >> text='field1'");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "field6");
+    await page.type(Locators.entryBox, "field6");
     await page.keyboard.press("Enter");
     await page.waitForResponse(`${BASE_URL}/api/test-rename_db_fields/add_op`);
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
     await post(page, url, '{ "field6": "a", "field2": "b" }');
-    await page.waitForSelector(dbLockLocator);
+    await page.waitForSelector(Locators.dbLockLocator);
 
     await page.click(".name >> text='field6'");
     await page.keyboard.press("Enter");
@@ -571,20 +570,20 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".type >> text='Int'");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "String");
+    await page.type(Locators.entryBox, "String");
     await page.keyboard.press("Enter");
     await page.waitForResponse(`${BASE_URL}/api/test-rename_db_type/add_op`);
 
     // add data and check we can't rename again
     let url = bwdUrl(testInfo, "/add");
     await post(page, url, '{ "field1": "str", "field2": 5 }');
-    await page.waitForSelector(dbLockLocator, { timeout: 8000 });
+    await page.waitForSelector(Locators.dbLockLocator, { timeout: 8000 });
 
     await page.click(".type >> text='String'");
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
   });
-  
+
   test("rename_function", async ({ page }, testInfo) => {
     const fnNameBlankOr = ".fn-name-content";
     await gotoHash(page, testInfo, "fn=123");
@@ -599,7 +598,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(fnNameBlankOr);
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, "hello");
+    await page.type(Locators.entryBox, "hello");
     await page.keyboard.press("Enter");
   });
 
@@ -681,7 +680,7 @@ test.describe.parallel("Integration Tests", async () => {
 
     await page.click(".execution-button-needed");
 
-    await page.waitForSelector(dbLockLocator, { timeout: 8000 });
+    await page.waitForSelector(Locators.dbLockLocator, { timeout: 8000 });
 
     await page.click(".db"); // this click is required due to caching
     await expect(page.locator(".delete-col")).not.toBeVisible();
@@ -760,7 +759,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   test("load_with_unnamed_function", async ({ page }) => {
     await page.keyboard.press("Enter");
-    await page.waitForSelector(entryBox);
+    await page.waitForSelector(Locators.entryBox);
   });
 
   test("extract_from_function", async ({ page }, testInfo) => {
@@ -910,8 +909,8 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
     await page.keyboard.press("Backspace");
-    await page.type(entryBox, ":a");
-    await expectExactText(page, acHighlightedValue, "/:a");
+    await page.type(Locators.entryBox, ":a");
+    await expectExactText(page, Locators.acHighlightedValue, "/:a");
     await page.keyboard.press("Tab");
     await page.keyboard.press("a");
     await page.keyboard.press("Enter");
@@ -1017,7 +1016,7 @@ test.describe.parallel("Integration Tests", async () => {
     await createEmptyHTTPHandler(page);
 
     await page.keyboard.press("ArrowDown"); // enter AC
-    await expectExactText(page, acHighlightedValue, "GET");
+    await expectExactText(page, Locators.acHighlightedValue, "GET");
   });
 
   test("fluid_test_copy_request_as_curl", async ({ page }, testInfo) => {
