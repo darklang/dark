@@ -4,6 +4,13 @@ import fs from "fs";
 const BASE_URL = process.env.BASE_URL;
 const BWD_BASE_URL = process.env.BWD_BASE_URL;
 
+declare global {
+  interface Window {
+    // makes TypeScript OK with us reaching into window.Dark.analysis
+    Dark: any;
+  }
+}
+
 test.use({ baseURL: BASE_URL });
 
 async function prepSettings(page: Page, testName: string) {
