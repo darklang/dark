@@ -346,10 +346,6 @@ test.describe.parallel("Integration Tests", async () => {
     );
   }
 
-  // const scrollBy = ClientFunction((id, dx, dy) => {
-  //   document.getElementById(id).scrollBy(dx, dy);
-  // });
-
   async function getElementSelectionStart(
     page: Page,
     selector: string,
