@@ -82,7 +82,7 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 - If you see "initial compile failed", it may be a memory issue. Sometimes
   trying again will work. If not, ensure you have Docker configured to provide
   4GB or more of memory, then try again.
-- Open your browser to http://darklang.localhost:8000/a/dark/, username "dark",
+- Open your browser to http://darklang.localhost:9000/a/dark/, username "dark",
   password "what"
 - Edit code normally - on each save to your filesystem, the app will be rebuilt
   and the browser will reload as necessary
