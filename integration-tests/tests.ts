@@ -9,11 +9,8 @@ import fs from "fs";
 
 const BASE_URL = process.env.BASE_URL;
 const BWD_BASE_URL = process.env.BWD_BASE_URL;
-const options = {
-  baseURL: BASE_URL,
-  bwdBaseURL: BWD_BASE_URL,
-};
-test.use(options);
+
+test.use({ baseURL: BASE_URL });
 
 async function prepSettings(page: Page, testName: string) {
   let setLocalStorage = async (key: string, value: any) => {
@@ -223,7 +220,7 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   function bwdUrl(testInfo: TestInfo, path: string) {
-    return "http://test-" + testInfo.title + options.bwdBaseURL + path;
+    return "http://test-" + testInfo.title + BWD_BASE_URL + path;
   }
 
   async function pressShortcut(page: Page, shortcut: string) {
