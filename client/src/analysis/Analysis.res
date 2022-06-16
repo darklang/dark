@@ -300,7 +300,6 @@ module Fetcher = {
 
 let contextFromModel = (m: model): fetchContext => {
   canvasName: m.canvasName,
-  apiRoot: VariantTesting.apiRoot(m),
   csrfToken: m.csrfToken,
   origin: origin,
 }
