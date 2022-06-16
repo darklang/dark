@@ -889,9 +889,9 @@ test("feature_flag_in_function", async ({ page }) => {
     makes the live value visible. There is some extra complication in that clicking
     on a play button as it stands does not actually "count" as clicking on the play button
     unless the handler is "active" with a placed caret. To account for this, we
-    click on "hello" within Crypto::sha256 ("hello" |> String::toBytes) after focusing
+    click on "hello" within Crypto::md5 ("hello" |> String::toBytes) after focusing
     in order to place the caret. Then we click on the button and see if the live value
-    corresponds to the result of `Crypto::sha256`. */
+    corresponds to the result of `Crypto::md5`. */
     await gotoHash(page, ti, "handler=1013604333");
     await page.click(".id-1045574047.fluid-string");
     await page.click(".id-1334251057 .execution-button-needed"); // wait for it to be green
@@ -899,7 +899,7 @@ test("feature_flag_in_function", async ({ page }) => {
     await expectExactText(
       page,
       ".selected .live-value.loaded",
-      "<Bytes: length=32>",
+      "<Bytes: length=16>",
     );
   });
 

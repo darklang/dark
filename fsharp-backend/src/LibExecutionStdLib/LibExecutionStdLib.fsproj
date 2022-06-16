@@ -28,6 +28,7 @@
     <Compile Include="LibResult.fs" />
     <Compile Include="LibString.fs" />
     <Compile Include="LibUuid.fs" />
+    <Compile Include="LibCrypto.fs" />
     <Compile Include="LibHttpClientAuth.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>
