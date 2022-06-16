@@ -434,19 +434,6 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  // CLEANUP flaky - often the `request` field is not available
-  // test("field_access_pipes", async ({ page }, testInfo) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await gotoAST(page);
-
-  //   await page.type("#active-editor", "req");
-  //   await expectContainsText(page, fluidACHighlightedValue, "request");
-  //   await page.type("#active-editor", ".");
-  //   await page.type("#active-editor", "bo");
-  //   await expectExactText(page, fluidACHighlightedValue, "bodyfield");
-  //   await page.keyboard.press("Shift+Enter");
-  // });
-
   test("tabbing_works", async ({ page }) => {
     await createRepl(page);
 
@@ -597,80 +584,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
   });
-
-  /* Disable for now, will bring back as command palette fn
-test("feature_flag_works", async ({ page }) => {
-
-    // Create an empty let
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "let");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "a");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "13");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("ArrowDown")
-    await page.keyboard.press("TODO: esc);
-
-    // Click feature name
-    .click('.expr-actions .flag')
-
-    // Name it
-    await page.waitForSelector(".feature-flag");
-    await page.type(entryBox, "myflag");
-    await page.keyboard.press("Enter");
-
-    // Set condition
-    await page.type(entryBox, "Int::greaterThan");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "a");
-    await page.keyboard.press("Enter");
-    await page.type(entryBox, "10");
-    await page.keyboard.press("Enter");
-
-    // Case A
-    await page.type(entryBox, "\"");
-    await page.type(entryBox, "A");
-    await page.keyboard.press("Enter");
-
-    // Case B
-    await page.type(entryBox, "\"");
-    await page.type(entryBox, "B");
-    await page.keyboard.press("Enter");
-
-});
-
-test("feature_flag_in_function", async ({ page }) => {
-
-    // Go to function
-    await page.click(".fun1")
-    await page.click(".fa-edit")
-
-    await page.waitForSelector(".tl-2296485551");
-    await page.click(".tl-2296485551")
-    await page.keyboard.press("Enter");
-
-    // Make feature Flag
-    .click('.expr-actions .flag')
-
-    await page.waitForSelector(".feature-flag");
-    await page.type(entryBox, "myflag");
-    await page.keyboard.press("Enter");
-
-    // Set condition
-    await page.type(entryBox, "true");
-    await page.keyboard.press("Enter");
-
-    // Case B
-    await page.type(entryBox, "3");
-    await page.keyboard.press("Enter");
-
-    // Return to main canvas to finish tests
-    await page.click(".return-to-canvas")
-    await page.waitForSelector(".tl-180770093");
-});
-*/
+  
   test("rename_function", async ({ page }, testInfo) => {
     const fnNameBlankOr = ".fn-name-content";
     await gotoHash(page, testInfo, "fn=123");
@@ -788,21 +702,6 @@ test("feature_flag_in_function", async ({ page }) => {
     await expect(page.locator(toplevelElement)).toHaveClass(/selected/);
   });
 
-  // TODO: This needs Pusher in CI
-  // test('passwords_are_redacted', async ({ page }) => {
-  //   const callBackend = ClientFunction(
-  //     function (url) {
-  //       var xhttp = new XMLHttpRequest();
-  //       xhttp.open("POST", url, true);
-  //       xhttp.setRequestHeader("Content-type", "application/json");
-  //       xhttp.send('{ "password": "redactme!" }');
-  //     });
-
-  //   .click(Selector('.Password\\:\\:hash'))
-  //   await callBackend(user_content_url(t, "/signup"));
-  //   await expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
-  // })
-
   // TODO: Add test that verifies pasting text/plain when Entering works
   // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
 
@@ -858,16 +757,6 @@ test("feature_flag_in_function", async ({ page }) => {
       page.locator("li.autocomplete-item.valid").nth(5),
     ).toBeVisible();
   });
-
-  // Disabled the feature for now
-  // test("create_new_function_from_autocomplete", async ({ page }) => {
-  //   await createRepl(page);
-  //
-  //     await page.type("#active-editor", "myFunctionName");
-  //     .expect(fluidACHighlightedValue(page)())
-  //     .eql("Create new function: myFunctionName")
-  //     await page.keyboard.press("Enter");;
-  // });
 
   test("load_with_unnamed_function", async ({ page }) => {
     await page.keyboard.press("Enter");
@@ -1131,53 +1020,6 @@ test("feature_flag_in_function", async ({ page }) => {
     await expectExactText(page, acHighlightedValue, "GET");
   });
 
-  // CLEANUP: broken
-  // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({ page }) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await expectPlaceholderText(page, "verb");
-
-  //   await page.keyboard.press("Tab"); // verb -> route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("Tab"); // route -> ast
-  //   await page.waitForSelector(".fluid-entry.cursor-on");
-  //   await page.keyboard.press("r"); // enter AC
-  //   await expectContainsText(page, fluidACHighlightedValue, "request");
-  // });
-
-  // CLEANUP: tabbing is broken and should be fixed
-  // test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({
-  //   page,
-  // }) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await expectPlaceholderText(page, "verb");
-
-  //   await page.keyboard.press("Tab"); // verb -> route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("Tab"); // route -> ast
-  //   await page.waitForSelector(".fluid-entry.cursor-on");
-  //   await page.keyboard.press("Tab"); // ast -> loop back to verb;
-  //   await expectPlaceholderText(page, "verb");
-  //   await page.keyboard.press("ArrowDown"); // enter AC
-  //   await expectExactText(page, acHighlightedValue, "GET");
-  // });
-
-  // CLEANUP: tabbing is broken and should be fixed
-  // test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({
-  //   page,
-  // }) => {
-  //   await createEmptyHTTPHandler(page);
-  //   await expectPlaceholderText(page, "verb");
-
-  //   await page.keyboard.press("Tab"); // verb -> route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("Tab"); // route -> ast
-  //   await page.waitForSelector(".fluid-entry.cursor-on");
-  //   await page.keyboard.press("Shift+Tab"); // ast -> back to route
-  //   await expectPlaceholderText(page, "route");
-  //   await page.keyboard.press("ArrowDown"); // enter route
-  //   await expectExactText(page, acHighlightedValue, "/");
-  // });
-
   test("fluid_test_copy_request_as_curl", async ({ page }, testInfo) => {
     let before = Date.now();
     await page.click(".toplevel.tl-91390945");
@@ -1216,50 +1058,6 @@ test("feature_flag_in_function", async ({ page }) => {
     );
     await page.waitForSelector(".error-panel.show");
   }
-
-  // CLEANUP add this back or replace it with a different package manager situation
-  // // this tests:
-  // // - happy path upload
-  // // - upload fails b/c the db already has a fn with this name + version
-  // // - upload fails b/c the version we're trying to upload is too low (eg, if you
-  // // already have a v1, you can't upload a v0)
-  // test("upload_pkg_fn_as_admin", async ({ page }, testInfo) => {
-  //   // upload v1/2/3 depending whether this is test run 1/2/3
-  //   const tlid = testInfo.retry + 1;
-
-  //   // it should succeed, it's a new package_fn
-  //   await upload_pkg_for_tlid(page, testInfo, tlid);
-
-  //   await expectExactText(
-  //     page,
-  //     ".error-panel.show",
-  //     "Successfully uploaded functionDismiss",
-  //   );
-  //   await page.click(".dismissBtn");
-
-  //   // attempting to upload v0 should fail, because we already have a version
-  //   // greater than 0 in the db
-  //   await upload_pkg_for_tlid(page, testInfo, 0);
-  //   // this failureMsg2 is the same as failureMsg above, because its text dpends
-  //   // on the latest version (and the next valid version of the fn), not the
-  //   // version you tried to upload
-  //   const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expectExactText(page, ".error-panel.show", failureMsg2);
-  //   await page.click(".dismissBtn");
-
-  //   // second (attempted) upload should fail, as we've already uploaded this
-  //   await upload_pkg_for_tlid(page, testInfo, tlid);
-  //   const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
-  //     tlid + 1
-  //   }? (UploadFnAPICallback)Dismiss`;
-  //   await expectExactText(page, ".error-panel.show", failureMsg);
-  //   await page.click(".dismissBtn");
-
-  //   // CLEANUP: this is a hack to get the test to pass, but really the errors should be cleared up
-  //   clearMessages(testInfo);
-  // });
 
   test("use_pkg_fn", async ({ page }, testInfo) => {
     const attempt = testInfo.retry + 1;
@@ -1386,20 +1184,6 @@ test("feature_flag_in_function", async ({ page }) => {
     // Doesn't really matter, so ignore.
     clearMessages(testInfo);
   });
-
-  // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
-  // didn't solve the problem
-  /*
-  test("exe_flow_fades", async ({ page }) => {
-    const timestamp = new Date();
-    await page.click(".fluid-entry");
-    awaitAnalysis(t, timestamp);
-    // wait up to 1000ms for this selector to appear
-
-      .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
-      .ok();
-  });
-  */
 
   test("unexe_code_unfades_on_focus", async ({ page }) => {
     const timestamp = Date.now();
@@ -1594,4 +1378,216 @@ test("feature_flag_in_function", async ({ page }) => {
 
     await page.click(".modal.insert-secret .close-btn");
   });
+
+  // CLEANUP flaky - often the `request` field is not available
+  // test("field_access_pipes", async ({ page }, testInfo) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await gotoAST(page);
+
+  //   await page.type("#active-editor", "req");
+  //   await expectContainsText(page, fluidACHighlightedValue, "request");
+  //   await page.type("#active-editor", ".");
+  //   await page.type("#active-editor", "bo");
+  //   await expectExactText(page, fluidACHighlightedValue, "bodyfield");
+  //   await page.keyboard.press("Shift+Enter");
+  // });
+
+  //Disable for now, will bring back as command palette fn
+  // test("feature_flag_works", async ({ page }) => {
+  //     // Create an empty let
+  //     await page.keyboard.press("Enter");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "let");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "a");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "13");
+  //     await page.keyboard.press("Enter");
+  //     await page.keyboard.press("ArrowDown")
+  //     await page.keyboard.press("TODO: esc);
+
+  //     // Click feature name
+  //     .click('.expr-actions .flag')
+
+  //     // Name it
+  //     await page.waitForSelector(".feature-flag");
+  //     await page.type(entryBox, "myflag");
+  //     await page.keyboard.press("Enter");
+
+  //     // Set condition
+  //     await page.type(entryBox, "Int::greaterThan");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "a");
+  //     await page.keyboard.press("Enter");
+  //     await page.type(entryBox, "10");
+  //     await page.keyboard.press("Enter");
+
+  //     // Case A
+  //     await page.type(entryBox, "\"");
+  //     await page.type(entryBox, "A");
+  //     await page.keyboard.press("Enter");
+
+  //     // Case B
+  //     await page.type(entryBox, "\"");
+  //     await page.type(entryBox, "B");
+  //     await page.keyboard.press("Enter");
+
+  // });
+
+  // test("feature_flag_in_function", async ({ page }) => {
+  //     // Go to function
+  //     await page.click(".fun1")
+  //     await page.click(".fa-edit")
+
+  //     await page.waitForSelector(".tl-2296485551");
+  //     await page.click(".tl-2296485551")
+  //     await page.keyboard.press("Enter");
+
+  //     // Make feature Flag
+  //     .click('.expr-actions .flag')
+
+  //     await page.waitForSelector(".feature-flag");
+  //     await page.type(entryBox, "myflag");
+  //     await page.keyboard.press("Enter");
+
+  //     // Set condition
+  //     await page.type(entryBox, "true");
+  //     await page.keyboard.press("Enter");
+
+  //     // Case B
+  //     await page.type(entryBox, "3");
+  //     await page.keyboard.press("Enter");
+
+  //     // Return to main canvas to finish tests
+  //     await page.click(".return-to-canvas")
+  //     await page.waitForSelector(".tl-180770093");
+  // });
+
+  // TODO: This needs Pusher in CI
+  // test('passwords_are_redacted', async ({ page }) => {
+  //   const callBackend = ClientFunction(
+  //     function (url) {
+  //       var xhttp = new XMLHttpRequest();
+  //       xhttp.open("POST", url, true);
+  //       xhttp.setRequestHeader("Content-type", "application/json");
+  //       xhttp.send('{ "password": "redactme!" }');
+  //     });
+
+  //   .click(Selector('.Password\\:\\:hash'))
+  //   await callBackend(user_content_url(t, "/signup"));
+  //   await expect(Selector('.live-value').textContent).eql('<Password: Redacted>', { timeout: 5000 })
+  // })
+
+  // Disabled the feature for now
+  // test("create_new_function_from_autocomplete", async ({ page }) => {
+  //   await createRepl(page);
+  //
+  //     await page.type("#active-editor", "myFunctionName");
+  //     .expect(fluidACHighlightedValue(page)())
+  //     .eql("Create new function: myFunctionName")
+  //     await page.keyboard.press("Enter");;
+  // });
+
+  // CLEANUP: broken
+  // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({ page }) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await expectPlaceholderText(page, "verb");
+
+  //   await page.keyboard.press("Tab"); // verb -> route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("Tab"); // route -> ast
+  //   await page.waitForSelector(".fluid-entry.cursor-on");
+  //   await page.keyboard.press("r"); // enter AC
+  //   await expectContainsText(page, fluidACHighlightedValue, "request");
+  // });
+
+  // CLEANUP: tabbing is broken and should be fixed
+  // test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({
+  //   page,
+  // }) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await expectPlaceholderText(page, "verb");
+
+  //   await page.keyboard.press("Tab"); // verb -> route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("Tab"); // route -> ast
+  //   await page.waitForSelector(".fluid-entry.cursor-on");
+  //   await page.keyboard.press("Tab"); // ast -> loop back to verb;
+  //   await expectPlaceholderText(page, "verb");
+  //   await page.keyboard.press("ArrowDown"); // enter AC
+  //   await expectExactText(page, acHighlightedValue, "GET");
+  // });
+
+  // CLEANUP: tabbing is broken and should be fixed
+  // test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({
+  //   page,
+  // }) => {
+  //   await createEmptyHTTPHandler(page);
+  //   await expectPlaceholderText(page, "verb");
+
+  //   await page.keyboard.press("Tab"); // verb -> route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("Tab"); // route -> ast
+  //   await page.waitForSelector(".fluid-entry.cursor-on");
+  //   await page.keyboard.press("Shift+Tab"); // ast -> back to route
+  //   await expectPlaceholderText(page, "route");
+  //   await page.keyboard.press("ArrowDown"); // enter route
+  //   await expectExactText(page, acHighlightedValue, "/");
+  // });
+
+  // CLEANUP add this back or replace it with a different package manager situation
+  // // this tests:
+  // // - happy path upload
+  // // - upload fails b/c the db already has a fn with this name + version
+  // // - upload fails b/c the version we're trying to upload is too low (eg, if you
+  // // already have a v1, you can't upload a v0)
+  // test("upload_pkg_fn_as_admin", async ({ page }, testInfo) => {
+  //   // upload v1/2/3 depending whether this is test run 1/2/3
+  //   const tlid = testInfo.retry + 1;
+
+  //   // it should succeed, it's a new package_fn
+  //   await upload_pkg_for_tlid(page, testInfo, tlid);
+
+  //   await expectExactText(
+  //     page,
+  //     ".error-panel.show",
+  //     "Successfully uploaded functionDismiss",
+  //   );
+  //   await page.click(".dismissBtn");
+
+  //   // attempting to upload v0 should fail, because we already have a version
+  //   // greater than 0 in the db
+  //   await upload_pkg_for_tlid(page, testInfo, 0);
+  //   // this failureMsg2 is the same as failureMsg above, because its text dpends
+  //   // on the latest version (and the next valid version of the fn), not the
+  //   // version you tried to upload
+  //   const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+  //     tlid + 1
+  //   }? (UploadFnAPICallback)Dismiss`;
+  //   await expectExactText(page, ".error-panel.show", failureMsg2);
+  //   await page.click(".dismissBtn");
+
+  //   // second (attempted) upload should fail, as we've already uploaded this
+  //   await upload_pkg_for_tlid(page, testInfo, tlid);
+  //   const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+  //     tlid + 1
+  //   }? (UploadFnAPICallback)Dismiss`;
+  //   await expectExactText(page, ".error-panel.show", failureMsg);
+  //   await page.click(".dismissBtn");
+
+  //   // CLEANUP: this is a hack to get the test to pass, but really the errors should be cleared up
+  //   clearMessages(testInfo);
+  // });
+
+  // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
+  // didn't solve the problem
+  // test("exe_flow_fades", async ({ page }) => {
+  //   const timestamp = new Date();
+  //   await page.click(".fluid-entry");
+  //   awaitAnalysis(t, timestamp);
+  //   // wait up to 1000ms for this selector to appear
+
+  //     .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
+  //     .ok();
+  // });
 });
