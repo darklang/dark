@@ -28,11 +28,6 @@ let availableAdminVariants: list<variantTest> = list{NgrokVariant}
 let activeCSSClasses = (m: model): string =>
   m.tests |> List.map(~f=toCSSClass) |> String.join(~sep=" ")
 
-/* It can be useful to vary the API root based on the test variant.
- * Leaving this in for the next time that comes up. */
-let apiRoot = (_m: model): string => "/api/"
-
-
 let enabledVariantTests = (isAdmin: bool): list<variantTest> => {
   /* admins have these enabled by default, but can opt-out via query param */
   let initial = if isAdmin {
