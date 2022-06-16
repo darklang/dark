@@ -4,7 +4,6 @@ import {
   ConsoleMessage,
   Page,
   TestInfo,
-  BrowserContext,
 } from "@playwright/test";
 import fs from "fs";
 
