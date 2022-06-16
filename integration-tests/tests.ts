@@ -1,10 +1,4 @@
-import {
-  test,
-  expect,
-  ConsoleMessage,
-  Page,
-  TestInfo,
-} from "@playwright/test";
+import { test, expect, ConsoleMessage, Page, TestInfo } from "@playwright/test";
 import fs from "fs";
 
 const BASE_URL = process.env.BASE_URL;
@@ -261,7 +255,7 @@ test.describe.parallel("Integration Tests", async () => {
     acHighlightedValue: ".autocomplete-item.highlighted > .name",
     fluidACHighlightedValue: ".autocomplete-item.fluid-selected",
     dbLockLocator: ".db .spec-header.lock",
-  }
+  };
 
   //********************************
   // Utilities
@@ -291,7 +285,10 @@ test.describe.parallel("Integration Tests", async () => {
   }
 
   async function expectPlaceholderText(page: Page, text: string) {
-    await expect(page.locator(Locators.entryBox)).toHaveAttribute("placeholder", text);
+    await expect(page.locator(Locators.entryBox)).toHaveAttribute(
+      "placeholder",
+      text,
+    );
   }
 
   // Entry-box sometimes carries state over briefly, so wait til it's clear
@@ -423,7 +420,11 @@ test.describe.parallel("Integration Tests", async () => {
     // trace for quite some time, and the autocomplete box ends up in a weird
     // condition
     await awaitAnalysis(page, start);
-    await expectExactText(page, Locators.fluidACHighlightedValue, "requestDict");
+    await expectExactText(
+      page,
+      Locators.fluidACHighlightedValue,
+      "requestDict",
+    );
     await page.type("#active-editor", ".bo");
     await expectExactText(page, Locators.fluidACHighlightedValue, "bodyfield");
     await page.keyboard.press("Enter");
@@ -444,7 +445,11 @@ test.describe.parallel("Integration Tests", async () => {
 
     await page.type("#active-editor", "Int::add");
 
-    await expectContainsText(page, Locators.fluidACHighlightedValue, "Int::add");
+    await expectContainsText(
+      page,
+      Locators.fluidACHighlightedValue,
+      "Int::add",
+    );
     await page.keyboard.press("Enter");
   });
 
@@ -453,7 +458,11 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoAST(page);
     await page.type("#active-editor", "request");
     await page.keyboard.press("ArrowDown");
-    await expectContainsText(page, Locators.fluidACHighlightedValue, "Http::badRequest");
+    await expectContainsText(
+      page,
+      Locators.fluidACHighlightedValue,
+      "Http::badRequest",
+    );
     await page.keyboard.press("Enter");
   });
 
