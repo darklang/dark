@@ -857,8 +857,10 @@ test.describe.parallel("Integration Tests", async () => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
-    const options = { modifiers: ["Alt"], position: { x: 24, y: 4 } };
-    await page.dblclick(".fluid-match-keyword", options);
+    await page.dblclick(".fluid-match-keyword", {
+      modifiers: ["Alt"],
+      position: { x: 24, y: 4 },
+    });
   });
 
   test("fluid_shift_right_selects_chars_in_front", async ({ page }, ti) => {
