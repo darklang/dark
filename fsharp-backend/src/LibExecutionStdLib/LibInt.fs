@@ -385,4 +385,26 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    { name = fn "Int" "parse" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TInt, TStr)
+      description =
+        "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+          try
+            s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
+          with
+          | e ->
+            $"Expected to parse string with only numbers, instead got \"{s}\""
+            |> DStr
+            |> Error
+            |> DResult
+            |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }]

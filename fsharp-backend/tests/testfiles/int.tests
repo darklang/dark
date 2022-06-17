@@ -169,3 +169,19 @@ Int.divide_v0 1 0 = Test.typeError_v0 "Division by zero"
 
 Int.sum_v0 [1;2] = 3
 Int.sum_v0 [1.0;2] = Test.typeError_v0 "Expected the argument `a` to be a list of ints, but it was `[ \n  1., 2\n]`"
+
+Int.parse_v0 "" = Error "Expected to parse string with only numbers, instead got \"\""
+Int.parse_v0 "-00001" = Ok -1
+Int.parse_v0 "-10001" = Ok -10001
+Int.parse_v0 "-4611686018427387903" = Ok -4611686018427387903L
+Int.parse_v0 "-4611686018427387904" = Ok -4611686018427387904L
+Int.parse_v0 "-4611686018427387905" = Ok -4611686018427387905L
+Int.parse_v0 "-9223372036854775808" = Ok -9223372036854775808L
+Int.parse_v0 "-9223372036854775809" = Error "Expected to parse string with only numbers, instead got \"-9223372036854775809\""
+Int.parse_v0 "4611686018427387903" = Ok 4611686018427387903L
+Int.parse_v0 "4611686018427387904" = Ok 4611686018427387904L
+Int.parse_v0 "9223372036854775807" = Ok 9223372036854775807L
+Int.parse_v0 "9223372036854775808" = Error "Expected to parse string with only numbers, instead got \"9223372036854775808\""
+Int.parse_v0 "" = Error "Expected to parse string with only numbers, instead got \"\""
+Int.parse_v0 "0" = Ok 0
+Int.parse_v0 "1" = Ok 1
