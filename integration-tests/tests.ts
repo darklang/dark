@@ -136,7 +136,6 @@ test.describe.parallel("Integration Tests", async () => {
   // This is a page that we re-use across tests, one per Playwright worker.
   // Analysis can take some time to load, so this speeds up our tests.
   let page: Page;
-
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
     page = await context.newPage();
