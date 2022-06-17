@@ -159,13 +159,7 @@ test.describe.parallel("Integration Tests", async () => {
       }
       saveMessage(testInfo, msg);
     });
-
-    // set settings (e.g. "don't show the 'first time' dialog"), on a separate page
-    // await page.goto(canvasUrl("test"), {
-    //   waitUntil: "networkidle",
-    // });
-    // await prepSettings(page, testName);
-
+    
     // go to URL and wait for analysis
     var url = canvasUrl(testName);
     await page.goto(url, { waitUntil: "networkidle" });
