@@ -129,17 +129,7 @@ async function flushLogs(page: Page, testInfo: TestInfo) {
 test.use({ baseURL: BASE_URL });
 
 test.describe.parallel("Integration Tests", async () => {
-  // todo: there should be a 'parallelizable' section, and some non-parallelizable section.
-  // for the test or two that rely on some fancy state, e.g.
-  // `record_consent_saved_across_canvases`
-
-  // This is a page that we re-use across tests, one per Playwright worker.
-  // Analysis can take some time to load, so this speeds up our tests.
-  let page: Page;
-  test.beforeAll(async ({ browser }) => {
-    const context = await browser.newContext();
-    page = await context.newPage();
-
+  test.beforeEach(async ({ page }, testInfo) => {
     const canvasName = "just-loading-analysis";
     await page.goto(canvasUrl(canvasName), { waitUntil: "networkidle" });
 
@@ -151,9 +141,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
     await awaitAnalysisLoaded(page);
     await page.pause();
-  });
 
-  test.beforeEach(async ({}, testInfo) => {
     const testName = testInfo.title;
 
     initMessages(testInfo);
@@ -173,10 +161,10 @@ test.describe.parallel("Integration Tests", async () => {
     });
 
     // set settings (e.g. "don't show the 'first time' dialog"), on a separate page
-    await page.goto(canvasUrl("test"), {
-      waitUntil: "networkidle",
-    });
-    await prepSettings(page, testName);
+    // await page.goto(canvasUrl("test"), {
+    //   waitUntil: "networkidle",
+    // });
+    // await prepSettings(page, testName);
 
     // go to URL and wait for analysis
     var url = canvasUrl(testName);
@@ -187,19 +175,17 @@ test.describe.parallel("Integration Tests", async () => {
     await awaitAnalysisLoaded(page);
   });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async ({ page }, testInfo) => {
     await flushLogs(page, testInfo);
-  });
-
-  test.afterAll(async ({ browser }) => {
-    browser.close();
   });
 
   // ------------------------
   // Tests below here. Don't forget to update client/src/IntegrationTest.ml
   // ------------------------
 
-  test("switching_from_http_to_cron_space_removes_leading_slash", async ({}) => {
+  test("switching_from_http_to_cron_space_removes_leading_slash", async ({
+    page,
+  }) => {
     await createHTTPHandler(page, "POST", "/spec_name");
 
     // edit space
@@ -212,7 +198,9 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("switching_from_http_to_repl_space_removes_leading_slash", async ({}) => {
+  test("switching_from_http_to_repl_space_removes_leading_slash", async ({
+    page,
+  }) => {
     await createHTTPHandler(page, "POST", "/spec_name");
 
     // edit space
@@ -224,7 +212,9 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("switching_from_http_space_removes_variable_colons", async ({}) => {
+  test("switching_from_http_space_removes_variable_colons", async ({
+    page,
+  }) => {
     await createHTTPHandler(page, "POST", "/spec_name/:variable");
 
     // edit space
@@ -236,12 +226,12 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("enter_changes_state", async ({}) => {
+  test("enter_changes_state", async ({ page }) => {
     await page.keyboard.press("Enter");
     await page.waitForSelector(Locators.entryBox);
   });
 
-  test("field_access_closes", async ({}, testInfo) => {
+  test("field_access_closes", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
 
@@ -263,7 +253,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("tabbing_works", async ({}) => {
+  test("tabbing_works", async ({ page }) => {
     await createRepl(page);
 
     // Fill in "then" box in if stmt
@@ -272,7 +262,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "5");
   });
 
-  test("autocomplete_highlights_on_partial_match", async ({}) => {
+  test("autocomplete_highlights_on_partial_match", async ({ page }) => {
     await createRepl(page);
     await gotoAST(page);
 
@@ -286,7 +276,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("no_request_global_in_non_http_space", async ({}) => {
+  test("no_request_global_in_non_http_space", async ({ page }) => {
     await createWorkerHandler(page);
     await gotoAST(page);
     await page.type("#active-editor", "request");
@@ -299,7 +289,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("ellen_hello_world_demo", async ({}) => {
+  test("ellen_hello_world_demo", async ({ page }) => {
     await createEmptyHTTPHandler(page);
 
     // verb
@@ -314,7 +304,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", '"Hello world!"');
   });
 
-  test("editing_headers", async ({}) => {
+  test("editing_headers", async ({ page }) => {
     await createHTTPHandler(page, "POST", "/hello");
 
     // edit them
@@ -331,7 +321,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("switching_to_http_space_adds_slash", async ({}) => {
+  test("switching_to_http_space_adds_slash", async ({ page }) => {
     await createWorkerHandler(page);
 
     // add headers
@@ -348,7 +338,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("switching_from_default_repl_space_removes_name", async ({}) => {
+  test("switching_from_default_repl_space_removes_name", async ({ page }) => {
     await createRepl(page);
 
     // edit space
@@ -360,7 +350,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("tabbing_through_let", async ({}) => {
+  test("tabbing_through_let", async ({ page }) => {
     await createRepl(page);
     await gotoAST(page);
 
@@ -384,7 +374,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.type("#active-editor", "myvar");
   });
 
-  test("rename_db_fields", async ({}, testInfo) => {
+  test("rename_db_fields", async ({ page }, testInfo) => {
     // rename
     await page.click(".name >> text='field1'");
     await selectAll(page);
@@ -403,7 +393,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("rename_db_type", async ({}, testInfo) => {
+  test("rename_db_type", async ({ page }, testInfo) => {
     // rename
     await page.click(".type >> text='Int'");
     await selectAll(page);
@@ -422,7 +412,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("rename_function", async ({}, testInfo) => {
+  test("rename_function", async ({ page }, testInfo) => {
     const fnNameBlankOr = ".fn-name-content";
     await gotoHash(page, testInfo, "fn=123");
     await page.waitForSelector(fnNameBlankOr);
@@ -440,7 +430,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("execute_function_works", async ({}) => {
+  test("execute_function_works", async ({ page }) => {
     await createRepl(page);
     await page.waitForSelector("#active-editor");
     await page.type("#active-editor", "Uuid::gen");
@@ -472,14 +462,14 @@ test.describe.parallel("Integration Tests", async () => {
     expect(v2).toMatch(re);
   });
 
-  test("correct_field_livevalue", async ({}) => {
+  test("correct_field_livevalue", async ({ page }) => {
     await page.click(".fluid-editor"); // this click required to activate the editor
     await page.click(".fluid-field-name >> text='gth'");
 
     await expectExactText(page, ".selected .live-value.loaded", "5");
   });
 
-  test("int_add_with_float_error_includes_fnname", async ({}) => {
+  test("int_add_with_float_error_includes_fnname", async ({ page }) => {
     const timestamp = Date.now();
     await page.click(".tl-123 .fluid-category-function"); // required to see the return value (navigate is insufficient)
     await awaitAnalysis(page, timestamp);
@@ -499,7 +489,7 @@ test.describe.parallel("Integration Tests", async () => {
     }
   });
 
-  test("function_version_renders", async ({}) => {
+  test("function_version_renders", async ({ page }) => {
     await createRepl(page);
 
     await page.type("#active-editor", "DB::del");
@@ -507,12 +497,12 @@ test.describe.parallel("Integration Tests", async () => {
     await expectExactText(page, selector, "v1");
   });
 
-  test("delete_db_col", async ({}) => {
+  test("delete_db_col", async ({ page }) => {
     await page.click(".delete-col");
     await expect(page.locator(".delete-col")).not.toBeVisible();
   });
 
-  test("cant_delete_locked_col", async ({}) => {
+  test("cant_delete_locked_col", async ({ page }) => {
     await page.click(".fluid-fn-name"); // this click is required due to caching
     await page.waitForSelector(".execution-button-needed");
 
@@ -524,7 +514,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(page.locator(".delete-col")).not.toBeVisible();
   });
 
-  test("select_route", async ({}) => {
+  test("select_route", async ({ page }) => {
     const categoryHeader = ".sidebar-category.http .category-summary";
     const httpVerbLink =
       ".sidebar-category.http .category-content a.toplevel-link";
@@ -542,14 +532,14 @@ test.describe.parallel("Integration Tests", async () => {
   // TODO: Add test that verifies pasting text/plain when Entering works
   // See: https://github.com/darklang/dark/pull/725#pullrequestreview-213661810
 
-  test("function_analysis_works", async ({}, testInfo) => {
+  test("function_analysis_works", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, `fn=1039370895`);
     await page.waitForSelector(".user-fn-toplevel");
     await page.click(".user-fn-toplevel #active-editor .fluid-binop");
     await expectExactText(page, ".selected .live-value.loaded", "10");
   });
 
-  test("jump_to_error", async ({}, testInfo) => {
+  test("jump_to_error", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.click(".fluid-entry");
@@ -559,7 +549,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".jump-src");
   });
 
-  test("fourohfours_parse", async ({}) => {
+  test("fourohfours_parse", async ({ page }) => {
     await page.evaluate(() => {
       const data = [
         "HTTP",
@@ -573,7 +563,7 @@ test.describe.parallel("Integration Tests", async () => {
     });
   });
 
-  test("fn_page_to_handler_pos", async ({}, testInfo) => {
+  test("fn_page_to_handler_pos", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "fn=890");
     await page.waitForSelector(".user-fn-toplevel");
     const fnOffset = await getStyleProperty(page, "#canvas", "transform");
@@ -586,7 +576,7 @@ test.describe.parallel("Integration Tests", async () => {
     );
   });
 
-  test("autocomplete_visible_height", async ({}) => {
+  test("autocomplete_visible_height", async ({ page }) => {
     await createRepl(page);
 
     await page.keyboard.press("r");
@@ -595,12 +585,12 @@ test.describe.parallel("Integration Tests", async () => {
     ).toBeVisible();
   });
 
-  test("load_with_unnamed_function", async ({}) => {
+  test("load_with_unnamed_function", async ({ page }) => {
     await page.keyboard.press("Enter");
     await page.waitForSelector(Locators.entryBox);
   });
 
-  test("extract_from_function", async ({}, testInfo) => {
+  test("extract_from_function", async ({ page }, testInfo) => {
     const exprElem = ".user-fn-toplevel #active-editor > span";
     await gotoHash(page, testInfo, "fn=123");
     await page.waitForSelector(".tl-123");
@@ -610,7 +600,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Enter");
   });
 
-  test("fluid_execute_function_shows_live_value", async ({}, ti) => {
+  test("fluid_execute_function_shows_live_value", async ({ page }, ti) => {
     /* NOTE: This test is intended to determine if clicking a play button in fluid
     makes the live value visible. There is some extra complication in that clicking
     on a play button as it stands does not actually "count" as clicking on the play button
@@ -629,20 +619,24 @@ test.describe.parallel("Integration Tests", async () => {
     );
   });
 
-  test("fluid_single_click_on_token_in_deselected_handler_focuses", async ({}) => {
+  test("fluid_single_click_on_token_in_deselected_handler_focuses", async ({
+    page,
+  }) => {
     let target = ".id-2068425241.fluid-let-var-name";
     await page.waitForSelector(target);
     await page.click(target, caretPos(4));
   });
 
-  test("fluid_click_2x_on_token_places_cursor", async ({}) => {
+  test("fluid_click_2x_on_token_places_cursor", async ({ page }) => {
     let target = ".id-549681748.fluid-let-var-name";
     await page.waitForSelector(target);
     await page.click(target, caretPos(2));
     await page.click(target, caretPos(2));
   });
 
-  test("fluid_click_2x_in_function_places_cursor", async ({}, testInfo) => {
+  test("fluid_click_2x_in_function_places_cursor", async ({
+    page,
+  }, testInfo) => {
     await gotoHash(page, testInfo, "fn=1352039682");
     await page.waitForSelector(".id-677483670.fluid-let-var-name");
     await page.click(".id-677483670.fluid-let-var-name", caretPos(2));
@@ -650,28 +644,32 @@ test.describe.parallel("Integration Tests", async () => {
     await page.click(".id-96908617.fluid-category-string", caretPos(2));
   });
 
-  test("fluid_doubleclick_selects_token", async ({}, testInfo) => {
+  test("fluid_doubleclick_selects_token", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
     await page.dblclick(".fluid-match-keyword", caretPos(3));
   });
 
-  test("fluid_doubleclick_selects_word_in_string", async ({}, ti) => {
+  test("fluid_doubleclick_selects_word_in_string", async ({ page }, ti) => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
     await page.dblclick(".fluid-string");
   });
 
-  test("fluid_doubleclick_selects_entire_fnname", async ({}, testInfo) => {
+  test("fluid_doubleclick_selects_entire_fnname", async ({
+    page,
+  }, testInfo) => {
     await gotoHash(page, testInfo, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
     await page.dblclick(".fluid-fn-name", caretPos(8));
   });
 
-  test("fluid_doubleclick_with_alt_selects_expression", async ({}, ti) => {
+  test("fluid_doubleclick_with_alt_selects_expression", async ({
+    page,
+  }, ti) => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
@@ -681,7 +679,7 @@ test.describe.parallel("Integration Tests", async () => {
     });
   });
 
-  test("fluid_shift_right_selects_chars_in_front", async ({}, ti) => {
+  test("fluid_shift_right_selects_chars_in_front", async ({ page }, ti) => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
@@ -691,7 +689,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Shift+ArrowRight");
   });
 
-  test("fluid_shift_left_selects_chars_at_back", async ({}, ti) => {
+  test("fluid_shift_left_selects_chars_at_back", async ({ page }, ti) => {
     await gotoHash(page, ti, "handler=123");
     await page.waitForSelector(".tl-123");
     await page.waitForSelector(".selected #active-editor");
@@ -701,7 +699,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Shift+ArrowUp");
   });
 
-  test("fluid_undo_redo_happen_exactly_once", async ({}) => {
+  test("fluid_undo_redo_happen_exactly_once", async ({ page }) => {
     await page.waitForSelector(".tl-608699171");
     await page.click(".id-68470584.fluid-category-string");
     await page.waitForSelector(".selected #active-editor");
@@ -712,7 +710,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expectExactText(page, ".fluid-category-string", '"12345"');
   });
 
-  test("fluid_ctrl_left_on_string", async ({}, testInfo) => {
+  test("fluid_ctrl_left_on_string", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "handler=428972234");
     await page.waitForSelector(".tl-428972234");
     await page.waitForSelector(".selected #active-editor");
@@ -720,7 +718,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Control+ArrowLeft");
   });
 
-  test("fluid_ctrl_right_on_string", async ({}, testInfo) => {
+  test("fluid_ctrl_right_on_string", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "handler=428972234");
     await page.waitForSelector(".tl-428972234");
     await page.waitForSelector(".selected #active-editor");
@@ -728,7 +726,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Control+ArrowRight");
   });
 
-  test("fluid_ctrl_left_on_empty_match", async ({}, testInfo) => {
+  test("fluid_ctrl_left_on_empty_match", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "handler=281413634");
     await page.waitForSelector(".tl-281413634");
     await page.waitForSelector(".selected #active-editor");
@@ -736,7 +734,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.press("Control+ArrowLeft");
   });
 
-  test("varnames_are_incomplete", async ({}) => {
+  test("varnames_are_incomplete", async ({ page }) => {
     await page.click(".toplevel");
     await page.click(".spec-header > .toplevel-name");
     await selectAll(page);
@@ -749,12 +747,12 @@ test.describe.parallel("Integration Tests", async () => {
     await expectContainsText(page, ".live-value.loaded", "<Incomplete>");
   });
 
-  test("center_toplevel", async ({}, testInfo) => {
+  test("center_toplevel", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "handler=1445447347");
     await page.waitForSelector(".tl-1445447347");
   });
 
-  test("max_callstack_bug", async ({}) => {
+  test("max_callstack_bug", async ({ page }) => {
     await createRepl(page);
     await gotoAST(page);
 
@@ -763,7 +761,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.keyboard.type("List::range 0 2000 ");
   });
 
-  test("sidebar_opens_function", async ({}) => {
+  test("sidebar_opens_function", async ({ page }) => {
     await page.waitForSelector(".sidebar-category.fns .category-summary");
     await page.click(".sidebar-category.fns .category-summary");
     await page.waitForSelector(
@@ -773,7 +771,7 @@ test.describe.parallel("Integration Tests", async () => {
     expect(page.url()).toMatch(/.+#fn=1352039682$/);
   });
 
-  test("empty_fn_never_called_result", async ({}, testInfo) => {
+  test("empty_fn_never_called_result", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "fn=602952746");
     const timestamp = Date.now();
 
@@ -788,7 +786,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expectContainsText(page, ".return-value", expected);
   });
 
-  test("empty_fn_been_called_result", async ({}, testInfo) => {
+  test("empty_fn_been_called_result", async ({ page }, testInfo) => {
     await page.waitForSelector(".execution-button");
     await page.click(".execution-button");
     await gotoHash(page, testInfo, "fn=602952746");
@@ -813,7 +811,7 @@ test.describe.parallel("Integration Tests", async () => {
   // I have tried several other approaches, including wait(3000) between
   // navigateTo() and click(), and putting navigateTo() and click() on separate
   // await ts, but only calling click() twice worked here.
-  test("sha256hmac_for_aws", async ({}, testInfo) => {
+  test("sha256hmac_for_aws", async ({ page }, testInfo) => {
     let before = Date.now();
     await gotoHash(page, testInfo, "handler=1471262983");
 
@@ -830,7 +828,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expectContainsText(page, ".return-value", expected);
   });
 
-  test("fluid_fn_pg_change", async ({}, testInfo) => {
+  test("fluid_fn_pg_change", async ({ page }, testInfo) => {
     await gotoHash(page, testInfo, "fn=2091743543");
     await page.waitForSelector(".tl-2091743543");
 
@@ -844,14 +842,14 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".tl-1464810122");
   });
 
-  test("fluid_creating_an_http_handler_focuses_the_verb", async ({}) => {
+  test("fluid_creating_an_http_handler_focuses_the_verb", async ({ page }) => {
     await createEmptyHTTPHandler(page);
 
     await page.keyboard.press("ArrowDown"); // enter AC
     await expectExactText(page, Locators.acHighlightedValue, "GET");
   });
 
-  test("fluid_test_copy_request_as_curl", async ({}, testInfo) => {
+  test("fluid_test_copy_request_as_curl", async ({ page }, testInfo) => {
     let before = Date.now();
     await page.click(".toplevel.tl-91390945");
     await page.waitForSelector(".tl-91390945");
@@ -865,7 +863,7 @@ test.describe.parallel("Integration Tests", async () => {
     // analysis done before we can call the command
   });
 
-  test("fluid_ac_validate_on_lose_focus", async ({}, testInfo) => {
+  test("fluid_ac_validate_on_lose_focus", async ({ page }, testInfo) => {
     await createEmptyHTTPHandler(page);
     await gotoAST(page);
 
@@ -890,7 +888,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".error-panel.show");
   }
 
-  test("use_pkg_fn", async ({}, testInfo) => {
+  test("use_pkg_fn", async ({ page }, testInfo) => {
     const attempt = testInfo.retry + 1;
     const url = `/${attempt}`;
     await createHTTPHandler(page, "GET", url);
@@ -918,7 +916,7 @@ test.describe.parallel("Integration Tests", async () => {
     expect(response).toBe("0");
   });
 
-  test("fluid_show_docs_for_command_on_selected_code", async ({}) => {
+  test("fluid_show_docs_for_command_on_selected_code", async ({ page }) => {
     await createRepl(page);
     await gotoAST(page);
     await page.type("#active-editor", "1999");
@@ -931,12 +929,12 @@ test.describe.parallel("Integration Tests", async () => {
   // Regression test:
   // Pre-fix, we expect the response body to be "Zm9v" ("foo" |> base64).
   // Post-fix, we expect "foo"
-  test("fluid-bytes-response", async ({}, testInfo) => {
+  test("fluid-bytes-response", async ({ page }, testInfo) => {
     const resp = await get(page, bwdUrl(testInfo, "/"));
     expect(resp).toBe("foo");
   });
 
-  test("double_clicking_blankor_selects_it", async ({}) => {
+  test("double_clicking_blankor_selects_it", async ({ page }) => {
     // This is part of fixing double-click behaviour in HTTP headers and other
     // blank-ors. When you clicked on the HTTP header, the caret did not stay in
     // the header. This checks that it does.
@@ -956,7 +954,7 @@ test.describe.parallel("Integration Tests", async () => {
     expect(typeof result).toBe("number");
   });
 
-  test("abridged_sidebar_content_visible_on_hover", async ({}) => {
+  test("abridged_sidebar_content_visible_on_hover", async ({ page }) => {
     // uncollapse sidebar first (collapsed for easier testing via localstorage)
     await page.click(".toggle-sidebar-btn");
     await page.waitForSelector("text='Collapse sidebar'");
@@ -974,7 +972,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(locator).toBeVisible();
   });
 
-  test("abridged_sidebar_category_icon_click_disabled", async ({}) => {
+  test("abridged_sidebar_category_icon_click_disabled", async ({ page }) => {
     const httpCatSelector = ".sidebar-category.http";
     const dbCatSelector = ".sidebar-category.dbs";
 
@@ -991,7 +989,7 @@ test.describe.parallel("Integration Tests", async () => {
     // validate functions in IntegrationTest.ml
   });
 
-  test("record_consent_saved_across_canvases", async ({}, testInfo) => {
+  test("record_consent_saved_across_canvases", async ({ page }, testInfo) => {
     await page.click("#fs-consent-yes");
     await page.waitForSelector(".fullstory-modal.hide");
     await page.waitForFunction(() => {
@@ -1016,7 +1014,7 @@ test.describe.parallel("Integration Tests", async () => {
     clearMessages(testInfo);
   });
 
-  test("unexe_code_unfades_on_focus", async ({}) => {
+  test("unexe_code_unfades_on_focus", async ({ page }) => {
     const timestamp = Date.now();
     await page.click(".fluid-entry");
     await awaitAnalysis(page, timestamp);
@@ -1069,7 +1067,7 @@ test.describe.parallel("Integration Tests", async () => {
     );
   });
 
-  test("create_from_404", async ({}) => {
+  test("create_from_404", async ({ page }) => {
     const f0fCategory = ".sidebar-category.fof";
 
     await page.evaluate(() => {
@@ -1093,7 +1091,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".toplevel .http-get");
   });
 
-  test("unfade_command_palette", async ({}) => {
+  test("unfade_command_palette", async ({ page }) => {
     await page.dblclick(".fluid-let-keyword");
     await page.keyboard.press("Control+\\");
     await page.waitForSelector("#cmd-filter");
@@ -1102,7 +1100,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(".fluid-code-focus > .command-palette");
   });
 
-  test("redo_analysis_on_toggle_erail", async ({}) => {
+  test("redo_analysis_on_toggle_erail", async ({ page }) => {
     const fnCall = ".id-108391798";
     const justExpr = ".id-21312903";
     const nothingExpr = ".id-1409226084";
@@ -1136,7 +1134,7 @@ test.describe.parallel("Integration Tests", async () => {
     await expect(page.locator(nothingExpr)).toHaveClass(/fluid-not-executed/);
   });
 
-  test("redo_analysis_on_commit_ff", async ({}) => {
+  test("redo_analysis_on_commit_ff", async ({ page }) => {
     const returnValue = ".return-value";
     const t0 = Date.now();
     await page.click(".handler-trigger");
@@ -1165,7 +1163,7 @@ test.describe.parallel("Integration Tests", async () => {
   //
   // At that point, we should be able to navigate to the Function,
   // and then back to our Handler.
-  test("package_function_references_work", async ({}, testInfo) => {
+  test("package_function_references_work", async ({ page }, testInfo) => {
     const repl = ".toplevel.tl-92595864";
     const refersTo = ".ref-block.refers-to.pkg-fn";
     const usedIn = ".ref-block.used-in.handler";
@@ -1195,7 +1193,7 @@ test.describe.parallel("Integration Tests", async () => {
     await page.waitForSelector(repl);
   });
 
-  test("focus_on_secret_field_on_insert_modal_open", async ({}) => {
+  test("focus_on_secret_field_on_insert_modal_open", async ({ page }) => {
     await page.waitForSelector(".sidebar-category.secrets .create-tl-icon");
 
     await createRepl(page);
@@ -1211,7 +1209,7 @@ test.describe.parallel("Integration Tests", async () => {
   });
 
   // CLEANUP flaky - often the `request` field is not available
-  // test("field_access_pipes", async ({}, testInfo) => {
+  // test("field_access_pipes", async ({page}, testInfo) => {
   //   await createEmptyHTTPHandler(page);
   //   await gotoAST(page);
 
@@ -1224,7 +1222,7 @@ test.describe.parallel("Integration Tests", async () => {
   // });
 
   //Disable for now, will bring back as command palette fn
-  // test("feature_flag_works", async ({}) => {
+  // test("feature_flag_works", async ({page}) => {
   //     // Create an empty let
   //     await page.keyboard.press("Enter");
   //     await page.keyboard.press("Enter");
@@ -1265,7 +1263,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   // });
 
-  // test("feature_flag_in_function", async ({}) => {
+  // test("feature_flag_in_function", async ({page}) => {
   //     // Go to function
   //     await page.click(".fun1")
   //     await page.click(".fa-edit")
@@ -1295,7 +1293,7 @@ test.describe.parallel("Integration Tests", async () => {
   // });
 
   // TODO: This needs Pusher in CI
-  // test('passwords_are_redacted', async ({}) => {
+  // test('passwords_are_redacted', async ({page}) => {
   //   const callBackend = ClientFunction(
   //     function (url) {
   //       var xhttp = new XMLHttpRequest();
@@ -1310,7 +1308,7 @@ test.describe.parallel("Integration Tests", async () => {
   // })
 
   // Disabled the feature for now
-  // test("create_new_function_from_autocomplete", async ({}) => {
+  // test("create_new_function_from_autocomplete", async ({page}) => {
   //   await createRepl(page);
   //
   //     await page.type("#active-editor", "myFunctionName");
@@ -1320,7 +1318,7 @@ test.describe.parallel("Integration Tests", async () => {
   // });
 
   // CLEANUP: broken
-  // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({}) => {
+  // test("fluid_tabbing_from_an_http_handler_spec_to_ast", async ({page}) => {
   //   await createEmptyHTTPHandler(page);
   //   await expectPlaceholderText(page, "verb");
 
@@ -1334,6 +1332,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   // CLEANUP: tabbing is broken and should be fixed
   // test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async ({
+  //   page
   // }) => {
   //   await createEmptyHTTPHandler(page);
   //   await expectPlaceholderText(page, "verb");
@@ -1350,6 +1349,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   // CLEANUP: tabbing is broken and should be fixed
   // test("fluid_shift_tabbing_from_handler_ast_back_to_route", async ({
+  //   page
   // }) => {
   //   await createEmptyHTTPHandler(page);
   //   await expectPlaceholderText(page, "verb");
@@ -1370,7 +1370,7 @@ test.describe.parallel("Integration Tests", async () => {
   // // - upload fails b/c the db already has a fn with this name + version
   // // - upload fails b/c the version we're trying to upload is too low (eg, if you
   // // already have a v1, you can't upload a v0)
-  // test("upload_pkg_fn_as_admin", async ({}, testInfo) => {
+  // test("upload_pkg_fn_as_admin", async ({page}, testInfo) => {
   //   // upload v1/2/3 depending whether this is test run 1/2/3
   //   const tlid = testInfo.retry + 1;
 
@@ -1410,7 +1410,7 @@ test.describe.parallel("Integration Tests", async () => {
 
   // This test is flaky; last attempt to fix it added the 1000ms timeout, but that
   // didn't solve the problem
-  // test("exe_flow_fades", async ({}) => {
+  // test("exe_flow_fades", async ({page}) => {
   //   const timestamp = new Date();
   //   await page.click(".fluid-entry");
   //   awaitAnalysis(t, timestamp);
