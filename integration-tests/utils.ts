@@ -1,6 +1,7 @@
 import { expect, ConsoleMessage, Page, TestInfo } from "@playwright/test";
 import { BWD_BASE_URL, BASE_URL } from "./tests";
 
+// TODO there are likely more locators within tests that we could add here
 export const Locators = {
   entryBox: "#entry-box",
   acHighlightedValue: ".autocomplete-item.highlighted > .name",
