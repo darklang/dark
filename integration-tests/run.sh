@@ -5,7 +5,9 @@
 set -euo pipefail
 
 # This deliberately can be run outside the container - sometimes you want to test on
-# the host
+# the host. CLEANUP this is currently failing, unless you specify some env vars
+# explicitly. Here's a sample command to get it working for now:
+# DARK_CONFIG_APISERVER_HOST=darklang.localhost:9000 DARK_CONFIG_BWDSERVER_HOST=builtwithdark.localhost:11001 ./integration-tests/run.sh
 
 # CLEANUP this script fails if you cd to this directory.
 # we should adjust to either allow such, or warn so dev doesn't get confused
@@ -95,7 +97,10 @@ fi
 ######################
 echo "Starting playwright"
 integration-tests/node_modules/.bin/playwright --version
-BASE_URL="$BASE_URL" BWD_BASE_URL="$BWD_BASE_URL" integration-tests/node_modules/.bin/playwright \
+BASE_URL="$BASE_URL" \
+  BWD_BASE_URL="$BWD_BASE_URL" \
+  integration-tests/node_modules/.bin/playwright \
+  \
   test \
   $DEBUG_MODE_FLAG \
   --workers "$CONCURRENCY" \
