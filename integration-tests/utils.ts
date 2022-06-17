@@ -198,15 +198,8 @@ export async function awaitAnalysis(page: Page, lastTimestamp: number) {
   await page.waitForFunction(analysisFunction, lastTimestamp);
 }
 
-// Wait until the frontend is loaded - this is when we know we are able to do analyses
-export function awaitAnalysisLoaded(page: Page) {
-  return new Promise((resolve, _reject) => {
-    page.on("console", async (msg: ConsoleMessage) => {
-      if (msg.text() === "Blazor loaded") {
-        resolve(true);
-      }
-    });
-  });
+export async function awaitAnalysisLoaded(page: Page) {
+  await page.waitForFunction(() => window.Dark.fsharpAnalysis.initialized);
 }
 
 //********************************
