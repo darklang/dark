@@ -159,7 +159,7 @@ test.describe.parallel("Integration Tests", async () => {
       }
       saveMessage(testInfo, msg);
     });
-    
+
     // go to URL and wait for analysis
     var url = canvasUrl(testName);
     await page.goto(url, { waitUntil: "networkidle" });
