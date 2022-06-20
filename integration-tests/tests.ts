@@ -31,15 +31,21 @@ import {
   waitForEmptyEntryBox,
 } from "./utils";
 
-export const BASE_URL = process.env.BASE_URL;
-export const BWD_BASE_URL = process.env.BWD_BASE_URL;
-
 declare global {
   interface Window {
     // makes TypeScript OK with us reaching into window.Dark.analysis
     Dark: any;
   }
+
+  // makes TypeScript OK with us accessing `process.env`
+  // TODO import the node types package rather tha nthis
+  const process: {
+    env: any;
+  };
 }
+
+export const BASE_URL = process.env.BASE_URL;
+export const BWD_BASE_URL = process.env.BWD_BASE_URL;
 
 /**
  * Set local storage for userState and editorState. We don't want various UI
@@ -90,7 +96,7 @@ async function flushLogs(page: Page, testInfo: TestInfo) {
     return true;
   }
 
-  let flushedLogs = false;
+  let haveLogsBeenFlushed = false;
 
   if (testInfo.status === testInfo.expectedStatus) {
     // Only run final checks if we're on the road to success
@@ -114,15 +120,15 @@ async function flushLogs(page: Page, testInfo: TestInfo) {
         .filter((msg: ConsoleMessage) => msg.type() == "error")
         .map(msg => `[console ${msg.type()}]: ${msg.text()}`);
       expect(errorMessages).toHaveLength(0);
-      flushedLogs = flush(testInfo);
+      haveLogsBeenFlushed = flush(testInfo);
     } catch (e) {
-      if (flushedLogs === false) {
+      if (haveLogsBeenFlushed === false) {
         flush(testInfo);
       }
       throw e;
     }
   } else {
-    flushedLogs = flush(testInfo);
+    haveLogsBeenFlushed = flush(testInfo);
   }
 }
 
@@ -130,22 +136,8 @@ test.use({ baseURL: BASE_URL });
 
 test.describe.parallel("Integration Tests", async () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    const canvasName = "just-loading-analysis";
-    await page.goto(canvasUrl(canvasName), { waitUntil: "networkidle" });
-
-    await prepSettings(page, canvasName);
-    await page.type("#username", "test");
-    await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
-    await page.click("text=Login");
-    await page.waitForSelector("#finishIntegrationTest");
-    await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
-    await awaitAnalysisLoaded(page);
-    await page.pause();
-
-    const testName = testInfo.title;
-
+    // set up listeners for console logs and page errors
     initMessages(testInfo);
-
     page.on("pageerror", async err => {
       console.error(err);
     });
@@ -160,13 +152,21 @@ test.describe.parallel("Integration Tests", async () => {
       saveMessage(testInfo, msg);
     });
 
-    // go to URL and wait for analysis
-    var url = canvasUrl(testName);
-    await page.goto(url, { waitUntil: "networkidle" });
+    // go to test page; wait until page (incl. analysis) has loaded
+    const testname = testInfo.title;
+    var username = "test";
+    if (testname.match(/_as_admin/)) {
+      username = "test_admin";
+    }
+    await page.goto(canvasUrl(testname), { waitUntil: "networkidle" });
+    await prepSettings(page, testname);
+    await page.type("#username", "test");
+    await page.type("#password", "fVm2CUePzGKCwoEQQdNJktUQ");
+    await page.click("text=Login");
     await page.waitForSelector("#finishIntegrationTest");
     await page.mouse.move(0, 0); // can interfere with autocomplete keyboard movements
-
     await awaitAnalysisLoaded(page);
+    await page.pause();
   });
 
   test.afterEach(async ({ page }, testInfo) => {
