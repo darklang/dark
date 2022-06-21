@@ -189,6 +189,70 @@ module Legacy =
     toString' v j
     v.ToArray() |> UTF8.ofBytesUnsafe
 
+
+  // This is its own thing because it need to be exactly the same as it was, or we
+  // won't be able to extract the old values, and that would be bad.
+  // CLEANUP: make new version with a roundtrippable format
+
+  open Newtonsoft.Json
+  open Newtonsoft.Json.Linq
+
+  /// Parses header or payload of a JWT
+  let parseJson (s : string) : JToken =
+    let reader = new JsonTextReader(new System.IO.StringReader(s))
+    let jls = JsonLoadSettings()
+    jls.CommentHandling <- CommentHandling.Load // Load them so we can error later
+    jls.DuplicatePropertyNameHandling <- DuplicatePropertyNameHandling.Error
+    jls.CommentHandling <- CommentHandling.Ignore
+
+    reader.DateParseHandling <- DateParseHandling.None
+    JToken.ReadFrom(reader)
+
+  /// Parses header or payload of a JWT, transforming results into a Dval
+  let deserialize (str : string) : Result<Dval, string> =
+    // We cannot change this to use System.Text.Json because STJ does not
+    // allow "raw infinity"
+    let rec convert (j : JToken) =
+      match j.Type with
+      | JTokenType.Integer -> DInt(j.Value<int64>())
+      | JTokenType.Float -> DFloat(j.Value<float>())
+      | JTokenType.Boolean -> DBool(j.Value<bool>())
+      | JTokenType.Null -> DNull
+      | JTokenType.String -> DStr(j.Value<string>())
+      | JTokenType.Array ->
+        j.Values<JToken>() |> Seq.toList |> List.map convert |> Dval.list
+      | JTokenType.Object ->
+        j.Values()
+        |> seq
+        |> Seq.toList
+        |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
+        |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m)
+        |> DObj
+
+      // Json.NET does a bunch of magic based on the contents of various types.
+      // For example, it has tokens for Dates, constructors, etc. We've tried to
+      // disable all those so we fail if we see them. However, we might need to
+      // just convert some of these into strings.
+      | JTokenType.None
+      | JTokenType.Undefined
+      | JTokenType.Constructor
+      | JTokenType.Property
+      | JTokenType.Guid
+      | JTokenType.Raw
+      | JTokenType.Bytes
+      | JTokenType.TimeSpan
+      | JTokenType.Uri
+      | JTokenType.Comment
+      | JTokenType.Date
+      | _ -> Exception.raiseInternal "Invalid type in json" [ "json", string j ]
+
+    try
+      str |> parseJson |> convert |> Ok
+    with
+    | :? JsonReaderException as e ->
+      let msg = if str = "" then "JSON string was empty" else e.Message
+      Error msg
+
 /// Forms signed JWT given payload, extra header, and key
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
   let header =
@@ -309,68 +373,6 @@ let verifyAndExtractV1
     | e -> Error e.Message
   | _ -> Error "Invalid token format"
 
-// This is its own thing because it need to be exactly the same as it was, or we
-// won't be able to extract the old values, and that would be bad.
-// CLEANUP: make new version with a roundtrippable format
-
-open Newtonsoft.Json
-open Newtonsoft.Json.Linq
-
-/// Parses header or payload of a JWT
-let parseJson (s : string) : JToken =
-  let reader = new JsonTextReader(new System.IO.StringReader(s))
-  let jls = JsonLoadSettings()
-  jls.CommentHandling <- CommentHandling.Load // Load them so we can error later
-  jls.DuplicatePropertyNameHandling <- DuplicatePropertyNameHandling.Error
-  jls.CommentHandling <- CommentHandling.Ignore
-
-  reader.DateParseHandling <- DateParseHandling.None
-  JToken.ReadFrom(reader)
-
-/// Parses header or payload of a JWT, transforming results into a Dval
-let ofJson (str : string) : Result<Dval, string> =
-  // We cannot change this to use System.Text.Json because STJ does not
-  // allow "raw infinity"
-  let rec convert (j : JToken) =
-    match j.Type with
-    | JTokenType.Integer -> DInt(j.Value<int64>())
-    | JTokenType.Float -> DFloat(j.Value<float>())
-    | JTokenType.Boolean -> DBool(j.Value<bool>())
-    | JTokenType.Null -> DNull
-    | JTokenType.String -> DStr(j.Value<string>())
-    | JTokenType.Array ->
-      j.Values<JToken>() |> Seq.toList |> List.map convert |> Dval.list
-    | JTokenType.Object ->
-      j.Values()
-      |> seq
-      |> Seq.toList
-      |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
-      |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m)
-      |> DObj
-
-    // Json.NET does a bunch of magic based on the contents of various types.
-    // For example, it has tokens for Dates, constructors, etc. We've tried to
-    // disable all those so we fail if we see them. However, we might need to
-    // just convert some of these into strings.
-    | JTokenType.None
-    | JTokenType.Undefined
-    | JTokenType.Constructor
-    | JTokenType.Property
-    | JTokenType.Guid
-    | JTokenType.Raw
-    | JTokenType.Bytes
-    | JTokenType.TimeSpan
-    | JTokenType.Uri
-    | JTokenType.Comment
-    | JTokenType.Date
-    | _ -> Exception.raiseInternal "Invalid type in json" [ "json", string j ]
-
-  try
-    str |> parseJson |> convert |> Ok
-  with
-  | :? JsonReaderException as e ->
-    let msg = if str = "" then "JSON string was empty" else e.Message
-    Error msg
 
 let fns : List<BuiltInFn> =
   [ { name = fn "JWT" "signAndEncode" 0
@@ -461,8 +463,8 @@ let fns : List<BuiltInFn> =
           match result with
           | Some (headers, payload) ->
             let unwrap = Exception.unwrapResultCode
-            [ ("header", ofJson headers |> unwrap)
-              ("payload", ofJson payload |> unwrap) ]
+            [ ("header", Legacy.deserialize headers |> unwrap)
+              ("payload", Legacy.deserialize payload |> unwrap) ]
             |> Map.ofList
             |> DObj
             |> Some
@@ -492,8 +494,8 @@ let fns : List<BuiltInFn> =
           match result with
           | Ok (headers, payload) ->
             let unwrap = Exception.unwrapResultCode
-            [ ("header", ofJson headers |> unwrap)
-              ("payload", ofJson payload |> unwrap) ]
+            [ ("header", Legacy.deserialize headers |> unwrap)
+              ("payload", Legacy.deserialize payload |> unwrap) ]
             |> Map.ofList
             |> DObj
             |> Ok
