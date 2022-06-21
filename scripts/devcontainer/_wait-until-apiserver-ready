@@ -16,3 +16,4 @@ function wait_for {
 wait_for app.js
 wait_for appsupport.js
 wait_for app.css
+wait_for BlazorWorker.js
