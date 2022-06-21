@@ -638,7 +638,6 @@ and fetchResult =
 
 and fetchContext = {
   canvasName: string,
-  apiRoot: string,
   csrfToken: string,
   origin: string,
 }
@@ -1473,8 +1472,6 @@ and variantTest =
   StubVariant
   | NgrokVariant
   | LeftPartialVariant
-  // CLEANUP remove after F# migration
-  | FsharpBackend
 
 /* ----------------------------- */
 /* FeatureFlags */

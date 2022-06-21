@@ -30,6 +30,7 @@ let prefixFns : List<BuiltInFn> =
     LibFloat.fns
     LibHttp.fns
     LibHttpClient.fns
+    LibHttpClientAuth.fns
     LibJson.fns
     LibMath.fns
     LibObject.fns
@@ -40,6 +41,7 @@ let prefixFns : List<BuiltInFn> =
     LibNoModule.fns
     LibOption.fns
     LibResult.fns
+    LibCrypto.fns
     LibString.fns ]
   |> List.concat
   |> renameFunctions renames

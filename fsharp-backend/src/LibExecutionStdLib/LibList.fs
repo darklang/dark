@@ -297,11 +297,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "findFirst" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = varA
       description =
-        // CLEANUP: returns null, not Nothing
-        "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
+        "Returns the first value of `list` for which `fn val` returns `true`. Returns null if no such value exists."
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
@@ -326,10 +325,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "findFirst" 1
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = TOption varA
       description =
-        "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
+        "Returns the first value of `list` for which `fn val` returns `true`. Returns `Nothing` if no such value exists."
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
@@ -354,10 +353,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "findFirst" 2
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = TOption varA
       description =
-        "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
+        "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `fn` returns `true`. Returns `Nothing` if no such value exists."
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
@@ -460,13 +459,13 @@ let fns : List<BuiltInFn> =
         [ Param.make "list" (TList varA) "The list of items to process one at a time"
           Param.make "init" varB "The initial starting value"
           Param.makeWithArgs
-            "f"
+            "fn"
             (TFn([ varB; varA ], varB))
             "the function taking the accumulated value and the next list item, returning the next accumulated item."
             [ "accum"; "curr" ] ]
       returnType = varB
       description =
-        "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
+        "Folds `list` into a single value, by repeatedly applying `fn` to any two pairs."
       fn =
         (function
         | state, [ DList l; init; DFnVal b ] ->
@@ -564,10 +563,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "uniqueBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varA
       description =
-        "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained."
+        "Returns the passed list, with only unique values, where uniqueness is based on the result of `fn`. Only one of each value will be returned, but the order will not be maintained."
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
@@ -624,10 +623,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "sortBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varA
       description =
-        "Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
+        "Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `fn val`.
            For example, `List::sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String::length val` returns `[ \"x\", \"ab\", \"jkl\" ]`.
            Consider `List::sort` if the list values can be directly compared, or `List::sortByComparator` if you want more control over the sorting process."
       fn =
@@ -655,10 +654,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "sortByComparator" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
       returnType = TResult(varA, TStr)
       description =
-        "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
+        "Returns a copy of `list`, sorted using `fn a b` to compare values `a` and `b`.
         `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
         Consider `List::sort` or `List::sortBy` if you don't need this level of control."
       fn =
@@ -674,7 +673,7 @@ let fns : List<BuiltInFn> =
               | _ ->
                 return
                   Exception.raiseCode (
-                    Errors.expectedLambdaValue "f" "-1, 0, 1" result
+                    Errors.expectedLambdaValue "fn" "-1, 0, 1" result
                   )
             }
 
@@ -712,7 +711,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "filter" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
@@ -733,7 +732,7 @@ let fns : List<BuiltInFn> =
                   incomplete.Value <- true
                   return false
                 | v ->
-                  return Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
+                  return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
               }
 
             if incomplete.Value then
@@ -746,62 +745,64 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "filter" 1) }
-    // { name = fn "List" "all" 0 // CLEANUP: not in the ocaml version, add it back
-    //   parameters =
-    //     [ Param.make "list" (TList varA) ""
-    //       Param.make
-    //         "fn"
-    //         (TFn([ varA ], TBool))
-    //         "Function to be applied on all list elements;" ]
-    //   returnType = TBool
-    //   description =
-    //     "Return true if all elements in the list meet the function's criteria, else false."
-    //   fn =
-    //     (function
-    //     | state, [ DList l; DFnVal b ] ->
-    //         uply {
-    //           let incomplete = ref false
-    //
-    //           let f (dv : Dval) : Ply<bool> =
-    //             uply {
-    //               let! r =
-    //                 LibExecution.Interpreter.applyFnVal
-    //                   state
-    //                   (id 0)
-    //                   b
-    //                   [ dv ]
-    //                   NotInPipe
-    //                   NoRail
-    //
-    //               match r with
-    //               | DBool b -> return b
-    //               | DIncomplete _ ->
-    //                   incomplete := true
-    //                   return false
-    //               | v ->
-    //                   Exception.raiseCode (Errors.expectedLambdaType TBool dv)
-    //                   return false
-    //             }
-    //
-    //           if !incomplete then
-    //             return DIncomplete SourceNone
-    //           else
-    //             let! result = Ply.List.filterSequentially f l
-    //             return DBool((result.Length) = (l.Length))
-    //         }
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplementedTODO
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+
+
+    { name = fn "List" "all" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make
+            "fn"
+            (TFn([ varA ], TBool))
+            "Function to be applied on all list elements;" ]
+      returnType = TBool
+      description =
+        "Return true if all elements in the list meet the function's criteria, else false."
+      fn =
+        (function
+        | state, [ DList l; DFnVal b ] ->
+          uply {
+            let mutable incomplete = false
+
+            let f (dv : Dval) : Ply<bool> =
+              uply {
+                let! r =
+                  LibExecution.Interpreter.applyFnVal
+                    state
+                    (id 0)
+                    b
+                    [ dv ]
+                    NotInPipe
+                    NoRail
+
+                match r with
+                | DBool b -> return b
+                | DIncomplete _ ->
+                  incomplete <- true
+                  return false
+                | v ->
+                  Exception.raiseCode (Errors.expectedLambdaType "fn" TBool dv)
+                  return false
+              }
+
+            if incomplete then
+              return DIncomplete SourceNone
+            else
+              let! result = Ply.List.filterSequentially f l
+              return DBool(result.Length = l.Length)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     { name = fn "List" "filter" 1
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = TList varA
       description =
-        "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
+        "Calls `f` on every `val` in `list`, returning a list of only those values for which `fn val` returns `true`.
         Preserves the order of values that were not dropped.
         Consider `List::filterMap` if you also want to transform the values."
       fn =
@@ -826,7 +827,7 @@ let fns : List<BuiltInFn> =
                     return false
                   | v ->
                     return
-                      Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
+                      Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
                 else
                   return false
               }
@@ -846,10 +847,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "filter" 2
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = TList varA
       description =
-        "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
+        "Calls `f` on every `val` in `list`, returning a list of only those values for which `fn val` returns `true`.
         Preserves the order of values that were not dropped.
         Consider `List::filterMap` if you also want to transform the values."
       fn =
@@ -875,7 +876,7 @@ let fns : List<BuiltInFn> =
                     return false
                   | v ->
                     return
-                      Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
+                      Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
                 else
                   return false
               }
@@ -895,12 +896,12 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "filterMap" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TOption varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], TOption varB)) "" [ "val" ] ]
       returnType = TList varB
       description =
-        "Calls `f` on every `val` in `list`, returning a new list that drops some values (filter) and transforms others (map).
-        If `f val` returns `Nothing`, drops `val` from the list.
-        If `f val` returns `Just newValue`, replaces `val` with `newValue`.
+        "Calls `fn` on every `val` in `list`, returning a new list that drops some values (filter) and transforms others (map).
+        If `fn val` returns `Nothing`, drops `val` from the list.
+        If `fn val` returns `Just newValue`, replaces `val` with `newValue`.
         Preserves the order of values that were not dropped.
         This function combines `List::filter` and `List::map`."
       fn =
@@ -928,7 +929,7 @@ let fns : List<BuiltInFn> =
                   | v ->
                     return
                       Exception.raiseCode (
-                        Errors.expectedLambdaType "f" (TOption varB) v
+                        Errors.expectedLambdaType "fn" (TOption varB) v
                       )
                 else
                   return None
@@ -965,7 +966,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "dropWhile" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varB
       description =
         "Drops the longest prefix of `list` which satisfies the predicate `val`"
@@ -996,7 +997,7 @@ let fns : List<BuiltInFn> =
                       return []
                     | v ->
                       return
-                        Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
+                        Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
                   else
                     return []
               }
@@ -1032,7 +1033,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "takeWhile" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Return the longest prefix of `list` which satisfies the predicate `val`"
@@ -1065,7 +1066,7 @@ let fns : List<BuiltInFn> =
                       return []
                     | v ->
                       return
-                        Exception.raiseCode (Errors.expectedLambdaType "f" TBool v)
+                        Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
                   else
                     return []
               }
@@ -1085,11 +1086,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "foreach" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          // CLEANUP rename these args to "fn"
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varB
       description =
-        "Call `f` on every `val` in the list, returning a list of the results of
+        "Call `fn` on every `val` in the list, returning a list of the results of
          those calls"
       fn =
         (function
@@ -1112,9 +1112,9 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "map" 0
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
       description =
-        "Calls `f` on every `val` in `list`, returning a list of the results of those calls.
+        "Calls `fn` on every `val` in `list`, returning a list of the results of those calls.
         Consider `List::filterMap` if you also want to drop some of the values."
       returnType = TList varB
       fn =
@@ -1138,10 +1138,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "indexedMap" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ TInt; varA ], varB)) "" [ "index"; "val" ] ]
+          Param.makeWithArgs "fn" (TFn([ TInt; varA ], varB)) "" [ "index"; "val" ] ]
       returnType = TList varB
       description =
-        "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
+        "Calls `fn` on every `val` and its `index` in `list`, returning a list of the results of those calls.
         Consider `List::map` if you don't need the index."
       fn =
         (function
@@ -1173,10 +1173,10 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "as" (TList varA) ""
           Param.make "bs" (TList varB) ""
-          Param.makeWithArgs "f" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
       returnType = TList varC
       description =
-        "Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of values from `as` and `bs`.
+        "Maps `fn` over `as` and `bs` in parallel, calling `fn a b` on every pair of values from `as` and `bs`.
         If the lists differ in length, values from the longer list are dropped.
         For example, if `as` is `[1,2]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[(f 1 \"x\"), (f 2 \"y\")]`.
         Use `List::map2` if you want to enforce equivalent lengths for `as` and `bs`."
@@ -1208,12 +1208,12 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "as" (TList varA) ""
           Param.make "bs" (TList varB) ""
-          Param.makeWithArgs "f" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
+          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
       returnType = TOption varC
       description =
-        "If the lists are the same length, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
-         calling `f a b` on every pair of values from `as` and `bs`.
-         For example, if `as` is `[1,2,3]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[(f 1 \"x\"), (f 2 \"y\"), (f 3 \"z\")]`.
+        "If the lists are the same length, returns `Just list` formed by mapping `fn` over `as` and `bs` in parallel,
+         calling `fn a b` on every pair of values from `as` and `bs`.
+         For example, if `as` is `[1,2,3]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[(fn 1 \"x\"), (f 2 \"y\"), (f 3 \"z\")]`.
          If the lists differ in length, returns `Nothing` (consider `List::map2shortest` if you want to drop values from the longer list instead)."
       fn =
         (function

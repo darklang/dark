@@ -90,16 +90,16 @@ def copy_static():
 def copy_fsharp_static():
   start = time.time()
   blazor = run_backend(
-      start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
+      start, "cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/")
   if optimize:
     wwwroot = run_backend(
         start,
-        "rsync -a fsharp-backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
     )
   else:
     wwwroot = run_backend(
         start,
-        "rsync -a fsharp-backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
+        "rsync -a fsharp-backend/Build/out/Analysis/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
     )
   return blazor and wwwroot
 
@@ -604,7 +604,7 @@ def mark(should, f):
   elif "/client/static/" in f:
     should.copy_static = True
 
-  elif "/fsharp-backend/src/Wasm/static/" in f:
+  elif "/fsharp-backend/src/Analysis/static/" in f:
     should.copy_fsharp_static = True
 
   elif (".circleci/config.yml" in f):
@@ -663,7 +663,7 @@ def ignore(filename):
       ".bsdeps",
       ".bsbuild",
       "/obj/fsac.cache",
-      "/fsharp-backend/packages/wasm",
+      "/fsharp-backend/packages/analysis",
       ".sourcedirs.json",
       "/obj",
       ".processlock",

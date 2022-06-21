@@ -42,7 +42,7 @@ type Metadata = List<string * obj>
 
 /// An error within Dark itself - we need to rollbar this and address it.
 ///
-/// Do not show to anyone, unless within a WASM request.
+/// Do not show to anyone, unless within an Analysis request.
 type InternalException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
@@ -1436,7 +1436,7 @@ module Ply =
             let! accum = accum
             return! f accum arg
           })
-        (Ply<'state> initial)
+        (Ply initial)
         list
 
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
@@ -1529,7 +1529,7 @@ module Ply =
             let! (accum : 'state) = accum
             return! f accum key arg
           })
-        (Ply<'state> initial)
+        (Ply(initial))
         dict
 
     let mapSequentially

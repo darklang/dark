@@ -1,5 +1,7 @@
 open Prelude
 
+let apiRoot = "/api/"
+
 let clientVersionHeader = (m): Tea_http.header => Header(Header.client_version, m.buildHash)
 
 let apiCallNoParams = (
@@ -8,7 +10,7 @@ let apiCallNoParams = (
   ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): Tea.Cmd.t<msg> => {
-  let url = VariantTesting.apiRoot(m) ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
+  let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = Tea.Http.request({
     method': "POST",
     headers: list{
@@ -59,7 +61,7 @@ let apiCall = (
   ~callback: Tea.Result.t<'resulttype, Tea.Http.error<string>> => msg,
   endpoint: string,
 ): Tea.Cmd.t<msg> => {
-  let url = VariantTesting.apiRoot(m) ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
+  let url = apiRoot ++ Tea.Http.encodeUri(m.canvasName) ++ endpoint
   let request = postJson(
     ~headers=list{clientVersionHeader(m)},
     decoder,
