@@ -167,7 +167,14 @@ for mimetype in mimetypes_to_process:
     cp -Z -n -r . "{BUCKET}"
     '''
 
-  subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder)
+  result = subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder, capture_output=True)
+  if result.stderr and result.returncode != 0:
+    raise subprocess.CalledProcessError(
+      returncode = result.returncode,
+      cmd = result.args,
+      stderr = result.stderr
+    )
+
   elapsed = (time.time() - start)
   print(f"Uploaded dir {mimetype_subfolder} for mimetype {mimetype} in {elapsed}s")
 
