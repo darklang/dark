@@ -201,7 +201,7 @@ module Serialization =
       appendString v s
       append v "\""
 
-    let handleAssoc l =
+    let handleObj l =
       append v "{"
 
       let f ((k, j) : string * Dval) =
@@ -263,10 +263,10 @@ module Serialization =
     | DBytes bytes -> bytes |> Base64.defaultEncodeToString |> handleString
 
     // objects
-    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, v)) |> handleAssoc
-    | DError _ -> handleAssoc [ "Error", DNull ]
-    | DPassword _ -> handleAssoc [ "Error", DStr "Password is redacted" ]
-    | DResult (Error dv) -> handleAssoc [ ("Error", dv) ]
+    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, v)) |> handleObj
+    | DError _ -> handleObj [ "Error", DNull ]
+    | DPassword _ -> handleObj [ "Error", DStr "Password is redacted" ]
+    | DResult (Error dv) -> handleObj [ ("Error", dv) ]
 
     // wrapper types
     | DHttpResponse (Response (_, _, hdv)) -> toString' v hdv
