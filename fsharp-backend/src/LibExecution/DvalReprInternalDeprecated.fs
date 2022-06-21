@@ -54,7 +54,6 @@ type JsonWriter with
 // TODO CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
-
 let parseJson (s : string) : JToken =
   let reader = new JsonTextReader(new System.IO.StringReader(s))
   let jls = JsonLoadSettings()
@@ -65,6 +64,23 @@ let parseJson (s : string) : JToken =
   reader.DateParseHandling <- DateParseHandling.None
   JToken.ReadFrom(reader)
 
+
+let ocamlStringOfFloat (f : float) : string =
+  // We used OCaml's string_of_float in lots of different places and now we're
+  // reliant on it. Ugh.  string_of_float in OCaml is C's sprintf with the
+  // format "%.12g".
+  // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
+
+  // CLEANUP We should move on to a nicer format. See DvalReprExternal.tests for edge cases. See:
+  if System.Double.IsPositiveInfinity f then
+    "inf"
+  else if System.Double.IsNegativeInfinity f then
+    "-inf"
+  else if System.Double.IsNaN f then
+    "nan"
+  else
+    let result = sprintf "%.12g" f
+    if result.Contains "." then result else $"{result}."
 
 let (|JString|_|) (j : JToken) : Option<string> =
   match j.Type with
@@ -108,7 +124,6 @@ let (|JObject|_|) (j : JToken) : Option<List<string * JToken>> =
     Some(JObject list)
   | _ -> None
 
-
 let (|JNonStandard|_|) (j : JToken) : Option<unit> =
   match j.Type with
   | JTokenType.None
@@ -123,24 +138,6 @@ let (|JNonStandard|_|) (j : JToken) : Option<unit> =
   | JTokenType.Comment
   | JTokenType.Date -> Some()
   | _ -> None
-
-let ocamlStringOfFloat (f : float) : string =
-  // We used OCaml's string_of_float in lots of different places and now we're
-  // reliant on it. Ugh.  string_of_float in OCaml is C's sprintf with the
-  // format "%.12g".
-  // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
-
-  // CLEANUP We should move on to a nicer format. See DvalReprExternal.tests for edge cases. See:
-  if System.Double.IsPositiveInfinity f then
-    "inf"
-  else if System.Double.IsNegativeInfinity f then
-    "-inf"
-  else if System.Double.IsNaN f then
-    "nan"
-  else
-    let result = sprintf "%.12g" f
-    if result.Contains "." then result else $"{result}."
-
 
 // This special format was originally the default OCaml (yojson-derived) format
 // for this.

@@ -64,58 +64,6 @@ type Utf8JsonWriter with
     this.WriteEndArray()
 
 
-// TODO move these closer to their usage
-
-let (|JString|_|) (j : JsonElement) : Option<string> =
-  match j.ValueKind with
-  | JsonValueKind.String -> Some(JString(j.GetString()))
-  | _ -> None
-
-let (|JNull|_|) (j : JsonElement) : Option<unit> =
-  match j.ValueKind with
-  | JsonValueKind.Null -> Some(JNull)
-  | _ -> None
-
-let (|JInteger|_|) (j : JsonElement) : Option<int64> =
-  match j.ValueKind with
-  | JsonValueKind.Number ->
-    try
-      Some(JInteger(j.GetInt64()))
-    with
-    | :? System.FormatException -> None
-  | _ -> None
-
-let (|JFloat|_|) (j : JsonElement) : Option<float> =
-  match j.ValueKind with
-  | JsonValueKind.Number -> Some(JFloat(j.GetDouble()))
-  | _ -> None
-
-let (|JBoolean|_|) (j : JsonElement) : Option<bool> =
-  match j.ValueKind with
-  | JsonValueKind.False -> Some(JBoolean(false))
-  | JsonValueKind.True -> Some(JBoolean(true))
-  | _ -> None
-
-let (|JList|_|) (j : JsonElement) : Option<List<JsonElement>> =
-  match j.ValueKind with
-  | JsonValueKind.Array -> Some(JList(j.EnumerateArray() |> Seq.toList))
-  | _ -> None
-
-let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
-  match j.ValueKind with
-  | JsonValueKind.Object ->
-    let list =
-      j.EnumerateObject()
-      |> Seq.toList
-      |> List.map (fun (jp : JsonProperty) -> (jp.Name, jp.Value))
-    Some(JObject(list))
-
-  | _ -> None
-
-let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
-  match j.ValueKind with
-  | JsonValueKind.Undefined -> Some()
-  | _ -> None
 
 let ocamlStringOfFloat (f : float) : string =
   // Backward compatible way to stringify floats.
@@ -437,6 +385,57 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
   toRepr_ 0 dv
 
 
+let (|JString|_|) (j : JsonElement) : Option<string> =
+  match j.ValueKind with
+  | JsonValueKind.String -> Some(JString(j.GetString()))
+  | _ -> None
+
+let (|JNull|_|) (j : JsonElement) : Option<unit> =
+  match j.ValueKind with
+  | JsonValueKind.Null -> Some(JNull)
+  | _ -> None
+
+let (|JInteger|_|) (j : JsonElement) : Option<int64> =
+  match j.ValueKind with
+  | JsonValueKind.Number ->
+    try
+      Some(JInteger(j.GetInt64()))
+    with
+    | :? System.FormatException -> None
+  | _ -> None
+
+let (|JFloat|_|) (j : JsonElement) : Option<float> =
+  match j.ValueKind with
+  | JsonValueKind.Number -> Some(JFloat(j.GetDouble()))
+  | _ -> None
+
+let (|JBoolean|_|) (j : JsonElement) : Option<bool> =
+  match j.ValueKind with
+  | JsonValueKind.False -> Some(JBoolean(false))
+  | JsonValueKind.True -> Some(JBoolean(true))
+  | _ -> None
+
+let (|JList|_|) (j : JsonElement) : Option<List<JsonElement>> =
+  match j.ValueKind with
+  | JsonValueKind.Array -> Some(JList(j.EnumerateArray() |> Seq.toList))
+  | _ -> None
+
+let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
+  match j.ValueKind with
+  | JsonValueKind.Object ->
+    let list =
+      j.EnumerateObject()
+      |> Seq.toList
+      |> List.map (fun (jp : JsonProperty) -> (jp.Name, jp.Value))
+    Some(JObject(list))
+
+  | _ -> None
+
+let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
+  match j.ValueKind with
+  | JsonValueKind.Undefined -> Some()
+  | _ -> None
+  
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
