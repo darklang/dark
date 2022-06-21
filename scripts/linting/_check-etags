@@ -11,12 +11,9 @@ check_presence () {
 
 }
 
-check_presence analysis.js
 check_presence fetcher.js
 check_presence appsupport.js
 check_presence unsupportedBrowser.js
-check_presence analysis.js
-check_presence analysiswrapper.js
 check_presence app.css
 check_presence app.js
 check_presence reset-normalize.css

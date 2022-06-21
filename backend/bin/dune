@@ -83,12 +83,6 @@
   (preprocess (pps lwt_ppx))
 )
 
-(alias
-  (name analysis.js)
-  (deps (file ../jsanalysis/jsanalysis.bc.js) (universe))
-  (action (system "cp ../jsanalysis/jsanalysis.bc.js ../../../../backend/static/analysis.js"))
-)
-
 
 (executable
   (name clone_canvas)

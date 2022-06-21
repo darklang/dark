@@ -262,7 +262,6 @@ jobs:
             - _build/default/backend/bin/garbage_collector_worker.exe
             - _build/default/backend/bin/legacy_serialization_server.exe
             - _build/default/backend/bin/legacy_fuzzing_server.exe
-            - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
           command: |
