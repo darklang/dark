@@ -138,8 +138,6 @@ let private verifyAndExtractV1
 /// </summary>
 /// <remarks>
 /// CLEANUP: make new version with a roundtrippable non-Newtonsoft format
-/// SERIALIZER_DEF Newtonsoft/Custom LibJwt.serialize
-/// SERIALIZER_DEF Newtonsoft/Custom LibJwt.deserialize
 ///
 /// The LibJWT functions use signatures based off the exact string encoding of
 /// Dvals. This was defined in the original OCaml version. We need to keep this
@@ -276,16 +274,16 @@ module Serialization =
     | DErrorRail dv -> toString' v dv
     | DResult (Ok dv) -> toString' v dv
 
+  // SERIALIZER_DEF Custom LibJwt.serialize
   let serialize (j : Dval) : string =
     let v = Vector 10
-
     toString' v j
-
     v.ToArray() |> UTF8.ofBytesUnsafe
 
   open Newtonsoft.Json
   open Newtonsoft.Json.Linq
 
+  // SERIALIZER_DEF Newtonsoft/Custom LibJwt.deserialize
   /// Parses header or payload of a JWT, transforming results into a Dval
   let deserialize (str : string) : Result<Dval, string> =
     /// Parses header or payload of a JWT
@@ -321,18 +319,7 @@ module Serialization =
 
       // Json.NET does a bunch of magic based on the contents of various types.
       // For example, it has tokens for Dates, constructors, etc. We've
-      // disabled all those so we fail if we see them.
-      | JTokenType.None
-      | JTokenType.Undefined
-      | JTokenType.Constructor
-      | JTokenType.Property
-      | JTokenType.Guid
-      | JTokenType.Raw
-      | JTokenType.Bytes
-      | JTokenType.TimeSpan
-      | JTokenType.Uri
-      | JTokenType.Comment
-      | JTokenType.Date
+      // disabled all those so we fail if we see any other JTokenType.
       | _ -> Exception.raiseInternal "Invalid type in json" [ "json", string j ]
 
     try
