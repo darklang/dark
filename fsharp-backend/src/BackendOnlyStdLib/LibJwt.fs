@@ -184,7 +184,8 @@ module Legacy =
 
       append v "}"
 
-  let toString (j : Yojson) : string =
+  // SERIALIZER_DEF LibJwt.Legacy.serialize
+  let serialize (j : Yojson) : string =
     let v = Vector 10
     toString' v j
     v.ToArray() |> UTF8.ofBytesUnsafe
@@ -208,6 +209,7 @@ module Legacy =
     reader.DateParseHandling <- DateParseHandling.None
     JToken.ReadFrom(reader)
 
+  // SERIALIZER_DEF LibJwt.Legacy.deserialize
   /// Parses header or payload of a JWT, transforming results into a Dval
   let deserialize (str : string) : Result<Dval, string> =
     // We cannot change this to use System.Text.Json because STJ does not
@@ -253,6 +255,7 @@ module Legacy =
       let msg = if str = "" then "JSON string was empty" else e.Message
       Error msg
 
+// SERIALIZER_USAGE LibJwt.Legacy.serialize
 /// Forms signed JWT given payload, extra header, and key
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
   let header =
@@ -262,14 +265,14 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> Map.mapWithIndex (fun k v -> Legacy.toYojson v)
     |> Map.toList
     |> Legacy.Assoc
-    |> Legacy.toString
+    |> Legacy.serialize
     |> UTF8.toBytes
     |> Base64.urlEncodeToString
 
   let payload =
     payload
     |> Legacy.toYojson
-    |> Legacy.toString
+    |> Legacy.serialize
     |> UTF8.toBytes
     |> Base64.urlEncodeToString
 
@@ -375,7 +378,8 @@ let verifyAndExtractV1
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "JWT" "signAndEncode" 0
+  [ // SERIALIZER_USAGE LibJwt.Legacy.serialize
+    { name = fn "JWT" "signAndEncode" 0
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TStr
       description =
@@ -389,6 +393,8 @@ let fns : List<BuiltInFn> =
       previewable = ImpurePreviewable
       deprecated = ReplacedBy(fn "JWT" "signAndEncode" 1) }
 
+
+    // SERIALIZER_USAGE LibJwt.Legacy.serialize
     { name = fn "JWT" "signAndEncodeWithHeaders" 0
       parameters =
         [ Param.make "pemPrivKey" TStr ""
@@ -423,6 +429,8 @@ let fns : List<BuiltInFn> =
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
+
+    // SERIALIZER_USAGE LibJwt.Legacy.serialize
     { name = fn "JWT" "signAndEncodeWithHeaders" 1
       parameters =
         [ Param.make "pemPrivKey" TStr ""
@@ -443,6 +451,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
+    // SERIALIZER_USAGE LibJwt.Legacy.deserialize
     { name = fn "JWT" "verifyAndExtract" 0
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TOption varA
@@ -476,6 +486,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = ReplacedBy(fn "JWT" "verifyAndExtract" 1) }
 
+
+    // SERIALIZER_USAGE LibJwt.Legacy.deserialize
     { name = fn "JWT" "verifyAndExtract" 1
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
       returnType = TResult(varA, varErr)
