@@ -882,12 +882,13 @@ type Password = Password of byte array
 // ----------------------
 module Json =
 
+  [<RequireQualifiedAccess>]
   module Vanilla =
-
     open System.Text.Json
     open System.Text.Json.Serialization
     open NodaTime.Serialization.SystemTextJson
 
+    // SERIALIZER_CONVERTER_DEF STJ Prelude
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
 
@@ -912,7 +913,8 @@ module Json =
 
     // Since we're getting this back from OCaml in DDates, we need to use the
     // timezone even though there isn't one in the type
-    type LocalDateTimeConverter() =
+    // todo: this is duplicated in ApiServer/Json.fs - why?
+    type private LocalDateTimeConverter() =
       inherit JsonConverter<NodaTime.LocalDateTime>()
 
       override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
@@ -982,22 +984,27 @@ module Json =
       // supports the type, not the best one
       _options.Converters.Insert(0, c)
 
+    // SERIALIZER_DEF STJ Prelude.Vanilla.serialize
     let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
 
+    // SERIALIZER_DEF STJ Prelude.Vanilla.deserialize
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
 
+    // SERIALIZER_DEF STJ Prelude.Vanilla.deserializeWithComments
     let deserializeWithComments<'a> (json : string) : 'a =
       let options = getOptions ()
       options.ReadCommentHandling <- JsonCommentHandling.Skip
       JsonSerializer.Deserialize<'a>(json, options)
 
+    // SERIALIZER_DEF STJ Prelude.Vanilla.prettySerialize
     let prettySerialize (data : 'a) : string =
       let options = getOptions ()
       options.WriteIndented <- true
       JsonSerializer.Serialize(data, options)
 
 
+  [<RequireQualifiedAccess>]
   module OCamlCompatible =
     // CLEANUP: get rid of OCamlCompatible serializers, replacing it with Vanilla.
     // AFAIK, the only places we have to use it is for actual ocamlinterop, and all
@@ -1251,9 +1258,6 @@ module Json =
             .toIsoString ()
         serializer.Serialize(writer, value)
 
-
-
-
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
@@ -1316,14 +1320,15 @@ module Json =
       _settings.Converters.Insert(0, c)
       _legacySettings.Converters.Insert(0, c)
 
+    // SERIALIZER_DEF Newtonsoft Prelude.OCamlCompatible.prettySerialize
+    // TODO this isn't used at all - delete.
     let prettySerialize (data : 'a) : string =
       let settings = getSettings true
       settings.Formatting <- Formatting.Indented
       JsonConvert.SerializeObject(data, settings)
 
-    /// Serialize to JSON
-    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
-
+    // SERIALIZER_DEF Newtonsoft Prelude.OCamlCompatible.legacySerialize
+    // TODO This is _only_ used in a test. remove?
     /// Serialize WITHOUT redacting passwords. Only used for communicating to the
     /// legacy server, where passwords in Dvals not be redacted because we want to
     /// interoperate on real values. This is only needed for fuzzing, as we don't
@@ -1331,9 +1336,16 @@ module Json =
     let legacySerialize (data : 'a) : string =
       JsonConvert.SerializeObject(data, _legacySettings)
 
+    // SERIALIZER_DEF Newtonsoft Prelude.OCamlCompatible.legacyDeserialize
+    // TODO This is _only_ used in a test. remove?
     let legacyDeserialize<'a> (json : string) : 'a =
       JsonConvert.DeserializeObject<'a>(json, _legacySettings)
 
+    // SERIALIZER_DEF Newtonsoft Prelude.OCamlCompatible.serialize
+    /// Serialize to JSON
+    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
+
+    // SERIALIZER_DEF Newtonsoft Prelude.OCamlCompatible.deserialize
     let deserialize<'a> (json : string) : 'a =
       JsonConvert.DeserializeObject<'a>(json, _settings)
 

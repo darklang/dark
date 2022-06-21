@@ -12,9 +12,9 @@ open System.Text.Json
 open System.Text.Json.Serialization
 open NodaTime.Serialization.SystemTextJson
 
-
-type FloatConverter() =
+type private FloatConverter() =
   // CLEANUP: check if we need the float converter
+  // TODO see if it's a dupe as something else
   inherit JsonConverter<float>()
 
   override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
@@ -22,15 +22,16 @@ type FloatConverter() =
 
   override _.Write(writer : Utf8JsonWriter, value : float, _) =
     let maxPreciselyRepresentedIntValue : float = float (1L <<< 49)
+
     if System.Math.Abs(value % 1.0) < System.Double.Epsilon
        && value < maxPreciselyRepresentedIntValue
        && value > (-maxPreciselyRepresentedIntValue) then
-      let asString = string value
+      let _asString = string value // is this supposed to be unused?
       writer.WriteRawValue $"{value}.0"
     else
       writer.WriteRawValue(string value)
 
-type LocalDateTimeConverter() =
+type private LocalDateTimeConverter() =
   // CLEANUP: check if the default format is actually OK
   // To match the client we use the format: 1906-11-23T23:01:23Z
   // The default format is 1906-11-23T23:01:23.428
@@ -53,7 +54,7 @@ type LocalDateTimeConverter() =
     writer.WriteStringValue value
 
 
-let options =
+let private options =
   let fsharpConverter =
     JsonFSharpConverter(
       unionEncoding =
@@ -71,8 +72,9 @@ let options =
   options
 
 
-
+// SERIALIZER_DEF STJ ApiServer.Json.serialize
 let serialize (data : 'a) : string = JsonSerializer.Serialize(data, options)
 
+// SERIALIZER_DEF STJ ApiServer.Json.deserialize
 let deserialize<'a> (json : string) : 'a =
   JsonSerializer.Deserialize<'a>(json, options)

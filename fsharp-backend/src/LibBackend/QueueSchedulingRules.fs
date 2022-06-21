@@ -76,6 +76,8 @@ module WorkerStates =
   // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>
 
+  // SERIALIZATION_CONVERTER_DEF STJ QueueSchedulingRules.STJJsonConverter
+  // (note: currently unused)
   module STJJsonConverter =
     // CLEANUP switch to this
     open System.Text.Json
@@ -90,6 +92,7 @@ module WorkerStates =
       override _.Write(writer : Utf8JsonWriter, value : State, _options) =
         writer.WriteStringValue(string value)
 
+  // SERIALIZATION_CONVERTER_DEF Newtonsoft QueueSchedulingRules.JsonConverter
   module JsonConverter =
     open Newtonsoft.Json
     open Newtonsoft.Json.Converters
@@ -97,7 +100,7 @@ module WorkerStates =
     type WorkerStateConverter() =
       inherit JsonConverter<State>()
 
-      override this.ReadJson(reader : JsonReader, _typ, _, _, serializer) : State =
+      override this.ReadJson(reader : JsonReader, _typ, _, _, _serializer) : State =
         reader.Value :?> string |> parse
 
       override this.WriteJson

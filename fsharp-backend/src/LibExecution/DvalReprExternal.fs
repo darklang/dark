@@ -26,14 +26,14 @@ open System.Text.Json
 // CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
-let jsonWriterOptions : JsonWriterOptions =
+let private jsonWriterOptions : JsonWriterOptions =
   let mutable options = new JsonWriterOptions()
   options.Indented <- true
   options.SkipValidation <- true
   let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
   options.Encoder <- encoder
   options
-
+// SERIALIZER_DEF STJ DvalReprExternal.writePrettyJson
 let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
   let stream = new System.IO.MemoryStream()
   let w = new Utf8JsonWriter(stream, jsonWriterOptions)
@@ -41,18 +41,18 @@ let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
   w.Flush()
   UTF8.ofBytesUnsafe (stream.ToArray())
 
-let jsonDocumentOptions : JsonDocumentOptions =
+
+let private jsonDocumentOptions : JsonDocumentOptions =
   let mutable options = new JsonDocumentOptions()
   options.CommentHandling <- JsonCommentHandling.Skip
   options.MaxDepth <- System.Int32.MaxValue // infinite
   options
-
+// SERIALIZER_DEF STJ DvalReprExternal.parseJson
 let parseJson (s : string) : JsonDocument =
   JsonDocument.Parse(s, jsonDocumentOptions)
 
 
 type Utf8JsonWriter with
-
   member this.writeObject(f : unit -> unit) =
     this.WriteStartObject()
     f ()
@@ -63,6 +63,8 @@ type Utf8JsonWriter with
     f ()
     this.WriteEndArray()
 
+
+// TODO move these closer to their usage
 
 let (|JString|_|) (j : JsonElement) : Option<string> =
   match j.ValueKind with
@@ -110,7 +112,6 @@ let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
 
   | _ -> None
 
-
 let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
   match j.ValueKind with
   | JsonValueKind.Undefined -> Some()
@@ -155,7 +156,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
   | TFn _ -> "Block"
-  | TVariable varname -> "Any"
+  | TVariable _varname -> "Any"
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
@@ -174,6 +175,7 @@ let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperRe
 // Backwards compatible version of `typeToDeveloperRepr`, should not be visible to
 // users (except through LibDarkInternal) but used by things like HttpClient
 // (transitively)
+// move to LibDarkInternal - it's the only place we use it directly
 let rec typeToBCTypeName (t : DType) : string =
   match t with
   | TInt -> "int"
@@ -186,7 +188,7 @@ let rec typeToBCTypeName (t : DType) : string =
   | TDict _ -> "dict"
   | TRecord _ -> "dict"
   | TFn _ -> "block"
-  | TVariable varname -> "any"
+  | TVariable _varname -> "any"
   | TIncomplete -> "incomplete"
   | TError -> "error"
   | THttpResponse _ -> "response"
@@ -203,7 +205,7 @@ let rec typeToBCTypeName (t : DType) : string =
 // When printing to grand-users (our users' users) using text/plain, print a
 // human-readable format. TODO: this should probably be part of the functions
 // generating the responses. Redacts passwords.
-
+// extract this out - doesn't need to be involved with this mes
 let toEnduserReadableTextV0 (dval : Dval) : string =
 
   let rec nestedreprfn dv =
@@ -287,7 +289,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 /// For passing to Dark functions that operate on JSON, such as the JWT fns.
 /// This turns Option and Result into plain values, or null/error. String-like
 /// values are rendered as string. Redacts passwords.
-let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
+let rec private toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
   let writeOCamlFloatValue (f : float) =
     if System.Double.IsPositiveInfinity f then
@@ -439,6 +441,8 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
 // Raises CodeException as nearly all callers are in code
+// SERIALIZER_DEF STJ+Custom DvalReprExternal.unsafeOfUnknownJsonV0
+// SERIALIZER_USAGE STJ DvalReprExternal.parseJson
 let unsafeOfUnknownJsonV0 str : Dval =
   // This special format was originally the default OCaml (yojson-derived) format
   // for this.
@@ -519,6 +523,7 @@ let unsafeOfUnknownJsonV0 str : Dval =
 
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
+// TODO move to LibJson, the only place it's used.
 let ofUnknownJsonV1 str : Result<Dval, string> =
   let rec convert json =
     match json with
@@ -553,7 +558,8 @@ let ofUnknownJsonV1 str : Result<Dval, string> =
   | e -> Error e.Message
 
 
-// Converts an object to (string,string) pairs. Raises an exception if not an object
+// TODO move elsewhere - it doesn't depend on anything else in this file.
+/// Converts an object to (string,string) pairs. Raises an exception if not an object
 let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
   match dv with
   | DObj obj ->
@@ -562,8 +568,9 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
     |> List.map (fun pair ->
       match pair with
       | (k, DStr v) -> Ok(k, v)
-      | (k, v) ->
-        // CLEANUP: this was just to keep the error messages the same with OCaml. It's safe to change the error message
+      | (_k, _v) ->
+        // CLEANUP: this was just to keep the error messages the same with OCaml.
+        // It's safe to change the error message
         // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
         Error "expecting str")
     |> Tablecloth.Result.values

@@ -88,6 +88,7 @@ type HttpContextExtensions() =
       use t = startTimer "serialize-json" ctx
       addTag "json_flavor" "ocaml-compatible"
       ctx.Response.ContentType <- "application/json; charset=utf-8"
+      // SERIALIZER_USAGE Newtonsoft Prelude.OCamlCompatible.serialize
       let serialized = Json.OCamlCompatible.serialize value
       let bytes = System.ReadOnlyMemory(UTF8.toBytes serialized)
       ctx.Response.ContentLength <- int64 bytes.Length
@@ -161,6 +162,7 @@ type HttpContextExtensions() =
       do! ctx.Request.Body.CopyToAsync(ms)
       let body = ms.ToArray() |> UTF8.ofBytesUnsafe
       t.next "deserialize-json"
+      // SERIALIZER_USAGE Newtonsoft Prelude.OCamlCompatible.deserialize
       let response = Json.OCamlCompatible.deserialize<'T> body
       return response
     }
