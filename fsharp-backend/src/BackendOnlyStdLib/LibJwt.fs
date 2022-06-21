@@ -329,13 +329,6 @@ module Serialization =
       let msg = if str = "" then "JSON string was empty" else e.Message
       Error msg
 
-module STJSerialization =
-  // TODO add property tests to check comparisons of these serializers
-  // TODO make these match the ones under Serialization
-  // TODO use these, make them the default one, and purge the old one
-  let serialize = Json.Vanilla.serialize
-  let deserialize = Json.Vanilla.deserialize
-
 // SERIALIZER_USAGE Custom LibJwt.SignAndEncode
 /// Forms signed JWT given payload, extra header, and key
 let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : string =
