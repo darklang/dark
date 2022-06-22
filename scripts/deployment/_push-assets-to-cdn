@@ -168,12 +168,9 @@ for mimetype in mimetypes_to_process:
     '''
 
   result = subprocess.run(gsutil_command, shell=True, cwd=mimetype_subfolder, capture_output=True)
-  if result.stderr and result.returncode != 0:
-    raise subprocess.CalledProcessError(
-      returncode = result.returncode,
-      cmd = result.args,
-      stderr = result.stderr
-    )
+  if result.returncode != 0:
+    print(f"Failed to upload {mimetype_subfolder} to CDN bucket {BUCKET}. Failed with {result.returncode} {result.stderr}.")
+    sys.exit(1)
 
   elapsed = (time.time() - start)
   print(f"Uploaded dir {mimetype_subfolder} for mimetype {mimetype} in {elapsed}s")
