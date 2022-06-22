@@ -385,6 +385,8 @@ String.split_v0 "x22y" "2" = ["x"; ""; "y"]
 String.split_v0 "x1y" "1" = ["x"; "y"]
 String.split_v0 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""]
 String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
+
+// Note: these have been replaced by Int.parse
 String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`"
 String.toInt_v0 "-4611686018427387903" = -4611686018427387903I
 String.toInt_v0 "-4611686018427387904" = -4611686018427387904I

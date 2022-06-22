@@ -385,4 +385,21 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Int" "parse" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TInt
+      description = "Returns the int value of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+          (try
+            s |> System.Convert.ToInt64 |> DInt |> Ply
+           with
+           | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]

@@ -186,8 +186,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           (try
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
+            // These constants represent how high the old OCaml parsers would go
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
             else if int >= 4611686018427387904L then
@@ -211,9 +212,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
           try
-            // CLEANUP: These constants represent how high the OCaml parsers would go
-            let int = s |> parseInt64
+            let int = s |> System.Convert.ToInt64
 
+            // These constants represent how high the old OCaml parsers would go
             if int < -4611686018427387904L then
               Exception.raiseInternal "goto exception case" []
             else if int >= 4611686018427387904L then
@@ -230,7 +231,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Int" "parse" 0) }
 
 
     { name = fn "String" "toFloat" 0
