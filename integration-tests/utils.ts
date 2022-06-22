@@ -200,7 +200,7 @@ export async function awaitAnalysis(page: Page, lastTimestamp: number) {
 }
 
 export async function awaitAnalysisLoaded(page: Page) {
-  await page.waitForFunction(() => window.Dark.fsharpAnalysis.initialized);
+  await page.waitForFunction(() => window.Dark.analysis.initialized);
 }
 
 //********************************
