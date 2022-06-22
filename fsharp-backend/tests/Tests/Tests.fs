@@ -33,6 +33,7 @@ let main (args : string array) : int =
         Tests.FSharpToExpr.tests
         Tests.HttpClient.tests
         Tests.LibExecution.tests.Force()
+        Tests.OCamlTypes.tests
         Tests.Prelude.tests
         Tests.ProgramTypes.tests
         Tests.Routing.tests
