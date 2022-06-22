@@ -189,6 +189,7 @@ Int.parse_v0 "4611686018427387903" = 4611686018427387903L // OCaml upper limit
 Int.parse_v0 "4611686018427387904" = 4611686018427387904L // past the OCaml upper limit
 Int.parse_v0 "9223372036854775807" = 9223372036854775807L // .NET upper limit
 Int.parse_v0 "9223372036854775808" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"9223372036854775808\"`"
+Int.parse_v0 "1 2 3" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"1 2 3\"`"
 Int.parse_v0 "+ 1" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"+ 1\"`"
 Int.parse_v0 "- 1" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"- 1\"`"
 Int.parse_v0 "0xA" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"0xA\"`"
