@@ -5,6 +5,8 @@
 /// representation (spoken by the client and used in the API for example)
 module LibExecution.ProgramTypesParser
 
+// CLEANUP remove this entire file once we've removed the add_ops format
+
 // CLEANUP: almost all users of functions in this file could be replaced by having
 // better types and/or propagating the type definitions end-to-end (such as to the
 // client). It would likely also increase the reliability and reduce the

@@ -34,7 +34,6 @@ type TraceID = System.Guid
 type TraceData =
   { input : InputVars
     timestamp : NodaTime.Instant
-    // CLEANUP remove underscore
     function_results : List<FunctionResult> }
 
 type Trace = TraceID * TraceData

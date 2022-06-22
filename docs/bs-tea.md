@@ -1,6 +1,8 @@
 # Bucklescript-tea and key and uniq
 
-When we started using bucklescript-tea, we misunderstood how to use `key`, `uniq` (and to a certain extent `Vdom.noNode` and `Vdom.noProp`). A lot of code uses them incorrectly; here's how to use them correctly.
+When we started using bucklescript-tea, we misunderstood how to use `key`,
+`uniq` (and to a certain extent `Vdom.noNode` and `Vdom.noProp`). A lot of code
+uses them incorrectly; here's how to use them correctly.
 
 ## The problems
 

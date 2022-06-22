@@ -1,6 +1,15 @@
+/// <summary>
 /// StdLib functions for cryptography
 ///
 /// Computes hashes such as sha256, md5, etc.
+/// </summary>
+///
+/// <remarks>
+/// Note: Some of LibCrypto is within LibExecutionStdLib, and some is within
+/// BackendOnlyStdLib. This is because only a small set of
+/// System.Security.Cryptography functions can be executed on the client:
+/// https://docs.microsoft.com/en-us/dotnet/core/compatibility/cryptography/5.0/cryptography-apis-not-supported-on-blazor-webassembly
+/// </remarks>
 module BackendOnlyStdLib.LibCrypto
 
 open System
@@ -15,37 +24,8 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = Errors.incorrectArgs
 
-
 let fns : List<BuiltInFn> =
-  [ { name = fn "Crypto" "sha256" 0
-      parameters = [ Param.make "data" TBytes "" ]
-      returnType = TBytes
-      description = "Computes the SHA-256 digest of the given `data`."
-      fn =
-        (function
-        | _, [ DBytes data ] -> SHA256.HashData(ReadOnlySpan data) |> DBytes |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      // CLEANUP mark as Pure
-      previewable = ImpurePreviewable
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Crypto" "sha384" 0
-      parameters = [ Param.make "data" TBytes "" ]
-      returnType = TBytes
-      description = "Computes the SHA-384 digest of the given `data`."
-      fn =
-        (function
-        | _, [ DBytes data ] -> SHA384.HashData(ReadOnlySpan data) |> DBytes |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      // CLEANUP mark as Pure
-      previewable = ImpurePreviewable
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Crypto" "md5" 0
+  [ { name = fn "Crypto" "md5" 0
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
       description =
@@ -55,7 +35,6 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -72,7 +51,6 @@ let fns : List<BuiltInFn> =
           data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
@@ -89,6 +67,5 @@ let fns : List<BuiltInFn> =
           data |> hmac.ComputeHash |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      // CLEANUP mark as Pure
       previewable = ImpurePreviewable
       deprecated = NotDeprecated } ]

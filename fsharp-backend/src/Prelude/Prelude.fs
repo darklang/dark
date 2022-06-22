@@ -42,7 +42,7 @@ type Metadata = List<string * obj>
 
 /// An error within Dark itself - we need to rollbar this and address it.
 ///
-/// Do not show to anyone, unless within a WASM request.
+/// Do not show to anyone, unless within an Analysis request.
 type InternalException(message : string, metadata : Metadata, inner : exn) =
   inherit System.Exception(message, inner)
   member _.metadata = metadata
@@ -614,6 +614,7 @@ let urlEncodeExcept (keep : string) (s : string) : string =
     // CLEANUP make a nicer version of this that's designed for this use case
     // We do want to escape the following: []+&^%#@"<>/;
     // We don't want to escape the following: *$@!:?,.-_'
+    // cut+paste this fn to its usages; Prelude to only have idiomatic version
     if (b >= (byte 'a') && b <= (byte 'z'))
        || (b >= (byte '0') && b <= (byte '9'))
        || (b >= (byte 'A') && b <= (byte 'Z'))
@@ -731,8 +732,9 @@ let randomSeeded () : System.Random =
 let gid () : uint64 =
   try
     let rand64 = RNG.GetBytes(8) |> System.BitConverter.ToUInt64
-    // Keep 30 bits
     // CLEANUP To be compabible to OCAML, keep this at 32 bit for now.
+    // This currently keeps us at 30 bits - we'd like to instead use 64, or
+    // settle on 63. Current blocker is client (needs research)
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
@@ -1434,7 +1436,7 @@ module Ply =
             let! accum = accum
             return! f accum arg
           })
-        (Ply<'state> initial)
+        (Ply initial)
         list
 
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
@@ -1527,7 +1529,7 @@ module Ply =
             let! (accum : 'state) = accum
             return! f accum key arg
           })
-        (Ply<'state> initial)
+        (Ply(initial))
         dict
 
     let mapSequentially

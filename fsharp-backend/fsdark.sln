@@ -28,7 +28,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibBackend", "src\LibBacken
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Prelude", "src\Prelude\Prelude.fsproj", "{5FD0E378-FD88-45E5-9963-BFF2921E6A6A}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Wasm", "src\Wasm\Wasm.fsproj", "{6E460CA5-38BF-435D-B4B9-38D472ABF30F}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Analysis", "src\Analysis\Analysis.fsproj", "{6E460CA5-38BF-435D-B4B9-38D472ABF30F}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibService\LibService.fsproj", "{824DD2A5-7F01-4A8A-9ABD-9F91F52582AD}"
 EndProject

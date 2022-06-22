@@ -120,8 +120,8 @@ let cloneCanvas
     // version here to make tests not fail.
     let! fromMeta = Canvas.getMetaAndCreate fromCanvasName
     let! fromTLIDs = Serialize.fetchAllLiveTLIDs fromMeta.id
-    // CLEANUP this could be substantially simplified once we know that oplist_cache is
-    // non-null.
+    // CLEANUP this could be substantially simplified now that we know that oplist_cache
+    // is non-null.
     let! fromOps =
       Serialize.loadOplists Serialize.LiveToplevels fromMeta.id fromTLIDs
     let! fromCanvas = Canvas.loadAll fromMeta

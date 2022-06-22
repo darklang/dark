@@ -7,7 +7,7 @@ open Microsoft.AspNetCore.HttpsPolicy
 // were ineffective. Somehow, the Strict-Transport-Security header was not
 // included in HTTP Reponses as a result of these efforts. Here, we manually
 // work around this by setting it manually.
-// CLEANUP: replace this with the more additional approach, somehow
+// CLEANUP: replace this with the more traditional approach, somehow
 
 // If you update these, please ensure the below match each other
 
