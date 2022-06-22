@@ -407,4 +407,4 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated }]
+      deprecated = NotDeprecated } ]
