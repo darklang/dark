@@ -151,13 +151,32 @@ let fns : List<BuiltInFn> =
         (function
         | state, [] ->
           uply {
-            // CLEANUP calling this with no deploy hash generates an error
-            // (should be Option<TStr>)
             match! SA.latestDeployHash state.program.canvasID with
             | None -> return Dval.errStr "No deploy hash found"
             | Some deployHash ->
               let url = SA.url state.program.canvasName deployHash SA.Short
               return DStr url
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "StaticAssets" "baseUrlForLatest" 1) }
+
+
+    { name = fn "StaticAssets" "baseUrlForLatest" 1
+      parameters = []
+      returnType = TResult(TStr, TStr)
+      description = "Return the baseUrl for the latest deploy"
+      fn =
+        (function
+        | state, [] ->
+          uply {
+            match! SA.latestDeployHash state.program.canvasID with
+            | None -> return DResult(Error(DStr "No deploy hash found"))
+            | Some deployHash ->
+              printfn "here"
+              let url = SA.url state.program.canvasName deployHash SA.Short
+              return DResult(Ok(DStr url))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
