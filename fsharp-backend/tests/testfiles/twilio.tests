@@ -1,4 +1,4 @@
-[test.v0 FSHARPONLY]
+[test.v0]
 (Twilio.sendText "sod" "auth" "+1 555 1234567" "+1 555 1234567" "test")
   |> Result.mapError (fun e ->
        let headers =
@@ -34,7 +34,7 @@
       }
     })
 
-[test.v1 FSHARPONLY]
+[test.v1]
 (Twilio.sendText_v1 "sod" "auth" "+1 555 1234567" "+1 555 1234567" "test")
   |> Result.mapError (fun e ->
        let headers =
