@@ -1,9 +1,9 @@
 open Prelude
 open Json.Encode
 
-/* Dark */
+// Dark
 
-/* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! */
+// XXX(JULIAN): All of this should be cleaned up and moved somewhere nice!
 @deriving(abstract) type jsArrayBuffer = {byteLength: int}
 
 @deriving(abstract) type jsUint8Array
@@ -111,7 +111,7 @@ let rec dval = (dv: Types.dval): Js.Json.t => {
 
     ev("DBlock", list{dblock_args})
   | DIncomplete(ds) => ev("DIncomplete", list{dval_source(ds)})
-  /* user-ish types */
+  // user-ish types
   | DCharacter(c) => ev("DCharacter", list{string(c)})
   | DError(ds, msg) => ev("DError", list{pair(dval_source, string, (ds, msg))})
   | DResp(h, hdv) => ev("DResp", list{tuple2(dhttp, dval, (h, hdv))})
@@ -204,7 +204,7 @@ and ops = (ops: list<Types.op>): Js.Json.t =>
     | _ =>
       let savepoints = List.map(~f=op => Types.TLSavepoint(tlidOf(op)), ops)
 
-      \"@"(savepoints, ops)
+      Belt.List.concat(savepoints, ops)
     },
   )
 

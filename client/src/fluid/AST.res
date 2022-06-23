@@ -1,14 +1,14 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module E = FluidExpression
 open FluidExpression
 open FluidPattern
 
-/* -------------------------------- */
-/* PointerData */
-/* -------------------------------- */
+// --------------------------------
+// PointerData
+// --------------------------------
 
 let isDefinitionOf = (var: string, expr: E.t): bool =>
   switch expr {
@@ -47,7 +47,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | ELet(_, _, rhs, body) => List.flatten(list{u(rhs), u(body)})
     | EIf(_, cond, ifbody, elsebody) => List.flatten(list{u(cond), u(ifbody), u(elsebody)})
     | EFnCall(_, _, exprs, _) => exprs |> List.map(~f=u) |> List.flatten
-    | EBinOp(_, _, lhs, rhs, _) => \"@"(u(lhs), u(rhs))
+    | EBinOp(_, _, lhs, rhs, _) => Belt.List.concat(u(lhs), u(rhs))
     | EConstructor(_, _, exprs) => exprs |> List.map(~f=u) |> List.flatten
     | ELambda(_, _, lexpr) => u(lexpr)
     | EPipe(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
@@ -57,7 +57,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | EFeatureFlag(_, _, cond, a, b) => List.flatten(list{u(cond), u(a), u(b)})
     | EMatch(_, matchExpr, cases) =>
       let exprs = cases |> List.map(~f=Tuple2.second)
-      \"@"(u(matchExpr), exprs)
+      Belt.List.concat(u(matchExpr), exprs)
     | EPartial(_, _, oldExpr) => u(oldExpr)
     | ERightPartial(_, _, oldExpr) => u(oldExpr)
     | ELeftPartial(_, _, oldExpr) => u(oldExpr)
@@ -65,9 +65,9 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
   }
 }
 
-/* ------------------------- */
-/* EPipe stuff */
-/* ------------------------- */
+// -------------------------
+// EPipe stuff
+// -------------------------
 
 /* If the expression at `id` is one of the expressions in a pipe, this returns
  * the previous expression in that pipe (eg, the one that is piped into this
@@ -92,7 +92,7 @@ let pipeNext = (id: ID.t, ast: FluidAST.t): option<E.t> =>
   | _ => None
   }
 
-/* Given the ID of a function call or binop, return its arguments. Takes pipes into account. */
+// Given the ID of a function call or binop, return its arguments. Takes pipes into account.
 let getArguments = (id: ID.t, ast: FluidAST.t): list<E.t> => {
   let pipePrevious = pipePrevious(id, ast)
   let caller = FluidAST.find(id, ast)
@@ -132,9 +132,9 @@ let getParamIndex = (id: ID.t, ast: FluidAST.t): option<(string, int)> => {
   }
 }
 
-/* ------------------------- */
-/* Ancestors */
-/* ------------------------- */
+// -------------------------
+// Ancestors
+// -------------------------
 
 let freeVariables = (ast: E.t): list<(ID.t, string)> => {
   /* Find all variable lookups that lookup a variable that
@@ -143,10 +143,10 @@ let freeVariables = (ast: E.t): list<(ID.t, string)> => {
   let definedAndUsed =
     ast
     |> E.filterMap(~f=x =>
-      /* Grab all uses of the `lhs` of a Let in its body */
+      // Grab all uses of the `lhs` of a Let in its body
       switch x {
       | ELet(_, lhs, _, body) => Some(uses(lhs, body))
-      /* Grab all uses of the `vars` of a Lambda in its body */
+      // Grab all uses of the `vars` of a Lambda in its body
       | ELambda(_, vars, body) =>
         vars
         |> List.map(~f=Tuple2.second)
@@ -307,7 +307,7 @@ let rec reorderFnCallArgs = (fnName: string, oldPos: int, newPos: int, ast: E.t)
         if oldPos === 0 || newPos === 0 {
           switch pipeArg {
           | EFnCall(fnID, name, list{_pipeTarget, ...args}, sendToRail) if name == fnName =>
-            /* We replace the pipeTarget with a variable in a lambda fn */
+            // We replace the pipeTarget with a variable in a lambda fn
             let newArg = EVariable(gid(), "x")
             let newArgs =
               List.moveInto(~oldPos, ~newPos, list{newArg, ...args}) |> List.map(~f=replaceArgs)
@@ -323,7 +323,7 @@ let rec reorderFnCallArgs = (fnName: string, oldPos: int, newPos: int, ast: E.t)
           | _ => reorderFnCallArgs(fnName, oldPos, newPos, pipeArg)
           }
         } else {
-          /* The pipetarget isn't involved, so just do it normally. */
+          // The pipetarget isn't involved, so just do it normally.
           reorderFnCallArgs(fnName, oldPos, newPos, pipeArg)
         }
       )

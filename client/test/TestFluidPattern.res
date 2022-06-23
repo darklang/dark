@@ -43,10 +43,10 @@ let run = () => {
   let falseBool = FPBool(mID, gid(), false)
   let aNull = FPNull(mID, gid())
   let five = FPInteger(mID, gid(), "5")
-  /* let fiftySix = FPInteger (mID, gid (), 56) in */
-  /* let seventyEight = FPInteger (gid (), 78) in */
+  // let fiftySix = FPInteger (mID, gid (), 56) in
+  // let seventyEight = FPInteger (gid (), 78) in
   let b = () => FPBlank(mID, gid())
-  /* let aPartialVar = FPPartial (gid (), "req") in */
+  // let aPartialVar = FPPartial (gid (), "req") in
   let aVar = FPVariable(mID, gid(), "variable")
   let aShortVar = FPVariable(mID, gid(), "v")
   let aConstructor = FPConstructor(mID, gid(), "Just", list{b()})
@@ -109,12 +109,12 @@ let run = () => {
   let space = (~debug=false, pos: int, pat: fluidPattern): (string, int) =>
     process(~debug, list{keypress(K.Space)}, pos, pat)
 
-  /* let tab (pos : int) (pat : fluidPattern) : string * int = */
-  /* process [K.Tab] pos pat */
-  /* in */
-  /* let shiftTab (pos : int) (pat : fluidPattern) : string * int = */
-  /* process [K.ShiftTab] pos pat */
-  /* in */
+  // let tab (pos : int) (pat : fluidPattern) : string * int =
+  // process [K.Tab] pos pat
+  // in
+  // let shiftTab (pos : int) (pat : fluidPattern) : string * int =
+  // process [K.ShiftTab] pos pat
+  // in
   let press = (~debug=false, key: K.key, pos: int, pat: fluidPattern): (string, int) =>
     process(~debug, list{keypress(key)}, pos, pat)
 
@@ -182,7 +182,7 @@ let run = () => {
     t("insert number at scale", aHugeInt, insert("9", 5), ("2000090000000000000", 6))
     t("insert number at scale", aHugeInt, insert("9", 0), ("920000000000000000", 1))
     t("insert number at scale", aHugeInt, insert("9", 19), ("2000000000000000000", 19))
-    /* let max62BitInt = FPInteger (mID, gid (), "4611686018427387903") in */
+    // let max62BitInt = FPInteger (mID, gid (), "4611686018427387903") in
     let oneShorterThanMax62BitInt = FPInteger(mID, gid(), "461168601842738790")
 
     t(

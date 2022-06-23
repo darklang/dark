@@ -120,7 +120,7 @@ let onKeydown = (evt: Web.Node.event): option<Types.msg> =>
   | Some({FluidKeyboard.key: FluidKeyboard.Enter, _}) =>
     evt["stopPropagation"]()
     evt["preventDefault"]()
-    /* prevents omnibox from opening */
+    // prevents omnibox from opening
     Some(Types.SecretMsg(SaveNewSecret))
   | _ => None
   }

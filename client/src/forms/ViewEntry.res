@@ -1,7 +1,7 @@
 open Prelude
 open ViewUtils
 
-/* Tea */
+// Tea
 module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module RT = Runtime
@@ -89,12 +89,12 @@ let normalEntryHtml = (placeholder: string, ac: autocomplete): Html.html<msg> =>
     list{},
   )
 
-  /* TODO(ian): deliberately using an empty string here */
-  /* and changing absolutely nothing else re: the layout/width */
-  /* here because I have no idea what the effects will be */
+  // TODO(ian): deliberately using an empty string here
+  // and changing absolutely nothing else re: the layout/width
+  // here because I have no idea what the effects will be
   let suggestionSpan = Html.span(list{Attributes.id("suggestionBox")}, list{Html.text("")})
 
-  /* http://making.fiftythree.com/fluid-text-inputs/ */
+  // http://making.fiftythree.com/fluid-text-inputs/
   let fluidWidthSpan = Html.span(
     list{Attributes.id("fluidWidthSpan"), Vdom.prop("contentEditable", "true")},
     list{Html.text(search)},

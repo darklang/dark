@@ -96,7 +96,7 @@ let viewError = (message: Error.t): Html.html<msg> => {
 
   Html.div(
     list{Html.classList(list{("error-panel", true), ("show", message != None)})},
-    \"@"(viewErrorMsg, viewDismissBtn),
+    Belt.List.concat(viewErrorMsg, viewDismissBtn),
   )
 }
 
@@ -105,7 +105,7 @@ let readOnlyMessage = (m: model): Html.html<msg> =>
     list{
       Html.classList(list{
         ("message-panel", true),
-        /* Only show this on confirmed Read-only so it doesn't pop up before initial_load. */
+        // Only show this on confirmed Read-only so it doesn't pop up before initial_load.
         ("show", m.permission == Some(Read)),
       }),
     },

@@ -45,13 +45,13 @@ let pToStructure = (p: fluidPattern): string =>
   |> List.map(~f=t => "<" ++ (T.toTypeName(t) ++ (":" ++ (T.toText(t) ++ ">"))))
   |> String.join(~sep="")
 
-/* ----------------- */
-/* Test cases */
-/* ----------------- */
+// -----------------
+// Test cases
+// -----------------
 /* eToTestcase constructs testcases that we can enter in our
  * test suite. They are similar to `show` except that instead of the full code,
  * they use the shortcuts from FluidTestData. */
-/* ----------------- */
+// -----------------
 
 let rec eToTestcase = (e: E.t): string => {
   let r = eToTestcase

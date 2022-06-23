@@ -10,18 +10,15 @@ module NewStaticDeployPush = {
       | _ => Tea_result.Error("Unable to decode deployStatus")
       }
 
-    let decodeDeploy = map4(
-      (deployHash, url, lastUpdate, status) => {
-        deployHash: deployHash,
-        url: url,
-        lastUpdate: Js.Date.fromString(lastUpdate),
-        status: status,
-      },
-      field("deploy_hash", string),
-      field("url", string),
-      field("last_update", string),
-      field("status", Decoder(decodeStatus)),
-    )
+    let decodeDeploy = map4((deployHash, url, lastUpdate, status) => {
+      deployHash: deployHash,
+      url: url,
+      lastUpdate: Js.Date.fromString(lastUpdate),
+      status: status,
+    }, field(
+      "deploy_hash",
+      string,
+    ), field("url", string), field("last_update", string), field("status", Decoder(decodeStatus)))
 
     map(msg => msg, field("detail", decodeDeploy))
   }
@@ -33,8 +30,9 @@ module NewStaticDeployPush = {
 let appendDeploy = (newDeploys: list<staticDeploy>, oldDeploys: list<staticDeploy>): list<
   staticDeploy,
 > => {
-  let deploys = \"@"(newDeploys, oldDeploys) |> /* sorts into reverse order */
-  List.sortBy(~f=d => Js.Date.getTime(d.lastUpdate))
+  // sorts into reverse order
+  let deploys =
+    Belt.List.concat(newDeploys, oldDeploys) |> List.sortBy(~f=d => Js.Date.getTime(d.lastUpdate))
 
   /* We get two messages from the backend for the same hash: Deploying and
    * Deployed. If we have both, we should only keep Deployed. This does that,

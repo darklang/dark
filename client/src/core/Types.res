@@ -28,9 +28,9 @@ module Belt = {
   }
 }
 
-/* ------------------- */
-/* Clipboard */
-/* ------------------- */
+// -------------------
+// Clipboard
+// -------------------
 
 type clipboardSetData = @meth (string, string) => unit
 type clipboardGetData = @meth (string => string)
@@ -48,9 +48,9 @@ type rec clipboardContents = /* Clipboard supports both text and encoded FluidEx
 
 @ppx.deriving(show) @opaque type rec clipboardEvent = @opaque clipboardEventDef
 
-/* ------------------- */
-/* Standard types */
-/* ------------------- */
+// -------------------
+// Standard types
+// -------------------
 
 module /* == legacy aliases == */ TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
@@ -59,7 +59,7 @@ module TLIDSet = TLID.Set
 
 @ppx.deriving(show) type rec parentBlockID = ID.t
 
-/* == end legacy aliases == */
+// == end legacy aliases ==
 
 let show_list = (~f: 'a => string, x: list<'a>): string =>
   "[" ++ (String.join(~sep=",", List.map(~f, x)) ++ "]")
@@ -69,7 +69,7 @@ let opaque = (msg, fmt, _) => {
   ()
 }
 
-/* Probably deletable? */
+// Probably deletable?
 module PageVisibility = {
   @ppx.deriving(show)
   type rec visibility =
@@ -90,19 +90,19 @@ type rec exception_ = {
   workarounds: list<string>,
 }
 
-/* ---------------------- */
-/* Basic types */
-/* ---------------------- */
+// ----------------------
+// Basic types
+// ----------------------
 @ppx.deriving(show({with_path: false}))
 and blankOr<'a> =
   | Blank(ID.t)
   | F(ID.t, 'a)
 
-/* There are two coordinate systems. Pos is an absolute position in the */
-/* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur */
-/* within the viewport and we map Absolute positions back to the */
-/* viewport to display in the browser. */
-/* TODO: Can we depreciate VPos? */
+// There are two coordinate systems. Pos is an absolute position in the
+// canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
+// within the viewport and we map Absolute positions back to the
+// viewport to display in the browser.
+// TODO: Can we depreciate VPos?
 type rec pos = {
   x: int,
   y: int,
@@ -113,9 +113,9 @@ and vPos = {
   vy: int,
 }
 
-/* ---------------------- */
-/* Types */
-/* ---------------------- */
+// ----------------------
+// Types
+// ----------------------
 @ppx.deriving(show)
 and tipe =
   | TInt
@@ -153,18 +153,18 @@ module TypeInformation = {
   let default: t = {fnName: "Unknown", paramName: "Unknown", returnType: TAny}
 }
 
-/* ---------------------- */
-/* Exprs and AST types */
-/* ---------------------- */
+// ----------------------
+// Exprs and AST types
+// ----------------------
 type rec fnName = string
 
 and fluidExpr = FluidExpression.t
 
 and fluidPattern = FluidPattern.t
 
-/* ----------------------------- */
-/* Pointers */
-/* ----------------------------- */
+// -----------------------------
+// Pointers
+// -----------------------------
 and blankOrData =
   | PEventName(blankOr<string>)
   | PEventModifier(blankOr<string>)
@@ -196,24 +196,24 @@ and blankOrType =
   | TypeFieldName
   | TypeFieldTipe
 
-/* ---------------------- */
-/* Toplevels */
-/* ---------------------- */
+// ----------------------
+// Toplevels
+// ----------------------
 type rec handlerSpaceName = string
 
 and handlerName = string
 
 and handlerModifer = string
 
-/* usedIn is a TL that's refered to in the refersTo tl at id */
-/* refersTo is a TL that uses the usedIn tl at id */
+// usedIn is a TL that's refered to in the refersTo tl at id
+// refersTo is a TL that uses the usedIn tl at id
 and usage = {
   usedIn: TLID.t,
   refersTo: TLID.t,
   id: ID.t,
 }
 
-/* handlers */
+// handlers
 and handlerSpec = {
   space: blankOr<handlerSpaceName>,
   name: blankOr<handlerName>,
@@ -234,7 +234,7 @@ and handler = {
   pos: pos,
 }
 
-/* dbs */
+// dbs
 and dbName = string
 
 and dbColName = string
@@ -272,7 +272,7 @@ and functionTypes =
   | UserFunction(userFunction)
   | PackageFn(packageFn)
 
-/* userFunctions */
+// userFunctions
 and userFunctionParameter = {
   ufpName: blankOr<string>,
   ufpTipe: blankOr<tipe>,
@@ -309,7 +309,7 @@ and userTipe = {
   utDefinition: userTipeDefinition,
 }
 
-/* Package manager Functions */
+// Package manager Functions
 and packageFnParameter = {
   name: string,
   tipe: tipe,
@@ -331,7 +331,7 @@ and packageFn = {
   pfTLID: TLID.t,
 }
 
-/* toplevels */
+// toplevels
 and toplevel =
   | TLHandler(handler)
   | TLDB(db)
@@ -341,9 +341,9 @@ and toplevel =
 
 and packageFns = TLIDDict.t<packageFn>
 
-/* ---------------------- */
-/* dvals */
-/* ---------------------- */
+// ----------------------
+// dvals
+// ----------------------
 and dhttp =
   | Redirect(string)
   | Response(int, list<(string, string)>)
@@ -393,10 +393,10 @@ and dval =
   | DResult(resultT)
   | DBytes(bytes)
 
-/* ----------------------------- */
-/* Referencing parts of an AST */
-/* at the caret level */
-/* ----------------------------- */
+// -----------------------------
+// Referencing parts of an AST
+// at the caret level
+// -----------------------------
 
 /* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
  based on which specific parts of the AST we actually want to represent via astRef */
@@ -494,22 +494,22 @@ type rec astRef =
   | ARBlank(ID.t)
   | ARLet(ID.t, astLetPart)
   | ARIf(ID.t, astIfPart)
-  | ARBinOp(ID.t) /* matches the operator */
+  | ARBinOp(ID.t) // matches the operator
   | ARFieldAccess(ID.t, astFieldAccessPart)
   | ARVariable(ID.t)
-  | ARFnCall(ID.t) /* Matches the fn name+version */
+  | ARFnCall(ID.t) // Matches the fn name+version
   | ARPartial(ID.t)
   | ARRightPartial(ID.t)
   | ARLeftPartial(ID.t)
   | ARList(ID.t, astListPart)
   | ARRecord(ID.t, astRecordPart)
-  | ARPipe(ID.t, int) /* index of the pipe */
-  | ARConstructor(ID.t) /* name of the constructor */
+  | ARPipe(ID.t, int) // index of the pipe
+  | ARConstructor(ID.t) // name of the constructor
   | ARMatch(ID.t, astMatchPart)
   | ARLambda(ID.t, astLambdaPart)
   | ARPattern(ID.t, astPatternPart)
   | ARFlag(ID.t, astFlagPart)
-  /* for use if something that should never happen happened */
+  // for use if something that should never happen happened
   | ARInvalid
 
 /* A caretTarget represents a distinct caret location within the AST.
@@ -523,14 +523,14 @@ type rec caretTarget = {
   offset: int,
 }
 
-/* ----------------------------- */
-/* Scroll */
-/* ----------------------------- */
+// -----------------------------
+// Scroll
+// -----------------------------
 @ppx.deriving(show({with_path: false})) type rec scrollEvent = {timeStamp: float}
 
-/* ----------------------------- */
-/* Mouse */
-/* ----------------------------- */
+// -----------------------------
+// Mouse
+// -----------------------------
 type rec mouseEvent = {
   mePos: vPos,
   button: int,
@@ -542,9 +542,9 @@ type rec mouseEvent = {
 
 and isLeftButton = bool
 
-/* ----------------------------- */
-/* CursorState */
-/* ----------------------------- */
+// -----------------------------
+// CursorState
+// -----------------------------
 and hasMoved = bool
 
 /* CursorState represents what the user is focussed on and where their actions
@@ -561,7 +561,7 @@ and cursorState =
    * sense for code, and now that code is fluid this is just annoying and
    * weird. */
   Selecting(TLID.t, option<ID.t>)
-  | /* When we're editing a blankOr */
+  | // When we're editing a blankOr
   Entering(TLID.t, ID.t)
   | /* When we're editing code (in the fluid
    editor) */
@@ -579,9 +579,9 @@ and cursorState =
     })
   | /* Doing nothing */ Deselected
 
-/* ------------------- */
-/* Analysis */
-/* ------------------- */
+// -------------------
+// Analysis
+// -------------------
 and timerAction =
   | RefreshAnalysis
   | RefreshAvatars
@@ -609,7 +609,10 @@ and inputValueDict = Belt.Map.String.t<dval>
 
 and analysisStore = loadable<intermediateResultStore>
 
-and analyses = /* indexed by traceID */ Map.String.t<analysisStore> /* indexed by traceID */
+and analyses = // indexed by traceID
+Map.String.t<
+  analysisStore,
+>
 
 and functionResult = {
   fnName: string,
@@ -624,7 +627,7 @@ and fetchRequest =
   | DbStatsFetch(dbStatsAPIParams)
   | WorkerStatsFetch(workerStatsAPIParams)
 
-/* traces/db_stats fetching */
+// traces/db_stats fetching
 and fetchResult =
   | TraceFetchSuccess(getTraceDataAPIParams, getTraceDataAPIResult)
   | TraceFetchFailure(getTraceDataAPIParams, string, string)
@@ -656,12 +659,15 @@ and traceError =
   /* NoneYet is a replacement for what was None when trace was a
    (traceID * traceData option) */
   | NoneYet
-  /* MaximumCallStackError is unrecoverable - don't try again */
+  // MaximumCallStackError is unrecoverable - don't try again
   | MaximumCallStackError
 
 and trace = (traceID, Result.t<traceData, traceError>)
 
-and traces = /* indexed by TLID.t */ Map.String.t<list<trace>> /* indexed by TLID.t */
+and traces = // indexed by TLID.t
+Map.String.t<
+  list<trace>,
+>
 
 and fourOhFour = {
   space: string,
@@ -694,9 +700,9 @@ and workerStats = {
   schedule: option<string>,
 }
 
-/* ------------------- */
-/* ops */
-/* ------------------- */
+// -------------------
+// ops
+// -------------------
 and rollbackID = ID.t
 
 and rollforwardID = ID.t
@@ -730,10 +736,10 @@ and op =
   | SetType(userTipe)
   | DeleteType(TLID.t)
 
-/* ------------------- */
-/* APIs */
-/* ------------------- */
-/* params */
+// -------------------
+// APIs
+// -------------------
+// params
 and sendPresenceParams = avatarModelMessage
 
 and sendInviteParams = SettingsViewTypes.inviteFormMessage
@@ -816,7 +822,7 @@ and account = {
   username: string,
 }
 
-/* results */
+// results
 and addOpAPIResult = {
   handlers: list<handler>,
   deletedHandlers: list<handler>,
@@ -883,10 +889,10 @@ and initialLoadAPIResult = {
 
 and saveTestAPIResult = string
 
-/* ------------------- */
-/* Autocomplete / entry */
-/* ------------------- */
-/* functions */
+// -------------------
+// Autocomplete / entry
+// -------------------
+// functions
 and parameter = {
   paramName: string,
   paramTipe: tipe,
@@ -918,7 +924,7 @@ and function_ = {
   fnOrigin,
 }
 
-/* autocomplete items */
+// autocomplete items
 and literal = string
 
 and displayText = string
@@ -958,28 +964,28 @@ and omniAction =
 
 and autocompleteItem =
   | ACOmniAction(omniAction)
-  /* HTTP */
+  // HTTP
   | ACHTTPModifier(string)
   | ACHTTPRoute(string)
-  /* Workers */
+  // Workers
   | ACWorkerName(string)
   | ACEventSpace(string)
   | ACEventModifier(string)
-  /* Repl */
+  // Repl
   | ACReplName(string)
-  /* CRON */
+  // CRON
   | ACCronName(string)
   | ACCronTiming(string)
-  /* DBs */
+  // DBs
   | ACDBName(string)
   | ACDBColType(string)
   | ACDBColName(string)
-  /* User functions */
+  // User functions
   | ACFnName(string)
   | ACParamName(string)
   | ACParamTipe(tipe)
   | ACReturnTipe(tipe)
-  /* User types */
+  // User types
   | ACTypeFieldTipe(tipe)
   | ACTypeName(string)
   | ACTypeFieldName(string)
@@ -1007,9 +1013,9 @@ and autocompleteMod =
   | ACRegenerate
   | ACSetVisible(bool)
 
-/* ------------------- */
-/* Functions.ml */
-/* ------------------- */
+// -------------------
+// Functions.ml
+// -------------------
 and functionsType = {
   builtinFunctions: list<function_>,
   packageFunctions: packageFns,
@@ -1024,18 +1030,18 @@ and functionsProps = {
   userFunctions: TLIDDict.t<userFunction>,
 }
 
-/* --------------- */
-/* Component Types */
-/* --------------- */
+// ---------------
+// Component Types
+// ---------------
 
-/* TLMenu */
+// TLMenu
 and menuState = {isOpen: bool}
 
 and menuMsg =
   | OpenMenu
   | CloseMenu
 
-/* FnParams */
+// FnParams
 and fnProps = {
   draggingParamIndex: option<int>,
   dragOverSpaceIndex: option<int>,
@@ -1050,7 +1056,7 @@ and fnpMsg =
   | ParamDropIntoSpace(int)
   | Reset
 
-/* Tool tips */
+// Tool tips
 and toolTipMsg =
   | OpenTooltip(tooltipSource)
   | Close
@@ -1069,14 +1075,14 @@ and tooltipState = {
   userTutorial: userTutorial,
 }
 
-/* Tutorial */
+// Tutorial
 and tutorialMsg =
   | NextStep
   | PrevStep
   | CloseTutorial
   | ReopenTutorial
 
-/* Sidebar state */
+// Sidebar state
 and sidebarMode =
   | DetailedMode
   | AbridgedMode
@@ -1091,9 +1097,9 @@ and sidebarMsg =
   | ResetSidebar
   | MarkCategoryOpen(bool, string)
 
-/* ------------------- */
-/* Modifications */
-/* ------------------- */
+// -------------------
+// Modifications
+// -------------------
 and centerPage = bool
 
 and page =
@@ -1111,7 +1117,7 @@ and focus =
   | FocusNext(TLID.t, option<ID.t>)
   | FocusPageAndCursor(page, cursorState)
   | FocusSame
-  /* unchanged */
+  // unchanged
   | FocusNoChange
 
 and toast = {
@@ -1144,7 +1150,7 @@ and apiError = {
   importance: errorImportance,
 }
 
-/* Editor settings are global settings on the editor. Initially, these are only things that admins use for debugging - in the future they could be extended to editor settings */
+// Editor settings are global settings on the editor. Initially, these are only things that admins use for debugging - in the future they could be extended to editor settings
 and editorSettings = {
   showFluidDebugger: bool,
   showHandlerASTs: bool,
@@ -1183,7 +1189,7 @@ and modification =
         * returning the (model * Cmd.t) from the update function ")
   ReplaceAllModificationsWithThisOne(model => (model, Tea.Cmd.t<msg>))
 
-  /* API Calls */
+  // API Calls
   | AddOps((list<op>, focus))
   | HandleAPIError(apiError)
   | GetUnlockedDBsAPICall
@@ -1193,7 +1199,7 @@ and modification =
   | TriggerHandlerAPICall(TLID.t)
   | UpdateDBStatsAPICall(TLID.t)
   | DeleteToplevelForeverAPICall(TLID.t)
-  /* End API Calls */
+  // End API Calls
   | Select(TLID.t, tlidSelectTarget)
   | SetHover(TLID.t, ID.t)
   | ClearHover(TLID.t, ID.t)
@@ -1211,7 +1217,7 @@ and modification =
   | Delete404(fourOhFour)
   | Enter /* Enter a blankOr */(TLID.t, ID.t)
   | EnterWithOffset(
-      /* Entering a blankOr with a desired caret offset */
+      // Entering a blankOr with a desired caret offset
       TLID.t,
       ID.t,
       int,
@@ -1235,7 +1241,7 @@ and modification =
   | OverrideTraces(traces)
   | UpdateTraceFunctionResult(TLID.t, traceID, ID.t, fnName, dvalArgsHash, int, dval)
   | AppendStaticDeploy(list<staticDeploy>)
-  /* designed for one-off small changes */
+  // designed for one-off small changes
   | Apply(
       /* It can be tempting to call a function which returns
        * modifications. However, this can have a bug - the model
@@ -1265,13 +1271,13 @@ and modification =
   | TLMenuUpdate(TLID.t, menuMsg)
   | SettingsViewUpdate(SettingsViewTypes.settingsMsg)
 
-/* ------------------- */
-/* Msgs */
-/* ------------------- */
+// -------------------
+// Msgs
+// -------------------
 
-/* https://rawgit.com/w3c/input-events/v1/index.html#interface-InputEvent-Attributes */
+// https://rawgit.com/w3c/input-events/v1/index.html#interface-InputEvent-Attributes
 and fluidInputEvent =
-  | Keypress(FluidKeyboard.keyEvent) /* Backwards compatibility. Not an InputEvent inputType. */
+  | Keypress(FluidKeyboard.keyEvent) // Backwards compatibility. Not an InputEvent inputType.
   | InsertText(string)
   | DeleteContentBackward
   | DeleteContentForward
@@ -1282,7 +1288,7 @@ and fluidInputEvent =
   | ReplaceText(string)
 
 and fluidMouseUpClickType =
-  | SelectText(int, int) /* selection read from the DOM */
+  | SelectText(int, int) // selection read from the DOM
   | ClickAt(int)
 
 and fluidMouseUp = {
@@ -1322,7 +1328,7 @@ and fluidMsg =
   | FluidFocusOnToken(TLID.t, ID.t)
   | FluidClearErrorDvSrc
   | FluidUpdateAutocomplete
-  /* Index of the dropdown(autocomplete or command palette) item */
+  // Index of the dropdown(autocomplete or command palette) item
   | FluidUpdateDropdownIndex(int)
   | FluidCloseCmdPalette
 
@@ -1335,7 +1341,7 @@ and heapioTrack =
 
 and msg =
   | IgnoreMsg(/* debug string so you know where it came from */ string)
-  | IgnoreMouseUp /* for nothingMouseEvent */
+  | IgnoreMouseUp // for nothingMouseEvent
   | FluidMsg(fluidMsg)
   | AppMouseDown(mouseEvent)
   | @printer(opaque("AppMouseDrag")) AppMouseDrag(Tea.Mouse.position)
@@ -1343,8 +1349,8 @@ and msg =
   | AppScroll
   | WindowMouseUp(mouseEvent)
   | TLDragRegionMouseDown(TLID.t, mouseEvent)
-  /* we have the actual node when TLDragRegionMouseUp is created, */
-  /* but by the time we use it the proper node will be changed */
+  // we have the actual node when TLDragRegionMouseUp is created,
+  // but by the time we use it the proper node will be changed
   | TLDragRegionMouseUp(TLID.t, mouseEvent)
   | ToplevelDelete(TLID.t)
   | ToplevelDeleteForever(TLID.t)
@@ -1463,9 +1469,9 @@ and msg =
   | SettingsViewMsg(SettingsViewTypes.settingsMsg)
   | SecretMsg(SecretTypes.msg)
 
-/* ----------------------------- */
-/* AB tests */
-/* ----------------------------- */
+// -----------------------------
+// AB tests
+// -----------------------------
 and variantTest =
   | /* does nothing variant just so we can leave this in place
    * if we're not testing anything else */
@@ -1473,9 +1479,9 @@ and variantTest =
   | NgrokVariant
   | LeftPartialVariant
 
-/* ----------------------------- */
-/* FeatureFlags */
-/* ----------------------------- */
+// -----------------------------
+// FeatureFlags
+// -----------------------------
 and ffIsExpanded = bool
 
 and pick =
@@ -1484,9 +1490,9 @@ and pick =
 
 and flagsVS = Map.String.t<ffIsExpanded>
 
-/* ----------------------------- */
-/* Model */
-/* ----------------------------- */
+// -----------------------------
+// Model
+// -----------------------------
 and syncState = Set.String.t
 
 and exeState =
@@ -1503,7 +1509,7 @@ and handlerProp = {
 
 and tlTraceIDs = TLIDDict.t<traceID>
 
-/* Testing */
+// Testing
 and testResult = Result.t<unit, string>
 
 and integrationTestState =
@@ -1514,7 +1520,7 @@ and integrationTestState =
 /*
  * Fluid
  */
-/* eg ("value","Int") */
+// eg ("value","Int")
 and placeholder = {
   name: string,
   tipe: string,
@@ -1523,7 +1529,7 @@ and placeholder = {
 and fluidToken =
   | TInteger(ID.t, string, option<parentBlockID>)
   | TString(ID.t, string, option<parentBlockID>)
-  /* multi-line strings: ID.t *, segment, start offset, full-string */
+  // multi-line strings: ID.t *, segment, start offset, full-string
   | TStringMLStart(ID.t, string, int, string)
   | TStringMLMiddle(ID.t, string, int, string)
   | TStringMLEnd(ID.t, string, int, string)
@@ -1543,14 +1549,14 @@ and fluidToken =
   /* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. */
   | TPartial(ID.t, string, option<parentBlockID>)
-  /* A partial that extends out to the right. Used to create binops. */
-  /* A partial that preceeds an existing expression, used to wrap things in other things */
+  // A partial that extends out to the right. Used to create binops.
+  // A partial that preceeds an existing expression, used to wrap things in other things
   | TLeftPartial(ID.t, string, option<parentBlockID>)
   | TRightPartial(ID.t, string, option<parentBlockID>)
   /* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way */
   | TPartialGhost(ID.t, string, option<parentBlockID>)
-  /* the ID.t *here disambiguates with other separators for reflow */
+  // the ID.t *here disambiguates with other separators for reflow
   | TSep(ID.t, option<parentBlockID>)
   /* The first ID.t *is the ID.t *of the expression directly associated with the
    * newline. The second ID.t *is the ID.t *of that expression's parent. In an
@@ -1559,7 +1565,7 @@ and fluidToken =
   | TNewline(option<(ID.t, ID.t, option<int>)>)
   | TIndent(int)
   | TLetKeyword(ID.t, analysisID, option<parentBlockID>)
-  /* Let-expr id * rhs id * varname */
+  // Let-expr id * rhs id * varname
   | TLetVarName(ID.t, analysisID, string, option<parentBlockID>)
   | TLetAssignment(ID.t, analysisID, option<parentBlockID>)
   | TIfKeyword(ID.t, option<parentBlockID>)
@@ -1576,9 +1582,9 @@ and fluidToken =
       option<parentBlockID>,
     )
   | TVariable(ID.t, string, option<parentBlockID>)
-  /* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail */
+  // ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail
   | TFnName(ID.t, string, string, string, FluidExpression.sendToRail)
-  /* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') */
+  // ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3')
   | TFnVersion(ID.t, string, string, string)
   | TLambdaComma(ID.t, int, option<parentBlockID>)
   | TLambdaArrow(ID.t, option<parentBlockID>)
@@ -1587,7 +1593,7 @@ and fluidToken =
   | TListOpen(ID.t, option<parentBlockID>)
   | TListClose(ID.t, option<parentBlockID>)
   | TListComma(ID.t, int)
-  /* 2nd int is the number of pipe segments there are */
+  // 2nd int is the number of pipe segments there are
   | TPipe(ID.t, int, int, option<parentBlockID>)
   | TRecordOpen(ID.t, option<parentBlockID>)
   | TRecordFieldname({
@@ -1658,15 +1664,15 @@ and fluidAutocompleteValidity =
   | FACItemInvalidPipedArg(tipe)
 
 and fluidAutocompleteState = {
-  /* ------------------------------- */
-  /* state */
-  /* ------------------------------- */
+  // -------------------------------
+  // state
+  // -------------------------------
   index: option<int>,
-  query: /* We need to refer back to the previous one */
+  query: // We need to refer back to the previous one
   option<(TLID.t, fluidTokenInfo)>,
-  /* ------------------------------- */
-  /* Cached results */
-  /* ------------------------------- */
+  // -------------------------------
+  // Cached results
+  // -------------------------------
   completions: list<fluidAutocompleteData>,
 }
 
@@ -1709,7 +1715,7 @@ and fluidState = {
   activeEditor: fluidEditor,
 }
 
-/* Avatars */
+// Avatars
 and avatar = {
   canvasId: string,
   canvasName: string,
@@ -1771,7 +1777,7 @@ and model = {
   analyses: analyses,
   f404s: list<fourOhFour>,
   unlockedDBs: unlockedDBs,
-  integrationTestState: /* State of individual integration tests */
+  integrationTestState: // State of individual integration tests
   integrationTestState,
   visibility: PageVisibility.visibility,
   syncState: syncState,
@@ -1827,12 +1833,12 @@ and model = {
   unsupportedBrowser: bool,
   tlMenus: TLIDDict.t<menuState>,
   firstVisitToDark: bool,
-  /* indicates if it is the users first time visiting any dark canvas */
+  // indicates if it is the users first time visiting any dark canvas
   tooltipState: tooltipState,
   currentUserFn: fnProps,
   settingsView: SettingsViewTypes.settingsViewState,
   firstVisitToThisCanvas: bool,
-  /* indicates if it is the users first time this canvas */
+  // indicates if it is the users first time this canvas
   secrets: list<SecretTypes.t>,
   insertSecretModal: SecretTypes.insertModal,
 }

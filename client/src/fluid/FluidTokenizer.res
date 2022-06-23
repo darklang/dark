@@ -14,9 +14,9 @@ type featureFlagTokenization =
           * panel for editing a flag's condition and new code ")
   FeatureFlagConditionAndEnabled
 
-/* -------------------------------------- */
-/* Convert FluidExpressions to tokenInfos */
-/* -------------------------------------- */
+// --------------------------------------
+// Convert FluidExpressions to tokenInfos
+// --------------------------------------
 
 module Builder = {
   type t = {
@@ -33,7 +33,7 @@ module Builder = {
   }
 
   let rec endsInNewline = (b: t): bool =>
-    /* The latest token is on the front */
+    // The latest token is on the front
     switch b.tokens {
     | list{TNewline(_), ..._} => true
     | list{TIndent(_), ...tail} => endsInNewline({...b, tokens: tail})
@@ -55,7 +55,7 @@ module Builder = {
 
   let add = (token: fluidToken, b: t): t => {
     let tokenLength = token |> T.toText |> String.length
-    let (newTokens, xPos) = /* Add new tokens on the front */
+    let (newTokens, xPos) = // Add new tokens on the front
     if endsInNewline(b) {
       (
         if b.indent != 0 {
@@ -117,7 +117,7 @@ module Builder = {
     }
 
   let asTokens = (b: t): list<fluidToken> =>
-    /* Tokens are stored reversed */
+    // Tokens are stored reversed
     List.reverse(b.tokens)
 }
 
@@ -151,7 +151,7 @@ let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
       list{TPatternFloatFractional(mID, id, fraction, idx)}
     }
 
-    \"@"(whole, \"@"(list{TPatternFloatPoint(mID, id, idx)}, fraction))
+    Belt.List.concatMany([whole, list{TPatternFloatPoint(mID, id, idx)}, fraction])
   | FPNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
   | FPBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
   }
@@ -226,7 +226,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
 
       let tooLong = length > lineLimit
       let needsNewlineBreak =
-        /* newlines aren't disruptive in the last argument */
+        // newlines aren't disruptive in the last argument
         args
         |> List.initial
         |> Option.unwrap(~default=list{})
@@ -280,7 +280,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       list{TFloatFractional(id, fraction, parentID)}
     }
 
-    b |> addMany(\"@"(whole, \"@"(list{TFloatPoint(id, parentID)}, fraction)))
+    b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
   | EBlank(id) => b |> add(TBlank(id, parentID))
   | ELet(id, lhs, rhs, next) =>
     let rhsID = E.toID(rhs)
@@ -439,9 +439,9 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
         |> Option.unwrap(~default=commaWidth)
       }
 
-      /* Even if first element overflows, don't put it in a new line */
+      // Even if first element overflows, don't put it in a new line
       let isOverLimit = i > 0 && currentLineLength > listLimit
-      /* Indent after newlines to match the '[ ' */
+      // Indent after newlines to match the '[ '
       let indent = if isOverLimit {
         1
       } else {
@@ -581,7 +581,7 @@ let validateTokens = (tokens: list<fluidToken>): list<fluidToken> => {
   tokens
 }
 
-/* Remove artifacts of the token generation process */
+// Remove artifacts of the token generation process
 let tidy = (tokens: list<fluidToken>): list<fluidToken> =>
   tokens |> List.filter(~f=x =>
     switch x {
@@ -625,9 +625,9 @@ let tokenizeForEditor = (e: fluidEditor, expr: FluidExpression.t): list<FluidTok
   | FeatureFlagEditor(_) => tokenizeWithFFTokenization(FeatureFlagConditionAndEnabled, expr)
   }
 
-/* -------------------------------------- */
-/* ASTInfo */
-/* -------------------------------------- */
+// --------------------------------------
+// ASTInfo
+// --------------------------------------
 type tokenInfos = list<T.tokenInfo>
 
 type neighbour =
@@ -640,7 +640,7 @@ let rec getTokensAtPosition = (~prev=None, ~pos: int, tokens: tokenInfos): (
   option<T.tokenInfo>,
   option<T.tokenInfo>,
 ) => {
-  /* Get the next token and the remaining tokens, skipping indents. */
+  // Get the next token and the remaining tokens, skipping indents.
   let rec getNextToken = (infos: tokenInfos): (option<T.tokenInfo>, tokenInfos) =>
     switch infos {
     | list{ti, ...rest} =>
@@ -675,18 +675,18 @@ let getNeighbours = (~pos: int, tokens: tokenInfos): (
   | _ => No
   }
 
-  /* The token directly before the cursor (skipping whitespace) */
+  // The token directly before the cursor (skipping whitespace)
   let toTheLeft = switch (mPrev, mCurrent) {
   | (Some(prev), _) if prev.endPos >= pos => L(prev.token, prev)
-  /* The left might be separated by whitespace */
+  // The left might be separated by whitespace
   | (Some(prev), Some(current)) if current.startPos >= pos => L(prev.token, prev)
   | (None, Some(current)) if current.startPos < pos =>
-    /* We could be in the middle of a token */
+    // We could be in the middle of a token
     L(current.token, current)
   | (None, _) => No
   | (_, Some(current)) => L(current.token, current)
   | (Some(prev), None) =>
-    /* Last position in the ast */
+    // Last position in the ast
     L(prev.token, prev)
   }
 
@@ -771,7 +771,7 @@ module ASTInfo = {
       ~f=Tuple2.second,
     )
 
-  /* Get the correct tokenInfos for the activeEditor */
+  // Get the correct tokenInfos for the activeEditor
   let activeTokenInfos = (astInfo: t): tokenInfos =>
     switch astInfo.state.activeEditor {
     | NoEditor => list{}

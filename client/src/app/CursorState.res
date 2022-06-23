@@ -13,7 +13,7 @@ let tlidOf = (s: cursorState): option<TLID.t> =>
   | Omnibox(_) => None
   | Deselected => None
   | FluidEntering(tlid) => Some(tlid)
-  /* NOTE: These have no id because unwrapCursorState should unwrap them */
+  // NOTE: These have no id because unwrapCursorState should unwrap them
   | DraggingTL(_) | PanningCanvas(_) => None
   }
 
@@ -24,7 +24,7 @@ let idOf = (s: cursorState): option<ID.t> =>
   | Entering(_, id) => Some(id)
   | Deselected => None
   | FluidEntering(_) => None
-  /* NOTE: These have no id because unwrapCursorState should unwrap them */
+  // NOTE: These have no id because unwrapCursorState should unwrap them
   | DraggingTL(_) | PanningCanvas(_) => None
   }
 
@@ -34,24 +34,24 @@ let focusEntry = (m: model): Tea.Cmd.t<msg> =>
   | Selecting(_) | Deselected | FluidEntering(_) | DraggingTL(_) | PanningCanvas(_) => Tea.Cmd.none
   }
 
-/* Based on Tea_html_cmds, applies offset after focus */
+// Based on Tea_html_cmds, applies offset after focus
 let focusWithOffset = (id, offset) =>
   Tea.Cmd.call(_ => {
     let ecb = _ignored =>
       switch Js.Nullable.toOption(Web.Document.getElementById(id)) {
       | None =>
-        /* Do not report this error, it's not a problem */
+        // Do not report this error, it's not a problem
         Js.log(("Attempted to focus a non-existant element of: ", id))
       | Some(elem) =>
-        /* We have to focus after setting range, or the cursor will vanish when the offset is 0 */
+        // We have to focus after setting range, or the cursor will vanish when the offset is 0
         elem["setSelectionRange"](offset, offset)
         Web.Node.focus(elem)
         ()
       }
 
-    /* One to get out of the current render frame */
+    // One to get out of the current render frame
     let cb = _ignored => ignore(Web.Window.requestAnimationFrame(ecb))
-    /* And another to properly focus */
+    // And another to properly focus
     ignore(Web.Window.requestAnimationFrame(cb))
     ()
   })

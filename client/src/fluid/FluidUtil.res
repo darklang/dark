@@ -38,8 +38,8 @@ let truncateStringTo63BitInt = (s: string): Result.t<string, string> => {
     | None => false
     }
 
-  /* 4611686018427387903 is largest 62 bit number, which has 19 characters */
-  /* We use 62 bit checks instead of 63 because the most significanty bit is for sign in two's complement -- which is not yet handled */
+  // 4611686018427387903 is largest 62 bit number, which has 19 characters
+  // We use 62 bit checks instead of 63 because the most significanty bit is for sign in two's complement -- which is not yet handled
   let trunc19 = String.left(~count=19, s)
   if is62BitInt(trunc19) {
     Ok(trunc19)
@@ -68,7 +68,7 @@ let truncateStringTo63BitInt = (s: string): Result.t<string, string> => {
 let coerceStringTo63BitInt = (s: string): string =>
   Result.unwrap(truncateStringTo63BitInt(s), ~default="0")
 
-/* Only supports positive numbers for now, but we should change this once fluid supports negative numbers */
+// Only supports positive numbers for now, but we should change this once fluid supports negative numbers
 let is63BitInt = (s: string): bool => Result.isOk(truncateStringTo63BitInt(s))
 
 let trimQuotes = (s): string => {
@@ -138,7 +138,7 @@ let splitFnName = (fnName: string): (option<string>, string, string) => {
   }
 }
 
-/* Get just the function mod and name */
+// Get just the function mod and name
 let fnDisplayName = (fnName: string): string => {
   let (mod_, name, _) = splitFnName(fnName)
   switch mod_ {
@@ -147,7 +147,7 @@ let fnDisplayName = (fnName: string): string => {
   }
 }
 
-/* Get just the function version */
+// Get just the function version
 let versionDisplayName = (fnName: string): string => {
   let (_, _, version) = splitFnName(fnName)
   if version == "0" {

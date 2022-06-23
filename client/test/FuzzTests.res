@@ -4,11 +4,11 @@ open FluidTestData
 open FluidFuzzer
 module K = FluidKeyboard
 
-/* See docs/fuzzer.md for documentation on how to use this. */
+// See docs/fuzzer.md for documentation on how to use this.
 
-/* ------------------ */
-/* Cmd-line args */
-/* ------------------ */
+// ------------------
+// Cmd-line args
+// ------------------
 let process_cmdline_args = () => {
   let command = ref(None)
   Tc.Array.forEach(Sys.argv, ~f=str =>
@@ -41,18 +41,18 @@ let process_cmdline_args = () => {
     | (Some("--verbosityThreshold"), str) =>
       FluidFuzzer.verbosityThreshold := int_of_string(str)
       command := None
-    | (None, _) if Tc.String.endsWith(str, ~suffix="fuzz_tests.bs.js") => /* ignore the filename */
+    | (None, _) if Tc.String.endsWith(str, ~suffix="fuzz_tests.bs.js") => // ignore the filename
       ()
-    | (None, "/usr/bin/node") => /* ignore */
+    | (None, "/usr/bin/node") => // ignore
       ()
     | _ => Js.log("Unsupported command line argument: " ++ str)
     }
   )
 }
 
-/* ------------------ */
-/* Keyboard-based fuzzing */
-/* ------------------ */
+// ------------------
+// Keyboard-based fuzzing
+// ------------------
 let keypress = (key: K.key): fluidInputEvent => Keypress({
   key: key,
   shiftKey: false,
@@ -69,9 +69,9 @@ let processMsg = (inputs: list<fluidInputEvent>, s: fluidState, ast: E.t): (E.t,
   ) |> (((ast, s, _)) => (FluidAST.toExpr(ast), s))
 }
 
-/* ------------------ */
-/* The actual tests */
-/* ------------------ */
+// ------------------
+// The actual tests
+// ------------------
 let deleteAllTest: FuzzTest.t = {
   name: "delete-all deletes all",
   check: (~testcase as _, ~newAST, newState) => toText(newAST) == "   " && newState.newPos == 0,
@@ -86,7 +86,7 @@ let copyPasteTest: FuzzTest.t = {
     name: "copy paste roundtrips successfully",
     check: (~testcase, ~newAST, _) => toText(testcase) == toText(newAST),
     ignore: ast =>
-      /* the copy/paste algorithm doesn't work properly for partials */
+      // the copy/paste algorithm doesn't work properly for partials
       E.filter(ast, ~f=x =>
         switch x {
         | EPartial(_) | ERightPartial(_) => true
@@ -114,11 +114,11 @@ let longLines: FuzzTest.t = {
   fn: testcase => (testcase, defaultTestState),
 }
 
-/* ------------------ */
-/* Run the tests */
-/* ------------------ */
+// ------------------
+// Run the tests
+// ------------------
 
-/* See docs/fuzzer.md for documentation on how to use this. */
+// See docs/fuzzer.md for documentation on how to use this.
 let () = {
   Tester.verbose := true
   process_cmdline_args()

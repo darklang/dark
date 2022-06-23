@@ -1,6 +1,6 @@
 open Prelude
 
-/* Tea */
+// Tea
 module Cmd = Tea.Cmd
 module Http = Tea.Http
 
@@ -36,12 +36,12 @@ let shouldDisplayToUser = (e: apiError): bool =>
 let shouldRollbar = (e: apiError): bool =>
   switch e.originalError {
   | Http.BadUrl(_) | Http.Timeout | Http.BadPayload(_) => true
-  | Http.NetworkError => /* Don't rollbar if the internet is down */
+  | Http.NetworkError => // Don't rollbar if the internet is down
     false
   | Http.BadStatus(response) =>
-    /* Don't rollbar if you aren't logged in */
+    // Don't rollbar if you aren't logged in
     response.status.code != 401
-  | Http.Aborted => /* Don't rollbar if the client aborted the request */
+  | Http.Aborted => // Don't rollbar if the client aborted the request
     false
   }
 

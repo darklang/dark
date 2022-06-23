@@ -126,9 +126,9 @@ open FluidShortcuts
  * behavior.
  ")
 
-let magicIfElseWrapperPrefix = 15 /* "if true\nthen\n  " */
+let magicIfElseWrapperPrefix = 15 // "if true\nthen\n  "
 
-let magicFeatureFlagPrefix = 20 /* "when true\nenabled\n  " */
+let magicFeatureFlagPrefix = 20 // "when true\nenabled\n  "
 
 let deOption = (msg, v) =>
   switch v {
@@ -233,13 +233,13 @@ module TestCase = {
           let selectionStart = Option.map(selectionStart, ~f=fixup)
           (selectionStart, fixup(pos))
         } else if wrap {
-          /* if the main editor was wrapped, remove it in the same way */
+          // if the main editor was wrapped, remove it in the same way
           let fixup = (p: int) => p + magicIfElseWrapperPrefix + newlinesBefore(p) * 2
 
           let selectionStart = Option.map(selectionStart, ~f=fixup)
           (selectionStart, fixup(pos))
         } else {
-          /* if not in FF and not wrapped, then just leave the pos/selection alone */
+          // if not in FF and not wrapped, then just leave the pos/selection alone
           (selectionStart, pos)
         }
       }
@@ -464,7 +464,7 @@ let insMany = (strings: list<string>, case: TestCase.t): TestResult.t =>
 let inputs = (inputs: list<fluidInputEvent>, case: TestCase.t): TestResult.t =>
   process(inputs, case)
 
-/* Test expecting no partials found and an expected caret position but no selection */
+// Test expecting no partials found and an expected caret position but no selection
 let t = (
   ~expectsPartial=false,
   ~expectsFnOnRail=false,
@@ -500,7 +500,7 @@ let t = (
       expectsFnOnRail,
     ))
   })
-  /* also run the same test in a feature flag editor panel, unless it's marked as not working */
+  // also run the same test in a feature flag editor panel, unless it's marked as not working
   if !brokenInFF {
     let case = TestCase.init(~wrap=false, ~clone, ~debug, ~pos, ~sel, ~ff=true, expr)
 
@@ -824,7 +824,7 @@ let run = () => {
     )
     t(
       "del start of middle string",
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       mlStr,
       ~pos=42,
       del,
@@ -834,7 +834,7 @@ let run = () => {
     )
     t(
       "del start of end string",
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       mlStr,
       ~pos=83,
       del,
@@ -1011,7 +1011,7 @@ let run = () => {
       ("123456789_abcdefghi,123456789_abcdefghi,\n" ++
       "123456789_~\""),
     )
-    /* Skipped insert, del, bs of space, as it doesn't seem interesting */
+    // Skipped insert, del, bs of space, as it doesn't seem interesting
     t(
       "final quote is swallowed",
       mlStr,
@@ -2404,9 +2404,9 @@ let run = () => {
       inputs(list{DeleteWordForward}),
       "12345~12345",
     )
-    /* TODO bs on empty partial does something */
-    /* TODO support del on all the bs commands */
-    /* TODO pressing enter at the end of the partialGhost */
+    // TODO bs on empty partial does something
+    // TODO support del on all the bs commands
+    // TODO pressing enter at the end of the partialGhost
     t(
       "pressing bs on || in binop deletes right side",
       binop("||", trueBool, falseBool),
@@ -2620,7 +2620,7 @@ let run = () => {
     ()
   })
   describe("Lambdas", () => {
-    /* type -> to move through a lambda */
+    // type -> to move through a lambda
     t(
       "type - after a lambda var to move into a lambda arrow",
       aLambda,
@@ -2636,7 +2636,7 @@ let run = () => {
       "\\*** -~> ___",
     )
     t("type > inside a lambda arrow to move past it", aLambda, ~pos=6, ins(">"), "\\*** -> ~___")
-    /* end type -> to move through a lambda */
+    // end type -> to move through a lambda
     t("bs over lambda symbol", aLambda, ~pos=1, bs, "~___")
     t("insert space in lambda", aLambda, ~pos=1, key(K.Space), "\\~*** -> ___")
     t("bs non-empty lambda symbol", nonEmptyLambda, ~pos=1, bs, "\\~*** -> 5")
@@ -2670,7 +2670,7 @@ let run = () => {
       aLambda,
       ~pos=3,
       ins("5"),
-      /* TODO: this looks wrong */
+      // TODO: this looks wrong
       "\\**~* -> ___",
     )
     t(
@@ -3020,7 +3020,7 @@ let run = () => {
       ctrlRight,
       "match ___\n  *** -> ___~\n",
     )
-    /* delete row with delete */
+    // delete row with delete
     ()
   })
   describe("Lets", () => {
@@ -3257,7 +3257,7 @@ let run = () => {
     ()
   })
   describe("Pipes", () => {
-    /* TODO: add tests for clicking in the middle of a pipe (or blank) */
+    // TODO: add tests for clicking in the middle of a pipe (or blank)
     t(
       "move to the front of pipe on line 1",
       aPipe,
@@ -3319,7 +3319,7 @@ let run = () => {
       aLongPipe,
       ~pos=3,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "[]~\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n",
     )
     t(
@@ -3334,7 +3334,7 @@ let run = () => {
       aLongPipe,
       ~pos=22,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "[]\n|>List::append [2]~\n|>List::append [4]\n|>List::append [5]\n",
     )
     t(
@@ -3349,7 +3349,7 @@ let run = () => {
       aLongPipe,
       ~pos=41,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "[]\n|>List::append [2]\n|>List::append [3]~\n|>List::append [5]\n",
     )
     t(
@@ -3378,7 +3378,7 @@ let run = () => {
       aPipeInsideIf,
       ~pos=19,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "if ___\nthen\n  []~\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___",
     )
     t(
@@ -3393,7 +3393,7 @@ let run = () => {
       aPipeInsideIf,
       ~pos=40,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "if ___\nthen\n  []\n  |>List::append [2]~\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___",
     )
     t(
@@ -3408,7 +3408,7 @@ let run = () => {
       aPipeInsideIf,
       ~pos=61,
       del,
-      /* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad */
+      // TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad
       "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]~\n  |>List::append [5]\nelse\n  ___",
     )
     t(
@@ -3610,9 +3610,9 @@ let run = () => {
       }),
       "List::append ~___________ ___________\n|>List::append [5]\n|>List::append [5]\n",
     )
-    /* TODO: test for prefix fns */
-    /* TODO: test for deleting pipeed infix fns */
-    /* TODO: test for deleting pipeed prefix fns */
+    // TODO: test for prefix fns
+    // TODO: test for deleting pipeed infix fns
+    // TODO: test for deleting pipeed prefix fns
     ()
   })
   describe("Ifs", () => {
@@ -3776,9 +3776,9 @@ let run = () => {
       "match [56,~___]\n  *** -> ___\n",
     )
     t("insert separator between items creates blank", multi, ~pos=3, ins(","), "[56,~___,78]")
-    /* t "insert separator mid integer makes two items" single (ins ',' 2) */
-    /* ("[5,6]", 3) ; */
-    /* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. */
+    // t "insert separator mid integer makes two items" single (ins ',' 2)
+    // ("[5,6]", 3) ;
+    // TODO: when on a separator in a nested list, pressing comma makes an entry outside the list.
     t("insert separator mid string does nothing special ", withStr, ~pos=3, ins(","), "[\"a,~b\"]")
     t("backspacing open bracket of empty list dels list", emptyList, ~pos=1, bs, "~___")
     t("backspacing close bracket of empty list moves inside list", emptyList, ~pos=2, bs, "[~]")
@@ -4374,7 +4374,7 @@ let run = () => {
         partial("body", fieldAccess(EVariable(ID("fake-acdata1"), "request"), "longfield")),
         b,
       ),
-      /* Right should make it commit */
+      // Right should make it commit
       ~pos=20,
       key(K.Right),
       "let x = request.body\n~___",
@@ -4400,7 +4400,7 @@ let run = () => {
         "bod",
         EFieldAccess(gid(), EVariable(ID("fake-acdata1"), "request"), "longfield"),
       ),
-      /* Dot should select the autocomplete */
+      // Dot should select the autocomplete
       ~pos=11,
       ins("."),
       "request.body.~***",
@@ -4522,17 +4522,17 @@ let run = () => {
 
       expect((result, astInfo.state.ac.index)) |> toEqual(("let request = 1\nre", Some(0)))
     })
-    /* TODO: this doesn't work but should */
-    /* t */
-    /* "autocomplete for field in body" */
-    /* (EMatch */
-    /* ( gid () */
-    /* , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "bo") */
-    /* , [] )) */
-    /* (enter 18) */
-    /* ("match request.body", 18) ; */
-    /* test "backspacing on variable reopens autocomplete" (fun () -> */
-    /* expect (bs (EVariable (5, "request"))). */
+    // TODO: this doesn't work but should
+    // t
+    // "autocomplete for field in body"
+    // (EMatch
+    // ( gid ()
+    // , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "bo")
+    // , [] ))
+    // (enter 18)
+    // ("match request.body", 18) ;
+    // test "backspacing on variable reopens autocomplete" (fun () ->
+    // expect (bs (EVariable (5, "request"))).
     ()
   })
   describe("Movement", () => {
@@ -4583,14 +4583,14 @@ let run = () => {
       test("down from first row is end of last row", () =>
         expect(astInfo |> doDown(~pos=168) |> (({state, _}) => state.newPos)) |> toEqual(174)
       )
-      /* end of short row */
+      // end of short row
       test("up into shorter row goes to end of row", () =>
         expect(astInfo |> doUp(~pos=172) |> (({state, _}) => state.newPos)) |> toEqual(156)
       )
       test("down into shorter row goes to end of row", () =>
         expect(astInfo |> doDown(~pos=143) |> (({state, _}) => state.newPos)) |> toEqual(156)
       )
-      /* start of indented row */
+      // start of indented row
       test("up into indented row goes to first token", () =>
         expect(astInfo |> doUp(~pos=152) |> (({state, _}) => state.newPos)) |> toEqual(130)
       )
@@ -4636,7 +4636,7 @@ let run = () => {
       keys(list{K.Escape, K.Down, K.Down}),
       "if ___\nthen\n  ___~\nelse\n  ___",
     )
-    /* moving through the autocomplete */
+    // moving through the autocomplete
     test("up goes through the autocomplete", () =>
       expect(
         astInfo
@@ -4996,9 +4996,9 @@ let run = () => {
     t(
       "tab wraps second block in a let",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       emptyLet,
       ~pos=15,
       key(K.Tab),
@@ -5017,9 +5017,9 @@ let run = () => {
     t(
       "shift tab wraps from start of let",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       emptyLet,
       ~pos=4,
       shiftTab,
@@ -5028,9 +5028,9 @@ let run = () => {
     t(
       "shift tab goes to last blank in editor",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       nonEmptyLetWithBlankEnd,
       ~pos=4,
       shiftTab,
@@ -5041,9 +5041,9 @@ let run = () => {
     t(
       "can shift tab to field blank",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       aBlankField,
       shiftTab,
       "obj.~***",
@@ -5051,9 +5051,9 @@ let run = () => {
     t(
       "shift tab at beg of line, wraps to end",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       longList,
       ~pos=1,
       shiftTab,
@@ -5062,9 +5062,9 @@ let run = () => {
     t(
       "tab at end of line, wraps to beginging",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       aFnCall,
       ~pos=11,
       key(K.Tab),
@@ -5073,9 +5073,9 @@ let run = () => {
     t(
       "tab at end of line, wraps to beginging",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       multi,
       ~pos=6,
       key(K.Tab),
@@ -5085,7 +5085,7 @@ let run = () => {
       "tab does not go to middle of multiline string",
       mlStrWSpace,
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~pos=0,
       key(K.Tab),
       "~\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
@@ -5103,9 +5103,9 @@ let run = () => {
       "shift tab does not go to middle of multiline string",
       mlStrWSpace,
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       shiftTab,
       "\"123456789_abcdefghi,123456789_abcdefghi,\n" ++
       (" 123456789_ abcdefghi, 123456789_ abcdef\n" ++
@@ -5114,34 +5114,34 @@ let run = () => {
     t(
       "shift tab does not stop on function version",
       ~wrap=false,
-      /* wrap false because else we move the cursor into the wrapper */
+      // wrap false because else we move the cursor into the wrapper
       ~brokenInFF=true,
-      /* brokenInFF false because else we move the cursor into the ff condition */
+      // brokenInFF false because else we move the cursor into the ff condition
       aFnCallWithVersion,
       shiftTab,
       "DB::getAllv1 ~___________________",
     )
     ()
   })
-  /* Disable string escaping for now */
-  /* describe "String escaping" (fun () -> ()) ; */
-  /* t ~expectsPartial:true */
-  /* "typing \\ in a string makes it a partial" */
-  /* aStr */
-  /* (key K.Backslash 3) */
+  // Disable string escaping for now
+  // describe "String escaping" (fun () -> ()) ;
+  // t ~expectsPartial:true
+  // "typing \\ in a string makes it a partial"
+  // aStr
+  // (key K.Backslash 3)
   /* TODO this works in a handler with _only_ a string, but if you wrap it in
    * anything else (let, if, etc) you get "some string\\~" */
-  /* "so\\~me string" ; */
-  /* t */
-  /* "typing n after an escape in a partial creates a newline" */
-  /* aStrEscape */
-  /* (ins 'n' 3) */
-  /* "\"so\n~me string\"" ; */
-  /* t */
-  /* "typing \\ after an escape in a partial creates a visible backslash" */
-  /* aStrEscape */
-  /* (key K.Backslash 3) */
-  /* "\"so\\~me string\"" ; */
+  // "so\\~me string" ;
+  // t
+  // "typing n after an escape in a partial creates a newline"
+  // aStrEscape
+  // (ins 'n' 3)
+  // "\"so\n~me string\"" ;
+  // t
+  // "typing \\ after an escape in a partial creates a visible backslash"
+  // aStrEscape
+  // (key K.Backslash 3)
+  // "\"so\\~me string\"" ;
   /* TODO this doesn't work yet, filed as
    * https://trello.com/c/kBsS9Qb2/2156-string-escaping-should-work-for-repeated-backslashes
   t ~expectsPartial:true
@@ -5158,12 +5158,12 @@ let run = () => {
     (keys [K.Backslash; K.Backslash; K.Backslash; K.Backslash] 3)
     "\"so\\\\~me string\"" ;
  */
-  /* Disable string escaping for now */
-  /* t */
-  /* "deleting the \\ in a partial brings back the string" */
-  /* aStrEscape */
-  /* (del 2) */
-  /* "\"so~me string\"" ; */
+  // Disable string escaping for now
+  // t
+  // "deleting the \\ in a partial brings back the string"
+  // aStrEscape
+  // (del 2)
+  // "\"so~me string\"" ;
   t(
     ~expectsPartial=true,
     "typing an unsupported char after an escape leaves us with a partial",

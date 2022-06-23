@@ -19,7 +19,7 @@ let registerGlobal = (eventName, key, tagger, decoder) => {
   Tea_sub.registration(key, enableCall)
 }
 
-/* Same, but no JSON decoding */
+// Same, but no JSON decoding
 let registerGlobalDirect = (name, key, tagger) => {
   open Vdom
   let enableCall = callbacks_base => {

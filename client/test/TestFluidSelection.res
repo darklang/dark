@@ -1,4 +1,4 @@
-/* Tests for functions in Fluid.ml that does not conform well with the tests in fluid-test.ml */
+// Tests for functions in Fluid.ml that does not conform well with the tests in fluid-test.ml
 
 open Tester
 open Prelude
@@ -6,7 +6,6 @@ open Fluid
 open FluidTestData
 open FluidShortcuts
 
-/*  */
 let run = () => {
   describe("getSelectedExprID", () => {
     let aiFor = (ast, s) => ASTInfo.make(defaultTestProps, FluidAST.ofExpr(ast), s)

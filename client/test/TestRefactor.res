@@ -156,7 +156,7 @@ let run = () => {
       let h = {...defaultHandler, ast: ast}
       let m = model(list{h})
       let id = E.toID(fn)
-      /* this used to crash or just lose all its arguments */
+      // this used to crash or just lose all its arguments
       let mod' = Refactor.takeOffRail(m, TLHandler(h), id)
       let res = switch mod' {
       | AddOps(list{SetHandler(_, _, h)}, _) =>
@@ -306,7 +306,7 @@ let run = () => {
       })
 
       let expectedFields =
-        /* Note: datestr and uuidstr are TDate and TUuid respectively, _not_ TStr */
+        // Note: datestr and uuidstr are TDate and TUuid respectively, _not_ TStr
         list{
           ("str", TStr),
           ("int", TInt),

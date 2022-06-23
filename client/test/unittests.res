@@ -1,4 +1,4 @@
-/* See docs/unittests.md for documentation on how to use this. */
+// See docs/unittests.md for documentation on how to use this.
 
 let domTests = ref(false)
 
@@ -17,16 +17,16 @@ let process_cmdline_args = () => {
     | (Some("--pattern"), str) =>
       Tester.pattern := Some(Js.Re.fromString(str))
       command := None
-    | (None, _) if Tc.String.endsWith(str, ~suffix="unittests.bs.js") => /* ignore the filename */
+    | (None, _) if Tc.String.endsWith(str, ~suffix="unittests.bs.js") => // ignore the filename
       ()
-    | (None, "/usr/bin/node") => /* ignore */
+    | (None, "/usr/bin/node") => // ignore
       ()
     | _ => Js.log("Unsupported command line argument: " ++ str)
     }
   )
 }
 
-/* See docs/unittests.md for documentation on how to use this. */
+// See docs/unittests.md for documentation on how to use this.
 let () = {
   open Tester
   process_cmdline_args()

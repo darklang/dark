@@ -1,15 +1,15 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 module TL = Toplevel
 
-/* ------------------------------- */
-/* Traces */
+// -------------------------------
+// Traces
 /* These used to have keyboard shortcuts to move between traces. When we
  * reintroduce shortcuts, it would likely be nice to have them again. */
-/* ------------------------------- */
+// -------------------------------
 let moveToOlderTrace = (m: model, tlid: TLID.t): modification => {
   let traceIDs = Analysis.getTraces(m, tlid) |> List.map(~f=Tuple2.first)
   let traceID = switch Analysis.getSelectedTraceID(m, tlid) {
@@ -30,9 +30,9 @@ let moveToNewerTrace = (m: model, tlid: TLID.t): modification => {
   traceID |> Option.map(~f=t => SetTLTraceID(tlid, t)) |> Option.unwrap(~default=NoChange)
 }
 
-/* ------------------------------- */
-/* Entering */
-/* ------------------------------- */
+// -------------------------------
+// Entering
+// -------------------------------
 
 let enterDB = (m: model, db: db, tl: toplevel, id: ID.t): modification => {
   let tlid = TL.id(tl)
@@ -63,7 +63,7 @@ let enterDB = (m: model, db: db, tl: toplevel, id: ID.t): modification => {
     } else {
       enterField
     }
-  /* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress */
+  // TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress
   | _ => NoChange
   }
 }
@@ -90,9 +90,9 @@ let enter = (m: model, tlid: TLID.t, id: ID.t): modification => enterWithOffset(
 let dblclick = (m: model, tlid: TLID.t, id: ID.t, offset: option<int>): modification =>
   enterWithOffset(m, tlid, id, offset)
 
-/* ------------------------------- */
-/* Blanks */
-/* ------------------------------- */
+// -------------------------------
+// Blanks
+// -------------------------------
 /* the name here is _awful_, but going to rip all of the glue
  * out soon so i pinky promise that it'll go away */
 let fluidEnteringMod = tlid => ReplaceAllModificationsWithThisOne(

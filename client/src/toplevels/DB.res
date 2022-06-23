@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module TD = TLIDDict
 
@@ -20,7 +20,7 @@ let fromList = (dbs: list<db>): TLIDDict.t<db> =>
 
 let blankOrData = (db: db): list<blankOrData> => {
   let cols = switch db.activeMigration {
-  | Some(migra) => \"@"(db.cols, migra.cols)
+  | Some(migra) => Belt.List.concat(db.cols, migra.cols)
   | None => db.cols
   }
 
