@@ -138,8 +138,7 @@ let fns : List<BuiltInFn> =
           SA.url state.program.canvasName deployHash SA.Short |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      // CLEANUP may be marked as ImpurePreviewable
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
 
@@ -194,8 +193,7 @@ let fns : List<BuiltInFn> =
           SA.urlFor state.program.canvasName deployHash SA.Short file |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      // CLEANUP may be marked as ImpurePreviewable
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
 
 
@@ -353,7 +351,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
       returnType = TResult(THttpResponse TStr, TStr)
       description =
-        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
+        "Return the specified file from the given deploy - only works on UTF8-safe files for now"
       fn =
         (function
         | state, [ DStr deployHash; DStr file ] ->
@@ -387,7 +385,7 @@ let fns : List<BuiltInFn> =
     { name = fn "StaticAssets" "serve" 1
       parameters = [ Param.make "deploy_hash" TStr ""; Param.make "file" TStr "" ]
       returnType = TResult(THttpResponse TBytes, TStr)
-      description = "Return the specified file from the latest deploy"
+      description = "Return the specified file from the given deploy"
       fn =
         (function
         | state, [ DStr deployHash; DStr file ] ->
