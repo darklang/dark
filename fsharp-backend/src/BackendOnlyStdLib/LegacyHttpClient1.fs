@@ -34,8 +34,7 @@ let sendRequest
   uply {
     let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
-    let encodedReqHeaders =
-      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultCode
+    let encodedReqHeaders = toStringPairs reqHeaders |> Exception.unwrapResultCode
     let encodedReqBody =
       encodeRequestBody
         DvalRepr.toPrettyMachineJsonStringV1

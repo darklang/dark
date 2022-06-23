@@ -36,8 +36,7 @@ let sendRequest
   uply {
     let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
-    let encodedReqHeaders =
-      DvalRepr.toStringPairs reqHeaders |> Exception.unwrapResultCode
+    let encodedReqHeaders = toStringPairs reqHeaders |> Exception.unwrapResultCode
     let encodedReqBody = encodeRequestBody jsonFn encodedReqHeaders reqBody
 
     match! httpCall 0 uri query verb encodedReqHeaders encodedReqBody with
