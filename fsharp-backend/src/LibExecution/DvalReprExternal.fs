@@ -199,10 +199,12 @@ let rec typeToBCTypeName (t : DType) : string =
   | TUserType (name, _) -> String.toLowercase name
   | TBytes -> "bytes"
 
-// When printing to grand-users (our users' users) using text/plain, print a
-// human-readable format. TODO: this should probably be part of the functions
-// generating the responses. Redacts passwords.
-
+// SERIALIZER_DEF DvalReprExternal.toEnduserReadableTextV0
+// Plan: We'd like to deprecate this in favor of an improved version only
+// usable/used by StdLib functions in various http clients and middlewares.
+/// When printing to grand-users (our users' users) using text/plain, print a
+/// human-readable format. TODO: this should probably be part of the functions
+/// generating the responses. Redacts passwords.
 let toEnduserReadableTextV0 (dval : Dval) : string =
 
   let rec nestedreprfn dv =
@@ -225,6 +227,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
         if l = [] then
           "[]"
         else
+          // CLEANUP no good reason to have the space before the newline
           "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
       | DObj o ->
         if o = Map.empty then
@@ -283,11 +286,15 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   reprfn dval
 
+// SERIALIZER_DEF STJ DvalReprExternal.toPrettyMachineJsonV1
+// OK as-is
+// Plan: make this a standard library function; use that within current usages
 /// For passing to Dark functions that operate on JSON, such as the JWT fns.
 /// This turns Option and Result into plain values, or null/error. String-like
 /// values are rendered as string. Redacts passwords.
 let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
   let writeDval = toPrettyMachineJsonV1 w
+
   let writeOCamlFloatValue (f : float) =
     if System.Double.IsPositiveInfinity f then
       w.WriteStringValue("Infinity")
@@ -308,7 +315,6 @@ let rec toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dv : Dval) : unit =
     else
       let v = f |> string |> String.toLowercase
       w.WriteRawValue(v)
-
 
   match dv with
   // basic types
@@ -366,6 +372,8 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 // Other formats
 // -------------------------
 
+// SERIALIZER_DEF Custom DvalReprExternal.toDeveloperReprV0
+// totally safe to change
 /// For printing something for the developer to read, as a live-value, error
 /// message, etc. This will faithfully represent the code, textually. Redacts
 /// passwords. Customers should not come to rely on this format.

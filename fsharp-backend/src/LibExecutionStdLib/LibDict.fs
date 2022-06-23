@@ -486,6 +486,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO: move to LibJson
     { name = fn "Dict" "toJSON" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TStr

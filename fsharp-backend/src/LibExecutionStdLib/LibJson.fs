@@ -138,6 +138,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      // a.k.a. Json::parse_v0
       deprecated = ReplacedBy(fn "JSON" "read" 1) }
 
 
