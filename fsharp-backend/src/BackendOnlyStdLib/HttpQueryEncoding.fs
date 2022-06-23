@@ -38,7 +38,7 @@ let rec toUrlString (dv : RT.Dval) : string =
   | RT.DBool true -> "true"
   | RT.DBool false -> "false"
   | RT.DStr s -> s
-  | RT.DFloat f -> DvalReprExternal.ocamlStringOfFloat f
+  | RT.DFloat f -> DvalReprLegacyExternal.ocamlStringOfFloat f
   | RT.DChar c -> c
   | RT.DNull -> "null"
   | RT.DDate d -> RT.DDateTime.toIsoString d

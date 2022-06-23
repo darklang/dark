@@ -5,7 +5,7 @@ open Prelude
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 let fn = FQFnName.stdlibFnName

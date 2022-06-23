@@ -463,9 +463,9 @@ let encodeRequestBody (body : Dval option) (headers : HttpHeaders.T) : Content =
       | Ok content -> FormContent(content)
       | Error msg -> Exception.raiseCode msg
     | dv when hasTextHeader headers ->
-      StringContent(DvalReprExternal.toEnduserReadableTextV0 dv)
+      StringContent(DvalReprLegacyExternal.toEnduserReadableTextV0 dv)
     | _ -> // hasJsonHeader
-      StringContent(DvalReprExternal.toPrettyMachineJsonStringV1 dv)
+      StringContent(DvalReprLegacyExternal.toPrettyMachineJsonStringV1 dv)
   | None -> NoContent
 
 /// Used in both Ok and Error cases
@@ -504,7 +504,7 @@ let sendRequest
           try
             body
             |> Exception.unwrapOptionInternal "invalid json string" []
-            |> DvalReprExternal.unsafeOfUnknownJsonV0
+            |> DvalReprLegacyExternal.unsafeOfUnknownJsonV0
           with
           | _ -> DStr "json decoding error"
         else

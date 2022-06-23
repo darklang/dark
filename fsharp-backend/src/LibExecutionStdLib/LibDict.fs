@@ -10,7 +10,7 @@ open LibExecution.RuntimeTypes
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 
@@ -494,7 +494,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-          DObj o |> DvalReprExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
+          DObj o |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

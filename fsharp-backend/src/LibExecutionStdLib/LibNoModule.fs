@@ -3,7 +3,7 @@ module LibExecutionStdLib.LibNoModule
 open Prelude
 open System
 
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 open LibExecution.RuntimeTypes
 
@@ -24,7 +24,8 @@ let fns : List<BuiltInFn> =
       returnType = TStr
       fn =
         (function
-        | _, [ a ] -> a |> DvalReprExternal.toEnduserReadableTextV0 |> DStr |> Ply
+        | _, [ a ] ->
+          a |> DvalReprLegacyExternal.toEnduserReadableTextV0 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

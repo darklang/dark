@@ -1,5 +1,5 @@
 /// Ways of converting Dvals to/from strings, with external use allowed
-module LibExecution.DvalReprExternal
+module LibExecution.DvalReprLegacyExternal
 
 // Printing Dvals is more complicated than you'd expect. Different situations
 // have different constraints, such as develop-focused representation showing
@@ -19,12 +19,7 @@ open Tablecloth
 
 open RuntimeTypes
 
-// CLEANUP: move everything in this file into where it's used
-
 open System.Text.Json
-
-// CLEANUP - remove all the unsafeDval by inlining them into the named
-// functions that use them, such as toQueryable or toRoundtrippable
 
 let jsonWriterOptions : JsonWriterOptions =
   let mutable options = new JsonWriterOptions()
@@ -122,7 +117,7 @@ let ocamlStringOfFloat (f : float) : string =
   // format "%.12g".
   // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
 
-  // CLEANUP We should move on to a nicer format. See DvalReprExternal.tests for edge cases. See:
+  // CLEANUP We should move on to a nicer format. See DvalReprLegacyExternal.tests for edge cases. See:
   if System.Double.IsPositiveInfinity f then
     "inf"
   else if System.Double.IsNegativeInfinity f then
@@ -138,7 +133,7 @@ let ocamlStringOfFloat (f : float) : string =
 // Runtime Types
 // -------------------------
 
-// SERIALIZER_DEF DvalReprExternal.toEnduserReadableTextV0
+// SERIALIZER_DEF DvalReprLegacyExternal.toEnduserReadableTextV0
 // Plan: We'd like to deprecate this in favor of an improved version only
 // usable/used by StdLib functions in various http clients and middlewares.
 /// When printing to grand-users (our users' users) using text/plain, print a
@@ -225,7 +220,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   reprfn dval
 
-// SERIALIZER_DEF STJ DvalReprExternal.toPrettyMachineJsonV1
+// SERIALIZER_DEF STJ DvalReprLegacyExternal.toPrettyMachineJsonV1
 // OK as-is
 // Plan: make this a standard library function; use that within current usages
 /// For passing to Dark functions that operate on JSON, such as the JWT fns.
@@ -311,6 +306,8 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 // Other formats
 // -------------------------
 
+// SERIALIZER_DEF DvalReprLegacyExternal.unsafeOfUnknownJsonV0
+// Plan: we want to replace this with type-based deserializers.
 // When receiving unknown json from the user, or via a HTTP API, attempt to
 // convert everything into reasonable types, in the absense of a schema.
 // This does type conversion, which it shouldn't and should be avoided for new code.
@@ -391,3 +388,40 @@ let unsafeOfUnknownJsonV0 str : Dval =
     convert document.RootElement
   with
   | _ -> Exception.raiseGrandUser "Invalid json"
+
+// SERIALIZER_DEF STJ DvalReprLegacyExternal.ofUnknownJsonV1
+// Plan: add a Json::parse that can takes a type parameter; deprecate this fn
+/// When receiving unknown json from the user, or via a HTTP API, attempt to
+/// convert everything into reasonable types, in the absense of a schema.
+let ofUnknownJsonV1 str : Result<Dval, string> =
+  let rec convert json =
+    match json with
+    | JInteger i -> DInt i
+    | JFloat f -> DFloat f
+    | JBoolean b -> DBool b
+    | JNull -> DNull
+    | JString s -> DStr s
+    | JList l -> l |> List.map convert |> Dval.list
+    | JObject fields ->
+      fields |> List.map (fun (k, v) -> k, (convert v)) |> Map |> DObj
+    | JUndefined
+    | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
+
+  try
+    use document = str |> parseJson
+    document.RootElement |> convert |> Ok
+  with
+  | :? JsonException as e ->
+    let msg =
+      if str = "" then
+        "JSON string was empty"
+      else
+        let msg = e.Message
+        // The full message has .NET specific advice, so just stick to the good stuff
+        let trailingCommaMsg = "The JSON array contains a trailing comma at the end"
+        if msg.Contains trailingCommaMsg then
+          $"{trailingCommaMsg}, at on line {e.LineNumber}, position {e.BytePositionInLine}"
+        else
+          msg
+    Error msg
+  | e -> Error e.Message

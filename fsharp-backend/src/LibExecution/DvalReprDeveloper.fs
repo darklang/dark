@@ -49,7 +49,7 @@ let private ocamlStringOfFloat (f : float) : string =
     let result = sprintf "%.12g" f
     if result.Contains "." then result else $"{result}."
 
-// SERIALIZER_DEF Custom DvalReprExternal.toDeveloperReprV0
+// SERIALIZER_DEF Custom DvalReprLegacyExternal.toDeveloperReprV0
 /// For printing something for the developer to read, as a live-value, error
 /// message, etc. Redacts passwords.
 ///

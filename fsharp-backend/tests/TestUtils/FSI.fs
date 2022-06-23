@@ -13,7 +13,7 @@ open FSharp.Control.Tasks
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module Exe = LibExecution.Execution
 
 open Prelude

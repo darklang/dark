@@ -170,9 +170,9 @@ type RowReader with
 
 
 // member this.queryableDval(name : string) =
-//   this.string name |> LibExecution.DvalReprExternal.ofInternalQueryableV1
+//   this.string name |> LibExecution.DvalReprLegacyExternal.ofInternalQueryableV1
 // member this.roundtrippableDval(name : string) =
-//   this.string name |> LibExecution.DvalReprExternal.ofInternalRoundtrippableV0
+//   this.string name |> LibExecution.DvalReprLegacyExternal.ofInternalRoundtrippableV0
 
 
 type TableStatsRow =

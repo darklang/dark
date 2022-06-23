@@ -18,7 +18,7 @@ type AspHeaders = System.Net.Http.Headers.HttpHeaders
 
 open LegacyBaseHttpClient
 
-module DvalRepr = LibExecution.DvalReprExternal
+module DvalRepr = LibExecution.DvalReprLegacyExternal
 module Errors = LibExecution.Errors
 module RT = RuntimeTypes
 

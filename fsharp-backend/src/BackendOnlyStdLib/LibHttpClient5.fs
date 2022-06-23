@@ -6,7 +6,7 @@ open System.Net.Http
 open Prelude
 open LibExecution.RuntimeTypes
 
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 module Errors = LibExecution.Errors
 
