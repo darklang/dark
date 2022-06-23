@@ -1,4 +1,4 @@
-module Tests.DvalReprExternal
+module Tests.DvalRepr
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -13,9 +13,9 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module Errors = LibExecution.Errors
-
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
   test "internal_roundtrippable doesn't care about key order" {
@@ -64,7 +64,7 @@ let testToDeveloperRepr =
     "toDeveloperRepr"
     [ testMany
         "toDeveloperRepr string"
-        DvalReprExternal.toDeveloperReprV0
+        DvalReprDeveloper.toRepr
         // Most of this is just the OCaml output and not really what the output should be
         [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
@@ -332,7 +332,7 @@ module Password =
 
       // redacting
       doesRedact "toEnduserReadableTextV0" DvalReprExternal.toEnduserReadableTextV0
-      doesRedact "toDeveloperReprV0" DvalReprExternal.toDeveloperReprV0
+      doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
       doesRedact "toPrettyMachineJsonV1" DvalReprExternal.toPrettyMachineJsonStringV1
       doesRedact
         "toPrettyRequestJsonV0"

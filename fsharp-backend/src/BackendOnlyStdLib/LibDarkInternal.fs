@@ -12,7 +12,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
-module DvalReprExternal = LibExecution.DvalReprExternal
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
 
@@ -504,8 +504,7 @@ that's already taken, returns an error."
               // We could just leave the dval vals as strings and use params, but
               // then we can't do numeric things (MAX, AVG, >, etc) with these
               // logs
-              |> List.map (fun (k, v) ->
-                (k, DvalReprExternal.toDeveloperReprV0 v :> obj))
+              |> List.map (fun (k, v) -> (k, DvalReprDeveloper.toRepr v :> obj))
             Telemetry.addEvent name (("level", level) :: args)
             Ply result
           | _ -> incorrectArgs ())

@@ -26,7 +26,7 @@ let main (args : string array) : int =
         Tests.BwdServer.tests
         Tests.Canvas.tests
         Tests.Cron.tests
-        Tests.DvalReprExternal.tests
+        Tests.DvalRepr.tests
         Tests.EventQueue.tests
         Tests.EventQueueV2.tests
         Tests.Execution.tests

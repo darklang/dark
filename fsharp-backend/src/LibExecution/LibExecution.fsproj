@@ -19,6 +19,7 @@
     <Compile Include="DvalReprInternalDeprecated.fs" />
     <Compile Include="DvalReprInternalNew.fs" />
     <Compile Include="DvalReprExternal.fs" />
+    <Compile Include="DvalReprDeveloper.fs" />
     <Compile Include="Errors.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="Interpreter.fs" />
