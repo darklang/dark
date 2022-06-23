@@ -12,7 +12,7 @@ let http = (~path: string, ~meth="GET", ()): handler => {
   spec: {space: B.newF("HTTP"), name: B.newF(path), modifier: B.newF(meth)},
 }
 
-/* Sets the model with the appropriate toplevels */
+// Sets the model with the appropriate toplevels
 let makeModel = (~handlers=list{}, ~traces=Map.String.empty, ~cursorState, ()): model => {
   let default = Defaults.defaultModel
   {

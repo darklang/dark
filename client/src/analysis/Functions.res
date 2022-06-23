@@ -68,8 +68,8 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
       )
     )
 
-  /* Get the initial set of unsafe functions */
-  /* TODO: what about unsafe packagemanager functions */
+  // Get the initial set of unsafe functions
+  // TODO: what about unsafe packagemanager functions
   let unsafeBuiltins = t.builtinFunctions |> List.filterMap(~f=f =>
     if f.fnPreviewSafety == Unsafe {
       Some(f.fnName)
@@ -172,7 +172,7 @@ let update = (props: props, t: t): t => {
     allowedFunctions: allowedFunctions,
     previewUnsafeFunctions: previewUnsafeFunctions,
   }
-  /* ugh */
+  // ugh
   globalRef := result
   result
 }

@@ -1,10 +1,10 @@
 open Prelude
 
-/* Tea */
+// Tea
 module Cmd = Tea.Cmd
 module Http = Tea.Http
 
-/* Dark */
+// Dark
 module AC = Autocomplete
 module B = BlankOr
 module P = Pointer
@@ -40,7 +40,7 @@ let createBrowserId: string = BsUuid.Uuid.V4.create() |> BsUuid.Uuid.V4.toString
 let createClientOpCtrId: string = BsUuid.Uuid.V4.create() |> BsUuid.Uuid.V4.toString
 
 let manageBrowserId = (): string =>
-  /* Setting the browser id in session storage so it is stored per tab */
+  // Setting the browser id in session storage so it is stored per tab
   switch Dom.Storage.getItem("browserId", Dom.Storage.sessionStorage) {
   | Some(browserId) => browserId
   | None =>
@@ -73,12 +73,12 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   let page =
     Url.parseLocation(location) |> Option.unwrap(~default=Defaults.defaultModel.currentPage)
 
-  /* these saved values may not be valid yet */
+  // these saved values may not be valid yet
   let savedCursorState = m.cursorState
   let m = {
     ...m,
     cursorState: Deselected,
-    /* deselect for now as the selected blank isn't available yet */
+    // deselect for now as the selected blank isn't available yet
     currentPage: Architecture,
     functions: Functions.empty |> Functions.setBuiltins(
       complete,
@@ -181,7 +181,7 @@ let processFocus = (m: model, focus: focus): modification =>
     }
   | FocusPageAndCursor(page, cs) =>
     let useCS = Page.tlidOf(page) == CursorState.tlidOf(cs)
-    let (tlid, mID) = /* If they don't match, the URL wins */
+    let (tlid, mID) = // If they don't match, the URL wins
     if useCS {
       (CursorState.tlidOf(cs), CursorState.idOf(cs))
     } else {
@@ -211,7 +211,7 @@ let processFocus = (m: model, focus: focus): modification =>
       }
     }
   | FocusNothing => Deselect
-  /* used instead of focussame when we've already done the focus */
+  // used instead of focussame when we've already done the focus
   | FocusNoChange => NoChange
   }
 
@@ -321,17 +321,17 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
 
         let reloadAllowed = switch m.lastReload {
         | Some(time) =>
-          /* if 60 seconds have elapsed */
+          // if 60 seconds have elapsed
           Js.Date.getTime(time) +. 60000.0 > Js.Date.getTime(now)
         | None => true
         }
 
-        /* Reload if it's an auth failure or the frontend is out of date */
+        // Reload if it's an auth failure or the frontend is out of date
         APIError.isBadAuth(apiError) || (buildHashMismatch && reloadAllowed)
       }
 
       let ignore = {
-        /* Ignore when using Ngrok */
+        // Ignore when using Ngrok
         let usingNgrok = VariantTesting.variantIsActive(m, NgrokVariant)
         /* This message is deep in the server code and hard to pull
          * out, so just ignore for now */
@@ -644,7 +644,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         dval,
       )
 
-      /* traces could be missing */
+      // traces could be missing
       let (m, afCmd) = Analysis.analyzeFocused(m)
       /* make sure we run the analysis even if the analyzeFocused conditions
        * don't hold, as we have a new result to be analyzed */
@@ -653,7 +653,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       (m, Cmd.batch(list{afCmd, acCmd, reExeCmd}))
     | SetUserFunctions(userFuncs, deletedUserFuncs, updateCurrent) =>
       if userFuncs == list{} && deletedUserFuncs == list{} {
-        /* no need to do this if nothing changed */
+        // no need to do this if nothing changed
         (m, Cmd.none)
       } else {
         let oldM = m
@@ -824,7 +824,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
           |> updateMod(ExecutingFunctionComplete(list{(tlid, id)}))
         }
       | None =>
-        /* Attempted to execute a function in a toplevel that we just deleted! */
+        // Attempted to execute a function in a toplevel that we just deleted!
         (m, Cmd.none) |> updateMod(ExecutingFunctionComplete(list{(tlid, id)}))
       }
     | ExecutingFunctionComplete(targets) =>
@@ -909,7 +909,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
     | SettingsViewUpdate(msg) =>
       let settingsView = SettingsView.update(m.settingsView, msg)
       ({...m, settingsView: settingsView}, cmd)
-    /* applied from left to right */
+    // applied from left to right
     | Many(mods) =>
       List.fold(~f=(model, mod') => updateMod(mod', model), ~initial=(m, Cmd.none), mods)
     }
@@ -998,19 +998,19 @@ let update_ = (msg: msg, m: model): modification => {
   | WindowMouseUp(event) | AppMouseUp(event) =>
     let clickBehavior = switch m.currentPage {
     | FocusedFn(tlid, _) | FocusedType(tlid) | FocusedPackageManagerFn(tlid) =>
-      /* Clicking on the raw canvas should keep you selected to functions/types in their space */
+      // Clicking on the raw canvas should keep you selected to functions/types in their space
       let defaultBehaviour = Select(tlid, STTopLevelRoot)
       switch CursorState.unwrap(m.cursorState) {
       | Entering(
           tlid,
           id,
-        ) => /* If we click away from an entry box, commit it before doing the default behaviour */
+        ) => // If we click away from an entry box, commit it before doing the default behaviour
         list{Entry.commit(m, tlid, id), defaultBehaviour}
       | _ => list{defaultBehaviour}
       }
     | Architecture | FocusedDB(_) | FocusedHandler(_) =>
       if event.button == Defaults.leftButton {
-        /* Clicking on the canvas should deselect the current selection on the main canvas */
+        // Clicking on the canvas should deselect the current selection on the main canvas
         let defaultBehaviour = Deselect
         switch CursorState.unwrap(m.cursorState) {
         | Deselected =>
@@ -1019,14 +1019,14 @@ let update_ = (msg: msg, m: model): modification => {
         | Entering(
             tlid,
             id,
-          ) => /* If we click away from an entry box, commit it before doing the default behaviour */
+          ) => // If we click away from an entry box, commit it before doing the default behaviour
           list{Entry.commit(m, tlid, id), defaultBehaviour}
         | _ => list{defaultBehaviour}
         }
       } else {
         list{}
       }
-    | SettingsModal(_) => /* Click handled in component */
+    | SettingsModal(_) => // Click handled in component
       list{}
     }
 
@@ -1062,14 +1062,14 @@ let update_ = (msg: msg, m: model): modification => {
       switch TL.get(m, draggingTLID) {
       | Some(tl) =>
         if hasMoved {
-          /* We've been updating tl.pos as mouse moves, */
-          /* now want to report last pos to server */
+          // We've been updating tl.pos as mouse moves,
+          // now want to report last pos to server
           Many(list{
             ReplaceAllModificationsWithThisOne(CursorState.setCursorState(origCursorState)),
             AddOps(list{MoveTL(draggingTLID, TL.pos(tl))}, FocusNoChange),
           })
         } else {
-          /* if we haven't moved, treat this as a single click and not a attempted drag */
+          // if we haven't moved, treat this as a single click and not a attempted drag
           let defaultBehaviour = Select(draggingTLID, STTopLevelRoot)
           switch origCursorState {
           | Entering(tlid, id) => Many(list{Entry.commit(m, tlid, id), defaultBehaviour})
@@ -1125,20 +1125,20 @@ let update_ = (msg: msg, m: model): modification => {
         switch TL.get(m, draggingTLID) {
         | Some(tl) =>
           if hasMoved {
-            /* We've been updating tl.pos as mouse moves, */
-            /* now want to report last pos to server */
-            /* the SetCursorState here isn't always necessary */
-            /* because in the happy case we'll also receive */
-            /* a ToplevelClick event, but it seems that sometimes */
-            /* we don't, perhaps due to overlapping click handlers */
-            /* There doesn't seem to be any harm in stopping dragging */
-            /* here though */
+            // We've been updating tl.pos as mouse moves,
+            // now want to report last pos to server
+            // the SetCursorState here isn't always necessary
+            // because in the happy case we'll also receive
+            // a ToplevelClick event, but it seems that sometimes
+            // we don't, perhaps due to overlapping click handlers
+            // There doesn't seem to be any harm in stopping dragging
+            // here though
             Many(list{
               ReplaceAllModificationsWithThisOne(CursorState.setCursorState(origCursorState)),
               AddOps(list{MoveTL(draggingTLID, TL.pos(tl))}, FocusNoChange),
             })
           } else {
-            /* if we haven't moved, treat this as a single click and not a attempted drag */
+            // if we haven't moved, treat this as a single click and not a attempted drag
             let defaultBehaviour = Select(draggingTLID, STTopLevelRoot)
             switch origCursorState {
             | Entering(tlid, id) => Many(list{Entry.commit(m, tlid, id), defaultBehaviour})
@@ -1173,7 +1173,7 @@ let update_ = (msg: msg, m: model): modification => {
       if fillingID == targetID {
         NoChange
       } else {
-        /* If we click away from an entry box, commit it before doing the default behaviour */
+        // If we click away from an entry box, commit it before doing the default behaviour
         Many(list{Entry.commit(m, tlid, fillingID), defaultBehaviour})
       }
     | Omnibox(_) => select(targetID)
@@ -1263,7 +1263,7 @@ let update_ = (msg: msg, m: model): modification => {
     | None => NoChange
     }
   | ToplevelDelete(tlid) =>
-    let resetMenu = /* So menu doesn't stay at opened state when TL is restored */
+    let resetMenu = // So menu doesn't stay at opened state when TL is restored
     ReplaceAllModificationsWithThisOne(m => (TLMenu.resetMenu(tlid, m), Cmd.none))
 
     TL.get(m, tlid)
@@ -1505,7 +1505,7 @@ let update_ = (msg: msg, m: model): modification => {
   | WorkerStatePush(ws) => UpdateWorkerSchedules(ws)
   | Delete404APICall(f404) =>
     Many(list{
-      /* This deletion is speculative */
+      // This deletion is speculative
       Delete404(f404),
       MakeCmd(API.delete404(m, f404)),
     })
@@ -1598,7 +1598,7 @@ let update_ = (msg: msg, m: model): modification => {
       UpdateTraces(traces),
     })
   | ReceiveFetch(TraceFetchMissing(params)) =>
-    /* We'll force it so no need to update syncState */
+    // We'll force it so no need to update syncState
     let (_, cmd) = Analysis.requestTrace(~force=true, m, params.gtdrpTlid, params.gtdrpTraceID)
 
     MakeCmd(cmd)
@@ -1748,7 +1748,7 @@ let update_ = (msg: msg, m: model): modification => {
   | TimerFire(action, _) =>
     switch action {
     | RefreshAnalysis =>
-      let getUnlockedDBs = /* Small optimization */
+      let getUnlockedDBs = // Small optimization
       if Map.length(m.dbs) > 0 {
         GetUnlockedDBsAPICall
       } else {
@@ -1762,7 +1762,7 @@ let update_ = (msg: msg, m: model): modification => {
            * it's working at all. Commenting this out is enough to disable
            * it, as the UI does not appear if the DB stats API call isn't
            * run. */
-          /* UpdateDBStatsAPICall (TL.id tl); */
+          // UpdateDBStatsAPICall (TL.id tl);
           getUnlockedDBs,
         })
       | Some(tl) if Toplevel.isWorkerHandler(tl) =>
@@ -1945,7 +1945,7 @@ let update_ = (msg: msg, m: model): modification => {
     switch m.cursorState {
     | Entering(tlid, id) =>
       Many(list{
-        /* If we click away from an entry box, commit it before doing the default behaviour */
+        // If we click away from an entry box, commit it before doing the default behaviour
         Entry.commit(m, tlid, id),
         ...defaultBehaviour,
       })
@@ -1954,7 +1954,7 @@ let update_ = (msg: msg, m: model): modification => {
   | FluidMsg(FluidMouseUp({tlid: targetExnID, _}) as msg) =>
     Many(list{Select(targetExnID, STTopLevelRoot), Apply(m => Fluid.update(m, msg))})
   | FluidMsg(msg) =>
-    /* Handle all other messages */
+    // Handle all other messages
     Fluid.update(m, msg)
   | ResetToast =>
     ReplaceAllModificationsWithThisOne(m => ({...m, toast: Defaults.defaultToast}, Cmd.none))
@@ -1964,7 +1964,7 @@ let update_ = (msg: msg, m: model): modification => {
       m => ({...m, editorSettings: {...m.editorSettings, runTimers: false}}, API.logout(m)),
     )
   | LogoutAPICallback =>
-    /* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work */
+    // For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work
     Native.Ext.redirect("/login")
     NoChange
   | GoToArchitecturalView => Many(list{Deselect, MakeCmd(Url.navigateTo(Architecture))})
@@ -2004,7 +2004,7 @@ let rec filter_read_only = (m: model, modification: modification) =>
     }
   }
 
-/* Checks to see if AST has changed, if so make requestAnalysis command. */
+// Checks to see if AST has changed, if so make requestAnalysis command.
 let maybeRequestAnalysis = (oldM: model, newM: model, otherCommands: Cmd.t<msg>): Cmd.t<msg> =>
   switch (TL.selected(oldM), TL.selected(newM)) {
   | (Some(prevTL), Some(newTL)) if TL.id(prevTL) == TL.id(newTL) =>
@@ -2036,7 +2036,7 @@ let update = (m: model, msg: msg): (model, Cmd.t<msg>) => {
   | (Some(_), ed) => ed
   }
 
-  /* END HACK */
+  // END HACK
   SavedSettings.save(m)
   SavedUserSettings.save(m)
   ({...newm, lastMsg: msg, fluidState: {...newm.fluidState, activeEditor: activeEditor}}, newc)
@@ -2045,8 +2045,8 @@ let update = (m: model, msg: msg): (model, Cmd.t<msg>) => {
 let subscriptions = (m: model): Tea.Sub.t<msg> => {
   let keySubs = list{Keyboard.downs(x => GlobalKeyPress(x))}
   let dragSubs = switch m.cursorState {
-  /* we use IDs here because the node will change */
-  /* before they're triggered */
+  // we use IDs here because the node will change
+  // before they're triggered
   | DraggingTL(id, _, _, _) =>
     let listenerKey = "mouse_moves_" ++ TLID.toString(id)
     list{BrowserListeners.DarkMouse.moves(~key=listenerKey, event => DragToplevel(id, event))}
@@ -2106,7 +2106,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     Analysis.WorkerStatePush.listen(~key="worker_state_push", s => WorkerStatePush(s)),
   }
 
-  let clipboardSubs = /* We want the default copy/paste behaviors on the settings modal */
+  let clipboardSubs = // We want the default copy/paste behaviors on the settings modal
   if m.settingsView.opened || m.insertSecretModal.visible {
     list{}
   } else {

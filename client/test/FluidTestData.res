@@ -1,20 +1,20 @@
 open Prelude
 open FluidExpression
 
-/* ---------------- */
-/* Shortcuts */
-/* ---------------- */
+// ----------------
+// Shortcuts
+// ----------------
 let b = newB()
 
 open FluidShortcuts
 
-/* ---------------- */
-/* test data */
-/* ---------------- */
+// ----------------
+// test data
+// ----------------
 
-/* ---------------- */
-/* String */
-/* ---------------- */
+// ----------------
+// String
+// ----------------
 let aStr = EString(gid(), "some string")
 
 let aStrEscape = EPartial(gid(), "so\\me string", EString(gid(), "some string"))
@@ -37,9 +37,9 @@ let mlStrWSpace = str(
   (numSegment ++ (" " ++ (letterSegment ++ (" " ++ (numSegment ++ (" " ++ letterSegment))))))),
 )
 
-/* ---------------- */
-/* Ints */
-/* ---------------- */
+// ----------------
+// Ints
+// ----------------
 let aShortInt = EInteger(gid(), "1")
 
 let anInt = EInteger(gid(), "12345")
@@ -58,9 +58,9 @@ let fiftySix = EInteger(gid(), "56")
 
 let seventyEight = EInteger(gid(), "78")
 
-/* ---------------- */
-/* Floats */
-/* ---------------- */
+// ----------------
+// Floats
+// ----------------
 let aFloat = EFloat(gid(), "123", "456")
 
 let aFloatWithoutWhole = EFloat(gid(), "", "1")
@@ -73,32 +73,32 @@ let maxPosIntWithDot = floatStr("4611686018427387", "903")
 
 let maxPosIntPlus1WithDot = floatStr("4611686018427387", "904")
 
-/* ---------------- */
-/* Bools */
-/* ---------------- */
+// ----------------
+// Bools
+// ----------------
 let trueBool = EBool(gid(), true)
 
 let falseBool = EBool(gid(), false)
 
-/* ---------------- */
-/* Null */
-/* ---------------- */
+// ----------------
+// Null
+// ----------------
 let aNull = ENull(gid())
 
-/* ---------------- */
-/* Partials */
-/* ---------------- */
+// ----------------
+// Partials
+// ----------------
 let aPartialVar = EPartial(gid(), "req", b)
 
-/* ---------------- */
-/* Lets */
-/* ---------------- */
+// ----------------
+// Lets
+// ----------------
 let completelyEmptyLet = ELet(gid(), "", b, b)
 
-/* let *** = ___\n5 */
+// let *** = ___\n5
 let emptyLet = ELet(gid(), "", b, EInteger(gid(), "5"))
 
-/* let *** = 6\n___ */
+// let *** = 6\n___
 let nonEmptyLetWithBlankEnd = ELet(gid(), "", EInteger(gid(), "6"), b)
 
 let nonEmptyLet = ELet(gid(), "", EInteger(gid(), "6"), EInteger(gid(), "5"))
@@ -129,9 +129,9 @@ let letWithBinding = (bindingName: string, expr: t) => ELet(
 let letWithUsedBinding = (bindingName: string) =>
   letWithBinding(bindingName, EVariable(gid(), bindingName))
 
-/* ---------------- */
-/* Match */
-/* ---------------- */
+// ----------------
+// Match
+// ----------------
 let emptyMatch = {
   let mID = gid()
   EMatch(mID, b, list{(FPBlank(mID, gid()), b)})
@@ -202,17 +202,17 @@ let nestedMatch = {
   EMatch(mID, b, list{(FPBlank(mID, gid()), emptyMatch)})
 }
 
-/* ---------------- */
-/* Variables */
-/* ---------------- */
+// ----------------
+// Variables
+// ----------------
 
 let aVar = EVariable(gid(), "variable")
 
 let aShortVar = EVariable(gid(), "v")
 
-/* ---------------- */
-/* Ifs */
-/* ---------------- */
+// ----------------
+// Ifs
+// ----------------
 let emptyIf = EIf(gid(), b, b, b)
 
 let plainIf = EIf(gid(), EInteger(gid(), "5"), EInteger(gid(), "6"), EInteger(gid(), "7"))
@@ -231,9 +231,9 @@ let indentedIfElse = ELet(
   EVariable(gid(), "var"),
 )
 
-/* ---------------- */
-/* Lambdas */
-/* ---------------- */
+// ----------------
+// Lambdas
+// ----------------
 let aLambda = ELambda(gid(), list{(gid(), "")}, b)
 
 let nonEmptyLambda = ELambda(gid(), list{(gid(), "")}, five)
@@ -266,9 +266,9 @@ let lambdaWith3UsedBindings = {
   )
 }
 
-/* ---------------- */
-/* Functions */
-/* ---------------- */
+// ----------------
+// Functions
+// ----------------
 let aFnCall = EFnCall(gid(), "Int::add", list{five, b}, NoRail)
 
 let aFullFnCall = fn(~id=gid(), "Int::add", list{int(5), int(5)})
@@ -289,14 +289,14 @@ let aOnRailFnCall = EFnCall(gid(), "HttpClient::get_v3", list{b, b, b}, Rail)
 
 let aRailableFnCall = EFnCall(gid(), "HttpClient::get_v3", list{b, b, b}, NoRail)
 
-/* ---------------- */
-/* Constructors */
-/* ---------------- */
+// ----------------
+// Constructors
+// ----------------
 let aConstructor = EConstructor(gid(), "Just", list{b})
 
-/* ---------------- */
-/* Records */
-/* ---------------- */
+// ----------------
+// Records
+// ----------------
 let emptyRow = list{("", b)}
 
 let recordRow1 = ("f1", fiftySix)
@@ -313,9 +313,9 @@ let emptyRecord = ERecord(gid(), list{})
 
 let functionWrappedEmptyRecord = fn("HttpClient::get_v4", list{emptyStr, emptyRecord, emptyRecord})
 
-/* ---------------- */
-/* Lists */
-/* ---------------- */
+// ----------------
+// Lists
+// ----------------
 let emptyList = list(list{})
 
 let single = list(list{fiftySix})
@@ -407,9 +407,9 @@ let listWithRecord = list(list{emptyRecord})
 
 let multiWithStrs = list(list{str("ab"), str("cd"), str("ef")})
 
-/* ---------------- */
-/* Fields */
-/* ---------------- */
+// ----------------
+// Fields
+// ----------------
 let aField = EFieldAccess(gid(), EVariable(gid(), "obj"), "field")
 
 let aNestedField = EFieldAccess(
@@ -424,9 +424,9 @@ let aBlankField = EFieldAccess(gid(), EVariable(gid(), "obj"), "")
 
 let aPartialField = EPartial(gid(), "", EFieldAccess(gid(), EVariable(gid(), "obj"), ""))
 
-/* ---------------- */
-/* Pipes */
-/* ---------------- */
+// ----------------
+// Pipes
+// ----------------
 let aList5 = list(list{five})
 
 let aList6 = list(list{six})
@@ -459,9 +459,9 @@ let aNestedPipe = pipe(list(list{}), list{listFn(list{pipe(aList5, list{listFn(l
 
 let aPipeWithFilledFunction = pipe(str("hello"), list{fn("String::length_v1", list{pipeTarget})})
 
-/* ------------- */
-/* Feature Flags */
-/* ------------- */
+// -------------
+// Feature Flags
+// -------------
 
 let flagOld = oldCode => EFeatureFlag(gid(), "flag-name", falseBool, oldCode, b)
 
@@ -469,9 +469,9 @@ let flagNew = newCode => EFeatureFlag(gid(), "flag-name", trueBool, b, newCode)
 
 let letWithflagBody = let'("a", aShortInt, flagOld(oneCharStr))
 
-/* ---------------- */
-/* Complex */
-/* ---------------- */
+// ----------------
+// Complex
+// ----------------
 
 let complexExpr = if'(
   binop(
@@ -491,9 +491,9 @@ let complexExpr = if'(
   fn("Http::Forbidden", list{}),
 )
 
-/* ---------------- */
-/* Some useful defaults */
-/* ---------------- */
+// ----------------
+// Some useful defaults
+// ----------------
 let defaultTLID = TLID.fromString("7")
 
 let defaultTestFunctions = {

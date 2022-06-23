@@ -1,10 +1,10 @@
 open Prelude
 
-/* Tea */
+// Tea
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 
-/* Fluid */
+// Fluid
 module K = FluidKeyboard
 module AC = FluidAutocomplete
 module T = FluidToken
@@ -12,7 +12,7 @@ module E = FluidExpression
 module P = FluidPattern
 module Printer = FluidPrinter
 
-/* Tea */
+// Tea
 
 type viewProps = ViewUtils.viewProps
 
@@ -72,7 +72,7 @@ type rec lvResult =
 
 let rec lvResultForId = (~recurred=false, vp: viewProps, id: ID.t): lvResult => {
   let fnLoading = {
-    /* If fn needs to be manually executed, check status */
+    // If fn needs to be manually executed, check status
     let ast = vp.astInfo.ast
     FluidAST.find(id, ast)
     |> Option.andThen(~f=expr =>
@@ -138,9 +138,9 @@ let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
    * a class ".loaded" purely for integration tests being able to know when
    * the live value content is ready and can be asserted on */
   let isLoaded = ref(true)
-  /* Renders dval */
+  // Renders dval
   let renderDval = viewDval(vp.tlid, vp.secretValues)
-  /* Renders live value for token */
+  // Renders live value for token
   let renderTokenLv = id =>
     switch lvResultForId(vp, id) {
     | WithMessage(msg) => list{Html.text(msg)}
@@ -188,7 +188,7 @@ let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
        * then show its dval */
       Some(renderDval(dv, ~canCopy=true))
     | _ =>
-      /* Else show live value of current token */
+      // Else show live value of current token
       let token = ti.token
       let id = T.analysisID(token)
       if T.validID(id) {
@@ -200,7 +200,7 @@ let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
 
     Option.pair(content, Some(row))
   })
-  |> /* Render live value to the side */
+  |> // Render live value to the side
   Option.map(~f=((content, row)) => {
     let offset = float_of_int(row)
     Html.div(
@@ -213,7 +213,7 @@ let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
       content,
     )
   })
-  |> /* If there's a failure at any point, we don't render the live-value wrapper */
+  |> // If there's a failure at any point, we don't render the live-value wrapper
   Option.unwrap(~default=Vdom.noNode)
 }
 

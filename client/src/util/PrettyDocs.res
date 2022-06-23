@@ -108,7 +108,7 @@ let rec convert_ = (s: string): parseResult => {
     tryParseAsCodeBlock(s)
     |> Option.orElse(tryParseAsLink(s))
     |> Option.orElse(tryParseAsTag(s))
-    |> /* If it has no richtext markup, just render as plain text: */
+    |> // If it has no richtext markup, just render as plain text:
     Option.unwrap(~default=ParseSuccess(list{txt(s)}))
   }
 }

@@ -26,7 +26,7 @@ let displayAndReportError = (m, message, url, custom): (model, Tea.Cmd.t<msg>) =
   | None => ""
   }
   let msg = message ++ (url ++ custom)
-  /* Reload on bad csrf */
+  // Reload on bad csrf
   if String.includes(msg, ~substring="Bad CSRF") {
     Native.Location.reload(true)
   }

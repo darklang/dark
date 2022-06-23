@@ -26,9 +26,9 @@ let toModel = (e: savedSettings): model => {
 let model2editor = (m: model): savedSettings => {
   editorSettings: m.editorSettings,
   cursorState: m.cursorState,
-  tlTraceIDs: /* what trace is selected */
+  tlTraceIDs: // what trace is selected
   m.tlTraceIDs,
-  featureFlags: /* which flags are expanded */
+  featureFlags: // which flags are expanded
   m.featureFlags,
   handlerProps: m.handlerProps,
   canvasPos: m.canvasProps.offset,

@@ -8,7 +8,7 @@ module K = FluidKeyboard
 open FluidExpression
 open FluidShortcuts
 
-type testResult = /* ast, clipboard, newPos */
+type testResult = // ast, clipboard, newPos
 (string, (string, option<string>), int)
 
 let clipboardEvent = (): clipboardEvent => {
@@ -257,7 +257,7 @@ let run = () => {
     name: string,
     initial: fluidExpr,
     range: (int, int),
-    /* This is the string copied. */
+    // This is the string copied.
     expectedClipboard: string,
   ): unit =>
     test(nameToName(name, initial), () => {
@@ -1185,18 +1185,18 @@ let run = () => {
       b,
       (4, 4),
       "{\n  Key: [\"a\", \"b\"]\n  Key2: [\"c\", \"d\"]\n}",
-      /* not ideal outcome, but consistent. Could be improved */
+      // not ideal outcome, but consistent. Could be improved
       "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n  ~*** : ___\n}",
     )
     /* TODO: not working, waiting for more caretTarget stuff to land before
      * fixing */
-    /* testPasteText */
-    /* "pasting 2 row record text into empty blank (js style)" */
-    /* b */
-    /* (4, 4) */
-    /* "{\n  Key: [\"a\", \"b\"],\n  Key2: [\"c\", \"d\"]\n}" */
-    /* (* not ideal outcome, but consistent. Could be improved *) */
-    /* "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n}~" ; */
+    // testPasteText
+    // "pasting 2 row record text into empty blank (js style)"
+    // b
+    // (4, 4)
+    // "{\n  Key: [\"a\", \"b\"],\n  Key2: [\"c\", \"d\"]\n}"
+    // (* not ideal outcome, but consistent. Could be improved *)
+    // "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n}~" ;
     ()
   })
   describe("Constructors", () => {
@@ -1227,7 +1227,7 @@ let run = () => {
     ()
   })
   describe("Match", () =>
-    /* TODO: test match statements, implementation is slightly inconsistent */
+    // TODO: test match statements, implementation is slightly inconsistent
     ()
   )
   describe("json", () => {

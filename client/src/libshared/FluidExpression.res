@@ -6,7 +6,7 @@ type rec sendToRail =
   | Rail
   | NoRail
 
-/* See .mli for comments/descriptions of fields */
+// See .mli for comments/descriptions of fields
 @ppx.deriving(show({with_path: false}))
 type rec t =
   | EInteger(id, string)
@@ -164,7 +164,7 @@ let rec find = (target: id, expr: t): option<t> => {
 
 let children = (expr: t): list<t> =>
   switch expr {
-  /* None */
+  // None
   | EInteger(_)
   | EString(_)
   | EBool(_)
@@ -173,22 +173,22 @@ let children = (expr: t): list<t> =>
   | EBlank(_)
   | EPipeTarget(_)
   | EVariable(_) => list{}
-  /* One */
+  // One
   | EPartial(_, _, expr)
   | ERightPartial(_, _, expr)
   | ELeftPartial(_, _, expr)
   | ELambda(_, _, expr)
   | EFieldAccess(_, expr, _) => list{expr}
-  /* Two */
+  // Two
   | EBinOp(_, _, c0, c1, _) | ELet(_, _, c0, c1) => list{c0, c1}
-  /* Three */
+  // Three
   | EFeatureFlag(_, _, c0, c1, c2) | EIf(_, c0, c1, c2) => list{c0, c1, c2}
-  /* List */
+  // List
   | EFnCall(_, _, exprs, _)
   | EList(_, exprs)
   | EConstructor(_, _, exprs)
   | EPipe(_, exprs) => exprs
-  /* Special */
+  // Special
   | ERecord(_, pairs) => pairs |> List.map(~f=Tuple2.second)
   | EMatch(_, matchExpr, cases) =>
     let casePointers = cases |> List.map(~f=Tuple2.second)
@@ -365,7 +365,7 @@ let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
   let finished = run(ast)
   if failIfMissing {
     if !found.contents {
-      /* prevents the significant performance cost of show */
+      // prevents the significant performance cost of show
       Recover.asserT(
         ~debug=(show_id(target), show(ast)),
         "didn't find the id in the expression to update",
@@ -381,7 +381,7 @@ let update = (~failIfMissing=true, ~f: t => t, target: id, ast: t): t => {
  * We should either hide [update] from the public interface of FluidExpression
  * or remove [replace] and put the special-case EPipe logic into the calling code. */
 let replace = (~replacement: t, target: id, ast: t): t => {
-  /* If we're putting a pipe into another pipe, fix it up */
+  // If we're putting a pipe into another pipe, fix it up
   let (target', newExpr') = switch (findParent(target, ast), replacement) {
   | (Some(EPipe(parentID, oldExprs)), EPipe(newID, newExprs)) =>
     let (before, elemAndAfter) = List.splitWhen(~f=nested => toID(nested) == target, oldExprs)
@@ -394,7 +394,7 @@ let replace = (~replacement: t, target: id, ast: t): t => {
   update(target', ast, ~f=_ => newExpr')
 }
 
-/* Slightly modified version of `AST.uses` (pre-fluid code) */
+// Slightly modified version of `AST.uses` (pre-fluid code)
 let rec updateVariableUses = (oldVarName: string, ~f: t => t, ast: t): t => {
   let u = updateVariableUses(oldVarName, ~f)
   switch ast {
@@ -412,7 +412,7 @@ let rec updateVariableUses = (oldVarName: string, ~f: t => t, ast: t): t => {
     }
   | ELambda(id, vars, lexpr) =>
     if List.map(~f=Tuple2.second, vars) |> List.member(~value=oldVarName) {
-      /* if variable name is rebound */
+      // if variable name is rebound
       ast
     } else {
       ELambda(id, vars, u(lexpr))
@@ -524,7 +524,7 @@ let ancestors = (id: id, expr: t): list<t> => {
 }
 
 let rec testEqualIgnoringIds = (a: t, b: t): bool => {
-  /* helpers for recursive calls */
+  // helpers for recursive calls
   let eq = testEqualIgnoringIds
   let eq2 = ((e, e'), (f, f')) => eq(e, e') && eq(f, f')
   let eq3 = ((e, e'), (f, f'), (g, g')) => eq(e, e') && (eq(f, f') && eq(g, g'))
@@ -558,9 +558,9 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   }
 
   switch (a, b) {
-  /* expressions with no values */
+  // expressions with no values
   | (ENull(_), ENull(_)) | (EBlank(_), EBlank(_)) | (EPipeTarget(_), EPipeTarget(_)) => true
-  /* expressions with single string values */
+  // expressions with single string values
   | (EInteger(_, v), EInteger(_, v'))
   | (EString(_, v), EString(_, v'))
   | (EVariable(_, v), EVariable(_, v')) =>
@@ -620,7 +620,7 @@ let rec testEqualIgnoringIds = (a: t, b: t): bool => {
   | (ERightPartial(_), _)
   | (EPartial(_), _)
   | (ELambda(_), _)
-  | (EMatch(_), _) => /* exhaustiveness check */
+  | (EMatch(_), _) => // exhaustiveness check
     false
   }
 }

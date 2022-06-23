@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 
 type viewProps = ViewUtils.viewProps
@@ -21,11 +21,11 @@ let viewExecuteBtn = (vp: viewProps, fn: userFunction): Html.html<msg> => {
   let exeStatus = if vp.isExecuting {
     IsExecuting
   } else {
-    /* Attempts to get trace inputValues for this function */
+    // Attempts to get trace inputValues for this function
     switch Analysis.selectedTrace(vp.tlTraceIDs, vp.traces, vp.tlid) {
     | Some(traceID, Ok(td)) =>
       let args = UserFunctions.inputToArgs(fn, td.input)
-      /* If any of the args is Incomplete/Error then we don't want to bother allowing this function to be executed */
+      // If any of the args is Incomplete/Error then we don't want to bother allowing this function to be executed
       if List.any(~f=dv =>
         switch dv {
         | DIncomplete(_) => true
@@ -47,7 +47,7 @@ let viewExecuteBtn = (vp: viewProps, fn: userFunction): Html.html<msg> => {
     }
   }
 
-  let events = /* If function is ready for re-execution, attach onClick listener */
+  let events = // If function is ready for re-execution, attach onClick listener
   switch (fn.ufMetadata.ufmName, exeStatus) {
   | (F(_, fnName), CanExecute(traceID, args)) =>
     ViewUtils.eventNoPropagation(

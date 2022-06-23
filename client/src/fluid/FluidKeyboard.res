@@ -207,7 +207,7 @@ let onKeydown = (tagger, evt: Web.Node.event) =>
     switch x {
     | {key: Unhandled(_), _} => None
     | kevt =>
-      /* if we are going to handle the key, then preventDefault */
+      // if we are going to handle the key, then preventDefault
       evt["preventDefault"]()
       Some(tagger(kevt))
     }

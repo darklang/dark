@@ -28,7 +28,7 @@ module Set = {
   let fromList = l => fromArray(Array.of_list(l))
 }
 
-/* CLEANUP: rename to map */
+// CLEANUP: rename to map
 module Dict = {
   include Tc.Map.Of(T)
 

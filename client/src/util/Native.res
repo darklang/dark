@@ -96,7 +96,7 @@ module Location = {
 
   @val @scope(("window", "location")) external reload: bool => unit = "reload"
 
-  /* TODO write string query parser */
+  // TODO write string query parser
 }
 
 module Window = {

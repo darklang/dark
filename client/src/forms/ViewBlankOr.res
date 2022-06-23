@@ -1,11 +1,11 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module TL = Toplevel
 
-/* Create a Html.div for this ID, incorporating all ID-related data, */
-/* such as whether it's selected, appropriate events, mouseover, etc. */
+// Create a Html.div for this ID, incorporating all ID-related data,
+// such as whether it's selected, appropriate events, mouseover, etc.
 let div = (
   ~id: ID.t,
   ~enterable: bool,

@@ -105,7 +105,7 @@ let readOnlyMessage = (m: model): Html.html<msg> =>
     list{
       Html.classList(list{
         ("message-panel", true),
-        /* Only show this on confirmed Read-only so it doesn't pop up before initial_load. */
+        // Only show this on confirmed Read-only so it doesn't pop up before initial_load.
         ("show", m.permission == Some(Read)),
       }),
     },

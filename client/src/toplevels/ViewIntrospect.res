@@ -187,7 +187,7 @@ let packageFnView = (
   returnTipe: blankOr<tipe>,
   direction: string,
 ): Html.html<msg> => {
-  /* Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f */
+  // Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f
   let header = list{
     ViewUtils.fontAwesome("box-open"),
     Html.span(list{Html.class'("fnname")}, list{Html.text(name)}),

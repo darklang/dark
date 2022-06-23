@@ -1,13 +1,13 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 module P = Pointer
 module TD = TLIDDict
 
-/* ------------------------- */
-/* Toplevel manipulation */
-/* ------------------------- */
+// -------------------------
+// Toplevel manipulation
+// -------------------------
 let name = (tl: toplevel): string =>
   switch tl {
   | TLHandler(h) => "H: " ++ (h.spec.name |> B.toOption |> Option.unwrap(~default=""))
@@ -54,7 +54,7 @@ let remove = (m: model, tl: toplevel): model => {
   | TLDB(db) => DB.remove(m, db)
   | TLFunc(f) => UserFunctions.remove(m, f)
   | TLTipe(ut) => UserTypes.remove(m, ut)
-  | TLPmFunc(_) => /* Cannot remove a package manager function */
+  | TLPmFunc(_) => // Cannot remove a package manager function
     m
   }
 }
@@ -157,9 +157,9 @@ let toOp = (tl: toplevel): list<op> =>
   | TLDB(_) => recover("This isn't how datastore ops work", ~debug=id(tl), list{})
   }
 
-/* ------------------------- */
-/* Generic */
-/* ------------------------- */
+// -------------------------
+// Generic
+// -------------------------
 let blankOrData = (tl: toplevel): list<blankOrData> =>
   switch tl {
   | TLHandler(h) => SpecHeaders.blankOrData(h.spec)
@@ -172,9 +172,9 @@ let blankOrData = (tl: toplevel): list<blankOrData> =>
 let isValidBlankOrID = (tl: toplevel, id: ID.t): bool =>
   List.member(~value=id, tl |> blankOrData |> List.map(~f=P.toID))
 
-/* ------------------------- */
-/* ASTs */
-/* ------------------------- */
+// -------------------------
+// ASTs
+// -------------------------
 
 let getAST = (tl: toplevel): option<FluidAST.t> =>
   switch tl {
@@ -280,7 +280,7 @@ let find = (tl: toplevel, id_: ID.t): option<blankOrData> =>
   blankOrData(tl)
   |> List.filter(~f=d => id_ == P.toID(d))
   |> assertFn("cant find pd for id", ~debug=(id(tl), id), ~f=r => List.length(r) <= 1)
-  |> /* guard against dups */
+  |> // guard against dups
   List.head
 
 let getPD = (m: model, tlid: TLID.t, id: ID.t): option<blankOrData> =>
@@ -318,9 +318,9 @@ let setSelectedAST = (m: model, ast: FluidAST.t): modification =>
   | Some(tl) => setASTMod(tl, ast)
   }
 
-/* ------------------------- */
-/* Blanks */
-/* ------------------------- */
+// -------------------------
+// Blanks
+// -------------------------
 
 type predecessor = option<ID.t>
 

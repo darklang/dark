@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
@@ -8,11 +8,11 @@ module B = BlankOr
 module Regex = Util.Regex
 module TD = TLIDDict
 
-/* ---------------------------- */
-/* Focus */
-/* ---------------------------- */
-/* show the prev 5 */
-/* obvi this should use getClientBoundingBox, but that's tough in Elm */
+// ----------------------------
+// Focus
+// ----------------------------
+// show the prev 5
+// obvi this should use getClientBoundingBox, but that's tough in Elm
 let height = (i: int): int =>
   if i < 4 {
     0
@@ -32,9 +32,9 @@ let focusItem = (i: int): Tea.Cmd.t<msg> =>
     }),
   )
 
-/* ---------------------------- */
-/* display */
-/* ---------------------------- */
+// ----------------------------
+// display
+// ----------------------------
 let asName = (aci: autocompleteItem): string =>
   switch aci {
   | ACOmniAction(ac) =>
@@ -131,11 +131,11 @@ let asTypeClass = (item: autocompleteItem): string =>
 
 let asString = (aci: autocompleteItem): string => asName(aci) ++ asTypeString(aci)
 
-/* ---------------------------- */
-/* External: utils */
-/* ---------------------------- */
+// ----------------------------
+// External: utils
+// ----------------------------
 
-/* Return different type if possible */
+// Return different type if possible
 let highlighted = (a: autocomplete): option<autocompleteItem> =>
   List.getAt(~index=a.index, a.completions)
 
@@ -157,9 +157,9 @@ let rec containsOrdered = (needle: string, haystack: string): bool =>
   | None => true
   }
 
-/* ------------------------------------ */
-/* Validators */
-/* ------------------------------------ */
+// ------------------------------------
+// Validators
+// ------------------------------------
 
 /*
   urls
@@ -176,11 +176,11 @@ let rec containsOrdered = (needle: string, haystack: string): bool =>
   reserved = = | ; | / | # | ? | : | space
   escape = % hex hex
 */
-/* let urlPathSafeCharacters = "[-a-zA-Z0-9$_@.&!*\"'(),%/]" */
-/* let nonUrlPathSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/]" */
-/* let urlPathValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/]+" */
+// let urlPathSafeCharacters = "[-a-zA-Z0-9$_@.&!*\"'(),%/]"
+// let nonUrlPathSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/]"
+// let urlPathValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/]+"
 
-/* allow : for parameter names. TODO: do better job parsing here */
+// allow : for parameter names. TODO: do better job parsing here
 
 let nonEventNameSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/:]"
 
@@ -218,7 +218,7 @@ let typeNameValidator = dbNameValidator
 
 let paramTypeValidator = "[A-Za-z0-9_]*"
 
-/* Adding a more clear error message for invalid cron intervals */
+// Adding a more clear error message for invalid cron intervals
 let cronIntervalValidator = (name: string): option<string> =>
   if Regex.exactly(~re=cronValidatorPattern, name) {
     None
@@ -276,9 +276,9 @@ let validateFnParamNameFree = (tl: toplevel, oldParam: blankOr<string>, value: s
   | _ => None
   }
 
-/* ------------------------------------ */
-/* Omniactions */
-/* ------------------------------------ */
+// ------------------------------------
+// Omniactions
+// ------------------------------------
 
 let rec stripCharsFromFront = (disallowed: string, s: string): string =>
   switch String.uncons(s) {
@@ -432,7 +432,7 @@ let isDynamicItem = (item: autocompleteItem): bool =>
   switch item {
   | ACOmniAction(Goto(_, _, _, dyna)) => dyna
   | ACOmniAction(_) => true
-  | ACEventSpace(_) => false /* false because we want the static items to be first */
+  | ACEventSpace(_) => false // false because we want the static items to be first
   | ACHTTPRoute(_) => false
   | ACWorkerName(_) => true
   | ACDBName(_) => true
@@ -533,9 +533,9 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
   List.map(~f=x => ACOmniAction(x), Belt.List.concat(tls, ufs))
 }
 
-/* ------------------------------------ */
-/* Create the list */
-/* ------------------------------------ */
+// ------------------------------------
+// Create the list
+// ------------------------------------
 
 let allowedParamTipes = /* Types from Types.tipe that aren't included:
        TCharacter - very hard to create characters right now, so this type
@@ -588,7 +588,7 @@ let generate = (m: model, a: autocomplete): autocomplete => {
   let entries = switch a.target {
   | Some(_, p) =>
     switch P.typeOf(p) {
-    /* autocomplete HTTP verbs if the handler is in the HTTP event space */
+    // autocomplete HTTP verbs if the handler is in the HTTP event space
     | EventModifier =>
       switch space {
       | Some(HSHTTP) => list{
@@ -627,7 +627,7 @@ let generate = (m: model, a: autocomplete): autocomplete => {
         fourOhFourList
       | _ => list{}
       }
-    | EventSpace => /* Other spaces aren't allowed anymore */
+    | EventSpace => // Other spaces aren't allowed anymore
       list{ACEventSpace("HTTP"), ACEventSpace("CRON"), ACEventSpace("WORKER"), ACEventSpace("REPL")}
     | DBColType => List.map(~f=x => ACDBColType(x), allowedDBColTipes)
     | ParamTipe =>
@@ -661,7 +661,7 @@ let filter = (list: list<autocompleteItem>, query: string): list<autocompleteIte
       asString(i)
     } |> Regex.replace(~re=Regex.regex(`⟶`), ~repl="->")
 
-  /* HACK: dont show Gotos when the query is "" */
+  // HACK: dont show Gotos when the query is ""
   let list = List.filter(list, ~f=x =>
     switch x {
     | ACOmniAction(Goto(_)) => query != ""
@@ -669,7 +669,7 @@ let filter = (list: list<autocompleteItem>, query: string): list<autocompleteIte
     }
   )
 
-  /* split into different lists */
+  // split into different lists
   let (dynamic, candidates0) = List.partition(~f=isDynamicItem, list)
   let (candidates1, notSubstring) = List.partition(
     ~f=\">>"(\">>"(stringify, String.toLowercase), String.includes(~substring=lcq)),
@@ -703,20 +703,20 @@ let filter = (list: list<autocompleteItem>, query: string): list<autocompleteIte
 }
 
 let refilter = (m: model, query: string, old: autocomplete): autocomplete => {
-  /* add or replace the literal the user is typing to the completions */
+  // add or replace the literal the user is typing to the completions
   let fudgedCompletions = withDynamicItems(m, old.target, query, old.allCompletions)
 
   let newCompletions = filter(fudgedCompletions, query)
   let allCompletions = newCompletions
   let newCount = List.length(allCompletions)
-  let index = /* Clear the highlight conditions */
+  let index = // Clear the highlight conditions
   if (
     (query == "" &&
-      (/* when we had previously highlighted something due to any actual match */
+      (// when we had previously highlighted something due to any actual match
       (old.index != -1 && old.value != query) ||
-        /* or this condition previously held and nothing has changed */
+        // or this condition previously held and nothing has changed
         old.index == -1)) ||
-      /* if nothing matches, highlight nothing */
+      // if nothing matches, highlight nothing
       newCount == 0
   ) {
     -1
@@ -735,9 +735,9 @@ let refilter = (m: model, query: string, old: autocomplete): autocomplete => {
 
 let regenerate = (m: model, a: autocomplete): autocomplete => generate(m, a) |> refilter(m, a.value)
 
-/* ---------------------------- */
-/* Autocomplete state */
-/* ---------------------------- */
+// ----------------------------
+// Autocomplete state
+// ----------------------------
 let reset = (m: model): autocomplete => {
   let admin = m.isAdmin
   {...Defaults.defaultModel.complete, admin: admin, visible: true} |> regenerate(m)
@@ -766,19 +766,19 @@ let selectUp = (a: autocomplete): autocomplete => {
   }
 }
 
-/* Implementation: */
-/* n The autocomplete list should include: */
-/* y all imported functions */
-/* y restricted by types that are allowed */
-/* y allowed field names */
-/* n library names */
-/* y case-insensitive */
-/* n order by most likely, offer other alternatives below */
-/* n slight typos */
-/* n slight typeos */
-/* y Press enter to select */
-/* y Press right to fill as much as is definitive */
-/*  */
+// Implementation:
+// n The autocomplete list should include:
+// y all imported functions
+// y restricted by types that are allowed
+// y allowed field names
+// n library names
+// y case-insensitive
+// n order by most likely, offer other alternatives below
+// n slight typos
+// n slight typeos
+// y Press enter to select
+// y Press right to fill as much as is definitive
+//
 let setQuery = (m: model, q: string, a: autocomplete): autocomplete => refilter(m, q, a)
 
 let appendQuery = (m: model, str: string, a: autocomplete): autocomplete => {
@@ -823,9 +823,9 @@ let setTarget = (m: model, t: option<target>, a: autocomplete): autocomplete =>
 
 let setVisible = (visible: bool, a: autocomplete): autocomplete => {...a, visible: visible}
 
-/* ------------------------------------ */
-/* Commands */
-/* ------------------------------------ */
+// ------------------------------------
+// Commands
+// ------------------------------------
 
 let update = (m: model, mod_: autocompleteMod, a: autocomplete): autocomplete =>
   switch mod_ {

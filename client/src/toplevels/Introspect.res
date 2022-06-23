@@ -42,7 +42,7 @@ let tipesByName = (uts: TD.t<userTipe>): Map.String.t<TLID.t> =>
     let name =
       ut.utName
       |> B.toOption
-      |> /* Shouldn't happen: all tipes have a default name */
+      |> // Shouldn't happen: all tipes have a default name
       recoverOpt("tipes should have default names", ~default="_")
 
     let version = ut.utVersion

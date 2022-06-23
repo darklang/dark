@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module B = BlankOr
 
 type viewProps = ViewUtils.viewProps
@@ -164,13 +164,13 @@ let viewDBMigration = (migra: dbMigration, db: db, vp: viewProps): Html.html<msg
   let cols = List.map(~f=viewDBCol(vp, true, db.dbTLID), migra.cols)
   let funcs = /* this AST expr stuff is kind of a hack but until we reintroduce migration
    * fields I don't know what else to do with it -- @dstrelau 2020-02-25 */
-  list{/* viewMigraFuncs */
-  /* {vp with ast = FluidAST.ofExpr migra.rollforward} */
-  /* "Rollforward" */
-  /* "oldObj" */
-  /* ; viewMigraFuncs */
-  /* {vp with ast = FluidAST.ofExpr migra.rollback} */
-  /* "Rollback" */
+  list{// viewMigraFuncs
+  // {vp with ast = FluidAST.ofExpr migra.rollforward}
+  // "Rollforward"
+  // "oldObj"
+  // ; viewMigraFuncs
+  // {vp with ast = FluidAST.ofExpr migra.rollback}
+  // "Rollback"
   /* "newObj" */}
 
   let lockReady = DB.isMigrationLockReady(migra)

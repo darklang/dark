@@ -1,4 +1,4 @@
-/* open Tc */
+// open Tc
 
 module Cmd = Tea.Cmd
 module Attr = Tea.Html2.Attributes

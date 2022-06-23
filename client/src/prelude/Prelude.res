@@ -8,7 +8,7 @@ let reportError = Unshared.reportError
  * You don't need to open/include Tc or Types, Prelude includes them. */
 
 module Tea = {
-  /* Extend Tea functions */
+  // Extend Tea functions
   module Result = Tea_result
   module Cmd = Tea_cmd
   module Sub = Tea_sub
@@ -44,17 +44,17 @@ module Json = {
   module Encode = Json_encode_extended
 }
 
-/* --- */
-/* IDs */
-/* --- */
+// ---
+// IDs
+// ---
 
 let gid = Shared.gid
 
 let gtlid = (): TLID.t => Util.random() |> string_of_int |> TLID.fromString
 
-/* -------------------------------------- */
-/* CursorState */
-/* -------------------------------------- */
+// --------------------------------------
+// CursorState
+// --------------------------------------
 
 module Debug = {
   let log = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): 'a => {
@@ -65,7 +65,7 @@ module Debug = {
   let loG = (~f: 'a => 'b=x => Obj.magic(x), msg: string, data: 'a): unit => Js.log2(msg, f(data))
 }
 
-/* Needs a better home */
+// Needs a better home
 
 let rec tipe2str = (t: tipe): string =>
   switch t {

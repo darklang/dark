@@ -76,9 +76,9 @@ let opsParams = (ops: list<op>, opCtr: int, clientOpCtrId: string): addOpAPIPara
   clientOpCtrId: clientOpCtrId,
 }
 
-/* ------------- */
-/* API calls */
-/* ------------- */
+// -------------
+// API calls
+// -------------
 
 let addOp = (m: model, focus: focus, params: addOpAPIParams): Tea.Cmd.t<msg> =>
   apiCall(
@@ -297,7 +297,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
   let m2 = {...m, opCtrs: newOpCtrs}
   /* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params */
-  /* temporarily _don't_ filter ops */
+  // temporarily _don't_ filter ops
   if Map.get(~key=params.clientOpCtrId, m2.opCtrs) == Some(params.opCtr) {
     (m2, params.ops, result)
   } else {
@@ -306,7 +306,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
      * handler's value to "aaa", and then SetHandler2's value is "aa",
      * applying them out of order (SH2, SH1) will result in SH2's update being
      * overwritten */
-    /* NOTE: DO NOT UPDATE WITHOUT UPDATING THE SERVER-SIDE LIST */
+    // NOTE: DO NOT UPDATE WITHOUT UPDATING THE SERVER-SIDE LIST
     let filter_ops_received_out_of_order = List.filter(~f=op =>
       switch op {
       | SetHandler(_)
@@ -341,7 +341,7 @@ let filterOpsAndResult = (m: model, params: addOpAPIParams, result: option<addOp
 
     let ops = params.ops |> filter_ops_received_out_of_order
     let opTlids = ops |> List.map(~f=op => Encoders.tlidOf(op))
-    /* We also want to ignore the result of ops we ignored */
+    // We also want to ignore the result of ops we ignored
     let result = Option.map(result, ~f=(result: addOpAPIResult) => {
       ...result,
       handlers: result.handlers |> List.filter(~f=h => List.member(~value=h.hTLID, opTlids)),

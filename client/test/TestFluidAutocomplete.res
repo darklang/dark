@@ -32,7 +32,7 @@ let sampleFunctions: list<function_> = list{
   ("DB::generateKey", list{}, TStr),
   ("DB::getAll_v2", list{TDB}, TList),
   ("DB::getAll_v1", list{TDB}, TList),
-  /* ordering is deliberate - we want the query to order s.t. get is before getAll */
+  // ordering is deliberate - we want the query to order s.t. get is before getAll
   ("DB::get_v1", list{TDB}, TList),
   ("String::append", list{TStr, TStr}, TStr),
   ("List::append", list{TList, TList}, TList),
@@ -132,7 +132,7 @@ let aDB = (~tlid=defaultTLID, ~fieldid=defaultID, ~typeid=defaultID2, ()): db =>
   pos: {x: 0, y: 0},
 }
 
-/* Sets the model with the appropriate toplevels */
+// Sets the model with the appropriate toplevels
 let defaultModel = (
   ~tlid=defaultTLID,
   ~analyses=list{},
@@ -163,7 +163,7 @@ let defaultModel = (
   }
 }
 
-/* AC targeting a tlid and pointer */
+// AC targeting a tlid and pointer
 let acFor = (~tlid=defaultTLID, ~pos=0, m: model): AC.t => {
   let ti =
     TL.get(m, tlid)

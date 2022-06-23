@@ -1,6 +1,6 @@
 open Prelude
 
-/* Dark */
+// Dark
 module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict
@@ -88,7 +88,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     list{("selected", selected), ("dragging", dragging), ("hovering", hovering)}
   }
 
-  /* Need to add aditional css class to remove background color */
+  // Need to add aditional css class to remove background color
   let classes = list{
     ("toplevel", true),
     ("tl-" ++ TLID.toString(tlid), true),
@@ -237,7 +237,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
     Html.div(
       list{
         Html.classList(list{("use-wrapper", true), ("fade", hasFF)}),
-        /* Block opening the omnibox here by preventing canvas pan start */
+        // Block opening the omnibox here by preventing canvas pan start
         ViewUtils.nothingMouseEvent("mousedown"),
       },
       usages,
@@ -336,7 +336,7 @@ let isAppScrollZero = (): bool => {
   open Webapi.Dom
   Document.getElementById(appID, document)
   |> Option.map(~f=app => Element.scrollLeft(app) == 0.0 && Element.scrollTop(app) == 0.0)
-  |> /* Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet */
+  |> // Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet
   Option.unwrap(~default=true)
 }
 
@@ -369,7 +369,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
     }
   }
 
-  /* BEGIN HACK */
+  // BEGIN HACK
   /* This is a last-ditch effort to fix the position bug.
    * If recover doesn't happen in prod, we can remove this
    * for a performance boost. */
@@ -378,7 +378,7 @@ let viewCanvas = (m: model): Html.html<msg> => {
   } else {
     recover("forcibly corrected position bug", zeroOutAppScrollImmediate())
   }
-  /* END HACK */
+  // END HACK
   /* Note that the following translation is container relative,
    * so we must ensure that none of the parent elements are scrolled or otherwise moved. */
   let animationStyle = (
@@ -651,7 +651,7 @@ let accountView = (m: model): Html.html<msg> => {
   Html.div(
     list{
       Html.class'("my-account"),
-      /* Block opening the omnibox here by preventing canvas pan start */
+      // Block opening the omnibox here by preventing canvas pan start
       ViewUtils.nothingMouseEvent("mousedown"),
     },
     list{
@@ -717,7 +717,7 @@ let view = (m: model): Html.html<msg> => {
         Html.class'("doc-container"),
         Html.href(docsURL),
         Html.target("_blank"),
-        /* Block opening the omnibox here by preventing canvas pan start */
+        // Block opening the omnibox here by preventing canvas pan start
         ViewUtils.nothingMouseEvent("mousedown"),
         ViewUtils.eventNoPropagation(~key="doc", "click", _ => UpdateHeapio(OpenDocs)),
       },

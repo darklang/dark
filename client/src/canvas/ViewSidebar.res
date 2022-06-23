@@ -40,7 +40,7 @@ type rec entry = {
   minusButton: option<msg>,
   plusButton: option<msg>,
   killAction: option<msg>,
-  /* if this is in the deleted section, what does minus do? */
+  // if this is in the deleted section, what does minus do?
   verb: option<string>,
 }
 
@@ -73,7 +73,7 @@ let iconButton = (~key: string, ~icon: string, ~classname: string, handler: msg)
 
 let categoryIcon_ = (name: string): list<Html.html<msg>> => {
   let darkIcon = ViewUtils.darkIcon
-  /* Deleted categories have a deleted- prefix, with which are not valid fontaweome icons */
+  // Deleted categories have a deleted- prefix, with which are not valid fontaweome icons
   switch name |> String.toLowercase |> Regex.replace(~re=Regex.regex(delPrefix), ~repl="") {
   | "http" => list{darkIcon("http")}
   | "dbs" => list{darkIcon("db")}
@@ -173,7 +173,7 @@ let replCategory = (handlers: list<handler>): category =>
 
 let workerCategory = (handlers: list<handler>): category => handlerCategory(tl =>
     TL.isWorkerHandler(tl) ||
-    /* Show the old workers here for now */
+    // Show the old workers here for now
     TL.isDeprecatedCustomHandler(tl)
   , "Worker", NewWorkerHandler(None), Some(GoToArchitecturalView), Worker, handlers)
 
@@ -210,7 +210,7 @@ let dbCategory = (m: model, dbs: list<db>): category => {
 
 let f404Category = (m: model): category => {
   let f404s = {
-    /* Generate set of deleted handler specs, stringified */
+    // Generate set of deleted handler specs, stringified
     let deletedHandlerSpecs =
       m.deletedHandlers
       |> Map.values
@@ -226,7 +226,7 @@ let f404Category = (m: model): category => {
 
     m.f404s
     |> List.uniqueBy(~f=f => f.space ++ (f.path ++ f.modifier))
-    |> /* Don't show 404s for deleted handlers */
+    |> // Don't show 404s for deleted handlers
     List.filter(~f=f => !Set.member(~value=f.space ++ (f.path ++ f.modifier), deletedHandlerSpecs))
   }
 
@@ -426,7 +426,7 @@ let deletedCategory = (m: model): category => {
   ) |> List.map(~f=c => {
     ...c,
     plusButton: None /* only allow new entries on the main category */,
-    classname: /* dont open/close in lockstep with parent */
+    classname: // dont open/close in lockstep with parent
     delPrefix ++ c.classname,
     entries: List.map(c.entries, ~f=x =>
       switch x {
@@ -710,7 +710,7 @@ let viewSecret = (s: SecretTypes.t): Html.html<msg> => {
 
   let secretValue = Util.obscureString(s.secretValue)
   let secretValue = {
-    /* If str length > 16 chars, we just want to keep the last 16 chars */
+    // If str length > 16 chars, we just want to keep the last 16 chars
     let len = String.length(secretValue)
     let count = len - 16
     if count > 0 {
@@ -1164,7 +1164,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
   Html.div(
     list{
       Html.id("sidebar-left"),
-      /* Block opening the omnibox here by preventing canvas pan start */
+      // Block opening the omnibox here by preventing canvas pan start
       nothingMouseEvent("mousedown"),
       ViewUtils.eventNoPropagation(~key="click-sidebar", "click", _ => ToolTipMsg(Close)),
       ViewUtils.eventNoPropagation(~key="ept", "mouseover", _ => EnablePanning(false)),
