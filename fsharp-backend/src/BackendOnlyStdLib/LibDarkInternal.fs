@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "username" TStr ""
           Param.make "email" TStr ""
           Param.make "name" TStr ""
-          Param.make "analytics_metadata" (TDict TStr) "" ]
+          Param.make "analyticsMetadata" (TDict TStr) "" ]
       returnType = TResult(varA, TStr)
       description =
         "Add a user. Returns a result containing the password for the user,
@@ -289,7 +289,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "pushStrollerEvent" 1
       parameters =
-        [ Param.make "canvas_id" TStr ""
+        [ Param.make "canvasId" TStr ""
           Param.make "event" TStr ""
           Param.make "payload" varA "" ]
       returnType = TResult(varB, TStr)
@@ -565,7 +565,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
-      parameters = [ Param.make "canvas_id" TUuid "" ]
+      parameters = [ Param.make "canvasId" TUuid "" ]
       returnType = TList varA
       description =
         "Returns a list of all queue scheduling rules for the specified canvas_id"
@@ -585,7 +585,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
       parameters =
-        [ Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr "" ]
+        [ Param.make "canvasId" TUuid ""; Param.make "handlerName" TStr "" ]
       returnType = TNull
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
@@ -597,7 +597,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
       parameters =
-        [ Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr "" ]
+        [ Param.make "canvasId" TUuid ""; Param.make "handlerName" TStr "" ]
       returnType = TNull
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
@@ -674,7 +674,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "deleteSession" 0
-      parameters = [ Param.make "session_key" TStr "" ]
+      parameters = [ Param.make "sessionKey" TStr "" ]
       returnType = TInt
       description =
         "Delete session by session_key; return number of sessions deleted."
