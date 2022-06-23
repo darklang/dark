@@ -184,8 +184,6 @@ def backend_build():
   exes.append("backend/test/test.exe")
   exes.append("backend/bin/server.exe")
   exes.append("backend/bin/garbage_collector_worker.exe")
-  exes.append("backend/bin/legacy_serialization_server.exe")
-  exes.append("backend/bin/legacy_fuzzing_server.exe")
   exes = " ".join(exes)
   if optimize:
     compilation_profile = "release"
