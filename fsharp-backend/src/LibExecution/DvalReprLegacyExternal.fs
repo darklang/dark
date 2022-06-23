@@ -15,7 +15,7 @@ module LibExecution.DvalReprLegacyExternal
 // here.
 
 open Prelude
-open Tablecloth
+open VendoredTablecloth
 
 open RuntimeTypes
 
