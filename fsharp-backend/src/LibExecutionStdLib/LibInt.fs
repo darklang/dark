@@ -399,7 +399,7 @@ let fns : List<BuiltInFn> =
             s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
            with
            | _e ->
-             Errors.argumentWasnt "numeric" "s" (DStr s)
+             $"Expected to parse string with only numbers, instead got \"{s}\""
              |> DStr
              |> Error
              |> DResult
