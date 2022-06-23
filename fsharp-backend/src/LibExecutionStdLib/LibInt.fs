@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
     ; description =
         "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
          If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
-         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
+        Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
     ; fn =
         (* TODO: A future version should support all non-zero modulus values and should include the infix "%" *)
 
@@ -390,15 +390,20 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Int" "parse" 0
       parameters = [ Param.make "s" TStr "" ]
-      returnType = TInt
+      returnType = TResult(TInt, TStr)
       description = "Returns the int value of the string"
       fn =
         (function
         | _, [ DStr s ] ->
           (try
-            s |> System.Convert.ToInt64 |> DInt |> Ply
+            s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
            with
-           | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
+           | _e ->
+             Errors.argumentWasnt "numeric" "s" (DStr s)
+             |> DStr
+             |> Error
+             |> DResult
+             |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
