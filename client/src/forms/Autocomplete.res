@@ -449,18 +449,16 @@ let toDynamicItems = (
 ): list<autocompleteItem> =>
   switch target {
   | None =>
-    /* omnicompletion */
-    let standard = \"@"(
-      list{
-        qHTTPHandler(q),
-        qNewDB(q),
-        qFunction(q),
-        qWorkerHandler(q),
-        qCronHandler(q),
-        qReplHandler(q),
-      },
-      qSearch(m, q),
-    )
+    // omnicompletion
+    let standard = list{
+      qHTTPHandler(q),
+      qNewDB(q),
+      qFunction(q),
+      qWorkerHandler(q),
+      qCronHandler(q),
+      qReplHandler(q),
+      ...qSearch(m, q),
+    }
 
     List.map(~f=o => ACOmniAction(o), standard)
   | Some(_, PEventName(_)) =>
@@ -508,7 +506,7 @@ let withDynamicItems = (
 
   let new_ = toDynamicItems(m, space, target, query)
   let withoutDynamic = List.filter(~f=isStaticItem, acis)
-  List.uniqueBy(~f=asName, \"@"(new_, withoutDynamic))
+  List.uniqueBy(~f=asName, Belt.List.concat(new_, withoutDynamic))
 }
 
 let tlGotoName = (tl: toplevel): string =>
@@ -532,7 +530,7 @@ let tlDestinations = (m: model): list<autocompleteItem> => {
     Some(Goto(FocusedFn(fn.ufTLID, None), fn.ufTLID, name, false))
   })
 
-  List.map(~f=x => ACOmniAction(x), \"@"(tls, ufs))
+  List.map(~f=x => ACOmniAction(x), Belt.List.concat(tls, ufs))
 }
 
 /* ------------------------------------ */
@@ -575,7 +573,7 @@ let allowedDBColTipes = {
   let builtins = list{"String", "Int", "Boolean", "Float", "Password", "Date", "UUID", "Dict"}
 
   let compounds = List.map(~f=s => "[" ++ (s ++ "]"), builtins)
-  \"@"(builtins, compounds)
+  Belt.List.concat(builtins, compounds)
 }
 
 let allowedUserTypeFieldTipes = list{TStr, TInt, TBool, TFloat, TDate, TPassword, TUuid}
@@ -635,12 +633,12 @@ let generate = (m: model, a: autocomplete): autocomplete => {
     | ParamTipe =>
       let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
-      \"@"(allowedParamTipes, userTypes) |> List.map(~f=t => ACParamTipe(t))
+      Belt.List.concat(allowedParamTipes, userTypes) |> List.map(~f=t => ACParamTipe(t))
     | TypeFieldTipe => allowedUserTypeFieldTipes |> List.map(~f=t => ACTypeFieldTipe(t))
     | FnReturnTipe =>
       let userTypes = m.userTipes |> Map.filterMapValues(~f=UserTypes.toTUserType)
 
-      \"@"(allowedReturnTipes, userTypes) |> List.map(~f=t => ACReturnTipe(t))
+      Belt.List.concat(allowedReturnTipes, userTypes) |> List.map(~f=t => ACReturnTipe(t))
     | DBName | DBColName | FnName | ParamName | TypeName | TypeFieldName => list{}
     }
   | _ => list{}

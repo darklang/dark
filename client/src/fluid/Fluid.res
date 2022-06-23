@@ -105,7 +105,7 @@ let recordAction' = (~pos=-1000, action: string, s: state): state => {
     action ++ (" " ++ string_of_int(pos))
   }
 
-  {...s, actions: \"@"(s.actions, list{action})}
+  {...s, actions: Belt.List.concat(s.actions, list{action})}
 }
 
 /* Returns a new state with the arbitrary string "action" recorded for debugging.
@@ -1625,7 +1625,7 @@ let addRecordRowAt = (~letter="", index: int, id: ID.t, ast: FluidAST.t): FluidA
 let addRecordRowToBack = (id: ID.t, ast: FluidAST.t): FluidAST.t =>
   FluidAST.update(id, ast, ~f=e =>
     switch e {
-    | ERecord(id, fields) => ERecord(id, \"@"(fields, list{("", E.newB())}))
+    | ERecord(id, fields) => ERecord(id, Belt.List.concat(fields, list{("", E.newB())}))
     | _ => recover("Not a record in addRecordRowToTheBack", ~debug=e, e)
     }
   )
@@ -2029,7 +2029,7 @@ let insertInList = (~index: int, ~newExpr: E.t, id: ID.t, ast: FluidAST.t): Flui
 let insertAtListEnd = (~newExpr: E.t, id: ID.t, ast: FluidAST.t): FluidAST.t =>
   FluidAST.update(id, ast, ~f=e =>
     switch e {
-    | EList(id, exprs) => EList(id, \"@"(exprs, list{newExpr}))
+    | EList(id, exprs) => EList(id, Belt.List.concat(exprs, list{newExpr}))
     | _ => recover("not a list in insertInList", ~debug=e, e)
     }
   )

@@ -191,7 +191,7 @@ let viewUserCanvases = (acc: T.settingsViewState): list<Html.html<Types.msg>> =>
     list{Vdom.noNode}
   }
 
-  \"@"(orgView, canvasView)
+  Belt.List.concat(orgView, canvasView)
 }
 
 let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>> => {
@@ -272,7 +272,7 @@ let viewInviteUserToDark = (svs: T.settingsViewState): list<Html.html<Types.msg>
     }
   }
 
-  \"@"(introText, inviteform)
+  Belt.List.concat(introText, inviteform)
 }
 
 let viewNewCanvas = (svs: settingsViewState): list<Html.html<Types.msg>> => {
@@ -348,7 +348,7 @@ let settingViewWrapper = (acc: settingsViewState): Html.html<Types.msg> => {
   let tabView = settingsTabToHtml(acc)
   Html.div(
     list{Html.class'("settings-tab-wrapper")},
-    \"@"(list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab)}, tabView),
+    list{Html.h1(list{}, list{Html.text("Settings")}), tabTitleView(acc.tab), ...tabView},
   )
 }
 

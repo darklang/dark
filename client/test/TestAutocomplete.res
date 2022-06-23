@@ -108,7 +108,7 @@ let enteringDBField = (
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
-    ~dbs=\"@"(list{aDB()}, dbs),
+    ~dbs=list{aDB(), ...dbs},
     ~handlers,
     ~userTipes,
     ~userFunctions,
@@ -124,7 +124,7 @@ let enteringDBType = (
 ): model =>
   defaultModel(
     ~cursorState=enteringCS(),
-    ~dbs=\"@"(list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ())}, dbs),
+    ~dbs=list{aDB(~fieldid=defaultID2, ~typeid=defaultID, ()), ...dbs},
     ~handlers,
     ~userTipes,
     ~userFunctions,

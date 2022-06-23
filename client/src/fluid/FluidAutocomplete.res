@@ -409,7 +409,7 @@ let generateExprs = (m: model, props: props, tl: toplevel, ti) => {
   let literals = List.map(~f=x => FACLiteral(x), list{"true", "false", "null"})
 
   let secrets = List.map(m.secrets, ~f=secretToACItem)
-  \"@"(varnames, \"@"(constructors, \"@"(literals, \"@"(keywords, \"@"(functions, secrets)))))
+  Belt.List.concatMany([varnames, constructors, literals, keywords, functions, secrets])
 }
 
 let generatePatterns = (ti, a, queryString): list<item> => {
@@ -459,7 +459,7 @@ let generatePatterns = (ti, a, queryString): list<item> => {
 
   switch ti.token {
   | TPatternBlank(mid, _, _) | TPatternVariable(mid, _, _, _) =>
-    \"@"(newQueryVariable(mid), newStandardPatterns(mid))
+    Belt.List.concat(newQueryVariable(mid), newStandardPatterns(mid))
   | _ => list{}
   }
 }
@@ -479,7 +479,7 @@ let generate = (m: model, props: props, a: t, query: fullQuery): list<item> => {
   | TLeftPartial(_) => /* Left partials can ONLY be if/let/match for now */
     list{FACKeyword(KLet), FACKeyword(KIf), FACKeyword(KMatch)}
   | TPartial(id, name, _) =>
-    \"@"(generateExprs(m, props, query.tl, query.ti), generateCommands(name, tlid, id))
+    Belt.List.concat(generateExprs(m, props, query.tl, query.ti), generateCommands(name, tlid, id))
   | _ => generateExprs(m, props, query.tl, query.ti)
   }
 }
@@ -662,16 +662,14 @@ let typeErrorDoc = ({item, validity}: data): Vdom.t<msg> => {
 
     Html.div(
       list{},
-      \"@"(
-        list{
-          Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
-          Html.text("A value of type "),
-          Html.span(list{Html.class'("type")}, list{Html.text(RT.tipe2str(tipe))}),
-          Html.text(" is being piped into this function call, but "),
-          Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
-        },
-        typeInfo,
-      ),
+      list{
+        Html.span(list{Html.class'("err")}, list{Html.text("Type error: ")}),
+        Html.text("A value of type "),
+        Html.span(list{Html.class'("type")}, list{Html.text(RT.tipe2str(tipe))}),
+        Html.text(" is being piped into this function call, but "),
+        Html.span(list{Html.class'("fn")}, list{Html.text(acFunction)}),
+        ...typeInfo,
+      },
     )
   | FACItemInvalidReturnType({fnName, paramName, returnType}) =>
     let acFunction = asName(item)
@@ -713,7 +711,7 @@ let rec documentationForItem = ({item, validity}: data): option<list<Vdom.t<'a>>
     } else {
       desc
     }
-    Some(\"@"(desc, list{ViewErrorRailDoc.hintForFunction(f, None), typeDoc}))
+    Some(Belt.List.concat(desc, list{ViewErrorRailDoc.hintForFunction(f, None), typeDoc}))
   | FACConstructorName("Just", _) => simpleDoc("An Option containing a value")
   | FACConstructorName("Nothing", _) => simpleDoc("An Option representing Nothing")
   | FACConstructorName("Ok", _) => simpleDoc("A successful Result containing a value")

@@ -125,7 +125,7 @@ let viewTrace = (
   }
 
   let props = list{Html.classList(classes), unfetchableAltText, ...events}
-  Html.li(props, \"@"(dotHtml, list{viewData}))
+  Html.li(props, Belt.List.concat(dotHtml, list{viewData}))
 }
 
 let viewTraces = (vp: ViewUtils.viewProps): list<Html.html<msg>> => {

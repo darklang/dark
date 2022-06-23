@@ -96,7 +96,7 @@ let viewError = (message: Error.t): Html.html<msg> => {
 
   Html.div(
     list{Html.classList(list{("error-panel", true), ("show", message != None)})},
-    \"@"(viewErrorMsg, viewDismissBtn),
+    Belt.List.concat(viewErrorMsg, viewDismissBtn),
   )
 }
 

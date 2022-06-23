@@ -379,7 +379,7 @@ let reduce = (test: FuzzTest.t, ast: E.t) => {
 
     let eIDs = ast |> E.filterMap(~f=e => Some(E.toID(e)))
     let ids =
-      \"@"(tokenIDs, eIDs)
+      Belt.List.concat(tokenIDs, eIDs)
       |> List.uniqueBy(~f=ID.toString)
       |> List.mapWithIndex(~f=(i, v) => (i, v))
 

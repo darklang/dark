@@ -239,7 +239,7 @@ let route_variables = (route: string): list<string> => {
   route
   |> split_uri_path
   |> List.filter(~f=String.startsWith(~prefix=":"))
-  |> List.map(~f=String.dropLeft(~count= /* ":" */1))
+  |> List.map(~f=String.dropLeft(~count=/* ":" */ 1))
 }
 
 let inputVariables = (tl: toplevel): list<string> =>
@@ -252,8 +252,7 @@ let inputVariables = (tl: toplevel): list<string> =>
         |> BlankOr.toOption
         |> Option.map(~f=route_variables)
         |> Option.unwrap(~default=list{})
-
-      \"@"(list{"request"}, fromRoute)
+      list{"request", ...fromRoute}
     | F(_, m) if String.toLowercase(m) == "cron" => list{}
     | F(_, m) if String.toLowercase(m) == "repl" => list{}
     | F(_, m) if String.toLowercase(m) == "worker" => list{"event"}

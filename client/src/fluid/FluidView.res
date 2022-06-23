@@ -145,8 +145,12 @@ let viewLiveValue = (vp: viewProps): Html.html<Types.msg> => {
     switch lvResultForId(vp, id) {
     | WithMessage(msg) => list{Html.text(msg)}
     | WithDval({value, canCopy}) => renderDval(value, ~canCopy)
-    | WithMessageAndDval({msg, value, canCopy}) =>
-      \"@"(list{Html.text(msg), Html.br(list{}), Html.br(list{})}, renderDval(value, ~canCopy))
+    | WithMessageAndDval({msg, value, canCopy}) => list{
+        Html.text(msg),
+        Html.br(list{}),
+        Html.br(list{}),
+        ...renderDval(value, ~canCopy),
+      }
     | WithSource({tlid, srcID, propValue, srcResult}) =>
       let msg = switch srcResult {
       | WithMessage(msg) => msg
@@ -290,10 +294,11 @@ let viewReturnValue = (vp: ViewUtils.viewProps, dragEvents: ViewUtils.domEventLi
 
         Html.div(
           list{Html.class'("value")},
-          \"@"(
-            list{Html.text("This trace returns: "), newLine},
-            viewDval(vp.tlid, vp.secretValues, dval, ~canCopy=true),
-          ),
+          list{
+            Html.text("This trace returns: "),
+            newLine,
+            ...viewDval(vp.tlid, vp.secretValues, dval, ~canCopy=true),
+          },
         )
       }
 

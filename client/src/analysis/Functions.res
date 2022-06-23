@@ -79,7 +79,7 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
   )
 
   let worklist = ref(unsafeBuiltins)
-  /* The result set */
+  // The result set
   let unsafeFns = ref(Set.String.empty)
   /* The worklist algorithm:
    *
@@ -90,15 +90,15 @@ let calculateUnsafeUserFunctions = (props: props, t: t): Set.String.t => {
   while worklist.contents != list{} {
     switch worklist.contents {
     | list{callee, ...rest} =>
-      /* already processed */
+      // already processed
       if Set.member(~value=callee, unsafeFns.contents) {
         worklist := rest
       } else {
         unsafeFns := Set.add(~value=callee, unsafeFns.contents)
-        /* add callers to be processed */
+        // add callers to be processed
         let callers = Map.get(~key=callee, dependencyTree) |> Option.unwrap(~default=list{})
 
-        worklist := \"@"(rest, callers)
+        worklist := Belt.List.concat(rest, callers)
       }
     | _ => ()
     }
@@ -113,7 +113,7 @@ let asFunctions = (t: t): list<function_> => t.allowedFunctions
 let builtins = (t: t): list<function_> => t.builtinFunctions
 
 let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
-  /* We hide functions that are deprecated unless they are in use */
+  // We hide functions that are deprecated unless they are in use
   let filterAndSort = (fns: list<function_>): list<function_> => {
     let isUsedOrIsNotDeprecated = (f: function_): bool =>
       if f.fnDeprecated {
@@ -157,7 +157,11 @@ let calculateAllowedFunctionsList = (props: props, t: t): list<function_> => {
   let packageFunctions =
     t.packageFunctions |> Map.values |> List.map(~f=PackageManager.fn_of_packageFn)
 
-  \"@"(t.builtinFunctions, \"@"(userFunctionMetadata, packageFunctions)) |> filterAndSort
+  Belt.List.concatMany([
+    t.builtinFunctions,
+    userFunctionMetadata,
+    packageFunctions,
+  ]) |> filterAndSort
 }
 
 let update = (props: props, t: t): t => {

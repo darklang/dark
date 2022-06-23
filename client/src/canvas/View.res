@@ -68,7 +68,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
    * click-drag-select behavior, not drag-handler behavior
    * - the 'margin' is smaller, so you are less likely to hit the "why won't
    * this drag" behavior mentioned above */
-  let events = \"@"(
+  let events = Belt.List.concat(
     events,
     switch tl {
     | TLDB(_) => dragEvents
@@ -148,7 +148,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
         | Some(fn, sendToRail) =>
           Some(
             viewDoc(
-              \"@"(
+              Belt.List.concat(
                 PrettyDocs.convert(fn.fnDescription),
                 list{ViewErrorRailDoc.hintForFunction(fn, Some(sendToRail))},
               ),
@@ -178,7 +178,14 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
           | Some(pm) =>
             let header = pm.paramName ++ (" : " ++ Runtime.tipe2str(pm.paramTipe))
 
-            Some(viewDoc(\"@"(PrettyDocs.convert(fnDesc), list{p(header), p(pm.paramDescription)})))
+            Some(
+              viewDoc(
+                Belt.List.concat(
+                  PrettyDocs.convert(fnDesc),
+                  list{p(header), p(pm.paramDescription)},
+                ),
+              ),
+            )
           | None => None
           }
         | _ => None
@@ -224,7 +231,7 @@ let viewTL_ = (m: model, tl: toplevel): Html.html<msg> => {
        * Fns have different property list lengths */
       ~unique=TLID.toString(tlid),
       list{Html.classList(classes), ...events},
-      \"@"(list{top, ...body}, data),
+      Belt.List.concatMany([list{top}, body, data]),
     ),
     avatars,
     Html.div(
@@ -455,24 +462,23 @@ let viewCanvas = (m: model): Html.html<msg> => {
 let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
   switch currentPage {
   | FocusedFn(_) =>
-    let helpIcon =
-      Html.div(
-        list{
-          Html.class'("help-icon"),
-          ViewUtils.eventNoPropagation(~key="ept", "mouseenter", _ => ToolTipMsg(
-            OpenFnTooltip(true),
-          )),
-          ViewUtils.eventNoPropagation(~key="epf", "mouseleave", _ => ToolTipMsg(
-            OpenFnTooltip(false),
-          )),
-        },
-        list{fontAwesome("question-circle")},
-      )
-    let tooltip =
-    Tooltips.generateContent(FnBackToCanvas) |> Tooltips.viewToolTip(
-      ~shouldShow=showTooltip,
-      ~tlid=None,
+    let helpIcon = Html.div(
+      list{
+        Html.class'("help-icon"),
+        ViewUtils.eventNoPropagation(~key="ept", "mouseenter", _ => ToolTipMsg(
+          OpenFnTooltip(true),
+        )),
+        ViewUtils.eventNoPropagation(~key="epf", "mouseleave", _ => ToolTipMsg(
+          OpenFnTooltip(false),
+        )),
+      },
+      list{fontAwesome("question-circle")},
     )
+    let tooltip =
+      Tooltips.generateContent(FnBackToCanvas) |> Tooltips.viewToolTip(
+        ~shouldShow=showTooltip,
+        ~tlid=None,
+      )
 
     Html.div(
       list{Html.id("back-to-canvas"), Html.class'("back-to-canvas")},
@@ -488,12 +494,7 @@ let viewBackToCanvas = (currentPage: page, showTooltip: bool): Html.html<msg> =>
           },
           list{
             helpIcon,
-            Html.a(
-              list{Html.class'("content")},
-              list{
-                Vdom.text("Return to main canvas"),
-              }
-            )
+            Html.a(list{Html.class'("content")}, list{Vdom.text("Return to main canvas")}),
           },
         ),
       },
@@ -685,10 +686,11 @@ let view = (m: model): Html.html<msg> => {
     ViewUtils.scrollEventNeither(~key="app-scroll", "scroll", _ => AppScroll),
   }
 
-  let attributes = \"@"(
-    list{Html.id(appID), Html.class'("app " ++ VariantTesting.activeCSSClasses(m))},
-    eventListeners,
-  )
+  let attributes = list{
+    Html.id(appID),
+    Html.class'("app " ++ VariantTesting.activeCSSClasses(m)),
+    ...eventListeners,
+  }
 
   let footer = list{
     ViewScaffold.viewIntegrationTestButton(m.integrationTestState),
@@ -733,23 +735,24 @@ let view = (m: model): Html.html<msg> => {
     Vdom.noNode
   }
 
-  let content = \"@"(
-    list{FullstoryView.html(m), ...ViewTopbar.html(m)},
-    \"@"(
-      list{
-        sidebar,
-        body,
-        activeAvatars,
-        accountView(m),
-        viewToast(m.toast),
-        entry,
-        modal,
-        settingsModal,
-        InsertSecret.view(m.insertSecretModal),
-      },
-      \"@"(fluidStatus, \"@"(footer, viewDocs)),
-    ),
-  )
+  let content = Belt.List.concatMany([
+    list{FullstoryView.html(m)},
+    ViewTopbar.html(m),
+    list{
+      sidebar,
+      body,
+      activeAvatars,
+      accountView(m),
+      viewToast(m.toast),
+      entry,
+      modal,
+      settingsModal,
+      InsertSecret.view(m.insertSecretModal),
+    },
+    fluidStatus,
+    footer,
+    viewDocs,
+  ])
 
   Html.div(attributes, content)
 }

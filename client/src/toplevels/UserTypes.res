@@ -11,7 +11,8 @@ let blankOrData = (t: userTipe): list<blankOrData> => {
   | UTRecord(fields) =>
     List.fold(
       ~initial=list{},
-      ~f=(acc, f) => \"@"(acc, list{PTypeFieldName(f.urfName), PTypeFieldTipe(f.urfTipe)}),
+      ~f=(acc, f) =>
+        Belt.List.concat(acc, list{PTypeFieldName(f.urfName), PTypeFieldTipe(f.urfTipe)}),
       fields,
     )
   }
@@ -87,7 +88,7 @@ let replace = (old: blankOrData, new_: blankOrData, tipe: userTipe): userTipe =>
 let extend = (tipe: userTipe): userTipe =>
   switch tipe.utDefinition {
   | UTRecord(fields) =>
-    let newFields = \"@"(fields, list{{urfName: B.new_(), urfTipe: B.new_()}})
+    let newFields = Belt.List.concat(fields, list{{urfName: B.new_(), urfTipe: B.new_()}})
     {...tipe, utDefinition: UTRecord(newFields)}
   }
 

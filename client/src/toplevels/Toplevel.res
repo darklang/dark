@@ -205,13 +205,16 @@ let setASTMod = (~ops=list{}, tl: toplevel, ast: FluidAST.t): modification =>
     if h.ast == ast {
       NoChange
     } else {
-      AddOps(\"@"(ops, list{SetHandler(id(tl), h.pos, {...h, ast: ast})}), FocusNoChange)
+      AddOps(
+        Belt.List.concat(ops, list{SetHandler(id(tl), h.pos, {...h, ast: ast})}),
+        FocusNoChange,
+      )
     }
   | TLFunc(f) =>
     if f.ufAST == ast {
       NoChange
     } else {
-      AddOps(\"@"(ops, list{SetFunction({...f, ufAST: ast})}), FocusNoChange)
+      AddOps(Belt.List.concat(ops, list{SetFunction({...f, ufAST: ast})}), FocusNoChange)
     }
   | TLPmFunc(_) => recover("cannot change ast in package manager", ~debug=tl, NoChange)
   | TLTipe(_) => recover("no ast in Tipes", ~debug=tl, NoChange)
@@ -324,7 +327,7 @@ type predecessor = option<ID.t>
 type successor = option<ID.t>
 
 let allBlanks = (tl: toplevel): list<ID.t> =>
-  \"@"(
+  Belt.List.concat(
     tl |> blankOrData |> List.filter(~f=P.isBlank) |> List.map(~f=P.toID),
     tl
     |> getAST
@@ -334,7 +337,7 @@ let allBlanks = (tl: toplevel): list<ID.t> =>
   )
 
 let allIDs = (tl: toplevel): list<ID.t> =>
-  \"@"(
+  Belt.List.concat(
     tl |> blankOrData |> List.map(~f=P.toID),
     tl |> getAST |> Option.map(~f=FluidAST.ids) |> Option.unwrap(~default=list{}),
   )

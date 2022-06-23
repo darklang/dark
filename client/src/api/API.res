@@ -38,14 +38,11 @@ let postJson = (
 ) =>
   Tea.Http.request({
     method': "POST",
-    headers: \"@"(
-      (
-        list{Header("Content-type", "application/json"), Header("X-CSRF-Token", csrfToken)}: list<
-          Tea_http.header,
-        >
-      ),
-      headers,
-    ),
+    headers: list{
+      Header("Content-type", "application/json"),
+      Header("X-CSRF-Token", csrfToken),
+      ...headers,
+    },
     url: url,
     body: Web.XMLHttpRequest.StringBody(Json.stringify(body)),
     expect: Tea.Http.expectStringResponse(Decoders.wrapExpect(decoder)),

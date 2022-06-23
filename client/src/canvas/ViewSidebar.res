@@ -95,15 +95,13 @@ let categoryIcon_ = (name: string): list<Html.html<msg>> => {
 
 let categoryButton = (~props=list{}, name: string, description: string): Html.html<msg> =>
   Html.div(
-    \"@"(
-      list{
-        Html.class'("category-icon"),
-        Html.title(description),
-        Vdom.attribute("", "role", "img"),
-        Vdom.attribute("", "alt", description),
-      },
-      props,
-    ),
+    list{
+      Html.class'("category-icon"),
+      Html.title(description),
+      Vdom.attribute("", "role", "img"),
+      Vdom.attribute("", "alt", description),
+      ...props,
+    },
     categoryIcon_(name),
   )
 
@@ -342,20 +340,17 @@ let standardCategories = (m, hs, dbs, ufns, tipes) => {
   } else {
     list{userTipeCategory(m, tipes)}
   }
+  let catagories = list{
+    httpCategory(hs),
+    workerCategory(hs),
+    cronCategory(hs),
+    replCategory(hs),
+    dbCategory(m, dbs),
+    userFunctionCategory(m, ufns),
+    ...tipes,
+  }
 
-  let catergories = \"@"(
-    list{
-      httpCategory(hs),
-      workerCategory(hs),
-      cronCategory(hs),
-      replCategory(hs),
-      dbCategory(m, dbs),
-      userFunctionCategory(m, ufns),
-    },
-    tipes,
-  )
-
-  catergories
+  catagories
 }
 
 let packageManagerCategory = (pmfns: packageFns): category => {
@@ -1080,10 +1075,11 @@ let adminDebuggerView = (m: model): Html.html<msg> => {
 
   let hoverView = Html.div(
     list{Html.class'("category-content")},
-    \"@"(
+    Belt.List.concatMany([
       list{stateInfo, toggleTimer, toggleFluidDebugger, toggleHandlerASTs, debugger},
-      \"@"(variantLinks, list{saveTestButton}),
-    ),
+      variantLinks,
+      list{saveTestButton},
+    ]),
   )
 
   let icon = Html.div(
@@ -1130,7 +1126,7 @@ let update = (msg: sidebarMsg): modification =>
   }
 
 let viewSidebar_ = (m: model): Html.html<msg> => {
-  let cats = \"@"(
+  let cats = Belt.List.concat(
     standardCategories(m, m.handlers, m.dbs, m.userFunctions, m.userTipes),
     list{f404Category(m), deletedCategory(m), packageManagerCategory(m.functions.packageFunctions)},
   )
@@ -1148,7 +1144,7 @@ let viewSidebar_ = (m: model): Html.html<msg> => {
 
   let secretsView = viewSecretKeys(m)
   let content = {
-    let categories = \"@"(
+    let categories = Belt.List.concat(
       List.map(~f=viewCategory(m), cats),
       list{secretsView, viewDeployStats(m), showAdminDebugger},
     )

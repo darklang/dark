@@ -19,7 +19,7 @@ let allParamData = (pmf: packageFn): list<blankOrData> =>
 
 let blankOrData = (pmf: packageFn): list<blankOrData> => {
   let fnname = BlankOr.newF(pmf.fnname)
-  \"@"(list{PFnName(fnname)}, allParamData(pmf))
+  list{PFnName(fnname), ...allParamData(pmf)}
 }
 
 let extendedName = (pkgFn: packageFn): string =>

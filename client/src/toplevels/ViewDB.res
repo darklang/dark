@@ -147,18 +147,16 @@ let viewDBCol = (vp: viewProps, isMigra: bool, tlid: TLID.t, (n, t): dbColumn): 
 let viewMigraFuncs = (vp: viewProps, desc: string, varName: string): Html.html<msg> =>
   Html.div(
     list{Html.class'("col roll-fn")},
-    \"@"(
-      list{
-        Html.div(
-          list{Html.class'("fn-title")},
-          list{
-            Html.span(list{}, list{Html.text(desc ++ " : ")}),
-            Html.span(list{Html.class'("varname")}, list{Html.text(varName)}),
-          },
-        ),
-      },
-      FluidView.view(vp, list{}),
-    ),
+    list{
+      Html.div(
+        list{Html.class'("fn-title")},
+        list{
+          Html.span(list{}, list{Html.text(desc ++ " : ")}),
+          Html.span(list{Html.class'("varname")}, list{Html.text(varName)}),
+        },
+      ),
+      ...FluidView.view(vp, list{}),
+    },
   )
 
 let viewDBMigration = (migra: dbMigration, db: db, vp: viewProps): Html.html<msg> => {
@@ -208,7 +206,7 @@ let viewDBMigration = (migra: dbMigration, db: db, vp: viewProps): Html.html<msg
 
   Html.div(
     list{Html.class'("db migration-view")},
-    list{name, ...\"@"(cols, \"@"(funcs, \"@"(errorMsg, actions)))},
+    Belt.List.concatMany([list{name}, cols, funcs, errorMsg, actions]),
   )
 }
 
@@ -244,8 +242,9 @@ let viewDB = (vp: viewProps, db: db, dragEvents: domEventList): list<Html.html<m
 
   let headerView = Html.div(list{Html.class'("spec-header " ++ lockClass)}, viewDBHeader(vp, db))
 
-  \"@"(
+  Belt.List.concatMany([
     list{Html.div(list{Html.class'("db"), ...dragEvents}, list{headerView, keyView, ...coldivs})},
-    \"@"(migrationView, list{data}),
-  )
+    migrationView,
+    list{data},
+  ])
 }

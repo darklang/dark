@@ -306,7 +306,7 @@ let newHandler = (m, space, name, modifier, pos) => {
   let pageChanges = list{SetPage(FocusedHandler(tlid, None, true))}
   let rpc = AddOps(list{SetHandler(tlid, pos, handler)}, FocusNext(tlid, Some(spaceid)))
 
-  Many(list{rpc, ...\"@"(pageChanges, fluidMods)})
+  Many(list{rpc, ...Belt.List.concat(pageChanges, fluidMods)})
 }
 
 let submitOmniAction = (m: model, pos: pos, action: omniAction): modification => {

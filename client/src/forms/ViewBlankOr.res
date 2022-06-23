@@ -29,20 +29,16 @@ let div = (
   }
 
   let idClasses = list{"blankOr", "id-" ++ ID.toString(id)}
-  let allClasses = \"@"(
+  let allClasses = Belt.List.concatMany([
     classes,
-    \"@"(
-      idClasses,
-      \"@"(
-        if selected {
-          list{"selected"}
-        } else {
-          list{}
-        },
-        mouseoverClass,
-      ),
-    ),
-  )
+    idClasses,
+    if selected {
+      list{"selected"}
+    } else {
+      list{}
+    },
+    mouseoverClass,
+  ])
 
   let classAttr = Html.class'(String.join(~sep=" ", allClasses))
   let events = if enterable {

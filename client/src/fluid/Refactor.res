@@ -52,7 +52,7 @@ let transformFnCalls = (
     }
   })
 
-  \"@"(newHandlers, newFunctions)
+  Belt.List.concat(newHandlers, newFunctions)
 }
 
 type wrapLoc =
@@ -376,7 +376,7 @@ let addFunctionParameter = (m: model, f: userFunction, currentBlankId: ID.t): mo
     let fn = e =>
       switch e {
       | EFnCall(id, name, params, r) =>
-        EFnCall(id, name, \"@"(params, list{FluidExpression.newB()}), r)
+        EFnCall(id, name, Belt.List.concat(params, list{FluidExpression.newB()}), r)
       | _ => e
       }
 

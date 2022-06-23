@@ -387,7 +387,7 @@ let replace = (~replacement: t, target: id, ast: t): t => {
     let (before, elemAndAfter) = List.splitWhen(~f=nested => toID(nested) == target, oldExprs)
 
     let after = List.tail(elemAndAfter) |> Option.unwrap(~default=list{})
-    (parentID, EPipe(newID, \"@"(before, \"@"(newExprs, after))))
+    (parentID, EPipe(newID, Belt.List.concatMany([before, newExprs, after])))
   | _ => (target, replacement)
   }
 

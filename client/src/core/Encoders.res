@@ -204,7 +204,7 @@ and ops = (ops: list<Types.op>): Js.Json.t =>
     | _ =>
       let savepoints = List.map(~f=op => Types.TLSavepoint(tlidOf(op)), ops)
 
-      \"@"(savepoints, ops)
+      Belt.List.concat(savepoints, ops)
     },
   )
 

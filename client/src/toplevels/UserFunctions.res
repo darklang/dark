@@ -221,7 +221,10 @@ let extend = (uf: userFunction): userFunction => {
   }
 
   let metadata = uf.ufMetadata
-  let newMetadata = {...metadata, ufmParameters: \"@"(uf.ufMetadata.ufmParameters, list{newParam})}
+  let newMetadata = {
+    ...metadata,
+    ufmParameters: Belt.List.concat(uf.ufMetadata.ufmParameters, list{newParam}),
+  }
 
   {...uf, ufMetadata: newMetadata}
 }

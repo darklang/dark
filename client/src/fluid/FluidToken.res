@@ -794,7 +794,7 @@ let toCssClasses = (t: t): list<string> => {
     }
   }
 
-  \"@"(empty, \"@"(keyword, \"@"(typename, category)))
+  Belt.List.concatMany([empty, keyword, typename, category])
 }
 
 let show_tokenInfo = (ti: tokenInfo) =>

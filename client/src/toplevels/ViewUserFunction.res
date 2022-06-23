@@ -187,7 +187,7 @@ let viewMetadata = (vp: viewProps, fn: functionTypes, showFnTooltips: bool): Htm
 
     Html.div(
       list{Html.id("fnparams"), Html.class'("params")},
-      \"@"(FnParams.view(fn, vp), list{addParamBtn, fnParamTooltip}),
+      Belt.List.concat(FnParams.view(fn, vp), list{addParamBtn, fnParamTooltip}),
     )
   }
 

@@ -151,7 +151,7 @@ let rec patternToToken = (p: FluidPattern.t, ~idx: int): list<fluidToken> =>
       list{TPatternFloatFractional(mID, id, fraction, idx)}
     }
 
-    \"@"(whole, \"@"(list{TPatternFloatPoint(mID, id, idx)}, fraction))
+    Belt.List.concatMany([whole, list{TPatternFloatPoint(mID, id, idx)}, fraction])
   | FPNull(mid, id) => list{TPatternNullToken(mid, id, idx)}
   | FPBlank(mid, id) => list{TPatternBlank(mid, id, idx)}
   }
@@ -280,7 +280,7 @@ let rec toTokens' = (~parentID=None, e: E.t, b: Builder.t): Builder.t => {
       list{TFloatFractional(id, fraction, parentID)}
     }
 
-    b |> addMany(\"@"(whole, \"@"(list{TFloatPoint(id, parentID)}, fraction)))
+    b |> addMany(Belt.List.concatMany([whole, list{TFloatPoint(id, parentID)}, fraction]))
   | EBlank(id) => b |> add(TBlank(id, parentID))
   | ELet(id, lhs, rhs, next) =>
     let rhsID = E.toID(rhs)

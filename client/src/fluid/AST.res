@@ -47,7 +47,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | ELet(_, _, rhs, body) => List.flatten(list{u(rhs), u(body)})
     | EIf(_, cond, ifbody, elsebody) => List.flatten(list{u(cond), u(ifbody), u(elsebody)})
     | EFnCall(_, _, exprs, _) => exprs |> List.map(~f=u) |> List.flatten
-    | EBinOp(_, _, lhs, rhs, _) => \"@"(u(lhs), u(rhs))
+    | EBinOp(_, _, lhs, rhs, _) => Belt.List.concat(u(lhs), u(rhs))
     | EConstructor(_, _, exprs) => exprs |> List.map(~f=u) |> List.flatten
     | ELambda(_, _, lexpr) => u(lexpr)
     | EPipe(_, exprs) => exprs |> List.map(~f=u) |> List.flatten
@@ -57,7 +57,7 @@ let rec uses = (var: string, expr: E.t): list<E.t> => {
     | EFeatureFlag(_, _, cond, a, b) => List.flatten(list{u(cond), u(a), u(b)})
     | EMatch(_, matchExpr, cases) =>
       let exprs = cases |> List.map(~f=Tuple2.second)
-      \"@"(u(matchExpr), exprs)
+      Belt.List.concat(u(matchExpr), exprs)
     | EPartial(_, _, oldExpr) => u(oldExpr)
     | ERightPartial(_, _, oldExpr) => u(oldExpr)
     | ELeftPartial(_, _, oldExpr) => u(oldExpr)

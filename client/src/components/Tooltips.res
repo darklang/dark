@@ -150,7 +150,7 @@ let update = (tooltipState: tooltipState, msg: toolTipMsg): modification => {
     ReplaceAllModificationsWithThisOne(m => ({...m, tooltipState: tooltipState}, Tea.Cmd.none))
   } else {
     Many(
-      \"@"(
+      Belt.List.concat(
         mods,
         list{
           ReplaceAllModificationsWithThisOne(

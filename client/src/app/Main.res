@@ -420,7 +420,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         }
 
         let (m, afCmd) = Page.updatePossibleTrace(m, page)
-        let cmds = Cmd.batch(\"@"(list{API.sendPresence(m, avMessage)}, list{afCmd}))
+        let cmds = Cmd.batch(list{API.sendPresence(m, avMessage), afCmd})
 
         (Page.setPage(m, m.currentPage, page), cmds)
       } else {
@@ -736,7 +736,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
       )
     | Append404s(f404s) =>
       let new404s =
-        \"@"(f404s, m.f404s) |> List.uniqueBy(~f=f404 =>
+        Belt.List.concat(f404s, m.f404s) |> List.uniqueBy(~f=f404 =>
           f404.space ++ (f404.path ++ (f404.modifier ++ (f404.timestamp ++ f404.traceID)))
         )
 
@@ -794,7 +794,7 @@ let rec updateMod = (mod_: modification, (m, cmd): (model, Cmd.t<msg>)): (model,
         Cmd.none,
       )
     | ExecutingFunctionBegan(tlid, id) =>
-      let nexecutingFunctions = \"@"(m.executingFunctions, list{(tlid, id)})
+      let nexecutingFunctions = Belt.List.concat(m.executingFunctions, list{(tlid, id)})
       ({...m, executingFunctions: nexecutingFunctions}, Cmd.none)
     | ExecutingFunctionAPICall(tlid, id, name) =>
       switch TL.get(m, tlid) {
@@ -1093,7 +1093,7 @@ let update_ = (msg: msg, m: model): modification => {
     | _ => list{}
     }
 
-    Many(\"@"(traceCmd, list{SetHover(tlid, ID(traceID))}))
+    Many(Belt.List.concat(traceCmd, list{SetHover(tlid, ID(traceID))}))
   | TraceMouseLeave(tlid, traceID, _) => ClearHover(tlid, ID(traceID))
   | TriggerHandler(tlid) => TriggerHandlerAPICall(tlid)
   | DragToplevel(_, mousePos) =>
@@ -1245,7 +1245,7 @@ let update_ = (msg: msg, m: model): modification => {
     | Some(uf) =>
       let replacement = UserFunctions.removeParameter(uf, upf)
       let newCalls = Refactor.removeFunctionParameter(m, uf, upf)
-      AddOps(\"@"(list{SetFunction(replacement)}, newCalls), FocusNext(uf.ufTLID, None))
+      AddOps(list{SetFunction(replacement), ...newCalls}, FocusNext(uf.ufTLID, None))
     | None => NoChange
     }
   | AddUserFunctionParameter(uftlid) =>
@@ -1354,7 +1354,7 @@ let update_ = (msg: msg, m: model): modification => {
       list{AutocompleteMod(ACReset), Model.updateErrorMod(Error.clear), newState}
     }
 
-    Many(\"@"(initialMods, focusMods))
+    Many(Belt.List.concat(initialMods, focusMods))
   | AddOpsPusherMsg(msg) =>
     if msg.params.clientOpCtrId == m.clientOpCtrId {
       NoChange
@@ -1367,14 +1367,14 @@ let update_ = (msg: msg, m: model): modification => {
       let params = {...msg.params, ops: newOps}
       let initialMods = applyOpsToClient(false, params, result |> Option.unwrapUnsafe)
 
-      Many(\"@"(initialMods, list{MakeCmd(CursorState.focusEntry(m))}))
+      Many(Belt.List.concat(initialMods, list{MakeCmd(CursorState.focusEntry(m))}))
     }
   | FetchAllTracesAPICallback(Ok(x)) =>
     let traces = List.fold(x.traces, ~initial=Map.String.empty, ~f=(dict, (tlid, traceid)) => {
       let trace = (traceid, Error(NoneYet))
       Map.update(dict, ~key=TLID.toString(tlid), ~f=x =>
         switch x {
-        | Some(existing) => Some(\"@"(existing, list{trace}))
+        | Some(existing) => Some(Belt.List.concat(existing, list{trace}))
         | None => Some(list{trace})
         }
       )
@@ -1824,7 +1824,7 @@ let update_ = (msg: msg, m: model): modification => {
      * currently focused on, which is safe.
      */
     Many(
-      \"@"(
+      Belt.List.concat(
         traceMods,
         list{
           AddOps(
@@ -1967,11 +1967,7 @@ let update_ = (msg: msg, m: model): modification => {
     /* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work */
     Native.Ext.redirect("/login")
     NoChange
-  | GoToArchitecturalView =>
-    Many(list{
-      Deselect,
-      MakeCmd(Url.navigateTo(Architecture)),
-    })
+  | GoToArchitecturalView => Many(list{Deselect, MakeCmd(Url.navigateTo(Architecture))})
   | DismissErrorBar => Model.updateErrorMod(Error.clear)
   | PauseWorker(workerName) =>
     MakeCmd(API.updateWorkerSchedule(m, {workerName: workerName, schedule: "pause"}))
@@ -2067,21 +2063,13 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
   let timers = if m.editorSettings.runTimers {
     switch m.visibility {
     | Hidden => list{}
-    | Visible =>
-      \"@"(
-        list{
-          Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => TimerFire(
-            RefreshAnalysis,
-            f,
-          )),
-        },
-        list{
-          Tea.Time.every(~key="refresh_avatars", Tea.Time.second, f => TimerFire(
-            RefreshAvatars,
-            f,
-          )),
-        },
-      )
+    | Visible => list{
+        Tea.Time.every(~key="refresh_analysis", Tea.Time.second, f => TimerFire(
+          RefreshAnalysis,
+          f,
+        )),
+        Tea.Time.every(~key="refresh_avatars", Tea.Time.second, f => TimerFire(RefreshAvatars, f)),
+      }
     }
   } else {
     list{}

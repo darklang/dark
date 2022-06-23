@@ -223,7 +223,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
             n
           }
 
-          \"@"(list{"precedence-" ++ (wraparoundPrecedence |> string_of_int)}, ext)
+          list{"precedence-" ++ (wraparoundPrecedence |> string_of_int), ...ext}
         }
 
         (
@@ -238,7 +238,7 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
         list{
           "fluid-entry",
           "id-" ++ idStr,
-          ...\"@"(backingNestingClass, tokenClasses),
+          ...Belt.List.concat(backingNestingClass, tokenClasses),
         } |> List.map(~f=s => (s, true))
 
       let isInvalidToken = ti =>
@@ -293,7 +293,10 @@ let toHtml = (p: props, duplicatedRecordFields: list<(ID.t, Set.String.t)>): lis
       | None => list{Html.text(content)}
       }
 
-      Html.span(list{Html.classList(\"@"(cls, conditionalClasses))}, \"@"(innerNode, nested))
+      Html.span(
+        list{Html.classList(Belt.List.concat(cls, conditionalClasses))},
+        Belt.List.concat(innerNode, nested),
+      )
     }
 
     if p.permission == Some(ReadWrite) {
@@ -405,9 +408,9 @@ let tokensView = (p: props): Html.html<Types.msg> => {
   }
 
   Html.div(
-    /* disable grammarly crashes */
+    // disable grammarly crashes
 
-    \"@"(
+    Belt.List.concatMany([
       list{
         idAttr,
         Html.class'("fluid-tokens"),
@@ -416,8 +419,9 @@ let tokensView = (p: props): Html.html<Types.msg> => {
         Vdom.attribute("", "spellcheck", "false"),
         Vdom.attribute("", "data-gramm", "false"),
       },
-      \"@"(clickHandlers, Tuple3.toList(textInputListeners)),
-    ),
+      clickHandlers,
+      Tuple3.toList(textInputListeners),
+    ]),
     toHtml(p, duplicatedRecordFields),
   )
 }

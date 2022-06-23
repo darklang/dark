@@ -117,7 +117,7 @@ let curlFromCurrentTrace = (m: model, tlid: TLID.t): option<string> => {
           |> Option.andThen(~f=s => Some("-X " ++ s))
           |> wrapInList
 
-        \"@"(list{"curl", ...headers}, \"@"(body, \"@"(meth, list{"'" ++ (url ++ "'")})))
+        Belt.List.concatMany([list{"curl", ...headers}, body, meth, list{"'" ++ (url ++ "'")}])
         |> String.join(~sep=" ")
         |> Option.some
       | _ => None
