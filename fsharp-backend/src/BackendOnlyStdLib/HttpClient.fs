@@ -487,8 +487,7 @@ let sendRequest
     let query = HttpQueryEncoding.toQuery query |> Exception.unwrapResultCode
 
     // Headers
-    let encodedReqHeaders =
-      toStringPairs reqHeaders |> Exception.unwrapResultCode
+    let encodedReqHeaders = toStringPairs reqHeaders |> Exception.unwrapResultCode
     let contentType =
       HttpHeaders.get "content-type" encodedReqHeaders
       |> Option.defaultValue (guessContentType reqBody)

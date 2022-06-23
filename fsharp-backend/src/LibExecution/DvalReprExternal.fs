@@ -110,7 +110,6 @@ let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
 
   | _ -> None
 
-
 let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
   match j.ValueKind with
   | JsonValueKind.Undefined -> Some()
@@ -515,39 +514,3 @@ let unsafeOfUnknownJsonV0 str : Dval =
     convert document.RootElement
   with
   | _ -> Exception.raiseGrandUser "Invalid json"
-
-
-// When receiving unknown json from the user, or via a HTTP API, attempt to
-// convert everything into reasonable types, in the absense of a schema.
-let ofUnknownJsonV1 str : Result<Dval, string> =
-  let rec convert json =
-    match json with
-    | JInteger i -> DInt i
-    | JFloat f -> DFloat f
-    | JBoolean b -> DBool b
-    | JNull -> DNull
-    | JString s -> DStr s
-    | JList l -> l |> List.map convert |> Dval.list
-    | JObject fields ->
-      fields |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m) |> DObj
-    | JUndefined
-    | _ -> Exception.raiseInternal "Invalid type in json" [ "json", json ]
-
-  try
-    use document = str |> parseJson
-    document.RootElement |> convert |> Ok
-  with
-  | :? JsonException as e ->
-    let msg =
-      if str = "" then
-        "JSON string was empty"
-      else
-        let msg = e.Message
-        // The full message has .NET specific advice, so just stick to the good stuff
-        let trailingCommaMsg = "The JSON array contains a trailing comma at the end"
-        if msg.Contains trailingCommaMsg then
-          $"{trailingCommaMsg}, at on line {e.LineNumber}, position {e.BytePositionInLine}"
-        else
-          msg
-    Error msg
-  | e -> Error e.Message
