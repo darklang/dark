@@ -520,6 +520,32 @@ that's already taken, returns an error."
       description =
         "Returns a list of objects, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =
+        let rec typeName (t : DType) : string =
+          match t with
+          | TInt -> "int"
+          | TFloat -> "float"
+          | TBool -> "bool"
+          | TNull -> "null"
+          | TChar -> "character"
+          | TStr -> "string"
+          | TList _ -> "list"
+          | TDict _ -> "dict"
+          | TRecord _ -> "dict"
+          | TFn _ -> "block"
+          | TVariable varname -> "any"
+          | TIncomplete -> "incomplete"
+          | TError -> "error"
+          | THttpResponse _ -> "response"
+          | TDB _ -> "datastore"
+          | TDate -> "date"
+          | TPassword -> "password"
+          | TUuid -> "uuid"
+          | TOption _ -> "option"
+          | TErrorRail -> "errorrail"
+          | TResult _ -> "result"
+          | TUserType (name, _) -> name.ToLower()
+          | TBytes -> "bytes"
+
         internalFn (function
           | state, [] ->
             state.libraries.stdlib
@@ -528,12 +554,12 @@ that's already taken, returns an error."
               (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)
             |> List.map (fun (key, data) ->
               let alist =
-                let returnType = DvalReprExternal.typeToBCTypeName data.returnType
+                let returnType = typeName data.returnType
                 let parameters =
                   data.parameters
                   |> List.map (fun p ->
                     Dval.obj [ ("name", DStr p.name)
-                               ("type", DStr(DvalReprExternal.typeToBCTypeName p.typ)) ])
+                               ("type", DStr(typeName p.typ)) ])
                 [ ("name", DStr(FQFnName.toString key))
                   ("documentation", DStr data.description)
                   ("parameters", DList parameters)

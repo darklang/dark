@@ -15,7 +15,7 @@ module LibExecution.DvalReprExternal
 // here.
 
 open Prelude
-open VendoredTablecloth
+open Tablecloth
 
 open RuntimeTypes
 
@@ -169,35 +169,6 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TBytes -> "Bytes"
 
 let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
-
-// Backwards compatible version of `typeToDeveloperRepr`, should not be visible to
-// users (except through LibDarkInternal) but used by things like HttpClient
-// (transitively)
-let rec typeToBCTypeName (t : DType) : string =
-  match t with
-  | TInt -> "int"
-  | TFloat -> "float"
-  | TBool -> "bool"
-  | TNull -> "null"
-  | TChar -> "character"
-  | TStr -> "string"
-  | TList _ -> "list"
-  | TDict _ -> "dict"
-  | TRecord _ -> "dict"
-  | TFn _ -> "block"
-  | TVariable varname -> "any"
-  | TIncomplete -> "incomplete"
-  | TError -> "error"
-  | THttpResponse _ -> "response"
-  | TDB _ -> "datastore"
-  | TDate -> "date"
-  | TPassword -> "password"
-  | TUuid -> "uuid"
-  | TOption _ -> "option"
-  | TErrorRail -> "errorrail"
-  | TResult _ -> "result"
-  | TUserType (name, _) -> String.toLowercase name
-  | TBytes -> "bytes"
 
 // SERIALIZER_DEF DvalReprExternal.toEnduserReadableTextV0
 // Plan: We'd like to deprecate this in favor of an improved version only
