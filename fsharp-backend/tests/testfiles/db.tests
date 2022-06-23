@@ -514,12 +514,12 @@ friendsError (fun p -> let x = 32 in true && p.height > y) =
 friendsError (fun p -> "; select * from users;" = p.name ) = []
 
 // CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
-[test.db invalid type comparisonEXPECTED_EXCEPTION_COUNT: 1] with DB Person
+[test.db invalid type comparison EXPECTED_EXCEPTION_COUNT: 1] with DB Person
 friendsError (fun p -> p.height == "string") =
   Test.sqlError "An error occurred while querying the Datastore"
 
 // This test checks do we look up dates correctly when the function type is not a date
-[test.db invalid date comparisonEXPECTED_EXCEPTION_COUNT: 1] with DB Person
+[test.db invalid date comparison EXPECTED_EXCEPTION_COUNT: 1] with DB Person
 friendsError (fun p -> p.dob != Date.now_v0) =
   Test.sqlError "An error occurred while querying the Datastore"
 
