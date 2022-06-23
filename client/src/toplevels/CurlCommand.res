@@ -33,6 +33,14 @@ let rec to_url_string = (dv: dval): option<string> =>
     Some(
       "[ " ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, Array.to_list(l))) ++ " ]"),
     )
+<<<<<<< Updated upstream
+=======
+  | DTuple(l) =>
+    Some(
+      // the list equivalent had a space after the [ - should we after the ( ?
+      "(" ++ (String.join(~sep=", ", List.filterMap(~f=to_url_string, Array.to_list(l))) ++ ")"),
+    )
+>>>>>>> Stashed changes
   | DOption(OptJust(v)) => to_url_string(v)
   | DResult(ResOk(v)) => to_url_string(v)
   | DBytes(bytes) => Some(bytes |> Encoders.base64url_bytes)

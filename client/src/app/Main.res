@@ -113,7 +113,7 @@ let init = (encodedParamString: string, location: Web.Location.location) => {
   }
 
   if Url.isIntegrationTest() {
-    (m, Cmd.batch(list{API.integration(m, m.canvasName), API.loadPackages(m)}))
+    (m, Cmd.batch(list{API.initialLoadIntegrationTest(m, m.canvasName), API.loadPackages(m)}))
   } else {
     (
       m,
@@ -250,7 +250,7 @@ let applyOpsToClient = (updateCurrent, p: addOpAPIParams, r: addOpAPIResult): li
   RefreshUsages(Introspect.tlidsToUpdateUsage(p.ops)),
 }
 
-let isACOpened = (m: model): bool =>
+let isAutocompleteOpened = (m: model): bool =>
   FluidAutocomplete.isOpened(m.fluidState.ac) ||
   (FluidCommands.isOpened(m.fluidState.cp) ||
   AC.isOpened(m.complete))
@@ -2101,7 +2101,7 @@ let subscriptions = (m: model): Tea.Sub.t<msg> => {
     ),
   }
 
-  let mousewheelSubs = if m.canvasProps.enablePan && !isACOpened(m) {
+  let mousewheelSubs = if m.canvasProps.enablePan && !isAutocompleteOpened(m) {
     list{BrowserListeners.OnWheel.listen(~key="on_wheel", ((dx, dy)) => MouseWheel(dx, dy))}
   } else {
     list{}

@@ -214,7 +214,7 @@ let saveTest = (m: model): Tea.Cmd.t<msg> =>
     ~callback=x => SaveTestAPICallback(x),
   )
 
-let integration = (m: model, name: string): Tea.Cmd.t<msg> =>
+let initialLoadIntegrationTest = (m: model, name: string): Tea.Cmd.t<msg> =>
   apiCallNoParams(
     m,
     "/initial_load",

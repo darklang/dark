@@ -511,6 +511,7 @@ let analyzeFocused = (m: model): (model, Cmd.t<msg>) =>
     switch trace {
     | Some(
         _,
+        // CLEANUP consider whether this was an OCaml-specific thing; remove?
         Error(MaximumCallStackError),
       ) => /* Don't attempt to refetch if we blew the stack trying
        * to decode it */

@@ -343,7 +343,7 @@ let standardCategories = (m, hs, dbs, ufns, tipes) => {
     list{userTipeCategory(m, tipes)}
   }
 
-  let catergories = \"@"(
+  let categories = \"@"(
     list{
       httpCategory(hs),
       workerCategory(hs),
@@ -355,7 +355,7 @@ let standardCategories = (m, hs, dbs, ufns, tipes) => {
     tipes,
   )
 
-  catergories
+  categories
 }
 
 let packageManagerCategory = (pmfns: packageFns): category => {
@@ -393,14 +393,14 @@ let packageManagerCategory = (pmfns: packageFns): category => {
     })
   }
 
-  let uniqueauthors =
+  let uniqueAuthors =
     pmfns |> Map.values |> List.sortBy(~f=f => f.user) |> List.uniqueBy(~f=fn => fn.user)
 
-  let getAuthorEntries = uniqueauthors |> List.map(~f=fn => {
+  let getAuthorEntries = uniqueAuthors |> List.map(~f=fn => {
     let authorList = pmfns |> Map.values |> List.filter(~f=f => fn.user == f.user)
 
     Category({
-      count: List.length(uniqueauthors),
+      count: List.length(uniqueAuthors),
       name: fn.user,
       plusButton: None,
       iconAction: None,
@@ -411,7 +411,7 @@ let packageManagerCategory = (pmfns: packageFns): category => {
   })
 
   {
-    count: List.length(uniqueauthors),
+    count: List.length(uniqueAuthors),
     name: "Package Manager",
     plusButton: None,
     iconAction: None,
@@ -520,11 +520,13 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     }
   }
 
-  let iconspacer = Html.div(list{Html.class'("icon-spacer")}, list{})
-  let minuslink = /* This prevents the delete button appearing in the hover view.
+  let iconSpacer = Html.div(list{Html.class'("icon-spacer")}, list{})
+
+  /* This prevents the delete button appearing in the hover view.
    * We'll add it back in for 404s specifically at some point */
+  let minusLink =
   if m.permission == Some(Read) {
-    iconspacer
+    iconSpacer
   } else {
     switch e.minusButton {
     | Some(msg) =>
@@ -534,7 +536,7 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
         ~classname="delete-button",
         msg,
       )
-    | None => iconspacer
+    | None => iconSpacer
     }
   }
 
@@ -543,12 +545,12 @@ let viewEntry = (m: model, e: entry): Html.html<msg> => {
     if m.permission == Some(ReadWrite) {
       iconButton(~key=e.name ++ "-plus", ~icon="plus-circle", ~classname="add-button", msg)
     } else {
-      iconspacer
+      iconSpacer
     }
-  | None => iconspacer
+  | None => iconSpacer
   }
 
-  Html.div(list{Html.class'("simple-item")}, list{minuslink, linkItem, pluslink})
+  Html.div(list{Html.class'("simple-item")}, list{minusLink, linkItem, pluslink})
 }
 
 let viewDeploy = (d: staticDeploy): Html.html<msg> => {
