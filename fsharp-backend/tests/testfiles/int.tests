@@ -169,3 +169,37 @@ Int.divide_v0 1 0 = Test.typeError_v0 "Division by zero"
 
 Int.sum_v0 [1;2] = 3
 Int.sum_v0 [1.0;2] = Test.typeError_v0 "Expected the argument `a` to be a list of ints, but it was `[ \n  1., 2\n]`"
+
+
+Int.parse_v0 "0" = Ok 0
+Int.parse_v0 "1" = Ok 1
+Int.parse_v0 " 1" = Ok 1
+Int.parse_v0 "1 " = Ok 1
+Int.parse_v0 "+1" = Ok 1
+Int.parse_v0 " +1 " = Ok 1
+Int.parse_v0 "-1" = Ok -1
+Int.parse_v0 "078" = Ok 78 // "octal" format ignored
+Int.parse_v0 "-00001" = Ok -1
+Int.parse_v0 "-10001" = Ok -10001
+Int.parse_v0 "-4611686018427387904" = Ok -4611686018427387904L // OCaml lower limit
+Int.parse_v0 "-4611686018427387905" = Ok -4611686018427387905L // past the OCaml upper limit
+Int.parse_v0 "-9223372036854775808" = Ok -9223372036854775808L // .NET lower limit
+Int.parse_v0 "-9223372036854775809" = Error "Expected to parse string with only numbers, instead got \"-9223372036854775809\""
+Int.parse_v0 "4611686018427387903" = Ok 4611686018427387903L // OCaml upper limit
+Int.parse_v0 "4611686018427387904" = Ok 4611686018427387904L // past the OCaml upper limit
+Int.parse_v0 "9223372036854775807" = Ok 9223372036854775807L // .NET upper limit
+Int.parse_v0 "9223372036854775808" = Error "Expected to parse string with only numbers, instead got \"9223372036854775808\""
+Int.parse_v0 "1 2 3" = Error "Expected to parse string with only numbers, instead got \"1 2 3\""
+Int.parse_v0 "+ 1" = Error "Expected to parse string with only numbers, instead got \"+ 1\""
+Int.parse_v0 "- 1" = Error "Expected to parse string with only numbers, instead got \"- 1\""
+Int.parse_v0 "0xA" = Error "Expected to parse string with only numbers, instead got \"0xA\""
+Int.parse_v0 "0x123" = Error "Expected to parse string with only numbers, instead got \"0x123\""
+Int.parse_v0 "0b0100" = Error "Expected to parse string with only numbers, instead got \"0b0100\""
+Int.parse_v0 "pi" = Error "Expected to parse string with only numbers, instead got \"pi\""
+Int.parse_v0 "Math.pi" = Error "Expected to parse string with only numbers, instead got \"Math.pi\""
+Int.parse_v0 "1.23E+04" = Error "Expected to parse string with only numbers, instead got \"1.23E+04\""
+Int.parse_v0 "9223372036854775808" = Error "Expected to parse string with only numbers, instead got \"9223372036854775808\""
+Int.parse_v0 "" = Error "Expected to parse string with only numbers, instead got \"\""
+Int.parse_v0 "1I" = Error "Expected to parse string with only numbers, instead got \"1I\""
+Int.parse_v0 "one" = Error "Expected to parse string with only numbers, instead got \"one\""
+Int.parse_v0 "XIV" = Error "Expected to parse string with only numbers, instead got \"XIV\""
