@@ -117,7 +117,7 @@ let ocamlStringOfFloat (f : float) : string =
   // format "%.12g".
   // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
 
-  // CLEANUP We should move on to a nicer format. See DvalReprLegacyExternal.tests for edge cases. See:
+  // CLEANUP We should move on to a nicer format. See DvalRepr.Tests for edge cases. See:
   if System.Double.IsPositiveInfinity f then
     "inf"
   else if System.Double.IsNegativeInfinity f then
