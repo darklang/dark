@@ -42,7 +42,12 @@ let varErr = TVariable "err"
 //
 //   https://jwt.io/ is helpful for validating this!
 
-module Legacy =
+// SERIALIZER_DEF LibJwt.LegacySerializer
+// Plan: deprecate existing JWT fns; put these types and serializer fn in a
+// corner to remain untouched. New JWT functions should use a new
+// roundtrippable thing that is based on a type definition and is also separate
+// from the rest of the world (even if code is identical) for safety.
+module private LegacySerializer =
   // The LibJWT functions use signitures based off the exact string encoding of
   // Dvals. This was defined in the original OCaml version. We need to keep
   // this exactly the same or the signatures won't match.
@@ -195,17 +200,17 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     extraHeaders
     |> Map.add "alg" (DStr "RS256")
     |> Map.add "type" (DStr "JWT")
-    |> Map.mapWithIndex (fun k v -> Legacy.toYojson v)
+    |> Map.mapWithIndex (fun k v -> LegacySerializer.toYojson v)
     |> Map.toList
-    |> Legacy.Assoc
-    |> Legacy.toString
+    |> LegacySerializer.Assoc
+    |> LegacySerializer.toString
     |> UTF8.toBytes
     |> Base64.urlEncodeToString
 
   let payload =
     payload
-    |> Legacy.toYojson
-    |> Legacy.toString
+    |> LegacySerializer.toYojson
+    |> LegacySerializer.toString
     |> UTF8.toBytes
     |> Base64.urlEncodeToString
 

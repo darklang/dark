@@ -90,6 +90,11 @@ module WorkerStates =
       override _.Write(writer : Utf8JsonWriter, value : State, _options) =
         writer.WriteStringValue(string value)
 
+  // SERIALIZER_DEF Newtonsoft QueueSchedulingRules.JsonConverter
+  // (not quite a serializer - just a converter referenced in LibBackend.Init)
+  // We use this in APIs only (and maybe pusher)
+  // Plan: remove this; replace with `dark-editor` replacement of ApiServer
+  // Difficulty: easyish
   module JsonConverter =
     open Newtonsoft.Json
     open Newtonsoft.Json.Converters
@@ -97,7 +102,7 @@ module WorkerStates =
     type WorkerStateConverter() =
       inherit JsonConverter<State>()
 
-      override this.ReadJson(reader : JsonReader, _typ, _, _, serializer) : State =
+      override this.ReadJson(reader : JsonReader, _typ, _, _, _serializer) : State =
         reader.Value :?> string |> parse
 
       override this.WriteJson
